@@ -1,0 +1,4 @@
+export const STYLES_ACTION_TYPES = {
+  OPEN_SIDEBAR: 'styles/OPEN_SIDEBAR',
+  CLOSE_SIDEBAR: 'styles/CLOSE_SIDEBAR',
+};

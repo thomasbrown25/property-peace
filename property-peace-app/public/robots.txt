@@ -1,0 +1,15 @@
+# robots.txt for Brownstone Hub
+# https://brownstonehub.com/robots.txt
+
+User-agent: *
+Allow: /
+Disallow: /landlord/
+Disallow: /tenant/
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://brownstonehub.com/sitemap.xml
+
+# Crawl-delay (optional, helps prevent server overload)
+Crawl-delay: 1

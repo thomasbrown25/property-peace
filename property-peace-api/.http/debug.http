@@ -1,0 +1,13 @@
+//@Host = https://localhost:5001
+@Host = https://property-peace-api.azurewebsites.net
+
+###
+GET {{Host}}/api/debug/crash
+Accept: application/json
+Content-Type: application/json
+
+
+###
+GET {{Host}}/api/debug/throw-500
+Accept: application/json
+Content-Type: application/json

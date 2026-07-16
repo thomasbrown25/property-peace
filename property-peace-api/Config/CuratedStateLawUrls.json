@@ -1,0 +1,25 @@
+{
+  "comment": "Official .gov URLs for state late-fee and security-deposit laws. Add or fix URLs as needed. Leave null to fall back to AI-only (no URL).",
+  "sources": {
+    "NC": {
+      "lateFeeUrl": "https://www.ncleg.gov/Laws/GeneralStatuteSections/Chapter42",
+      "securityDepositUrl": "https://www.ncleg.gov/Laws/GeneralStatuteSections/Chapter42"
+    },
+    "CA": {
+      "lateFeeUrl": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=CIV&sectionNum=1947.3",
+      "securityDepositUrl": "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=CIV&sectionNum=1950.5"
+    },
+    "TX": {
+      "lateFeeUrl": "https://statutes.capitol.texas.gov/Docs/PR/htm/PR.92.htm",
+      "securityDepositUrl": "https://statutes.capitol.texas.gov/Docs/PR/htm/PR.92.htm"
+    },
+    "FL": {
+      "lateFeeUrl": "https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&URL=0000-0099/0083/0083.html",
+      "securityDepositUrl": "https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&URL=0000-0099/0083/0083.html"
+    },
+    "KS": {
+      "lateFeeUrl": "https://kslegislature.gov/li_2024/b2023_24/statute/058_000_0000_chapter/058_008_0000_article/058_008_0016a_section/058_008_0016a_k/",
+      "securityDepositUrl": "https://kslegislature.gov/li_2024/b2023_24/statute/058_000_0000_chapter/058_008_0000_article/"
+    }
+  }
+}

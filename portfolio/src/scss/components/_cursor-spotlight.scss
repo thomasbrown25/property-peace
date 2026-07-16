@@ -1,0 +1,19 @@
+/**
+ * Cursor spotlight / flashlight effect
+ * Darkens the page except in a soft circle around the cursor (lit area)
+ */
+
+.mi-cursor-spotlight {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 11;
+  background: radial-gradient(
+    circle 320px at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    transparent 0%,
+    transparent 80px,
+    rgba(0, 0, 0, 0.12) 160px,
+    rgba(0, 0, 0, 0.28) 260px,
+    rgba(0, 0, 0, 0.38) 320px
+  );
+}

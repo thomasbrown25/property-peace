@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.002.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "property-peace-api", "property-peace-api.csproj", "{CEC6AD35-6E9D-4B48-A699-0058A8F0BAE6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "property-peace-api.Tests", "..\property-peace-api.Tests\property-peace-api.Tests.csproj", "{D7E8F9A0-B1C2-4D3E-8F5A-6B7C8D9E0F1A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CEC6AD35-6E9D-4B48-A699-0058A8F0BAE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CEC6AD35-6E9D-4B48-A699-0058A8F0BAE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CEC6AD35-6E9D-4B48-A699-0058A8F0BAE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CEC6AD35-6E9D-4B48-A699-0058A8F0BAE6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D7E8F9A0-B1C2-4D3E-8F5A-6B7C8D9E0F1A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D7E8F9A0-B1C2-4D3E-8F5A-6B7C8D9E0F1A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D7E8F9A0-B1C2-4D3E-8F5A-6B7C8D9E0F1A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D7E8F9A0-B1C2-4D3E-8F5A-6B7C8D9E0F1A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B1E30FD0-1656-477F-898A-782AAAA743A4}
+	EndGlobalSection
+EndGlobal

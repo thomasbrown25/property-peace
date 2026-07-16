@@ -1,0 +1,60 @@
+name: Azure Static Web Apps - property-peace-marketing
+
+on:
+  push:
+    branches: [prod]
+    paths:
+      - "property-peace-marketing/**"
+      - ".github/workflows/azure-static-web-apps-marketing.yml"
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [prod]
+    paths:
+      - "property-peace-marketing/**"
+      - ".github/workflows/azure-static-web-apps-marketing.yml"
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        working-directory: property-peace-marketing
+        run: npm ci --no-audit --no-fund --loglevel=error
+
+      - name: Build Next.js app
+        working-directory: property-peace-marketing
+        run: npm run build
+
+      - name: Deploy to Azure Static Web Apps
+        if: github.event_name == 'push'
+        working-directory: property-peace-marketing
+        env:
+          SWA_CLI_DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_PLANT_03F5A1C0F }}
+        run: npx --yes @azure/static-web-apps-cli@2.0.9 deploy ./out --env production --swa-config-location .
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_PLANT_03F5A1C0F }}
+          action: "close"
+          app_location: "property-peace-marketing/out"

@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET Core Launch (web)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      "program": "${workspaceFolder}/property-peace-api/bin/Debug/net9.0/property-peace-api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/property-peace-api",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      // "serverReadyAction": {
+      //   "action": "openExternally",
+      //   "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
+      //   "uriFormat": "%s/swagger/index.html"
+      // },
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AZURE_APP_CONFIG_CONNECTION_STRING": "[REDACTED]",
+        "AZURE_CLIENT_ID": "[REDACTED]",
+        "AZURE_CLIENT_SECRET": "[REDACTED]",
+        "AZURE_TENANT_ID": "[REDACTED]",
+        "JwtSettings:SecretKey": "[REDACTED]",
+        "JwtSettings:Issuer": "brownstonehubllc",
+        "JwtSettings:Audience": "brownstonehubllcUsers",
+        "JwtSettings:ExpiresInMinutes": "525600",
+        "AzureBlobStorage:AccountKey": "[REDACTED]",
+        "ConnectionStrings__AzureSQLDatabase": "[REDACTED]",
+        "ConnectionStrings__AzureBlobStorage": "[REDACTED]",
+        "Cors__AllowedOrigins__0": "http://localhost:3000",
+        "Cors__AllowedOrigins__1": "https://localhost:3000"
+      },
+      "sourceFileMap": {
+        "/Views": "${workspaceFolder}/property-peace-api/Views"
+      }
+    },
+    {
+      "name": ".NET Core Attach",
+      "type": "coreclr",
+      "request": "attach"
+    }
+  ]
+}

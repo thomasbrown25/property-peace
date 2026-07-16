@@ -1,0 +1,8 @@
+Date,Description,Amount,Reference,CheckNumber
+2025-12-31,Rent Payment from Tenant,1500.00,PAY001,
+2026-01-01,Maintenance Expense,-250.00,EXP001,
+2026-01-05,Property Management Fee,-100.00,PM001,
+2026-01-07,Rent Payment from Tenant,1200.00,PAY002,
+2026-01-10,Bank Fee,-5.00,,
+2026-01-13,Transfer from Savings,5000.00,TRF001,
+2026-01-15,Utility Payment,-125.50,UTIL001,

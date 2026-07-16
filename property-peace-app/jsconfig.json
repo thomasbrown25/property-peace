@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "esModuleInterop": false,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": "src",
+    "paths": {
+      "*": ["*"],
+      "hooks/*": ["hooks/*"],
+      "components/*": ["components/*"],
+      "store/*": ["store/*"],
+      "api/*": ["api/*"],
+      "utils/*": ["utils/*"],
+      "contexts/*": ["contexts/*"]
+    }
+  },
+  "exclude": ["node_modules"],
+  "include": ["src", "**/*.js", "**/*.jsx", "src/**/*"],
+  "references": [{ "path": "./jsconfig.node.json" }]
+}

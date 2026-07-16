@@ -1,0 +1,295 @@
+import type { Metadata } from 'next';
+
+type OttoSeoOverride = {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  openGraphTitle?: string;
+  openGraphDescription?: string;
+  openGraphUrl?: string;
+  twitterTitle?: string;
+  twitterDescription?: string;
+};
+
+const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
+  '/': {
+    title: 'Property Management Software for Small Landlords | Property Peace',
+    description: 'Manage rent, tenants, leases & expenses calmly with Property Peace. Built for landlords (1-50 units). AI-powered efficiency. Start free today!',
+    canonical: 'https://propertypeace.io/',
+    openGraphTitle: 'Small Landlord Software: Manage 1-50 Units Free',
+    twitterTitle: 'Simplify Landlord Life: Free Software for 1-50 Units!',
+  },
+  '/blog/': {
+    openGraphUrl: 'https://propertypeace.io/blog/',
+    twitterTitle: 'Manage Rentals Smarter: Free Software for 1-50 Units!',
+  },
+  '/contact-us/': {
+    title: 'Contact Property Peace: Support & Inquiries',
+    description: 'Contact Property Peace for 24/7 support. Reach us at support@propertypeace.io for product questions, billing help, demo requests, and landlord software support.',
+    canonical: 'https://propertypeace.io/contact-us/',
+    openGraphUrl: 'https://propertypeace.io/contact-us/',
+  },
+  '/demo/': {
+    title: 'Book a Property Management Demo | Property Peace',
+    description: 'Book a Property Peace demo to streamline your property management. Complete a short form to pick a time and see how AI simplifies rent, maintenance, and leases.',
+    openGraphTitle: 'Manage Properties Easily: Try Property Peace Free',
+  },
+  '/features/': {
+    title: 'Property Management Software Features: Streamline Your Landlord Tasks | Property Peace',
+    description: 'Property Peace features: AI rent collection, maintenance, leases, and accounting for landlords. Simplify property management.',
+    canonical: 'https://propertypeace.io/features',
+    twitterTitle: 'Property Peace: Simplify Landlord Life. Free Plan! #PropTech',
+    twitterDescription: 'Simplify rent, leases, maintenance & expenses. Property Peace: your calm dashboard for 1-50 units. Start free! #LandlordLife',
+  },
+  '/features/ai-summaries/': {
+    title: 'AI Summaries: Simplify Your Property Management | Property Peace',
+    description: 'Property Peace AI Summaries: Instant, plain-English overviews of your portfolio. Simplify rent, maintenance, and tenant activity. Try Property Peace.',
+    openGraphDescription: "Property Peace's AI Summaries give landlords instant, clear overviews of their entire portfolio. Simplify management & reclaim your weekends!",
+    twitterDescription: 'Get instant AI summaries of your portfolio: rent, maintenance, leases & more. Simple tools for landlords. #PropertyManagement',
+  },
+  '/features/all-in-one-dashboard/': {
+    description: 'Property Peace dashboard: Real-time overview of properties, tenants, leases & finances. Simple management for independent landlords.',
+    canonical: 'https://propertypeace.io/features/all-in-one-dashboard',
+    openGraphDescription: "Manage your rentals effortlessly! Property Peace's dashboard offers independent landlords a real-time overview of properties, tenants, leases & finances.",
+    twitterDescription: 'Simplify property management! Real-time overview of properties, tenants, leases & finances in one dashboard. #LandlordLife',
+  },
+  '/features/automation/': {
+    description: 'Property Peace automation: Streamline rent, leases & maintenance with smart reminders. Simple tools for independent landlords. Get your weekends back.',
+    canonical: 'https://propertypeace.io/features/automation',
+    openGraphDescription: 'Automate rent reminders, lease expirations & maintenance follow-ups. Property Peace: Simple, smart property management for independent landlords.',
+  },
+  '/features/document-management/': {
+    description: 'Property Peace: Secure cloud storage for all property documents. Simple management for independent landlords. Learn more.',
+    canonical: 'https://propertypeace.io/features/document-management',
+    openGraphDescription: 'Securely store & organize all your property docs in the cloud! Property Peace offers simple, bloat-free management for independent landlords.',
+  },
+  '/features/financial-reports/': {
+    canonical: 'https://propertypeace.io/features/financial-reports',
+  },
+  '/features/lease-management/': {
+    canonical: 'https://propertypeace.io/features/lease-management',
+  },
+  '/features/lease-shield/': {
+    canonical: 'https://propertypeace.io/features/lease-shield/',
+    openGraphTitle: 'LeaseShield: AI Legal Answers for Small Landlords',
+  },
+  '/features/maintenance-tracking/': {
+    description: 'Property Peace: Streamline tenant maintenance requests & track work orders. Simple tools for independent landlords. Learn more.',
+    canonical: 'https://propertypeace.io/features/maintenance-tracking',
+    openGraphDescription: 'Tired of maintenance chaos? Property Peace simplifies tenant requests & work orders. Manage repairs efficiently, not with enterprise bloat.',
+    twitterDescription: 'Simplify tenant maintenance & track work orders. Simple property tools for landlords, no enterprise bloat. #LandlordLife',
+  },
+  '/features/payment-processing/': {
+    description: 'Property Peace: Accept online rent payments via Stripe with automated tracking. Simple property management for landlords. Get organized!',
+    canonical: 'https://propertypeace.io/features/payment-processing',
+    openGraphDescription: 'Collect rent online effortlessly with Property Peace & Stripe! Simple payment processing, automated tracking, and reminders for independent landlords.',
+    twitterDescription: 'Streamline rent collection with easy online payments & automated tracking. Simple tools for landlords. #PropertyManagement',
+  },
+  '/features/property-management/': {
+    canonical: 'https://propertypeace.io/features/property-management',
+    openGraphDescription: 'Simplify property management for independent landlords. Organize leases, rent, maintenance & more with Property Peace – your calm in the chaos.',
+  },
+  '/features/rent-collection/': {
+    canonical: 'https://propertypeace.io/features/rent-collection',
+  },
+  '/features/rent-estimate/': {
+    description: 'Property Peace rent estimates: Instant, data-driven pricing for landlords. Optimize income with accurate rent ranges. Simple property management.',
+    openGraphDescription: 'Price your rental perfectly! Get instant, data-driven rent estimates for your property with Property Peace. Simple tools for independent landlords.',
+  },
+  '/features/real-time-communication/': {
+    description: 'Property Peace: Instant tenant messaging with SignalR. Simple property management for landlords. No enterprise bloat.',
+    canonical: 'https://propertypeace.io/features/real-time-communication',
+    openGraphDescription: 'Real-time tenant messaging for landlords. Property Peace offers simple, bloat-free property management tools.',
+  },
+  '/features/rental-applications/': {
+    canonical: 'https://propertypeace.io/features/rental-applications',
+  },
+  '/features/tenant-communication/': {
+    description: 'Property Peace: Streamline tenant communication with in-app, email, and SMS notifications. Simple tools for independent landlords, free for up to 2 units.',
+    canonical: 'https://propertypeace.io/features/tenant-communication',
+    openGraphDescription: 'Connect with tenants via in-app, email, & SMS. Simple property management for independent landlords.',
+  },
+  '/free-landlord-software/': {
+    title: 'Free Landlord Software: Manage Rent, Leases & Maintenance | Property Peace',
+    description: "Manage rent, tenants, and leases with Property Peace's free landlord software. Ideal for 1-50 units, it simplifies tasks. Start free today!",
+    openGraphTitle: 'Free Landlord Software: Manage Small Rentals Effortlessly',
+    twitterTitle: 'Free Landlord Software: Manage Rentals Peacefully!',
+    twitterDescription: 'Simplify rent, tenants, leases, & expenses. Free for small landlords! #PropertyManagement',
+  },
+  '/help-center/': {
+    title: 'Property Peace Help Center: Support & FAQs for Landlords',
+    canonical: 'https://propertypeace.io/help-center/',
+    openGraphUrl: 'https://propertypeace.io/help-center/',
+  },
+  '/landlord-accounting-software/': {
+    title: 'Landlord Accounting Software: Simplify Rental Finances | Property Peace',
+    description: 'Property Peace landlord accounting: Simplify rent, expenses, and tax records for 1–50 units. Track performance & prepare taxes. Start free.',
+    openGraphTitle: 'Simplify Rental Finances with Property Peace Software',
+  },
+  '/landlord-software/': {
+    canonical: 'https://propertypeace.io/landlord-software/',
+    openGraphTitle: 'Smart Landlord Software: Manage 1-50 Units Free',
+    openGraphUrl: 'https://propertypeace.io/landlord-software/',
+  },
+  '/lease-shield/blog/': {
+    openGraphTitle: 'Landlord Legal Risk Reduced with LeaseShield Examples',
+  },
+  '/listings/': {
+    openGraphTitle: 'Create Shareable Rental Listings & Collect Applications Fast',
+    twitterTitle: 'Manage Properties Effortlessly: Landlord Software for All!',
+    twitterDescription: 'Streamline rent, tenants, leases & expenses! Property Peace is your calm dashboard for 1-50 units. Start free. #LandlordLife',
+  },
+  '/maintenance/ai-maintenance/': {
+    description: 'Property Peace AI maintenance software stops lost requests & text chaos. AI categorizes, prioritizes work orders, and tracks vendors for small landlords. Try',
+    openGraphUrl: 'https://propertypeace.io/maintenance/ai-maintenance/',
+    twitterTitle: 'Manage Rentals Effortlessly: Landlord Software for 1-50',
+  },
+  '/maintenance-request-software-for-landlords/': {
+    title: 'Streamline Maintenance Requests: Organize Repairs & History | Property Peace',
+    description: 'Organize tenant maintenance requests, photos, and repair history in one landlord dashboard. Property Peace: streamline repairs for small rental owners. Start',
+    twitterTitle: 'Landlord Maintenance Software: Simplify Requests Now!',
+    twitterDescription: 'Organize tenant maintenance, photos, and history in one dashboard. Built for small landlords. Start free! #PropertyManagement',
+  },
+  '/pricing/': {
+    title: 'Property Peace Pricing: Free Plan & Premium Features',
+    description: 'Start free with landlord software for up to 2 units. Upgrade for unlimited units, LeaseShield, AI tools, rent workflows, and financial reports.',
+    canonical: 'https://propertypeace.io/pricing',
+    openGraphTitle: 'Property Peace Pricing: Free Plan & Premium Features',
+    twitterTitle: 'Property Peace: Manage 1-50 Units FREE! #LandlordLife',
+  },
+  '/privacy/': {
+    canonical: 'https://propertypeace.io/privacy/',
+    openGraphUrl: 'https://propertypeace.io/privacy/',
+  },
+  '/property-management-app/': {
+    canonical: 'https://propertypeace.io/property-management-app/',
+    openGraphUrl: 'https://propertypeace.io/property-management-app/',
+  },
+  '/property-management-software-for-small-landlords/': {
+    title: 'Property Management Software for Small Landlords | Property Peace',
+    description: 'Property Peace software for small landlords (1-50 units). Organize rent, tenants, leases, maintenance & expenses. Try our free plan today!',
+    openGraphTitle: 'Organize Your Rentals: Simple Software for Small Landlords',
+  },
+  '/rent-collection-software-for-landlords/': {
+    title: 'Rent Collection Software for Landlords | Property Peace',
+    description: 'Property Peace: Track rent, reminders, & tenant records. Manage payments, overdue balances easily. Start free for small landlords.',
+    twitterDescription: 'Simplify rent tracking, reminders & payments for your rental business. Manage tenants easily. Start free! #LandlordLife',
+  },
+  '/rental-management-software/': {
+    canonical: 'https://propertypeace.io/rental-management-software/',
+  },
+  '/rent/rent-reporting/': {},
+  '/sitemap/': {
+    title: 'Property Peace Sitemap: Navigate All Features and Resources',
+    canonical: 'https://propertypeace.io/sitemap/',
+    openGraphUrl: 'https://propertypeace.io/sitemap/',
+    twitterTitle: 'Manage 1-50 Units: Try Property Peace Free! #Landlord',
+    twitterDescription: 'Manage rent, tenants, leases, maintenance, & expenses easily! Property Peace for small landlords. Start free!',
+  },
+  '/small-landlord-tools/': {
+    canonical: 'https://propertypeace.io/small-landlord-tools/',
+    openGraphUrl: 'https://propertypeace.io/small-landlord-tools/',
+  },
+  '/terms/': {
+    title: 'Property Peace Terms of Use',
+    canonical: 'https://propertypeace.io/terms/',
+    openGraphUrl: 'https://propertypeace.io/terms/',
+    twitterTitle: 'Property Peace Terms of Use: Your Guide to Our Software',
+  },
+};
+
+const blogTitleOverrides: Record<string, string> = {
+  '/blog/property-management-software-austin-texas/': 'Property Management Software for Austin Landlords | Property Peace',
+  '/blog/property-management-software-vs-spreadsheets/': 'Property Management Software vs. Spreadsheets for Landlords | Property Peace',
+  '/blog/property-management-software-charlotte-nc/': 'Property Management Software Guide for Charlotte Landlords | Property Peace',
+  '/blog/landlord-move-in-move-out-checklist/': 'Landlord Move-In & Move-Out Checklist: Property Peace Guide',
+};
+
+const blogCanonicalPaths = [
+  '/blog/manage-multiple-rental-properties/',
+  '/blog/tax-deductions-landlords-complete-guide/',
+  '/blog/how-to-screen-tenants-complete-guide/',
+  '/blog/property-management-software-whats-new-2025/',
+  '/blog/best-property-management-app-solo-landlords/',
+  '/blog/how-to-choose-property-management-software-for-small-landlords/',
+  '/blog/property-management-software-small-apartment-buildings/',
+  '/blog/how-to-handle-maintenance-requests-like-pro/',
+  '/blog/property-management-software-austin-texas/',
+  '/blog/online-rent-collection-property-management-software/',
+  '/blog/rental-property-cash-flow-template-landlords/',
+  '/blog/how-to-increase-rental-property-roi-software/',
+  '/blog/property-management-software-pricing-2024/',
+  '/blog/property-management-software-vs-spreadsheets/',
+  '/blog/prepare-rental-properties-2025-tax-season/',
+  '/blog/property-management-software-trends-2025/',
+  '/blog/best-property-management-software-airbnb-hosts/',
+  '/blog/how-to-write-lease-agreement-landlord-guide/',
+  '/blog/landlord-maintenance-checklist-prevent-costly-repairs/',
+  '/blog/scale-rental-property-business-2025/',
+  '/blog/essential-features-landlord-software/',
+  '/blog/property-management-software-charlotte-nc/',
+  '/blog/property-management-software-reviews-top-10-2024/',
+  '/blog/property-management-software-vs-hiring-property-manager/',
+  '/blog/streamline-rent-collection-property-management-software/',
+  '/blog/landlord-move-in-move-out-checklist/',
+];
+
+for (const path of blogCanonicalPaths) {
+  ottoSeoOverrides[path] = {
+    ...(ottoSeoOverrides[path] ?? {}),
+    title: blogTitleOverrides[path] ?? ottoSeoOverrides[path]?.title,
+    canonical: `https://propertypeace.io${path}`,
+    openGraphUrl: `https://propertypeace.io${path}`,
+  };
+}
+
+function candidatePaths(path: string) {
+  const leading = path.startsWith('/') ? path : `/${path}`;
+  const withoutQuery = leading.split(/[?#]/)[0];
+  const noTrailing = withoutQuery.length > 1 ? withoutQuery.replace(/\/+$/, '') : withoutQuery;
+  const trailing = noTrailing === '/' ? '/' : `${noTrailing}/`;
+  return [withoutQuery, trailing, noTrailing];
+}
+
+export function getOttoSeo(path: string): OttoSeoOverride | undefined {
+  for (const candidate of candidatePaths(path)) {
+    const override = ottoSeoOverrides[candidate];
+    if (override) return override;
+  }
+  return undefined;
+}
+
+export function applyOttoSeo(path: string, metadata: Metadata = {}): Metadata {
+  const override = getOttoSeo(path);
+  if (!override) return metadata;
+
+  const title = override.title ?? metadata.title;
+  const description = override.description ?? metadata.description;
+  const openGraphTitle = override.openGraphTitle ?? metadata.openGraph?.title ?? title;
+  const openGraphDescription = override.openGraphDescription ?? metadata.openGraph?.description ?? description;
+  const openGraphUrl = override.openGraphUrl ?? override.canonical ?? metadata.openGraph?.url;
+  const twitterTitle = override.twitterTitle ?? metadata.twitter?.title ?? title;
+  const twitterDescription = override.twitterDescription ?? metadata.twitter?.description ?? description;
+
+  return {
+    ...metadata,
+    title,
+    description,
+    alternates: {
+      ...metadata.alternates,
+      ...(override.canonical ? { canonical: override.canonical } : {}),
+    },
+    openGraph: {
+      ...metadata.openGraph,
+      ...(openGraphTitle ? { title: openGraphTitle } : {}),
+      ...(openGraphDescription ? { description: openGraphDescription } : {}),
+      ...(openGraphUrl ? { url: openGraphUrl } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      ...metadata.twitter,
+      ...(twitterTitle ? { title: twitterTitle } : {}),
+      ...(twitterDescription ? { description: twitterDescription } : {}),
+    },
+  };
+}

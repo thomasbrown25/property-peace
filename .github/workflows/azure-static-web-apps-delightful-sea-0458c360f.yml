@@ -1,0 +1,46 @@
+name: Azure Static Web Apps - property-peace-app
+
+on:
+  push:
+    branches: [prod]
+    paths:
+      - "property-peace-app/**"
+      - "shared/**"
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    runs-on: ubuntu-latest
+    name: Build and Deploy Web App
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Build and Deploy to Azure Static Web Apps
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_DELIGHTFUL_SEA_0458C360F }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: "property-peace-app"
+          api_location: ""
+          skip_api_build: true
+          output_location: "dist"
+          app_build_command: |
+            npm ci --no-audit --no-fund --loglevel=error
+            npm install @rollup/rollup-linux-x64-gnu --no-save --no-audit --no-fund 2>/dev/null || true 
+            npm run build
+        env:
+          NODE_VERSION: "20"
+          NODE_OPTIONS: "--max-old-space-size=4096"

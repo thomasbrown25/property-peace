@@ -1,0 +1,34 @@
+//@Host = https://localhost:5001
+@Host = https://property-peace-api.azurewebsites.net
+
+
+### 
+POST {{Host}}/api/user/register
+Accept: application/json
+Content-Type: application/json
+
+{
+    "firstname": "Zane",
+    "lastname": "Warner",
+    "email": "Zane.Warner@gmail.com",
+    "phoneNumber": "555-555-5555",
+    "height": "5'11",
+    "weight": "215",
+    "password": "client123",
+    "registrationCode": "client"
+}
+
+###
+POST {{Host}}/api/user/login
+Accept: application/json
+Content-Type: application/json
+
+{
+    "email": "reggie.thomas@gmail.com",
+    "password": "trainer123"
+}
+
+###
+GET {{Host}}/api/user/throw-error
+Accept: application/json
+Content-Type: application/json

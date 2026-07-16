@@ -1,0 +1,68 @@
+using brownstone_hub_api.Enums;
+
+namespace brownstone_hub_api.Dtos.Listing
+{
+    public class UpdateListingDto
+    {
+        public long Id { get; set; }
+        public EListingStatus? Status { get; set; }
+        
+        // Property Details
+        public int? SquareFeet { get; set; }
+        public decimal? MonthlyRent { get; set; }
+        public decimal? SecurityDeposit { get; set; }
+        public int? YearBuilt { get; set; }
+        
+        // Lease Details
+        public DateTime? DateAvailable { get; set; }
+        public string? MinLeaseDuration { get; set; }
+        public string? MaxLeaseDuration { get; set; }
+        public string? AdditionalLeaseTermsNotes { get; set; }
+        
+        // Pet Policy
+        public bool? PetsAllowed { get; set; }
+        
+        // Marketing
+        public string? MarketingDescription { get; set; }
+        public string? VideoTourUrl { get; set; }
+        
+        // Application Settings
+        public bool? AcceptOnlineApplications { get; set; }
+        public bool? ApplicationFeeRequired { get; set; }
+        public decimal? ApplicationFee { get; set; }
+        
+        // Screening & Verification
+        public bool? RequireScreening { get; set; }
+        public EScreeningType? ScreeningType { get; set; }
+        public bool? RequireIncomeVerification { get; set; }
+        public decimal? IncomeVerificationCost { get; set; }
+        
+        // Listing Contact
+        public long? ListingContactId { get; set; }
+        public string? ListingContactName { get; set; }
+        public string? ListingContactPhone { get; set; }
+        public string? ListingContactEmail { get; set; }
+        
+        // Syndication
+        public bool? SyndicateToListingWebsite { get; set; }
+        public bool? SyndicateToFreeSites { get; set; }
+        public bool? SyndicateToPremiumSites { get; set; }
+
+        /// <summary>
+        /// Published URL path segment (e.g. "1317-shannon-house-drive-charlotte-nc-28215"). Set on publish.
+        /// </summary>
+        public string? CustomListingUrl { get; set; }
+        
+        // Amenities and Features (ids from API; use these when UI has real ids)
+        public List<long>? BasicAmenityIds { get; set; }
+        public List<long>? DefaultAmenityIds { get; set; }
+        public List<long>? CustomAmenityIds { get; set; }
+        public List<long>? DefaultFeatureIds { get; set; }
+        public List<long>? CustomFeatureIds { get; set; }
+
+        // When UI used fallback options (negative ids), send by name so backend can resolve to real ids
+        public List<AmenitySelectionDto>? BasicAmenitySelections { get; set; }
+        public List<AmenitySelectionDto>? DefaultAmenitySelections { get; set; }
+        public List<AmenitySelectionDto>? DefaultFeatureSelections { get; set; }
+    }
+}

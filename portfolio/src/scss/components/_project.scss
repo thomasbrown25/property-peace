@@ -1,0 +1,103 @@
+/**
+ * /*
+ * Project
+ *
+ * @format
+ */
+
+.mi-project {
+  transition: $transition;
+  visibility: hidden;
+  opacity: 0;
+
+  &-tech-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    margin: 25px 0px 10px;
+    padding: 0;
+    list-style: none;
+
+    li {
+      margin: 0 0 5px 15px;
+    }
+  }
+
+  &-image {
+    display: block;
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(3, 127, 255, 0.18);
+
+    img {
+      width: 100%;
+      display: block;
+      border-radius: 12px;
+    }
+
+    img[role="button"] {
+      cursor: pointer;
+    }
+
+    &-link {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      color: #ffffff;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+
+      svg {
+        width: 48px;
+        height: 48px;
+      }
+
+      &:hover {
+        color: $color-theme;
+      }
+    }
+  }
+
+  &:hover &-image-link {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  h5 {
+    color: $color-heading;
+    margin-top: 15px;
+    margin-bottom: 0;
+    font-weight: 700;
+    text-align: center;
+
+    a {
+      color: #ffffff;
+      transition: $transition;
+
+      &:hover {
+        color: $color-theme;
+      }
+    }
+  }
+
+  h6 {
+    color: $color-body;
+    margin-bottom: 0;
+    text-align: center;
+  }
+
+  &.mi-project-visible {
+    visibility: visible;
+    opacity: 1;
+  }
+}

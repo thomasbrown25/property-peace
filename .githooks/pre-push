@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# Pre-push hook: Block push to prod if API, app, or marketing builds fail,
+# or if any unit tests fail.
+# Install: cp .githooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+
+set -e
+
+# Check if we're pushing to prod
+pushing_to_prod=false
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$remote_ref" == refs/heads/prod ]]; then
+    pushing_to_prod=true
+    break
+  fi
+done
+
+if [[ "$pushing_to_prod" != "true" ]]; then
+  exit 0
+fi
+
+echo "Pushing to prod - running builds and tests to validate..."
+
+# Git hooks can run from Git Bash (MINGW64), which may not inherit the full
+# Windows PATH. Make sure dotnet is discoverable before the API checks run.
+ensure_dotnet_on_path() {
+  if command -v dotnet >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local candidate unix_candidate
+  for candidate in \
+    "${DOTNET_ROOT:-}" \
+    "${ProgramFiles:-}/dotnet" \
+    "${PROGRAMFILES:-}/dotnet" \
+    "${ProgramW6432:-}/dotnet" \
+    "${ProgramFiles_x86:-}/dotnet" \
+    "/c/Program Files/dotnet" \
+    "/c/Program Files (x86)/dotnet"; do
+    [[ -n "$candidate" ]] || continue
+
+    unix_candidate="$candidate"
+    if command -v cygpath >/dev/null 2>&1; then
+      unix_candidate="$(cygpath -u "$candidate" 2>/dev/null || printf '%s' "$candidate")"
+    fi
+
+    if [[ -x "$unix_candidate/dotnet" || -x "$unix_candidate/dotnet.exe" ]]; then
+      export PATH="$unix_candidate:$PATH"
+      export DOTNET_ROOT="$unix_candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+ensure_dotnet_on_path || {
+  echo "ERROR: dotnet was not found on PATH and could not be located in the standard Windows install folders."
+  echo "Install .NET SDK or add its install directory, usually C:\\Program Files\\dotnet, to PATH."
+  exit 1
+}
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Builds can fail on Windows-backed working trees: npm may fail unlinking
+# Windows-managed node_modules packages, and .NET/MSBuild can hit bin/obj
+# timestamp/permission issues. Validate from a clean temp copy that excludes
+# node_modules/bin/obj so npm ci and dotnet build run against fresh artifacts.
+VALIDATION_ROOT="$ROOT"
+TMP_ROOT=""
+KERNEL="$(uname -r 2>/dev/null || true)"
+PROC_VERSION="$(tr '[:upper:]' '[:lower:]' </proc/version 2>/dev/null || true)"
+case "$ROOT" in
+  /mnt/*|[A-Za-z]:/*|[A-Za-z]:\\*) needs_validation_copy=true ;;
+  *) needs_validation_copy=false ;;
+esac
+
+if [[ "$needs_validation_copy" == "true" || "$KERNEL" == *WSL* || "$PROC_VERSION" == *microsoft* || "$PROC_VERSION" == *wsl* ]]; then
+  TMP_ROOT="${TMPDIR:-/tmp}/property-peace-prepush-$$"
+  echo ""
+  echo "Preparing validation copy on local temp filesystem..."
+  mkdir -p "$TMP_ROOT"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete \
+      --exclude='.git' \
+      --exclude='bin' --exclude='obj' \
+      --exclude='*/bin' --exclude='*/obj' \
+      --exclude='node_modules' --exclude='*/node_modules' \
+      --exclude='.next' --exclude='*/.next' \
+      "$ROOT/" "$TMP_ROOT/"
+  elif command -v tar >/dev/null 2>&1; then
+    # Git Bash on Windows often does not include rsync. Use tar as a portable
+    # fallback while preserving the same validation-copy exclusions.
+    (cd "$ROOT" && tar \
+      --exclude='./.git' \
+      --exclude='./bin' --exclude='./obj' \
+      --exclude='*/bin' --exclude='*/obj' \
+      --exclude='./node_modules' --exclude='*/node_modules' \
+      --exclude='./.next' --exclude='*/.next' \
+      -cf - .) | (cd "$TMP_ROOT" && tar -xf -)
+  else
+    echo "ERROR: pre-push validation requires either rsync or tar to create the temp validation copy."
+    exit 1
+  fi
+  VALIDATION_ROOT="$TMP_ROOT"
+  cleanup() {
+    rm -rf "$TMP_ROOT"
+  }
+  trap cleanup EXIT
+fi
+
+# Shut down any reused MSBuild nodes before validating. This avoids stale/locked
+# build-server state from local IDE/API runs interfering with the hook.
+dotnet build-server shutdown >/dev/null 2>&1 || true
+
+# 1. API build (also builds the test project since it's in the same solution)
+echo ""
+echo "[1/4] Building API (property-peace-api)..."
+if ! (cd "$VALIDATION_ROOT/property-peace-api" && dotnet build --configuration Release --nologo -v q); then
+  echo ""
+  echo "ERROR: API build failed. Push to prod aborted."
+  exit 1
+fi
+
+# 2. Unit tests (reuse the Release build from step 1 — no recompile)
+echo ""
+echo "[2/4] Running unit tests (property-peace-api.Tests)..."
+if ! (cd "$VALIDATION_ROOT/property-peace-api.Tests" && dotnet test --configuration Release --no-build --nologo --logger "console;verbosity=normal"); then
+  echo ""
+  echo "ERROR: Unit tests failed. Push to prod aborted."
+  exit 1
+fi
+
+# 3. App build (uses shared workspace - run from root)
+echo ""
+echo "[3/4] Building App (property-peace-app)..."
+if ! (cd "$VALIDATION_ROOT" && npm ci --no-audit --no-fund --loglevel=error && npm run build:web); then
+  echo ""
+  echo "ERROR: App build failed. Push to prod aborted."
+  exit 1
+fi
+
+# 4. Marketing build
+echo ""
+echo "[4/4] Building Marketing (property-peace-marketing)..."
+if ! (cd "$VALIDATION_ROOT/property-peace-marketing" && npm ci --no-audit --no-fund --loglevel=error && npm run build); then
+  echo ""
+  echo "ERROR: Marketing build failed. Push to prod aborted."
+  exit 1
+fi
+
+echo ""
+echo "All builds and tests passed. Proceeding with push to prod."
+exit 0

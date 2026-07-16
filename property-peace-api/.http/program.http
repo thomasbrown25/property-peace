@@ -1,0 +1,163 @@
+@Host = https://localhost:5001
+//@Host = https://property-peace-api.azurewebsites.net
+@Token = eyJhbGciOiJodHRwOi8vd3d3LnczLm9yZy8yMDAxLzA0L3htbGRzaWctbW9yZSNobWFjLXNoYTUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IlJlZ2dpZS5UaG9tYXNAZ21haWwuY29tIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZSI6IlJlZ2dpZS5UaG9tYXNAZ21haWwuY29tIiwiZXhwIjoxNzM0MTEwNjgwfQ.id_hKeOYIpdJ7zBeRRgaSY8NThv7-bLLGPlT8IfusDRp5952S_qEYfRU2sBjLUVbNsmm_v-v1901lag4Dsgj0g
+
+
+### GET all programs
+GET {{Host}}/api/program/trainer/6/programs
+Accept: application/json
+Content-Type: application/json
+Authorization: "Bearer {{Token}}"
+
+### DELETE program
+DELETE {{Host}}/api/program/trainer/6/program/6
+Accept: application/json
+Content-Type: application/json
+Authorization: "Bearer {{Token}}"
+
+### ADD Exercise
+POST {{Host}}/api/program/trainer/6/program/7/add-exercise
+Accept: application/json
+Content-Type: application/json
+
+{
+  "name": "Incline Dumbbell Press",
+  "sets": 3,
+  "reps": 10,
+  "dayId": 29,
+  "trainerProgramId": 7
+}
+
+
+### ADD program
+POST {{Host}}/api/program/trainer/add-program
+Accept: application/json
+Content-Type: application/json
+Authorization: "Bearer {{Token}}"
+
+{
+    "trainerId": 6,
+    "name": "Basic",
+    "description": "This is a basic program",
+    "dayCount": 7,
+    "weeks": [
+      {
+        "WeekNumber": 1,
+        "days": [
+          {
+            "dayNumber": 1,
+            "focus": "Chest",
+            "exercises": [
+              {
+                "name": "Bench Press",
+                "sets": 3,
+                "reps": 10
+              },
+              {
+                "name": "Chest flies",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          },
+          {
+            "dayNumber": 2,
+            "focus": "Back",
+            "exercises": [
+              {
+                "name": "Deadlift",
+                "sets": 3,
+                "reps": 10
+              },
+              {
+                "name": "Pullups",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          },
+          {
+            "dayNumber": 3,
+            "focus": "Shoulders",
+            "exercises": [
+              {
+                "name": "Shoulder Press",
+                "sets": 3,
+                "reps": 10
+              },
+              {
+                "name": "Leg Press",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          },
+          {
+            "dayNumber": 4,
+            "focus": "Arms",
+            "exercises": [
+              {
+                "name": "Bicep Curls",
+                "sets": 3,
+                "reps": 10
+              },
+              {
+                "name": "Tricep Extensions",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          },
+          {
+            "dayNumber": 5,
+            "focus": "Legs",
+            "exercises": [
+              {
+                "name": "Calf Raises",
+                "sets": 3,
+                "reps": 10
+              },
+              {
+                "name": "Leg Curls",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          },
+          {
+            "dayNumber": 6,
+            "focus": "Core",
+            "exercises": [
+              {
+                "name": "Planks",
+                "sets": 3,
+                "reps": 10
+              },
+              {
+                "name": "Russian Twists",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          },
+          {
+            "dayNumber": 7,
+            "focus": "Cardio",
+            "exercises": [
+              {
+                "name": "Jumping Jacks",
+                "sets": 3,
+                "reps": 10
+              },
+              {
+                "name": "Mountain Climbers",
+                "sets": 3,
+                "reps": 10
+              }
+            ]
+          }
+        ]
+      }
+    ]
+}
+

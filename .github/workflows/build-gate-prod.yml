@@ -1,0 +1,47 @@
+# Build gate for prod: All projects must build successfully.
+# Use this as a required status check in branch protection for the prod branch.
+# This blocks merging PRs to prod when builds fail.
+#
+# Note: For direct pushes to prod, use the pre-push hook (.githooks/pre-push)
+# since CI runs after the push has already been accepted.
+
+name: Build Gate (prod)
+
+on:
+  pull_request:
+    branches: [prod]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.x"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Build API
+        run: dotnet build --configuration Release --nologo -v q
+        working-directory: property-peace-api
+
+      - name: Install and Build App
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: |
+          npm ci --no-audit --no-fund --loglevel=error
+          npm run build:web
+        working-directory: .
+
+      - name: Install and Build Marketing
+        run: |
+          npm ci --no-audit --no-fund --loglevel=error
+          npm run build
+        working-directory: property-peace-marketing
