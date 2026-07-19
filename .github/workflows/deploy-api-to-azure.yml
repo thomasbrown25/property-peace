@@ -55,22 +55,13 @@ jobs:
       - name: Check Azure login secret configuration
         shell: pwsh
         run: |
-          $hasCredsJson = '${{ secrets.AZURE_CREDENTIALS != '' }}'
           $hasSplitCreds = '${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_CLIENT_SECRET != '' && secrets.AZURE_SUBSCRIPTION_ID != '' && secrets.AZURE_TENANT_ID != '' }}'
-          Write-Host "AZURE_CREDENTIALS configured: $hasCredsJson"
           Write-Host "Split Azure service-principal secrets configured: $hasSplitCreds"
-          if ($hasCredsJson -ne 'true' -and $hasSplitCreds -ne 'true') {
-            throw "Missing Azure login secrets. Configure AZURE_CREDENTIALS or AZURE_CLIENT_ID/AZURE_CLIENT_SECRET/AZURE_SUBSCRIPTION_ID/AZURE_TENANT_ID."
+          if ($hasSplitCreds -ne 'true') {
+            throw "Missing Azure login secrets. Configure AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_SUBSCRIPTION_ID, and AZURE_TENANT_ID."
           }
 
-      - name: Login to Azure using AZURE_CREDENTIALS
-        if: ${{ secrets.AZURE_CREDENTIALS }}
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Login to Azure using split service-principal secrets
-        if: ${{ !secrets.AZURE_CREDENTIALS }}
+      - name: Login to Azure
         uses: azure/login@v2
         with:
           creds: >
