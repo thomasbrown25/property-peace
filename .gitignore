@@ -4,3 +4,7 @@ node_modules
 # .NET build artifacts
 **/bin/
 **/obj/
+
+# Local secret overrides
+**/.env.local
+**/.env.*.local
