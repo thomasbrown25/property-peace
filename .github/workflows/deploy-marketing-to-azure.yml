@@ -5,13 +5,13 @@ on:
     branches: [prod]
     paths:
       - "property-peace-marketing/**"
-      - ".github/workflows/azure-static-web-apps-marketing.yml"
+      - ".github/workflows/deploy-marketing-to-azure.yml"
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches: [prod]
     paths:
       - "property-peace-marketing/**"
-      - ".github/workflows/azure-static-web-apps-marketing.yml"
+      - ".github/workflows/deploy-marketing-to-azure.yml"
 
 jobs:
   build_and_deploy_job:

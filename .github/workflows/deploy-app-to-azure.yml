@@ -6,6 +6,7 @@ on:
     paths:
       - "property-peace-app/**"
       - "shared/**"
+      - ".github/workflows/deploy-app-to-azure.yml"
   workflow_dispatch:
 
 jobs:
