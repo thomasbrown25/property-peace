@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { Box, Button, Paper, Stack, Typography, alpha } from '@mui/material';
-import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
-import logo from 'assets/images/logos/property-peace-dark.png';
+import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
+import useAuth from 'hooks/useAuth';
+import logo from 'assets/images/logos/property-peace-dark-2.png';
 
 const DEFAULT_STATUS = {
   maintenanceTitle: 'Property Peace is getting a quick tune-up',
@@ -19,6 +20,15 @@ function loadStatus() {
 
 export default function MaintenancePage() {
   const status = useMemo(loadStatus, []);
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch {
+      window.location.replace('/login');
+    }
+  };
 
   return (
     <Box
@@ -37,6 +47,34 @@ export default function MaintenancePage() {
         `
       }}
     >
+      <Button
+        variant="outlined"
+        color="inherit"
+        startIcon={<LogoutOutlined />}
+        onClick={handleLogout}
+        sx={{
+          position: 'fixed',
+          top: { xs: 14, sm: 24 },
+          right: { xs: 14, sm: 24 },
+          zIndex: 2,
+          textTransform: 'none',
+          fontWeight: 700,
+          borderRadius: 999,
+          px: { xs: 1.75, sm: 2.5 },
+          py: 0.85,
+          color: '#ffffff',
+          borderColor: alpha('#ffffff', 0.28),
+          bgcolor: alpha('#ffffff', 0.08),
+          backdropFilter: 'blur(12px)',
+          '&:hover': {
+            borderColor: alpha('#ffffff', 0.5),
+            bgcolor: alpha('#ffffff', 0.14)
+          }
+        }}
+      >
+        Logout
+      </Button>
+
       <Paper
         elevation={0}
         sx={{
@@ -102,23 +140,6 @@ export default function MaintenancePage() {
           </Stack>
 
           <Stack spacing={1.75} alignItems="center" sx={{ pt: 1 }}>
-            <Button
-              variant="contained"
-              startIcon={<ReloadOutlined />}
-              onClick={() => window.location.reload()}
-              sx={{
-                textTransform: 'none',
-                borderRadius: 999,
-                px: 3.5,
-                py: 1,
-                fontWeight: 700,
-                bgcolor: '#22c55e',
-                boxShadow: `0 16px 32px ${alpha('#22c55e', 0.28)}`,
-                '&:hover': { bgcolor: '#16a34a', boxShadow: `0 18px 36px ${alpha('#22c55e', 0.34)}` }
-              }}
-            >
-              Try again
-            </Button>
             {status.maintenanceSupportEmail && (
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.9rem' }}>
                 Need help? Contact{' '}

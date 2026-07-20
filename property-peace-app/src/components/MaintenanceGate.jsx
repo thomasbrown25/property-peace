@@ -8,14 +8,20 @@ const DEFAULT_STATUS = {
 };
 
 const AUTH_BYPASS_PATHS = [
+  '/',
   '/login',
+  '/auth/login',
   '/jwt/login',
+  '/auth/forgot-password',
   '/forgot-password',
   '/jwt/forgot-password',
+  '/auth/reset-password',
   '/reset-password',
   '/jwt/reset-password',
+  '/auth/check-mail',
   '/check-mail',
   '/jwt/check-mail',
+  '/auth/code-verification',
   '/code-verification',
   '/jwt/code-verification'
 ];
@@ -34,7 +40,7 @@ function isMaintenanceBypassPath(pathname) {
   if (pathname.startsWith('/admin')) return true;
 
   // Keep login/recovery reachable during maintenance so admins can sign in.
-  return AUTH_BYPASS_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return AUTH_BYPASS_PATHS.some((path) => pathname === path || (path !== '/' && pathname.startsWith(`${path}/`)));
 }
 
 export default function MaintenanceGate({ children }) {
