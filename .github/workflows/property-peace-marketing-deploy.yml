@@ -1,17 +1,17 @@
-name: Azure Static Web Apps - property-peace-marketing
+name: property-peace-marketing-deploy
 
 on:
   push:
     branches: [prod]
     paths:
       - "property-peace-marketing/**"
-      - ".github/workflows/deploy-marketing-to-azure.yml"
+      - ".github/workflows/property-peace-marketing-deploy.yml"
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches: [prod]
     paths:
       - "property-peace-marketing/**"
-      - ".github/workflows/deploy-marketing-to-azure.yml"
+      - ".github/workflows/property-peace-marketing-deploy.yml"
 
 jobs:
   build_and_deploy_job:

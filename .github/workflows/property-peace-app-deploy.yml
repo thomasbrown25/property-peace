@@ -1,4 +1,4 @@
-name: Azure Static Web Apps - property-peace-app
+name: property-peace-app-deploy
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
     paths:
       - "property-peace-app/**"
       - "shared/**"
-      - ".github/workflows/deploy-app-to-azure.yml"
+      - ".github/workflows/property-peace-app-deploy.yml"
   workflow_dispatch:
 
 jobs:

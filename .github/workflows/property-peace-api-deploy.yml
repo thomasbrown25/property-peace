@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Deploy API to Azure - property-peace-api-deploy
+name: property-peace-api-deploy
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - prod
     paths:
       - "property-peace-api/**"
-      - ".github/workflows/deploy-api-to-azure.yml"
+      - ".github/workflows/property-peace-api-deploy.yml"
   workflow_dispatch:
 
 jobs:
@@ -71,6 +71,6 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: "property-peace-api-deploy"
+          app-name: "property-peace-api"
           slot-name: "Production"
           package: .
