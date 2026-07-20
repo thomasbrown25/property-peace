@@ -1731,100 +1731,6 @@ export default function Messages() {
                       </Paper>
                     </Box>
 
-                    {/* ── Tenant Snapshot (mobile/tablet) ── */}
-                    <Box
-                      sx={{
-                        display: { xs: 'block', lg: 'none' },
-                        borderTop: `1px solid ${messagesDivider}`,
-                        bgcolor: alpha(theme.palette.background.default, 0.28),
-                        p: 2
-                      }}
-                    >
-                      <Stack spacing={1.5}>
-                        <Box>
-                          <Typography variant="subtitle2" fontWeight={700}>Tenant snapshot</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Context for the selected conversation
-                          </Typography>
-                        </Box>
-                        {activeConversation ? (
-                          <>
-                            <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: `1px solid ${isDarkMode ? alpha(theme.palette.primary.main, 0.45) : messagesCardBorder}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 16px ${alpha(theme.palette.primary.main, 0.18)}` : messagesCardShadow }}>
-                              <Stack direction="row" spacing={1.25} alignItems="center">
-                                <Avatar sx={{ width: 38, height: 38, bgcolor: getAvatarColor(activeTenant ? getTenantName(activeTenant) : activeConversation.tenantName || activeConversation.title || 'Tenant'), color: '#fff', fontSize: '0.8rem', fontWeight: 700 }}>
-                                  {activeTenant ? getTenantInitials(activeTenant) : (activeConversation.tenantName || activeConversation.title || '?').charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Box sx={{ minWidth: 0, flex: 1 }}>
-                                  <Typography variant="body2" fontWeight={700} noWrap>
-                                    {activeTenant ? getTenantName(activeTenant) : activeConversation.tenantName || 'Tenant'}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                                    {activeTenant?.email || activeConversation.tenantEmail || 'No email on file'}
-                                  </Typography>
-                                </Box>
-                              </Stack>
-                            </Box>
-
-                            <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: `1px solid ${isDarkMode ? alpha(theme.palette.primary.main, 0.45) : messagesCardBorder}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 16px ${alpha(theme.palette.primary.main, 0.18)}` : messagesCardShadow }}>
-                              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                Property / unit
-                              </Typography>
-                              <Typography variant="body2" fontWeight={600} sx={{ mt: 0.75 }}>
-                                {activePropertyLine || activeConversation.title || 'Not linked'}
-                              </Typography>
-                            </Box>
-
-                            <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: `1px solid ${isDarkMode ? alpha(theme.palette.primary.main, 0.45) : messagesCardBorder}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 16px ${alpha(theme.palette.primary.main, 0.18)}` : messagesCardShadow }}>
-                              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                  Lease status
-                                </Typography>
-                                <Chip size="small" label={activeLeaseStatus} color={String(activeLeaseStatus).toLowerCase().includes('active') ? 'success' : 'default'} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
-                              </Stack>
-                              <Stack spacing={0.75} sx={{ mt: 1.25 }}>
-                                <Stack direction="row" justifyContent="space-between" spacing={1}>
-                                  <Typography variant="caption" color="text.secondary">Rent</Typography>
-                                  <Typography variant="caption" fontWeight={700}>
-                                    {activeMonthlyRent ? `${formatCurrency(activeMonthlyRent)}/mo` : '—'}
-                                  </Typography>
-                                </Stack>
-                                <Stack direction="row" justifyContent="space-between" spacing={1}>
-                                  <Typography variant="caption" color="text.secondary">Lease dates</Typography>
-                                  <Typography variant="caption" fontWeight={700} textAlign="right">
-                                    {activeLeaseDates.length
-                                      ? activeLeaseDates.map((date) => new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })).join(' – ')
-                                      : '—'}
-                                  </Typography>
-                                </Stack>
-                              </Stack>
-                            </Box>
-
-                            {renderSnapshotQuickActions()}
-
-                            {activeConversation.aiSummary && (
-                              <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: alpha(AGENT_PURPLE, 0.045), border: `1px solid ${alpha(AGENT_PURPLE, isDarkMode ? 0.5 : 0.22)}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(AGENT_PURPLE, 0.18)}, 0 4px 16px ${alpha(AGENT_PURPLE, 0.18)}` : 'none' }}>
-                                <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
-                                  <RobotOutlined style={{ fontSize: 13, color: AGENT_PURPLE }} />
-                                  <Typography variant="caption" fontWeight={700} sx={{ color: AGENT_PURPLE, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    AI summary
-                                  </Typography>
-                                </Stack>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.5 }}>
-                                  {activeConversation.aiSummary}
-                                </Typography>
-                              </Box>
-                            )}
-                          </>
-                        ) : (
-                          <Box sx={{ p: 2, border: `1px dashed ${messagesDashedBorder}`, borderRadius: 1, bgcolor: 'background.paper', textAlign: 'center' }}>
-                            <Typography variant="body2" fontWeight={700}>No conversation selected</Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                              Select a conversation to see tenant, property, and lease context here.
-                            </Typography>
-                          </Box>
-                        )}
-                      </Stack>
-                    </Box>
                   </>
 
                 ) : (
@@ -1959,6 +1865,115 @@ export default function Messages() {
 
         <LandlordMaintenanceDrawer />
       </MainCard>
+
+      {/* ── Tenant Snapshot (mobile/tablet) ── */}
+      <MainCard
+        content={false}
+        sx={{
+          display: { xs: selectedConversation ? 'block' : 'none', lg: 'none' },
+          mt: 2,
+          mb: { xs: 10, sm: 2 },
+          overflow: 'hidden',
+          borderRadius: 1.25,
+          border: `1px solid ${messagesCardBorder}`,
+          boxShadow: messagesPanelShadow,
+          bgcolor: 'background.paper',
+          ':hover': { boxShadow: messagesPanelShadow }
+        }}
+      >
+        <Box
+          sx={{
+            bgcolor: alpha(theme.palette.background.default, 0.28),
+            p: 2
+          }}
+        >
+        <Stack spacing={1.5}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700}>Tenant snapshot</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Context for the selected conversation
+            </Typography>
+          </Box>
+          {activeConversation ? (
+            <>
+              <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: `1px solid ${isDarkMode ? alpha(theme.palette.primary.main, 0.45) : messagesCardBorder}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 16px ${alpha(theme.palette.primary.main, 0.18)}` : messagesCardShadow }}>
+                <Stack direction="row" spacing={1.25} alignItems="center">
+                  <Avatar sx={{ width: 38, height: 38, bgcolor: getAvatarColor(activeTenant ? getTenantName(activeTenant) : activeConversation.tenantName || activeConversation.title || 'Tenant'), color: '#fff', fontSize: '0.8rem', fontWeight: 700 }}>
+                    {activeTenant ? getTenantInitials(activeTenant) : (activeConversation.tenantName || activeConversation.title || '?').charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" fontWeight={700} noWrap>
+        {activeTenant ? getTenantName(activeTenant) : activeConversation.tenantName || 'Tenant'}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+        {activeTenant?.email || activeConversation.tenantEmail || 'No email on file'}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+
+              <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: `1px solid ${isDarkMode ? alpha(theme.palette.primary.main, 0.45) : messagesCardBorder}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 16px ${alpha(theme.palette.primary.main, 0.18)}` : messagesCardShadow }}>
+                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Property / unit
+                </Typography>
+                <Typography variant="body2" fontWeight={600} sx={{ mt: 0.75 }}>
+                  {activePropertyLine || activeConversation.title || 'Not linked'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: 'background.paper', border: `1px solid ${isDarkMode ? alpha(theme.palette.primary.main, 0.45) : messagesCardBorder}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 16px ${alpha(theme.palette.primary.main, 0.18)}` : messagesCardShadow }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Lease status
+                  </Typography>
+                  <Chip size="small" label={activeLeaseStatus} color={String(activeLeaseStatus).toLowerCase().includes('active') ? 'success' : 'default'} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
+                </Stack>
+                <Stack spacing={0.75} sx={{ mt: 1.25 }}>
+                  <Stack direction="row" justifyContent="space-between" spacing={1}>
+                    <Typography variant="caption" color="text.secondary">Rent</Typography>
+                    <Typography variant="caption" fontWeight={700}>
+        {activeMonthlyRent ? `${formatCurrency(activeMonthlyRent)}/mo` : '—'}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" justifyContent="space-between" spacing={1}>
+                    <Typography variant="caption" color="text.secondary">Lease dates</Typography>
+                    <Typography variant="caption" fontWeight={700} textAlign="right">
+        {activeLeaseDates.length
+          ? activeLeaseDates.map((date) => new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })).join(' – ')
+          : '—'}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              </Box>
+
+              {renderSnapshotQuickActions()}
+
+              {activeConversation.aiSummary && (
+                <Box sx={{ p: 1.5, borderRadius: 1, bgcolor: alpha(AGENT_PURPLE, 0.045), border: `1px solid ${alpha(AGENT_PURPLE, isDarkMode ? 0.5 : 0.22)}`, boxShadow: isDarkMode ? `0 0 0 1px ${alpha(AGENT_PURPLE, 0.18)}, 0 4px 16px ${alpha(AGENT_PURPLE, 0.18)}` : 'none' }}>
+                  <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+                    <RobotOutlined style={{ fontSize: 13, color: AGENT_PURPLE }} />
+                    <Typography variant="caption" fontWeight={700} sx={{ color: AGENT_PURPLE, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        AI summary
+                    </Typography>
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.5 }}>
+                    {activeConversation.aiSummary}
+                  </Typography>
+                </Box>
+              )}
+            </>
+          ) : (
+            <Box sx={{ p: 2, border: `1px dashed ${messagesDashedBorder}`, borderRadius: 1, bgcolor: 'background.paper', textAlign: 'center' }}>
+              <Typography variant="body2" fontWeight={700}>No conversation selected</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                Select a conversation to see tenant, property, and lease context here.
+              </Typography>
+            </Box>
+          )}
+        </Stack>
+      </Box>
+      </MainCard>
+
     </Box>
   );
 }
