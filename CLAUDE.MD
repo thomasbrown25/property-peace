@@ -1,13 +1,12 @@
-# Brownstone Hub Monorepo Standards
+# Property Peace Monorepo Standards
 
 ## Purpose
-This repository is a monorepo containing multiple applications and shared packages for the Brownstone Hub platform.
+This repository is a monorepo containing multiple applications and shared packages for the Property Peace platform.
 
 Primary projects include:
 - `property-peace-api` - ASP.NET Core backend API
 - `property-peace-app` - main web frontend
-- `brownstone-hub-mobile` - mobile application
-- `brownstone-hub-mobile-tenants` - tenant-focused mobile application
+- `property-peace-mobile` - mobile application
 - `shared` - shared code and cross-project utilities
 
 When making changes:

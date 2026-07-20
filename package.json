@@ -14,7 +14,7 @@
   "scripts": {
     "install:all": "npm install",
     "build:web": "cd property-peace-app && npm run build",
-    "build:mobile": "cd brownstone-hub-mobile && npm install && npm run build",
+    "build:mobile": "cd property-peace-mobile && npm install && npm run build",
     "install-githooks": "node scripts/install-githooks.js"
   },
   "optionalDependencies": {

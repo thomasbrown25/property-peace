@@ -40,7 +40,7 @@ jobs:
           output_location: "dist"
           app_build_command: |
             npm ci --no-audit --no-fund --loglevel=error
-            npm install @rollup/rollup-linux-x64-gnu --no-save --no-audit --no-fund 2>/dev/null || true 
+            npm install @rollup/rollup-linux-x64-gnu --no-save --no-audit --no-fund 2>/dev/null || true
             npm run build
         env:
           NODE_VERSION: "20"
