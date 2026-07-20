@@ -891,6 +891,18 @@ if (builder.Environment.IsDevelopment())
         .ToArray();
 }
 
+// Always include the current Property Peace production frontend origins. Azure App Configuration
+// may still contain only legacy Brownstone origins during the rebrand, so keep these code-level
+// defaults as a safety net.
+allowed = allowed
+    .Concat(new[]
+    {
+        "https://app.propertypeace.io",
+        "https://propertypeace.io",
+        "https://www.propertypeace.io"
+    })
+    .ToArray();
+
 // Remove duplicates and empty entries
 allowed = allowed.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToArray();
 
@@ -902,8 +914,26 @@ services.AddCors(options =>
         allowMyOrigins,
         policyBuilder =>
         {
+            var allowedOrigins = allowed.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
             policyBuilder
-                .WithOrigins(allowed)
+                .SetIsOriginAllowed(origin =>
+                {
+                    if (allowedOrigins.Contains(origin))
+                    {
+                        return true;
+                    }
+
+                    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                    {
+                        return false;
+                    }
+
+                    // Azure Static Web Apps generated frontend domains are safe to allow by suffix
+                    // while still requiring HTTPS and avoiding wildcard AllowAnyOrigin with credentials.
+                    return uri.Scheme == Uri.UriSchemeHttps
+                        && uri.Host.EndsWith(".azurestaticapps.net", StringComparison.OrdinalIgnoreCase);
+                })
                 .WithHeaders(
                     "Authorization",
                     "Content-Type",
