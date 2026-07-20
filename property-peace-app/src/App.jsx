@@ -12,6 +12,7 @@ import Snackbar from 'components/@extended/Snackbar';
 import Notistack from 'components/third-party/Notistack';
 import TokenExpirationChecker from 'components/TokenExpirationChecker';
 import SignalRConnection from 'components/SignalRConnection';
+import MaintenanceGate from 'components/MaintenanceGate';
 import store from 'store';
 import { Provider } from 'react-redux';
 
@@ -48,7 +49,9 @@ export default function App() {
                     <DashboardLoadingProvider>
                       <Notistack>
                       <SignalRConnection />
-                      <RouterProvider router={router} />
+                      <MaintenanceGate>
+                        <RouterProvider router={router} />
+                      </MaintenanceGate>
                       <Snackbar />
                       </Notistack>
                     </DashboardLoadingProvider>

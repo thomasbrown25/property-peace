@@ -1,9 +1,13 @@
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 // project imports
 import MainRoutes from './MainRoutes';
 import LoginRoutes from './LoginRoutes';
 import ErrorBoundary from './ErrorBoundary';
+import Loadable from 'components/Loadable';
+
+const MaintenancePage = Loadable(lazy(() => import('pages/maintenance')));
 
 // ==============================|| ROUTING RENDER ||============================== //
 
@@ -19,6 +23,11 @@ const router = createBrowserRouter(
     {
       path: '/',
       element: <Navigate to="/login" replace />,
+      errorElement: <ErrorBoundary />
+    },
+    {
+      path: '/maintenance',
+      element: <MaintenancePage />,
       errorElement: <ErrorBoundary />
     },
     LoginRoutes,

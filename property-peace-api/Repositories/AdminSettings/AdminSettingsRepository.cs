@@ -25,30 +25,21 @@ namespace brownstone_hub_api.Repositories.AdminSettings
             }
         }
 
-        public async Task<Models.AdminSettings> UpdateAdminSettings(string notificationEmail, bool allPremiumFeaturesOnFreePlan)
+        public async Task<Models.AdminSettings> UpdateAdminSettings(
+            string notificationEmail,
+            bool allPremiumFeaturesOnFreePlan,
+            bool maintenanceModeEnabled,
+            string maintenanceTitle,
+            string maintenanceMessage,
+            string maintenanceSupportEmail)
         {
             try
             {
-                var settings = await _context.AdminSettings.FirstOrDefaultAsync();
+                var settings = await GetOrCreateSettings();
 
-                if (settings == null)
-                {
-                    settings = new Models.AdminSettings
-                    {
-                        NotificationEmail = notificationEmail,
-                        AllPremiumFeaturesOnFreePlan = allPremiumFeaturesOnFreePlan,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
-                    };
-                    await _context.AdminSettings.AddAsync(settings);
-                }
-                else
-                {
-                    settings.NotificationEmail = notificationEmail;
-                    settings.AllPremiumFeaturesOnFreePlan = allPremiumFeaturesOnFreePlan;
-                    settings.UpdatedAt = DateTime.UtcNow;
-                    _context.AdminSettings.Update(settings);
-                }
+                settings.NotificationEmail = notificationEmail;
+                settings.AllPremiumFeaturesOnFreePlan = allPremiumFeaturesOnFreePlan;
+                ApplyMaintenanceSettings(settings, maintenanceModeEnabled, maintenanceTitle, maintenanceMessage, maintenanceSupportEmail);
 
                 await _context.SaveChangesAsync();
                 return settings;
@@ -59,6 +50,60 @@ namespace brownstone_hub_api.Repositories.AdminSettings
                 throw;
             }
         }
+
+        public async Task<Models.AdminSettings> UpdateMaintenanceSettings(
+            bool maintenanceModeEnabled,
+            string maintenanceTitle,
+            string maintenanceMessage,
+            string maintenanceSupportEmail)
+        {
+            try
+            {
+                var settings = await GetOrCreateSettings();
+                ApplyMaintenanceSettings(settings, maintenanceModeEnabled, maintenanceTitle, maintenanceMessage, maintenanceSupportEmail);
+
+                await _context.SaveChangesAsync();
+                return settings;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating maintenance settings");
+                throw;
+            }
+        }
+
+        private async Task<Models.AdminSettings> GetOrCreateSettings()
+        {
+            var settings = await _context.AdminSettings.FirstOrDefaultAsync();
+            if (settings != null) return settings;
+
+            settings = new Models.AdminSettings
+            {
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _context.AdminSettings.AddAsync(settings);
+            return settings;
+        }
+
+        private static void ApplyMaintenanceSettings(
+            Models.AdminSettings settings,
+            bool maintenanceModeEnabled,
+            string maintenanceTitle,
+            string maintenanceMessage,
+            string maintenanceSupportEmail)
+        {
+            settings.MaintenanceModeEnabled = maintenanceModeEnabled;
+            settings.MaintenanceTitle = string.IsNullOrWhiteSpace(maintenanceTitle)
+                ? "Property Peace is getting a quick tune-up"
+                : maintenanceTitle.Trim();
+            settings.MaintenanceMessage = string.IsNullOrWhiteSpace(maintenanceMessage)
+                ? "We’re making updates to improve reliability and performance. Please check back shortly."
+                : maintenanceMessage.Trim();
+            settings.MaintenanceSupportEmail = string.IsNullOrWhiteSpace(maintenanceSupportEmail)
+                ? "support@propertypeace.io"
+                : maintenanceSupportEmail.Trim();
+            settings.UpdatedAt = DateTime.UtcNow;
+        }
     }
 }
-
