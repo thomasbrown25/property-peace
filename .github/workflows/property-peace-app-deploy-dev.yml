@@ -1,3 +1,4 @@
+# Redeploy trigger: dev secrets refreshed
 name: property-peace-app-deploy-dev
 
 on:
