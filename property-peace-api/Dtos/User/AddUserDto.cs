@@ -16,8 +16,11 @@ namespace brownstone_hub_api.Dtos.User
         public DateOnly? DateOfBirth { get; set; } = null;
         public bool HasSeenTutorial { get; set; } = false;
         public bool NotificationPreferencesConfigured { get; set; } = false;
+        [JsonIgnore]
         public List<string> Roles { get; set; } = [];
+        [JsonIgnore]
         public byte[]? PasswordHash { get; set; }
+        [JsonIgnore]
         public byte[]? PasswordSalt { get; set; }
         public string? InviteToken { get; set; } // For tenant registration via invite
         public string? OrganizationInviteToken { get; set; } // For organization member registration via invite

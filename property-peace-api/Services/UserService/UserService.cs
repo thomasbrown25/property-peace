@@ -142,8 +142,16 @@ namespace brownstone_hub_api.Services.UserService
                     return response;
                 }
 
+                // Never trust privileged/auth fields from the public registration payload.
+                // App roles must be derived server-side from the registration context.
+                newUser.PasswordHash = null;
+                newUser.PasswordSalt = null;
+                newUser.HasSeenTutorial = false;
+                newUser.NotificationPreferencesConfigured = false;
+
                 long? tenantId = null;
                 string? organizationInviteToken = null;
+                var serverAssignedRoles = new List<string> { "Landlord" };
 
                 // Handle organization invite token if provided
                 if (!string.IsNullOrEmpty(newUser.OrganizationInviteToken))
@@ -220,12 +228,16 @@ namespace brownstone_hub_api.Services.UserService
 
                     tenantId = inviteValidation.Data.TenantId;
 
-                    // Ensure Tenant role is assigned
-                    if (!newUser.Roles.Contains("Tenant", StringComparer.OrdinalIgnoreCase))
-                    {
-                        newUser.Roles.Add("Tenant");
-                    }
+                    // Tenant invite registration is always a Tenant app user.
+                    serverAssignedRoles = new List<string> { "Tenant" };
                 }
+
+                // Apply only server-derived roles. Never use roles supplied by the registration request.
+                newUser.Roles = serverAssignedRoles
+                    .Where(role => !string.IsNullOrWhiteSpace(role))
+                    .Select(role => role.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
                 // Handle Google sign-up
                 string? googleId = null;
