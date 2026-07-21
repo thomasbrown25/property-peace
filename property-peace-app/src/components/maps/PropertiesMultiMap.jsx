@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { alpha, Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { loadMaps } from 'googleMaps';
+import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
 
 export default function PropertiesMultiMap({ properties = [], onPropertyClick, selectedPropertyId }) {
   const theme = useTheme();
@@ -49,7 +50,7 @@ export default function PropertiesMultiMap({ properties = [], onPropertyClick, s
     return units.some((u) => {
       const status = (u.status || u.Status || '').toLowerCase();
       return status === 'overdue';
-    }) || (p.maintenanceRequests || []).some((r) => (r.priority || '').toLowerCase() === 'high');
+    }) || (p.maintenanceRequests || p.MaintenanceRequests || []).some(isHighPriorityMaintenanceRequest);
   };
 
   const clearMarkers = () => {

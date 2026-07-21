@@ -10,6 +10,7 @@ using brownstone_hub_api.Services.AzureBlobService;
 using brownstone_hub_api.Services.LeaseService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System.Security.Claims;
 
 namespace brownstone_hub_api.Services.TenantDocumentService
 {
@@ -42,6 +43,32 @@ namespace brownstone_hub_api.Services.TenantDocumentService
             return null;
         }
 
+        private long? GetUserIdFromContext()
+        {
+            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("UserId", out var userIdObj) == true && userIdObj is long userId)
+            {
+                return userId;
+            }
+
+            var user = _httpContextAccessor.HttpContext?.User;
+            var userIdClaim = user?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? user?.FindFirst("userId")?.Value
+                ?? user?.FindFirst("sub")?.Value;
+            return long.TryParse(userIdClaim, out var parsedUserId) ? parsedUserId : null;
+        }
+
+        private bool IsTenantUser()
+        {
+            return _httpContextAccessor.HttpContext?.User?.IsInRole("Tenant") == true
+                && _httpContextAccessor.HttpContext?.User?.IsInRole("Landlord") != true
+                && _httpContextAccessor.HttpContext?.User?.IsInRole("Admin") != true;
+        }
+
+        private ServiceResponse<T> MissingOrganizationContext<T>()
+        {
+            return ServiceResponse<T>.CreateError("Organization context is required", "No organization context found", null, 403);
+        }
+
         public async Task<ServiceResponse<List<LoadTenantDocumentDto>>> AddTenantDocuments(
             long tenantId,
             List<IFormFile> files,
@@ -58,6 +85,23 @@ namespace brownstone_hub_api.Services.TenantDocumentService
                 {
                     Data = []
                 };
+
+                var organizationId = GetOrganizationIdFromContext();
+                var userId = GetUserIdFromContext();
+                var isTenantUser = IsTenantUser();
+                if (!isTenantUser && !organizationId.HasValue)
+                {
+                    return MissingOrganizationContext<List<LoadTenantDocumentDto>>();
+                }
+                if (!await _tenantDocumentRepository.CanAccessTenant(tenantId, organizationId, userId, isTenantUser)
+                    || (leaseId.HasValue && !await _tenantDocumentRepository.CanAccessLease(leaseId.Value, organizationId, userId, isTenantUser)))
+                {
+                    return ServiceResponse<List<LoadTenantDocumentDto>>.CreateError("Tenant not found", null, null, 404);
+                }
+                if (isTenantUser)
+                {
+                    isPrivate = false;
+                }
 
                 var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
                 await containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
@@ -100,9 +144,6 @@ namespace brownstone_hub_api.Services.TenantDocumentService
                         BlobUrl = blobClient.Uri.ToString()
                     };
 
-                    // Get organizationId from context
-                    var organizationId = GetOrganizationIdFromContext();
-
                     // Save the document details to the database
                     var result = await _tenantDocumentRepository.AddTenantDocument(document, organizationId);
 
@@ -132,6 +173,16 @@ namespace brownstone_hub_api.Services.TenantDocumentService
             try
             {
                 var response = new ServiceResponse<List<LoadTenantDocumentDto>> { Data = [] };
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                {
+                    return MissingOrganizationContext<List<LoadTenantDocumentDto>>();
+                }
+                if (!await _tenantDocumentRepository.CanAccessLease(leaseId, organizationId, GetUserIdFromContext(), false))
+                {
+                    return ServiceResponse<List<LoadTenantDocumentDto>>.CreateError("Lease not found", null, null, 404);
+                }
+
                 var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
                 await containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
 
@@ -166,7 +217,6 @@ namespace brownstone_hub_api.Services.TenantDocumentService
                         BlobUrl = blobClient.Uri.ToString()
                     };
 
-                    var organizationId = GetOrganizationIdFromContext();
                     var result = await _tenantDocumentRepository.AddTenantDocument(document, organizationId);
                     var sasUri = _azureBlobService.GenerateBlobSasUri(_blobServiceClient, blobClient, TimeSpan.FromHours(1));
                     result.BlobUrl = sasUri;
@@ -187,7 +237,7 @@ namespace brownstone_hub_api.Services.TenantDocumentService
         {
             try
             {
-                var document = await _tenantDocumentRepository.GetTenantDocumentById(id);
+                var document = await _tenantDocumentRepository.GetTenantDocumentById(id, GetOrganizationIdFromContext(), GetUserIdFromContext(), IsTenantUser());
                 if (document == null)
                 {
                     return ServiceResponse<LoadTenantDocumentDto>.CreateError("Document not found", null, null, 404);
@@ -216,7 +266,7 @@ namespace brownstone_hub_api.Services.TenantDocumentService
         {
             try
             {
-                var documents = await _tenantDocumentRepository.GetTenantDocumentsByTenantId(tenantId);
+                var documents = await _tenantDocumentRepository.GetTenantDocumentsByTenantId(tenantId, GetOrganizationIdFromContext(), GetUserIdFromContext(), IsTenantUser());
 
                 // Tenant-facing documents should include any non-private document explicitly attached
                 // to the tenant or to one of the tenant's leases. That includes uploaded lease
@@ -286,6 +336,14 @@ namespace brownstone_hub_api.Services.TenantDocumentService
         {
             try
             {
+                var organizationId = GetOrganizationIdFromContext();
+                var userId = GetUserIdFromContext();
+                var isTenantUser = IsTenantUser();
+                if (!await _tenantDocumentRepository.CanAccessLease(leaseId, organizationId, userId, isTenantUser))
+                {
+                    return ServiceResponse<LoadTenantDocumentDto>.CreateError("Lease not found", null, null, 404);
+                }
+
                 // First, check if lease has been sent to tenant (lazy load to avoid circular dependency)
                 var leaseService = _serviceProvider.GetRequiredService<ILeaseService>();
                 var leaseResponse = await leaseService.GetLeaseById(leaseId);
@@ -344,7 +402,7 @@ namespace brownstone_hub_api.Services.TenantDocumentService
                 }
 
                 // Fallback to tenant document if no signed document exists
-                var document = await _tenantDocumentRepository.GetLeaseAgreementByLeaseId(leaseId);
+                var document = await _tenantDocumentRepository.GetLeaseAgreementByLeaseId(leaseId, GetOrganizationIdFromContext(), GetUserIdFromContext(), IsTenantUser());
 
                 if (document == null)
                 {
@@ -434,7 +492,7 @@ namespace brownstone_hub_api.Services.TenantDocumentService
         {
             try
             {
-                var documents = await _tenantDocumentRepository.GetTenantDocumentsByLeaseId(leaseId);
+                var documents = await _tenantDocumentRepository.GetTenantDocumentsByLeaseId(leaseId, GetOrganizationIdFromContext());
 
                 var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
                 foreach (var document in documents)
@@ -498,7 +556,7 @@ namespace brownstone_hub_api.Services.TenantDocumentService
         {
             try
             {
-                var result = await _tenantDocumentRepository.UpdateTenantDocument(document);
+                var result = await _tenantDocumentRepository.UpdateTenantDocument(document, GetOrganizationIdFromContext(), GetUserIdFromContext(), IsTenantUser());
 
                 // Generate fresh SAS URL
                 var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
@@ -528,14 +586,14 @@ namespace brownstone_hub_api.Services.TenantDocumentService
         {
             try
             {
-                var document = await _tenantDocumentRepository.GetTenantDocumentById(id);
+                var document = await _tenantDocumentRepository.GetTenantDocumentById(id, GetOrganizationIdFromContext(), GetUserIdFromContext(), IsTenantUser());
                 if (document == null)
                 {
                     return ServiceResponse<bool>.CreateError("Document not found", null, null, 404);
                 }
 
                 // Soft delete from database
-                var deleted = await _tenantDocumentRepository.DeleteTenantDocument(id);
+                var deleted = await _tenantDocumentRepository.DeleteTenantDocument(id, GetOrganizationIdFromContext(), GetUserIdFromContext(), IsTenantUser());
                 if (!deleted)
                 {
                     return ServiceResponse<bool>.CreateError("Failed to delete document", null, null, 500);

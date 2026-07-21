@@ -53,16 +53,13 @@ import PropertyListCard from 'sections/landlord/properties/PropertyListCard';
 import { AppstoreOutlined, UnorderedListOutlined, EnvironmentOutlined } from '@ant-design/icons';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
+import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
 
 const getPropertyUnits = (property) => property?.units || property?.Units || [];
 
 const getOpenHighMaintenanceCount = (property) => {
   const maintenanceRequests = property?.maintenanceRequests || property?.MaintenanceRequests || [];
-  return maintenanceRequests.filter(
-    (request) =>
-      (request.priority || request.Priority || '').toLowerCase() === 'high' &&
-      !['completed', 'cancelled'].includes((request.status || request.Status || '').toLowerCase())
-  ).length;
+  return maintenanceRequests.filter(isHighPriorityMaintenanceRequest).length;
 };
 
 const getOverdueUnitCount = (property) =>

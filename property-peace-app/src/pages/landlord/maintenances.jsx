@@ -113,7 +113,7 @@ const statusToColumn = (status) => {
   if (n === 'acknowledged' || n === 'triaged' || n === 'pending') return 'acknowledged';
   if (n === 'scheduled') return 'scheduled';
   if (n === 'inprogress') return 'inprogress';
-  if (n === 'resolved' || n === 'completed' || n === 'cancelled') return 'resolved';
+  if (n === 'resolved' || n === 'completed' || n === 'cancelled' || n === 'closed') return 'resolved';
   return 'reported';
 };
 

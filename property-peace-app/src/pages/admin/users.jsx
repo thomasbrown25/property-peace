@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -59,6 +60,7 @@ import { PASSWORD_REQUIREMENTS_TEXT, validatePassword } from 'utils/password-val
 
 export default function AdminUsers() {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [includeDeleted, setIncludeDeleted] = useState(false);
@@ -197,6 +199,10 @@ export default function AdminUsers() {
   const handleEditClick = (user) => {
     setSelectedUser(user);
     setEditDrawerOpen(true);
+  };
+
+  const handleUserRowClick = (user) => {
+    navigate(`/admin/users/${user.id}`);
   };
 
   const handleEditDrawerClose = () => {
@@ -938,7 +944,12 @@ export default function AdminUsers() {
               </TableHead>
               <TableBody>
                 {filteredUsers.map((user) => (
-                    <TableRow key={user.id} hover>
+                    <TableRow
+                      key={user.id}
+                      hover
+                      onClick={() => handleUserRowClick(user)}
+                      sx={{ cursor: 'pointer' }}
+                    >
                       <TableCell>
                         <Typography variant="subtitle2">
                           {user.firstName || user.lastName || user.firstname || user.lastname
@@ -1006,7 +1017,7 @@ export default function AdminUsers() {
                           )}
                         </Stack>
                       </TableCell>
-                      <TableCell align="right">
+                      <TableCell align="right" onClick={(event) => event.stopPropagation()}>
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
                           {!user.isDeleted && (
                             <>

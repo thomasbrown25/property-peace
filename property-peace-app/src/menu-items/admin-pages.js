@@ -8,7 +8,8 @@ import {
   RocketOutlined,
   ThunderboltOutlined,
   SafetyCertificateOutlined,
-  MailOutlined
+  MailOutlined,
+  DatabaseOutlined
 } from '@ant-design/icons';
 
 // icons
@@ -21,7 +22,8 @@ const icons = {
   RocketOutlined,
   ThunderboltOutlined,
   SafetyCertificateOutlined,
-  MailOutlined
+  MailOutlined,
+  DatabaseOutlined
 };
 
 // ==============================|| MENU ITEMS - ADMIN PAGES ||============================== //
@@ -64,6 +66,13 @@ const adminPages = {
       type: 'item',
       url: '/admin/users',
       icon: icons.UsergroupAddOutlined
+    },
+    {
+      id: 'admin-storage',
+      title: 'Storage',
+      type: 'item',
+      url: '/admin/storage',
+      icon: icons.DatabaseOutlined
     },
     {
       id: 'admin-invite-landlord',

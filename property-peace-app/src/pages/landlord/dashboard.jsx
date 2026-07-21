@@ -62,6 +62,7 @@ import { subscriptionAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
 import axiosServices from 'utils/axios';
 import { alpha, useTheme, Button, Paper, useMediaQuery } from '@mui/material';
+import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 import { WarningOutlined, DollarCircleOutlined, RocketOutlined, ThunderboltOutlined, SettingOutlined, HomeOutlined, WalletOutlined, UnorderedListOutlined, ToolOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, DollarOutlined } from '@ant-design/icons';
 
 // ==============================|| LANDLORD - DASHBOARD ||============================== //
@@ -123,8 +124,7 @@ export default function Dashboard() {
     }
     // Count high/medium maintenance
     attentionCount += allMaintenanceRequests.filter(
-      (r) => ['high', 'medium'].includes((r.priority || '').toLowerCase()) &&
-              !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
+      (r) => ['high', 'medium'].includes((r.priority || '').toLowerCase()) && isOpenMaintenanceRequest(r)
     ).length;
     // Count expiring leases ≤60 days (only occupied units — overdue handled separately)
     if (properties?.length) {

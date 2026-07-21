@@ -270,6 +270,7 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
                     x.Lease.Unit.Name,
                     x.AmountDue,
                     x.Lease.RentDueDay,
+                    GetLastDueDate(x.Lease.RentDueDay!.Value, easternDate),
                     x.Lease.EndDate,
                     GetTenantName(x.Lease)))
                 .ToList();
@@ -282,26 +283,27 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
                     x.Lease.Unit.Name,
                     x.AmountDue,
                     x.Lease.RentDueDay,
+                    GetLastDueDate(x.Lease.RentDueDay!.Value, easternDate),
                     x.Lease.EndDate,
                     GetTenantName(x.Lease)))
                 .ToList();
 
             var rentDueToday = activeLeases
                 .Where(l => l.RentDueDay == dueTodayDay)
-                .Select(l => new SummaryLease(l.Unit.Property.Name ?? l.Unit.Property.StreetAddress, l.Unit.Name, l.RentAmount, l.RentDueDay, l.EndDate, GetTenantName(l)))
+                .Select(l => new SummaryLease(l.Unit.Property.Name ?? l.Unit.Property.StreetAddress, l.Unit.Name, l.RentAmount, l.RentDueDay, easternDate.Date, l.EndDate, GetTenantName(l)))
                 .Take(8)
                 .ToList();
 
             var rentDueSoon = activeLeases
                 .Where(l => l.RentDueDay.HasValue && l.RentDueDay != dueTodayDay && dueSoonDays.Contains(l.RentDueDay.Value))
-                .Select(l => new SummaryLease(l.Unit.Property.Name ?? l.Unit.Property.StreetAddress, l.Unit.Name, l.RentAmount, l.RentDueDay, l.EndDate, GetTenantName(l)))
+                .Select(l => new SummaryLease(l.Unit.Property.Name ?? l.Unit.Property.StreetAddress, l.Unit.Name, l.RentAmount, l.RentDueDay, GetNextDueDate(l.RentDueDay!.Value, easternDate.Date), l.EndDate, GetTenantName(l)))
                 .Take(8)
                 .ToList();
 
             var expiringLeases = activeLeases
                 .Where(l => l.EndDate.HasValue && l.EndDate.Value.Date >= dayStart && l.EndDate.Value.Date <= leaseExpiry)
                 .OrderBy(l => l.EndDate)
-                .Select(l => new SummaryLease(l.Unit.Property.Name ?? l.Unit.Property.StreetAddress, l.Unit.Name, l.RentAmount, l.RentDueDay, l.EndDate, GetTenantName(l)))
+                .Select(l => new SummaryLease(l.Unit.Property.Name ?? l.Unit.Property.StreetAddress, l.Unit.Name, l.RentAmount, l.RentDueDay, null, l.EndDate, GetTenantName(l)))
                 .Take(8)
                 .ToList();
 
@@ -516,7 +518,7 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
             foreach (var lease in leases)
             {
                 var amount = lease.Amount.HasValue ? $" — {amountLabel}: {lease.Amount.Value:C0}" : string.Empty;
-                var due = lease.RentDueDay.HasValue ? $" — due day {lease.RentDueDay.Value}" : string.Empty;
+                var due = lease.DueDate.HasValue ? $" — due {lease.DueDate.Value:M/d/yyyy}" : string.Empty;
                 var end = showEndDate && lease.EndDate.HasValue ? $" — ends {lease.EndDate.Value:MMM d, yyyy}" : string.Empty;
                 var tenant = string.IsNullOrWhiteSpace(lease.TenantName) ? string.Empty : $" — {lease.TenantName}";
                 sb.Append($"<div class='activity-card {Html(cardClass)}'><strong>{Html(lease.PropertyName)}</strong> / {Html(lease.UnitName)}{Html(tenant)}{Html(amount)}{Html(due)}{Html(end)}</div>");
@@ -577,7 +579,8 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
             foreach (var lease in leases)
             {
                 var tenant = string.IsNullOrWhiteSpace(lease.TenantName) ? string.Empty : $" — {lease.TenantName}";
-                sb.AppendLine($"- {lease.PropertyName} / {lease.UnitName}{tenant} {(lease.Amount.HasValue ? lease.Amount.Value.ToString("C0") : string.Empty)}{(includeEndDate && lease.EndDate.HasValue ? " ends " + lease.EndDate.Value.ToString("MMM d, yyyy") : string.Empty)}");
+                var due = lease.DueDate.HasValue ? $" due {lease.DueDate.Value:M/d/yyyy}" : string.Empty;
+                sb.AppendLine($"- {lease.PropertyName} / {lease.UnitName}{tenant} {(lease.Amount.HasValue ? lease.Amount.Value.ToString("C0") : string.Empty)}{due}{(includeEndDate && lease.EndDate.HasValue ? " ends " + lease.EndDate.Value.ToString("MMM d, yyyy") : string.Empty)}");
             }
             sb.AppendLine();
         }
@@ -682,6 +685,21 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
             return dueDate;
         }
 
+        private static DateTime GetNextDueDate(int rentDueDay, DateTime today)
+        {
+            var dueDay = GetActualRentDueDay(rentDueDay, today.Year, today.Month);
+            var dueDate = new DateTime(today.Year, today.Month, dueDay);
+
+            if (dueDate < today)
+            {
+                var nextMonth = today.AddMonths(1);
+                dueDay = GetActualRentDueDay(rentDueDay, nextMonth.Year, nextMonth.Month);
+                dueDate = new DateTime(nextMonth.Year, nextMonth.Month, dueDay);
+            }
+
+            return dueDate;
+        }
+
         private static int GetActualRentDueDay(int rentDueDay, int year, int month)
         {
             if (rentDueDay == -1)
@@ -760,6 +778,6 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
     internal sealed record SummaryProperty(long Id, string Name, string StreetAddress, long? OrganizationId);
     internal sealed record SummaryPayment(decimal Amount, string Status, DateTime PaymentDate, string? Method, string PropertyName, string UnitName);
     internal sealed record SummaryMaintenance(string Title, string Status, string Priority, DateTime CreatedAt, string PropertyName, string? UnitName);
-    internal sealed record SummaryLease(string PropertyName, string UnitName, decimal? Amount, int? RentDueDay, DateTime? EndDate, string TenantName);
+    internal sealed record SummaryLease(string PropertyName, string UnitName, decimal? Amount, int? RentDueDay, DateTime? DueDate, DateTime? EndDate, string TenantName);
     internal sealed record SummaryAttentionItem(string Type, string Title, string Description, string Priority);
 }

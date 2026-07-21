@@ -37,6 +37,7 @@ import { useSelector } from 'react-redux';
 import { selectMaintenanceRequests } from 'store/maintenance/maintenance.selector';
 import { openSnackbar } from 'api/snackbar';
 import { formatDistanceToNow, parseISO } from 'date-fns';
+import { isHighPriorityMaintenanceRequest, isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -195,11 +196,8 @@ export default function MaintenanceAgentPage() {
     .slice(0, 5);
 
   const totalTickets = (allMaintenance || []).length;
-  const openTickets = (allMaintenance || []).filter((m) => {
-    const s = (m.status || m.Status || '').toLowerCase();
-    return s === 'open' || s === 'pending' || s === 'in progress';
-  }).length;
-  const highPriority = (allMaintenance || []).filter((m) => (m.priority || m.Priority || '').toLowerCase() === 'high').length;
+  const openTickets = (allMaintenance || []).filter(isOpenMaintenanceRequest).length;
+  const highPriority = (allMaintenance || []).filter(isHighPriorityMaintenanceRequest).length;
 
   return (
     <Fade in={fadeIn} timeout={600}>

@@ -6,12 +6,12 @@ namespace brownstone_hub_api.Repositories.BankAccounts
     public interface IBankAccountRepository
     {
         Task<List<BankAccount>> GetBankAccountsByOrganizationIdAsync(long organizationId);
-        Task<BankAccount?> GetBankAccountByIdAsync(long id);
+        Task<BankAccount?> GetBankAccountByIdAsync(long id, long organizationId);
         Task<BankAccount?> GetBankAccountByStripeAccountIdAsync(string stripeAccountId);
         Task<BankAccount?> GetBankAccountByOrganizationAndStripeAccountIdAsync(long organizationId, string stripeAccountId);
         Task<BankAccount> AddBankAccountAsync(CreateBankAccountDto bankAccount);
-        Task<BankAccount> UpdateBankAccountAsync(UpdateBankAccountDto bankAccount);
-        Task<bool> DeleteBankAccountAsync(long id);
+        Task<BankAccount> UpdateBankAccountAsync(UpdateBankAccountDto bankAccount, long organizationId);
+        Task<bool> DeleteBankAccountAsync(long id, long organizationId);
     }
 }
 

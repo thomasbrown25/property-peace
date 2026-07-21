@@ -80,7 +80,13 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var response = await _bankAccountService.GetBankAccountByIdAsync(id);
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
+                {
+                    return StatusCode(403, new { Message = "Organization context is required" });
+                }
+
+                var response = await _bankAccountService.GetBankAccountByIdAsync(id, organizationId.Value);
 
                 if (!response.Success)
                 {
@@ -147,12 +153,18 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
+                {
+                    return StatusCode(403, new { Message = "Organization context is required" });
+                }
+
                 bankAccountDto.Id = id;
-                var response = await _bankAccountService.UpdateBankAccountAsync(bankAccountDto);
+                var response = await _bankAccountService.UpdateBankAccountAsync(bankAccountDto, organizationId.Value);
 
                 if (!response.Success)
                 {
-                    return BadRequest(response);
+                    return NotFound(response);
                 }
 
                 return Ok(response);
@@ -172,7 +184,13 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var response = await _bankAccountService.DeleteBankAccountAsync(id);
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
+                {
+                    return StatusCode(403, new { Message = "Organization context is required" });
+                }
+
+                var response = await _bankAccountService.DeleteBankAccountAsync(id, organizationId.Value);
 
                 if (!response.Success)
                 {

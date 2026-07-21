@@ -65,6 +65,7 @@ using brownstone_hub_api.Repositories.Payments;
 using brownstone_hub_api.Services.HouseholdService;
 using brownstone_hub_api.Services.PaymentService;
 using brownstone_hub_api.Services.StripeService;
+using brownstone_hub_api.Services.StorageService;
 using brownstone_hub_api.Repositories.Images;
 using brownstone_hub_api.Services.ImageService;
 using brownstone_hub_api.Dtos.Image;
@@ -429,6 +430,7 @@ services.AddScoped<ISupportRequestService, SupportRequestService>();
 services.AddScoped<IStripeService, StripeService>();
 services.AddScoped<IStripeSyncService, StripeSyncService>();
 services.AddScoped<IStripeWebhookService, StripeWebhookService>();
+services.AddScoped<IStorageService, StorageService>();
 
 // State Late Fee Law Service
 services.AddScoped<brownstone_hub_api.Services.StateLateFeeLawService.IStateLateFeeLawService, brownstone_hub_api.Services.StateLateFeeLawService.StateLateFeeLawService>();
@@ -690,9 +692,11 @@ services.AddScoped<
     var azureBlob = sp.GetRequiredService<IAzureBlobService>();
     var repo = sp.GetRequiredService<IImageRepository<MaintenanceImage, LoadImageDto, AddImageDto>>();
     var logger = sp.GetRequiredService<ILogger<ImageService<MaintenanceImage, LoadImageDto, AddImageDto>>>();
+    var storage = sp.GetRequiredService<IStorageService>();
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<MaintenanceImage, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, "maintenance-images"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "maintenance-images"
     );
 });
 services.AddScoped<
@@ -702,9 +706,11 @@ services.AddScoped<
     var azureBlob = sp.GetRequiredService<IAzureBlobService>();
     var repo = sp.GetRequiredService<IImageRepository<PropertyImage, LoadImageDto, AddImageDto>>();
     var logger = sp.GetRequiredService<ILogger<ImageService<PropertyImage, LoadImageDto, AddImageDto>>>();
+    var storage = sp.GetRequiredService<IStorageService>();
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<PropertyImage, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, "property-images"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "property-images"
     );
 });
 services.AddScoped<
@@ -714,9 +720,11 @@ services.AddScoped<
     var azureBlob = sp.GetRequiredService<IAzureBlobService>();
     var repo = sp.GetRequiredService<IImageRepository<ExpenseReceipt, LoadImageDto, AddImageDto>>();
     var logger = sp.GetRequiredService<ILogger<ImageService<ExpenseReceipt, LoadImageDto, AddImageDto>>>();
+    var storage = sp.GetRequiredService<IStorageService>();
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<ExpenseReceipt, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, "expense-receipts"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "expense-receipts"
     );
 });
 services.AddScoped<
@@ -726,9 +734,11 @@ services.AddScoped<
     var azureBlob = sp.GetRequiredService<IAzureBlobService>();
     var repo = sp.GetRequiredService<IImageRepository<ListingImage, LoadImageDto, AddImageDto>>();
     var logger = sp.GetRequiredService<ILogger<ImageService<ListingImage, LoadImageDto, AddImageDto>>>();
+    var storage = sp.GetRequiredService<IStorageService>();
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
 
     return new ImageService<ListingImage, LoadImageDto, AddImageDto>(
-        blob, azureBlob, repo, logger, "listing-images"
+        blob, azureBlob, repo, logger, storage, httpContextAccessor, "listing-images"
     );
 });
 

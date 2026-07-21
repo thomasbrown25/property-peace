@@ -12,6 +12,18 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
         private readonly IMapper _mapper = mapper;
         private readonly ILogger<TenantDocumentRepository> _logger = logger;
 
+        private IQueryable<Models.TenantDocument> TenantDocumentQuery()
+        {
+            return _context.TenantDocuments
+                .Include(d => d.Tenant)
+                .Include(d => d.Lease)
+                    .ThenInclude(l => l.Unit)
+                        .ThenInclude(u => u.Property)
+                .Include(d => d.Lease)
+                    .ThenInclude(l => l.TenantLeases)
+                        .ThenInclude(tl => tl.Tenant);
+        }
+
         public async Task<LoadTenantDocumentDto> AddTenantDocument(AddTenantDocumentDto document, long? organizationId = null)
         {
             var entity = _mapper.Map<Models.TenantDocument>(document);
@@ -55,31 +67,60 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
             return MapToDto(entity);
         }
 
-        public async Task<LoadTenantDocumentDto?> GetTenantDocumentById(long id)
+        public async Task<bool> CanAccessTenant(long tenantId, long? organizationId, long? userId, bool isTenantUser)
         {
-            var document = await _context.TenantDocuments
-                .Include(d => d.Tenant)
-                .Include(d => d.Lease)
-                    .ThenInclude(l => l.Unit)
-                        .ThenInclude(u => u.Property)
-                .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted);
+            if (isTenantUser)
+            {
+                return userId.HasValue && await _context.Tenants
+                    .AnyAsync(t => t.Id == tenantId && t.UserId == userId.Value && !t.IsDeleted);
+            }
+
+            return organizationId.HasValue && await _context.Tenants
+                .AnyAsync(t => t.Id == tenantId && t.OrganizationId == organizationId.Value && !t.IsDeleted);
+        }
+
+        public async Task<bool> CanAccessLease(long leaseId, long? organizationId, long? userId, bool isTenantUser)
+        {
+            if (isTenantUser)
+            {
+                return userId.HasValue && await _context.Leases
+                    .AnyAsync(l => l.Id == leaseId && l.TenantLeases.Any(tl => tl.Tenant.UserId == userId.Value && !tl.Tenant.IsDeleted));
+            }
+
+            return organizationId.HasValue && await _context.Leases
+                .AnyAsync(l => l.Id == leaseId && (l.OrganizationId == organizationId.Value || l.Unit.Property.OrganizationId == organizationId.Value));
+        }
+
+        public async Task<LoadTenantDocumentDto?> GetTenantDocumentById(long id, long? organizationId, long? userId, bool isTenantUser)
+        {
+            var document = await TenantDocumentQuery()
+                .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted
+                    && (isTenantUser
+                        ? userId.HasValue && !d.IsPrivate && (
+                            (d.Tenant != null && d.Tenant.UserId == userId.Value)
+                            || (d.Lease != null && d.Lease.TenantLeases.Any(tl => tl.Tenant.UserId == userId.Value && !tl.Tenant.IsDeleted)))
+                        : organizationId.HasValue && (
+                            d.OrganizationId == organizationId.Value
+                            || (d.Tenant != null && d.Tenant.OrganizationId == organizationId.Value)
+                            || (d.Lease != null && (d.Lease.OrganizationId == organizationId.Value || d.Lease.Unit.Property.OrganizationId == organizationId.Value)))));
 
             return document == null ? null : MapToDto(document);
         }
 
-        public async Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByTenantId(long tenantId)
+        public async Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByTenantId(long tenantId, long? organizationId, long? userId, bool isTenantUser)
         {
             // Tenant sees: their own docs + lease-level docs for their leases, only when IsPrivate == false
+            if (!await CanAccessTenant(tenantId, organizationId, userId, isTenantUser))
+            {
+                return [];
+            }
+
             var tenantLeaseIds = await _context.TenantLeases
                 .Where(tl => tl.TenantId == tenantId)
                 .Select(tl => tl.LeaseId)
                 .ToListAsync();
 
-            var documents = await _context.TenantDocuments
-                .Include(d => d.Tenant)
-                .Include(d => d.Lease)
-                    .ThenInclude(l => l.Unit)
-                        .ThenInclude(u => u.Property)
+            var documents = await TenantDocumentQuery()
                 .Where(d => !d.IsDeleted && !d.IsPrivate &&
                     (d.TenantId == tenantId || (d.TenantId == null && d.LeaseId.HasValue && tenantLeaseIds.Contains(d.LeaseId.Value))))
                 .OrderByDescending(d => d.CreatedAt)
@@ -102,30 +143,38 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
             return documents.Select(MapToDto).ToList();
         }
 
-        public async Task<LoadTenantDocumentDto?> GetLeaseAgreementByLeaseId(long leaseId)
+        public async Task<LoadTenantDocumentDto?> GetLeaseAgreementByLeaseId(long leaseId, long? organizationId, long? userId, bool isTenantUser)
         {
-            var document = await _context.TenantDocuments
-                .Include(d => d.Tenant)
-                .Include(d => d.Lease)
-                    .ThenInclude(l => l.Unit)
-                        .ThenInclude(u => u.Property)
+            var document = await TenantDocumentQuery()
                 .Where(d => d.LeaseId == leaseId
                     && d.DocumentType == ETenantDocumentType.LeaseAgreement
-                    && !d.IsDeleted)
+                    && !d.IsDeleted
+                    && (isTenantUser
+                        ? userId.HasValue && !d.IsPrivate && (
+                            (d.Tenant != null && d.Tenant.UserId == userId.Value)
+                            || (d.Lease != null && d.Lease.TenantLeases.Any(tl => tl.Tenant.UserId == userId.Value && !tl.Tenant.IsDeleted)))
+                        : organizationId.HasValue && (
+                            d.OrganizationId == organizationId.Value
+                            || (d.Tenant != null && d.Tenant.OrganizationId == organizationId.Value)
+                            || (d.Lease != null && (d.Lease.OrganizationId == organizationId.Value || d.Lease.Unit.Property.OrganizationId == organizationId.Value)))))
                 .OrderByDescending(d => d.CreatedAt) // Get the most recent one
                 .FirstOrDefaultAsync();
 
             return document == null ? null : MapToDto(document);
         }
 
-        public async Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByLeaseId(long leaseId)
+        public async Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByLeaseId(long leaseId, long? organizationId)
         {
-            var documents = await _context.TenantDocuments
-                .Include(d => d.Tenant)
-                .Include(d => d.Lease)
-                    .ThenInclude(l => l.Unit)
-                        .ThenInclude(u => u.Property)
-                .Where(d => d.LeaseId == leaseId && !d.IsDeleted)
+            if (!organizationId.HasValue)
+            {
+                return [];
+            }
+
+            var documents = await TenantDocumentQuery()
+                .Where(d => d.LeaseId == leaseId && !d.IsDeleted && (
+                    d.OrganizationId == organizationId.Value
+                    || (d.Tenant != null && d.Tenant.OrganizationId == organizationId.Value)
+                    || (d.Lease != null && (d.Lease.OrganizationId == organizationId.Value || d.Lease.Unit.Property.OrganizationId == organizationId.Value))))
                 .OrderByDescending(d => d.CreatedAt)
                 .ToListAsync();
 
@@ -186,14 +235,18 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
             return documents.Select(MapToDto).ToList();
         }
 
-        public async Task<LoadTenantDocumentDto> UpdateTenantDocument(UpdateTenantDocumentDto document)
+        public async Task<LoadTenantDocumentDto> UpdateTenantDocument(UpdateTenantDocumentDto document, long? organizationId, long? userId, bool isTenantUser)
         {
-            var entity = await _context.TenantDocuments
-                .Include(d => d.Tenant)
-                .Include(d => d.Lease)
-                    .ThenInclude(l => l.Unit)
-                        .ThenInclude(u => u.Property)
-                .FirstOrDefaultAsync(d => d.Id == document.Id)
+            var entity = await TenantDocumentQuery()
+                .FirstOrDefaultAsync(d => d.Id == document.Id && !d.IsDeleted
+                    && (isTenantUser
+                        ? userId.HasValue && !d.IsPrivate && (
+                            (d.Tenant != null && d.Tenant.UserId == userId.Value)
+                            || (d.Lease != null && d.Lease.TenantLeases.Any(tl => tl.Tenant.UserId == userId.Value && !tl.Tenant.IsDeleted)))
+                        : organizationId.HasValue && (
+                            d.OrganizationId == organizationId.Value
+                            || (d.Tenant != null && d.Tenant.OrganizationId == organizationId.Value)
+                            || (d.Lease != null && (d.Lease.OrganizationId == organizationId.Value || d.Lease.Unit.Property.OrganizationId == organizationId.Value)))))
                 ?? throw new KeyNotFoundException($"Tenant document with ID {document.Id} not found.");
 
             // Update only provided fields
@@ -208,8 +261,13 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
             if (document.IsRequired.HasValue)
                 entity.IsRequired = document.IsRequired.Value;
             if (document.LeaseId.HasValue)
+            {
+                var canMoveToLease = await CanAccessLease(document.LeaseId.Value, organizationId, userId, isTenantUser);
+                if (!canMoveToLease)
+                    throw new KeyNotFoundException($"Lease with ID {document.LeaseId.Value} not found.");
                 entity.LeaseId = document.LeaseId;
-            if (document.IsPrivate.HasValue)
+            }
+            if (!isTenantUser && document.IsPrivate.HasValue)
                 entity.IsPrivate = document.IsPrivate.Value;
 
             entity.UpdatedAt = DateTime.Now;
@@ -219,9 +277,18 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
             return MapToDto(entity);
         }
 
-        public async Task<bool> DeleteTenantDocument(long id)
+        public async Task<bool> DeleteTenantDocument(long id, long? organizationId, long? userId, bool isTenantUser)
         {
-            var document = await _context.TenantDocuments.FindAsync(id);
+            var document = await TenantDocumentQuery()
+                .FirstOrDefaultAsync(d => d.Id == id && !d.IsDeleted
+                    && (isTenantUser
+                        ? userId.HasValue && !d.IsPrivate && (
+                            (d.Tenant != null && d.Tenant.UserId == userId.Value)
+                            || (d.Lease != null && d.Lease.TenantLeases.Any(tl => tl.Tenant.UserId == userId.Value && !tl.Tenant.IsDeleted)))
+                        : organizationId.HasValue && (
+                            d.OrganizationId == organizationId.Value
+                            || (d.Tenant != null && d.Tenant.OrganizationId == organizationId.Value)
+                            || (d.Lease != null && (d.Lease.OrganizationId == organizationId.Value || d.Lease.Unit.Property.OrganizationId == organizationId.Value)))));
             if (document == null)
                 return false;
 

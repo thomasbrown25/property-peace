@@ -17,6 +17,7 @@ import { selectProperties } from 'store/property/property.selector';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useFetchDashboard from 'hooks/useFetchDashboard';
 import { formatCurrency } from 'utils/formatters';
+import { isHighPriorityMaintenanceRequest, isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 const TYPE_CONFIG = {
   OVERDUE:     { label: 'Overdue',     color: 'error',   icon: <WarningOutlined /> },
@@ -164,10 +165,7 @@ export default function PrioritiesPage() {
 
     // High priority maintenance
     allRequests
-      .filter((r) =>
-        (r.priority || '').toLowerCase() === 'high' &&
-        !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
-      )
+      .filter(isHighPriorityMaintenanceRequest)
       .forEach((m) => {
         items.push({
           id: `maint-high-${m.id || m.Id}`,
@@ -186,10 +184,7 @@ export default function PrioritiesPage() {
 
     // Medium + low maintenance
     allRequests
-      .filter((r) =>
-        ['medium', 'low'].includes((r.priority || '').toLowerCase()) &&
-        !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
-      )
+      .filter((r) => ['medium', 'low'].includes((r.priority || '').toLowerCase()) && isOpenMaintenanceRequest(r))
       .forEach((m) => {
         items.push({
           id: `maint-${m.id || m.Id}`,

@@ -6,6 +6,9 @@ using brownstone_hub_api.Dtos.Image;
 using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Repositories.Images;
 using brownstone_hub_api.Services.AzureBlobService;
+using brownstone_hub_api.Services.StorageService;
+using brownstone_hub_api.Dtos.Storage;
+using System.Security.Claims;
 using brownstone_hub_api.Shared;
 
 namespace brownstone_hub_api.Services.ImageService
@@ -19,6 +22,8 @@ namespace brownstone_hub_api.Services.ImageService
         private readonly IAzureBlobService _azureBlobService;
         private readonly IImageRepository<TEntity, TLoadDto, TAddDto> _imageRepository;
         private readonly ILogger<ImageService<TEntity, TLoadDto, TAddDto>> _logger;
+        private readonly IStorageService _storageService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly string _containerName;
 
         public ImageService(
@@ -26,12 +31,16 @@ namespace brownstone_hub_api.Services.ImageService
             IAzureBlobService azureBlobService,
             IImageRepository<TEntity, TLoadDto, TAddDto> imageRepository,
             ILogger<ImageService<TEntity, TLoadDto, TAddDto>> logger,
+            IStorageService storageService,
+            IHttpContextAccessor httpContextAccessor,
             string containerName)
         {
             _blobServiceClient = blobServiceClient;
             _azureBlobService = azureBlobService;
             _imageRepository = imageRepository;
             _logger = logger;
+            _storageService = storageService;
+            _httpContextAccessor = httpContextAccessor;
             _containerName = containerName.ToLowerInvariant();
         }
 
@@ -84,6 +93,8 @@ namespace brownstone_hub_api.Services.ImageService
                     // Overwrite blob URL with SAS link
                     typeof(TLoadDto).GetProperty("BlobUrl")?.SetValue(result, sasUri);
 
+                    await TrackUploadedImageAsync(refId, file, blobName, blobClient.Uri.ToString());
+
                     response.Data.Add(result);
                 }
 
@@ -96,6 +107,61 @@ namespace brownstone_hub_api.Services.ImageService
             }
 
             return response;
+        }
+
+
+        private async Task TrackUploadedImageAsync(long refId, IFormFile file, string blobName, string blobUrl)
+        {
+            try
+            {
+                var httpContext = _httpContextAccessor.HttpContext;
+                long? organizationId = null;
+                if (httpContext?.Items.TryGetValue("OrganizationId", out var orgIdObj) == true && orgIdObj is long orgId)
+                {
+                    organizationId = orgId;
+                }
+
+                long? userId = null;
+                var userIdClaim = httpContext?.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? httpContext?.User?.FindFirst("userId")?.Value;
+                if (!string.IsNullOrWhiteSpace(userIdClaim) && long.TryParse(userIdClaim, out var parsedUserId))
+                {
+                    userId = parsedUserId;
+                }
+
+                await _storageService.TrackAsync(new TrackStorageObjectRequest
+                {
+                    OrganizationId = organizationId,
+                    UploadedByUserId = userId,
+                    OwnerUserId = userId,
+                    Category = GetStorageCategory(),
+                    EntityType = typeof(TEntity).Name,
+                    EntityId = refId,
+                    FileName = file.FileName,
+                    BlobContainer = _containerName,
+                    BlobName = blobName,
+                    BlobUrl = blobUrl,
+                    ContentType = file.ContentType,
+                    SizeBytes = file.Length,
+                    Source = "ImageUpload"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Image uploaded but storage tracking failed for blob {BlobName}", blobName);
+            }
+        }
+
+        private string GetStorageCategory()
+        {
+            return _containerName switch
+            {
+                "property-images" => "PropertyImage",
+                "listing-images" => "ListingPhoto",
+                "maintenance-images" => "MaintenanceAttachment",
+                "expense-receipts" => "Receipt",
+                _ => "Image"
+            };
         }
 
         public async Task<ServiceResponse<List<TLoadDto>>> GetImagesByRefId(long refId)

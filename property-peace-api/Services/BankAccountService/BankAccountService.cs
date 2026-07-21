@@ -127,13 +127,13 @@ namespace brownstone_hub_api.Services.BankAccountService
             return response;
         }
 
-        public async Task<ServiceResponse<LoadBankAccountDto>> GetBankAccountByIdAsync(long id)
+        public async Task<ServiceResponse<LoadBankAccountDto>> GetBankAccountByIdAsync(long id, long organizationId)
         {
             var response = new ServiceResponse<LoadBankAccountDto>();
 
             try
             {
-                var bankAccount = await _bankAccountRepository.GetBankAccountByIdAsync(id);
+                var bankAccount = await _bankAccountRepository.GetBankAccountByIdAsync(id, organizationId);
                 if (bankAccount == null)
                 {
                     response.Success = false;
@@ -146,7 +146,7 @@ namespace brownstone_hub_api.Services.BankAccountService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting bank account {Id}", id);
+                _logger.LogError(ex, "Error getting bank account {Id} for organization {OrganizationId}", id, organizationId);
                 response.Success = false;
                 response.Message = $"Error getting bank account: {ex.Message}";
             }
@@ -174,13 +174,13 @@ namespace brownstone_hub_api.Services.BankAccountService
             return response;
         }
 
-        public async Task<ServiceResponse<LoadBankAccountDto>> UpdateBankAccountAsync(UpdateBankAccountDto bankAccountDto)
+        public async Task<ServiceResponse<LoadBankAccountDto>> UpdateBankAccountAsync(UpdateBankAccountDto bankAccountDto, long organizationId)
         {
             var response = new ServiceResponse<LoadBankAccountDto>();
 
             try
             {
-                var bankAccount = await _bankAccountRepository.UpdateBankAccountAsync(bankAccountDto);
+                var bankAccount = await _bankAccountRepository.UpdateBankAccountAsync(bankAccountDto, organizationId);
                 response.Data = _mapper.Map<LoadBankAccountDto>(bankAccount);
                 response.Message = "Bank account updated successfully";
             }
@@ -192,7 +192,7 @@ namespace brownstone_hub_api.Services.BankAccountService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating bank account {Id}", bankAccountDto.Id);
+                _logger.LogError(ex, "Error updating bank account {Id} for organization {OrganizationId}", bankAccountDto.Id, organizationId);
                 response.Success = false;
                 response.Message = $"Error updating bank account: {ex.Message}";
             }
@@ -200,20 +200,20 @@ namespace brownstone_hub_api.Services.BankAccountService
             return response;
         }
 
-        public async Task<ServiceResponse<bool>> DeleteBankAccountAsync(long id)
+        public async Task<ServiceResponse<bool>> DeleteBankAccountAsync(long id, long organizationId)
         {
             var response = new ServiceResponse<bool>();
 
             try
             {
-                var result = await _bankAccountRepository.DeleteBankAccountAsync(id);
+                var result = await _bankAccountRepository.DeleteBankAccountAsync(id, organizationId);
                 response.Data = result;
                 response.Message = result ? "Bank account deleted successfully" : "Bank account not found";
                 response.Success = result;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting bank account {Id}", id);
+                _logger.LogError(ex, "Error deleting bank account {Id} for organization {OrganizationId}", id, organizationId);
                 response.Success = false;
                 response.Message = $"Error deleting bank account: {ex.Message}";
             }

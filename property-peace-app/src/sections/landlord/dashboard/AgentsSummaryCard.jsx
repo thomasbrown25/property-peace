@@ -10,6 +10,7 @@ import { RobotOutlined, ToolOutlined, ShopOutlined, AuditOutlined, SettingOutlin
 import { aiFollowUpAPI } from 'api';
 import { selectMaintenanceRequests } from 'store/maintenance/maintenance.selector';
 import moment from 'moment';
+import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 // Square diamond-style agent icon matching the mockup
 function AgentIcon({ icon, active, color }) {
@@ -52,9 +53,7 @@ export default function AgentsSummaryCard() {
   const maintenanceRequests = useSelector(selectMaintenanceRequests);
 
   const maintenanceStats = useMemo(() => {
-    const open = (maintenanceRequests || []).filter(
-      (m) => !['completed', 'cancelled'].includes((m.status || '').toLowerCase())
-    );
+    const open = (maintenanceRequests || []).filter(isOpenMaintenanceRequest);
     return { open: open.length, drafted: open.filter((m) => m.isDraft || m.IsDraft).length };
   }, [maintenanceRequests]);
 
