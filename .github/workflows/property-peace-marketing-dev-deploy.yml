@@ -1,0 +1,44 @@
+name: property-peace-marketing-dev-deploy
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - "property-peace-marketing/**"
+      - ".github/workflows/property-peace-marketing-dev-deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    name: Build and Deploy Marketing Dev
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        working-directory: property-peace-marketing
+        run: npm ci --no-audit --no-fund --loglevel=error
+
+      - name: Build Next.js app
+        working-directory: property-peace-marketing
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL_DEV }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL_DEV }}
+
+      - name: Deploy to Azure Static Web Apps dev
+        working-directory: property-peace-marketing
+        env:
+          SWA_CLI_DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_PROPERTY_PEACE_MARKETING_DEV }}
+        run: npx --yes @azure/static-web-apps-cli@2.0.9 deploy ./out --env production --swa-config-location .
