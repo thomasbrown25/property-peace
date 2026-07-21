@@ -1,4 +1,4 @@
-name: property-peace-app-dev-deploy
+name: property-peace-app-deploy-dev
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
     paths:
       - "property-peace-app/**"
       - "shared/**"
-      - ".github/workflows/property-peace-app-dev-deploy.yml"
+      - ".github/workflows/property-peace-app-deploy-dev.yml"
   workflow_dispatch:
 
 jobs:

@@ -1,11 +1,11 @@
-name: property-peace-marketing-dev-deploy
+name: property-peace-marketing-deploy-dev
 
 on:
   push:
     branches: [dev]
     paths:
       - "property-peace-marketing/**"
-      - ".github/workflows/property-peace-marketing-dev-deploy.yml"
+      - ".github/workflows/property-peace-marketing-deploy-dev.yml"
   workflow_dispatch:
 
 jobs:
