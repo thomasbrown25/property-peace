@@ -6,6 +6,7 @@ import MainCard from 'components/MainCard';
 import { selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import { formatCurrency } from 'utils/formatters';
 import { CheckOutlined, DollarOutlined, ToolOutlined, RiseOutlined } from '@ant-design/icons';
+import { isHighPriorityMaintenanceRequest, isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 // Simple SVG sparkline
 function Sparkline({ values = [], color = '#333' }) {
@@ -59,11 +60,8 @@ export default function PortfolioHealthSummary({ properties, summary, totalExpen
   const collectedThisMonth = summary?.collectedThisMonth || 0;
   const expectedThisMonth = summary?.expectedThisMonth || 0;
   const overdueAmount = summary?.overdue || 0;
-  const openCount = allRequests.filter((r) => {
-    const s = (r.status || r.Status || '').toLowerCase();
-    return !['resolved', 'completed', 'cancelled'].includes(s);
-  }).length;
-  const highCount = allRequests.filter((r) => (r.priority || r.Priority || '').toLowerCase() === 'high').length;
+  const openCount = allRequests.filter(isOpenMaintenanceRequest).length;
+  const highCount = allRequests.filter(isHighPriorityMaintenanceRequest).length;
   const vacantUnits = totalUnits - occupiedUnits;
 
   const errorColor = theme.palette.error.main;

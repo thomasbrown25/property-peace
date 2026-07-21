@@ -6,6 +6,7 @@ import { selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import { ArrowRightOutlined, ToolOutlined, DollarOutlined, FileTextOutlined, WarningOutlined, MessageOutlined, CloseCircleOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { differenceInDays, parseISO } from 'date-fns';
 import useFetchNotifications from 'hooks/useFetchNotifications';
+import { isHighPriorityMaintenanceRequest, isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 export default function TodaysPriorities({ properties = [], summary = {}, allPayments = [] }) {
   const theme = useTheme();
@@ -54,10 +55,7 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
 
     // High priority maintenance
     allRequests
-      .filter((r) =>
-        (r.priority || '').toLowerCase() === 'high' &&
-        !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
-      )
+      .filter(isHighPriorityMaintenanceRequest)
       .slice(0, 3)
       .forEach((m) => {
         items.push({
@@ -79,10 +77,7 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
 
     // Medium maintenance
     allRequests
-      .filter((r) =>
-        (r.priority || '').toLowerCase() === 'medium' &&
-        !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
-      )
+      .filter((r) => (r.priority || '').toLowerCase() === 'medium' && isOpenMaintenanceRequest(r))
       .slice(0, 2)
       .forEach((m) => {
         items.push({

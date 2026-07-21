@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, differenceInDays, differenceInMonths } from 'date-fns';
 import { formatCurrency, formatPhone } from 'utils/formatters';
 import { useDrawer } from 'contexts/DrawerContext';
+import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 function InfoRow({ label, value }) {
   return (
@@ -70,9 +71,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
   const maintenanceRequests = (property?.maintenanceRequests || []).filter(
     (r) => (r.unitId || r.UnitId) === (unit.id || unit.Id)
   );
-  const openTickets = maintenanceRequests.filter(
-    (r) => !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
-  );
+  const openTickets = maintenanceRequests.filter(isOpenMaintenanceRequest);
 
   const propertyId = property?.id || property?.Id;
 

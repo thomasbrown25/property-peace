@@ -157,6 +157,8 @@ const TenantSubscriptionSuccess = Loadable(lazy(() => import('pages/tenant/subsc
 const AdminDashboard = Loadable(lazy(() => import('pages/admin/dashboard')));
 const AdminSubscriptions = Loadable(lazy(() => import('pages/admin/subscriptions')));
 const AdminUsers = Loadable(lazy(() => import('pages/admin/users')));
+const AdminUserDetail = Loadable(lazy(() => import('pages/admin/user-detail')));
+const AdminStorage = Loadable(lazy(() => import('pages/admin/storage')));
 const AdminSettings = Loadable(lazy(() => import('pages/admin/settings')));
 const AdminMessages = Loadable(lazy(() => import('pages/admin/messages')));
 const AdminUpcomingFeatures = Loadable(lazy(() => import('pages/admin/upcoming-features')));
@@ -1236,6 +1238,22 @@ const MainRoutes = {
           element: (
             <AdminRoute>
               <AdminUsers />
+            </AdminRoute>
+          )
+        },
+        {
+          path: 'admin/users/:userId',
+          element: (
+            <AdminRoute>
+              <AdminUserDetail />
+            </AdminRoute>
+          )
+        },
+        {
+          path: 'admin/storage',
+          element: (
+            <AdminRoute>
+              <AdminStorage />
             </AdminRoute>
           )
         },

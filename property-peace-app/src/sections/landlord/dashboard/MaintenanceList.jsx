@@ -8,6 +8,7 @@ import { selectDashboardSummary, selectDashboardLoading } from 'store/dashboard/
 import { selectProperty } from 'store/property/property.selector';
 import CircularLoader from 'components/CircularLoader';
 import moment from 'moment';
+import { isClosedMaintenanceStatus, isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 const PRIORITY_STYLES = {
   high:   { bg: '#fdecea', color: '#c62828', label: 'HIGH' },
@@ -58,18 +59,15 @@ export default function MaintenanceList() {
     filteredByProperty.forEach((r) => {
       const s = (r.status || r.Status || '').toLowerCase();
       const p = (r.priority || r.Priority || '').toLowerCase();
-      if (s === 'resolved') completed++;
+      if (isClosedMaintenanceStatus(s)) completed++;
       else if (s === 'inprogress' || s === 'in-progress' || s === 'in progress') inProgress++;
       else if (s === 'reported') open++;
-      if (p === 'high') high++;
+      if (p === 'high' && isOpenMaintenanceRequest(r)) high++;
     });
     return { completed, inProgress, open, high };
   }, [filteredByProperty]);
 
-  const activeRequests = filteredByProperty.filter((r) => {
-    const s = (r.status || r.Status || '').toLowerCase();
-    return s === 'reported' || s === 'inprogress' || s === 'in-progress' || s === 'in progress';
-  });
+  const activeRequests = filteredByProperty.filter(isOpenMaintenanceRequest);
 
   const displayRequests = activeRequests.slice(0, 5);
 

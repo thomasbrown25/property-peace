@@ -23,9 +23,10 @@ namespace brownstone_hub_api.Repositories.BankAccounts
                 .ToListAsync();
         }
 
-        public async Task<BankAccount?> GetBankAccountByIdAsync(long id)
+        public async Task<BankAccount?> GetBankAccountByIdAsync(long id, long organizationId)
         {
-            return await _context.BankAccounts.FindAsync(id);
+            return await _context.BankAccounts
+                .FirstOrDefaultAsync(ba => ba.Id == id && ba.OrganizationId == organizationId && ba.IsActive);
         }
 
         public async Task<BankAccount?> GetBankAccountByStripeAccountIdAsync(string stripeAccountId)
@@ -75,9 +76,10 @@ namespace brownstone_hub_api.Repositories.BankAccounts
             return bankAccount;
         }
 
-        public async Task<BankAccount> UpdateBankAccountAsync(UpdateBankAccountDto bankAccountDto)
+        public async Task<BankAccount> UpdateBankAccountAsync(UpdateBankAccountDto bankAccountDto, long organizationId)
         {
-            var bankAccount = await _context.BankAccounts.FindAsync(bankAccountDto.Id);
+            var bankAccount = await _context.BankAccounts
+                .FirstOrDefaultAsync(ba => ba.Id == bankAccountDto.Id && ba.OrganizationId == organizationId && ba.IsActive);
             if (bankAccount == null)
             {
                 throw new ArgumentException("Bank account not found");
@@ -116,9 +118,10 @@ namespace brownstone_hub_api.Repositories.BankAccounts
             return bankAccount;
         }
 
-        public async Task<bool> DeleteBankAccountAsync(long id)
+        public async Task<bool> DeleteBankAccountAsync(long id, long organizationId)
         {
-            var bankAccount = await _context.BankAccounts.FindAsync(id);
+            var bankAccount = await _context.BankAccounts
+                .FirstOrDefaultAsync(ba => ba.Id == id && ba.OrganizationId == organizationId && ba.IsActive);
             if (bankAccount == null)
             {
                 return false;

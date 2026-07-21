@@ -19,6 +19,7 @@ import { differenceInDays, differenceInMonths, parseISO } from 'date-fns';
 import useFetchAllPayments from 'hooks/useFetchAllPayments';
 import useFetchDashboardSummary from 'hooks/useFetchDashboard';
 import useFetchExpenses from 'hooks/useFetchExpenses';
+import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
 function StatTile({ label, value, sub, valueColor }) {
   return (
@@ -99,8 +100,7 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
   const dashboardSummary = useSelector(selectDashboardSummary);
   const allRequests = dashboardSummary?.maintenanceRequests?.maintenanceRequests || [];
   const propertyRequests = allRequests.filter(
-    (r) => !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
-      && ((r.propertyId || r.PropertyId) === propertyId)
+    (r) => isOpenMaintenanceRequest(r) && ((r.propertyId || r.PropertyId) === propertyId)
   );
   const openMaint = propertyRequests.length;
   const highMaint = propertyRequests.filter((r) => (r.priority || '').toLowerCase() === 'high').length;

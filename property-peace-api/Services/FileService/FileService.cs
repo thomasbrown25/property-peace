@@ -4,6 +4,8 @@ using brownstone_hub_api.Dtos.File;
 using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Repositories.Files;
 using brownstone_hub_api.Services.AzureBlobService;
+using brownstone_hub_api.Services.StorageService;
+using brownstone_hub_api.Dtos.Storage;
 using Microsoft.AspNetCore.Http;
 
 namespace brownstone_hub_api.Services.FileService
@@ -13,12 +15,14 @@ namespace brownstone_hub_api.Services.FileService
         IAzureBlobService azureBlobService,
         IFileRepository fileRepository,
         IHttpContextAccessor httpContextAccessor,
+        IStorageService storageService,
         ILogger<FileService> logger) : IFileService
     {
         private readonly BlobServiceClient _blobServiceClient = blobServiceClient;
         private readonly IAzureBlobService _azureBlobService = azureBlobService;
         private readonly IFileRepository _fileRepository = fileRepository;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly IStorageService _storageService = storageService;
         private readonly ILogger<FileService> _logger = logger;
         private const string ContainerName = "account-files";
 
@@ -115,6 +119,7 @@ namespace brownstone_hub_api.Services.FileService
                     };
 
                     var fileDto = await _fileRepository.AddFile(addFileDto, organizationId.Value, userId);
+                    await TrackAccountFileAsync(file, blobName, blobClient.Uri.ToString(), organizationId.Value, userId, propertyId, unitId, leaseId);
                     response.Data.Add(fileDto);
                 }
 
@@ -128,6 +133,44 @@ namespace brownstone_hub_api.Services.FileService
                     "Error uploading files",
                     ex.Message
                 );
+            }
+        }
+
+
+        private async Task TrackAccountFileAsync(
+            IFormFile file,
+            string blobName,
+            string blobUrl,
+            long organizationId,
+            long? userId,
+            long? propertyId,
+            long? unitId,
+            long? leaseId)
+        {
+            try
+            {
+                var entityType = leaseId.HasValue ? "Lease" : unitId.HasValue ? "Unit" : propertyId.HasValue ? "Property" : "File";
+                var entityId = leaseId ?? unitId ?? propertyId;
+                await _storageService.TrackAsync(new TrackStorageObjectRequest
+                {
+                    OrganizationId = organizationId,
+                    UploadedByUserId = userId,
+                    OwnerUserId = userId,
+                    Category = leaseId.HasValue ? "LeaseDocument" : "Document",
+                    EntityType = entityType,
+                    EntityId = entityId,
+                    FileName = file.FileName,
+                    BlobContainer = ContainerName,
+                    BlobName = blobName,
+                    BlobUrl = blobUrl,
+                    ContentType = file.ContentType,
+                    SizeBytes = file.Length,
+                    Source = "FileUpload"
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "File uploaded but storage tracking failed for blob {BlobName}", blobName);
             }
         }
 

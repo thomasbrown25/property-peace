@@ -2,6 +2,7 @@ import { alpha, Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 import { WarningOutlined, CheckCircleOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from 'utils/formatters';
+import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
 
 function getUnitSummary(property) {
   const units = property.units || property.Units || [];
@@ -12,8 +13,8 @@ function getUnitSummary(property) {
     else if (status === 'overdue') { occupied++; overdue++; }
     else if (status === 'vacant') vacant++;
   });
-  const maintReqs = property.maintenanceRequests || [];
-  highMaint = maintReqs.filter((r) => (r.priority || '').toLowerCase() === 'high' && !['completed','cancelled'].includes((r.status||'').toLowerCase())).length;
+  const maintReqs = property.maintenanceRequests || property.MaintenanceRequests || [];
+  highMaint = maintReqs.filter(isHighPriorityMaintenanceRequest).length;
   return { occupied, vacant, overdue, highMaint, total: units.length };
 }
 

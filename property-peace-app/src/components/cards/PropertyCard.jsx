@@ -6,6 +6,7 @@ import { useDispatch } from 'react-redux';
 import { setProperty } from 'store/property/property.action';
 import { useDrawer } from 'contexts/DrawerContext';
 import { formatCurrency } from 'utils/formatters';
+import { isHighPriorityMaintenanceRequest } from 'utils/maintenanceStatus';
 import { differenceInDays, parseISO } from 'date-fns';
 import placeholderImage from 'assets/images/placeholder-house.png';
 
@@ -122,9 +123,7 @@ export default function PropertyCard({ property }) {
   const leaseExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry >= 0 && daysUntilExpiry <= 30;
 
   // High maintenance count
-  const highMaint = (maintenanceRequests || []).filter(
-    (r) => (r.priority || '').toLowerCase() === 'high' && !['completed', 'cancelled'].includes((r.status || '').toLowerCase())
-  ).length;
+  const highMaint = (maintenanceRequests || []).filter(isHighPriorityMaintenanceRequest).length;
 
   // Multi-unit aggregate counts (for attention banner and status chip)
   const multiUnitCounts = useMemo(() => {
