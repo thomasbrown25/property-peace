@@ -6,6 +6,10 @@ import { FiInstagram, FiLinkedin, FiYoutube } from 'react-icons/fi';
 import { SiX, SiTiktok } from 'react-icons/si';
 
 export default function Footer() {
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.propertypeace.io').replace(/\/$/, '');
+  const loginUrl = `${appUrl}/login`;
+  const registerUrl = `${appUrl}/register`;
+
   return (
     <footer className="relative overflow-hidden bg-[#061e35] text-white">
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -191,7 +195,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="https://app.propertypeace.io/login" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
+                <a href={loginUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
                   Login
                 </a>
               </li>
@@ -201,7 +205,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="https://app.propertypeace.io/register" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
+                <a href={registerUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
                   Start free
                 </a>
               </li>
