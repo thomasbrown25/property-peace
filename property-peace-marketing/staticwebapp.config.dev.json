@@ -30,7 +30,7 @@
         "Cache-Control": "public, max-age=31536000, immutable"
       },
       "allowedRoles": [
-        "dev-access"
+        "dev_access"
       ]
     },
     {
@@ -39,7 +39,7 @@
         "Cache-Control": "public, max-age=31536000, immutable"
       },
       "allowedRoles": [
-        "dev-access"
+        "dev_access"
       ]
     },
     {
@@ -48,7 +48,7 @@
         "Cache-Control": "public, max-age=31536000, immutable"
       },
       "allowedRoles": [
-        "dev-access"
+        "dev_access"
       ]
     },
     {
@@ -61,7 +61,7 @@
         "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
       },
       "allowedRoles": [
-        "dev-access"
+        "dev_access"
       ]
     }
   ],
