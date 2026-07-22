@@ -1,4 +1,4 @@
-# Redeploy trigger: dev secrets refreshed
+# Redeploy trigger: dev Google client secret refreshed
 name: property-peace-app-deploy-dev
 
 on:
