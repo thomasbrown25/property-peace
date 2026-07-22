@@ -40,6 +40,7 @@ jobs:
           skip_api_build: true
           output_location: "dist"
           app_build_command: |
+            cp staticwebapp.config.dev.json staticwebapp.config.json
             npm ci --no-audit --no-fund --loglevel=error
             npm install @rollup/rollup-linux-x64-gnu --no-save --no-audit --no-fund 2>/dev/null || true
             npm run build
