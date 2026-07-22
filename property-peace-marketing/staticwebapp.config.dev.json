@@ -25,6 +25,12 @@
   },
   "routes": [
     {
+      "route": "/.auth/*",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
       "route": "/_next/static/*",
       "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"
