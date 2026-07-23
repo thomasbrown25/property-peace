@@ -45,5 +45,6 @@ jobs:
         env:
           NODE_VERSION: "20"
           NODE_OPTIONS: "--max-old-space-size=4096"
+          VITE_APP_API_URL: ${{ secrets.VITE_APP_API_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_APP_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_APP_GOOGLE_MAPS_API_KEY }}
