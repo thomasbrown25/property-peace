@@ -31,21 +31,6 @@ export default function DashboardHeader({ userName, onCreateNew, subscription = 
     <>
       <Fade in={fadeIn} timeout={500}>
         <Box sx={{ mb: 0 }}>
-          {/* Date chip — sits above, separate from the flex row */}
-          <Chip
-            icon={<CalendarOutlined style={{ fontSize: 13 }} />}
-            label={today}
-            size="small"
-            variant="outlined"
-            sx={{
-              height: 26,
-              mb: 1,
-              borderColor: alpha(theme.palette.divider, 0.2),
-              bgcolor: alpha(theme.palette.background.paper, 0.6),
-              '& .MuiChip-label': { fontSize: '0.72rem', fontWeight: 500 }
-            }}
-          />
-
           {/* Greeting row — buttons centered against greeting + summary block */}
           <Stack
             direction="row"
@@ -62,6 +47,19 @@ export default function DashboardHeader({ userName, onCreateNew, subscription = 
                 {greeting}
                 {userName ? `, ${userName.split(' ')[0]}.` : '.'}
               </Typography>
+              <Chip
+                icon={<CalendarOutlined style={{ fontSize: 13 }} />}
+                label={today}
+                size="small"
+                variant="outlined"
+                sx={{
+                  height: 26,
+                  mt: 1,
+                  borderColor: alpha(theme.palette.divider, 0.2),
+                  bgcolor: alpha(theme.palette.background.paper, 0.6),
+                  '& .MuiChip-label': { fontSize: '0.72rem', fontWeight: 500 }
+                }}
+              />
               {summaryText && (
                 <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', mt: 0.75 }}>
                   {summaryText}

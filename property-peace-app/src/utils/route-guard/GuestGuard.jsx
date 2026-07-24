@@ -3,13 +3,13 @@ import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // project imports
-import { APP_DEFAULT_PATH } from 'config';
 import useAuth from 'hooks/useAuth';
+import { getPostLoginRedirectPath } from 'utils/authRedirect';
 
 // ==============================|| GUEST GUARD ||============================== //
 
 export default function GuestGuard({ children }) {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,14 +20,14 @@ export default function GuestGuard({ children }) {
       if (pathname.includes('/tenant/invite/')) {
         return; // Don't redirect - tenant needs to accept invite
       }
-      navigate(location?.state?.from ? location?.state?.from : APP_DEFAULT_PATH, {
+      navigate(getPostLoginRedirectPath(user, location?.state?.from), {
         state: {
           from: ''
         },
         replace: true
       });
     }
-  }, [isLoggedIn, navigate, location]);
+  }, [isLoggedIn, user, navigate, location]);
 
   return children;
 }

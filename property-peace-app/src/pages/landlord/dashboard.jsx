@@ -506,120 +506,121 @@ export default function Dashboard() {
           </AnimateIn>
         </Grid>
 
-        {/* Row: Quick action cards */}
-        <Grid size={12}>
-          <AnimateIn direction="bottom" delay={200} distance={120}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', md: 'repeat(4,1fr)' }, gap: 1.5 }}>
-              {[
-                {
-                  icon: <DollarCircleOutlined style={{ fontSize: 22 }} />,
-                  label: 'Record Payment',
-                  sub: 'Log a rent payment',
-                  color: theme.palette.primary.main,
-                  onClick: () => drawer.openPaymentAddDrawer()
-                },
-                {
-                  icon: <WalletOutlined style={{ fontSize: 22 }} />,
-                  label: 'Add Expense',
-                  sub: 'Log a property expense',
-                  color: theme.palette.primary.main,
-                  onClick: () => setAddExpenseDrawerOpen(true)
-                },
-                {
-                  icon: <ToolOutlined style={{ fontSize: 22 }} />,
-                  label: 'Create Maintenance',
-                  sub: 'Submit a new ticket',
-                  color: theme.palette.primary.main,
-                  onClick: () => drawer.openMaintenanceAddDrawer()
-                },
-                {
-                  icon: <MessageOutlined style={{ fontSize: 22 }} />,
-                  label: 'Send Rent Reminder',
-                  sub: 'Remind tenants to pay',
-                  color: theme.palette.primary.main,
-                  onClick: () => setRentReminderOpen(true)
-                },
-              ].map((action) => (
-                <Tooltip key={action.label} title={action.sub} arrow placement="top">
+        {/* Row: Quick Actions + Money Summary */}
+        <Grid size={{ xs: 12, md: 5 }} sx={{ display: 'flex', flexDirection: 'column' }}>
+          <AnimateIn direction="bottom" delay={250} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <Paper
+              sx={(t) => ({
+                p: 2.25,
+                height: '100%',
+                borderRadius: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                bgcolor: 'background.paper',
+                border: `1px solid ${alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.18 : 0.1)}`,
+                boxShadow: t.palette.mode === 'dark'
+                  ? `0 18px 44px ${alpha('#000', 0.24)}`
+                  : `0 12px 34px ${alpha(t.palette.common.black, 0.06)}`
+              })}
+            >
+              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 1.75 }}>
+                <Typography variant="h5" fontWeight={800}>Quick actions</Typography>
+              </Stack>
+              <Stack spacing={1} sx={{ mt: 'auto' }}>
+                {[
+                  { icon: <DollarCircleOutlined style={{ fontSize: 18 }} />, label: 'Record Payment', sub: 'Log rent paid', color: theme.palette.success.main, onClick: () => drawer.openPaymentAddDrawer() },
+                  { icon: <WalletOutlined style={{ fontSize: 18 }} />, label: 'Add Expense', sub: 'Track a cost', color: theme.palette.primary.main, onClick: () => setAddExpenseDrawerOpen(true) },
+                  { icon: <ToolOutlined style={{ fontSize: 18 }} />, label: 'Maintenance', sub: 'Create ticket', color: theme.palette.warning.main, onClick: () => drawer.openMaintenanceAddDrawer() },
+                  { icon: <MessageOutlined style={{ fontSize: 18 }} />, label: 'Rent Reminder', sub: 'Send a nudge', color: theme.palette.info.main, onClick: () => setRentReminderOpen(true) }
+                ].map((action) => (
                   <Box
+                    key={action.label}
+                    component="button"
+                    type="button"
                     onClick={action.onClick}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5,
-                      p: 2,
-                      borderRadius: 2.25,
-                      bgcolor: 'background.paper',
-                      backgroundImage: (t) => t.palette.mode === 'dark'
-                        ? `linear-gradient(180deg, ${alpha('#ffffff', 0.045)} 0%, ${alpha('#ffffff', 0.006)} 100%)`
-                        : 'none',
-                      border: (t) => `1px solid ${t.palette.mode === 'dark' ? alpha('#cbd5e1', 0.2) : alpha(t.palette.common.black, 0.08)}`,
+                    sx={() => ({
+                      width: '100%',
+                      minHeight: 52,
+                      px: 1.25,
+                      py: 1,
+                      border: `1px solid ${alpha('#94a3b8', 0.45)}`,
+                      borderRadius: 2,
+                      textAlign: 'left',
                       cursor: 'pointer',
-                      transition: 'all 0.18s ease',
+                      color: '#061e35',
+                      bgcolor: '#ffffff',
+                      backgroundImage: 'none',
+                      transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease',
                       '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: `0 10px 26px ${alpha(action.color, theme.palette.mode === 'dark' ? 0.2 : 0.18)}`,
-                        borderColor: alpha(action.color, theme.palette.mode === 'dark' ? 0.48 : 0.3),
-                        bgcolor: (t) => t.palette.mode === 'dark' ? alpha(action.color, 0.08) : 'background.paper'
+                        transform: 'translateY(-1px)',
+                        borderColor: alpha('#94a3b8', 0.7),
+                        boxShadow: `0 10px 22px ${alpha('#061e35', 0.12)}`,
+                        bgcolor: alpha('#061e35', 0.035)
+                      },
+                      '&:focus-visible': {
+                        outline: `2px solid ${alpha('#061e35', 0.45)}`,
+                        outlineOffset: 2
                       }
-                    }}
+                    })}
                   >
-                    <Box sx={{
-                      width: 40, height: 40, borderRadius: 1.5, flexShrink: 0,
-                      bgcolor: alpha(action.color, theme.palette.mode === 'dark' ? 0.16 : 0.1),
-                      border: `1px solid ${alpha(action.color, theme.palette.mode === 'dark' ? 0.22 : 0.08)}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: action.color
-                    }}>
-                      {action.icon}
-                    </Box>
-                    <Typography variant="body2" fontWeight={700} noWrap sx={{ minWidth: 0, lineHeight: 1.3, fontSize: '0.95rem' }}>
-                      {action.label}
-                    </Typography>
+                    <Stack direction="row" spacing={1.15} alignItems="center">
+                      <Box
+                        sx={() => ({
+                          width: 30,
+                          height: 30,
+                          borderRadius: 1.25,
+                          flexShrink: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#061e35',
+                          bgcolor: alpha('#061e35', 0.08)
+                        })}
+                      >
+                        {action.icon}
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={800} noWrap sx={{ lineHeight: 1.15, color: '#061e35' }}>
+                          {action.label}
+                        </Typography>
+                        <Typography variant="caption" noWrap sx={{ display: 'block', mt: 0.2, color: alpha('#061e35', 0.78) }}>
+                          {action.sub}
+                        </Typography>
+                      </Box>
+                    </Stack>
                   </Box>
-                </Tooltip>
-              ))}
-            </Box>
+                ))}
+              </Stack>
+            </Paper>
           </AnimateIn>
         </Grid>
-
-        {/* Row: Money Summary + Recent Money Activity */}
         <Grid size={{ xs: 12, md: 7 }} sx={{ display: 'flex', flexDirection: 'column' }}>
           <AnimateIn direction="bottom" delay={250} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <MoneySummary summary={summary} lifetimeSummary={lifetimeSummary} totalExpenses={totalExpenses} allPayments={allPayments} />
           </AnimateIn>
         </Grid>
+
+        {/* Row: Payment Check-In + Needs Your Attention */}
         <Grid size={{ xs: 12, md: 5 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-          <AnimateIn direction="bottom" delay={250} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <AnimateIn direction="bottom" delay={350} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <PaymentsCard />
           </AnimateIn>
         </Grid>
-
-        {/* Row: Needs Your Attention + On the Horizon */}
         <Grid size={{ xs: 12, md: 7 }} sx={{ display: 'flex', flexDirection: 'column' }}>
           <AnimateIn direction="bottom" delay={350} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <TodaysPriorities properties={properties} summary={summary} allPayments={allPayments} />
           </AnimateIn>
         </Grid>
+
+        {/* Row: On the Horizon + At a Glance */}
         <Grid size={{ xs: 12, md: 5 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-          <AnimateIn direction="bottom" delay={350} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <AnimateIn direction="bottom" delay={450} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <OnTheHorizon />
           </AnimateIn>
         </Grid>
-
-        {/* Row: At a Glance + Portfolio Snapshot */}
         <Grid size={{ xs: 12, md: 7 }} sx={{ display: 'flex', flexDirection: 'column' }}>
           <AnimateIn direction="bottom" delay={450} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <AtAGlance properties={properties} onAddProperty={drawer.openPropertyAddWorkflowDrawer} />
-          </AnimateIn>
-        </Grid>
-        <Grid size={{ xs: 12, md: 5 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-          <AnimateIn direction="bottom" delay={450} distance={120} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <PortfolioHealthSummary
-              properties={properties}
-              summary={summary}
-              totalExpenses={totalExpenses}
-            />
           </AnimateIn>
         </Grid>
           </Grid>
