@@ -85,18 +85,19 @@ namespace brownstone_hub_api.Controllers
                 },
                 AttestationPreference = AttestationConveyancePreference.None
             });
+            var optionsJson = options.ToJson();
 
             var ceremony = new PasskeyCeremony
             {
                 Type = RegistrationCeremony,
                 UserId = user.Id,
-                OptionsJson = options.ToJson(),
+                OptionsJson = optionsJson,
                 ExpiresAt = DateTime.UtcNow.Add(CeremonyLifetime)
             };
             _dataContext.PasskeyCeremonies.Add(ceremony);
             await _dataContext.SaveChangesAsync(cancellationToken);
 
-            return Ok(new PasskeyOptionsDto(ceremony.Id, options));
+            return Ok(new PasskeyOptionsDto(ceremony.Id, ParseWebAuthnOptions(optionsJson)));
         }
 
         [Authorize]
@@ -166,17 +167,18 @@ namespace brownstone_hub_api.Controllers
                 AllowedCredentials = [],
                 UserVerification = UserVerificationRequirement.Required
             });
+            var optionsJson = options.ToJson();
 
             var ceremony = new PasskeyCeremony
             {
                 Type = AuthenticationCeremony,
-                OptionsJson = options.ToJson(),
+                OptionsJson = optionsJson,
                 ExpiresAt = DateTime.UtcNow.Add(CeremonyLifetime)
             };
             _dataContext.PasskeyCeremonies.Add(ceremony);
             await _dataContext.SaveChangesAsync(cancellationToken);
 
-            return Ok(new PasskeyOptionsDto(ceremony.Id, options));
+            return Ok(new PasskeyOptionsDto(ceremony.Id, ParseWebAuthnOptions(optionsJson)));
         }
 
         [AllowAnonymous]
@@ -303,6 +305,12 @@ namespace brownstone_hub_api.Controllers
         private static string HashCredentialId(byte[] credentialId) =>
             Convert.ToHexString(SHA256.HashData(credentialId));
 
+        private static JsonElement ParseWebAuthnOptions(string optionsJson)
+        {
+            using var document = JsonDocument.Parse(optionsJson);
+            return document.RootElement.Clone();
+        }
+
         private static string NormalizeName(string? name)
         {
             var normalized = string.IsNullOrWhiteSpace(name) ? "Passkey" : name.Trim();
@@ -322,7 +330,7 @@ namespace brownstone_hub_api.Controllers
         }
     }
 
-    public sealed record PasskeyOptionsDto(Guid CeremonyId, object Options);
+    public sealed record PasskeyOptionsDto(Guid CeremonyId, JsonElement Options);
     public sealed record PasskeySummaryDto(long Id, string Name, DateTime CreatedAt, DateTime? LastUsedAt, bool IsBackedUp);
     public sealed record PasskeyRegistrationRequest(Guid CeremonyId, AuthenticatorAttestationRawResponse Response, string? Name);
     public sealed record PasskeyAuthenticationRequest(Guid CeremonyId, AuthenticatorAssertionRawResponse Response);
