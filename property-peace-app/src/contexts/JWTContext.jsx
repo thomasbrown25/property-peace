@@ -15,6 +15,7 @@ import axios from 'utils/axios';
 import store from 'store';
 import { USER_ACTION_TYPES } from 'store/user/user.types';
 import { getBrowserTimezone } from 'utils/browserTimezone';
+import { getPostLoginRedirectPath } from 'utils/authRedirect';
 
 const chance = new Chance();
 
@@ -219,19 +220,11 @@ export const JWTProvider = ({ children }) => {
       }
     }
 
-    // Redirect based on user role after login
-    // This ensures immediate redirect after successful login
-    const userRoles = Array.isArray(user?.Roles) ? user.Roles : Array.isArray(user?.roles) ? user.roles : [];
-    const normalizedRoles = userRoles.map(r => String(r).toLowerCase().trim());
-
+    // Redirect based on user role after login.
+    // GuestGuard may also react to the logged-in state, so use the same resolver in both places.
+    const redirectPath = getPostLoginRedirectPath(user, window.history.state?.usr?.from);
     setTimeout(() => {
-      if (normalizedRoles.includes('admin')) {
-        window.location.replace('/admin/dashboard');
-      } else if (normalizedRoles.includes('tenant')) {
-        window.location.replace('/tenant/dashboard');
-      } else if (normalizedRoles.includes('landlord')) {
-        window.location.replace('/landlord/dashboard');
-      }
+      window.location.replace(redirectPath);
     }, 100);
   };
 
@@ -362,18 +355,11 @@ export const JWTProvider = ({ children }) => {
             }
           }
 
-          // Redirect based on user role after Google login
-          const userRoles = Array.isArray(user?.Roles) ? user.Roles : Array.isArray(user?.roles) ? user.roles : [];
-          const normalizedRoles = userRoles.map(r => String(r).toLowerCase().trim());
-
+          // Redirect based on user role after Google login.
+          // GuestGuard may also react to the logged-in state, so use the same resolver in both places.
+          const redirectPath = getPostLoginRedirectPath(user, window.history.state?.usr?.from);
           setTimeout(() => {
-            if (normalizedRoles.includes('admin')) {
-              window.location.replace('/admin/dashboard');
-            } else if (normalizedRoles.includes('tenant')) {
-              window.location.replace('/tenant/dashboard');
-            } else if (normalizedRoles.includes('landlord')) {
-              window.location.replace('/landlord/dashboard');
-            }
+            window.location.replace(redirectPath);
           }, 100);
           return;
         }

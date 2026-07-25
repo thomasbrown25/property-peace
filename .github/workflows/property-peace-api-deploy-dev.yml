@@ -1,0 +1,74 @@
+# Redeploy trigger: dev secrets refreshed
+name: property-peace-api-deploy-dev
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - "property-peace-api/**"
+      - ".github/workflows/property-peace-api-deploy-dev.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET Core
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.x"
+
+      - name: Build with dotnet
+        working-directory: property-peace-api
+        run: dotnet build --configuration Release
+
+      - name: dotnet publish
+        working-directory: property-peace-api
+        run: dotnet publish -c Release -o "${{ env.DOTNET_ROOT }}/myapp"
+
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: .net-app-dev
+          path: ${{ env.DOTNET_ROOT }}/myapp
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: .net-app-dev
+
+      - name: Check Azure login secret configuration
+        shell: pwsh
+        run: |
+          $hasSplitCreds = '${{ secrets.AZURE_CLIENT_ID != '' && secrets.AZURE_CLIENT_SECRET != '' && secrets.AZURE_SUBSCRIPTION_ID != '' && secrets.AZURE_TENANT_ID != '' }}'
+          Write-Host "Split Azure service-principal secrets configured: $hasSplitCreds"
+          if ($hasSplitCreds -ne 'true') {
+            throw "Missing Azure login secrets. Configure AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_SUBSCRIPTION_ID, and AZURE_TENANT_ID."
+          }
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: >
+            {"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}
+
+      - name: Deploy to Azure Web App dev
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: "property-peace-api-dev"
+          slot-name: "Production"
+          package: .

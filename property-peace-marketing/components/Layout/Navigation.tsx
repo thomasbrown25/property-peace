@@ -33,6 +33,9 @@ export default function Navigation() {
   const [featuresDropdownTimeout, setFeaturesDropdownTimeout] = useState<NodeJS.Timeout | null>(null);
   const transparent = false;
   const useFooterStyleNav = true;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.propertypeace.io').replace(/\/$/, '');
+  const loginUrl = `${appUrl}/login`;
+  const registerUrl = `${appUrl}/register`;
 
   useEffect(() => {
     if (!mobileMenuOpen) {
@@ -272,7 +275,7 @@ export default function Navigation() {
           {/* Mobile: Login on right */}
           <div className="nav:hidden flex h-11 w-16 flex-shrink-0 items-center justify-end">
             <Link
-              href="https://app.propertypeace.io/login"
+              href={loginUrl}
               className={`inline-flex h-11 min-w-11 items-center justify-end rounded-xl px-1 text-sm font-medium transition-all duration-300 ${
                 transparent ? 'text-primary-main hover:text-primary-hover' : 'text-white/85 hover:text-white'
               }`}
@@ -329,7 +332,7 @@ export default function Navigation() {
           {/* CTA: Login + Get Started (desktop) */}
           <div className="hidden nav:flex items-center gap-3 lg:nav:mr-12">
             <Link
-              href="https://app.propertypeace.io/login"
+              href={loginUrl}
               className={`px-6 py-3 rounded-none font-medium text-center transition-all duration-300 border ${
                 transparent
                   ? 'border-slate-200 text-primary-main hover:bg-slate-50 hover:text-primary-hover'
@@ -340,7 +343,7 @@ export default function Navigation() {
               Login
             </Link>
             <Link
-              href="https://app.propertypeace.io/register"
+              href={registerUrl}
               className="px-7 py-3.5 rounded-none font-bold text-center transition-all duration-300 hover:-translate-y-0.5 shadow-lg shadow-emerald-600/25 text-white"
               style={{
                 fontFamily: '"Inter", "Inter Placeholder", sans-serif',
@@ -600,7 +603,7 @@ export default function Navigation() {
           <div className="relative z-10 border-t border-white/10 bg-[#04182c]/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
             <div className="grid grid-cols-2 gap-3">
               <Link
-                href="https://app.propertypeace.io/login"
+                href={loginUrl}
                 className="inline-flex min-h-[52px] items-center justify-center rounded-none border border-white/15 px-4 text-sm font-semibold text-white transition-all duration-200 hover:bg-white/10"
                 style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
                 onClick={() => setMobileMenuOpen(false)}
@@ -608,7 +611,7 @@ export default function Navigation() {
                 Login
               </Link>
               <Link
-                href="https://app.propertypeace.io/register"
+                href={registerUrl}
                 className="inline-flex min-h-[52px] items-center justify-center rounded-none px-4 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition-all duration-300"
                 style={{
                   fontFamily: '"Inter", "Inter Placeholder", sans-serif',

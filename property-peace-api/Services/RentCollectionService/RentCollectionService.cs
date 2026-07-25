@@ -48,10 +48,11 @@ namespace brownstone_hub_api.Services.RentCollectionService
         {
             try
             {
-                // Get leases (filter by property if provided, always include archived)
+                // Get active leases only for rent collection. Historical/archived leases belong in
+                // reporting/history flows, not the current collection dashboard.
                 var leases = propertyId.HasValue
-                    ? await _leaseRepository.GetLeasesByPropertyId(propertyId.Value, false, organizationId)
-                    : await _leaseRepository.GetLeasesByOrganizationId(organizationId, false);
+                    ? await _leaseRepository.GetLeasesByPropertyId(propertyId.Value, true, organizationId)
+                    : await _leaseRepository.GetLeasesByOrganizationId(organizationId, true);
 
                 // Filter by leaseId if provided
                 if (leaseId.HasValue)
@@ -61,6 +62,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
 
                 // Exclude draft leases from all rent/overdue/outstanding calculations
                 leases = leases.Where(l => l.LeaseAgreement?.IsDrafted != true).ToList();
+                var activeLeaseIds = leases.Select(l => l.Id).ToHashSet();
 
                 var startOfMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
                 var endOfMonth = startOfMonth.AddMonths(1);
@@ -75,6 +77,9 @@ namespace brownstone_hub_api.Services.RentCollectionService
                 var payments = propertyId.HasValue
                     ? await _paymentRepository.GetLifetimeRentPaymentsByPropertyId(propertyId.Value)
                     : await _paymentRepository.GetLifetimeRentPaymentsByOrganizationId(organizationId);
+
+                // Only count payments attached to the active leases in this collection scope.
+                payments = payments.Where(p => activeLeaseIds.Contains(p.LeaseId)).ToList();
 
                 // Pre-group payments by LeaseId to avoid O(leases × payments) scans
                 var paymentsByLease = payments
