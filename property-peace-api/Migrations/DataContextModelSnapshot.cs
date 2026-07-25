@@ -699,6 +699,9 @@ namespace brownstone_hub_api.Migrations
                     b.Property<long?>("ConductedBy")
                         .HasColumnType("bigint");
 
+                    b.Property<long?>("CounterpartChecklistId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -729,6 +732,9 @@ namespace brownstone_hub_api.Migrations
 
                     b.Property<long>("PropertyId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("RoomNamesJson")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<long?>("TenantId")
                         .HasColumnType("bigint");
@@ -4896,6 +4902,100 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("Parking", "lease");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.PasskeyCeremony", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OptionsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("PasskeyCeremonies");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PasskeyCredential", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("AaGuid")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CredentialId")
+                        .IsRequired()
+                        .HasMaxLength(1400)
+                        .HasColumnType("nvarchar(1400)");
+
+                    b.Property<string>("CredentialIdHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsBackedUp")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsBackupEligible")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<byte[]>("PublicKey")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<long>("SignatureCounter")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("UserHandle")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("varbinary(64)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CredentialIdHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasskeyCredentials");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Payment", b =>
                 {
                     b.Property<long>("Id")
@@ -4994,6 +5094,203 @@ namespace brownstone_hub_api.Migrations
                     b.HasIndex("PropertyId");
 
                     b.ToTable("Payments", "financial");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyActionConfirmation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActionPayloadJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("ConversationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FriendlyLabel")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("RequestedByMessageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ResolutionMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Id", "OrganizationId", "UserId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "UserId", "Status", "ExpiresAt");
+
+                    b.ToTable("ActionConfirmations", "percy");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyAuditRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ConfirmationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ConversationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Detail")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ConfirmationId", "CreatedAt");
+
+                    b.HasIndex("OrganizationId", "UserId", "CreatedAt");
+
+                    b.ToTable("AuditRecords", "percy");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ArchivedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Id", "OrganizationId", "UserId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "UserId", "IsArchived", "UpdatedAt");
+
+                    b.ToTable("Conversations", "percy");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("ConversationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ResponseJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConversationId", "CreatedAt");
+
+                    b.ToTable("Messages", "percy");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Pet", b =>
@@ -7068,6 +7365,45 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("Users", "core");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.UserRefreshToken", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReplacedByTokenHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "ExpiresAt");
+
+                    b.ToTable("UserRefreshTokens", "core");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.UserRole", b =>
                 {
                     b.Property<long>("UserId")
@@ -8664,6 +9000,17 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.PasskeyCredential", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany("PasskeyCredentials")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Payment", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.Deposit", "Deposit")
@@ -8694,6 +9041,82 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Lease");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyActionConfirmation", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.PercyConversation", "Conversation")
+                        .WithMany("Confirmations")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyAuditRecord", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyMessage", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.PercyConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Conversation");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Pet", b =>
@@ -9199,6 +9622,17 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("CurrentOrganization");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.UserRefreshToken", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.UserRole", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.Role", "Role")
@@ -9399,6 +9833,13 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("StripePaymentMethod");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>
+                {
+                    b.Navigation("Confirmations");
+
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.PolicyPack", b =>
                 {
                     b.Navigation("Items");
@@ -9465,6 +9906,8 @@ namespace brownstone_hub_api.Migrations
 
             modelBuilder.Entity("brownstone_hub_api.Models.User", b =>
                 {
+                    b.Navigation("PasskeyCredentials");
+
                     b.Navigation("UserRoles");
                 });
 

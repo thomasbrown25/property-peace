@@ -8,6 +8,9 @@ namespace brownstone_hub_api.Services.UserService
     {
         Task<ServiceResponse<LoadUserDto>> Register(AddUserDto user);
         Task<ServiceResponse<LoadUserDto>> Login(string email, string password);
+        Task<RefreshSessionDto> CreateRefreshSession(long userId);
+        Task<RefreshSessionDto?> RefreshSession(string refreshToken);
+        Task RevokeRefreshToken(string refreshToken);
         Task<ServiceResponse<LoadUserDto>> LoadUser();
         Task<ServiceResponse<string>> DeleteUser(long userId);
         Task<ServiceResponse<SettingsDto>> GetSettings();

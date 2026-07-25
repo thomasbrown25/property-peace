@@ -15,6 +15,7 @@ namespace brownstone_hub_api.Models
         public bool HasSeenTutorial { get; set; } = false;
         public bool NotificationPreferencesConfigured { get; set; } = false;
         public ICollection<UserRole> UserRoles { get; set; } = [];
+        public ICollection<PasskeyCredential> PasskeyCredentials { get; set; } = [];
         public byte[]? PasswordHash { get; set; } // Nullable for OAuth users
         public byte[]? PasswordSalt { get; set; } // Nullable for OAuth users
         public string? GoogleId { get; set; } // Google OAuth ID

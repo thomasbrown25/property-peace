@@ -72,6 +72,12 @@ namespace brownstone_hub_api.Controllers
             {
                 return BadRequest(response);
             }
+            if (response.Data != null)
+            {
+                var session = await _userService.CreateRefreshSession(response.Data.Id);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                response.Data.JWTToken = session.User.JWTToken;
+            }
             return Ok(response);
         }
 
@@ -83,6 +89,12 @@ namespace brownstone_hub_api.Controllers
             if (!response.Success)
             {
                 return BadRequest(response);
+            }
+            if (response.Data != null)
+            {
+                var session = await _userService.CreateRefreshSession(response.Data.Id);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                response.Data.JWTToken = session.User.JWTToken;
             }
             return Ok(response);
         }
@@ -104,6 +116,13 @@ namespace brownstone_hub_api.Controllers
                 return BadRequest(response);
             }
 
+            if (response.Data != null)
+            {
+                var session = await _userService.CreateRefreshSession(response.Data.Id);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                response.Data.JWTToken = session.User.JWTToken;
+            }
+
             // Return response with isNewUser flag
             return Ok(new
             {
@@ -111,6 +130,63 @@ namespace brownstone_hub_api.Controllers
                 message = response.Message,
                 data = response.Data,
                 isNewUser = isNewUser
+            });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("refresh")]
+        public async Task<ActionResult<ServiceResponse<LoadUserDto>>> Refresh()
+        {
+            if (!Request.Cookies.TryGetValue("refreshToken", out var refreshToken))
+            {
+                ClearRefreshTokenCookie();
+                return Unauthorized(new ServiceResponse<LoadUserDto> { Success = false, Message = "Refresh session is unavailable" });
+            }
+
+            var session = await _userService.RefreshSession(refreshToken);
+            if (session == null)
+            {
+                ClearRefreshTokenCookie();
+                return Unauthorized(new ServiceResponse<LoadUserDto> { Success = false, Message = "Refresh session is invalid or expired" });
+            }
+
+            SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+            return Ok(new ServiceResponse<LoadUserDto> { Success = true, Data = session.User });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            if (Request.Cookies.TryGetValue("refreshToken", out var refreshToken))
+            {
+                await _userService.RevokeRefreshToken(refreshToken);
+            }
+
+            ClearRefreshTokenCookie();
+            return NoContent();
+        }
+
+        private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt)
+        {
+            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+                Expires = expiresAt,
+                Path = "/api/user"
+            });
+        }
+
+        private void ClearRefreshTokenCookie()
+        {
+            Response.Cookies.Delete("refreshToken", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+                Path = "/api/user"
             });
         }
 

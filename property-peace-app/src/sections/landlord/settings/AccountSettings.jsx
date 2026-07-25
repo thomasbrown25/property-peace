@@ -6,6 +6,7 @@ import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import { subscriptionAPI } from 'api';
 import useAuth from 'hooks/useAuth';
+import PasskeySettingsCard from 'components/security/PasskeySettingsCard';
 
 // ==============================|| ACCOUNT SETTINGS ||============================== //
 
@@ -249,6 +250,8 @@ export default function AccountSettings() {
             </Stack>
           </form>
         </Paper>
+
+        <PasskeySettingsCard />
 
         <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>

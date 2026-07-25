@@ -21,6 +21,9 @@ namespace brownstone_hub_api.Configurations
             builder.Property(c => c.ConditionNotes)
                 .HasColumnType("nvarchar(max)");
 
+            builder.Property(c => c.RoomNamesJson)
+                .HasColumnType("nvarchar(max)");
+
             builder.Property(c => c.TenantSignature)
                 .HasMaxLength(2000); // Base64 signature or reference
 

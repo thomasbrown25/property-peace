@@ -9,6 +9,7 @@ using System.Text;
 using brownstone_hub_api.Repositories.Roles;
 using brownstone_hub_api.Dtos.Role;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
 using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Services.TenantInviteService;
 using brownstone_hub_api.Services.GoogleAuthService;
@@ -811,6 +812,109 @@ namespace brownstone_hub_api.Services.UserService
             return response;
         }
 
+        public async Task<RefreshSessionDto> CreateRefreshSession(long userId)
+        {
+            var user = await _userRepository.GetUser(userId)
+                ?? throw new InvalidOperationException("User not found");
+
+            if (user.IsDeleted || user.IsSuspended)
+            {
+                throw new InvalidOperationException("User is not allowed to start a session");
+            }
+
+            var loadedUser = await _userRepository.GetUserByEmailAsync(user.Email)
+                ?? throw new InvalidOperationException("User not found");
+            var refreshToken = GenerateRefreshToken();
+            var expiresAt = DateTime.UtcNow.AddDays(_configuration.GetValue<double?>("JwtSettings:RefreshTokenExpiresInDays") ?? 30);
+
+            _dataContext.UserRefreshTokens.Add(new Models.UserRefreshToken
+            {
+                UserId = userId,
+                TokenHash = HashRefreshToken(refreshToken),
+                ExpiresAt = expiresAt
+            });
+
+            var expiredTokens = await _dataContext.UserRefreshTokens
+                .Where(token => token.UserId == userId && token.ExpiresAt <= DateTime.UtcNow)
+                .ToListAsync();
+            _dataContext.UserRefreshTokens.RemoveRange(expiredTokens);
+            await _dataContext.SaveChangesAsync();
+
+            loadedUser.JWTToken = CreateToken(ToTokenUser(loadedUser));
+            return new RefreshSessionDto
+            {
+                User = loadedUser,
+                RefreshToken = refreshToken,
+                RefreshTokenExpiresAt = expiresAt
+            };
+        }
+
+        public async Task<RefreshSessionDto?> RefreshSession(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken)) return null;
+
+            var tokenHash = HashRefreshToken(refreshToken);
+            var storedToken = await _dataContext.UserRefreshTokens
+                .Include(token => token.User)
+                .SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
+
+            if (storedToken == null || storedToken.RevokedAt != null || storedToken.ExpiresAt <= DateTime.UtcNow ||
+                storedToken.User.IsDeleted || storedToken.User.IsSuspended)
+            {
+                return null;
+            }
+
+            var loadedUser = await _userRepository.GetUserByEmailAsync(storedToken.User.Email);
+            if (loadedUser == null) return null;
+
+            var replacementToken = GenerateRefreshToken();
+            var replacementHash = HashRefreshToken(replacementToken);
+            var expiresAt = DateTime.UtcNow.AddDays(_configuration.GetValue<double?>("JwtSettings:RefreshTokenExpiresInDays") ?? 30);
+
+            storedToken.RevokedAt = DateTime.UtcNow;
+            storedToken.ReplacedByTokenHash = replacementHash;
+            _dataContext.UserRefreshTokens.Add(new Models.UserRefreshToken
+            {
+                UserId = storedToken.UserId,
+                TokenHash = replacementHash,
+                ExpiresAt = expiresAt
+            });
+            await _dataContext.SaveChangesAsync();
+
+            loadedUser.JWTToken = CreateToken(ToTokenUser(loadedUser));
+            return new RefreshSessionDto
+            {
+                User = loadedUser,
+                RefreshToken = replacementToken,
+                RefreshTokenExpiresAt = expiresAt
+            };
+        }
+
+        public async Task RevokeRefreshToken(string refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken)) return;
+
+            var tokenHash = HashRefreshToken(refreshToken);
+            var storedToken = await _dataContext.UserRefreshTokens.SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
+            if (storedToken == null || storedToken.RevokedAt != null) return;
+
+            storedToken.RevokedAt = DateTime.UtcNow;
+            await _dataContext.SaveChangesAsync();
+        }
+
+        private static string GenerateRefreshToken() => Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+
+        private static string HashRefreshToken(string refreshToken) =>
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(refreshToken)));
+
+        private static AddUserDto ToTokenUser(LoadUserDto user) => new()
+        {
+            Email = user.Email,
+            Firstname = user.Firstname,
+            Lastname = user.Lastname,
+            Roles = user.Roles ?? new List<string>()
+        };
+
         public async Task<(ServiceResponse<LoadUserDto> Response, bool IsNewUser)> GoogleLogin(string? idToken, string? registrationCode = null, string? accessToken = null, string? timezone = null)
         {
             ServiceResponse<LoadUserDto> response = new();
@@ -1507,7 +1611,8 @@ namespace brownstone_hub_api.Services.UserService
             var claims = new List<Claim>
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             };
 
             // Add a separate role claim for each role in the list

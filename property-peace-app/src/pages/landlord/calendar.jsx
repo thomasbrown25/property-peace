@@ -823,9 +823,13 @@ export default function CalendarPage() {
     if (event.source === 'inspection') {
       const propertyId = event.propertyId || event.inspection?.propertyId || event.inspection?.PropertyId;
       const unitId = event.unitId || event.inspection?.unitId || event.inspection?.UnitId;
+      const checklistId = event.inspection?.id || event.inspection?.Id;
       const typeParam = event.typeParam || 'move-in';
       if (propertyId) {
-        navigate(unitId ? `/landlord/inspection/${propertyId}/unit/${unitId}?type=${typeParam}` : `/landlord/inspection/${propertyId}?type=${typeParam}`);
+        const overviewPath = unitId
+          ? `/landlord/checklists/property/${propertyId}/unit/${unitId}`
+          : `/landlord/checklists/property/${propertyId}`;
+        navigate(checklistId ? `${overviewPath}/checklist/${checklistId}` : `${overviewPath}?type=${typeParam}`);
       }
       return;
     }

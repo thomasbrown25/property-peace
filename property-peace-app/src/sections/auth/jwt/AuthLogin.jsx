@@ -26,7 +26,7 @@ import { Formik } from 'formik';
 
 // project imports
 import AnimateButton from 'components/@extended/AnimateButton';
-import { EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { EyeOutlined, EyeInvisibleOutlined, KeyOutlined } from '@ant-design/icons';
 
 import useAuth from 'hooks/useAuth';
 
@@ -127,10 +127,14 @@ export default function AuthLogin({ isDemo = false }) {
   const [emailExistsError, setEmailExistsError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleAuthInProgress, setIsGoogleAuthInProgress] = useState(false);
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
+  const [passkeyError, setPasskeyError] = useState(null);
 
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const isGoogleOAuthEnabled = !!googleClientId;
-  const { login, googleLogin } = useAuth();
+  const isPasskeySupported =
+    typeof window !== 'undefined' && typeof navigator !== 'undefined' && !!window.PublicKeyCredential && !!navigator.credentials;
+  const { login, passkeyLogin, googleLogin } = useAuth();
 
   const [rememberedEmail, setRememberedEmail] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -152,6 +156,20 @@ export default function AuthLogin({ isDemo = false }) {
 
   const handleMouseDownPassword = (event) => {
     event.preventDefault();
+  };
+
+  const handlePasskeyLogin = async () => {
+    try {
+      setPasskeyError(null);
+      setIsPasskeyLoading(true);
+      await passkeyLogin();
+    } catch (error) {
+      if (error?.name !== 'NotAllowedError') {
+        setPasskeyError(error?.response?.data?.message || error?.message || 'Passkey sign-in failed.');
+      }
+    } finally {
+      setIsPasskeyLoading(false);
+    }
   };
 
   const [searchParams] = useSearchParams();
@@ -277,8 +295,22 @@ export default function AuthLogin({ isDemo = false }) {
                     </motion.div>
                   )}
 
-                  {/* Or Divider - Below Google Button */}
-                  {isGoogleOAuthEnabled && (
+                  {isPasskeySupported && (
+                    <Button
+                      fullWidth
+                      size="large"
+                      variant="outlined"
+                      disabled={isPasskeyLoading}
+                      onClick={handlePasskeyLogin}
+                      startIcon={isPasskeyLoading ? <CircularProgress size={18} color="inherit" /> : <KeyOutlined />}
+                      sx={{ borderColor: 'divider', color: 'text.primary', py: 1.5 }}
+                    >
+                      {isPasskeyLoading ? 'Signing in…' : 'Log in with a passkey'}
+                    </Button>
+                  )}
+
+                  {/* Or Divider - Below optional login methods */}
+                  {(isGoogleOAuthEnabled || isPasskeySupported) && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -499,6 +531,11 @@ export default function AuthLogin({ isDemo = false }) {
                       transition={{ duration: 0.3 }}
                     >
                       <FormHelperText error>{errors.submit}</FormHelperText>
+                    </motion.div>
+                  )}
+                  {passkeyError && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+                      <FormHelperText error>{passkeyError}</FormHelperText>
                     </motion.div>
                   )}
                   {googleError && (

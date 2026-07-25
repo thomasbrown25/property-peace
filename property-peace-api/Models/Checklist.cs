@@ -19,6 +19,7 @@ namespace brownstone_hub_api.Models
         public Unit? Unit { get; set; }
         public long? LeaseId { get; set; }
         public Lease? Lease { get; set; }
+        public long? CounterpartChecklistId { get; set; } // Paired move-in/move-out checklist
         public long? TenantId { get; set; } // For move-out, which tenant
         public Tenant? Tenant { get; set; }
         
@@ -38,6 +39,7 @@ namespace brownstone_hub_api.Models
         // Notes
         public string? GeneralNotes { get; set; }
         public string? ConditionNotes { get; set; } // Overall condition assessment
+        public string? RoomNamesJson { get; set; } // JSON array keeps empty/custom rooms persisted and linked across move-in/out
         
         // Before/After Images (for move-in/move-out)
         public string? BeforeMoveInImagesBlobNames { get; set; } // JSON array of blob names for before move-in images

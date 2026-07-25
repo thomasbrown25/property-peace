@@ -21,14 +21,16 @@ using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Dtos.UserSetting;
 using brownstone_hub_api.Services.ActionSuppressionService;
+using brownstone_hub_api.Services.OpenAIService;
 using brownstone_hub_api.Utils;
 using brownstone_hub_api.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace brownstone_hub_api.Services.AICopilotService
 {
-    public class AICopilotService(
+    public partial class AICopilotService(
         IPropertyRepository propertyRepository,
         ITenantRepository tenantRepository,
         ILeaseRepository leaseRepository,
@@ -40,6 +42,7 @@ namespace brownstone_hub_api.Services.AICopilotService
         IActionSuppressionService actionSuppressionService,
         IUserRepository userRepository,
         DataContext dataContext,
+        IOpenAIService openAIService,
         ILogger<AICopilotService> logger) : IAICopilotService
     {
         private readonly IPropertyRepository _propertyRepository = propertyRepository;
@@ -53,6 +56,7 @@ namespace brownstone_hub_api.Services.AICopilotService
         private readonly IActionSuppressionService _actionSuppressionService = actionSuppressionService;
         private readonly IUserRepository _userRepository = userRepository;
         private readonly DataContext _dataContext = dataContext;
+        private readonly IOpenAIService _openAIService = openAIService;
         private readonly ILogger<AICopilotService> _logger = logger;
 
         public async Task<ServiceResponse<OrganizationSummaryDto>> GetOrganizationSummary(long organizationId)

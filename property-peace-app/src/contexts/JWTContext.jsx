@@ -4,6 +4,7 @@ import { createContext, useEffect, useReducer } from 'react';
 import { Chance } from 'chance';
 import { jwtDecode } from 'jwt-decode';
 import { useSWRConfig } from 'swr';
+import { startAuthentication } from '@simplewebauthn/browser';
 
 // reducer - state management
 import { LOGIN, LOGOUT, UPDATE_USER } from 'contexts/auth-reducer/actions';
@@ -11,7 +12,7 @@ import authReducer from 'contexts/auth-reducer/auth';
 
 // project imports
 import Loader from 'components/Loader';
-import axios from 'utils/axios';
+import axios, { refreshAccessToken } from 'utils/axios';
 import store from 'store';
 import { USER_ACTION_TYPES } from 'store/user/user.types';
 import { getBrowserTimezone } from 'utils/browserTimezone';
@@ -86,8 +87,16 @@ export const JWTProvider = ({ children }) => {
   useEffect(() => {
     const init = async () => {
       try {
-        const serviceToken = localStorage.getItem('serviceToken');
+        let serviceToken = localStorage.getItem('serviceToken');
 
+        if (!verifyToken(serviceToken)) {
+          try {
+            serviceToken = await refreshAccessToken();
+          } catch (refreshError) {
+            setSession(null);
+            serviceToken = null;
+          }
+        }
 
         if (serviceToken && verifyToken(serviceToken)) {
           setSession(serviceToken);
@@ -145,11 +154,7 @@ export const JWTProvider = ({ children }) => {
     }
   }, [state.isInitialized]);
 
-  const login = async (email, password) => {
-    const response = await axios.post('/api/user/login', { email, password });
-    const user = response.data?.data;
-
-
+  const completeLogin = async (user, explicitInviteToken = null) => {
     setSession(user.jwtToken);
     dispatch({
       type: LOGIN,
@@ -160,36 +165,28 @@ export const JWTProvider = ({ children }) => {
     });
     await ensureBrowserTimezoneSetting();
 
-    // Check for invite tokens in URL and accept them if present
     const urlParams = new URLSearchParams(window.location.search);
-    const inviteToken = urlParams.get('inviteToken');
+    const inviteToken = explicitInviteToken || urlParams.get('inviteToken');
     const tenantInviteToken = urlParams.get('tenantInviteToken') || sessionStorage.getItem('tenantInviteToken');
 
-    // Check for organization invite
     if (inviteToken) {
       try {
-        // Import acceptInvite dynamically to avoid circular dependencies
         const { acceptInvite } = await import('../api/organizationInvite');
         const acceptResponse = await acceptInvite(inviteToken);
-
         if (acceptResponse?.success) {
-          // Clear inviteToken from URL
           urlParams.delete('inviteToken');
           const newQuery = urlParams.toString();
           window.history.replaceState({}, '', `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}`);
         }
       } catch (error) {
-        // Continue with normal redirect even if invite acceptance fails
+        // Continue with normal redirect even if invite acceptance fails.
       }
     }
 
-    // Check for tenant invite
     if (tenantInviteToken) {
       try {
-        const { acceptTenantInvite } = await import('../api/tenantInvite');
         const email = sessionStorage.getItem('tenantInviteEmail') || user?.email;
         const propertyName = sessionStorage.getItem('tenantInvitePropertyName') || 'the property';
-
         if (email) {
           const acceptResponse = await tenantInviteAPI.acceptTenantInvite({
             inviteToken: tenantInviteToken,
@@ -197,35 +194,56 @@ export const JWTProvider = ({ children }) => {
           });
 
           if (acceptResponse?.success) {
-            // Clear tenant invite data from sessionStorage
             sessionStorage.removeItem('tenantInviteToken');
             sessionStorage.removeItem('tenantInviteEmail');
             sessionStorage.removeItem('pendingTenantInvite');
             sessionStorage.removeItem('tenantInvitePropertyName');
-
-            // Clear from URL
             urlParams.delete('tenantInviteToken');
             const newQuery = urlParams.toString();
             window.history.replaceState({}, '', `${window.location.pathname}${newQuery ? `?${newQuery}` : ''}`);
-
-            // Redirect to success page
             setTimeout(() => {
               window.location.replace(`/tenant/invite/success?propertyName=${encodeURIComponent(propertyName)}`);
             }, 100);
-            return; // Don't continue with normal redirect
+            return;
           }
         }
       } catch (error) {
-        // Continue with normal redirect even if invite acceptance fails
+        // Continue with normal redirect even if invite acceptance fails.
       }
     }
 
-    // Redirect based on user role after login.
-    // GuestGuard may also react to the logged-in state, so use the same resolver in both places.
     const redirectPath = getPostLoginRedirectPath(user, window.history.state?.usr?.from);
     setTimeout(() => {
       window.location.replace(redirectPath);
     }, 100);
+  };
+
+  const login = async (email, password) => {
+    const response = await axios.post('/api/user/login', { email, password });
+    const user = response.data?.data;
+    await completeLogin(user);
+  };
+
+  const passkeyLogin = async () => {
+    if (!window.PublicKeyCredential || !navigator.credentials) {
+      throw new Error('Passkeys are not supported by this browser.');
+    }
+
+    const optionsResponse = await axios.post('/api/passkey/authentication/options');
+    const { ceremonyId, options } = optionsResponse.data || {};
+    if (!ceremonyId || !options) throw new Error('Unable to start passkey sign-in.');
+
+    const assertion = await startAuthentication({ optionsJSON: options });
+    const verifyResponse = await axios.post('/api/passkey/authentication/verify', {
+      ceremonyId,
+      response: assertion
+    });
+    const user = verifyResponse.data?.data;
+    if (!verifyResponse.data?.success || !user?.jwtToken) {
+      throw new Error(verifyResponse.data?.message || 'Passkey sign-in failed.');
+    }
+
+    await completeLogin(user);
   };
 
   const googleLogin = async (accessToken, registrationCode = null, inviteToken = null) => {
@@ -514,7 +532,13 @@ export const JWTProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await axios.post('/api/user/logout');
+    } catch (error) {
+      // Local logout still proceeds if the server session is already unavailable.
+    }
+
     // Clear session token and auth headers first
     setSession(null);
 
@@ -593,6 +617,7 @@ export const JWTProvider = ({ children }) => {
       value={{
         ...state,
         login,
+        passkeyLogin,
         googleLogin,
         logout,
         register,

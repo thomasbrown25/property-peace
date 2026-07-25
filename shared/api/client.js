@@ -112,6 +112,60 @@ class ApiClient {
     }
   }
 
+  async streamNdjson(url, data, { signal, onEvent } = {}) {
+    const token = await this.getToken();
+    const orgId = await this.getOrganizationId();
+    const headers = { 'Content-Type': 'application/json', Accept: 'application/x-ndjson' };
+
+    if (token) {
+      const expired = await this.isTokenExpired(token);
+      if (expired) {
+        this.onTokenExpired?.();
+        throw new Error('Token expired');
+      }
+      headers.Authorization = `Bearer ${token}`;
+    }
+    if (orgId) headers['X-Organization-Id'] = orgId.toString();
+
+    const baseURL = this.baseURL.endsWith('/') ? this.baseURL.slice(0, -1) : this.baseURL;
+    const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+    const response = await fetch(`${baseURL}${normalizedUrl}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(data),
+      credentials: 'include',
+      signal
+    });
+
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = { message: `Request failed (${response.status})`, status: response.status };
+      }
+      if (response.status === 401) this.onTokenExpired?.();
+      throw errorData;
+    }
+    if (!response.body) throw new Error('Streaming responses are not supported in this browser.');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed) onEvent?.(JSON.parse(trimmed));
+      }
+      if (done) break;
+    }
+    if (buffer.trim()) onEvent?.(JSON.parse(buffer.trim()));
+  }
+
   get(url, options) {
     return this.request('GET', url, null, options);
   }

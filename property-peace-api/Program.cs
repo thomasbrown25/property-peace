@@ -143,6 +143,7 @@ using brownstone_hub_api.Services.DemoRequestService;
 using brownstone_hub_api.Repositories.DemoRequests;
 using brownstone_hub_api.Repositories.Listings;
 using brownstone_hub_api.Repositories.Amenities;
+using Fido2NetLib;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -277,6 +278,18 @@ services.Configure<IpRateLimitOptions>(options =>
             Endpoint = "POST:/api/user/login",
             Period = "1m",
             Limit = 5 // 5 login attempts per minute
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/passkey/authentication/options",
+            Period = "1m",
+            Limit = 10
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/passkey/authentication/verify",
+            Period = "1m",
+            Limit = 10
         },
         new RateLimitRule
         {
@@ -916,6 +929,30 @@ allowed = allowed
 // Remove duplicates and empty entries
 allowed = allowed.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToArray();
 
+var webAuthnServerDomain = builder.Configuration["WebAuthn:ServerDomain"]
+    ?? (builder.Environment.IsDevelopment() ? "localhost" : "propertypeace.io");
+var configuredWebAuthnOrigins = builder.Configuration.GetSection("WebAuthn:Origins").Get<string[]>();
+var webAuthnOrigins = (configuredWebAuthnOrigins is { Length: > 0 }
+        ? configuredWebAuthnOrigins
+        : allowed.Where(origin =>
+        {
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+            return string.Equals(uri.Host, webAuthnServerDomain, StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith($".{webAuthnServerDomain}", StringComparison.OrdinalIgnoreCase);
+        }).ToArray())
+    .Select(origin => origin.TrimEnd('/'))
+    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+services.AddFido2(options =>
+{
+    options.ServerDomain = webAuthnServerDomain;
+    options.ServerName = "Property Peace";
+    options.Origins = webAuthnOrigins;
+    options.TimestampDriftTolerance = 300000;
+});
+
+Console.WriteLine($"[WebAuthn] RP ID: {webAuthnServerDomain}; configured origins: {webAuthnOrigins.Count}");
+
 Console.WriteLine($"[CORS] Configured allowed origins ({allowed.Length}): {string.Join(", ", allowed)}");
 
 services.AddCors(options =>
@@ -934,15 +971,8 @@ services.AddCors(options =>
                         return true;
                     }
 
-                    if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
-                    {
-                        return false;
-                    }
-
-                    // Azure Static Web Apps generated frontend domains are safe to allow by suffix
-                    // while still requiring HTTPS and avoiding wildcard AllowAnyOrigin with credentials.
-                    return uri.Scheme == Uri.UriSchemeHttps
-                        && uri.Host.EndsWith(".azurestaticapps.net", StringComparison.OrdinalIgnoreCase);
+                    // Credentialed requests must use an explicitly configured origin.
+                    return false;
                 })
                 .WithHeaders(
                     "Authorization",

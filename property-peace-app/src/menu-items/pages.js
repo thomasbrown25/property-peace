@@ -104,6 +104,13 @@ const pages = [
         icon: icons.DollarCircleOutlined
       },
       {
+        id: 'inspections',
+        title: 'Checklists',
+        type: 'item',
+        url: '/landlord/checklists',
+        icon: icons.AuditOutlined
+      },
+      {
         id: 'listings',
         title: 'Listings',
         type: 'item',
@@ -181,13 +188,6 @@ const pages = [
         type: 'item',
         url: '/landlord/vendors',
         icon: icons.ShopOutlined
-      },
-      {
-        id: 'inspections',
-        title: 'Inspections',
-        type: 'item',
-        url: '/landlord/checklists',
-        icon: icons.AuditOutlined
       }
     ]
   },

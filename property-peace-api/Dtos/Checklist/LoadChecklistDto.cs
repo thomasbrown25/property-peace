@@ -14,6 +14,7 @@ namespace brownstone_hub_api.Dtos.Checklist
         public long? UnitId { get; set; }
         public string? UnitName { get; set; }
         public long? LeaseId { get; set; }
+        public long? CounterpartChecklistId { get; set; }
         public DateTime? LeaseStartDate { get; set; }
         public DateTime? LeaseEndDate { get; set; }
         public long? TenantId { get; set; }
@@ -36,6 +37,7 @@ namespace brownstone_hub_api.Dtos.Checklist
         // Notes
         public string? GeneralNotes { get; set; }
         public string? ConditionNotes { get; set; }
+        public List<string> RoomNames { get; set; } = [];
         
         // Before/After Images (JSON arrays)
         public List<string>? BeforeMoveInImagesBlobNames { get; set; }

@@ -1,657 +1,1245 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  Alert,
+  alpha,
   Box,
-  Typography,
-  Stack,
   Button,
   Chip,
-  Fade,
-  alpha,
-  useTheme,
-  Tooltip,
-  Switch,
-  FormControlLabel,
   CircularProgress,
   Divider,
-  Alert
+  IconButton,
+  InputBase,
+  Stack,
+  Switch,
+  Tooltip,
+  Typography,
+  useTheme
 } from '@mui/material';
 import {
+  ApiOutlined,
   ArrowRightOutlined,
-  BellOutlined,
   CheckCircleFilled,
+  ClockCircleOutlined,
+  CloseOutlined,
+  DatabaseOutlined,
   DollarCircleOutlined,
   HistoryOutlined,
+  MenuOutlined,
   MessageOutlined,
-  PlayCircleOutlined,
+  PlusOutlined,
   RobotOutlined,
+  SendOutlined,
+  SettingOutlined,
   SyncOutlined,
-  ToolOutlined,
-  WarningOutlined
+  ToolOutlined
 } from '@ant-design/icons';
-import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
-import AnimateIn from 'components/AnimateIn';
-import useFetchMaintenances from 'hooks/useFetchMaintenances';
+import useOrganizationSummary from 'hooks/useOrganizationSummary';
 import { aiFollowUpAPI, organizationAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
-import { useSelector } from 'react-redux';
-import { selectMaintenanceLoading } from 'store/maintenance/maintenance.selector';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
 
 const NAVY = '#061e35';
 const GREEN = '#16a34a';
-const BLUE = '#2563eb';
-const AMBER = '#d97706';
-const RED = '#dc2626';
+const STARTER_PROMPTS = [
+  { label: 'Rent at risk', prompt: 'Which tenants are behind on rent?', icon: <DollarCircleOutlined /> },
+  { label: 'Urgent maintenance', prompt: 'Summarize urgent maintenance.', icon: <ToolOutlined /> },
+  { label: 'Lease expirations', prompt: 'Show leases expiring in the next 60 days.', icon: <ClockCircleOutlined /> },
+  { label: 'Portfolio pulse', prompt: 'Give me a quick portfolio summary.', icon: <DatabaseOutlined /> }
+];
 
-function safeDate(dt) {
-  if (!dt) return null;
-  try {
-    const d = typeof dt === 'string' ? parseISO(dt) : new Date(dt);
-    return Number.isNaN(d.getTime()) ? null : d;
-  } catch {
-    return null;
+const readField = (value, ...keys) => {
+  for (const key of keys) {
+    if (value?.[key] !== undefined && value?.[key] !== null) return value[key];
   }
-}
+  return undefined;
+};
 
-function timeAgo(dt) {
-  const d = safeDate(dt);
-  if (!d) return null;
-  return formatDistanceToNow(d, { addSuffix: true });
-}
+const asArray = (value) => (Array.isArray(value) ? value : []);
 
-function formatShortDate(dt) {
-  const d = safeDate(dt);
-  if (!d) return 'No date yet';
-  return format(d, 'MMM d');
-}
+const unwrapData = (response) => readField(response, 'data', 'Data') ?? response;
 
-function getStatusColor(status) {
-  const normalized = (status || '').toLowerCase();
-  if (['completed', 'resolved', 'closed', 'done', 'paid', 'sent'].includes(normalized)) return 'success';
-  if (['high', 'urgent', 'overdue', 'failed', 'error'].includes(normalized)) return 'error';
-  if (['inprogress', 'in-progress', 'active', 'pending', 'open', 'scheduled'].includes(normalized)) return 'warning';
-  return 'default';
-}
+const mapConfirmation = (value) => {
+  if (!value) return null;
+  return {
+    id: readField(value, 'id', 'Id'),
+    actionLabel: readField(value, 'actionLabel', 'ActionLabel') || 'Percy action',
+    prompt: readField(value, 'prompt', 'Prompt') || 'Please confirm this action.',
+    status: readField(value, 'status', 'Status') || 'Pending',
+    expiresAt: readField(value, 'expiresAt', 'ExpiresAt')
+  };
+};
 
-function getPriorityColor(priority) {
-  const normalized = (priority || '').toLowerCase();
-  if (normalized === 'high' || normalized === 'urgent') return 'error';
-  if (normalized === 'medium') return 'warning';
-  if (normalized === 'low') return 'success';
-  return 'default';
-}
+const mapMessage = (value) => {
+  const activityLabel = readField(value, 'activityLabel', 'ActivityLabel');
+  return {
+    id: readField(value, 'id', 'Id') || `${readField(value, 'role', 'Role')}-${Date.now()}-${Math.random()}`,
+    role: String(readField(value, 'role', 'Role') || 'assistant').toLowerCase(),
+    content: readField(value, 'content', 'Content') || '',
+    createdAt: readField(value, 'createdAt', 'CreatedAt'),
+    tool: activityLabel
+      ? { label: activityLabel, status: readField(value, 'activityStatus', 'ActivityStatus') || 'Property Peace data reviewed' }
+      : null,
+    metrics: asArray(readField(value, 'metrics', 'Metrics')).map((metric) => ({
+      label: readField(metric, 'label', 'Label'),
+      value: readField(metric, 'value', 'Value'),
+      money: Boolean(readField(metric, 'money', 'Money'))
+    })),
+    items: asArray(readField(value, 'items', 'Items')).map((item) => ({
+      title: readField(item, 'title', 'Title'),
+      detail: readField(item, 'detail', 'Detail'),
+      value: readField(item, 'value', 'Value')
+    })),
+    pendingConfirmation: mapConfirmation(readField(value, 'pendingConfirmation', 'PendingConfirmation'))
+  };
+};
 
-function MetricTile({ label, value, sub, color, loading }) {
-  const theme = useTheme();
-  const c = color || theme.palette.primary.main;
+const mapChatResponse = (value) =>
+  mapMessage({
+    id: readField(value, 'assistantMessageId', 'AssistantMessageId'),
+    role: 'assistant',
+    content: readField(value, 'content', 'Content'),
+    activityLabel: readField(value, 'activityLabel', 'ActivityLabel'),
+    activityStatus: readField(value, 'activityStatus', 'ActivityStatus'),
+    metrics: readField(value, 'metrics', 'Metrics'),
+    items: readField(value, 'items', 'Items'),
+    pendingConfirmation: readField(value, 'pendingConfirmation', 'PendingConfirmation')
+  });
 
+const errorMessage = (error, fallback) =>
+  readField(error, 'message', 'Message') || readField(error?.response?.data, 'message', 'Message') || fallback;
+
+function ToolStatus({ tool }) {
   return (
-    <Box
-      sx={{
-        p: 2,
-        borderRadius: 2,
-        bgcolor: alpha(c, theme.palette.mode === 'dark' ? 0.14 : 0.07),
-        border: `1px solid ${alpha(c, theme.palette.mode === 'dark' ? 0.26 : 0.16)}`,
-        minHeight: 110,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between'
-      }}
-    >
-      <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.8, fontWeight: 800 }}>
-        {label}
-      </Typography>
-      {loading ? (
-        <CircularProgress size={20} thickness={5} sx={{ color: c, mt: 1 }} />
-      ) : (
-        <Typography variant="h3" fontWeight={800} sx={{ color: c, lineHeight: 1, mt: 1 }}>
-          {value ?? '—'}
-        </Typography>
-      )}
-      {sub && !loading && (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.35 }}>
-          {sub}
-        </Typography>
-      )}
+    <Box sx={{ mt: 1.5, px: 1.25, py: 1, borderRadius: 1.75, bgcolor: alpha(NAVY, 0.035), border: `1px solid ${alpha(NAVY, 0.08)}` }}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Box
+          sx={{ width: 28, height: 28, borderRadius: 1, display: 'grid', placeItems: 'center', bgcolor: alpha(GREEN, 0.1), color: GREEN }}
+        >
+          <ApiOutlined />
+        </Box>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="caption" fontWeight={800} sx={{ display: 'block', color: NAVY }}>
+            {tool.label}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+            {tool.status}
+          </Typography>
+        </Box>
+      </Stack>
     </Box>
   );
 }
 
-function PercyHero({ activeAgentCount, settingsLoading }) {
-  const theme = useTheme();
-
+function AssistantMessage({ message, onResolveConfirmation, confirmationLoading, confirmationError }) {
+  const confirmation = message.pendingConfirmation;
+  const confirmationPending = confirmation && String(confirmation.status).toLowerCase() === 'pending';
   return (
-    <MainCard
-      content={false}
-      sx={{
-        overflow: 'hidden',
-        borderRadius: 3,
-        border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.28 : 0.12)}`,
-        boxShadow: theme.palette.mode === 'dark' ? `0 22px 55px ${alpha('#000', 0.35)}` : `0 22px 55px ${alpha(NAVY, 0.08)}`
-      }}
-    >
+    <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ width: '100%' }}>
       <Box
         sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          p: { xs: 2.25, md: 3 },
-          bgcolor: theme.palette.mode === 'dark' ? alpha(NAVY, 0.92) : alpha(NAVY, 0.97),
+          width: 32,
+          height: 32,
+          flexShrink: 0,
+          borderRadius: 1.25,
+          display: 'grid',
+          placeItems: 'center',
+          bgcolor: NAVY,
           color: '#fff'
         }}
       >
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            opacity: 0.35,
-            background: `radial-gradient(circle at 18% 15%, ${alpha('#7ee3a3', 0.65)} 0, transparent 27%), radial-gradient(circle at 84% 18%, ${alpha('#38bdf8', 0.45)} 0, transparent 28%), linear-gradient(135deg, transparent 0%, ${alpha('#ffffff', 0.06)} 100%)`
-          }}
-        />
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2.5} sx={{ position: 'relative' }}>
-          <Box sx={{ maxWidth: 760 }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-              <Box
-                sx={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  bgcolor: alpha('#fff', 0.12),
-                  border: `1px solid ${alpha('#fff', 0.18)}`,
-                  color: '#7ee3a3'
-                }}
-              >
-                <RobotOutlined style={{ fontSize: 24 }} />
-              </Box>
-              <Chip
-                label={settingsLoading ? 'Checking status' : `${activeAgentCount} active Percy workflows`}
-                size="small"
-                sx={{ bgcolor: alpha('#fff', 0.12), border: `1px solid ${alpha('#fff', 0.18)}`, color: '#fff', fontWeight: 700 }}
-              />
-            </Stack>
-            <Typography variant="h2" fontWeight={800} sx={{ color: '#fff', letterSpacing: -0.7, mb: 1 }}>
-              Percy
-            </Typography>
-            <Typography variant="body1" sx={{ color: alpha('#fff', 0.78), maxWidth: 700, lineHeight: 1.7 }}>
-              Your rental operations assistant for the two workflows that create the most noise: collection follow-ups and maintenance work. Review what Percy has done, run a collections pass, and monitor maintenance history without jumping between separate agent pages.
-            </Typography>
-          </Box>
-
-          <Stack direction={{ xs: 'row', sm: 'row' }} spacing={1.25} sx={{ width: { xs: '100%', md: 'auto' }, flexWrap: 'wrap', gap: 1 }}>
-            <Button
-              component={Link}
-              to="/landlord/ai-center/collections-history"
-              variant="outlined"
-              startIcon={<HistoryOutlined />}
-              sx={{ color: '#fff', borderColor: alpha('#fff', 0.28), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}
-            >
-              Collections history
-            </Button>
-            <Button
-              component={Link}
-              to="/landlord/maintenances"
-              variant="contained"
-              startIcon={<ToolOutlined />}
-              sx={{ bgcolor: '#7ee3a3', color: NAVY, boxShadow: 'none', '&:hover': { bgcolor: '#69d991', boxShadow: 'none' } }}
-            >
-              Maintenance board
-            </Button>
-          </Stack>
-        </Stack>
+        <RobotOutlined />
       </Box>
-    </MainCard>
-  );
-}
+      <Box sx={{ minWidth: 0, maxWidth: 760, flex: 1 }}>
+        <Typography variant="body1" sx={{ color: NAVY, lineHeight: 1.75 }}>
+          {message.content}
+        </Typography>
 
-function WorkstreamCard({ icon, title, description, enabled, toggling, loading, onToggle, color, children }) {
-  const theme = useTheme();
-  const isActive = loading ? true : enabled;
+        {message.tool && <ToolStatus tool={message.tool} />}
 
-  return (
-    <MainCard
-      content={false}
-      sx={{
-        height: '100%',
-        borderRadius: 2.5,
-        border: `1px solid ${alpha(color, theme.palette.mode === 'dark' ? 0.3 : 0.16)}`,
-        overflow: 'hidden',
-        boxShadow: 'none'
-      }}
-    >
-      <Box sx={{ p: 2.25 }}>
-        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
-          <Stack direction="row" spacing={1.5} alignItems="flex-start">
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: alpha(color, 0.1),
-                border: `1px solid ${alpha(color, 0.18)}`,
-                color
-              }}
-            >
-              {icon}
-            </Box>
-            <Box>
-              <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-                <Typography variant="h5" fontWeight={800}>
-                  {title}
+        {message.metrics?.length > 0 && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: `repeat(${Math.min(message.metrics.length, 4)}, minmax(0, 1fr))`
+              },
+              gap: 1,
+              mt: 1.5
+            }}
+          >
+            {message.metrics.map((metric) => (
+              <Box key={metric.label} sx={{ p: 1.25, borderRadius: 1.5, border: `1px solid ${alpha(NAVY, 0.09)}`, bgcolor: '#fff' }}>
+                <Typography variant="caption" color="text.secondary">
+                  {metric.label}
                 </Typography>
-                <Chip
-                  label={loading ? 'Loading' : isActive ? 'Active' : 'Paused'}
-                  size="small"
-                  color={isActive ? 'success' : 'default'}
-                  variant={isActive ? 'filled' : 'outlined'}
-                  sx={{ fontWeight: 700 }}
-                />
+                <Typography variant="subtitle1" fontWeight={800} sx={{ color: NAVY, mt: 0.2 }}>
+                  {metric.money
+                    ? Number(metric.value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+                    : metric.value}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
+
+        {message.items?.length > 0 && (
+          <Stack spacing={0.75} sx={{ mt: 1.5 }}>
+            {message.items.map((item, index) => (
+              <Stack
+                key={`${item.title}-${index}`}
+                direction="row"
+                justifyContent="space-between"
+                spacing={2}
+                sx={{ px: 1.25, py: 1, borderRadius: 1.5, border: `1px solid ${alpha(NAVY, 0.08)}`, bgcolor: '#fff' }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight={750} noWrap>
+                    {item.title}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                    {item.detail}
+                  </Typography>
+                </Box>
+                {item.value !== undefined && (
+                  <Typography variant="body2" fontWeight={750} sx={{ flexShrink: 0, color: NAVY }}>
+                    {typeof item.value === 'number'
+                      ? item.value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+                      : item.value}
+                  </Typography>
+                )}
               </Stack>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.6 }}>
-                {description}
+            ))}
+          </Stack>
+        )}
+
+        {confirmation && (
+          <Box sx={{ mt: 1.5, p: 1.5, borderRadius: 2, border: `1px solid ${alpha('#d97706', 0.25)}`, bgcolor: alpha('#d97706', 0.045) }}>
+            <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="center">
+              <Typography variant="subtitle2" fontWeight={800}>
+                {confirmation.actionLabel}
               </Typography>
-            </Box>
-          </Stack>
-          <Tooltip title={isActive ? 'Pause this Percy workflow' : 'Resume this Percy workflow'}>
-            <FormControlLabel
-              control={<Switch checked={isActive} onChange={(e) => onToggle(e.target.checked)} disabled={loading || toggling} size="small" color="success" />}
-              label={<Typography variant="caption" color="text.secondary">{toggling ? 'Saving…' : isActive ? 'On' : 'Off'}</Typography>}
-              sx={{ m: 0, flexShrink: 0 }}
-            />
-          </Tooltip>
-        </Stack>
-        {children}
+              <Chip size="small" label={confirmation.status} color={confirmationPending ? 'warning' : 'default'} />
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35, mb: 1.25 }}>
+              {confirmation.prompt}
+            </Typography>
+            {confirmation.expiresAt && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.25 }}>
+                Expires {new Date(confirmation.expiresAt).toLocaleString()}
+              </Typography>
+            )}
+            {confirmationError && (
+              <Alert severity="error" sx={{ mb: 1.25 }}>
+                {confirmationError}
+              </Alert>
+            )}
+            {confirmationPending && (
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  disabled={confirmationLoading}
+                  onClick={() => onResolveConfirmation(message.id, confirmation.id, true)}
+                  startIcon={confirmationLoading ? <SyncOutlined spin /> : <CheckCircleFilled />}
+                  sx={{ boxShadow: 'none' }}
+                >
+                  Confirm
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={confirmationLoading}
+                  onClick={() => onResolveConfirmation(message.id, confirmation.id, false)}
+                >
+                  Cancel
+                </Button>
+              </Stack>
+            )}
+          </Box>
+        )}
       </Box>
-    </MainCard>
+    </Stack>
   );
 }
 
-function CollectionHistoryRow({ item }) {
-  const theme = useTheme();
-  const actionType = item.actionType || item.ActionType || item.type || 'follow-up';
-  const tenant = item.tenantName || item.TenantName || item.tenantFullName || item.recipientName || 'Tenant';
-  const property = item.propertyName || item.PropertyName || item.unitName || item.UnitName || item.leaseName || 'Rental account';
-  const created = item.createdAt || item.CreatedAt || item.sentAt || item.SentAt;
-  const preview = item.messagePreview || item.MessagePreview || item.message || item.Message || item.notes || 'Percy recorded a collections action.';
-
+function UserMessage({ message }) {
   return (
-    <Box sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.8)}`, bgcolor: 'background.paper' }}>
-      <Stack direction="row" justifyContent="space-between" spacing={1.5} alignItems="flex-start">
-        <Box sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="subtitle2" fontWeight={800} noWrap>
-              {tenant}
-            </Typography>
-            <Chip label={String(actionType).replace(/_/g, ' ')} size="small" color={getStatusColor(actionType)} variant="outlined" sx={{ height: 21, fontSize: '0.68rem', fontWeight: 700 }} />
-          </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35 }}>
-            {property} · {timeAgo(created) || formatShortDate(created)}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.85, lineHeight: 1.55 }}>
-            {preview}
-          </Typography>
-        </Box>
-        <MessageOutlined style={{ color: theme.palette.primary.main, fontSize: 18, flexShrink: 0 }} />
-      </Stack>
+    <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+      <Box sx={{ maxWidth: 680, px: 1.75, py: 1.15, borderRadius: '18px 18px 4px 18px', bgcolor: alpha(NAVY, 0.075), color: NAVY }}>
+        <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
+          {message.content}
+        </Typography>
+      </Box>
     </Box>
   );
 }
 
-function MaintenanceRow({ request, history = false }) {
-  const theme = useTheme();
-  const title = request.title || request.Title || request.orderNumber || 'Maintenance request';
-  const status = request.status || request.Status || (history ? 'Completed' : 'Open');
-  const priority = request.priority || request.Priority || 'Normal';
-  const created = request.createdAt || request.CreatedAt || request.updatedAt || request.UpdatedAt;
-  const property = request.propertyName || request.PropertyName || request.unitName || request.UnitName || 'Property not assigned';
-  const vendor = request.vendorName || request.assignedContactName || request.AssignedContactName;
-
+function ConnectionRow({ icon, title, detail, active = false }) {
   return (
-    <Box sx={{ p: 1.5, borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.8)}`, bgcolor: history ? alpha(theme.palette.success.main, 0.035) : 'background.paper' }}>
-      <Stack direction="row" justifyContent="space-between" spacing={1.5} alignItems="flex-start">
-        <Box sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-            <Typography variant="subtitle2" fontWeight={800} noWrap>
-              {title}
-            </Typography>
-            <Chip label={status} size="small" color={getStatusColor(status)} variant="outlined" sx={{ height: 21, fontSize: '0.68rem', fontWeight: 700 }} />
-            {!history && <Chip label={priority} size="small" color={getPriorityColor(priority)} variant="outlined" sx={{ height: 21, fontSize: '0.68rem', fontWeight: 700 }} />}
-          </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.35 }}>
-            {property} · {timeAgo(created) || formatShortDate(created)}{vendor ? ` · ${vendor}` : ''}
-          </Typography>
-          {request.description && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.85, lineHeight: 1.55 }}>
-              {request.description}
-            </Typography>
-          )}
-        </Box>
-        <ToolOutlined style={{ color: history ? theme.palette.success.main : AMBER, fontSize: 18, flexShrink: 0 }} />
-      </Stack>
-    </Box>
+    <Stack direction="row" spacing={1.1} alignItems="center" sx={{ py: 1 }}>
+      <Box
+        sx={{
+          width: 30,
+          height: 30,
+          borderRadius: 1.25,
+          display: 'grid',
+          placeItems: 'center',
+          bgcolor: active ? alpha(GREEN, 0.09) : alpha(NAVY, 0.05),
+          color: active ? GREEN : NAVY
+        }}
+      >
+        {icon}
+      </Box>
+      <Box sx={{ minWidth: 0, flex: 1 }}>
+        <Typography variant="body2" fontWeight={750}>
+          {title}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+          {detail}
+        </Typography>
+      </Box>
+      <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: active ? GREEN : 'text.disabled' }} />
+    </Stack>
   );
 }
 
 export default function AICenter() {
   const theme = useTheme();
-  const [fadeIn, setFadeIn] = useState(false);
 
-  const { maintenances = [], historyMaintenances = [] } = useFetchMaintenances();
-  const maintenanceLoading = useSelector(selectMaintenanceLoading);
+  const messageEndRef = useRef(null);
+  const selectionVersionRef = useRef(0);
+  const progressTimerRef = useRef(null);
+  const streamAbortRef = useRef(null);
+  const { data: summary, loading: summaryLoading, error: summaryError } = useOrganizationSummary();
 
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [thinking, setThinking] = useState(false);
+  const [progressText, setProgressText] = useState('Understanding your request');
+  const [conversations, setConversations] = useState([]);
+  const [selectedConversationId, setSelectedConversationId] = useState(null);
+  const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [conversationsError, setConversationsError] = useState('');
+  const [conversationLoading, setConversationLoading] = useState(false);
+  const [conversationError, setConversationError] = useState('');
+  const [confirmationLoading, setConfirmationLoading] = useState({});
+  const [confirmationErrors, setConfirmationErrors] = useState({});
   const [collectionsEnabled, setCollectionsEnabled] = useState(true);
   const [maintenanceEnabled, setMaintenanceEnabled] = useState(true);
-  const [collectionsToggling, setCollectionsToggling] = useState(false);
-  const [maintenanceToggling, setMaintenanceToggling] = useState(false);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
 
-  const [summary, setSummary] = useState(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
-  const [history, setHistory] = useState([]);
-  const [historyLoading, setHistoryLoading] = useState(true);
-  const [running, setRunning] = useState(false);
-  const [runResult, setRunResult] = useState(null);
+  const sortConversations = (items) =>
+    [...items].sort(
+      (a, b) => new Date(readField(b, 'updatedAt', 'UpdatedAt') || 0) - new Date(readField(a, 'updatedAt', 'UpdatedAt') || 0)
+    );
 
   useEffect(() => {
-    setFadeIn(true);
-    loadAll();
+    const loadSettings = async () => {
+      try {
+        const response = await organizationAPI.getCurrentOrganization();
+        if (response?.success && response?.data) {
+          setCollectionsEnabled(response.data.isCollectionsAgentEnabled ?? true);
+          setMaintenanceEnabled(response.data.isMaintenanceAgentEnabled ?? true);
+        }
+      } catch {
+        // Percy remains usable when workflow settings cannot be loaded.
+      } finally {
+        setSettingsLoading(false);
+      }
+    };
+    loadSettings();
   }, []);
 
-  const loadAll = async () => {
-    await Promise.allSettled([loadAgentSettings(), loadCollectionSummary(), loadCollectionHistory()]);
+  useEffect(() => {
+    messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, thinking]);
+
+  const handleSelectConversation = async (id) => {
+    streamAbortRef.current?.abort();
+    const version = ++selectionVersionRef.current;
+    clearTimeout(progressTimerRef.current);
+    setSelectedConversationId(id);
+    setMessages([]);
+    setInput('');
+    setThinking(false);
+    setConversationLoading(true);
+    setConversationError('');
+    try {
+      const response = unwrapData(await aiFollowUpAPI.getConversation(id));
+      if (selectionVersionRef.current !== version) return;
+      setMessages(asArray(readField(response, 'messages', 'Messages')).map(mapMessage));
+    } catch (error) {
+      if (selectionVersionRef.current !== version) return;
+      setConversationError(errorMessage(error, 'Could not load this conversation. Please try again.'));
+    } finally {
+      if (selectionVersionRef.current === version) setConversationLoading(false);
+    }
   };
 
-  const loadAgentSettings = async () => {
-    try {
-      const res = await organizationAPI.getCurrentOrganization();
-      if (res?.success && res?.data) {
-        setCollectionsEnabled(res.data.isCollectionsAgentEnabled ?? true);
-        setMaintenanceEnabled(res.data.isMaintenanceAgentEnabled ?? true);
+  useEffect(() => {
+    let active = true;
+    const loadConversations = async () => {
+      setConversationsLoading(true);
+      setConversationsError('');
+      try {
+        const response = unwrapData(await aiFollowUpAPI.getConversations());
+        if (!active) return;
+        const loaded = sortConversations(asArray(response));
+        setConversations(loaded);
+        if (loaded.length > 0) handleSelectConversation(readField(loaded[0], 'id', 'Id'));
+      } catch (error) {
+        if (active) setConversationsError(errorMessage(error, 'Could not load your Percy conversations.'));
+      } finally {
+        if (active) setConversationsLoading(false);
       }
-    } catch {
-      // Defaults stay enabled if settings are not available.
-    } finally {
-      setSettingsLoading(false);
-    }
+    };
+    loadConversations();
+    return () => {
+      active = false;
+      selectionVersionRef.current += 1;
+      streamAbortRef.current?.abort();
+      clearTimeout(progressTimerRef.current);
+    };
+    // Initial durable conversation load only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleNewChat = () => {
+    streamAbortRef.current?.abort();
+    selectionVersionRef.current += 1;
+    clearTimeout(progressTimerRef.current);
+    setSelectedConversationId(null);
+    setMessages([]);
+    setInput('');
+    setThinking(false);
+    setConversationLoading(false);
+    setConversationError('');
   };
 
-  const loadCollectionSummary = async () => {
-    setSummaryLoading(true);
+  const handleSend = async (value = input) => {
+    const prompt = value.trim();
+    if (!prompt || thinking || conversationLoading) return;
+
+    const version = selectionVersionRef.current;
+    const conversationId = selectedConversationId;
+    const optimisticId = `user-${Date.now()}`;
+    const assistantPlaceholderId = `assistant-stream-${Date.now()}`;
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
+    setMessages((current) => [
+      ...current,
+      { id: optimisticId, role: 'user', content: prompt },
+      { id: assistantPlaceholderId, role: 'assistant', content: '' }
+    ]);
+    setInput('');
+    setThinking(true);
+    setProgressText('Understanding your request');
+
+    let completedResponse = null;
     try {
-      const res = await aiFollowUpAPI.getAgentDashboardSummary();
-      setSummary(res?.data ?? res ?? null);
-    } catch {
-      // Non-fatal — Percy dashboard still shows maintenance state.
-    } finally {
-      setSummaryLoading(false);
-    }
-  };
-
-  const loadCollectionHistory = async () => {
-    setHistoryLoading(true);
-    try {
-      const res = await aiFollowUpAPI.getCollectionsHistory(1, 5);
-      const data = res?.data;
-      setHistory(data?.items ?? []);
-    } catch {
-      // Non-fatal.
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const updateAgentSettings = async ({ collections, maintenance }) => {
-    await organizationAPI.updateAgentSettings({
-      isCollectionsAgentEnabled: collections,
-      isMaintenanceAgentEnabled: maintenance
-    });
-  };
-
-  const handleToggleCollections = async (value) => {
-    setCollectionsToggling(true);
-    const prev = collectionsEnabled;
-    setCollectionsEnabled(value);
-    try {
-      await updateAgentSettings({ collections: value, maintenance: maintenanceEnabled });
-      openSnackbar({ open: true, message: `Percy collections ${value ? 'enabled' : 'paused'}.`, variant: 'alert', alert: { color: 'success' } });
-    } catch {
-      setCollectionsEnabled(prev);
-      openSnackbar({ open: true, message: 'Failed to update Percy collections.', variant: 'alert', alert: { color: 'error' } });
-    } finally {
-      setCollectionsToggling(false);
-    }
-  };
-
-  const handleToggleMaintenance = async (value) => {
-    setMaintenanceToggling(true);
-    const prev = maintenanceEnabled;
-    setMaintenanceEnabled(value);
-    try {
-      await updateAgentSettings({ collections: collectionsEnabled, maintenance: value });
-      openSnackbar({ open: true, message: `Percy maintenance ${value ? 'enabled' : 'paused'}.`, variant: 'alert', alert: { color: 'success' } });
-    } catch {
-      setMaintenanceEnabled(prev);
-      openSnackbar({ open: true, message: 'Failed to update Percy maintenance.', variant: 'alert', alert: { color: 'error' } });
-    } finally {
-      setMaintenanceToggling(false);
-    }
-  };
-
-  const handleRunCollections = async () => {
-    setRunning(true);
-    setRunResult(null);
-    try {
-      const res = await aiFollowUpAPI.runOverdueRentSweep();
-      const data = res?.data;
-      setRunResult({ success: true, data });
-      const sent = data?.messagesSent ?? 0;
-      openSnackbar({
-        open: true,
-        message: sent > 0 ? `Percy sent ${sent} collection follow-up${sent !== 1 ? 's' : ''}.` : 'Percy checked collections — no follow-ups needed right now.',
-        variant: 'alert',
-        alert: { color: 'success' }
+      await aiFollowUpAPI.streamChat(prompt, conversationId, {
+        signal: controller.signal,
+        onEvent: (event) => {
+          if (selectionVersionRef.current !== version) return;
+          if (event.type === 'status') {
+            setProgressText(event.message || 'Checking Property Peace data');
+            return;
+          }
+          if (event.type === 'content.delta') {
+            setProgressText('Percy is responding');
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === assistantPlaceholderId
+                  ? { ...message, content: `${message.content || ''}${event.delta || ''}` }
+                  : message
+              )
+            );
+            return;
+          }
+          if (event.type === 'completed') {
+            completedResponse = event.response;
+            return;
+          }
+          if (event.type === 'error') throw new Error(event.message || 'Percy could not complete this request.');
+        }
       });
-      await Promise.allSettled([loadCollectionSummary(), loadCollectionHistory()]);
-    } catch (err) {
-      const message = err?.response?.data?.message || err?.message || 'Percy could not run collections right now.';
-      setRunResult({ success: false, message });
-      openSnackbar({ open: true, message, variant: 'alert', alert: { color: 'error' } });
+
+      if (selectionVersionRef.current !== version || !completedResponse) return;
+      const response = completedResponse;
+      const serverConversationId = readField(response, 'conversationId', 'ConversationId');
+      const title = readField(response, 'conversationTitle', 'ConversationTitle') || prompt;
+      const userMessageId = readField(response, 'userMessageId', 'UserMessageId');
+      setSelectedConversationId(serverConversationId);
+      setMessages((current) =>
+        current.map((message) => {
+          if (message.id === optimisticId) return { ...message, id: userMessageId || message.id };
+          if (message.id === assistantPlaceholderId) return mapChatResponse(response);
+          return message;
+        })
+      );
+      setConversations((current) => {
+        const existing = current.find((item) => readField(item, 'id', 'Id') === serverConversationId) || {};
+        const next = {
+          ...existing,
+          id: serverConversationId,
+          title,
+          updatedAt: new Date().toISOString(),
+          lastMessagePreview: readField(response, 'content', 'Content') || prompt
+        };
+        return sortConversations([next, ...current.filter((item) => readField(item, 'id', 'Id') !== serverConversationId)]);
+      });
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (selectionVersionRef.current === version) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.id === assistantPlaceholderId
+              ? {
+                  ...message,
+                  id: `assistant-error-${Date.now()}`,
+                  content: errorMessage(error, 'I could not access your Property Peace data for that request. Please try again.')
+                }
+              : message
+          )
+        );
+      }
     } finally {
-      setRunning(false);
+      if (streamAbortRef.current === controller) streamAbortRef.current = null;
+      clearTimeout(progressTimerRef.current);
+      if (selectionVersionRef.current === version) setThinking(false);
     }
   };
 
-  const activeMaintenance = useMemo(() => {
-    return (maintenances || [])
-      .filter((r) => !['completed', 'resolved', 'closed', 'cancelled'].includes((r.status || '').toLowerCase()))
-      .slice(0, 5);
-  }, [maintenances]);
+  const handleComposerKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSend();
+    }
+  };
 
-  const recentMaintenanceHistory = useMemo(() => (historyMaintenances || []).slice(0, 5), [historyMaintenances]);
+  const updateWorkflowSettings = async (nextCollections, nextMaintenance) => {
+    setSettingsSaving(true);
+    try {
+      await organizationAPI.updateAgentSettings({
+        isCollectionsAgentEnabled: nextCollections,
+        isMaintenanceAgentEnabled: nextMaintenance
+      });
+      setCollectionsEnabled(nextCollections);
+      setMaintenanceEnabled(nextMaintenance);
+      openSnackbar({ open: true, message: 'Percy workflow settings updated.', variant: 'alert', alert: { color: 'success' } });
+    } catch {
+      openSnackbar({ open: true, message: 'Could not update Percy workflow settings.', variant: 'alert', alert: { color: 'error' } });
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
 
-  const activeAgentCount = [collectionsEnabled, maintenanceEnabled].filter(Boolean).length;
-  const lastRunAt = summary?.lastRunAt ?? summary?.LastRunAt ?? null;
-  const followUpsSentThisMonth = summary?.followUpsSentThisMonth ?? summary?.FollowUpsSentThisMonth ?? null;
-  const leasesMonitored = summary?.leasesMonitored ?? summary?.LeasesMonitored ?? null;
-  const flaggedCount = summary?.flaggedForReview ?? summary?.FlaggedForReview ?? null;
-  const highPriorityMaintenance = activeMaintenance.filter((r) => ['high', 'urgent'].includes((r.priority || '').toLowerCase())).length;
+  const handleResolveConfirmation = async (messageId, confirmationId, confirm) => {
+    setConfirmationLoading((current) => ({ ...current, [confirmationId]: true }));
+    setConfirmationErrors((current) => ({ ...current, [confirmationId]: '' }));
+    try {
+      const response = unwrapData(
+        await (confirm ? aiFollowUpAPI.confirmAction(confirmationId) : aiFollowUpAPI.declineAction(confirmationId))
+      );
+      const status = readField(response, 'status', 'Status') || (confirm ? 'Completed' : 'Declined');
+      const resultMessage = readField(response, 'message', 'Message');
+      setMessages((current) =>
+        current.map((message) =>
+          message.id === messageId
+            ? {
+                ...message,
+                content: resultMessage || message.content,
+                pendingConfirmation: { ...message.pendingConfirmation, status }
+              }
+            : message
+        )
+      );
+    } catch (error) {
+      setConfirmationErrors((current) => ({
+        ...current,
+        [confirmationId]: errorMessage(error, `Could not ${confirm ? 'confirm' : 'cancel'} this action. Please try again.`)
+      }));
+    } finally {
+      setConfirmationLoading((current) => ({ ...current, [confirmationId]: false }));
+    }
+  };
+
+  const dataReady = !summaryLoading && !summaryError;
+  const contextCounts = {
+    properties: asArray(readField(summary, 'properties', 'Properties')).length,
+    tenants: asArray(readField(summary, 'tenants', 'Tenants')).length,
+    tools: 8
+  };
 
   return (
-    <Fade in={fadeIn} timeout={600}>
-      <Box>
-        <AnimateIn direction="bottom" delay={80} distance={100}>
-          <Box sx={{ mb: 2.5 }}>
-            <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Percy' }]} />
-            <PercyHero activeAgentCount={activeAgentCount} settingsLoading={settingsLoading} />
-          </Box>
-        </AnimateIn>
+    <Box>
+      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Percy' }]} />
 
-        <AnimateIn direction="bottom" delay={140} distance={100}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 1.5, mb: 2.5 }}>
-            <MetricTile label="Collection follow-ups" value={followUpsSentThisMonth} sub="sent this month" color={GREEN} loading={summaryLoading} />
-            <MetricTile label="Leases monitored" value={leasesMonitored} sub={lastRunAt ? `last checked ${timeAgo(lastRunAt)}` : 'daily sweep'} color={BLUE} loading={summaryLoading} />
-            <MetricTile label="Needs review" value={flaggedCount} sub="collection exceptions" color={flaggedCount > 0 ? RED : theme.palette.text.disabled} loading={summaryLoading} />
-            <MetricTile label="Open maintenance" value={activeMaintenance.length} sub={`${highPriorityMaintenance} high priority`} color={AMBER} loading={maintenanceLoading} />
-          </Box>
-        </AnimateIn>
-
-        {runResult && !runResult.success && (
-          <Alert severity="error" sx={{ mb: 2.5 }}>{runResult.message}</Alert>
-        )}
-
-        {runResult?.success && runResult?.data && (
-          <Alert severity="success" sx={{ mb: 2.5 }}>
-            Percy reviewed {runResult.data.leasesReviewed ?? 0} lease{(runResult.data.leasesReviewed ?? 0) === 1 ? '' : 's'}, sent {runResult.data.messagesSent ?? 0} follow-up{(runResult.data.messagesSent ?? 0) === 1 ? '' : 's'}, and flagged {runResult.data.flaggedForReview ?? 0} item{(runResult.data.flaggedForReview ?? 0) === 1 ? '' : 's'} for review.
-          </Alert>
-        )}
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 2.5, alignItems: 'stretch' }}>
-          <AnimateIn direction="bottom" delay={200} distance={100}>
-            <WorkstreamCard
-              icon={<DollarCircleOutlined style={{ fontSize: 24 }} />}
-              title="Collections"
-              description="Percy reviews rent status, payment timing, grace periods, and prior outreach so follow-ups stay helpful instead of noisy."
-              enabled={collectionsEnabled}
-              toggling={collectionsToggling}
-              loading={settingsLoading}
-              onToggle={handleToggleCollections}
-              color={GREEN}
-            >
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mb: 2 }}>
-                <Button
-                  variant="contained"
-                  startIcon={running ? <SyncOutlined spin /> : <PlayCircleOutlined />}
-                  onClick={handleRunCollections}
-                  disabled={running || !collectionsEnabled}
-                  sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}
-                >
-                  {running ? 'Percy is checking…' : 'Run collections check'}
-                </Button>
-                <Button component={Link} to="/landlord/ai-center/collections-history" variant="outlined" startIcon={<HistoryOutlined />}>
-                  View follow-ups
-                </Button>
-              </Stack>
-
-              <Divider sx={{ mb: 2 }} />
-
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                <Typography variant="subtitle2" fontWeight={800}>Recent follow-ups</Typography>
-                <Typography variant="caption" color="text.secondary">Percy activity</Typography>
-              </Stack>
-
-              {historyLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={24} /></Box>
-              ) : history.length ? (
-                <Stack spacing={1.25}>{history.map((item, index) => <CollectionHistoryRow key={item.id || item.Id || index} item={item} />)}</Stack>
-              ) : (
-                <Box sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.06), border: `1px dashed ${alpha(theme.palette.success.main, 0.24)}` }}>
-                  <Typography variant="subtitle2" fontWeight={800}>No follow-ups yet</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Run Percy once payments are active and collection history will appear here.</Typography>
-                </Box>
-              )}
-            </WorkstreamCard>
-          </AnimateIn>
-
-          <AnimateIn direction="bottom" delay={260} distance={100}>
-            <WorkstreamCard
-              icon={<ToolOutlined style={{ fontSize: 24 }} />}
-              title="Maintenance"
-              description="Percy helps turn tenant repair messages into complete work orders, then keeps the active queue and completed history visible from one place."
-              enabled={maintenanceEnabled}
-              toggling={maintenanceToggling}
-              loading={settingsLoading}
-              onToggle={handleToggleMaintenance}
-              color={AMBER}
-            >
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ mb: 2 }}>
-                <Button component={Link} to="/landlord/maintenances" variant="contained" startIcon={<ToolOutlined />} sx={{ boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
-                  Manage work orders
-                </Button>
-                <Button component={Link} to="/landlord/maintenances/add" variant="outlined" startIcon={<BellOutlined />}>
-                  Add request
-                </Button>
-              </Stack>
-
-              <Divider sx={{ mb: 2 }} />
-
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                <Typography variant="subtitle2" fontWeight={800}>Active work</Typography>
-                <Typography variant="caption" color="text.secondary">{activeMaintenance.length} open</Typography>
-              </Stack>
-
-              {maintenanceLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={24} /></Box>
-              ) : activeMaintenance.length ? (
-                <Stack spacing={1.25}>{activeMaintenance.map((request, index) => <MaintenanceRow key={request.id || request.Id || index} request={request} />)}</Stack>
-              ) : (
-                <Box sx={{ p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.05), border: `1px dashed ${alpha(theme.palette.primary.main, 0.2)}` }}>
-                  <Typography variant="subtitle2" fontWeight={800}>No active work orders</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>When tenants submit maintenance through Percy, organized work orders appear here.</Typography>
-                </Box>
-              )}
-            </WorkstreamCard>
-          </AnimateIn>
-        </Box>
-
-        <AnimateIn direction="bottom" delay={320} distance={100}>
-          <MainCard
-            content={false}
-            sx={{ mt: 2.5, borderRadius: 2.5, border: `1px solid ${alpha(theme.palette.divider, 0.9)}`, boxShadow: 'none' }}
-          >
-            <Box sx={{ p: 2.25 }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1} sx={{ mb: 2 }}>
-                <Box>
-                  <Typography variant="h5" fontWeight={800}>Maintenance history</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
-                    Closed and completed work so you can see what Percy helped capture over time.
-                  </Typography>
-                </Box>
-                <Button component={Link} to="/landlord/maintenances" endIcon={<ArrowRightOutlined />} size="small">
-                  Open full board
-                </Button>
-              </Stack>
-
-              {maintenanceLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={24} /></Box>
-              ) : recentMaintenanceHistory.length ? (
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)' }, gap: 1.25 }}>
-                  {recentMaintenanceHistory.map((request, index) => <MaintenanceRow key={request.id || request.Id || index} request={request} history />)}
-                </Box>
-              ) : (
-                <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.045), border: `1px dashed ${alpha(theme.palette.success.main, 0.2)}` }}>
-                  <Stack direction="row" spacing={1.25} alignItems="center">
-                    <CheckCircleFilled style={{ color: theme.palette.success.main }} />
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight={800}>No completed maintenance history yet</Typography>
-                      <Typography variant="body2" color="text.secondary">Resolved Percy work orders will collect here once requests are completed.</Typography>
-                    </Box>
-                  </Stack>
-                </Box>
-              )}
-            </Box>
-          </MainCard>
-        </AnimateIn>
-
-        <AnimateIn direction="bottom" delay={360} distance={100}>
-          <Box sx={{ mt: 2, p: 2, borderRadius: 2, bgcolor: alpha(theme.palette.warning.main, 0.06), border: `1px solid ${alpha(theme.palette.warning.main, 0.18)}` }}>
-            <Stack direction="row" spacing={1.25} alignItems="flex-start">
-              <WarningOutlined style={{ color: theme.palette.warning.main, fontSize: 18, marginTop: 2 }} />
+      <Box
+        sx={{
+          height: { xs: 'calc(100dvh - 122px)', md: 'calc(100dvh - 136px)' },
+          minHeight: { xs: 620, lg: 700 },
+          display: 'flex',
+          overflow: 'hidden',
+          borderRadius: 3,
+          border: `1px solid ${alpha(NAVY, 0.11)}`,
+          bgcolor: '#fff',
+          boxShadow: `0 18px 45px ${alpha(NAVY, 0.07)}`
+        }}
+      >
+        <Box
+          sx={{
+            width: 236,
+            flexShrink: 0,
+            display: { xs: 'none', md: 'flex' },
+            flexDirection: 'column',
+            bgcolor: alpha(NAVY, 0.025),
+            borderRight: `1px solid ${alpha(NAVY, 0.08)}`
+          }}
+        >
+          <Box sx={{ p: 2 }}>
+            <Stack direction="row" spacing={1.1} alignItems="center" sx={{ mb: 2 }}>
+              <Box sx={{ width: 34, height: 34, borderRadius: 1.4, display: 'grid', placeItems: 'center', bgcolor: NAVY, color: '#fff' }}>
+                <RobotOutlined />
+              </Box>
               <Box>
-                <Typography variant="subtitle2" fontWeight={800}>Percy keeps you in control</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35, lineHeight: 1.6 }}>
-                  Collection outreach is suppression-aware and review-friendly, and maintenance stays as organized work history. Percy can help capture, summarize, and remind — final landlord decisions stay with you.
+                <Typography variant="subtitle1" fontWeight={850} sx={{ color: NAVY, lineHeight: 1.1 }}>
+                  Percy
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Property copilot
                 </Typography>
               </Box>
             </Stack>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<PlusOutlined />}
+              onClick={handleNewChat}
+              sx={{
+                justifyContent: 'flex-start',
+                borderColor: alpha(NAVY, 0.18),
+                color: NAVY,
+                bgcolor: '#fff',
+                textTransform: 'none',
+                fontWeight: 750
+              }}
+            >
+              New conversation
+            </Button>
           </Box>
-        </AnimateIn>
+
+          <Box sx={{ px: 1.25, flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            <Typography variant="overline" color="text.secondary" sx={{ px: 1, fontWeight: 800, letterSpacing: 0.8 }}>
+              Conversations
+            </Typography>
+            {conversationsLoading && (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ px: 1.1, py: 1.5 }}>
+                <CircularProgress size={15} />
+                <Typography variant="caption" color="text.secondary">
+                  Loading conversations…
+                </Typography>
+              </Stack>
+            )}
+            {!conversationsLoading && conversationsError && (
+              <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
+                {conversationsError}
+              </Alert>
+            )}
+            {!conversationsLoading && !conversationsError && conversations.length === 0 && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 1.1, py: 1.5 }}>
+                No saved conversations yet.
+              </Typography>
+            )}
+            <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+              {conversations.map((conversation) => {
+                const id = readField(conversation, 'id', 'Id');
+                const selected = id === selectedConversationId;
+                return (
+                  <Box
+                    key={id}
+                    component="button"
+                    type="button"
+                    onClick={() => handleSelectConversation(id)}
+                    sx={{
+                      width: '100%',
+                      border: 0,
+                      mt: 0,
+                      px: 1.1,
+                      py: 1,
+                      borderRadius: 1.5,
+                      bgcolor: selected ? alpha(NAVY, 0.07) : 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: alpha(NAVY, 0.05) }
+                    }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="flex-start">
+                      <MessageOutlined style={{ color: NAVY, marginTop: 3 }} />
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="body2" fontWeight={selected ? 750 : 600} noWrap>
+                          {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                          {readField(conversation, 'lastMessagePreview', 'LastMessagePreview') || 'No messages yet'}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Stack>
+          </Box>
+
+          <Box sx={{ p: 1.5 }}>
+            <Button
+              component={Link}
+              to="/landlord/ai-center/collections-history"
+              fullWidth
+              startIcon={<HistoryOutlined />}
+              sx={{ justifyContent: 'flex-start', color: 'text.secondary', textTransform: 'none' }}
+            >
+              Activity history
+            </Button>
+            <Button
+              component={Link}
+              to="/landlord/settings?tab=aiSummary"
+              fullWidth
+              startIcon={<SettingOutlined />}
+              sx={{ justifyContent: 'flex-start', color: 'text.secondary', textTransform: 'none' }}
+            >
+              Percy settings
+            </Button>
+          </Box>
+        </Box>
+
+        <Box sx={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', bgcolor: '#fff' }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ height: 58, flexShrink: 0, px: { xs: 1.5, sm: 2.25 }, borderBottom: `1px solid ${alpha(NAVY, 0.07)}` }}
+          >
+            <Stack direction="row" spacing={1} alignItems="center">
+              <IconButton onClick={() => setMobilePanelOpen(true)} sx={{ display: { xl: 'none' } }}>
+                <MenuOutlined />
+              </IconButton>
+              <Box>
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ color: NAVY }}>
+                    Percy workspace
+                  </Typography>
+                  <Chip
+                    label="Live"
+                    size="small"
+                    sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha(GREEN, 0.09), color: GREEN, fontWeight: 800 }}
+                  />
+                </Stack>
+                <Typography variant="caption" color="text.secondary">
+                  Property Peace tools · Organization scoped
+                </Typography>
+              </Box>
+            </Stack>
+            <Tooltip title="Start a new conversation">
+              <IconButton size="small" onClick={handleNewChat}>
+                <PlusOutlined />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+
+          <Box sx={{ flex: 1, overflowY: 'auto', px: { xs: 2, sm: 3, lg: 5 }, py: 3, bgcolor: alpha('#f8fafc', 0.55) }}>
+            {summaryError && (
+              <Alert severity="warning" sx={{ maxWidth: 760, mx: 'auto', mb: 2 }}>
+                Percy could not load all portfolio context. You can still navigate tools from the workspace.
+              </Alert>
+            )}
+            {conversationError && (
+              <Alert severity="error" sx={{ maxWidth: 760, mx: 'auto', mb: 2 }}>
+                {conversationError}
+              </Alert>
+            )}
+
+            {conversationLoading ? (
+              <Stack alignItems="center" justifyContent="center" spacing={1.5} sx={{ height: '100%', minHeight: 300 }}>
+                <CircularProgress size={28} />
+                <Typography variant="body2" color="text.secondary">
+                  Loading conversation…
+                </Typography>
+              </Stack>
+            ) : messages.length === 0 ? (
+              <Box
+                sx={{
+                  height: '100%',
+                  minHeight: 430,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  maxWidth: 760,
+                  mx: 'auto'
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: 2.25,
+                    display: 'grid',
+                    placeItems: 'center',
+                    bgcolor: NAVY,
+                    color: '#fff',
+                    boxShadow: `0 12px 24px ${alpha(NAVY, 0.2)}`
+                  }}
+                >
+                  <RobotOutlined style={{ fontSize: 28 }} />
+                </Box>
+                <Typography variant="h2" fontWeight={800} sx={{ mt: 2, color: NAVY, letterSpacing: -0.7 }}>
+                  What can Percy help with?
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: 560, lineHeight: 1.7 }}>
+                  Ask about live rent, leases, applications, or maintenance. Percy will show which Property Peace tools were used before
+                  presenting the result.
+                </Typography>
+
+                <Box
+                  sx={{
+                    width: '100%',
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                    gap: 1.25,
+                    mt: 3
+                  }}
+                >
+                  {STARTER_PROMPTS.map((starter) => (
+                    <Box
+                      key={starter.label}
+                      component="button"
+                      type="button"
+                      onClick={() => handleSend(starter.prompt)}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(NAVY, 0.1)}`,
+                        bgcolor: '#fff',
+                        color: NAVY,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        transition: 'all 160ms ease',
+                        '&:hover': {
+                          borderColor: alpha(NAVY, 0.25),
+                          boxShadow: `0 8px 20px ${alpha(NAVY, 0.07)}`,
+                          transform: 'translateY(-1px)'
+                        }
+                      }}
+                    >
+                      <Stack direction="row" spacing={1.25} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 34,
+                            height: 34,
+                            borderRadius: 1.25,
+                            display: 'grid',
+                            placeItems: 'center',
+                            bgcolor: alpha(GREEN, 0.08),
+                            color: GREEN
+                          }}
+                        >
+                          {starter.icon}
+                        </Box>
+                        <Box>
+                          <Typography variant="body2" fontWeight={800}>
+                            {starter.label}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 250 }}>
+                            {starter.prompt}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            ) : (
+              <Stack spacing={3} sx={{ maxWidth: 860, mx: 'auto' }}>
+                {messages.map((message) =>
+                  message.role === 'user' ? (
+                    <UserMessage key={message.id} message={message} />
+                  ) : (
+                    <AssistantMessage
+                      key={message.id}
+                      message={message}
+                      onResolveConfirmation={handleResolveConfirmation}
+                      confirmationLoading={Boolean(confirmationLoading[message.pendingConfirmation?.id])}
+                      confirmationError={confirmationErrors[message.pendingConfirmation?.id]}
+                    />
+                  )
+                )}
+                {thinking && (
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Box
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 1.25,
+                        display: 'grid',
+                        placeItems: 'center',
+                        bgcolor: NAVY,
+                        color: '#fff'
+                      }}
+                    >
+                      <RobotOutlined />
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" fontWeight={700} sx={{ color: NAVY }}>
+                        {progressText}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Waiting for Percy's full response…
+                      </Typography>
+                    </Box>
+                  </Stack>
+                )}
+                <div ref={messageEndRef} />
+              </Stack>
+            )}
+          </Box>
+
+          <Box
+            sx={{
+              flexShrink: 0,
+              px: { xs: 1.5, sm: 3, lg: 5 },
+              pt: 1.5,
+              pb: 1.25,
+              borderTop: `1px solid ${alpha(NAVY, 0.07)}`,
+              bgcolor: '#fff'
+            }}
+          >
+            <Box sx={{ maxWidth: 860, mx: 'auto' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: 1,
+                  p: 0.75,
+                  pl: 1.5,
+                  borderRadius: 2.25,
+                  border: `1px solid ${alpha(NAVY, 0.16)}`,
+                  boxShadow: `0 5px 18px ${alpha(NAVY, 0.06)}`,
+                  '&:focus-within': { borderColor: alpha(NAVY, 0.38), boxShadow: `0 0 0 3px ${alpha(NAVY, 0.05)}` }
+                }}
+              >
+                <InputBase
+                  multiline
+                  maxRows={5}
+                  fullWidth
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={handleComposerKeyDown}
+                  placeholder="Ask Percy about your properties…"
+                  disabled={summaryLoading || conversationLoading}
+                  sx={{ py: 0.75, fontSize: '0.95rem' }}
+                />
+                <IconButton
+                  onClick={() => handleSend()}
+                  disabled={!input.trim() || thinking || conversationLoading}
+                  sx={{
+                    width: 38,
+                    height: 38,
+                    bgcolor: input.trim() ? NAVY : alpha(NAVY, 0.06),
+                    color: input.trim() ? '#fff' : 'text.disabled',
+                    '&:hover': { bgcolor: NAVY }
+                  }}
+                >
+                  {thinking ? <CircularProgress size={17} color="inherit" /> : <SendOutlined />}
+                </IconButton>
+              </Box>
+              <Typography variant="caption" color="text.disabled" sx={{ display: 'block', textAlign: 'center', mt: 0.75 }}>
+                Percy uses live organization-scoped data. Confirmations are required before consequential actions.
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        <Box
+          sx={{
+            width: 292,
+            flexShrink: 0,
+            display: { xs: 'none', xl: 'flex' },
+            flexDirection: 'column',
+            borderLeft: `1px solid ${alpha(NAVY, 0.08)}`,
+            bgcolor: alpha(NAVY, 0.018),
+            overflowY: 'auto'
+          }}
+        >
+          <Box sx={{ p: 2 }}>
+            <Typography variant="subtitle2" fontWeight={850} sx={{ color: NAVY }}>
+              Workspace connections
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Data and tool availability
+            </Typography>
+            <Stack sx={{ mt: 1.25 }} divider={<Divider />}>
+              <ConnectionRow
+                icon={<DatabaseOutlined />}
+                title="Property Peace"
+                detail={
+                  summaryLoading ? 'Loading live context…' : `${contextCounts.properties} properties · ${contextCounts.tenants} tenants`
+                }
+                active={dataReady}
+              />
+              <ConnectionRow
+                icon={<ApiOutlined />}
+                title="Built-in tools"
+                detail={`${contextCounts.tools} organization-scoped tools`}
+                active
+              />
+              <ConnectionRow icon={<RobotOutlined />} title="MCP servers" detail="No external servers connected" />
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          <Box sx={{ p: 2 }}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Box>
+                <Typography variant="subtitle2" fontWeight={850} sx={{ color: NAVY }}>
+                  Automations
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Background Percy workflows
+                </Typography>
+              </Box>
+              {(settingsLoading || settingsSaving) && <CircularProgress size={16} />}
+            </Stack>
+
+            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+              <Box sx={{ p: 1.25, borderRadius: 1.75, border: `1px solid ${alpha(NAVY, 0.08)}`, bgcolor: '#fff' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <DollarCircleOutlined style={{ color: GREEN }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight={750}>
+                        Collections
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Rent follow-ups
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Switch
+                    size="small"
+                    checked={collectionsEnabled}
+                    disabled={settingsLoading || settingsSaving}
+                    onChange={(event) => updateWorkflowSettings(event.target.checked, maintenanceEnabled)}
+                    color="success"
+                  />
+                </Stack>
+              </Box>
+              <Box sx={{ p: 1.25, borderRadius: 1.75, border: `1px solid ${alpha(NAVY, 0.08)}`, bgcolor: '#fff' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <ToolOutlined style={{ color: '#d97706' }} />
+                    <Box>
+                      <Typography variant="body2" fontWeight={750}>
+                        Maintenance
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Request support
+                      </Typography>
+                    </Box>
+                  </Stack>
+                  <Switch
+                    size="small"
+                    checked={maintenanceEnabled}
+                    disabled={settingsLoading || settingsSaving}
+                    onChange={(event) => updateWorkflowSettings(collectionsEnabled, event.target.checked)}
+                    color="success"
+                  />
+                </Stack>
+              </Box>
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          <Box sx={{ p: 2 }}>
+            <Typography variant="subtitle2" fontWeight={850} sx={{ color: NAVY, mb: 1 }}>
+              Tool shortcuts
+            </Typography>
+            <Stack spacing={0.25}>
+              <Button
+                component={Link}
+                to="/landlord/rent-collection"
+                startIcon={<DollarCircleOutlined />}
+                endIcon={<ArrowRightOutlined />}
+                sx={{
+                  justifyContent: 'flex-start',
+                  color: 'text.secondary',
+                  textTransform: 'none',
+                  '& .MuiButton-endIcon': { ml: 'auto' }
+                }}
+              >
+                Rent collection
+              </Button>
+              <Button
+                component={Link}
+                to="/landlord/maintenances"
+                startIcon={<ToolOutlined />}
+                endIcon={<ArrowRightOutlined />}
+                sx={{
+                  justifyContent: 'flex-start',
+                  color: 'text.secondary',
+                  textTransform: 'none',
+                  '& .MuiButton-endIcon': { ml: 'auto' }
+                }}
+              >
+                Maintenance
+              </Button>
+              <Button
+                component={Link}
+                to="/landlord/ai-center/collections-history"
+                startIcon={<HistoryOutlined />}
+                endIcon={<ArrowRightOutlined />}
+                sx={{
+                  justifyContent: 'flex-start',
+                  color: 'text.secondary',
+                  textTransform: 'none',
+                  '& .MuiButton-endIcon': { ml: 'auto' }
+                }}
+              >
+                Activity history
+              </Button>
+            </Stack>
+          </Box>
+        </Box>
       </Box>
-    </Fade>
+
+      {mobilePanelOpen && (
+        <Box
+          sx={{ position: 'fixed', inset: 0, zIndex: theme.zIndex.drawer + 2, display: { xl: 'none' }, bgcolor: alpha('#000', 0.35) }}
+          onClick={() => setMobilePanelOpen(false)}
+        >
+          <Box
+            sx={{
+              width: { xs: '86%', sm: 330 },
+              height: '100%',
+              ml: 'auto',
+              p: 2,
+              bgcolor: '#fff',
+              overflowY: 'auto',
+              boxShadow: `-12px 0 40px ${alpha('#000', 0.16)}`
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+              <Typography variant="h5" fontWeight={800}>
+                Percy workspace
+              </Typography>
+              <IconButton onClick={() => setMobilePanelOpen(false)}>
+                <CloseOutlined />
+              </IconButton>
+            </Stack>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<PlusOutlined />}
+              onClick={() => {
+                handleNewChat();
+                setMobilePanelOpen(false);
+              }}
+              sx={{ mb: 2, justifyContent: 'flex-start', textTransform: 'none' }}
+            >
+              New conversation
+            </Button>
+            <Typography variant="subtitle2" fontWeight={800}>
+              Conversations
+            </Typography>
+            {conversationsLoading && (
+              <Typography variant="caption" color="text.secondary">
+                Loading conversations…
+              </Typography>
+            )}
+            {!conversationsLoading && conversationsError && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                {conversationsError}
+              </Alert>
+            )}
+            {!conversationsLoading && !conversationsError && conversations.length === 0 && (
+              <Typography variant="caption" color="text.secondary">
+                No saved conversations yet.
+              </Typography>
+            )}
+            <Stack spacing={0.5} sx={{ mt: 1, mb: 2 }}>
+              {conversations.map((conversation) => {
+                const id = readField(conversation, 'id', 'Id');
+                return (
+                  <Button
+                    key={id}
+                    fullWidth
+                    onClick={() => {
+                      handleSelectConversation(id);
+                      setMobilePanelOpen(false);
+                    }}
+                    startIcon={<MessageOutlined />}
+                    sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: id === selectedConversationId ? 800 : 500 }}
+                  >
+                    <Typography variant="body2" noWrap>
+                      {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
+                    </Typography>
+                  </Button>
+                );
+              })}
+            </Stack>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" fontWeight={800}>
+              Connections
+            </Typography>
+            <ConnectionRow
+              icon={<DatabaseOutlined />}
+              title="Property Peace"
+              detail={`${contextCounts.properties} properties · ${contextCounts.tenants} tenants`}
+              active={dataReady}
+            />
+            <ConnectionRow
+              icon={<ApiOutlined />}
+              title="Built-in tools"
+              detail={`${contextCounts.tools} organization-scoped tools`}
+              active
+            />
+            <ConnectionRow icon={<RobotOutlined />} title="MCP servers" detail="No external servers connected" />
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>
+              Automations
+            </Typography>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
+              <Typography variant="body2">Collections</Typography>
+              <Switch
+                size="small"
+                checked={collectionsEnabled}
+                disabled={settingsLoading || settingsSaving}
+                onChange={(event) => updateWorkflowSettings(event.target.checked, maintenanceEnabled)}
+                color="success"
+              />
+            </Stack>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
+              <Typography variant="body2">Maintenance</Typography>
+              <Switch
+                size="small"
+                checked={maintenanceEnabled}
+                disabled={settingsLoading || settingsSaving}
+                onChange={(event) => updateWorkflowSettings(collectionsEnabled, event.target.checked)}
+                color="success"
+              />
+            </Stack>
+          </Box>
+        </Box>
+      )}
+    </Box>
   );
 }

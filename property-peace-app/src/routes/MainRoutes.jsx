@@ -71,7 +71,7 @@ const MaintenanceAddWorkflow = Loadable(lazy(() => import('pages/landlord/mainte
 const ChecklistPage = Loadable(lazy(() => import('pages/landlord/checklist')));
 const ChecklistsPage = Loadable(lazy(() => import('pages/landlord/checklists')));
 const UnitChecklistsPage = Loadable(lazy(() => import('pages/landlord/unit-checklists')));
-const InspectionDetailPage = Loadable(lazy(() => import('pages/landlord/inspection-detail')));
+const PropertyChecklistsPage = Loadable(lazy(() => import('pages/landlord/inspection-detail')));
 const CustomizeMoveInReportPage = Loadable(lazy(() => import('pages/landlord/customize-move-in-report')));
 const UnitPage = Loadable(lazy(() => import('pages/landlord/unit')));
 const Tenant = Loadable(lazy(() => import('pages/landlord/tenant')));
@@ -175,6 +175,14 @@ const MaintenanceUnderConstruction = Loadable(lazy(() => import('pages/maintenan
 const MaintenanceComingSoon = Loadable(lazy(() => import('pages/maintenance/coming-soon')));
 
 // ==============================|| MAIN ROUTING ||============================== //
+
+function LegacyInspectionRedirect() {
+  const { propertyId, unitId } = useParams();
+  const path = unitId
+    ? `/landlord/checklists/property/${propertyId}/unit/${unitId}`
+    : `/landlord/checklists/property/${propertyId}`;
+  return <Navigate to={path} replace />;
+}
 
 const MainRoutes = {
   path: '/',
@@ -760,20 +768,44 @@ const MainRoutes = {
           )
         },
         {
-          path: 'landlord/inspection/:propertyId',
+          path: 'landlord/checklists/property/:propertyId',
           element: (
             <SubscriptionPausedGuard>
-              <InspectionDetailPage />
+              <PropertyChecklistsPage />
             </SubscriptionPausedGuard>
           )
         },
         {
-          path: 'landlord/inspection/:propertyId/unit/:unitId',
+          path: 'landlord/checklists/property/:propertyId/unit/:unitId',
           element: (
             <SubscriptionPausedGuard>
-              <InspectionDetailPage />
+              <PropertyChecklistsPage />
             </SubscriptionPausedGuard>
           )
+        },
+        {
+          path: 'landlord/checklists/property/:propertyId/checklist/:checklistId',
+          element: (
+            <SubscriptionPausedGuard>
+              <PropertyChecklistsPage />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/checklists/property/:propertyId/unit/:unitId/checklist/:checklistId',
+          element: (
+            <SubscriptionPausedGuard>
+              <PropertyChecklistsPage />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/inspection/:propertyId',
+          element: <LegacyInspectionRedirect />
+        },
+        {
+          path: 'landlord/inspection/:propertyId/unit/:unitId',
+          element: <LegacyInspectionRedirect />
         },
         {
           path: 'landlord/expenses',

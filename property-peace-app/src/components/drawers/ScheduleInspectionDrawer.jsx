@@ -50,7 +50,7 @@ export default function ScheduleInspectionDrawer() {
     }
     const propertyId = drawer.scheduleInspectionPropertyId;
     handleClose();
-    navigate(propertyId ? `/landlord/inspection/${propertyId}?type=move-in` : '/landlord/checklists');
+    navigate(propertyId ? `/landlord/checklists/property/${propertyId}?type=move-in` : '/landlord/checklists');
   };
 
   return (

@@ -3,6 +3,7 @@ import { Box, Typography, Stack, Paper, TextField, Button, alpha, Alert } from '
 import { LockOutlined } from '@ant-design/icons';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
+import PasskeySettingsCard from 'components/security/PasskeySettingsCard';
 
 // ==============================|| TENANT ACCOUNT SETTINGS ||============================== //
 
@@ -152,6 +153,7 @@ export default function AccountSettings() {
             </Stack>
           </form>
         </Paper>
+        <PasskeySettingsCard />
       </Stack>
     </Box>
   );

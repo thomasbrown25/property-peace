@@ -19,6 +19,9 @@ namespace brownstone_hub_api.Repositories.Checklists
             {
                 var entity = _mapper.Map<Models.Checklist>(checklist);
                 entity.LandlordId = landlordId;
+                entity.RoomNamesJson = checklist.RoomNames != null
+                    ? JsonSerializer.Serialize(checklist.RoomNames)
+                    : null;
                 
                 // Serialize image arrays to JSON strings
                 if (checklist.BeforeMoveInImagesBlobNames != null && checklist.BeforeMoveInImagesBlobNames.Any())
@@ -291,6 +294,7 @@ namespace brownstone_hub_api.Repositories.Checklists
             // Update checklist fields
             if (!string.IsNullOrEmpty(checklist.Title)) entity.Title = checklist.Title;
             if (checklist.LeaseId.HasValue) entity.LeaseId = checklist.LeaseId.Value;
+            if (checklist.CounterpartChecklistId.HasValue) entity.CounterpartChecklistId = checklist.CounterpartChecklistId.Value;
             if (checklist.InspectionDate.HasValue) entity.InspectionDate = checklist.InspectionDate.Value;
             if (checklist.CompletedAt.HasValue) entity.CompletedAt = checklist.CompletedAt.Value;
             if (checklist.IsCompleted.HasValue) entity.IsCompleted = checklist.IsCompleted.Value;
@@ -301,6 +305,10 @@ namespace brownstone_hub_api.Repositories.Checklists
             if (checklist.LandlordSignedAt.HasValue) entity.LandlordSignedAt = checklist.LandlordSignedAt.Value;
             if (checklist.GeneralNotes != null) entity.GeneralNotes = checklist.GeneralNotes;
             if (checklist.ConditionNotes != null) entity.ConditionNotes = checklist.ConditionNotes;
+            if (checklist.RoomNames != null)
+            {
+                entity.RoomNamesJson = JsonSerializer.Serialize(checklist.RoomNames);
+            }
             
             // Update image arrays
             if (checklist.BeforeMoveInImagesBlobNames != null)
@@ -543,6 +551,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                 UnitId = checklist.UnitId,
                 UnitName = checklist.Unit?.Name ?? null,
                 LeaseId = checklist.LeaseId,
+                CounterpartChecklistId = checklist.CounterpartChecklistId,
                 LeaseStartDate = checklist.Lease?.StartDate,
                 LeaseEndDate = checklist.Lease?.EndDate,
                 TenantId = checklist.TenantId,
@@ -560,6 +569,9 @@ namespace brownstone_hub_api.Repositories.Checklists
                 LandlordSignedAt = checklist.LandlordSignedAt,
                 GeneralNotes = checklist.GeneralNotes,
                 ConditionNotes = checklist.ConditionNotes,
+                RoomNames = !string.IsNullOrEmpty(checklist.RoomNamesJson)
+                    ? JsonSerializer.Deserialize<List<string>>(checklist.RoomNamesJson) ?? []
+                    : [],
                 BeforeMoveInImagesBlobNames = !string.IsNullOrEmpty(checklist.BeforeMoveInImagesBlobNames) 
                     ? JsonSerializer.Deserialize<List<string>>(checklist.BeforeMoveInImagesBlobNames) 
                     : null,

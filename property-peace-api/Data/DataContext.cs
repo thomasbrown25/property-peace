@@ -89,6 +89,9 @@ namespace brownstone_hub_api.Data
 
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
+        public DbSet<PasskeyCredential> PasskeyCredentials => Set<PasskeyCredential>();
+        public DbSet<PasskeyCeremony> PasskeyCeremonies => Set<PasskeyCeremony>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<UserSettings> UserSettings => Set<UserSettings>();
@@ -226,6 +229,12 @@ namespace brownstone_hub_api.Data
 
         // Collections Agent History
         public DbSet<CollectionsAgentAction> CollectionsAgentActions => Set<CollectionsAgentAction>();
+
+        // Percy (dedicated AI conversation persistence)
+        public DbSet<PercyConversation> PercyConversations => Set<PercyConversation>();
+        public DbSet<PercyMessage> PercyMessages => Set<PercyMessage>();
+        public DbSet<PercyActionConfirmation> PercyActionConfirmations => Set<PercyActionConfirmation>();
+        public DbSet<PercyAuditRecord> PercyAuditRecords => Set<PercyAuditRecord>();
 
         // Time Tracking
         public DbSet<StaffMember> StaffMembers => Set<StaffMember>();
