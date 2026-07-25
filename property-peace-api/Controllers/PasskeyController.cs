@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.User;
 using brownstone_hub_api.Services.UserService;
@@ -118,9 +119,10 @@ namespace brownstone_hub_api.Controllers
             try
             {
                 var options = CredentialCreateOptions.FromJson(ceremony.OptionsJson);
+                var attestationResponse = ParseWebAuthnResponse<AuthenticatorAttestationRawResponse>(request.Response);
                 var credential = await _fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
                 {
-                    AttestationResponse = request.Response,
+                    AttestationResponse = attestationResponse,
                     OriginalOptions = options,
                     IsCredentialIdUniqueToUserCallback = async (args, ct) =>
                     {
@@ -192,7 +194,8 @@ namespace brownstone_hub_api.Controllers
 
             try
             {
-                var credentialIdHash = HashCredentialId(request.Response.RawId);
+                var assertionResponse = ParseWebAuthnResponse<AuthenticatorAssertionRawResponse>(request.Response);
+                var credentialIdHash = HashCredentialId(assertionResponse.RawId);
                 var passkey = await _dataContext.PasskeyCredentials
                     .Include(x => x.User)
                     .SingleOrDefaultAsync(x => x.CredentialIdHash == credentialIdHash, cancellationToken);
@@ -206,7 +209,7 @@ namespace brownstone_hub_api.Controllers
                 var options = AssertionOptions.FromJson(ceremony.OptionsJson);
                 var result = await _fido2.MakeAssertionAsync(new MakeAssertionParams
                 {
-                    AssertionResponse = request.Response,
+                    AssertionResponse = assertionResponse,
                     OriginalOptions = options,
                     StoredPublicKey = passkey.PublicKey,
                     StoredSignatureCounter = checked((uint)passkey.SignatureCounter),
@@ -311,6 +314,21 @@ namespace brownstone_hub_api.Controllers
             return document.RootElement.Clone();
         }
 
+        private static T ParseWebAuthnResponse<T>(JsonElement response)
+        {
+            var payload = JsonNode.Parse(response.GetRawText()) as JsonObject
+                ?? throw new JsonException("The WebAuthn response must be a JSON object.");
+
+            // Browsers correctly return the WebAuthn protocol value "public-key". Normalize it
+            // to the enum's numeric value before Fido2 deserialization so ASP.NET's JSON model
+            // binding cannot reject the hyphenated protocol string.
+            if (payload["type"]?.GetValue<string>() == "public-key")
+                payload["type"] = (int)PublicKeyCredentialType.PublicKey;
+
+            return payload.Deserialize<T>()
+                ?? throw new JsonException("The WebAuthn response could not be parsed.");
+        }
+
         private static string NormalizeName(string? name)
         {
             var normalized = string.IsNullOrWhiteSpace(name) ? "Passkey" : name.Trim();
@@ -332,6 +350,6 @@ namespace brownstone_hub_api.Controllers
 
     public sealed record PasskeyOptionsDto(Guid CeremonyId, JsonElement Options);
     public sealed record PasskeySummaryDto(long Id, string Name, DateTime CreatedAt, DateTime? LastUsedAt, bool IsBackedUp);
-    public sealed record PasskeyRegistrationRequest(Guid CeremonyId, AuthenticatorAttestationRawResponse Response, string? Name);
-    public sealed record PasskeyAuthenticationRequest(Guid CeremonyId, AuthenticatorAssertionRawResponse Response);
+    public sealed record PasskeyRegistrationRequest(Guid CeremonyId, JsonElement Response, string? Name);
+    public sealed record PasskeyAuthenticationRequest(Guid CeremonyId, JsonElement Response);
 }
