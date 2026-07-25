@@ -558,24 +558,6 @@ export default function Vendors() {
     () => vendors?.filter((vendor) => !vendor.email && !vendor.phone).length || 0,
     [vendors]
   );
-  const categoryCount = useMemo(() => {
-    const categories = new Set();
-    (vendors || []).forEach((vendor) => {
-      (vendor.category || '')
-        .split(',')
-        .map((category) => category.trim())
-        .filter(Boolean)
-        .forEach((category) => categories.add(category.toLowerCase()));
-    });
-    return categories.size;
-  }, [vendors]);
-
-  const overviewItems = [
-    { key: 'total', label: 'TOTAL VENDORS', value: totalVendors, helper: `${categoryCount} service categories` },
-    { key: 'active', label: 'ACTIVE', value: activeVendors, helper: `${inactiveVendors} inactive vendors` },
-    { key: 'assigned', label: 'OPEN ASSIGNMENTS', value: assignedToOpen, helper: 'Vendors tied to open maintenance' },
-    { key: 'contact', label: 'NEED CONTACT INFO', value: missingContact, helper: 'Missing email and phone' }
-  ];
 
   const sidebarRows = [
     { label: 'Active vendors', value: activeVendors },
@@ -616,57 +598,6 @@ export default function Vendors() {
           </Stack>
         </Stack>
       </Box>
-
-      <Grid container spacing={2} sx={{ mb: 2.5 }}>
-        {overviewItems.map((item) => {
-          const isActive = activeFilter === item.key;
-          return (
-            <Grid key={item.key} size={{ xs: 12, sm: 6, lg: 3 }} sx={{ display: 'flex' }}>
-              <Box
-                role="button"
-                tabIndex={0}
-                onClick={() => setActiveFilter(activeFilter === item.key ? 'total' : item.key)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setActiveFilter(activeFilter === item.key ? 'total' : item.key);
-                  }
-                }}
-                sx={(t) => {
-                  const isDark = t.palette.mode === 'dark';
-                  return {
-                    flex: '1 1 160px',
-                    p: 2,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: isActive ? 'primary.main' : isDark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(0,0,0,0.15)',
-                    bgcolor: isActive ? (isDark ? 'rgba(59, 130, 246, 0.12)' : 'primary.lighter') : 'background.paper',
-                    backgroundImage: isDark ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.78) 0%, rgba(15, 23, 42, 0.9) 100%)' : 'none',
-                    boxShadow: isDark ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'none',
-                    cursor: 'pointer',
-                    transition: 'border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease',
-                    '&:hover': {
-                      borderColor: isDark ? 'rgba(96, 165, 250, 0.65)' : 'primary.main',
-                      transform: 'translateY(-1px)',
-                      boxShadow: isDark ? '0 18px 40px rgba(2, 8, 23, 0.34), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none'
-                    }
-                  };
-                }}
-              >
-                <Typography variant="caption" fontWeight={700} sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.7, display: 'block', mb: 0.5 }}>
-                  {item.label}
-                </Typography>
-                <Typography variant="h4" fontWeight={800} sx={{ color: 'text.primary' }}>
-                  {item.value}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                  {item.helper}
-                </Typography>
-              </Box>
-            </Grid>
-          );
-        })}
-      </Grid>
 
       <Box
         sx={{

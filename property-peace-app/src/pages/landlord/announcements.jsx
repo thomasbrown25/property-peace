@@ -28,8 +28,7 @@ import {
   DialogActions,
   FormControl,
   Select,
-  MenuItem,
-  Grid
+  MenuItem
 } from '@mui/material';
 import {
   PlusOutlined,
@@ -41,10 +40,7 @@ import {
   CloseOutlined,
   LeftOutlined,
   RightOutlined,
-  SendOutlined,
-  CheckCircleOutlined,
-  ScheduleOutlined,
-  HourglassOutlined
+  SendOutlined
 } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import AnimateIn from 'components/AnimateIn';
@@ -116,18 +112,6 @@ export default function AnnouncementsPage() {
 
   const filteredAnnouncements = useMemo(() => announcements, [announcements]);
 
-  // Stats derived from data
-  const stats = useMemo(() => {
-    const total = filteredAnnouncements.length;
-    const sent = filteredAnnouncements.filter(a => a.isCompleted || a.IsCompleted).length;
-    const scheduled = filteredAnnouncements.filter(a => {
-      const scheduledAt = a.scheduledAt || a.ScheduledAt;
-      const isCompleted = a.isCompleted || a.IsCompleted;
-      return scheduledAt && !isCompleted;
-    }).length;
-    const pending = total - sent - scheduled;
-    return { total, sent, scheduled, pending };
-  }, [filteredAnnouncements]);
 
   const totalPages = Math.ceil(filteredAnnouncements.length / itemsPerPage);
   const paginatedAnnouncements = useMemo(() => {
@@ -183,12 +167,6 @@ export default function AnnouncementsPage() {
     pending: { label: 'Pending', color: theme.palette.warning.main, bg: alpha(theme.palette.warning.main, 0.1) }
   };
 
-  const statItems = [
-    { label: 'Total', value: stats.total, icon: <NotificationOutlined />, color: theme.palette.primary.main },
-    { label: 'Sent', value: stats.sent, icon: <CheckCircleOutlined />, color: theme.palette.success.main },
-    { label: 'Scheduled', value: stats.scheduled, icon: <ScheduleOutlined />, color: '#0ea5e9' },
-    { label: 'Pending', value: stats.pending, icon: <HourglassOutlined />, color: theme.palette.warning.main }
-  ];
 
   return (
     <Fade in={fadeIn} timeout={600}>
@@ -207,56 +185,6 @@ export default function AnnouncementsPage() {
             <Typography variant="h3" fontWeight={700}>Announcements</Typography>
             <Typography variant="body1" color="text.secondary">Manage and track your announcements</Typography>
           </Box>
-        </AnimateIn>
-
-        {/* Stats Row */}
-        <AnimateIn direction="bottom" delay={150} distance={120}>
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {statItems.map((stat) => (
-              <Grid key={stat.label} size={{ xs: 6, sm: 3 }}>
-                <Box
-                  sx={{
-                    position: 'relative',
-                    overflow: 'hidden',
-                    bgcolor: 'background.paper',
-                    borderRadius: 2,
-                    p: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                    boxShadow: `0 8px 24px ${alpha(theme.palette.common.black, 0.06)}`,
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      inset: '0 0 auto 0',
-                      height: 2,
-                      pointerEvents: 'none',
-                      background: `linear-gradient(90deg, ${stat.color} 0%, ${alpha(stat.color, 0.34)} 42%, transparent 100%)`,
-                      opacity: theme.palette.mode === 'dark' ? 0.9 : 0
-                    }
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 38, height: 38, borderRadius: 1.5,
-                      bgcolor: alpha(stat.color, 0.1),
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                      '& .anticon': { fontSize: 18, color: stat.color }
-                    }}
-                  >
-                    {stat.icon}
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" fontWeight={800} sx={{ textTransform: 'uppercase', letterSpacing: 1.1, fontSize: '0.68rem', display: 'block', mb: 0.5 }}>{stat.label}</Typography>
-                    <Typography variant="h4" fontWeight={800} sx={{ lineHeight: 1.05 }}>
-                      {loading ? '—' : stat.value}
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
         </AnimateIn>
 
         {/* Filters */}

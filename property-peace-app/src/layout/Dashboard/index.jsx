@@ -14,7 +14,6 @@ import Drawer from './Drawer';
 import Header from './Header';
 import Footer from './Footer';
 import HorizontalBar from './Drawer/HorizontalBar';
-import BottomNavBar, { BOTTOM_NAV_BAR_HEIGHT } from './BottomNavBar';
 import Loader from 'components/Loader';
 import Breadcrumbs from 'components/@extended/Breadcrumbs';
 import AuthGuard from 'utils/route-guard/AuthGuard';
@@ -37,8 +36,6 @@ export default function DashboardLayout() {
   const drawerOpen = menuMaster?.isDashboardDrawerOpened ?? false;
   const downXL = useMediaQuery((theme) => theme.breakpoints.down('xl'));
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
-  const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
-  const isXs = useMediaQuery((theme) => theme.breakpoints.down('sm'));
   const { user } = useAuth();
   const drawer = useDrawer();
   const userRoles = Array.isArray(user?.Roles) ? user?.Roles : Array.isArray(user?.roles) ? user?.roles : [];
@@ -236,14 +233,12 @@ export default function DashboardLayout() {
                 flexShrink: 0,
                 width: '100%',
                 mt: 'auto',
-                pb: downMD && hasLandlordRole ? `${BOTTOM_NAV_BAR_HEIGHT + 24}px` : 0
               }}>
                 <Footer />
               </Box>
             </Box>
           </Container>
         </Box>
-        {downMD && hasLandlordRole && <BottomNavBar />}
         {hasLandlordRole && <NewMaintenancePanel />}
         <RecordPaymentDrawer />
         <ExpenseAddDrawer

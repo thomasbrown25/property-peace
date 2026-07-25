@@ -164,16 +164,34 @@ const getTenantDisplay = (lease) => {
   return [first, last].filter(Boolean).join(' ') || lease.tenantName || lease.TenantName || 'No tenant';
 };
 
+const isLeaseDraft = (lease) =>
+  lease?.leaseAgreement?.isDrafted === true ||
+  lease?.leaseAgreement?.IsDrafted === true ||
+  lease?.isDrafted === true ||
+  lease?.IsDrafted === true;
+
 const isStartedActiveLease = (lease) => {
-  if (!lease || lease.hasLease === false || lease.isActive !== true) return false;
-  if (!lease.startDate) return false;
+  const isActive = lease?.isActive === true || lease?.IsActive === true || lease?.isActive === 1 || lease?.IsActive === 1;
+  if (!lease || lease.hasLease === false || !isActive || isLeaseDraft(lease)) return false;
 
-  const startDate = new Date(lease.startDate);
+  const startDateValue = lease.startDate ?? lease.StartDate;
+  if (!startDateValue) return false;
+
+  const startDate = new Date(startDateValue);
   if (Number.isNaN(startDate.getTime())) return false;
+  startDate.setHours(0, 0, 0, 0);
 
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  return startDate <= today;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  if (startDate > todayStart) return false;
+
+  const endDateValue = lease.endDate ?? lease.EndDate;
+  if (!endDateValue) return true;
+
+  const endDate = new Date(endDateValue);
+  if (Number.isNaN(endDate.getTime())) return false;
+  endDate.setHours(23, 59, 59, 999);
+  return endDate >= todayStart;
 };
 
 const getPropertyTenantTitle = (lease) => {
@@ -186,7 +204,9 @@ const getPropertyTenantTitle = (lease) => {
 };
 
 const getLeaseMonths = (lease) => {
-  if (!lease.startDate || !lease.endDate) return { current: 0, total: lease.leaseLength || 0, progress: 0, daysLeft: null, overDays: null };
+  if (!isStartedActiveLease(lease) || !lease.startDate || !lease.endDate) {
+    return { current: 0, total: 0, progress: 0, daysLeft: null, overDays: null };
+  }
   const start = new Date(lease.startDate);
   const end = new Date(lease.endDate);
   const now = new Date();
@@ -382,13 +402,16 @@ const buildPaymentCycleCalendar = ({ lease, payments = [], now = new Date() }) =
 
 function PaymentHeartbeat({ lease, payments }) {
   const theme = useTheme();
-  const paymentCalendar = buildPaymentCycleCalendar({ lease, payments });
-  const visibleMonths = Math.min(Math.max(paymentCalendar.length, 12), 12);
+  const isActiveLease = isStartedActiveLease(lease);
+  const paymentCalendar = isActiveLease ? buildPaymentCycleCalendar({ lease, payments }) : [];
+  const visibleMonths = 12;
   const paid = paymentCalendar.filter((month) => month.paid).length;
   const paidLate = paymentCalendar.filter((month) => month.paidLate).length;
   const overdue = paymentCalendar.filter((month) => month.overdue).length;
   const late = paidLate + overdue;
-  const current = Math.min(visibleMonths - 1, Math.max(0, paymentCalendar.findIndex((month) => month.upcoming || month.overdue)));
+  const current = isActiveLease
+    ? Math.min(visibleMonths - 1, Math.max(0, paymentCalendar.findIndex((month) => month.upcoming || month.overdue)))
+    : -1;
 
   return (
     <Box>
@@ -420,7 +443,7 @@ function PaymentHeartbeat({ lease, payments }) {
         })}
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.2 }}>
-        {visibleMonths}-month cycle · {late} late this term
+        {isActiveLease ? `${visibleMonths}-month cycle · ${late} late this term` : 'Not started · no payment history'}
       </Typography>
     </Box>
   );
@@ -1005,31 +1028,29 @@ export default function LeasesPage({ onEditLease }) {
         }
         
         if (statusFilter === 'active') {
-          // Active view: show ONLY active leases that have started (startDate <= today)
-          if (!l.hasLease || !l.isActive || !l.startDate) return false;
-          const startDate = new Date(l.startDate);
-          startDate.setHours(0, 0, 0, 0);
-          return startDate <= today;
+          return isStartedActiveLease(l);
         }
         
         if (statusFilter === 'renewals') {
-          // Renewals view: show active leases expiring within 90 days
-          if (!l.hasLease || !l.isActive || !l.endDate) return false;
+          // Renewals view: show started, non-draft active leases expiring within 90 days
+          if (!isStartedActiveLease(l) || !l.endDate) return false;
           const endDate = new Date(l.endDate);
           endDate.setHours(0, 0, 0, 0);
           return endDate >= today && endDate <= ninetyDaysFromNow;
         }
         
         if (statusFilter === 'overdue') {
-          // Overdue view: show active leases that are overdue
-          if (!l.hasLease || !l.isActive) return false;
+          // Overdue view: show only started, non-draft active leases that are overdue
+          if (!isStartedActiveLease(l)) return false;
           const rentRecord = rentRecords?.find((r) => r.leaseId === l.id);
           return rentRecord?.status === 'overdue';
         }
         
         if (statusFilter === 'notStarted') {
-          // Not Started view: show leases that haven't started yet
-          if (!l.hasLease || !l.startDate) return false;
+          // Drafts are not started even when placeholder dates are in the past.
+          if (!l.hasLease) return false;
+          if (isLeaseDraft(l)) return true;
+          if (!l.startDate) return true;
           return new Date(l.startDate) > new Date();
         }
         

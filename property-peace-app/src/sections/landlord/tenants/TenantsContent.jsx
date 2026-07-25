@@ -64,7 +64,6 @@ import { tenantInviteAPI } from 'api';
 import { createTenantInvite } from 'api/tenantInvite';
 import { useDrawer } from 'contexts/DrawerContext';
 import { formatPhoneInput } from 'utils/formatters';
-import TenantsMetrics from './TenantsMetrics';
 import AnimateIn from 'components/AnimateIn';
 import { TenantCsvImportButton } from 'components/import/CsvImportButtons';
 
@@ -554,18 +553,8 @@ export default function TenantsContent() {
 
   return (
     <Box>
-      {/* Enhanced Metrics */}
-      <AnimateIn direction="bottom" delay={300} distance={120}>
-      <TenantsMetrics
-        tenants={tenants || []}
-        tenantInvites={tenantInvites}
-        activeFilter={activeFilter}
-        onFilterChange={(f) => { setActiveFilter(f); setPage(0); }}
-      />
-      </AnimateIn>
-
       {/* Search + Filters + Add Button */}
-      <AnimateIn direction="bottom" delay={400} distance={120}>
+      <AnimateIn direction="bottom" delay={300} distance={120}>
       <Box
         sx={{
           display: 'flex',

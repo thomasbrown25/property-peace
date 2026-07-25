@@ -28,7 +28,6 @@ import { alpha } from '@mui/system';
 import AnimateIn from 'components/AnimateIn';
 
 import ListingsHeader from 'sections/landlord/listings/ListingsHeader';
-import ListingsOverviewCards from 'sections/landlord/listings/ListingsOverviewCards';
 import ListingsEmptyState from 'sections/landlord/listings/ListingsEmptyState';
 
 import { useDispatch, useSelector } from 'react-redux';
@@ -365,12 +364,6 @@ export default function ListingsPage() {
         </AnimateIn>
 
         <Box>
-          <AnimateIn direction="bottom" delay={300} distance={120}>
-            <Box sx={{ mt: 3 }}>
-              <ListingsOverviewCards listings={listings || []} activeFilter={activeFilter} onFilterChange={(f) => { setActiveFilter(f); setPage(1); }} />
-            </Box>
-          </AnimateIn>
-
           <AnimateIn direction="bottom" delay={400} distance={120}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" sx={{ mt: 3, mb: 3 }}>
               {/* Left: Search card + Sort + Active filter chip */}

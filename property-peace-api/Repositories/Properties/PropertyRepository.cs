@@ -247,6 +247,9 @@ namespace brownstone_hub_api.Repositories.Properties
                         .Include(p => p.Units)
                             .ThenInclude(u => u.Lease)
                                 .ThenInclude(l => l.LeaseFees)
+                        .Include(p => p.Units)
+                            .ThenInclude(u => u.Lease)
+                                .ThenInclude(l => l.LeaseAgreement)
                         .Include(p => p.PrimaryManager)
                         .OrderBy(p => p.Name)
                         .ToListAsync();
