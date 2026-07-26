@@ -147,6 +147,8 @@ using brownstone_hub_api.Services.DemoRequestService;
 using brownstone_hub_api.Repositories.DemoRequests;
 using brownstone_hub_api.Repositories.Listings;
 using brownstone_hub_api.Repositories.Amenities;
+using brownstone_hub_api.Repositories.AdminDashboard;
+using brownstone_hub_api.Services.AdminDashboardService;
 using Fido2NetLib;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -494,6 +496,8 @@ services.AddScoped<IMessageService, MessageService>();
 services.AddScoped<IMessageAnalysisService, MessageAnalysisService>();
 services.AddScoped<IAdminSettingsService, AdminSettingsService>();
 services.AddScoped<ISupportRequestService, SupportRequestService>();
+services.AddScoped<IAdminDashboardService, AdminDashboardService>();
+services.AddSingleton(TimeProvider.System);
 services.AddScoped<IStripeService, StripeService>();
 services.AddScoped<IStripeSyncService, StripeSyncService>();
 services.AddScoped<IStripeWebhookService, StripeWebhookService>();
@@ -628,6 +632,7 @@ services.AddHostedService<DailySummaryEmailBackgroundService>();
 services.AddHostedService<brownstone_hub_api.Services.AgentFollowUpService.AgentFollowUpBackgroundService>();
 
 // Repositories
+services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();
 services.AddScoped<IUserRepository, UserRepository>();
 services.AddScoped<IPropertyRepository, PropertyRepository>();
 services.AddScoped<IMaintenanceRequestRepository, MaintenanceRequestRepository>();
