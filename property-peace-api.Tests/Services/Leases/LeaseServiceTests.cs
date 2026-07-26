@@ -2,6 +2,7 @@ using AutoMapper;
 using brownstone_hub_api.Dtos.Lease;
 using brownstone_hub_api.Dtos.Property;
 using brownstone_hub_api.Dtos.Unit;
+using brownstone_hub_api.Dtos.Tenant;
 using brownstone_hub_api.Repositories.Leases;
 using brownstone_hub_api.Repositories.Properties;
 using brownstone_hub_api.Services.LeaseService;
@@ -128,6 +129,98 @@ namespace brownstone_hub_api.Tests.Services.Leases
             _leaseRepo.Verify(r => r.UpdateLease(It.IsAny<UpdateLeaseDto>()), Times.Once);
             _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
         }
+
+        // ── Signature tenant validation ───────────────────────────────────────────
+
+        [Theory]
+        [InlineData("missing")]
+        [InlineData("extra")]
+        [InlineData("duplicate")]
+        public async Task SendLeaseForSignature_RejectsSignerSetThatDoesNotExactlyMatchLease(string variation)
+        {
+            SetOrgContext(10);
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            var signers = variation switch
+            {
+                "missing" => new List<TenantSignerDto> { Signer(10, "one@example.com", "One Tenant") },
+                "extra" => new List<TenantSignerDto>
+                {
+                    Signer(10, "one@example.com", "One Tenant"),
+                    Signer(20, "two@example.com", "Two Tenant"),
+                    Signer(30, "extra@example.com", "Extra Tenant")
+                },
+                _ => new List<TenantSignerDto>
+                {
+                    Signer(10, "one@example.com", "One Tenant"),
+                    Signer(10, "one@example.com", "One Tenant")
+                }
+            };
+
+            var result = await _sut.SendLeaseForSignatureAsync(1,
+                new SendLeaseForSignatureDto { TenantSigners = signers }, 5, 10);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(400);
+            result.Message.Should().Be("Invalid tenant signers");
+        }
+
+        [Fact]
+        public async Task SendLeaseForSignature_RejectsIdentityMismatch()
+        {
+            SetOrgContext(10);
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            var request = new SendLeaseForSignatureDto
+            {
+                TenantSigners =
+                [
+                    Signer(10, "attacker@example.com", "One Tenant"),
+                    Signer(20, "two@example.com", "Two Tenant")
+                ]
+            };
+
+            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(400);
+            result.Message.Should().Be("Invalid tenant signer identity");
+        }
+
+        [Fact]
+        public async Task SendLeaseForSignature_NormalizesIdentityAndOrdersSignersByTenantId()
+        {
+            SetOrgContext(10);
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            var request = new SendLeaseForSignatureDto
+            {
+                TenantSigners =
+                [
+                    Signer(20, " TWO@example.com ", " two   tenant "),
+                    Signer(10, "ONE@example.com", "one tenant")
+                ]
+            };
+
+            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10);
+
+            // This test has no document service, so it stops after signer normalization.
+            result.StatusCode.Should().Be(400);
+            request.TenantSigners.Select(s => s.TenantId).Should().Equal(10, 20);
+            request.TenantSigners.Select(s => s.Email).Should().Equal("one@example.com", "two@example.com");
+            request.TenantSigners.Select(s => s.Name).Should().Equal("One Tenant", "Two Tenant");
+            request.TenantSigners.Select(s => s.SigningOrder).Should().Equal(2, 3);
+        }
+
+        private static LoadLeaseDto LeaseWithTenants() => new()
+        {
+            Id = 1,
+            Tenants =
+            [
+                new LoadTenantDto { Id = 20, Firstname = "Two", Lastname = "Tenant", Email = "two@example.com" },
+                new LoadTenantDto { Id = 10, Firstname = "One", Lastname = "Tenant", Email = "one@example.com" }
+            ]
+        };
+
+        private static TenantSignerDto Signer(long id, string email, string name) =>
+            new() { TenantId = id, Email = email, Name = name, SigningOrder = 99 };
 
         // ── EndLease ──────────────────────────────────────────────────────────────
 

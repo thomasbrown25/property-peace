@@ -102,6 +102,7 @@ using brownstone_hub_api.Services.FileCategoryService;
 using brownstone_hub_api.Services.ApplicationService;
 using brownstone_hub_api.Services.ChecklistService;
 using brownstone_hub_api.Services.ESignatureService;
+using brownstone_hub_api.Services.LeaseFinalizationLock;
 using brownstone_hub_api.Services.ConversationService;
 using brownstone_hub_api.Services.MessageService;
 using brownstone_hub_api.Services.MessageAnalysisService;
@@ -255,6 +256,14 @@ services.AddSingleton(x =>
 
 // Services
 services.AddHttpClient();
+services.AddHttpClient("StateLawSources").ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    AllowAutoRedirect = false,
+    UseProxy = false,
+    // Resolve, validate, and connect to the same address set to close the DNS
+    // rebinding gap between application validation and the transport connection.
+    ConnectCallback = StateRequiredDisclosureService.ConnectToSafeHostAsync
+});
 
 // Add services to the container.
 services.AddDbContext<DataContext>(
@@ -432,7 +441,9 @@ services.AddScoped<ILeaseService, LeaseService>();
 services.AddScoped<ILeaseTemplateService, LeaseTemplateService>();
 services.AddScoped<IPolicyPackService, PolicyPackService>();
 services.AddScoped<ILeaseGenerationService, LeaseGenerationService>();
+services.AddScoped<IStateRequiredDisclosureService, StateRequiredDisclosureService>();
 services.AddScoped<ILeaseDocumentService, LeaseDocumentService>();
+services.AddSingleton<ILeaseFinalizationLock, SqlLeaseFinalizationLock>();
 services.AddScoped<ILeaseAutoRenewService, LeaseAutoRenewService>();
 services.AddScoped<IOpenAIService, OpenAIService>();
 services.AddScoped<IPolicyAIService, PolicyAIService>();

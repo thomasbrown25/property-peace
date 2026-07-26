@@ -2863,7 +2863,8 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("LeaseInstanceId");
 
-                    b.HasIndex("LeaseInstanceId", "DocumentType");
+                    b.HasIndex("LeaseInstanceId", "DocumentType")
+                        .IsUnique();
 
                     b.ToTable("LeaseDocuments", "lease_builder");
                 });
@@ -3091,11 +3092,12 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("GeneratedBy");
 
-                    b.HasIndex("LeaseId");
+                    b.HasIndex("LeaseId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_LeaseInstances_LeaseId_Finalized")
+                        .HasFilter("[IsFinalized] = 1");
 
                     b.HasIndex("LeaseTemplateId");
-
-                    b.HasIndex("LeaseId", "IsFinalized");
 
                     b.ToTable("LeaseInstances", "lease_builder");
                 });
@@ -7018,6 +7020,11 @@ namespace brownstone_hub_api.Migrations
                     b.HasIndex("TenantId");
 
                     b.HasIndex("TenantId", "IsDeleted");
+
+                    b.HasIndex("TenantId", "LeaseId", "DocumentType")
+                        .IsUnique()
+                        .HasDatabaseName("UX_TenantDocuments_ActiveTenantLeaseType")
+                        .HasFilter("[IsDeleted] = 0 AND [TenantId] IS NOT NULL AND [LeaseId] IS NOT NULL");
 
                     b.ToTable("TenantDocuments", "tenant");
                 });

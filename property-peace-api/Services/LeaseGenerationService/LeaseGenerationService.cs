@@ -12,6 +12,7 @@ using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.OpenAIService;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -28,6 +29,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
         private readonly IUserRepository _userRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IOpenAIService _openAIService;
+        private readonly IStateRequiredDisclosureService _stateRequiredDisclosureService;
         private readonly ILogger<LeaseGenerationService> _logger;
         private readonly IMapper _mapper;
 
@@ -40,6 +42,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             IUserRepository userRepository,
             IHttpContextAccessor httpContextAccessor,
             IOpenAIService openAIService,
+            IStateRequiredDisclosureService stateRequiredDisclosureService,
             ILogger<LeaseGenerationService> logger,
             IMapper mapper)
         {
@@ -51,6 +54,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             _userRepository = userRepository;
             _httpContextAccessor = httpContextAccessor;
             _openAIService = openAIService;
+            _stateRequiredDisclosureService = stateRequiredDisclosureService;
             _logger = logger;
             _mapper = mapper;
         }
@@ -276,22 +280,15 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
         }
 
-        public async Task<ServiceResponse<LoadLeaseInstanceDto>> CreateLeaseInstanceAsync(CreateLeaseInstanceDto dto)
+        public async Task<ServiceResponse<LoadLeaseInstanceDto>> CreateLeaseInstanceAsync(CreateLeaseInstanceDto dto, long organizationId)
         {
-            var organizationId = GetOrganizationIdFromContext();
             var userId = GetUserIdFromContext();
-            if (!organizationId.HasValue)
+            if (!userId.HasValue)
             {
-                var property = await _propertyRepository.GetPropertyById(dto.PropertyId);
-                if (property?.OrganizationId != null)
-                    organizationId = property.OrganizationId;
+                _logger.LogWarning("Unable to determine user context for organization {OrgId}", organizationId);
+                return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Authentication required", "Unable to determine user context.", statusCode: 403);
             }
-            if (!organizationId.HasValue || !userId.HasValue)
-            {
-                _logger.LogWarning("Unable to determine organization or user context. OrganizationId: {OrgId}, UserId: {UserId}, PropertyId: {PropertyId}", organizationId, userId, dto.PropertyId);
-                return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Authentication required", "Unable to determine organization or user context. Please ensure you are logged in and have selected an organization.");
-            }
-            return await CreateLeaseInstanceInternalAsync(dto, organizationId.Value, userId.Value);
+            return await CreateLeaseInstanceInternalAsync(dto, organizationId, userId.Value);
         }
 
         public async Task<ServiceResponse<LoadLeaseInstanceDto>> CreateLeaseInstanceAsync(CreateLeaseInstanceDto dto, long organizationId, long userId)
@@ -371,7 +368,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 };
 
                 // Resolve placeholders
-                await ResolvePlaceholdersForInstance(instance, lease, dto);
+                await ResolvePlaceholdersForInstance(instance, lease, dto, organizationId);
 
                 // Ensure tenants are linked to the lease
                 if (dto.TenantIds != null && dto.TenantIds.Any())
@@ -388,11 +385,10 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                             if (!existingTenantIds.Contains(tenantId))
                             {
                                 var tenant = await _tenantRepository.GetTenantById(tenantId);
-                                if (tenant != null)
+                                // The lease is organization-scoped; require the tenant to belong to
+                                // that lease's property rather than inventing an OrganizationId DTO field.
+                                if (tenant != null && lease.PropertyId > 0 && tenant.PropertyId == lease.PropertyId)
                                 {
-                                    // Use organizationId from context (should be available at this point)
-                                    // If not available, we'll use null and let the repository handle it
-                                    // The organizationId should always be available since we validate it earlier
                                     var tenantOrganizationId = organizationId;
 
                                     // Update tenant to link to this lease
@@ -431,7 +427,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                     };
                 }
 
-                var created = await _leaseInstanceRepository.CreateLeaseInstanceAsync(instance);
+                var created = await _leaseInstanceRepository.CreateLeaseInstanceAsync(instance, organizationId);
                 return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(created));
             }
             catch (Exception ex)
@@ -441,12 +437,14 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
         }
 
-        private async Task ResolvePlaceholdersForInstance(LeaseInstance instance, LoadLeaseDto lease, CreateLeaseInstanceDto dto)
+        private async Task ResolvePlaceholdersForInstance(LeaseInstance instance, LoadLeaseDto lease, CreateLeaseInstanceDto dto, long organizationId)
         {
             var variables = new List<LeaseVariable>();
 
-            // Get property and unit
+            // Get property and unit. The repository has no scoped by-id API, so verify its organization here.
             var property = await _propertyRepository.GetPropertyById(lease.PropertyId);
+            if (property?.OrganizationId != organizationId)
+                property = null;
             var unit = property?.Units?.FirstOrDefault(u => u.Id == lease.UnitId);
 
             // Get tenants
@@ -456,7 +454,8 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 foreach (var tenantId in dto.TenantIds)
                 {
                     var tenant = await _tenantRepository.GetTenantById(tenantId);
-                    if (tenant != null)
+                    // property was explicitly verified against organizationId above.
+                    if (tenant != null && property != null && tenant.PropertyId == property.Id)
                     {
                         tenants.Add(tenant);
                     }
@@ -491,17 +490,22 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
 
             // Resolve lease placeholders
-            var startDate = dto.StartDate ?? lease.StartDate ?? DateTime.UtcNow;
-            var endDate = dto.EndDate ?? lease.EndDate ?? DateTime.UtcNow.AddYears(1);
-            var monthlyRent = dto.MonthlyRent ?? lease.RentAmount ?? 0m;
-            var securityDeposit = dto.SecurityDeposit ?? lease.DepositAmount ?? 0m;
-            var rentDueDay = dto.RentDueDay ?? lease.RentDueDay ?? 1;
+            var startDate = dto.StartDate ?? lease.StartDate;
+            var endDate = dto.EndDate ?? lease.EndDate;
+            var monthlyRent = dto.MonthlyRent ?? lease.RentAmount;
+            var securityDeposit = dto.SecurityDeposit ?? lease.DepositAmount;
+            var rentDueDay = dto.RentDueDay ?? lease.RentDueDay;
 
-            variables.Add(new LeaseVariable { VariableKey = "Lease.StartDate", VariableValue = startDate.ToString("MM/dd/yyyy"), VariableType = "Date" });
-            variables.Add(new LeaseVariable { VariableKey = "Lease.EndDate", VariableValue = endDate.ToString("MM/dd/yyyy"), VariableType = "Date" });
-            variables.Add(new LeaseVariable { VariableKey = "Lease.MonthlyRent", VariableValue = monthlyRent.ToString("C"), VariableType = "Currency" });
-            variables.Add(new LeaseVariable { VariableKey = "Lease.SecurityDeposit", VariableValue = securityDeposit.ToString("C"), VariableType = "Currency" });
-            variables.Add(new LeaseVariable { VariableKey = "Lease.RentDueDay", VariableValue = rentDueDay.ToString(), VariableType = "Number" });
+            if (startDate.HasValue)
+                variables.Add(new LeaseVariable { VariableKey = "Lease.StartDate", VariableValue = startDate.Value.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), VariableType = "Date" });
+            if (endDate.HasValue)
+                variables.Add(new LeaseVariable { VariableKey = "Lease.EndDate", VariableValue = endDate.Value.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture), VariableType = "Date" });
+            if (monthlyRent.HasValue)
+                variables.Add(new LeaseVariable { VariableKey = "Lease.MonthlyRent", VariableValue = monthlyRent.Value.ToString("C", CultureInfo.InvariantCulture), VariableType = "Currency" });
+            if (securityDeposit.HasValue)
+                variables.Add(new LeaseVariable { VariableKey = "Lease.SecurityDeposit", VariableValue = securityDeposit.Value.ToString("C", CultureInfo.InvariantCulture), VariableType = "Currency" });
+            if (rentDueDay.HasValue)
+                variables.Add(new LeaseVariable { VariableKey = "Lease.RentDueDay", VariableValue = rentDueDay.Value.ToString(CultureInfo.InvariantCulture), VariableType = "Number" });
 
             // Resolve landlord placeholders
             if (property != null && property.LandlordId > 0)
@@ -533,7 +537,8 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
 
             // ── Extended lease terms ──────────────────────────────────────────────────
-            variables.Add(new LeaseVariable { VariableKey = "Lease.RentFrequency", VariableValue = lease.RentFrequency ?? "Monthly", VariableType = "String" });
+            if (!string.IsNullOrWhiteSpace(lease.RentFrequency))
+                variables.Add(new LeaseVariable { VariableKey = "Lease.RentFrequency", VariableValue = lease.RentFrequency, VariableType = "String" });
             variables.Add(new LeaseVariable { VariableKey = "Lease.AutoRenew", VariableValue = lease.AutoRenewLease ? "Yes" : "No", VariableType = "String" });
             if (lease.AutoRenewLease && lease.AutoRenewRentIncrement == true && lease.AutoRenewRentIncrementValue.HasValue)
             {
@@ -599,9 +604,10 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
 
             // ── Pets ─────────────────────────────────────────────────────────────────
-            var petsAllowed = lease.PetsAllowed == true;
-            variables.Add(new LeaseVariable { VariableKey = "Pets.Allowed", VariableValue = petsAllowed ? "Yes" : "No", VariableType = "String" });
-            if (petsAllowed && lease.Pets?.Any() == true)
+            var petsAllowed = lease.PetsAllowed;
+            if (petsAllowed.HasValue)
+                variables.Add(new LeaseVariable { VariableKey = "Pets.Allowed", VariableValue = petsAllowed.Value ? "Yes" : "No", VariableType = "String" });
+            if (petsAllowed == true && lease.Pets?.Any() == true)
             {
                 var petLines = lease.Pets.Select(p =>
                 {
@@ -616,14 +622,15 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
 
             // ── Smoking ──────────────────────────────────────────────────────────────
-            var smokingValue = lease.SmokingAllowed?.ToLowerInvariant() ?? "no";
-            var smokingText = smokingValue switch
+            var smokingText = lease.SmokingAllowed?.Trim().ToLowerInvariant() switch
             {
                 "yes" => "Smoking is permitted on the premises.",
                 "outsideonly" => "Smoking is permitted outside the premises only. Smoking inside the unit or building is strictly prohibited.",
-                _ => "No smoking is permitted on the premises, including balconies and common areas."
+                "no" => "No smoking is permitted on the premises, including balconies and common areas.",
+                _ => null
             };
-            variables.Add(new LeaseVariable { VariableKey = "Smoking.Policy", VariableValue = smokingText, VariableType = "String" });
+            if (smokingText != null)
+                variables.Add(new LeaseVariable { VariableKey = "Smoking.Policy", VariableValue = smokingText, VariableType = "String" });
 
             // ── Parking ──────────────────────────────────────────────────────────────
             if (lease.Parking != null && lease.Parking.IncludeParkingRules)
@@ -690,11 +697,10 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             instance.Variables = variables;
         }
 
-        public async Task<ServiceResponse<LoadLeaseInstanceDto>> ResolvePlaceholdersAsync(long instanceId)
+        public async Task<ServiceResponse<LoadLeaseInstanceDto>> ResolvePlaceholdersAsync(long instanceId, long organizationId)
         {
             try
             {
-                var organizationId = GetOrganizationIdFromContext();
                 var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, organizationId);
                 
                 if (instance == null)
@@ -707,13 +713,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                     return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Cannot modify finalized instance", "This lease instance has been finalized and cannot be modified.");
                 }
 
-                if (!organizationId.HasValue)
-                {
-                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Organization ID is required", 
-                        "Unable to determine organization context.");
-                }
-
-                var lease = await _leaseRepository.GetLeaseById(instance.LeaseId, organizationId.Value);
+                var lease = await _leaseRepository.GetLeaseById(instance.LeaseId, organizationId);
                 if (lease == null)
                 {
                     return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Lease not found", "The associated lease does not exist.");
@@ -722,7 +722,7 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 // Re-resolve placeholders (this would need the original dto, so for now we'll just update existing)
                 // In a real implementation, you'd want to store the original CreateLeaseInstanceDto or re-fetch tenants
                 
-                var updated = await _leaseInstanceRepository.UpdateLeaseInstanceAsync(instance);
+                var updated = await _leaseInstanceRepository.UpdateLeaseInstanceAsync(instance, organizationId);
                 return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(updated));
             }
             catch (Exception ex)
@@ -732,11 +732,10 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
         }
 
-        public async Task<ServiceResponse<List<string>>> ValidatePlaceholdersAsync(long instanceId)
+        public async Task<ServiceResponse<List<string>>> ValidatePlaceholdersAsync(long instanceId, long organizationId)
         {
             try
             {
-                var organizationId = GetOrganizationIdFromContext();
                 var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, organizationId);
                 
                 if (instance == null)
@@ -788,68 +787,145 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             return placeholders.Distinct().ToList();
         }
 
-        public async Task<ServiceResponse<LoadLeaseInstanceDto>> FinalizeLeaseInstanceAsync(long instanceId)
+        private async Task<string?> ValidateFinalizationTermsAsync(LeaseInstance instance, long organizationId)
         {
-            var organizationId = GetOrganizationIdFromContext();
-            return await FinalizeLeaseInstanceInternalAsync(instanceId, organizationId);
+            var values = instance.Variables?
+                .GroupBy(v => v.VariableKey)
+                .ToDictionary(g => g.Key, g => g.Last().VariableValue, StringComparer.Ordinal)
+                ?? new Dictionary<string, string>(StringComparer.Ordinal);
+
+            if (!values.TryGetValue("Lease.StartDate", out var startText) ||
+                !DateTime.TryParseExact(startText, "MM/dd/yyyy", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var startDate) || startDate == DateTime.MinValue)
+                return "A real lease start date is required.";
+            if (!values.TryGetValue("Lease.EndDate", out var endText) ||
+                !DateTime.TryParseExact(endText, "MM/dd/yyyy", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var endDate) || endDate == DateTime.MinValue)
+                return "A real lease end date is required.";
+            if (endDate <= startDate)
+                return "The lease end date must be after the start date.";
+
+            if (!TryParseCurrency(values, "Lease.MonthlyRent", out var monthlyRent) || monthlyRent <= 0)
+                return "Monthly rent is required and must be greater than zero.";
+            if (!TryParseCurrency(values, "Lease.SecurityDeposit", out var securityDeposit) || securityDeposit < 0)
+                return "Security deposit is required and cannot be negative (zero is valid).";
+            if (!values.TryGetValue("Lease.RentDueDay", out var dueDayText) ||
+                !int.TryParse(dueDayText, NumberStyles.None, CultureInfo.InvariantCulture, out var dueDay) ||
+                dueDay is < 1 or > 31)
+                return "Rent due day is required and must be an integer from 1 through 31.";
+
+            var template = await _templateRepository.GetTemplateByIdAsync(instance.LeaseTemplateId, organizationId);
+            if (template == null)
+                return "The lease template could not be loaded for finalization validation.";
+            var enabledTemplateText = template.Sections.Count > 0
+                ? string.Join("\n", template.Sections.Where(s => s.IsEnabled).Select(s => s.Content ?? string.Empty))
+                : template.TemplateStructure;
+            if (enabledTemplateText.Contains("{{Pets.", StringComparison.Ordinal) &&
+                !values.ContainsKey("Pets.Allowed"))
+                return "An explicit pet policy is required by the enabled lease template sections.";
+            if (enabledTemplateText.Contains("{{Smoking.", StringComparison.Ordinal) &&
+                !values.ContainsKey("Smoking.Policy"))
+                return "An explicit smoking policy is required by the enabled lease template sections.";
+
+            return null;
         }
 
-        public async Task<ServiceResponse<LoadLeaseInstanceDto>> FinalizeLeaseInstanceAsync(long instanceId, long organizationId)
+        private static bool TryParseCurrency(
+            IReadOnlyDictionary<string, string> values, string key, out decimal amount)
         {
-            return await FinalizeLeaseInstanceInternalAsync(instanceId, organizationId);
+            amount = default;
+            return values.TryGetValue(key, out var text) &&
+                decimal.TryParse(text, NumberStyles.Currency, CultureInfo.InvariantCulture, out amount);
         }
 
-        private async Task<ServiceResponse<LoadLeaseInstanceDto>> FinalizeLeaseInstanceInternalAsync(long instanceId, long? organizationId)
+        public async Task<ServiceResponse<LoadLeaseInstanceDto>> PrepareLeaseInstanceForFinalizationAsync(long instanceId, long organizationId)
         {
             try
             {
                 var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, organizationId);
-                
                 if (instance == null)
-                {
-                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Instance not found", "The specified lease instance does not exist.");
-                }
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Instance not found", "The specified lease instance does not exist.", statusCode: 404);
 
+                // Finalization itself is idempotent so retrying artifact publication is safe.
                 if (instance.IsFinalized)
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(instance));
+
+                var termValidationError = await ValidateFinalizationTermsAsync(instance, organizationId);
+                if (termValidationError != null)
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError(
+                        "Invalid lease terms", termValidationError, statusCode: 422);
+
+                var disclosureKeys = instance.Variables?.Select(v => v.VariableKey).ToHashSet() ?? [];
+                if (!disclosureKeys.Contains("State.RequiredDisclosures") ||
+                    !disclosureKeys.Contains("State.RequiredDisclosureCitations") ||
+                    !disclosureKeys.Contains("State.RequiredDisclosureSnapshotUtc") ||
+                    disclosureKeys.Contains("State.Note"))
                 {
-                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Already finalized", "This lease instance has already been finalized.");
+                    var lease = await _leaseRepository.GetLeaseById(instance.LeaseId, organizationId);
+                    var property = lease?.PropertyId > 0 ? await _propertyRepository.GetPropertyById(lease.PropertyId) : null;
+                    var state = property?.OrganizationId == organizationId ? property.State : string.Empty;
+                    var disclosureResponse = await InjectStateRequiredPoliciesAsync(instanceId, state, organizationId);
+                    if (!disclosureResponse.Success)
+                        return ServiceResponse<LoadLeaseInstanceDto>.CreateError(
+                            disclosureResponse.Message,
+                            disclosureResponse.Errors?.Details ?? "A trustworthy state-law determination could not be made.",
+                            statusCode: disclosureResponse.StatusCode);
+
+                    instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, organizationId);
+                    if (instance == null)
+                        return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Instance not found", "The lease instance disappeared while attaching state disclosures.");
                 }
 
-                // Validate all required placeholders are filled (needs organizationId for template lookup)
-                if (organizationId.HasValue)
+                var validation = await ValidatePlaceholdersAsync(instanceId, organizationId);
+                if (!validation.Success)
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError(
+                        validation.Message ?? "Placeholder validation failed",
+                        validation.Errors?.Details ?? "Placeholders could not be safely validated.",
+                        statusCode: validation.StatusCode);
+                if (validation.Data != null && validation.Data.Any())
                 {
-                    var validation = await ValidatePlaceholdersAsync(instanceId);
-                    if (validation.Success && validation.Data != null && validation.Data.Any())
-                    {
-                        return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Missing required placeholders", 
-                            $"The following placeholders are missing: {string.Join(", ", validation.Data)}");
-                    }
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Missing required placeholders",
+                        $"The following placeholders are missing: {string.Join(", ", validation.Data)}");
                 }
 
-                instance.IsFinalized = true;
-                instance.IsDraft = false;
-                instance.FinalizedAt = DateTime.Now;
+                // Preparation intentionally leaves the instance mutable. Artifact publication must
+                // complete before the final database state transition.
+                return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(instance));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error preparing lease instance {InstanceId} for finalization", instanceId);
+                return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Error preparing lease instance for finalization", ex.Message);
+            }
+        }
 
-                var finalized = await _leaseInstanceRepository.UpdateLeaseInstanceAsync(instance);
+        public async Task<ServiceResponse<LoadLeaseInstanceDto>> FinalizeLeaseInstanceAsync(long instanceId, long organizationId)
+        {
+            var prepared = await PrepareLeaseInstanceForFinalizationAsync(instanceId, organizationId);
+            if (!prepared.Success)
+                return prepared;
+
+            try
+            {
+                var finalized = await _leaseInstanceRepository.MarkFinalizedAsync(instanceId, organizationId);
                 return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(finalized));
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error finalizing lease instance {InstanceId}", instanceId);
+                _logger.LogError(ex, "Error marking lease instance {InstanceId} finalized", instanceId);
                 return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Error finalizing lease instance", ex.Message);
             }
         }
 
-        public async Task<ServiceResponse<LoadLeaseInstanceDto>> GetLeaseInstanceByIdAsync(long id)
+        public async Task<ServiceResponse<LoadLeaseInstanceDto>> GetLeaseInstanceByIdAsync(long id, long organizationId)
         {
             try
             {
-                var organizationId = GetOrganizationIdFromContext();
                 var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(id, organizationId);
                 
                 if (instance == null)
                 {
-                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Instance not found", "The specified lease instance does not exist or you do not have access to it.");
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Instance not found", "The specified lease instance does not exist or you do not have access to it.", statusCode: 404);
                 }
 
                 return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(instance));
@@ -861,25 +937,18 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
         }
 
-        public async Task<ServiceResponse<List<LoadLeaseInstanceDto>>> GetLeaseInstancesByLeaseIdAsync(long leaseId)
+        public async Task<ServiceResponse<List<LoadLeaseInstanceDto>>> GetLeaseInstancesByLeaseIdAsync(long leaseId, long organizationId)
         {
             try
             {
-                var organizationId = GetOrganizationIdFromContext();
-                if (!organizationId.HasValue)
-                {
-                    return ServiceResponse<List<LoadLeaseInstanceDto>>.CreateError("Organization ID is required", 
-                        "Unable to determine organization context.");
-                }
-                
                 // Verify lease belongs to organization
-                var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
+                var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId);
                 if (lease == null)
                 {
-                    return ServiceResponse<List<LoadLeaseInstanceDto>>.CreateError("Lease not found", "The specified lease does not exist.");
+                    return ServiceResponse<List<LoadLeaseInstanceDto>>.CreateError("Lease not found", "The specified lease does not exist.", statusCode: 404);
                 }
 
-                var instances = await _leaseInstanceRepository.GetLeaseInstancesByLeaseIdAsync(leaseId);
+                var instances = await _leaseInstanceRepository.GetLeaseInstancesByLeaseIdAsync(leaseId, organizationId);
                 var dtos = instances.Select(i => _mapper.Map<LoadLeaseInstanceDto>(i)).ToList();
 
                 return ServiceResponse<List<LoadLeaseInstanceDto>>.CreateSuccess(dtos);
@@ -891,25 +960,30 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
         }
 
-        public async Task<ServiceResponse<LoadLeaseInstanceDto>> FinishLeaseAgreementAsync(long leaseId)
+        public async Task<ServiceResponse<LoadLeaseInstanceDto>> FinishLeaseAgreementAsync(long leaseId, long organizationId)
         {
             try
             {
-                var organizationId = GetOrganizationIdFromContext();
-                if (!organizationId.HasValue)
-                {
-                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Authentication required",
-                        "Unable to determine organization context. Please ensure you are logged in and have selected an organization.");
-                }
-
-                var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
+                var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId);
                 if (lease == null)
                 {
-                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Lease not found", "The specified lease does not exist or you do not have access to it.");
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Lease not found", "The specified lease does not exist or you do not have access to it.", statusCode: 404);
                 }
 
+                // A finalized instance is the canonical output for a lease. Returning it lets callers
+                // retry artifact publication without creating another immutable instance.
+                var existingFinalized = await _leaseInstanceRepository.GetFinalizedLeaseInstanceByLeaseIdAsync(leaseId, organizationId);
+                if (existingFinalized != null)
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(_mapper.Map<LoadLeaseInstanceDto>(existingFinalized));
+
+                // A failed artifact run leaves this draft as the retry token. Never create a new
+                // instance until this latest draft has either finalized or been explicitly removed.
+                var existingDraft = await _leaseInstanceRepository.GetLatestDraftLeaseInstanceByLeaseIdAsync(leaseId, organizationId);
+                if (existingDraft != null)
+                    return await PrepareLeaseInstanceForFinalizationAsync(existingDraft.Id, organizationId);
+
                 // Get template: prefer default for org, else first template for organization
-                var templates = await _templateRepository.GetTemplatesByOrganizationAsync(organizationId.Value);
+                var templates = await _templateRepository.GetTemplatesByOrganizationAsync(organizationId);
                 var template = templates.FirstOrDefault(t => t.IsDefaultForLandlord) ?? templates.FirstOrDefault();
                 if (template == null)
                 {
@@ -920,10 +994,12 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                     return ServiceResponse<LoadLeaseInstanceDto>.CreateError("No template", "No lease template found for your organization. Please contact support.");
                 }
 
-                var tenantIds = (lease.Tenants?.Select(t => t.Id).ToList() ?? new List<long>());
+                // lease was loaded with organizationId, so tenants reached through that parent are scoped.
+                var tenantIds = lease.Tenants?.Select(t => t.Id).ToList() ?? new List<long>();
                 if (!tenantIds.Any())
                 {
                     var tenantsFromDb = await _tenantRepository.GetTenantsByLeaseId(lease.Id);
+                    // This lease id was already verified in the current organization.
                     tenantIds = tenantsFromDb.Select(t => t.Id).ToList();
                 }
 
@@ -941,7 +1017,11 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                     RentDueDay = lease.RentDueDay
                 };
 
-                var createResponse = await CreateLeaseInstanceAsync(dto);
+                var userId = GetUserIdFromContext();
+                if (!userId.HasValue)
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError("Authentication required", "Unable to determine user context.", statusCode: 403);
+
+                var createResponse = await CreateLeaseInstanceInternalAsync(dto, organizationId, userId.Value);
                 if (!createResponse.Success || createResponse.Data == null)
                 {
                     var errDetails = createResponse.Errors?.Details ?? createResponse.Errors?.Message ?? "Unknown error";
@@ -950,19 +1030,24 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
 
                 var instanceId = createResponse.Data.Id;
 
-                // P3: inject state-required disclosures before finalization
+                // A lease cannot become immutable until its state disclosures are grounded and validated.
                 var propertyForState = lease.PropertyId > 0 ? await _propertyRepository.GetPropertyById(lease.PropertyId) : null;
-                var propertyState = propertyForState?.State ?? string.Empty;
-                await InjectStateRequiredPoliciesAsync(instanceId, propertyState);
-
-                var finalizeResponse = await FinalizeLeaseInstanceAsync(instanceId);
-                if (!finalizeResponse.Success || finalizeResponse.Data == null)
+                var propertyState = propertyForState?.OrganizationId == organizationId ? propertyForState.State ?? string.Empty : string.Empty;
+                var disclosureResponse = await InjectStateRequiredPoliciesAsync(instanceId, propertyState, organizationId);
+                if (!disclosureResponse.Success)
                 {
-                    var errDetails = finalizeResponse.Errors?.Details ?? finalizeResponse.Errors?.Message ?? "Unknown error";
-                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError(finalizeResponse.Message ?? "Failed to finalize", errDetails);
+                    var details = disclosureResponse.Errors?.Details ?? disclosureResponse.Errors?.Message ?? "A trustworthy state-law determination could not be made.";
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError(disclosureResponse.Message, details, statusCode: disclosureResponse.StatusCode);
                 }
 
-                return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(finalizeResponse.Data);
+                var preparedResponse = await PrepareLeaseInstanceForFinalizationAsync(instanceId, organizationId);
+                if (!preparedResponse.Success || preparedResponse.Data == null)
+                {
+                    var errDetails = preparedResponse.Errors?.Details ?? preparedResponse.Errors?.Message ?? "Unknown error";
+                    return ServiceResponse<LoadLeaseInstanceDto>.CreateError(preparedResponse.Message ?? "Failed to prepare finalization", errDetails);
+                }
+
+                return ServiceResponse<LoadLeaseInstanceDto>.CreateSuccess(preparedResponse.Data);
             }
             catch (Exception ex)
             {
@@ -971,13 +1056,13 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
             }
         }
 
-        public async Task<ServiceResponse<LeaseReviewResultDto>> ReviewLeaseInstanceAsync(long instanceId)
+        public async Task<ServiceResponse<LeaseReviewResultDto>> ReviewLeaseInstanceAsync(long instanceId, long organizationId)
         {
             try
             {
-                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId);
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, organizationId);
                 if (instance == null)
-                    return ServiceResponse<LeaseReviewResultDto>.CreateError("Not found", "Lease instance not found.");
+                    return ServiceResponse<LeaseReviewResultDto>.CreateError("Not found", "Lease instance not found.", statusCode: 404);
 
                 var variables = instance.Variables?.ToDictionary(v => v.VariableKey, v => v.VariableValue)
                                 ?? new Dictionary<string, string>();
@@ -1091,63 +1176,42 @@ Rules:
         }
 
         /// <summary>
-        /// Fetches state-specific required disclosures via AI and injects them as variables
-        /// on the lease instance. Called during FinishLeaseAgreementAsync before finalization.
+        /// Injects a table-grounded, server-validated disclosure result before finalization.
         /// </summary>
-        private async Task InjectStateRequiredPoliciesAsync(long instanceId, string state)
+        private async Task<ServiceResponse<bool>> InjectStateRequiredPoliciesAsync(long instanceId, string state, long organizationId)
         {
-            if (string.IsNullOrWhiteSpace(state))
-                return;
-
             try
             {
-                var prompt = $@"You are a residential landlord-tenant law expert. List the legally required disclosures and clauses that must appear in a residential lease agreement in {state}, USA.
+                var disclosureResponse = await _stateRequiredDisclosureService.GenerateAsync(state);
+                if (!disclosureResponse.Success || disclosureResponse.Data == null)
+                    return ServiceResponse<bool>.CreateError(
+                        disclosureResponse.Message,
+                        disclosureResponse.Errors?.Details ?? "State disclosure generation did not return data.",
+                        statusCode: disclosureResponse.StatusCode);
 
-Return a JSON object with this exact structure:
-{{
-  ""disclosures"": ""A formatted plain-text list of required disclosures, one per line, starting each line with '• '"",
-  ""stateNote"": ""A one-sentence note about {state} landlord-tenant law relevant to landlords""
-}}
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, organizationId);
+                if (instance == null)
+                    return ServiceResponse<bool>.CreateError("Lease instance unavailable", "The disclosure snapshot could not be attached to the lease.");
 
-Focus only on state-mandated requirements (not general best practices).
-Return valid JSON only.";
-
-                var aiResponse = await _openAIService.GenerateJsonAsync<StateDisclosuresAiResponse>(prompt, maxTokens: 1000);
-                if (!aiResponse.Success || aiResponse.Data == null)
+                var result = disclosureResponse.Data;
+                var citationJson = JsonSerializer.Serialize(result.Citations);
+                var snapshot = new List<LeaseVariable>
                 {
-                    _logger.LogWarning("AI state disclosures call failed for state {State}: {Message}", state, aiResponse.Message);
-                    return;
-                }
+                    new() { LeaseInstanceId = instanceId, VariableKey = "State.Name", VariableValue = result.StateCode, VariableType = "String" },
+                    new() { LeaseInstanceId = instanceId, VariableKey = "State.RequiredDisclosures", VariableValue = result.PlainText, VariableType = "String" },
+                    new() { LeaseInstanceId = instanceId, VariableKey = "State.RequiredDisclosureCitations", VariableValue = citationJson, VariableType = "Json" },
+                    new() { LeaseInstanceId = instanceId, VariableKey = "State.RequiredDisclosureSnapshotUtc", VariableValue = result.SnapshotUtc.ToString("O"), VariableType = "DateTime" }
+                };
+                await _leaseInstanceRepository.ReplaceStateDisclosureSnapshotAsync(instanceId, snapshot, organizationId);
 
-                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId);
-                if (instance == null) return;
-
-                var existingKeys = instance.Variables?.Select(v => v.VariableKey).ToHashSet() ?? [];
-
-                var newVars = new List<LeaseVariable>();
-                if (!existingKeys.Contains("State.Name"))
-                    newVars.Add(new LeaseVariable { LeaseInstanceId = instanceId, VariableKey = "State.Name", VariableValue = state, VariableType = "String" });
-                if (!existingKeys.Contains("State.RequiredDisclosures") && !string.IsNullOrWhiteSpace(aiResponse.Data.Disclosures))
-                    newVars.Add(new LeaseVariable { LeaseInstanceId = instanceId, VariableKey = "State.RequiredDisclosures", VariableValue = aiResponse.Data.Disclosures, VariableType = "String" });
-                if (!existingKeys.Contains("State.Note") && !string.IsNullOrWhiteSpace(aiResponse.Data.StateNote))
-                    newVars.Add(new LeaseVariable { LeaseInstanceId = instanceId, VariableKey = "State.Note", VariableValue = aiResponse.Data.StateNote, VariableType = "String" });
-
-                if (newVars.Count > 0)
-                    await _leaseInstanceRepository.AddVariablesToInstanceAsync(instanceId, newVars);
-
-                _logger.LogInformation("Injected {Count} state policy variable(s) for state {State} on instance {InstanceId}", newVars.Count, state, instanceId);
+                _logger.LogInformation("Atomically replaced grounded state disclosure snapshot for state {State} on instance {InstanceId}", result.StateCode, instanceId);
+                return ServiceResponse<bool>.CreateSuccess(true);
             }
             catch (Exception ex)
             {
-                // Don't block the finish flow if state injection fails
                 _logger.LogError(ex, "Error injecting state policies for instance {InstanceId}, state {State}", instanceId, state);
+                return ServiceResponse<bool>.CreateError("State disclosure finalization failed", ex.Message, statusCode: 422);
             }
-        }
-
-        private class StateDisclosuresAiResponse
-        {
-            public string? Disclosures { get; set; }
-            public string? StateNote { get; set; }
         }
     }
 }

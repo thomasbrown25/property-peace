@@ -1,11 +1,12 @@
 import { lazy } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 // project imports
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 import AdminRoute from 'components/auth/AdminRoute';
 import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
+import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
 
 
 // landlord pages (lazy-loaded)
@@ -37,11 +38,9 @@ const LeaseActivity = Loadable(lazy(() => import('pages/landlord/lease-activity'
 const LeaseCharges = Loadable(lazy(() => import('pages/landlord/lease-charges')));
 const LeaseUploadDocument = Loadable(lazy(() => import('pages/landlord/lease-upload-document')));
 const LeaseAddendum = Loadable(lazy(() => import('pages/landlord/lease-addendum')));
-const LeaseBuilderPage = Loadable(lazy(() => import('pages/landlord/lease-builder')));
 const LeaseBuilderBulkPage = Loadable(lazy(() => import('pages/landlord/lease-builder-bulk')));
 const LeaseAddTenantPage = Loadable(lazy(() => import('pages/landlord/lease-add-tenant')));
 const LeaseSelectionPage = Loadable(lazy(() => import('pages/landlord/lease-selection')));
-const LeaseAgreementBuilderPage = Loadable(lazy(() => import('pages/landlord/lease-agreement-builder')));
 const BuildLeaseAgreementPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement')));
 const LeaseSpecificsPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/lease-specifics')));
 const RentDepositFeesPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/rent-deposit-fees')));
@@ -49,7 +48,6 @@ const PeopleOnLeasePage = Loadable(lazy(() => import('pages/landlord/build-lease
 const PetsSmokingOtherPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/pets-smoking-other')));
 const UtilitiesMaintenanceKeysPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/utilities-maintenance-keys')));
 const ProvisionsAttachmentsPage = Loadable(lazy(() => import('pages/landlord/build-lease-agreement/provisions-attachments')));
-const CreateLeaseAgreementPage = Loadable(lazy(() => import('pages/landlord/create-lease-agreement')));
 const LeaseAgreements = Loadable(lazy(() => import('pages/landlord/lease-agreements')));
 const VendorImportPage = Loadable(lazy(() => import('pages/landlord/vendor-import')));
 const ESignDocumentPage = Loadable(lazy(() => import('pages/landlord/e-sign-document')));
@@ -182,6 +180,11 @@ function LegacyInspectionRedirect() {
     ? `/landlord/checklists/property/${propertyId}/unit/${unitId}`
     : `/landlord/checklists/property/${propertyId}`;
   return <Navigate to={path} replace />;
+}
+
+function LegacyLeaseBuilderRedirect() {
+  const { search } = useLocation();
+  return <Navigate to={buildLeaseBuilderRedirect(search)} replace />;
 }
 
 const MainRoutes = {
@@ -439,7 +442,15 @@ const MainRoutes = {
           path: 'landlord/leases/builder',
           element: (
             <SubscriptionPausedGuard>
-              <LeaseBuilderPage />
+              <LegacyLeaseBuilderRedirect />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/lease-builder',
+          element: (
+            <SubscriptionPausedGuard>
+              <LegacyLeaseBuilderRedirect />
             </SubscriptionPausedGuard>
           )
         },
@@ -455,7 +466,7 @@ const MainRoutes = {
           path: 'landlord/lease-agreement-builder',
           element: (
             <SubscriptionPausedGuard>
-              <LeaseAgreementBuilderPage />
+              <LegacyLeaseBuilderRedirect />
             </SubscriptionPausedGuard>
           )
         },
@@ -527,7 +538,7 @@ const MainRoutes = {
           path: 'landlord/create-lease-agreement',
           element: (
             <SubscriptionPausedGuard>
-              <CreateLeaseAgreementPage />
+              <LegacyLeaseBuilderRedirect />
             </SubscriptionPausedGuard>
           )
         },

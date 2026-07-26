@@ -58,7 +58,10 @@ namespace brownstone_hub_api.Configurations
             // Indexes
             b.HasIndex(i => i.LeaseId);
             b.HasIndex(i => i.LeaseTemplateId);
-            b.HasIndex(i => new { i.LeaseId, i.IsFinalized });
+            b.HasIndex(i => i.LeaseId)
+                .HasDatabaseName("UX_LeaseInstances_LeaseId_Finalized")
+                .IsUnique()
+                .HasFilter("[IsFinalized] = 1");
         }
     }
 }

@@ -39,7 +39,7 @@ namespace brownstone_hub_api.Configurations
 
             // Indexes
             b.HasIndex(d => d.LeaseInstanceId);
-            b.HasIndex(d => new { d.LeaseInstanceId, d.DocumentType });
+            b.HasIndex(d => new { d.LeaseInstanceId, d.DocumentType }).IsUnique();
         }
     }
 }

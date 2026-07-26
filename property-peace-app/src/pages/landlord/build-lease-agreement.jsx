@@ -55,6 +55,7 @@ import { useOrganization } from 'contexts/OrganizationContext';
 import LeasePreviewModal from 'components/dialogs/LeasePreviewModal';
 import axiosServices from 'utils/axios';
 import { finishLeaseAgreement, reviewLeaseInstance } from 'api/leaseGeneration';
+import { areAllLeasePreflightChecksComplete, computeLeasePreflightChecks } from 'utils/leasePreflight';
 import LeaseSpecificsPage from './build-lease-agreement/lease-specifics';
 import RentDepositFeesPage from './build-lease-agreement/rent-deposit-fees';
 import PeopleOnLeasePage from './build-lease-agreement/people-on-lease';
@@ -138,10 +139,7 @@ export default function BuildLeaseAgreementPage() {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewResult, setReviewResult] = useState(null);
 
-  // P4 — pre-flight checklist
-  const [preflightOpen, setPreflightOpen] = useState(false);
 
-  // Helper function to get completion status for a section
   const getSectionCompletionStatus = (sectionId) => {
     if (!lease) return false;
     
@@ -361,51 +359,11 @@ export default function BuildLeaseAgreementPage() {
 
   const allSectionsComplete = workflowSections.every((section) => getSectionCompletionStatus(section.id));
 
-  // P4 — pre-flight field checks per section
-  const preflightChecks = lease ? [
-    {
-      section: 'Lease Specifics',
-      checks: [
-        { label: 'Start date', ok: !!lease.startDate },
-        { label: 'End date', ok: !!lease.endDate },
-        { label: 'Rent due day', ok: !!lease.rentDueDay }
-      ]
-    },
-    {
-      section: 'Rent, Deposit & Fees',
-      checks: [
-        { label: 'Monthly rent', ok: !!lease.rentAmount && lease.rentAmount > 0 },
-        { label: 'Security deposit', ok: !!lease.depositAmount && lease.depositAmount > 0 }
-      ]
-    },
-    {
-      section: 'People on the Lease',
-      checks: [
-        { label: 'Tenant(s) added', ok: (lease.tenants?.length > 0) || lease.addTenantsLater },
-        { label: 'Landlord info', ok: !!(lease.leaseLandlords?.length > 0 || lease.landlordName) }
-      ]
-    },
-    {
-      section: 'Pets, Smoking & Other',
-      checks: [
-        { label: 'Pet policy set', ok: lease.petsAllowed !== null && lease.petsAllowed !== undefined },
-        { label: 'Smoking policy set', ok: !!lease.smokingAllowed }
-      ]
-    },
-    {
-      section: 'Utilities, Maintenance & Keys',
-      checks: [
-        { label: 'Utility responsibilities', ok: (lease.utilityServiceResponsibilities?.length > 0) },
-        { label: 'Maintenance responsibilities', ok: (lease.maintenanceResponsibilities?.length > 0) }
-      ]
-    },
-    {
-      section: 'Provisions & Attachments',
-      checks: [
-        { label: 'Lead paint answered', ok: lease.builtBefore1978 !== null && lease.builtBefore1978 !== undefined }
-      ]
-    }
-  ] : [];
+  // P4 — pre-flight field checks per section. Keep this pure so false and zero
+  // remain valid explicit answers instead of being rejected as generic falsey values.
+  const preflightChecks = computeLeasePreflightChecks(lease);
+  const allPreflightChecksComplete = areAllLeasePreflightChecksComplete(preflightChecks);
+  const isPreflightComplete = allSectionsComplete && allPreflightChecksComplete;
 
   const handleReviewLease = async () => {
     setReviewResult(null);
@@ -749,6 +707,29 @@ export default function BuildLeaseAgreementPage() {
                   </Stack>
                 </Paper>
 
+                {!isPreflightComplete && (
+                  <Paper variant="outlined" sx={{ p: 2, borderColor: 'warning.light', bgcolor: alpha(theme.palette.warning.main, 0.04) }}>
+                    <Typography variant="subtitle2" fontWeight={800}>Before you can finalize</Typography>
+                    {!allSectionsComplete && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        Save every lease-builder step.
+                      </Typography>
+                    )}
+                    <List dense disablePadding sx={{ mt: 0.5 }}>
+                      {preflightChecks.flatMap((section) => section.checks
+                        .filter((check) => !check.ok)
+                        .map((check) => (
+                          <ListItem key={`${section.section}-${check.label}`} disableGutters sx={{ py: 0.25 }}>
+                            <ListItemIcon sx={{ minWidth: 28 }}>
+                              <ExclamationCircleOutlined style={{ color: theme.palette.warning.main }} />
+                            </ListItemIcon>
+                            <ListItemText primary={`${section.section}: ${check.label}`} primaryTypographyProps={{ variant: 'body2' }} />
+                          </ListItem>
+                        )))}
+                    </List>
+                  </Paper>
+                )}
+
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="flex-end">
                   <Button variant="outlined" size="large" onClick={handleSaveDraft} sx={{ textTransform: 'none', fontWeight: 700 }}>
                     Save
@@ -756,16 +737,16 @@ export default function BuildLeaseAgreementPage() {
                   <Button
                     variant="contained"
                     size="large"
-                    disabled={completingDraft || !allSectionsComplete}
+                    disabled={completingDraft || !isPreflightComplete}
                     onClick={handleFinishLeaseAgreementClick}
                     sx={{ textTransform: 'none', fontWeight: 800 }}
                   >
                     {completingDraft ? 'Finalizing…' : 'Finalize'}
                   </Button>
                 </Stack>
-                {!allSectionsComplete && (
+                {!isPreflightComplete && (
                   <Typography variant="caption" color="text.secondary" textAlign="right">
-                    Complete all required steps before finalizing the agreement.
+                    Complete every checklist item before finalizing the agreement.
                   </Typography>
                 )}
               </Stack>

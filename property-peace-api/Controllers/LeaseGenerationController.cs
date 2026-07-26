@@ -9,6 +9,7 @@ using brownstone_hub_api.Services.LeaseDocumentService;
 using brownstone_hub_api.Services.PolicyAIService;
 using brownstone_hub_api.Repositories.LeaseInstances;
 using brownstone_hub_api.Repositories.TenantDocuments;
+using brownstone_hub_api.Services.LeaseFinalizationLock;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,6 +29,8 @@ namespace brownstone_hub_api.Controllers
         private readonly ITenantDocumentRepository _tenantDocumentRepository;
         private readonly BlobServiceClient _blobServiceClient;
         private readonly ILogger<LeaseGenerationController> _logger;
+        private readonly ILeaseFinalizationLock _distributedFinalizationLock;
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<(long OrganizationId, long LeaseId), SemaphoreSlim> FinalizationLocks = new();
 
         public LeaseGenerationController(
             ILeaseGenerationService leaseGenerationService,
@@ -37,6 +40,7 @@ namespace brownstone_hub_api.Controllers
             ILeaseRepository leaseRepository,
             ITenantDocumentRepository tenantDocumentRepository,
             BlobServiceClient blobServiceClient,
+            ILeaseFinalizationLock distributedFinalizationLock,
             ILogger<LeaseGenerationController> logger)
         {
             _leaseGenerationService = leaseGenerationService;
@@ -46,6 +50,7 @@ namespace brownstone_hub_api.Controllers
             _leaseRepository = leaseRepository;
             _tenantDocumentRepository = tenantDocumentRepository;
             _blobServiceClient = blobServiceClient;
+            _distributedFinalizationLock = distributedFinalizationLock;
             _logger = logger;
         }
 
@@ -67,6 +72,10 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("instance")]
         public async Task<IActionResult> CreateLeaseInstance([FromBody] CreateLeaseInstanceDto dto)
         {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState
@@ -76,7 +85,7 @@ namespace brownstone_hub_api.Controllers
                 return BadRequest(new { Message = "Validation failed", Errors = errors });
             }
 
-            var response = await _leaseGenerationService.CreateLeaseInstanceAsync(dto);
+            var response = await _leaseGenerationService.CreateLeaseInstanceAsync(dto, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -91,7 +100,10 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("instance/{id}")]
         public async Task<IActionResult> GetLeaseInstance(long id)
         {
-            var response = await _leaseGenerationService.GetLeaseInstanceByIdAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseGenerationService.GetLeaseInstanceByIdAsync(id, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -106,7 +118,10 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("instance/{id}/resolve")]
         public async Task<IActionResult> ResolvePlaceholders(long id)
         {
-            var response = await _leaseGenerationService.ResolvePlaceholdersAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseGenerationService.ResolvePlaceholdersAsync(id, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -121,7 +136,10 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("instance/{id}/validate")]
         public async Task<IActionResult> ValidatePlaceholders(long id)
         {
-            var response = await _leaseGenerationService.ValidatePlaceholdersAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseGenerationService.ValidatePlaceholdersAsync(id, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -136,7 +154,10 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("lease/{leaseId}/instances")]
         public async Task<IActionResult> GetLeaseInstancesByLeaseId(long leaseId)
         {
-            var response = await _leaseGenerationService.GetLeaseInstancesByLeaseIdAsync(leaseId);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseGenerationService.GetLeaseInstancesByLeaseIdAsync(leaseId, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -156,152 +177,117 @@ namespace brownstone_hub_api.Controllers
             if (!organizationId.HasValue)
                 return StatusCode(403, new { Message = "Organization context is required" });
 
-            var response = await _leaseGenerationService.FinishLeaseAgreementAsync(leaseId);
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            var instanceId = response.Data?.Id ?? 0;
-            if (instanceId == 0)
-                return Ok(response);
-
-            // Generate and save PDF and create tenant documents (same as after finalize)
+            var gate = FinalizationLocks.GetOrAdd((organizationId.Value, leaseId), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(HttpContext.RequestAborted);
             try
             {
-                var pdfResponse = await _leaseDocumentService.GeneratePdfAsync(instanceId);
-                if (pdfResponse.Success && pdfResponse.Data != null)
-                {
-                    var saveResponse = await _leaseDocumentService.SaveDocumentToBlobAsync(
-                        pdfResponse.Data!,
-                        $"lease-{instanceId}.pdf",
-                        instanceId,
-                        "PDF");
+                await using var distributedLock = await _distributedFinalizationLock.AcquireAsync(
+                    organizationId.Value, leaseId, HttpContext.RequestAborted);
+                var response = await _leaseGenerationService.FinishLeaseAgreementAsync(leaseId, organizationId.Value);
+                if (!response.Success)
+                    return StatusCode(response.StatusCode, new { response.Message, response.Errors });
 
-                    if (saveResponse.Success && !string.IsNullOrEmpty(saveResponse.Data))
-                    {
-                        var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, null);
-                        if (instance?.Lease != null && instance.Lease.TenantLeases != null && instance.Lease.TenantLeases.Any())
-                        {
-                            _logger.LogInformation("Creating tenant documents for {TenantCount} tenants on lease {LeaseId}",
-                                instance.Lease.TenantLeases.Count, instance.Lease.Id);
-                            await CreateTenantDocumentsFromLeaseInstance(instance, saveResponse.Data, pdfResponse.Data!);
-                            _logger.LogInformation("Successfully created tenant documents for lease {LeaseId}", instance.Lease.Id);
-                        }
-                        else if (instance?.Lease != null)
-                        {
-                            _logger.LogWarning("Skipping tenant document creation for lease {LeaseId} - no tenants found.", instance.Lease.Id);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to save PDF for lease instance {InstanceId}: {Message}", instanceId, saveResponse.Message);
-                    }
-                }
-                else
+                var instanceId = response.Data?.Id ?? 0;
+                if (instanceId == 0 || response.Data?.IsFinalized == true)
+                    return Ok(response);
+
+                var artifactFailure = await PublishArtifactsAsync(instanceId, organizationId.Value);
+                if (artifactFailure != null)
+                    return artifactFailure;
+
+                var finalized = await _leaseGenerationService.FinalizeLeaseInstanceAsync(instanceId, organizationId.Value);
+                if (!finalized.Success)
+                    return StatusCode(finalized.StatusCode, new { finalized.Message, finalized.Errors });
+                if (finalized.Data != null && finalized.Data.Id != instanceId)
                 {
-                    _logger.LogWarning("Failed to generate PDF for lease instance {InstanceId}: {Message}", instanceId, pdfResponse.Message);
+                    var canonicalArtifactFailure = await PublishArtifactsAsync(finalized.Data.Id, organizationId.Value);
+                    if (canonicalArtifactFailure != null)
+                        return canonicalArtifactFailure;
                 }
+                return Ok(finalized);
             }
-            catch (Exception ex)
+            finally
             {
-                _logger.LogError(ex, "Error creating tenant documents after finish for instance {InstanceId}", instanceId);
+                gate.Release();
             }
-
-            return Ok(response);
         }
 
         [HttpPost("instance/{id}/finalize")]
         public async Task<IActionResult> FinalizeLeaseInstance(long id)
         {
-            var response = await _leaseGenerationService.FinalizeLeaseInstanceAsync(id);
-            
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
 
-            // After finalization, generate PDF and save as tenant documents
+            var initial = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(id, organizationId.Value);
+            if (initial == null)
+                return NotFound(new { Message = "Lease instance not found" });
+
+            var gate = FinalizationLocks.GetOrAdd((organizationId.Value, initial.LeaseId), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(HttpContext.RequestAborted);
             try
             {
-                // Generate and save PDF
-                var pdfResponse = await _leaseDocumentService.GeneratePdfAsync(id);
-                if (pdfResponse.Success && pdfResponse.Data != null)
-                {
-                    var saveResponse = await _leaseDocumentService.SaveDocumentToBlobAsync(
-                        pdfResponse.Data!,
-                        $"lease-{id}.pdf",
-                        id,
-                        "PDF");
+                await using var distributedLock = await _distributedFinalizationLock.AcquireAsync(
+                    organizationId.Value, initial.LeaseId, HttpContext.RequestAborted);
+                var prepared = await _leaseGenerationService.PrepareLeaseInstanceForFinalizationAsync(id, organizationId.Value);
+                if (!prepared.Success)
+                    return StatusCode(prepared.StatusCode, new { prepared.Message, prepared.Errors });
+                if (prepared.Data?.IsFinalized == true)
+                    return Ok(prepared);
 
-                    if (saveResponse.Success && !string.IsNullOrEmpty(saveResponse.Data))
-                    {
-                        // Get the lease instance to access lease and tenants
-                        // Pass null for organizationId to get it from the lease
-                        var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(id, null);
-                        
-                        if (instance?.Lease != null)
-                        {
-                            // Check if lease has tenants
-                            if (instance.Lease.TenantLeases != null && instance.Lease.TenantLeases.Any())
-                            {
-                                _logger.LogInformation("Creating tenant documents for {TenantCount} tenants on lease {LeaseId}", 
-                                    instance.Lease.TenantLeases.Count, instance.Lease.Id);
-                                
-                                // Copy PDF to tenant-documents container and create TenantDocument records
-                                await CreateTenantDocumentsFromLeaseInstance(instance, saveResponse.Data, pdfResponse.Data!);
-                                
-                                _logger.LogInformation("Successfully created tenant documents for lease {LeaseId}", instance.Lease.Id);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("Lease {LeaseId} has no tenants linked. Attempting to find and link tenants from instance variables.", instance.Lease.Id);
-                                
-                                // Try to find tenants from the instance variables (tenant names were resolved during creation)
-                                // This is a fallback - ideally tenants should be linked during instance creation
-                                var tenantVariables = instance.Variables?.Where(v => v.VariableKey.StartsWith("Tenant.")).ToList();
-                                if (tenantVariables != null && tenantVariables.Any())
-                                {
-                                    _logger.LogInformation("Found tenant variables in instance, but cannot automatically link without tenant IDs. Please ensure tenants are added to the lease before finalizing.");
-                                }
-                                
-                                _logger.LogWarning("Skipping tenant document creation for lease {LeaseId} - no tenants found. Documents can be manually uploaded later.", instance.Lease.Id);
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Lease instance {InstanceId} has no associated lease", id);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Failed to save PDF for lease instance {InstanceId}: {Message}", 
-                            id, saveResponse.Message);
-                    }
-                }
-                else
+                var artifactFailure = await PublishArtifactsAsync(id, organizationId.Value);
+                if (artifactFailure != null)
+                    return artifactFailure;
+
+                var finalized = await _leaseGenerationService.FinalizeLeaseInstanceAsync(id, organizationId.Value);
+                if (!finalized.Success)
+                    return StatusCode(finalized.StatusCode, new { finalized.Message, finalized.Errors });
+                if (finalized.Data != null && finalized.Data.Id != id)
                 {
-                    _logger.LogWarning("Failed to generate PDF for lease instance {InstanceId}: {Message}", 
-                        id, pdfResponse.Message);
+                    var canonicalArtifactFailure = await PublishArtifactsAsync(finalized.Data.Id, organizationId.Value);
+                    if (canonicalArtifactFailure != null)
+                        return canonicalArtifactFailure;
                 }
+                return Ok(finalized);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        private async Task<IActionResult?> PublishArtifactsAsync(long instanceId, long organizationId)
+        {
+            try
+            {
+                var pdfResponse = await _leaseDocumentService.GeneratePdfAsync(instanceId, organizationId);
+                if (!pdfResponse.Success || pdfResponse.Data == null)
+                    return StatusCode(pdfResponse.StatusCode, new { pdfResponse.Message, pdfResponse.Errors });
+
+                var saveResponse = await _leaseDocumentService.SaveDocumentToBlobAsync(
+                    pdfResponse.Data, $"lease-{instanceId}.pdf", instanceId, "PDF", organizationId);
+                if (!saveResponse.Success || string.IsNullOrEmpty(saveResponse.Data))
+                    return StatusCode(saveResponse.StatusCode, new { saveResponse.Message, saveResponse.Errors });
+
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(instanceId, organizationId);
+                if (instance == null)
+                    return NotFound(new { Message = "Lease instance not found" });
+                if (instance.Lease?.TenantLeases?.Any() == true)
+                    await CreateTenantDocumentsFromLeaseInstance(instance, saveResponse.Data, pdfResponse.Data, organizationId);
+                return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating tenant documents after finalization for instance {InstanceId}", id);
-                // Don't fail the finalization if document creation fails, but log the error
+                _logger.LogError(ex, "Artifact publication failed for lease instance {InstanceId}", instanceId);
+                return StatusCode(500, new { Message = "Lease artifacts could not be published; the lease remains non-finalized and may be retried." });
             }
-
-            return Ok(response);
         }
 
         private async Task CreateTenantDocumentsFromLeaseInstance(
             Models.LeaseInstance instance,
             string sourceBlobUrl,
-            byte[] pdfBytes)
+            byte[] pdfBytes,
+            long organizationId)
         {
             try
             {
@@ -313,8 +299,8 @@ namespace brownstone_hub_api.Controllers
                 var tenantDocumentsContainer = _blobServiceClient.GetBlobContainerClient("tenant-documents");
                 await tenantDocumentsContainer.CreateIfNotExistsAsync();
 
-                var fileName = $"lease-agreement-{lease.Id}-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
-                var blobName = $"{Guid.NewGuid()}.pdf";
+                var fileName = $"lease-agreement-{lease.Id}.pdf";
+                var blobName = $"lease-instances/{instance.Id}/lease-agreement.pdf";
                 var blobClient = tenantDocumentsContainer.GetBlobClient(blobName);
 
                 // Upload the PDF bytes to tenant-documents container
@@ -329,40 +315,28 @@ namespace brownstone_hub_api.Controllers
 
                 var blobUrl = blobClient.Uri.ToString();
 
-                // Get organization ID from lease
-                var organizationId = lease.Unit?.Property?.OrganizationId;
-
                 // Create TenantDocument for each tenant
                 int documentsCreated = 0;
                 foreach (var tenantLease in lease.TenantLeases)
                 {
                     var tenant = tenantLease.Tenant;
-                    try
+                    var documentDto = new AddTenantDocumentDto
                     {
-                        var documentDto = new AddTenantDocumentDto
-                        {
-                            TenantId = tenant.Id,
-                            FileName = fileName,
-                            Description = "Lease Agreement (Generated from Lease Builder)",
-                            DocumentType = ETenantDocumentType.LeaseAgreement,
-                            ExpirationDate = null,
-                            IsRequired = false,
-                            LeaseId = lease.Id,
-                            BlobName = blobName,
-                            BlobUrl = blobUrl
-                        };
+                        TenantId = tenant.Id,
+                        FileName = fileName,
+                        Description = "Lease Agreement (Generated from Lease Builder)",
+                        DocumentType = ETenantDocumentType.LeaseAgreement,
+                        ExpirationDate = null,
+                        IsRequired = false,
+                        LeaseId = lease.Id,
+                        BlobName = blobName,
+                        BlobUrl = blobUrl
+                    };
 
-                        // Use repository directly to create the document
-                        var createdDoc = await _tenantDocumentRepository.AddTenantDocument(documentDto, organizationId);
-                        documentsCreated++;
-                        _logger.LogInformation("Created tenant document {DocumentId} for tenant {TenantId} (LeaseId: {LeaseId}) from lease instance {InstanceId}", 
-                            createdDoc.Id, tenant.Id, lease.Id, instance.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error creating tenant document for tenant {TenantId} on lease {LeaseId}: {Message}", 
-                            tenant.Id, lease.Id, ex.Message);
-                    }
+                    var createdDoc = await _tenantDocumentRepository.UpsertLeaseAgreementAsync(documentDto, organizationId);
+                    documentsCreated++;
+                    _logger.LogInformation("Created tenant document {DocumentId} for tenant {TenantId} (LeaseId: {LeaseId}) from lease instance {InstanceId}",
+                        createdDoc.Id, tenant.Id, lease.Id, instance.Id);
                 }
                 
                 _logger.LogInformation("Successfully created {Count} tenant document(s) for lease {LeaseId}", documentsCreated, lease.Id);
@@ -399,7 +373,10 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("instance/{id}/generate-pdf")]
         public async Task<IActionResult> GeneratePdf(long id)
         {
-            var response = await _leaseDocumentService.GeneratePdfAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseDocumentService.GeneratePdfAsync(id, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -414,7 +391,10 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("instance/{id}/generate-docx")]
         public async Task<IActionResult> GenerateDocx(long id)
         {
-            var response = await _leaseDocumentService.GenerateDocxAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseDocumentService.GenerateDocxAsync(id, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -429,7 +409,10 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("instance/{id}/generate-and-save-pdf")]
         public async Task<IActionResult> GenerateAndSavePdf(long id)
         {
-            var pdfResponse = await _leaseDocumentService.GeneratePdfAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var pdfResponse = await _leaseDocumentService.GeneratePdfAsync(id, organizationId.Value);
             
             if (!pdfResponse.Success)
                 return StatusCode(pdfResponse.StatusCode, new
@@ -442,7 +425,8 @@ namespace brownstone_hub_api.Controllers
                 pdfResponse.Data!, 
                 $"lease-{id}.pdf", 
                 id, 
-                "PDF");
+                "PDF",
+                organizationId.Value);
 
             if (!saveResponse.Success)
                 return StatusCode(saveResponse.StatusCode, new
@@ -454,16 +438,16 @@ namespace brownstone_hub_api.Controllers
             // If instance is finalized, also create tenant documents
             try
             {
-                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(id);
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(id, organizationId.Value);
                 if (instance?.IsFinalized == true && pdfResponse.Data != null)
                 {
-                    await CreateTenantDocumentsFromLeaseInstance(instance, saveResponse.Data, pdfResponse.Data);
+                    await CreateTenantDocumentsFromLeaseInstance(instance, saveResponse.Data!, pdfResponse.Data, organizationId.Value);
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating tenant documents after PDF generation for instance {InstanceId}", id);
-                // Don't fail the request if tenant document creation fails
+                return StatusCode(500, new { Message = "The PDF was saved, but tenant publication failed." });
             }
 
             return Ok(new { BlobUrl = saveResponse.Data });
@@ -472,7 +456,10 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("instance/{id}/generate-and-save-docx")]
         public async Task<IActionResult> GenerateAndSaveDocx(long id)
         {
-            var docxResponse = await _leaseDocumentService.GenerateDocxAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var docxResponse = await _leaseDocumentService.GenerateDocxAsync(id, organizationId.Value);
             
             if (!docxResponse.Success)
                 return StatusCode(docxResponse.StatusCode, new
@@ -485,7 +472,8 @@ namespace brownstone_hub_api.Controllers
                 docxResponse.Data!, 
                 $"lease-{id}.docx", 
                 id, 
-                "DOCX");
+                "DOCX",
+                organizationId.Value);
 
             if (!saveResponse.Success)
                 return StatusCode(saveResponse.StatusCode, new
@@ -500,7 +488,10 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("instance/{id}/documents")]
         public async Task<IActionResult> GetDocuments(long id)
         {
-            var response = await _leaseDocumentService.GetDocumentsByInstanceAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseDocumentService.GetDocumentsByInstanceAsync(id, organizationId.Value);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -516,7 +507,10 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("instance/{id}/review")]
         public async Task<IActionResult> ReviewLeaseInstance(long id)
         {
-            var response = await _leaseGenerationService.ReviewLeaseInstanceAsync(id);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await _leaseGenerationService.ReviewLeaseInstanceAsync(id, organizationId.Value);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
