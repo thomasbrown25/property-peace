@@ -38,6 +38,7 @@ const LeaseActivity = Loadable(lazy(() => import('pages/landlord/lease-activity'
 const LeaseCharges = Loadable(lazy(() => import('pages/landlord/lease-charges')));
 const LeaseUploadDocument = Loadable(lazy(() => import('pages/landlord/lease-upload-document')));
 const LeaseAddendum = Loadable(lazy(() => import('pages/landlord/lease-addendum')));
+const LeaseBuilderPage = Loadable(lazy(() => import('pages/landlord/lease-builder')));
 const LeaseBuilderBulkPage = Loadable(lazy(() => import('pages/landlord/lease-builder-bulk')));
 const LeaseAddTenantPage = Loadable(lazy(() => import('pages/landlord/lease-add-tenant')));
 const LeaseSelectionPage = Loadable(lazy(() => import('pages/landlord/lease-selection')));
