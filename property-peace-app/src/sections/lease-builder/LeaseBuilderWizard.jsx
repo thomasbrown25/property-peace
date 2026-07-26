@@ -30,6 +30,7 @@ import { selectUnits } from 'store/unit/unit.selector';
 import { getUnits } from 'store/unit/unit.action';
 import useFetchProperties from 'hooks/useFetchProperties';
 import LeaseCreatedSuccessDialog from 'components/dialogs/LeaseCreatedSuccessDialog';
+import { getActiveOrganizationId } from 'utils/impersonationSession';
 
 // ==============================|| LEASE BUILDER WIZARD ||============================== //
 
@@ -161,9 +162,8 @@ export default function LeaseBuilderWizard({ leaseId, onComplete, initialPropert
         monthsDiff = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
       }
       
-      // Get organization ID from localStorage or Redux store
       const state = store.getState();
-      const currentOrganizationId = localStorage.getItem('currentOrganizationId') || state?.auth?.user?.currentOrganizationId || selectedProperty?.organizationId;
+      const currentOrganizationId = getActiveOrganizationId(state?.auth?.user) || selectedProperty?.organizationId;
       
       const leaseData = {
         Id: 0, // New lease

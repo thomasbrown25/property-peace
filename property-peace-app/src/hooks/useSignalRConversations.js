@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import useAuth from 'hooks/useAuth';
+import { getActiveAccessToken } from 'utils/impersonationSession';
 
 /**
  * Custom hook for managing SignalR connection for real-time conversation updates
@@ -88,7 +89,7 @@ export default function useSignalRConversations() {
     }
 
     // Get token for authentication
-    const token = localStorage.getItem('serviceToken') || localStorage.getItem('token');
+    const token = getActiveAccessToken();
     if (!token) {
       return;
     }
@@ -105,7 +106,7 @@ export default function useSignalRConversations() {
       const connection = new HubConnectionBuilder()
         .withUrl(hubUrl, {
           accessTokenFactory: () => {
-            const currentToken = localStorage.getItem('serviceToken') || localStorage.getItem('token');
+            const currentToken = getActiveAccessToken();
             return currentToken || '';
           },
           skipNegotiation: false,

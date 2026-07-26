@@ -18,6 +18,7 @@ import Loader from 'components/Loader';
 import Breadcrumbs from 'components/@extended/Breadcrumbs';
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import SuspensionBanner from 'components/account/SuspensionBanner';
+import ImpersonationBanner from 'components/admin/ImpersonationBanner';
 import PageTransition from 'components/PageTransition';
 import useAuth from 'hooks/useAuth';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -198,6 +199,7 @@ export default function DashboardLayout() {
               }
             }}
           >
+            <ImpersonationBanner />
             {isSuspended && <SuspensionBanner />}
             <Box sx={{ 
               position: 'relative', 

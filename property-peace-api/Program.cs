@@ -13,6 +13,7 @@ using brownstone_hub_api.Data;
 using Newtonsoft.Json;
 using brownstone_hub_api.Services.HealthService;
 using brownstone_hub_api.Services.UserService;
+using brownstone_hub_api.Services.ImpersonationService;
 using brownstone_hub_api.Services.UserContextService;
 using brownstone_hub_api.Services.LoggingService;
 using Azure.Storage.Blobs;
@@ -83,6 +84,8 @@ using brownstone_hub_api.Repositories.Expenses;
 using brownstone_hub_api.Repositories.RecurringExpenses;
 using brownstone_hub_api.Repositories.FutureExpenses;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.HttpOverrides;
+using System.Net;
 using brownstone_hub_api.Hubs;
 using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Repositories.ExpenseReceipts;
@@ -261,6 +264,18 @@ services.AddDbContext<DataContext>(
     }
 );
 
+// Honor proxy scheme/client information only from explicitly trusted proxies (loopback remains trusted
+// by framework default). Configure additional production proxy addresses under ForwardedHeaders:KnownProxies.
+services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardLimit = 1;
+    foreach (var configuredProxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+    {
+        if (IPAddress.TryParse(configuredProxy, out var proxy)) options.KnownProxies.Add(proxy);
+    }
+});
+
 // Rate limiting configuration
 services.AddMemoryCache();
 services.Configure<IpRateLimitOptions>(options =>
@@ -309,6 +324,13 @@ services.Configure<IpRateLimitOptions>(options =>
             Period = "1h",
             Limit = 5 // 5 password reset attempts per hour
         },
+        // Anonymous, tab-isolated impersonation refresh is limited per source IP.
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/admin/impersonation/refresh",
+            Period = "1m",
+            Limit = 10
+        },
         // Webhook endpoints should not be rate limited (they come from external services)
         new RateLimitRule
         {
@@ -328,6 +350,24 @@ services.Configure<IpRateLimitOptions>(options =>
             Endpoint = "GET:/api/config/public",
             Period = "1m",
             Limit = 10 // 10 requests per minute per IP (mobile apps cache this)
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/admin/impersonation/start*",
+            Period = "1m",
+            Limit = 5
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/admin/impersonation/refresh",
+            Period = "1m",
+            Limit = 20
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/admin/impersonation/stop",
+            Period = "1m",
+            Limit = 10
         },
         // General API rate limiting
         new RateLimitRule
@@ -375,6 +415,9 @@ services.AddAutoMapper(typeof(Program).Assembly);
 // Services
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
 services.AddScoped<IUserService, UserService>();
+services.AddSingleton<ImpersonationConnectionRegistry>();
+services.AddSingleton<ImpersonationHubFilter>();
+services.AddScoped<IImpersonationService, ImpersonationService>();
 services.AddScoped<IUserContextService, UserContextService>();
 services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 services.AddScoped<IPropertyService, PropertyService>();
@@ -560,6 +603,7 @@ services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = builder.Environment.IsDevelopment();
     options.MaximumReceiveMessageSize = 65536; // 64KB
+    options.AddFilter<ImpersonationHubFilter>();
 });
 
 // Background Services
@@ -794,8 +838,25 @@ services
         // Configure JWT Bearer for SignalR and role claims
         options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
         {
-            OnTokenValidated = context =>
+            OnTokenValidated = async context =>
             {
+                if (context.Principal == null)
+                {
+                    context.Fail("Token principal is unavailable.");
+                    return;
+                }
+
+                if (string.Equals(context.Principal.FindFirstValue("is_impersonating"), "true", StringComparison.OrdinalIgnoreCase) &&
+                    !context.HttpContext.Request.Path.Equals("/api/admin/impersonation/stop", StringComparison.OrdinalIgnoreCase))
+                {
+                    var impersonationService = context.HttpContext.RequestServices.GetRequiredService<IImpersonationService>();
+                    if (!await impersonationService.ValidateAccessTokenSessionAsync(context.Principal))
+                    {
+                        context.Fail("Impersonation session is stopped, expired, or invalid.");
+                        return;
+                    }
+                }
+
                 // Ensure role claims are properly added to the identity
                 // This is needed because DefaultInboundClaimTypeMap.Clear() might affect role claim mapping
                 if (context.Principal?.Identity is ClaimsIdentity identity)
@@ -811,7 +872,6 @@ services
                         }
                     }
                 }
-                return Task.CompletedTask;
             },
             OnMessageReceived = context =>
             {
@@ -1004,6 +1064,8 @@ services.ConfigureHttpJsonOptions(o =>
 });
 
 var app = builder.Build();
+// Must run before redirects, authentication, cookies, auditing, rate limits, and endpoint routing.
+app.UseForwardedHeaders();
 ServiceResponseSettings.ShowDetailedErrors = app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Local");
 Console.WriteLine($"[Config] Detailed API error responses: {(ServiceResponseSettings.ShowDetailedErrors ? "enabled" : "disabled")}");
 
@@ -1064,6 +1126,9 @@ app.UseAuthentication();
 
 // Organization context middleware - sets organization context from header/user
 app.UseOrganizationContext();
+
+// Persist one post-completion, body-free record for every impersonated request.
+app.UseImpersonationAudit();
 
 app.UseAuthorization();
 

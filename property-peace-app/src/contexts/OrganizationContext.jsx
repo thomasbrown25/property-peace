@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import { useSWRConfig } from 'swr';
 import { organizationAPI } from 'api';
 import useAuth from 'hooks/useAuth';
+import { clearActiveOrganizationId, setActiveOrganizationId } from 'utils/impersonationSession';
 
 const OrganizationContext = createContext(null);
 
@@ -20,7 +21,7 @@ export const OrganizationProvider = ({ children }) => {
           const org = currentOrgs.find(o => o.id === organizationId);
           if (org) {
             setCurrentOrganization(org);
-            localStorage.setItem('currentOrganizationId', organizationId.toString());
+            setActiveOrganizationId(organizationId);
             // Invalidate all SWR cache to refetch data with new organization context
             swrMutate(() => true, undefined, { revalidate: true });
             // Trigger a page reload to refresh all data with new organization context
@@ -81,14 +82,14 @@ export const OrganizationProvider = ({ children }) => {
               const currentOrgResponse = await organizationAPI.getCurrentOrganization();
               if (currentOrgResponse.success && currentOrgResponse.data) {
                 setCurrentOrganization(currentOrgResponse.data);
-                localStorage.setItem('currentOrganizationId', currentOrgResponse.data.id.toString());
+                setActiveOrganizationId(currentOrgResponse.data.id);
               } else if (response.data.length > 0) {
                 // If no current org but user has organizations, use the first one
                 const firstOrg = response.data[0];
                 setCurrentOrganization(firstOrg);
                 try {
                   await organizationAPI.switchOrganization(firstOrg.id);
-                  localStorage.setItem('currentOrganizationId', firstOrg.id.toString());
+                  setActiveOrganizationId(firstOrg.id);
                   swrMutate(() => true, undefined, { revalidate: true });
                 } catch (error) {
                   console.error('Error switching to first organization:', error);
@@ -121,7 +122,7 @@ export const OrganizationProvider = ({ children }) => {
               const currentOrgResponse = await organizationAPI.getCurrentOrganization();
               if (currentOrgResponse.success && currentOrgResponse.data) {
                 setCurrentOrganization(currentOrgResponse.data);
-                localStorage.setItem('currentOrganizationId', currentOrgResponse.data.id.toString());
+                setActiveOrganizationId(currentOrgResponse.data.id);
               } else if (response.data.length > 0) {
                 // If no current org but user has organizations, use the first one
                 const firstOrg = response.data[0];
@@ -129,7 +130,7 @@ export const OrganizationProvider = ({ children }) => {
                 // Call switchOrganization API directly to avoid circular dependency
                 try {
                   await organizationAPI.switchOrganization(firstOrg.id);
-                  localStorage.setItem('currentOrganizationId', firstOrg.id.toString());
+                  setActiveOrganizationId(firstOrg.id);
                   swrMutate(() => true, undefined, { revalidate: true });
                 } catch (error) {
                   console.error('Error switching to first organization:', error);
@@ -137,14 +138,14 @@ export const OrganizationProvider = ({ children }) => {
               } else {
                 // Landlord has no organizations - this is OK, they can create one
                 setCurrentOrganization(null);
-                localStorage.removeItem('currentOrganizationId');
+                clearActiveOrganizationId();
               }
             } catch (orgError) {
               // For landlords, missing current organization is OK if they have no orgs
               if (orgError?.response?.status === 400 || orgError?.response?.status === 404) {
                 // Expected - landlord doesn't have an organization yet
                 setCurrentOrganization(null);
-                localStorage.removeItem('currentOrganizationId');
+                clearActiveOrganizationId();
               } else {
               }
             }
@@ -152,13 +153,13 @@ export const OrganizationProvider = ({ children }) => {
             // No organizations found - this is OK for landlords
             setOrganizations([]);
             setCurrentOrganization(null);
-            localStorage.removeItem('currentOrganizationId');
+            clearActiveOrganizationId();
           }
         } catch (error) {
           // For landlords, organization errors should be handled gracefully
           setOrganizations([]);
           setCurrentOrganization(null);
-          localStorage.removeItem('currentOrganizationId');
+          clearActiveOrganizationId();
         }
       }
     } catch (error) {
@@ -181,7 +182,7 @@ export const OrganizationProvider = ({ children }) => {
     } else {
       setCurrentOrganization(null);
       setOrganizations([]);
-      localStorage.removeItem('currentOrganizationId');
+      clearActiveOrganizationId();
       setLoading(false);
     }
   }, [auth?.isLoggedIn, loadOrganizations]);

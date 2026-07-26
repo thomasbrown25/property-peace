@@ -78,6 +78,7 @@ import AddTenantDialog from 'components/dialogs/AddTenantDialog';
 import { tenantInviteAPI } from 'api';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
 import axiosServices from 'utils/axios';
+import { getActiveOrganizationId } from 'utils/impersonationSession';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 
 // hooks
@@ -326,7 +327,7 @@ export default function LeaseEditPage() {
         const isPropertySingleFamily = propertyType === 'singlefamily' || propertyType === 'single-family';
 
         // Update lease (preserve organizationId so it is never sent as null)
-        const organizationId = currentLease?.organizationId ?? currentLease?.OrganizationId ?? property?.organizationId ?? user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? localStorage.getItem('currentOrganizationId');
+        const organizationId = currentLease?.organizationId ?? currentLease?.OrganizationId ?? property?.organizationId ?? getActiveOrganizationId(user);
         const payload = {
           Id: currentLease.id,
           PropertyId: Number(currentLease.propertyId),
@@ -422,7 +423,7 @@ export default function LeaseEditPage() {
               try {
                 console.log('Creating user account for tenant:', tenant.email);
                 // Get organization ID from current user (landlord)
-                const organizationId = user?.currentOrganizationId || user?.CurrentOrganizationId || localStorage.getItem('currentOrganizationId');
+                const organizationId = getActiveOrganizationId(user);
                 const registerResponse = await axiosServices.post('/api/user/register', {
                 email: tenant.email.trim(),
                 password: tenant.password,

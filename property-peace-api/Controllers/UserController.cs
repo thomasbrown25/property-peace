@@ -169,24 +169,26 @@ namespace brownstone_hub_api.Controllers
 
         private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt)
         {
+            var secure = !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment() || Request.IsHttps;
             Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
             {
                 HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+                Secure = secure,
+                SameSite = secure ? SameSiteMode.None : SameSiteMode.Lax,
                 Expires = expiresAt,
-                Path = "/api/user"
+                Path = "/"
             });
         }
 
         private void ClearRefreshTokenCookie()
         {
+            var secure = !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment() || Request.IsHttps;
             Response.Cookies.Delete("refreshToken", new CookieOptions
             {
                 HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
-                Path = "/api/user"
+                Secure = secure,
+                SameSite = secure ? SameSiteMode.None : SameSiteMode.Lax,
+                Path = "/"
             });
         }
 

@@ -812,6 +812,22 @@ namespace brownstone_hub_api.Services.UserService
             return response;
         }
 
+        public async Task<LoadUserDto> CreateAccessToken(long userId)
+        {
+            var user = await _userRepository.GetUser(userId)
+                ?? throw new InvalidOperationException("User not found");
+
+            if (user.IsDeleted || user.IsSuspended)
+            {
+                throw new InvalidOperationException("User is not allowed to start a session");
+            }
+
+            var loadedUser = await _userRepository.GetUserByEmailAsync(user.Email)
+                ?? throw new InvalidOperationException("User not found");
+            loadedUser.JWTToken = CreateToken(ToTokenUser(loadedUser));
+            return loadedUser;
+        }
+
         public async Task<RefreshSessionDto> CreateRefreshSession(long userId)
         {
             var user = await _userRepository.GetUser(userId)
@@ -849,17 +865,23 @@ namespace brownstone_hub_api.Services.UserService
             };
         }
 
-        public async Task<RefreshSessionDto?> RefreshSession(string refreshToken)
+        public Task<RefreshSessionDto?> RefreshSession(string refreshToken) =>
+            RotateRefreshSessionForUser(refreshToken, 0);
+
+        public async Task<RefreshSessionDto?> RotateRefreshSessionForUser(string refreshToken, long expectedUserId)
         {
             if (string.IsNullOrWhiteSpace(refreshToken)) return null;
 
             var tokenHash = HashRefreshToken(refreshToken);
             var storedToken = await _dataContext.UserRefreshTokens
+                .AsNoTracking()
                 .Include(token => token.User)
                 .SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
 
-            if (storedToken == null || storedToken.RevokedAt != null || storedToken.ExpiresAt <= DateTime.UtcNow ||
-                storedToken.User.IsDeleted || storedToken.User.IsSuspended)
+            var now = DateTime.UtcNow;
+            if (storedToken == null || storedToken.RevokedAt != null || storedToken.ExpiresAt <= now ||
+                storedToken.User.IsDeleted || storedToken.User.IsSuspended ||
+                (expectedUserId != 0 && storedToken.UserId != expectedUserId))
             {
                 return null;
             }
@@ -869,10 +891,21 @@ namespace brownstone_hub_api.Services.UserService
 
             var replacementToken = GenerateRefreshToken();
             var replacementHash = HashRefreshToken(replacementToken);
-            var expiresAt = DateTime.UtcNow.AddDays(_configuration.GetValue<double?>("JwtSettings:RefreshTokenExpiresInDays") ?? 30);
+            var expiresAt = now.AddDays(_configuration.GetValue<double?>("JwtSettings:RefreshTokenExpiresInDays") ?? 30);
 
-            storedToken.RevokedAt = DateTime.UtcNow;
-            storedToken.ReplacedByTokenHash = replacementHash;
+            var ownsTransaction = _dataContext.Database.CurrentTransaction == null;
+            await using var transaction = ownsTransaction ? await _dataContext.Database.BeginTransactionAsync() : null;
+            var rotated = await _dataContext.UserRefreshTokens
+                .Where(token => token.Id == storedToken.Id && token.RevokedAt == null && token.ExpiresAt > now)
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(token => token.RevokedAt, now)
+                    .SetProperty(token => token.ReplacedByTokenHash, replacementHash));
+            if (rotated != 1)
+            {
+                if (transaction != null) await transaction.RollbackAsync();
+                return null;
+            }
+
             _dataContext.UserRefreshTokens.Add(new Models.UserRefreshToken
             {
                 UserId = storedToken.UserId,
@@ -880,6 +913,7 @@ namespace brownstone_hub_api.Services.UserService
                 ExpiresAt = expiresAt
             });
             await _dataContext.SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
 
             loadedUser.JWTToken = CreateToken(ToTokenUser(loadedUser));
             return new RefreshSessionDto
@@ -909,6 +943,7 @@ namespace brownstone_hub_api.Services.UserService
 
         private static AddUserDto ToTokenUser(LoadUserDto user) => new()
         {
+            Id = user.Id,
             Email = user.Email,
             Firstname = user.Firstname,
             Lastname = user.Lastname,
@@ -1614,6 +1649,12 @@ namespace brownstone_hub_api.Services.UserService
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
             };
+
+            if (user.Id > 0)
+            {
+                claims.Add(new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()));
+                claims.Add(new Claim("userId", user.Id.ToString()));
+            }
 
             // Add a separate role claim for each role in the list
             // This is required for [Authorize(Roles = "Admin")] to work correctly

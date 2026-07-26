@@ -53,6 +53,9 @@ const auth = (state = initialState, action) => {
         }
       };
     }
+    case 'SET_IMPERSONATION': {
+      return { ...state, impersonation: action.payload || null };
+    }
     case 'INITIALIZED': {
       return {
         ...state,

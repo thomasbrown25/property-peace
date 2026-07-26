@@ -90,6 +90,8 @@ namespace brownstone_hub_api.Data
 
         public DbSet<User> Users => Set<User>();
         public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
+        public DbSet<ImpersonationSession> ImpersonationSessions => Set<ImpersonationSession>();
+        public DbSet<ImpersonationAuditRecord> ImpersonationAuditRecords => Set<ImpersonationAuditRecord>();
         public DbSet<PasskeyCredential> PasskeyCredentials => Set<PasskeyCredential>();
         public DbSet<PasskeyCeremony> PasskeyCeremonies => Set<PasskeyCeremony>();
         public DbSet<Role> Roles => Set<Role>();

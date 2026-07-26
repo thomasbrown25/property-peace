@@ -41,6 +41,8 @@ import {
 } from '@property-peace/shared/api';
 import store from 'store';
 import { logout } from 'store/user/user.action';
+import { ensureActiveAccessToken } from 'utils/axios';
+import { getActiveAccessToken, getActiveOrganizationId, isImpersonating, notifyImpersonationExpired } from 'utils/impersonationSession';
 
 // Helper function to normalize the API URL
 const getApiBaseURL = () => {
@@ -74,21 +76,33 @@ const getApiBaseURL = () => {
 
 // Create axios instance
 const axiosInstance = axios.create({
-  baseURL: getApiBaseURL()
+  baseURL: getApiBaseURL(),
+  withCredentials: true
+});
+
+// Apply the same tab-aware token to direct uses of the shared client's axios instance.
+axiosInstance.interceptors.request.use(async (config) => {
+  let token = getActiveAccessToken();
+  if (token) token = await ensureActiveAccessToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const organizationId = getActiveOrganizationId(store.getState().auth?.user);
+  if (organizationId && !config.headers['X-Organization-Id'] && !config.headers['x-organization-id']) {
+    config.headers['X-Organization-Id'] = organizationId.toString();
+  }
+  return config;
 });
 
 // Create platform-specific API client
 const apiClient = new ApiClient({
   baseURL: getApiBaseURL(),
   httpClient: axiosInstance,
-  getToken: async () => {
-    const state = store.getState();
-    return state.auth?.token || localStorage.getItem('serviceToken') || localStorage.getItem('token');
-  },
-  getOrganizationId: async () => {
-    return localStorage.getItem('currentOrganizationId') || store.getState().auth?.user?.currentOrganizationId;
-  },
+  getToken: async () => getActiveAccessToken(),
+  getOrganizationId: async () => getActiveOrganizationId(store.getState().auth?.user),
   onTokenExpired: () => {
+    if (isImpersonating()) {
+      notifyImpersonationExpired();
+      return;
+    }
     store.dispatch(logout());
     if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/register')) {
       window.location.href = '/login';

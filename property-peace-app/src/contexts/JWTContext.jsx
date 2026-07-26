@@ -1,4 +1,4 @@
-import { createContext, useEffect, useReducer } from 'react';
+import { createContext, useCallback, useEffect, useReducer, useRef } from 'react';
 
 // third-party
 import { Chance } from 'chance';
@@ -12,11 +12,21 @@ import authReducer from 'contexts/auth-reducer/auth';
 
 // project imports
 import Loader from 'components/Loader';
-import axios, { refreshAccessToken } from 'utils/axios';
+import axios, { checkImpersonationStatus, refreshAccessToken, refreshImpersonationAccessToken } from 'utils/axios';
 import store from 'store';
 import { USER_ACTION_TYPES } from 'store/user/user.types';
 import { getBrowserTimezone } from 'utils/browserTimezone';
 import { getPostLoginRedirectPath } from 'utils/authRedirect';
+import {
+  clearImpersonationSession,
+  getActiveAccessToken,
+  getImpersonationMetadata,
+  getUserOrganizationId,
+  isImpersonating,
+  normalizeImpersonationResponse,
+  saveImpersonationSession,
+  updateImpersonationSession
+} from 'utils/impersonationSession';
 
 const chance = new Chance();
 
@@ -24,7 +34,8 @@ const chance = new Chance();
 const initialState = {
   isLoggedIn: false,
   isInitialized: false,
-  user: null
+  user: null,
+  impersonation: null
 };
 
 const verifyToken = (serviceToken) => {
@@ -83,75 +94,69 @@ const JWTContext = createContext(null);
 export const JWTProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const { mutate: swrMutate } = useSWRConfig();
+  const returnToAdminPromiseRef = useRef(null);
 
   useEffect(() => {
     const init = async () => {
       try {
-        let serviceToken = localStorage.getItem('serviceToken');
+        let serviceToken = getActiveAccessToken();
+        const impersonating = isImpersonating();
 
         if (!verifyToken(serviceToken)) {
           try {
-            serviceToken = await refreshAccessToken();
-          } catch (refreshError) {
-            setSession(null);
-            serviceToken = null;
+            serviceToken = impersonating ? await refreshImpersonationAccessToken() : await refreshAccessToken();
+          } catch {
+            if (impersonating) {
+              clearImpersonationSession();
+              // Never revive the administrator JWT that predated impersonation.
+              setSession(null);
+              serviceToken = null;
+            } else {
+              setSession(null);
+              serviceToken = null;
+            }
           }
         }
 
         if (serviceToken && verifyToken(serviceToken)) {
-          setSession(serviceToken);
-
-          // ✅ only mark logged in if we actually load a user
-          try {
-            const response = await axios.get('/api/user/load-user');
-
-            // Check if response is successful
-            if (response.data && response.data.success && response.data.data) {
-              const user = response.data.data;
-
-
-              dispatch({
-                type: LOGIN,
-                payload: {
-                  isLoggedIn: true,
-                  user
-                }
-              });
-              await ensureBrowserTimezoneSetting();
-            } else {
-              // Invalid response structure
-              dispatch({ type: LOGOUT });
+          if (!isImpersonating()) setSession(serviceToken);
+          if (isImpersonating()) {
+            await checkImpersonationStatus();
+          }
+          const response = await axios.get('/api/user/load-user');
+          if (response.data?.success && response.data?.data) {
+            const loadedUser = response.data.data;
+            if (isImpersonating()) {
+              updateImpersonationSession({ metadata: {
+                targetUser: loadedUser,
+                targetOrganizationId: getUserOrganizationId(loadedUser) || null
+              } });
             }
-          } catch (apiError) {
-            // API call failed (401, network error, etc.)
-            // If it's a 401, token is invalid - clear it
-            if (apiError.response?.status === 401) {
-              setSession(null);
-            }
+            dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: loadedUser } });
+            dispatch({ type: 'SET_IMPERSONATION', payload: getImpersonationMetadata() });
+            if (!isImpersonating()) await ensureBrowserTimezoneSetting();
+          } else {
             dispatch({ type: LOGOUT });
           }
         } else {
-          // No token or token expired
-          if (serviceToken) {
-            setSession(null);
-          }
           dispatch({ type: LOGOUT });
         }
       } catch (err) {
+        // Failure to validate the effective identity fails closed; an old admin JWT is never restored.
+        if (isImpersonating()) {
+          clearImpersonationSession();
+          setSession(null);
+          dispatch({ type: LOGOUT });
+          window.location.replace('/login');
+          return;
+        }
         dispatch({ type: LOGOUT });
       } finally {
-        // ✅ ensure we always mark initialized once
-        dispatch({
-          type: 'INITIALIZED',
-          payload: true
-        });
+        dispatch({ type: 'INITIALIZED', payload: true });
       }
     };
 
-    // Only initialize if not already initialized
-    if (!state.isInitialized) {
-      init();
-    }
+    if (!state.isInitialized) init();
   }, [state.isInitialized]);
 
   const completeLogin = async (user, explicitInviteToken = null) => {
@@ -532,7 +537,124 @@ export const JWTProvider = ({ children }) => {
     }
   };
 
+  const startImpersonation = async (targetUserId, reason, supportReference = '') => {
+    const response = await axios.post(`/api/admin/impersonation/start/${targetUserId}`, {
+      reason: reason.trim(),
+      supportReference: supportReference.trim() || null
+    });
+    const result = normalizeImpersonationResponse(response);
+    const targetName = [
+      result.user?.firstName ?? result.user?.firstname ?? result.user?.FirstName ?? result.user?.Firstname,
+      result.user?.lastName ?? result.user?.lastname ?? result.user?.LastName ?? result.user?.Lastname
+    ].filter(Boolean).join(' ') || result.user?.email || result.user?.Email || 'user';
+    const metadata = {
+      sessionId: result.envelope?.sessionId ?? result.envelope?.impersonationSessionId,
+      targetUserId,
+      targetName,
+      targetEmail: result.user?.email ?? result.user?.Email,
+      reason: reason.trim(),
+      supportReference: supportReference.trim() || null,
+      startedAt: result.envelope?.startedAt ?? new Date().toISOString(),
+      sessionExpiresAt: result.sessionExpiresAt,
+      accessTokenExpiresAt: result.accessTokenExpiresAt,
+      targetUser: result.user,
+      targetOrganizationId: getUserOrganizationId(result.user) || null
+    };
+    saveImpersonationSession({ accessToken: result.accessToken, refreshToken: result.refreshToken, metadata });
+
+    let targetUser;
+    try {
+      const loadResponse = await axios.get('/api/user/load-user');
+      targetUser = loadResponse.data?.data;
+      if (!targetUser?.id && !targetUser?.Id) throw new Error('Unable to load the target user.');
+    } catch (error) {
+      try {
+        await axios.post('/api/admin/impersonation/stop', undefined, { skipAuthRedirect: true });
+      } catch {
+        // The start still fails closed locally if server cleanup is unavailable.
+      }
+      clearImpersonationSession();
+      throw error;
+    }
+
+    const completeMetadata = {
+      ...metadata,
+      targetUser,
+      targetOrganizationId: getUserOrganizationId(targetUser) || null
+    };
+    updateImpersonationSession({ metadata: completeMetadata });
+    dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: targetUser } });
+    dispatch({ type: 'SET_IMPERSONATION', payload: completeMetadata });
+    swrMutate(() => true, undefined, { revalidate: false });
+    return { user: targetUser, metadata: completeMetadata };
+  };
+
+  const returnToAdmin = useCallback(async ({ expired = false } = {}) => {
+    if (returnToAdminPromiseRef.current) return returnToAdminPromiseRef.current;
+
+    const operation = (async () => {
+      let restoredUser = null;
+      let restoredToken = null;
+      let restorationMustFailClosed = expired;
+      try {
+        const response = await axios.post('/api/admin/impersonation/stop', undefined, { skipAuthRedirect: true });
+        const result = normalizeImpersonationResponse(response);
+        restoredUser = result.user;
+        restoredToken = result.accessToken;
+        // Once stop succeeds, the target token is revoked and cannot safely remain in the UI.
+        restorationMustFailClosed = true;
+        if (!restoredToken || (!restoredUser?.id && !restoredUser?.Id)) {
+          throw new Error('The server did not return a secure administrator session.');
+        }
+      } catch (error) {
+        const status = error?.status ?? error?.response?.status;
+        // Network/server failures before stop are retryable. Revocation, expiry, or an incomplete
+        // successful stop response must fail closed rather than mixing target and admin identity.
+        if (!restorationMustFailClosed && status !== 401 && status !== 403) throw error;
+      }
+
+      dispatch({ type: 'SET_IMPERSONATION', payload: null });
+      dispatch({ type: LOGOUT });
+      clearImpersonationSession();
+
+      if (!restoredUser || !restoredToken) {
+        setSession(null);
+        window.location.replace('/login');
+        return;
+      }
+
+      // Only the newly minted access token from the secure stop response may restore the actor.
+      setSession(restoredToken);
+      dispatch({ type: LOGIN, payload: { isLoggedIn: true, user: restoredUser } });
+      swrMutate(() => true, undefined, { revalidate: false });
+      window.location.replace('/admin/dashboard');
+    })();
+
+    returnToAdminPromiseRef.current = operation;
+    try {
+      return await operation;
+    } finally {
+      returnToAdminPromiseRef.current = null;
+    }
+  }, [swrMutate]);
+
+  useEffect(() => {
+    const handleExpired = () => returnToAdmin({ expired: true });
+    window.addEventListener('impersonation-expired', handleExpired);
+    return () => window.removeEventListener('impersonation-expired', handleExpired);
+  }, [returnToAdmin]);
+
   const logout = async () => {
+    if (isImpersonating()) {
+      await returnToAdmin();
+      return { returnedToAdmin: true };
+    }
+
+    // Also remove malformed/partial impersonation storage before ordinary logout.
+    dispatch({ type: 'SET_IMPERSONATION', payload: null });
+    dispatch({ type: LOGOUT });
+    clearImpersonationSession();
+
     try {
       await axios.post('/api/user/logout');
     } catch (error) {
@@ -624,7 +746,9 @@ export const JWTProvider = ({ children }) => {
         resetPassword,
         updateProfile,
         updateUser,
-        reloadUser
+        reloadUser,
+        startImpersonation,
+        returnToAdmin
       }}
     >
       {children}

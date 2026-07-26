@@ -64,6 +64,7 @@ import useAuth from 'hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import OrganizationCreatingOverlay from 'components/organization/OrganizationCreatingOverlay';
 import EditOrganizationModal from 'components/dialogs/EditOrganizationModal';
+import { clearActiveOrganizationId } from 'utils/impersonationSession';
 
 export default function Team() {
   const { currentOrganization, organizations, refreshOrganizations, switchOrganization } = useOrganization();
@@ -511,7 +512,7 @@ export default function Team() {
           }
         } else {
           // No other organizations - clear current organization
-          localStorage.removeItem('currentOrganizationId');
+          clearActiveOrganizationId();
           // Reload page to refresh all data
           window.location.reload();
         }

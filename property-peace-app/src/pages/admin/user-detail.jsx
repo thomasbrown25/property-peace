@@ -10,6 +10,11 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Grid,
   Stack,
   Table,
@@ -18,6 +23,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Typography,
   alpha,
   useTheme
@@ -37,6 +43,8 @@ import {
 import MainCard from 'components/MainCard';
 import { adminUserAPI } from 'api/admin/user';
 import { openSnackbar } from 'api/snackbar';
+import useAuth from 'hooks/useAuth';
+import { getPostLoginRedirectPath } from 'utils/authRedirect';
 
 const getField = (source, ...keys) => keys.map((key) => source?.[key]).find((value) => value !== undefined && value !== null && value !== '');
 
@@ -119,9 +127,15 @@ export default function AdminUserDetail() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { userId } = useParams();
+  const { startImpersonation, impersonation } = useAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [impersonationDialogOpen, setImpersonationDialogOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [supportReference, setSupportReference] = useState('');
+  const [impersonationError, setImpersonationError] = useState('');
+  const [startingImpersonation, setStartingImpersonation] = useState(false);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -209,6 +223,26 @@ export default function AdminUserDetail() {
   const currentOrganizationName = getField(user, 'currentOrganizationName', 'CurrentOrganizationName');
   const currentOrganizationRole = getField(user, 'currentOrganizationRole', 'CurrentOrganizationRole');
   const profileImageUrl = getField(user, 'profileImageUrl', 'ProfileImageUrl');
+  const isExplicitlyInactive = getField(user, 'isActive', 'IsActive') === false;
+  const isAdminTarget = details.roles.some((role) => String(role?.name ?? role?.Name ?? role).toLowerCase() === 'admin');
+  const canImpersonate = !isAdminTarget && !isDeleted && !isSuspended && !isExplicitlyInactive && !impersonation;
+
+  const handleStartImpersonation = async () => {
+    if (!reason.trim()) {
+      setImpersonationError('A reason is required for the audit log.');
+      return;
+    }
+    setStartingImpersonation(true);
+    setImpersonationError('');
+    try {
+      const result = await startImpersonation(getField(user, 'id', 'Id'), reason, supportReference);
+      openSnackbar({ open: true, message: `Now logged in as ${name}`, variant: 'alert', alert: { color: 'warning' } });
+      window.location.replace(getPostLoginRedirectPath(result.user));
+    } catch (err) {
+      setImpersonationError(err?.message || 'Unable to start impersonation.');
+      setStartingImpersonation(false);
+    }
+  };
 
   return (
     <Stack spacing={3}>
@@ -241,6 +275,11 @@ export default function AdminUserDetail() {
           </Stack>
 
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+            {canImpersonate && (
+              <Button variant="contained" color="warning" startIcon={<LoginOutlined />} onClick={() => setImpersonationDialogOpen(true)}>
+                Log in as user
+              </Button>
+            )}
             {details.roles.length ? details.roles.map((role) => <Chip key={role} label={role} color={roleChipColor(role)} />) : <Chip label="No Role" />}
           </Stack>
         </Stack>
@@ -357,6 +396,43 @@ export default function AdminUserDetail() {
           </TableContainer>
         )}
       </MainCard>
+
+      <Dialog open={impersonationDialogOpen} onClose={startingImpersonation ? undefined : () => setImpersonationDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Log in as {name}?</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            Impersonation is isolated to this tab. If the browser copies session data into a newly opened tab, that tab detects the different owner and discards the impersonation session. Your administrator session remains available in other tabs.
+          </DialogContentText>
+          <Stack spacing={2}>
+            <TextField
+              autoFocus
+              required
+              fullWidth
+              label="Reason"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              error={Boolean(impersonationError && !reason.trim())}
+              helperText="Required for the impersonation audit log"
+              inputProps={{ maxLength: 500 }}
+            />
+            <TextField
+              fullWidth
+              label="Support reference (optional)"
+              value={supportReference}
+              onChange={(event) => setSupportReference(event.target.value)}
+              placeholder="Ticket or case number"
+              inputProps={{ maxLength: 100 }}
+            />
+            {impersonationError && <Alert severity="error">{impersonationError}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setImpersonationDialogOpen(false)} disabled={startingImpersonation}>Cancel</Button>
+          <Button variant="contained" color="warning" onClick={handleStartImpersonation} disabled={!reason.trim() || startingImpersonation} startIcon={startingImpersonation ? <CircularProgress size={16} color="inherit" /> : <LoginOutlined />}>
+            {startingImpersonation ? 'Starting…' : 'Log in as user'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

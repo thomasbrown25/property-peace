@@ -16,6 +16,7 @@ import { organizationAPI } from 'api';
 import useAuth from 'hooks/useAuth';
 import { openSnackbar } from 'api/snackbar';
 import { useOrganization } from 'contexts/OrganizationContext';
+import { setActiveOrganizationId } from 'utils/impersonationSession';
 
 export default function CreateOrganizationDialog({ open, onClose, onCreatingStart }) {
   const [organizationName, setOrganizationName] = useState('');
@@ -71,8 +72,7 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
           });
         }
 
-        // Set organization in localStorage for axios interceptor
-        localStorage.setItem('currentOrganizationId', response.data.id.toString());
+        setActiveOrganizationId(response.data.id);
 
         openSnackbar({
           open: true,

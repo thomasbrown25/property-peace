@@ -56,6 +56,7 @@ import AddressFieldWithPlaces from 'components/input/AddressFieldWithPlaces';
 import useCreateProperty from 'hooks/useCreateProperty';
 import { addUnit } from '../../api/unit';
 import axiosServices from 'utils/axios';
+import { getActiveOrganizationId } from 'utils/impersonationSession';
 import AddSwitch from '../AddSwitch';
 import { LeaseFields } from '../fields/LeaseFields';
 import TenantFields from '../fields/TenantFields';
@@ -296,10 +297,7 @@ export default function PropertyAddDrawer({ property, closeModal }) {
         // Note: For multi-unit properties, lease will be associated with the first unit
         // User can add leases for other units later from the property/unit pages
         if (values.showLease && createdUnits.length > 0) {
-          // Get organization ID from localStorage or user object
-          const currentOrganizationId = localStorage.getItem('currentOrganizationId') || 
-                                        user?.currentOrganizationId || 
-                                        user?.CurrentOrganizationId;
+          const currentOrganizationId = getActiveOrganizationId(user);
           
           const leasePayload = {
             PropertyId: created.id,

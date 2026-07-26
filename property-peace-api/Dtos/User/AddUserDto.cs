@@ -6,6 +6,8 @@ namespace brownstone_hub_api.Dtos.User
 {
     public class AddUserDto
     {
+        [JsonIgnore]
+        public long Id { get; set; }
         public string RegistrationCode { get; set; } = string.Empty;
         public string Firstname { get; set; } = string.Empty;
         public string Lastname { get; set; } = string.Empty;

@@ -26,6 +26,7 @@ import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import store from '../../store';
 import { formatCurrency } from 'utils/formatters';
+import { getActiveOrganizationId } from 'utils/impersonationSession';
 
 // ==============================|| BULK LEASE REVIEW STEP ||============================== //
 
@@ -89,8 +90,7 @@ export default function BulkLeaseReviewStep({ selectedUnits, onComplete, onError
     try {
       // Get organization ID
       const state = store.getState();
-      const currentOrganizationId = localStorage.getItem('currentOrganizationId') || 
-                                    state?.auth?.user?.currentOrganizationId || 
+      const currentOrganizationId = getActiveOrganizationId(state?.auth?.user) ||
                                     propertyGroups[0]?.propertyId;
 
       const leasePromises = unitsWithTerms.map(async (unit) => {
