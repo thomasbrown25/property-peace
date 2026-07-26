@@ -418,7 +418,7 @@ export default function AdminDashboard() {
       </Grid>
 
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 6, xl: 4 }}>
+        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
           <Section title="Subscription health" eyebrow="Commercial pulse" action={<Tooltip title={subscriptions.runRateLabel}><Chip icon={<DollarOutlined />} label={currencyFormatter.format(subscriptions.activePaidListPriceMonthlyRunRate)} size="small" sx={{ borderRadius: 0.75 }} /></Tooltip>}>
             <Grid container spacing={2} sx={{ p: 2.5 }}>
               <Grid size={6}><MiniStat label="Past due / unpaid" value={formatNumber(subscriptions.pastDueOrUnpaid)} color={subscriptions.pastDueOrUnpaid ? 'error.main' : 'success.main'} /></Grid>
@@ -436,7 +436,7 @@ export default function AdminDashboard() {
           </Section>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6, xl: 4 }}>
+        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
           <Section title="Portfolio operations" eyebrow="Production footprint">
             <Grid container spacing={2} sx={{ p: 2.5 }}>
               <Grid size={6}><MiniStat label="Properties" value={formatNumber(portfolio.properties)} /></Grid>
@@ -466,7 +466,7 @@ export default function AdminDashboard() {
           </Section>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 6, xl: 4 }}>
+        <Grid size={{ xs: 12, md: 6, lg: 4 }}>
           <Stack spacing={3}>
             <Section title="Support backlog" eyebrow="Production accounts" action={<Button size="small" endIcon={<ArrowRightOutlined />} onClick={() => navigate('/admin/messages')}>Open inbox</Button>}>
               <Grid container spacing={2} sx={{ p: 2.5 }}>
