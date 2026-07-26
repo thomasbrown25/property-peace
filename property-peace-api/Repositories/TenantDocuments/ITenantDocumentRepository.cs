@@ -5,6 +5,7 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
     public interface ITenantDocumentRepository
     {
         Task<LoadTenantDocumentDto> AddTenantDocument(AddTenantDocumentDto document, long? organizationId = null);
+        Task<LoadTenantDocumentDto> UpsertLeaseAgreementAsync(AddTenantDocumentDto document, long organizationId);
         Task<bool> CanAccessTenant(long tenantId, long? organizationId, long? userId, bool isTenantUser);
         Task<bool> CanAccessLease(long leaseId, long? organizationId, long? userId, bool isTenantUser);
         Task<LoadTenantDocumentDto?> GetTenantDocumentById(long id, long? organizationId, long? userId, bool isTenantUser);

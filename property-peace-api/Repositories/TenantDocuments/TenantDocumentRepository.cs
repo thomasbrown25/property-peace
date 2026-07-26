@@ -3,6 +3,7 @@ using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.TenantDocument;
 using brownstone_hub_api.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace brownstone_hub_api.Repositories.TenantDocuments
 {
@@ -65,6 +66,72 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
                 await _context.Entry(entity).Reference(e => e.Lease).LoadAsync();
 
             return MapToDto(entity);
+        }
+
+        public async Task<LoadTenantDocumentDto> UpsertLeaseAgreementAsync(AddTenantDocumentDto document, long organizationId)
+        {
+            if (!document.TenantId.HasValue || !document.LeaseId.HasValue || document.DocumentType != ETenantDocumentType.LeaseAgreement)
+                throw new ArgumentException("A tenant, lease, and LeaseAgreement type are required for generated lease publication.");
+
+            var validMembership = await _context.TenantLeases.AnyAsync(tl =>
+                tl.TenantId == document.TenantId.Value && tl.LeaseId == document.LeaseId.Value &&
+                tl.Tenant.OrganizationId == organizationId && tl.Lease.OrganizationId == organizationId &&
+                !tl.Tenant.IsDeleted && !tl.Lease.IsDeleted);
+            if (!validMembership)
+                throw new InvalidOperationException("Tenant and lease must be an active lease membership in the specified organization.");
+
+            var entity = await _context.TenantDocuments.SingleOrDefaultAsync(d =>
+                d.TenantId == document.TenantId && d.LeaseId == document.LeaseId &&
+                d.DocumentType == ETenantDocumentType.LeaseAgreement && !d.IsDeleted &&
+                d.OrganizationId == organizationId);
+            if (entity == null)
+            {
+                entity = _mapper.Map<Models.TenantDocument>(document);
+                entity.RefId = document.TenantId.Value;
+                entity.OrganizationId = organizationId;
+                _context.TenantDocuments.Add(entity);
+            }
+            else
+            {
+                ApplyLeaseAgreement(document, entity);
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return MapToDto(entity);
+            }
+            catch (DbUpdateException ex) when (IsUniqueIndexConflict(ex) && entity.Id == 0)
+            {
+                // A concurrent insert won the filtered unique index. Detach our failed insert and
+                // update the organization-scoped winner instead of retaining the losing entity.
+                _context.Entry(entity).State = EntityState.Detached;
+                var winner = await _context.TenantDocuments.SingleAsync(d =>
+                    d.TenantId == document.TenantId && d.LeaseId == document.LeaseId &&
+                    d.DocumentType == ETenantDocumentType.LeaseAgreement && !d.IsDeleted &&
+                    d.OrganizationId == organizationId);
+                ApplyLeaseAgreement(document, winner);
+                await _context.SaveChangesAsync();
+                return MapToDto(winner);
+            }
+        }
+
+        private static void ApplyLeaseAgreement(AddTenantDocumentDto document, Models.TenantDocument entity)
+        {
+            entity.FileName = document.FileName;
+            entity.Description = document.Description;
+            entity.BlobName = document.BlobName;
+            entity.BlobUrl = document.BlobUrl;
+            entity.IsRequired = document.IsRequired;
+            entity.UpdatedAt = DateTime.UtcNow;
+        }
+
+        private static bool IsUniqueIndexConflict(DbUpdateException exception)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+                if (current is SqlException sql && (sql.Number == 2601 || sql.Number == 2627))
+                    return true;
+            return false;
         }
 
         public async Task<bool> CanAccessTenant(long tenantId, long? organizationId, long? userId, bool isTenantUser)
@@ -339,7 +406,7 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
                 : "—";
             dto.DocumentTypeName = GetDocumentTypeName(document.DocumentType);
 
-            if (document.Lease != null)
+            if (document.Lease?.Unit?.Property != null)
                 dto.LeaseInfo = $"{document.Lease.Unit.Property.Name} - {document.Lease.Unit.Name}";
 
             return dto;
