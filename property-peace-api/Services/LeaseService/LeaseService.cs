@@ -682,6 +682,53 @@ namespace brownstone_hub_api.Services.LeaseService
 
                 var lease = leaseResponse.Data;
 
+                var orderedTenants = (lease.Tenants ?? [])
+                    .OrderBy(tenant => tenant.Id)
+                    .ToList();
+                var suppliedSigners = request.TenantSigners ?? [];
+                if (suppliedSigners.Count != orderedTenants.Count ||
+                    suppliedSigners.Select(signer => signer.TenantId).Distinct().Count() != suppliedSigners.Count ||
+                    !suppliedSigners.Select(signer => signer.TenantId).OrderBy(id => id)
+                        .SequenceEqual(orderedTenants.Select(tenant => tenant.Id)))
+                {
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "Invalid tenant signers",
+                        "Tenant signers must contain each current lease tenant exactly once, with no missing, extra, or duplicate tenant IDs.",
+                        "",
+                        400);
+                }
+
+                var suppliedById = suppliedSigners.ToDictionary(signer => signer.TenantId);
+                var normalizedSigners = new List<TenantSignerDto>(orderedTenants.Count);
+                for (var index = 0; index < orderedTenants.Count; index++)
+                {
+                    var tenant = orderedTenants[index];
+                    var supplied = suppliedById[tenant.Id];
+                    var storedEmail = tenant.Email?.Trim();
+                    var storedName = $"{tenant.Firstname} {tenant.Lastname}".Trim();
+                    if (string.IsNullOrWhiteSpace(storedEmail) || string.IsNullOrWhiteSpace(storedName) ||
+                        !string.Equals(supplied.Email?.Trim(), storedEmail, StringComparison.OrdinalIgnoreCase) ||
+                        !string.Equals(NormalizeSignerName(supplied.Name), NormalizeSignerName(storedName), StringComparison.OrdinalIgnoreCase))
+                    {
+                        return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                            "Invalid tenant signer identity",
+                            $"Signer identity does not match the stored tenant record for tenant ID {tenant.Id}.",
+                            "",
+                            400);
+                    }
+
+                    normalizedSigners.Add(new TenantSignerDto
+                    {
+                        TenantId = tenant.Id,
+                        Email = storedEmail,
+                        Name = storedName,
+                        SigningOrder = index + 2
+                    });
+                }
+
+                request.LeaseId = leaseId;
+                request.TenantSigners = normalizedSigners;
+
                 // Get lease document from tenant documents
                 byte[]? documentBytes = null;
                 string documentName = "Lease Agreement.pdf";
@@ -1507,6 +1554,9 @@ This is an automated email from Property Peace. Please do not reply to this mess
                 );
             }
         }
+
+        private static string NormalizeSignerName(string? name) =>
+            string.Join(' ', (name ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
         public async Task<ServiceResponse<bool>> AddTenantToLease(long leaseId, long tenantId)
         {

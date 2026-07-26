@@ -409,7 +409,13 @@ namespace brownstone_hub_api.Services.TenantDocumentService
                     // Fallback: Check for LeaseDocument from finalized LeaseInstance
                     try
                     {
-                        var instances = await _leaseInstanceRepository.GetLeaseInstancesByLeaseIdAsync(leaseId);
+                        // Access to the parent lease was verified above. Tenant requests may not carry
+                        // an organization item, so use the verified lease's organization as the scope.
+                        var leaseOrganizationId = organizationId ?? lease.OrganizationId;
+                        if (!leaseOrganizationId.HasValue)
+                            throw new InvalidOperationException("The verified lease has no organization scope.");
+
+                        var instances = await _leaseInstanceRepository.GetLeaseInstancesByLeaseIdAsync(leaseId, leaseOrganizationId.Value);
                         var finalizedInstance = instances
                             .Where(i => i.IsFinalized)
                             .OrderByDescending(i => i.FinalizedAt ?? i.GeneratedAt)

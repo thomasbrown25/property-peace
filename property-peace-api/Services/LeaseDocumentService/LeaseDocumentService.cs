@@ -4,6 +4,7 @@ using brownstone_hub_api.Dtos.Lease;
 using brownstone_hub_api.Dtos.LeaseGeneration;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.OpenAIService;
+using brownstone_hub_api.Services.ESignatureService;
 using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using brownstone_hub_api.Repositories.LeaseInstances;
@@ -70,13 +71,13 @@ namespace brownstone_hub_api.Services.LeaseDocumentService
             return null;
         }
 
-        public async Task<ServiceResponse<byte[]>> GeneratePdfAsync(long leaseInstanceId)
+        public async Task<ServiceResponse<byte[]>> GeneratePdfAsync(long leaseInstanceId, long organizationId)
         {
             try
             {
                 QuestPDF.Settings.License = LicenseType.Community;
 
-                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId);
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId, organizationId);
                 if (instance == null)
                 {
                     return ServiceResponse<byte[]>.CreateError("Instance not found", "The specified lease instance does not exist.");
@@ -170,7 +171,7 @@ namespace brownstone_hub_api.Services.LeaseDocumentService
                                     column.Item().Height(8);
                                     sectionNumber++;
                                 }
-                                column.Item().PaddingTop(14).Element(CreateSignatureBlock);
+                                column.Item().PaddingTop(14).Element(container => CreateSignatureBlock(container, lease));
                             });
 
                         page.Footer().Element(CreateLeaseFooter);
@@ -462,7 +463,7 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                 sections.Add(new DocumentSection
                 {
                     Title = "Keys",
-                    Content = "Keys to be provided to Tenant(s):\n" + string.Join("\n", keyLines) + "\n\nTenant(s) must return all keys at lease end.",
+                    Content = "Keys configured for Tenant(s):\n" + string.Join("\n", keyLines),
                     Enabled = true
                 });
             }
@@ -487,7 +488,8 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
             }
             else if (petsAllowed)
             {
-                sections.Add(new DocumentSection { Title = "Pets", Content = "Pets allowed. Details to be specified.", Enabled = true });
+                // The policy was answered, but there are no configured pet details to put in a contract.
+                // Do not invent restrictions or obligations.
             }
 
             if (lease.Parking != null && lease.Parking.IncludeParkingRules)
@@ -505,13 +507,21 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                 }
                 if (!string.IsNullOrWhiteSpace(lease.Parking.CustomRules))
                     parkingContent += lease.Parking.CustomRules;
-                if (string.IsNullOrWhiteSpace(parkingContent)) parkingContent = "Parking rules apply as specified.";
-                sections.Add(new DocumentSection { Title = "Parking", Content = parkingContent, Enabled = true });
+                if (!string.IsNullOrWhiteSpace(parkingContent))
+                    sections.Add(new DocumentSection { Title = "Parking", Content = parkingContent, Enabled = true });
             }
 
-            var smoking = lease.SmokingAllowed?.ToLowerInvariant() ?? "no";
-            var smokingText = smoking == "yes" ? "Smoking is permitted." : (smoking == "outsideonly" ? "Smoking permitted outside only." : "No smoking is permitted on the premises.");
-            sections.Add(new DocumentSection { Title = "Smoking", Content = smokingText, Enabled = true });
+            if (!string.IsNullOrWhiteSpace(lease.SmokingAllowed))
+            {
+                var smoking = lease.SmokingAllowed.ToLowerInvariant();
+                var smokingText = smoking == "yes"
+                    ? "Smoking is permitted."
+                    : smoking == "outsideonly"
+                        ? "Smoking permitted outside only."
+                        : smoking == "no" ? "No smoking is permitted on the premises." : null;
+                if (smokingText != null)
+                    sections.Add(new DocumentSection { Title = "Smoking", Content = smokingText, Enabled = true });
+            }
 
             if (lease.IncludeEarlyTerminationClause == true && !string.IsNullOrWhiteSpace(lease.EarlyTerminationClauseText))
             {
@@ -546,7 +556,7 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
             return sections;
         }
 
-        private static void CreateSignatureBlock(IContainer container)
+        private static void CreateSignatureBlock(IContainer container, LoadLeaseDto lease)
         {
             container.Column(column =>
             {
@@ -555,30 +565,29 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                     .Bold()
                     .FontColor(Colors.Black);
                 column.Item().Height(12);
-                column.Item().Row(row =>
+                column.Item().Column(sig =>
                 {
-                    row.RelativeItem().Column(sig =>
-                    {
-                        sig.Item().Text("Landlord Signature").FontSize(8).Bold();
-                        sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
-                        sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
-                    });
-                    row.ConstantItem(28);
-                    row.RelativeItem().Column(sig =>
-                    {
-                        sig.Item().Text("Tenant Signature").FontSize(8).Bold();
-                        sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
-                        sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
-                    });
+                    sig.Item().Text(LeaseSignatureAnchors.Landlord).FontSize(8).Bold();
+                    sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
+                    sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
                 });
+                foreach (var slot in LeaseSignatureLayout.ForTenantIds(lease.Tenants.Select(t => t.Id)))
+                {
+                    column.Item().PaddingTop(12).Column(sig =>
+                    {
+                        sig.Item().Text(slot.Anchor).FontSize(8).Bold();
+                        sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
+                        sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
+                    });
+                }
             });
         }
 
-        public async Task<ServiceResponse<byte[]>> GenerateDocxAsync(long leaseInstanceId)
+        public async Task<ServiceResponse<byte[]>> GenerateDocxAsync(long leaseInstanceId, long organizationId)
         {
             try
             {
-                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId);
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId, organizationId);
                 if (instance == null)
                 {
                     return ServiceResponse<byte[]>.CreateError("Instance not found", "The specified lease instance does not exist.");
@@ -645,55 +654,16 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
 
         private DocumentContent BuildDocumentContent(string templateStructure, Dictionary<string, string> variables, LeaseInstance instance)
         {
-            var content = new DocumentContent();
-
-            try
+            var sections = LeaseTemplateContentBuilder.BuildSections(templateStructure, variables);
+            return new DocumentContent
             {
-                var template = JsonSerializer.Deserialize<JsonElement>(templateStructure);
-                
-                if (template.TryGetProperty("sections", out var sectionsElement))
+                Sections = sections.Select(section => new DocumentSection
                 {
-                    foreach (var sectionElement in sectionsElement.EnumerateArray())
-                    {
-                        var sectionName = sectionElement.GetProperty("sectionName").GetString() ?? "";
-                        var enabled = sectionElement.TryGetProperty("enabled", out var enabledProp) && enabledProp.GetBoolean();
-
-                        var sectionContent = new StringBuilder();
-                        
-                        // Replace placeholders in section content
-                        if (sectionElement.TryGetProperty("content", out var contentProp))
-                        {
-                            var rawContent = contentProp.GetString() ?? "";
-                            sectionContent.Append(ReplacePlaceholders(rawContent, variables));
-                        }
-                        else
-                        {
-                            // Generate default content based on section name
-                            sectionContent.Append(GenerateDefaultSectionContent(sectionName, variables, instance));
-                        }
-
-                        content.Sections.Add(new DocumentSection
-                        {
-                            Title = sectionName,
-                            Content = sectionContent.ToString(),
-                            Enabled = enabled
-                        });
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error building document content from template");
-                // Fallback to basic content
-                content.Sections.Add(new DocumentSection
-                {
-                    Title = "Lease Agreement",
-                    Content = "This lease agreement is between the parties listed above.",
+                    Title = section.Title,
+                    Content = section.Content,
                     Enabled = true
-                });
-            }
-
-            return content;
+                }).ToList()
+            };
         }
 
         private string ReplacePlaceholders(string text, Dictionary<string, string> variables)
@@ -708,35 +678,8 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
 
         private string GenerateDefaultSectionContent(string sectionName, Dictionary<string, string> variables, LeaseInstance instance)
         {
-            var lease = instance.Lease;
-            var unit = lease?.Unit;
-            var property = unit?.Property;
-
-            var sectionKey = sectionName.ToLower().Trim();
-            return sectionKey switch
-            {
-                "parties" => GeneratePartiesContent(variables),
-                "property description" or "property & unit" or "property and unit" => GeneratePropertyContent(variables),
-                "term" => $"The term of this lease shall commence on {variables.GetValueOrDefault("Lease.StartDate", "[Start Date]")} and end on {variables.GetValueOrDefault("Lease.EndDate", "[End Date]")}. The lease type is {(variables.ContainsKey("Lease.AutoRenew") ? (variables["Lease.AutoRenew"] == "Yes" ? "fixed-term with auto-renewal" : "fixed-term") : "fixed-term")}.",
-                "rent" or "rent & deposit" or "rent and deposit" => GenerateRentContent(variables),
-                "security deposit" => $"Tenant has deposited with Landlord the sum of {variables.GetValueOrDefault("Lease.SecurityDeposit", "[Deposit]")} as security deposit, to be held in accordance with applicable state law.",
-                "fees" or "lease fees" => variables.TryGetValue("Fees.Summary", out var feeSummary) ? feeSummary : "No additional fees apply to this lease.",
-                "utilities" or "utilities & services" or "utilities and services" => GenerateUtilitiesContent(unit, variables),
-                "maintenance" => GenerateMaintenanceContent(lease, variables),
-                "keys" => GenerateKeysContent(variables),
-                "pets" or "pets policy" or "pets & animals" => GeneratePetsContent(variables),
-                "parking" => variables.TryGetValue("Parking.Summary", out var parkingSum) ? parkingSum : "No specific parking arrangements are included in this lease.",
-                "smoking" or "smoking policy" => variables.GetValueOrDefault("Smoking.Policy", "No smoking is permitted on the premises."),
-                "occupants" => variables.TryGetValue("Tenant.OccupantList", out var occupants) ? $"In addition to the named Tenant(s), the following occupants are authorized to reside at the property: {occupants}. No other persons may occupy the premises without prior written consent of the Landlord." : "Only the named Tenant(s) are authorized to occupy the premises.",
-                "early termination" => variables.TryGetValue("Lease.EarlyTerminationClause", out var etClause) ? etClause : $"This lease shall terminate on {variables.GetValueOrDefault("Lease.EndDate", "[End Date]")} unless terminated earlier in accordance with applicable law.",
-                "additional terms" or "additional provisions" => variables.TryGetValue("Lease.AdditionalTerms", out var addTerms) ? addTerms : "No additional terms or provisions apply.",
-                "lead-based paint disclosure" or "lead paint" or "lead paint disclosure" => variables.TryGetValue("LeadPaint.Disclosure", out var leadDisc) ? leadDisc : "No lead-based paint disclosure required.",
-                "state disclosures" or "legal disclosures" or "state required disclosures" => GenerateStateDisclosuresContent(variables),
-                "policies" => GeneratePoliciesContent(instance),
-                "defaults" => GenerateDefaultsContent(lease, variables),
-                "termination" => GenerateTerminationContent(lease, variables),
-                _ => $"{sectionName} section content."
-            };
+            throw new InvalidOperationException(
+                $"Lease template section '{sectionName}' has no configured content. Contract sections must come from stored template, lease, or state-law data.");
         }
 
         private static string GeneratePartiesContent(Dictionary<string, string> variables)
@@ -793,24 +736,26 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
         private static string GenerateKeysContent(Dictionary<string, string> variables)
         {
             if (variables.TryGetValue("Keys.Summary", out var keySummary))
-                return $"The following keys will be provided to Tenant(s) upon commencement of the lease:\n{keySummary}\n\nAll keys must be returned to Landlord upon termination of the lease. Failure to return keys may result in a charge for rekeying the property.";
-            return "Keys to the property will be provided to Tenant upon commencement of the lease. All keys must be returned upon lease termination.";
+                return keySummary;
+            throw new InvalidOperationException("Keys content requires configured key data.");
         }
 
         private static string GeneratePetsContent(Dictionary<string, string> variables)
         {
-            var allowed = variables.GetValueOrDefault("Pets.Allowed", "No");
+            if (!variables.TryGetValue("Pets.Allowed", out var allowed))
+                throw new InvalidOperationException("Pets content requires a configured pet policy.");
             if (allowed == "Yes")
             {
                 var sb = new StringBuilder("Pets are permitted subject to the following terms. ");
                 if (variables.TryGetValue("Pets.PolicySummary", out var summary))
                     sb.Append($"Approved pet(s):\n{summary}\n\n");
                 if (variables.TryGetValue("Lease.PetDeposit", out var petDeposit))
-                    sb.Append($"A non-refundable pet deposit of {petDeposit} is required. ");
-                sb.Append("Tenant is responsible for any damage caused by pets and must ensure pets do not disturb other residents.");
+                    sb.Append($"Pet deposit: {petDeposit}. ");
                 return sb.ToString();
             }
-            return "No pets of any kind are permitted on the premises without prior written consent from the Landlord.";
+            return allowed == "No"
+                ? "Pets are not permitted."
+                : throw new InvalidOperationException("Pets content contains an unsupported configured value.");
         }
 
         private string GenerateUtilitiesContent(Models.Unit? unit, Dictionary<string, string> variables)
@@ -826,14 +771,10 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
             else if (unit?.IncludedUtility != null && unit.IncludedUtility.Any())
             {
                 var utilityNames = unit.IncludedUtility.Select(u => u.Label ?? u.Value).ToList();
-                sb.Append($"The following utilities are included in the monthly rent: {string.Join(", ", utilityNames)}. ");
-                sb.Append("Tenant is responsible for all other utilities not listed above, including but not limited to electricity, gas, internet, and cable services.");
+                sb.Append($"The following utilities are included in the monthly rent: {string.Join(", ", utilityNames)}.");
             }
             else
-            {
-                sb.Append("Tenant is responsible for all utilities, including but not limited to electricity, gas, water, sewer, trash, internet, and cable services. ");
-                sb.Append("Tenant must arrange for utility service in their name and ensure all accounts are properly maintained throughout the lease term.");
-            }
+                throw new InvalidOperationException("Utilities content requires configured responsibility data.");
 
             if (variables.TryGetValue("Utilities.SharedDisclosure", out var sharedDisc))
                 sb.Append($"\n\nShared utilities: {sharedDisc}");
@@ -852,16 +793,10 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                 sb.AppendLine();
             }
             else
-            {
-                sb.Append("Tenant is responsible for minor repairs and maintenance, including changing light bulbs, replacing air filters, and maintaining cleanliness. Landlord is responsible for major repairs and structural issues. ");
-            }
+                throw new InvalidOperationException("Maintenance content requires configured responsibility data.");
 
             if (variables.TryGetValue("Maintenance.NotificationMethods", out var methods))
                 sb.Append($"Tenant shall report maintenance issues via: {methods}. ");
-            else
-                sb.Append("Tenant must promptly report any maintenance issues to Landlord in writing. ");
-
-            sb.Append("Tenant must not make any alterations to the property without prior written consent from Landlord. Any damage caused by Tenant's negligence may be deducted from the security deposit.");
             return sb.ToString().TrimEnd();
         }
 
@@ -902,61 +837,75 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                 }
             }
 
-            // Fallback to standard policies if no custom policies are provided
-            return "The following house rules and policies apply to this tenancy:\n\n" +
-                   "1. No smoking is permitted inside the property.\n" +
-                   "2. No pets are allowed without written consent from the Landlord.\n" +
-                   "3. Quiet hours are from 10:00 PM to 7:00 AM.\n" +
-                   "4. Tenant must obtain renter's insurance and provide proof to Landlord.\n" +
-                   "5. No subletting or assignment of the lease without Landlord's written consent.\n" +
-                   "6. Tenant must maintain the property in a clean and sanitary condition.\n" +
-                   "7. All guests must comply with property rules and regulations.";
+            throw new InvalidOperationException("Policies content requires configured policy data.");
         }
 
         private string GenerateDefaultsContent(Lease? lease, Dictionary<string, string> variables)
         {
-            var content = new StringBuilder();
-            
-            content.Append("If Tenant fails to pay rent when due, Tenant shall be in default. ");
-            content.Append("Landlord may charge a late fee as specified in the lease terms. ");
-            content.Append("If Tenant fails to cure any default within the time specified by law or this agreement, Landlord may terminate this lease. ");
-            content.Append("Tenant's failure to comply with any term of this lease, including but not limited to non-payment of rent, violation of house rules, or damage to the property, constitutes a default. ");
-            content.Append("Upon default, Landlord may pursue all remedies available under law, including eviction and recovery of damages.");
-
-            return content.ToString();
+            return variables.TryGetValue("Lease.DefaultsClause", out var configuredClause) && !string.IsNullOrWhiteSpace(configuredClause)
+                ? configuredClause
+                : throw new InvalidOperationException("Defaults content requires a configured lease or state-law clause.");
         }
 
         private string GenerateTerminationContent(Lease? lease, Dictionary<string, string> variables)
         {
-            var content = new StringBuilder();
-            
-            content.Append($"This lease shall terminate on {variables.GetValueOrDefault("Lease.EndDate", "[End Date]")}, unless terminated earlier in accordance with this agreement. ");
-            content.Append("Either party may terminate this lease in accordance with applicable state and local laws. ");
-            content.Append("Tenant must provide at least 30 days written notice before vacating the property. ");
-            content.Append("Upon termination, Tenant must return the property in the same condition as when received, reasonable wear and tear excepted. ");
-            content.Append("Landlord will conduct a final inspection and return the security deposit, less any deductions for damages or unpaid rent, within the time period required by law.");
-
-            return content.ToString();
+            return variables.TryGetValue("Lease.TerminationClause", out var configuredClause) && !string.IsNullOrWhiteSpace(configuredClause)
+                ? configuredClause
+                : throw new InvalidOperationException("Termination content requires a configured lease or state-law clause.");
         }
 
         private static string GenerateStateDisclosuresContent(Dictionary<string, string> variables)
         {
             var state = variables.GetValueOrDefault("State.Name", string.Empty);
             var disclosures = variables.GetValueOrDefault("State.RequiredDisclosures", string.Empty);
-            var note = variables.GetValueOrDefault("State.Note", string.Empty);
+            var citationsJson = variables.GetValueOrDefault("State.RequiredDisclosureCitations", string.Empty);
+            var snapshot = variables.GetValueOrDefault("State.RequiredDisclosureSnapshotUtc", string.Empty);
 
-            if (string.IsNullOrWhiteSpace(disclosures))
-                return string.IsNullOrWhiteSpace(state)
-                    ? "No state-specific disclosures have been generated for this lease."
-                    : $"No state-specific disclosures were found for {state}.";
+            var citations = new List<StateDisclosurePdfCitation>();
+            if (!string.IsNullOrWhiteSpace(citationsJson))
+            {
+                try
+                {
+                    citations = JsonSerializer.Deserialize<List<StateDisclosurePdfCitation>>(citationsJson,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+                }
+                catch (JsonException)
+                {
+                    // Historical drafts may not contain citation JSON. Finalization now prevents this state.
+                }
+            }
 
             var sb = new StringBuilder();
-            if (!string.IsNullOrWhiteSpace(state))
-                sb.AppendLine($"The following disclosures are required under {state} law:");
-            sb.AppendLine(disclosures);
-            if (!string.IsNullOrWhiteSpace(note))
-                sb.AppendLine($"\nNote: {note}");
+            if (!string.IsNullOrWhiteSpace(disclosures))
+            {
+                if (!string.IsNullOrWhiteSpace(state))
+                    sb.AppendLine($"The following disclosures are required under {state} law:");
+                sb.AppendLine(disclosures);
+            }
+            else
+                throw new InvalidOperationException("State disclosure content requires grounded disclosure text.");
+
+            if (citations.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Legal references:");
+                foreach (var citation in citations.DistinctBy(x => x.SectionId))
+                {
+                    var title = string.IsNullOrWhiteSpace(citation.SectionTitle) ? string.Empty : $" — {citation.SectionTitle}";
+                    sb.AppendLine($"• {citation.SectionCode}{title}: {citation.Url}");
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(snapshot))
+                sb.AppendLine($"Source snapshot: {snapshot}");
             return sb.ToString().TrimEnd();
+        }
+
+        private sealed class StateDisclosurePdfCitation
+        {
+            public long SectionId { get; set; }
+            public string SectionCode { get; set; } = string.Empty;
+            public string? SectionTitle { get; set; }
+            public string Url { get; set; } = string.Empty;
         }
 
         private static string BuildLeaseAgreementTitle(string? state)
@@ -1126,31 +1075,31 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                     .FontColor(Colors.Black);
 
                 column.Item().Height(12);
-
-                column.Item().Row(row =>
+                column.Item().Column(sig =>
                 {
-                    row.RelativeItem().Column(sig =>
-                    {
-                        sig.Item().Text("Landlord Signature").FontSize(8).Bold();
-                        sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
-                        sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
-                    });
-                    row.ConstantItem(28);
-                    row.RelativeItem().Column(sig =>
-                    {
-                        sig.Item().Text("Tenant Signature").FontSize(8).Bold();
-                        sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
-                        sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
-                    });
+                    sig.Item().Text(LeaseSignatureAnchors.Landlord).FontSize(8).Bold();
+                    sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
+                    sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
                 });
+
+                foreach (var slot in LeaseSignatureLayout.ForTenantIds(
+                    lease.TenantLeases?.Select(tl => tl.TenantId) ?? Enumerable.Empty<long>()))
+                {
+                    column.Item().PaddingTop(12).Column(sig =>
+                    {
+                        sig.Item().Text(slot.Anchor).FontSize(8).Bold();
+                        sig.Item().PaddingTop(18).BorderBottom(0.75f).BorderColor(Colors.Black).Text(" ");
+                        sig.Item().PaddingTop(3).Text("Date: __________________").FontSize(8.5f);
+                    });
+                }
             });
         }
 
-        public async Task<ServiceResponse<string>> SaveDocumentToBlobAsync(byte[] documentBytes, string fileName, long leaseInstanceId, string documentType)
+        public async Task<ServiceResponse<string>> SaveDocumentToBlobAsync(byte[] documentBytes, string fileName, long leaseInstanceId, string documentType, long organizationId)
         {
             try
             {
-                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId);
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId, organizationId);
                 if (instance == null)
                 {
                     return ServiceResponse<string>.CreateError("Instance not found", "The specified lease instance does not exist.");
@@ -1159,8 +1108,9 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                 var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
                 await containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
 
-                var sanitizedFileName = Regex.Replace(fileName, @"[^a-zA-Z0-9._-]", "_");
-                var blobName = $"lease-{leaseInstanceId}-{sanitizedFileName}-{DateTime.UtcNow:yyyyMMddHHmmss}";
+                var normalizedType = documentType.ToUpperInvariant();
+                var extension = normalizedType == "PDF" ? "pdf" : "docx";
+                var blobName = $"instances/{leaseInstanceId}/{normalizedType.ToLowerInvariant()}.{extension}";
                 var blobClient = containerClient.GetBlobClient(blobName);
 
                 using (var stream = new MemoryStream(documentBytes))
@@ -1182,16 +1132,15 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                 var document = new LeaseDocument
                 {
                     LeaseInstanceId = leaseInstanceId,
-                    DocumentType = documentType.ToUpper(),
+                    DocumentType = normalizedType,
                     BlobName = blobName,
                     BlobUrl = blobUrl,
                     FileHash = fileHash,
                     GeneratedBy = userId ?? instance.GeneratedBy,
-                    GeneratedAt = DateTime.Now
+                    GeneratedAt = DateTime.UtcNow
                 };
 
-                instance.Documents.Add(document);
-                await _leaseInstanceRepository.UpdateLeaseInstanceAsync(instance);
+                await _leaseInstanceRepository.UpsertLeaseDocumentAsync(document, organizationId);
 
                 _logger.LogInformation("Lease document saved to blob storage: {BlobName} for instance {InstanceId}", blobName, leaseInstanceId);
                 
@@ -1204,7 +1153,7 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
             }
         }
 
-        public async Task<ServiceResponse<byte[]>> GetDocumentAsync(long documentId)
+        public async Task<ServiceResponse<byte[]>> GetDocumentAsync(long documentId, long organizationId)
         {
             try
             {
@@ -1219,11 +1168,11 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
             }
         }
 
-        public async Task<ServiceResponse<List<LoadLeaseDocumentDto>>> GetDocumentsByInstanceAsync(long leaseInstanceId)
+        public async Task<ServiceResponse<List<LoadLeaseDocumentDto>>> GetDocumentsByInstanceAsync(long leaseInstanceId, long organizationId)
         {
             try
             {
-                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId);
+                var instance = await _leaseInstanceRepository.GetLeaseInstanceByIdAsync(leaseInstanceId, organizationId);
                 if (instance == null)
                 {
                     return ServiceResponse<List<LoadLeaseDocumentDto>>.CreateError("Instance not found", "The specified lease instance does not exist.");

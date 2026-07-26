@@ -52,6 +52,10 @@ namespace brownstone_hub_api.Configurations
             builder.HasIndex(td => td.ExpirationDate);
             builder.HasIndex(td => new { td.TenantId, td.IsDeleted });
             builder.HasIndex(td => td.OrganizationId);
+            builder.HasIndex(td => new { td.TenantId, td.LeaseId, td.DocumentType })
+                .HasDatabaseName("UX_TenantDocuments_ActiveTenantLeaseType")
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0 AND [TenantId] IS NOT NULL AND [LeaseId] IS NOT NULL");
         }
     }
 }
