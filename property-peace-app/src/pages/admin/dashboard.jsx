@@ -321,7 +321,7 @@ export default function AdminDashboard() {
               />
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.72)' }}>Cross-tenant aggregate view</Typography>
             </Stack>
-            <Typography component="h1" sx={{ fontFamily: 'Poppins, sans-serif', fontSize: { xs: 28, sm: 36 }, fontWeight: 700, letterSpacing: '-0.04em' }}>
+            <Typography component="h1" sx={{ color: '#fff', fontFamily: 'Poppins, sans-serif', fontSize: { xs: 28, sm: 36 }, fontWeight: 700, letterSpacing: '-0.04em' }}>
               Platform Command Center
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.72)', mt: 0.75, maxWidth: 660 }}>
@@ -468,7 +468,7 @@ export default function AdminDashboard() {
 
         <Grid size={{ xs: 12, md: 6, xl: 4 }}>
           <Stack spacing={3}>
-            <Section title="Support backlog" eyebrow="Production accounts" action={<Button size="small" endIcon={<ArrowRightOutlined />} onClick={() => navigate('/admin/messages')}>Open inbox</Button>}>
+            <Section title="Support backlog" eyebrow="Production accounts" action={<Button size="small" endIcon={<ArrowRightOutlined />} onClick={() => navigate('/admin/messages?tab=support')}>Open support desk</Button>}>
               <Grid container spacing={2} sx={{ p: 2.5 }}>
                 <Grid size={4}><MiniStat label="Unresolved" value={formatNumber(support.unresolved)} color={support.unresolved ? 'warning.main' : 'success.main'} /></Grid>
                 <Grid size={4}><MiniStat label="Older than 7d" value={formatNumber(support.olderThan7Days)} /></Grid>
