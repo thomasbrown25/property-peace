@@ -99,6 +99,18 @@ function getDocLeaseId(doc) {
   return doc?.leaseId ?? doc?.LeaseId;
 }
 
+function getDocumentKey(doc) {
+  return [
+    getDocLeaseId(doc) || 'personal',
+    doc?.id ?? doc?.Id ?? 'generated',
+    doc?.blobName ?? doc?.BlobName ?? doc?.fileName ?? doc?.FileName
+  ].join('-');
+}
+
+function hasDocumentFile(doc) {
+  return !!(doc?.blobUrl || doc?.BlobUrl || doc?.blobName || doc?.BlobName);
+}
+
 function getLeaseLabel(lease) {
   const property = lease?.unit?.property?.name || lease?.propertyName || lease?.PropertyName || 'Property';
   const unit = lease?.unit?.name || lease?.unitName || lease?.UnitName;
@@ -230,17 +242,40 @@ export default function TenantDocuments() {
   }, [user]);
 
   useEffect(() => {
-    if (tenantId) loadDocuments();
+    if (tenantId && leases.length > 0) loadDocuments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId]);
+  }, [tenantId, leases]);
 
   const loadDocuments = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await tenantDocumentAPI.getTenantDocumentsByTenant(tenantId);
-      if (response.success && response.data) {
-        setDocuments(response.data);
+      const [tenantDocumentsResponse, leaseAgreementResults] = await Promise.all([
+        tenantDocumentAPI.getTenantDocumentsByTenant(tenantId),
+        Promise.allSettled(leases.map((lease) => tenantDocumentAPI.getLeaseAgreement(getLeaseId(lease))))
+      ]);
+
+      const tenantDocuments = tenantDocumentsResponse.success && tenantDocumentsResponse.data ? tenantDocumentsResponse.data : [];
+      const leaseAgreements = leaseAgreementResults.flatMap((result, index) => {
+        if (result.status !== 'fulfilled') return [];
+
+        const agreement = result.value?.data ?? result.value?.Data;
+        if (!hasDocumentFile(agreement)) return [];
+
+        return [{ ...agreement, leaseId: getDocLeaseId(agreement) ?? getLeaseId(leases[index]) }];
+      });
+
+      const seenDocuments = new Set();
+      const allDocuments = [...tenantDocuments, ...leaseAgreements].filter((document) => {
+        const documentId = document.id ?? document.Id;
+        const identity = documentId ? `id-${documentId}` : `blob-${document.blobName ?? document.BlobName}`;
+        if (seenDocuments.has(identity)) return false;
+        seenDocuments.add(identity);
+        return true;
+      });
+
+      if (tenantDocumentsResponse.success) {
+        setDocuments(allDocuments);
       }
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to load documents');
@@ -328,6 +363,12 @@ export default function TenantDocuments() {
 
   const handleDownload = async (doc) => {
     try {
+      const availableBlobUrl = doc.blobUrl ?? doc.BlobUrl;
+      if (availableBlobUrl) {
+        window.open(availableBlobUrl, '_blank');
+        return;
+      }
+
       const response = await tenantDocumentAPI.getTenantDocument(doc.id);
       if (response.success && response.data?.blobUrl) {
         window.open(response.data.blobUrl, '_blank');
@@ -552,7 +593,7 @@ export default function TenantDocuments() {
 
                     return (
                       <Paper
-                        key={doc.id}
+                        key={getDocumentKey(doc)}
                         variant="outlined"
                         sx={{
                           p: 1.5,
@@ -673,7 +714,7 @@ export default function TenantDocuments() {
 
                         return (
                           <TableRow
-                            key={doc.id}
+                            key={getDocumentKey(doc)}
                             sx={{
                               '&:last-child td': { borderBottom: 0 },
                               bgcolor: expired ? alpha('#f5222d', 0.03) : 'transparent'

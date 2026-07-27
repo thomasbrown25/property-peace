@@ -9,6 +9,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Security.Cryptography;
 using System.Text;
+using System.Net.Mail;
 
 namespace brownstone_hub_api.Services.OrganizationInviteService
 {
@@ -50,6 +51,30 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
         {
             try
             {
+                dto.Email = dto.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+                dto.Role = dto.Role?.Trim() ?? string.Empty;
+
+                try
+                {
+                    var parsedEmail = new MailAddress(dto.Email);
+                    if (!string.Equals(parsedEmail.Address, dto.Email, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new FormatException();
+                    }
+                }
+                catch
+                {
+                    return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Invalid email", "Enter a valid email address.", "", 400);
+                }
+
+                var allowedRoles = new[] { "Owner", "Manager", "Viewer" };
+                var canonicalRole = allowedRoles.FirstOrDefault(role => string.Equals(role, dto.Role, StringComparison.OrdinalIgnoreCase));
+                if (canonicalRole == null)
+                {
+                    return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Invalid role", "Role must be Owner, Manager, or Viewer.", "", 400);
+                }
+                dto.Role = canonicalRole;
+
                 // Verify organization exists
                 var organization = await _organizationRepository.GetOrganizationByIdAsync(dto.OrganizationId);
                 if (organization == null)
@@ -62,6 +87,11 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
                 if (inviterMember == null || (!inviterMember.CanManageMembers && inviterMember.Role != "Owner"))
                 {
                     return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Unauthorized", "You do not have permission to invite members.", "", 403);
+                }
+
+                if (dto.Role == "Owner" && inviterMember.Role != "Owner")
+                {
+                    return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Unauthorized", "Only an organization owner can invite another owner.", "", 403);
                 }
 
                 // Check if user already has an account and is already a member
@@ -344,7 +374,15 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
                     return ServiceResponse<bool>.CreateError("Unauthorized", "You do not have permission to delete invites.", "", 403);
                 }
 
+                var pendingMember = !invite.IsAccepted
+                    ? await _memberRepository.GetPendingMemberByEmailAsync(invite.OrganizationId, invite.Email)
+                    : null;
+
                 var result = await _inviteRepository.DeleteInviteAsync(inviteId);
+                if (result && pendingMember != null)
+                {
+                    await _memberRepository.RemoveMemberByIdAsync(invite.OrganizationId, pendingMember.Id);
+                }
                 return ServiceResponse<bool>.CreateSuccess(result, "Invite deleted successfully");
             }
             catch (Exception ex)

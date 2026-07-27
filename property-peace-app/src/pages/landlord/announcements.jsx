@@ -1,75 +1,292 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 import { alpha, useTheme } from '@mui/material';
-
-// material-ui
 import {
-  Box,
-  Typography,
-  Button,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  CircularProgress,
   Alert,
+  Avatar,
+  Box,
+  Button,
   Chip,
-  IconButton,
-  Tooltip,
-  Fade,
+  CircularProgress,
   Dialog,
-  DialogTitle,
+  DialogActions,
   DialogContent,
   DialogContentText,
-  DialogActions,
-  FormControl,
+  DialogTitle,
+  Divider,
+  Grid,
+  IconButton,
+  InputAdornment,
+  Menu,
+  MenuItem,
+  OutlinedInput,
+  Pagination,
   Select,
-  MenuItem
+  Stack,
+  Tooltip,
+  Typography
 } from '@mui/material';
 import {
-  PlusOutlined,
-  EyeOutlined,
-  EditOutlined,
+  CheckCircleOutlined,
   ClockCircleOutlined,
-  NotificationOutlined,
-  DeleteOutlined,
   CloseOutlined,
-  LeftOutlined,
-  RightOutlined,
-  SendOutlined
+  DeleteOutlined,
+  DownOutlined,
+  EditOutlined,
+  EyeOutlined,
+  MailOutlined,
+  MoreOutlined,
+  NotificationOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  SendOutlined,
+  WarningOutlined
 } from '@ant-design/icons';
-import MainCard from 'components/MainCard';
-import AnimateIn from 'components/AnimateIn';
+import { format } from 'date-fns';
+
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { announcementAPI } from 'api';
-import { format } from 'date-fns';
-import { formatDateAndTime } from 'utils/formatters';
 import AnnouncementFilters from 'sections/announcements/AnnouncementFilters';
-import { selectProperty } from 'store/property/property.selector';
+import { formatDateAndTime } from 'utils/formatters';
 
-// ==============================|| ANNOUNCEMENTS PAGE ||============================== //
+const PAGE_SIZE = 10;
+const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
+const getId = (announcement) => read(announcement, 'id', 'Id');
+
+function parseIds(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function getStatus(announcement) {
+  if (read(announcement, 'isCompleted', 'IsCompleted')) return 'sent';
+  if (read(announcement, 'scheduledAt', 'ScheduledAt')) return 'scheduled';
+  return 'pending';
+}
+
+function getDeliveryLabel(announcement) {
+  const email = read(announcement, 'sendAsEmail', 'SendAsEmail');
+  const notification = read(announcement, 'sendAsNotification', 'SendAsNotification');
+  if (email && notification) return 'Email + in-app';
+  if (email) return 'Email';
+  if (notification) return 'In-app';
+  return 'No channel';
+}
+
+function getAudienceLabel(announcement) {
+  const units = parseIds(read(announcement, 'unitIds', 'UnitIds'));
+  const properties = parseIds(read(announcement, 'propertyIds', 'PropertyIds'));
+  const organizations = parseIds(read(announcement, 'organizationIds', 'OrganizationIds'));
+
+  if (units.length) return `${units.length} selected unit${units.length === 1 ? '' : 's'}`;
+  if (properties.length) return `${properties.length} selected propert${properties.length === 1 ? 'y' : 'ies'}`;
+  if (organizations.length) return `${organizations.length} organization${organizations.length === 1 ? '' : 's'}`;
+  return 'All eligible tenants';
+}
+
+function getEventDate(announcement) {
+  return read(announcement, 'completedAt', 'CompletedAt') || read(announcement, 'scheduledAt', 'ScheduledAt') || read(announcement, 'createdAt', 'CreatedAt');
+}
+
+function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
+  const theme = useTheme();
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        width: '100%',
+        minHeight: 108,
+        p: 2,
+        borderRadius: 2.5,
+        border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`,
+        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.13 : 0.055) : 'background.paper',
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha('#061e35', 0.05)}`,
+        color: 'text.primary',
+        textAlign: 'left',
+        cursor: 'pointer',
+        font: 'inherit',
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+        <Box>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>
+            {label}
+          </Typography>
+          <Typography sx={{ mt: 0.5, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
+        </Box>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
+      </Stack>
+    </Box>
+  );
+}
+
+function AnnouncementRow({ announcement, onOpen, onEdit, onDelete }) {
+  const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const status = getStatus(announcement);
+  const isScheduled = status === 'scheduled';
+  const sentCount = Number(read(announcement, 'sentCount', 'SentCount') || 0);
+  const failedCount = Number(read(announcement, 'failedCount', 'FailedCount') || 0);
+  const title = read(announcement, 'title', 'Title') || 'Untitled announcement';
+  const message = read(announcement, 'formattedMessage', 'FormattedMessage') || read(announcement, 'message', 'Message') || 'No message preview';
+  const sendEmail = read(announcement, 'sendAsEmail', 'SendAsEmail');
+  const sendNotification = read(announcement, 'sendAsNotification', 'SendAsNotification');
+  const eventDate = getEventDate(announcement);
+  const statusConfig = {
+    sent: { label: failedCount > 0 ? 'Sent with issues' : 'Sent', color: failedCount > 0 ? theme.palette.warning.main : theme.palette.success.main },
+    scheduled: { label: 'Scheduled', color: '#0ea5e9' },
+    pending: { label: 'Pending', color: theme.palette.warning.main }
+  }[status];
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpen(announcement);
+    }
+  };
+
+  return (
+    <Box
+      role="link"
+      tabIndex={0}
+      onClick={() => onOpen(announcement)}
+      onKeyDown={handleKeyDown}
+      sx={{
+        px: { xs: 1.5, md: 2 },
+        py: { xs: 1.6, md: 1.45 },
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: 'minmax(260px, 2fr) minmax(155px, 1fr) minmax(160px, 1fr) minmax(120px, .8fr) 44px',
+        gap: { xs: 1.5, md: 2 },
+        alignItems: 'center',
+        cursor: 'pointer',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        transition: 'background-color 140ms ease',
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) },
+        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
+      }}
+    >
+      <Stack direction="row" spacing={1.25} alignItems="flex-start" minWidth={0}>
+        <Avatar
+          sx={{
+            width: 42,
+            height: 42,
+            mt: 0.1,
+            flexShrink: 0,
+            bgcolor: alpha(statusConfig.color, 0.11),
+            color: statusConfig.color
+          }}
+        >
+          {status === 'scheduled' ? <ClockCircleOutlined /> : <SendOutlined />}
+        </Avatar>
+        <Box minWidth={0}>
+          <Stack direction="row" alignItems="center" spacing={0.8} minWidth={0}>
+            <Typography fontWeight={700} noWrap>{title}</Typography>
+            <Chip
+              size="small"
+              label={statusConfig.label}
+              sx={{ height: 21, flexShrink: 0, fontSize: '0.66rem', fontWeight: 700, bgcolor: alpha(statusConfig.color, 0.1), color: statusConfig.color }}
+            />
+          </Stack>
+          <Typography noWrap sx={{ mt: 0.35, fontSize: '0.76rem', color: 'text.secondary', maxWidth: 520 }}>
+            {message.replace(/\s+/g, ' ').trim()}
+          </Typography>
+          <Typography sx={{ display: { xs: 'block', md: 'none' }, mt: 0.65, fontSize: '0.72rem', color: 'text.secondary' }}>
+            {getAudienceLabel(announcement)} · {getDeliveryLabel(announcement)}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{getAudienceLabel(announcement)}</Typography>
+        <Typography sx={{ mt: 0.35, fontSize: '0.71rem', color: 'text.secondary' }}>
+          {read(announcement, 'organizationName', 'OrganizationName') || 'Current organization'}
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>
+          {status === 'scheduled' ? 'Sends' : status === 'sent' ? 'Sent' : 'Created'}
+        </Typography>
+        <Typography sx={{ mt: 0.35, fontSize: '0.72rem', color: status === 'scheduled' ? '#0ea5e9' : 'text.secondary' }}>
+          {eventDate ? formatDateAndTime(eventDate) : 'Date unavailable'}
+        </Typography>
+        <Stack direction="row" spacing={0.8} sx={{ mt: 0.7 }}>
+          {sendNotification && <Tooltip title="In-app notification"><NotificationOutlined style={{ color: theme.palette.text.secondary, fontSize: 14 }} /></Tooltip>}
+          {sendEmail && <Tooltip title="Email"><MailOutlined style={{ color: theme.palette.text.secondary, fontSize: 14 }} /></Tooltip>}
+        </Stack>
+      </Box>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }}>
+          {status === 'sent' ? `${sentCount} delivered` : status === 'scheduled' ? 'Awaiting send' : 'Not sent'}
+        </Typography>
+        <Typography sx={{ mt: 0.35, fontSize: '0.71rem', color: failedCount > 0 ? 'error.main' : 'text.secondary' }}>
+          {failedCount > 0 ? `${failedCount} failed` : status === 'sent' ? 'No delivery failures' : getDeliveryLabel(announcement)}
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+        <Tooltip title="Announcement actions">
+          <IconButton
+            aria-label={`Actions for ${title}`}
+            size="small"
+            onClick={(event) => {
+              event.stopPropagation();
+              setAnchorEl(event.currentTarget);
+            }}
+          >
+            <MoreOutlined />
+          </IconButton>
+        </Tooltip>
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+          <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); onOpen(announcement); }}>
+            <EyeOutlined style={{ marginRight: 10 }} /> View details
+          </MenuItem>
+          {isScheduled && (
+            <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); onEdit(announcement); }}>
+              <EditOutlined style={{ marginRight: 10 }} /> Edit schedule
+            </MenuItem>
+          )}
+          <MenuItem
+            sx={{ color: 'error.main' }}
+            onClick={(event) => { event.stopPropagation(); setAnchorEl(null); onDelete(announcement); }}
+          >
+            {isScheduled ? <CloseOutlined style={{ marginRight: 10 }} /> : <DeleteOutlined style={{ marginRight: 10 }} />}
+            {isScheduled ? 'Cancel announcement' : 'Delete'}
+          </MenuItem>
+        </Menu>
+      </Box>
+    </Box>
+  );
+}
 
 export default function AnnouncementsPage() {
   const navigate = useNavigate();
   const theme = useTheme();
-  const selectedProperty = useSelector(selectProperty);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [announcementToDelete, setAnnouncementToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [page, setPage] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [fadeIn, setFadeIn] = useState(false);
-
-  useEffect(() => {
-    setFadeIn(true);
-  }, []);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [delivery, setDelivery] = useState('all');
+  const [sort, setSort] = useState('newest');
+  const [page, setPage] = useState(1);
 
   const getDefaultTimespan = () => {
     const now = new Date();
@@ -77,10 +294,11 @@ export default function AnnouncementsPage() {
     return { timespan: 'month', dateFrom: lastMonth, dateTo: now };
   };
 
+  const defaultTimespan = useMemo(() => getDefaultTimespan(), []);
   const [filters, setFilters] = useState({
-    dateFrom: getDefaultTimespan().dateFrom,
-    dateTo: getDefaultTimespan().dateTo,
-    timespan: getDefaultTimespan(),
+    dateFrom: defaultTimespan.dateFrom,
+    dateTo: defaultTimespan.dateTo,
+    timespan: defaultTimespan,
     organizationId: null,
     propertyId: null
   });
@@ -100,6 +318,7 @@ export default function AnnouncementsPage() {
           setAnnouncements(Array.isArray(result.data) ? result.data : []);
         } else {
           setAnnouncements([]);
+          if (!result.success) setError(result.message || 'Failed to load announcements');
         }
       } catch (err) {
         setError(err.message || 'Failed to load announcements');
@@ -107,21 +326,68 @@ export default function AnnouncementsPage() {
         setLoading(false);
       }
     };
+
     fetchAnnouncements();
   }, [filters]);
 
-  const filteredAnnouncements = useMemo(() => announcements, [announcements]);
+  useEffect(() => {
+    setPage(1);
+  }, [search, status, delivery, sort, filters]);
 
+  const metrics = useMemo(() => {
+    const sent = announcements.filter((announcement) => getStatus(announcement) === 'sent');
+    const scheduled = announcements.filter((announcement) => getStatus(announcement) === 'scheduled');
+    const attention = announcements.filter((announcement) => getStatus(announcement) === 'pending' || Number(read(announcement, 'failedCount', 'FailedCount') || 0) > 0);
+    const delivered = sent.reduce((total, announcement) => total + Number(read(announcement, 'sentCount', 'SentCount') || 0), 0);
+    return { total: announcements.length, sent: sent.length, scheduled: scheduled.length, attention: attention.length, delivered };
+  }, [announcements]);
 
-  const totalPages = Math.ceil(filteredAnnouncements.length / itemsPerPage);
-  const paginatedAnnouncements = useMemo(() => {
-    const start = page * itemsPerPage;
-    return filteredAnnouncements.slice(start, start + itemsPerPage);
-  }, [filteredAnnouncements, page, itemsPerPage]);
+  const filteredAnnouncements = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const list = announcements.filter((announcement) => {
+      const announcementStatus = getStatus(announcement);
+      const searchable = [
+        read(announcement, 'title', 'Title'),
+        read(announcement, 'message', 'Message'),
+        read(announcement, 'formattedMessage', 'FormattedMessage'),
+        read(announcement, 'createdByName', 'CreatedByName'),
+        read(announcement, 'organizationName', 'OrganizationName')
+      ].filter(Boolean).join(' ').toLowerCase();
 
-  useEffect(() => { setPage(0); }, [itemsPerPage]);
+      if (query && !searchable.includes(query)) return false;
+      if (status === 'attention' && announcementStatus !== 'pending' && Number(read(announcement, 'failedCount', 'FailedCount') || 0) === 0) return false;
+      if (!['all', 'attention'].includes(status) && announcementStatus !== status) return false;
+      if (delivery === 'email' && !read(announcement, 'sendAsEmail', 'SendAsEmail')) return false;
+      if (delivery === 'notification' && !read(announcement, 'sendAsNotification', 'SendAsNotification')) return false;
+      if (delivery === 'both' && !(read(announcement, 'sendAsEmail', 'SendAsEmail') && read(announcement, 'sendAsNotification', 'SendAsNotification'))) return false;
+      return true;
+    });
 
-  const handleNewAnnouncement = () => navigate('/landlord/announcements/selection');
+    return list.sort((a, b) => {
+      if (sort === 'oldest') return new Date(read(a, 'createdAt', 'CreatedAt') || 0) - new Date(read(b, 'createdAt', 'CreatedAt') || 0);
+      if (sort === 'recipients') return Number(read(b, 'sentCount', 'SentCount') || 0) - Number(read(a, 'sentCount', 'SentCount') || 0);
+      if (sort === 'scheduled') {
+        const aDate = read(a, 'scheduledAt', 'ScheduledAt');
+        const bDate = read(b, 'scheduledAt', 'ScheduledAt');
+        return (aDate ? new Date(aDate).getTime() : Number.MAX_SAFE_INTEGER) - (bDate ? new Date(bDate).getTime() : Number.MAX_SAFE_INTEGER);
+      }
+      return new Date(read(b, 'createdAt', 'CreatedAt') || 0) - new Date(read(a, 'createdAt', 'CreatedAt') || 0);
+    });
+  }, [announcements, delivery, search, sort, status]);
+
+  const pageCount = Math.ceil(filteredAnnouncements.length / PAGE_SIZE);
+  const paginatedAnnouncements = filteredAnnouncements.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasViewFilters = search || status !== 'all' || delivery !== 'all' || sort !== 'newest';
+
+  const clearViewFilters = () => {
+    setSearch('');
+    setStatus('all');
+    setDelivery('all');
+    setSort('newest');
+  };
+
+  const openAnnouncement = (announcement) => navigate(`/landlord/announcements/details?id=${getId(announcement)}`);
+  const editAnnouncement = (announcement) => navigate(`/landlord/announcements/edit?id=${getId(announcement)}`);
 
   const handleDeleteClick = (announcement) => {
     setAnnouncementToDelete(announcement);
@@ -132,10 +398,11 @@ export default function AnnouncementsPage() {
     if (!announcementToDelete) return;
     setDeleting(true);
     try {
-      const announcementId = announcementToDelete.id || announcementToDelete.Id;
+      const announcementId = getId(announcementToDelete);
       const result = await announcementAPI.deleteAnnouncement(announcementId);
       if (result.success) {
-        setAnnouncements(prev => prev.filter(a => (a.id || a.Id) !== announcementId));
+        setAnnouncements((previous) => previous.filter((announcement) => getId(announcement) !== announcementId));
+        setPage(1);
         setDeleteDialogOpen(false);
         setAnnouncementToDelete(null);
       } else {
@@ -148,312 +415,217 @@ export default function AnnouncementsPage() {
     }
   };
 
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
-    setAnnouncementToDelete(null);
-  };
-
-  const getAnnouncementStatus = (a) => {
-    const isCompleted = a.isCompleted || a.IsCompleted;
-    const scheduledAt = a.scheduledAt || a.ScheduledAt;
-    if (isCompleted) return 'sent';
-    if (scheduledAt) return 'scheduled';
-    return 'pending';
-  };
-
-  const statusConfig = {
-    sent: { label: 'Sent', color: theme.palette.success.main, bg: alpha(theme.palette.success.main, 0.1) },
-    scheduled: { label: 'Scheduled', color: '#0ea5e9', bg: alpha('#0ea5e9', 0.1) },
-    pending: { label: 'Pending', color: theme.palette.warning.main, bg: alpha(theme.palette.warning.main, 0.1) }
-  };
-
+  const isDeleteTargetScheduled = announcementToDelete && getStatus(announcementToDelete) === 'scheduled';
 
   return (
-    <Fade in={fadeIn} timeout={600}>
-      <Box sx={{ overflow: 'visible' }}>
-        {/* Breadcrumbs */}
-        <PageBreadcrumbs
-          items={[
-            { label: 'Dashboard', path: '/landlord/dashboard' },
-            { label: 'Announcements' }
-          ]}
-        />
-
-        {/* Header — unchanged */}
-        <AnimateIn direction="bottom" delay={100} distance={120}>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="h3" fontWeight={700}>Announcements</Typography>
-            <Typography variant="body1" color="text.secondary">Manage and track your announcements</Typography>
-          </Box>
-        </AnimateIn>
-
-        {/* Filters */}
-        <AnimateIn direction="bottom" delay={220} distance={120}>
-          <Box sx={{ mb: 2.5 }}>
-            <AnnouncementFilters
-              filters={filters}
-              onFiltersChange={setFilters}
-              onNewAnnouncement={handleNewAnnouncement}
-            />
-          </Box>
-        </AnimateIn>
-
-        {/* Main Card — announcement list */}
-        <AnimateIn direction="bottom" delay={250} distance={120}>
-          <MainCard
-            content={false}
-            boxShadow
-            border={false}
-            shadow={theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`}
-            sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, borderRadius: 2, overflow: 'hidden' }}
-          >
-            {/* Content */}
-            {loading ? (
-              <Box display="flex" justifyContent="center" alignItems="center" p={6}>
-                <CircularProgress size={32} />
-              </Box>
-            ) : error ? (
-              <Alert severity="error" sx={{ m: 3 }}>{error}</Alert>
-            ) : filteredAnnouncements.length === 0 ? (
-              <Box sx={{ py: 8, textAlign: 'center' }}>
-                <Box
-                  sx={{
-                    width: 72, height: 72, borderRadius: '50%', mx: 'auto', mb: 2.5,
-                    bgcolor: alpha(theme.palette.primary.main, 0.06),
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}
-                >
-                  <NotificationOutlined style={{ fontSize: 32, color: alpha(theme.palette.primary.main, 0.5) }} />
-                </Box>
-                <Typography variant="h5" fontWeight={600} sx={{ mb: 0.75 }}>No announcements yet</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 320, mx: 'auto' }}>
-                  Send updates, reminders, or notices to your tenants in seconds.
-                </Typography>
-                <Button variant="contained" startIcon={<PlusOutlined />} onClick={handleNewAnnouncement}>
-                  Create Your First Announcement
-                </Button>
-              </Box>
-            ) : (
-              <>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ '& .MuiTableCell-head': { fontWeight: 600, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'text.secondary', py: 1.5 } }}>
-                        <TableCell>Title</TableCell>
-                        <TableCell>Created</TableCell>
-                        <TableCell>Scheduled</TableCell>
-                        <TableCell align="center">Recipients</TableCell>
-                        <TableCell>Delivery</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell align="right">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {paginatedAnnouncements.map((announcement) => {
-                        const status = getAnnouncementStatus(announcement);
-                        const cfg = statusConfig[status];
-                        const scheduledAt = announcement.scheduledAt || announcement.ScheduledAt;
-                        const isCompleted = announcement.isCompleted || announcement.IsCompleted;
-                        const isScheduled = scheduledAt && !isCompleted;
-                        const sentCount = announcement.sentCount || announcement.SentCount || 0;
-                        const failedCount = announcement.failedCount || announcement.FailedCount || 0;
-
-                        return (
-                          <TableRow
-                            key={announcement.id}
-                            hover
-                            sx={{
-                              cursor: 'pointer',
-                              '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.02) },
-                              '& td': { borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`, py: 1.75 }
-                            }}
-                            onClick={() => {
-                              const id = announcement.id || announcement.Id;
-                              navigate(`/landlord/announcements/details?id=${id}`);
-                            }}
-                          >
-                            {/* Title */}
-                            <TableCell>
-                              <Stack direction="row" alignItems="center" spacing={1.5}>
-                                <Box
-                                  sx={{
-                                    width: 3, height: 32, borderRadius: 4, flexShrink: 0,
-                                    bgcolor: cfg.color
-                                  }}
-                                />
-                                <Typography variant="body2" fontWeight={600} sx={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {announcement.title || announcement.Title || 'Announcement'}
-                                </Typography>
-                              </Stack>
-                            </TableCell>
-
-                            {/* Created */}
-                            <TableCell>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>
-                                {announcement.createdAt ? formatDateAndTime(announcement.createdAt) : '—'}
-                              </Typography>
-                            </TableCell>
-
-                            {/* Scheduled */}
-                            <TableCell>
-                              {scheduledAt ? (
-                                <Stack direction="row" spacing={0.75} alignItems="center">
-                                  <ClockCircleOutlined style={{ fontSize: 13, color: '#0ea5e9' }} />
-                                  <Typography variant="body2" sx={{ fontSize: '0.8125rem', color: '#0ea5e9' }}>
-                                    {formatDateAndTime(scheduledAt)}
-                                  </Typography>
-                                </Stack>
-                              ) : isCompleted ? (
-                                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8125rem' }}>Sent immediately</Typography>
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">—</Typography>
-                              )}
-                            </TableCell>
-
-                            {/* Recipients */}
-                            <TableCell align="center">
-                              <Typography variant="body2" fontWeight={500}>
-                                {sentCount}
-                                {failedCount > 0 && (
-                                  <Typography component="span" variant="caption" color="error.main" sx={{ ml: 0.5 }}>
-                                    ({failedCount} failed)
-                                  </Typography>
-                                )}
-                              </Typography>
-                            </TableCell>
-
-                            {/* Delivery */}
-                            <TableCell>
-                              <Stack direction="row" spacing={0.5}>
-                                {(announcement.sendAsNotification || announcement.SendAsNotification) && (
-                                  <Chip label="In-App" size="small" sx={{ fontSize: '0.7rem', height: 22, bgcolor: alpha(theme.palette.primary.main, 0.08), color: theme.palette.primary.main, border: 'none', fontWeight: 600 }} />
-                                )}
-                                {(announcement.sendAsEmail || announcement.SendAsEmail) && (
-                                  <Chip label="Email" size="small" sx={{ fontSize: '0.7rem', height: 22, bgcolor: alpha(theme.palette.secondary.main, 0.08), color: 'text.secondary', border: 'none', fontWeight: 600 }} />
-                                )}
-                              </Stack>
-                            </TableCell>
-
-                            {/* Status */}
-                            <TableCell>
-                              <Chip
-                                label={cfg.label}
-                                size="small"
-                                sx={{
-                                  bgcolor: cfg.bg,
-                                  color: cfg.color,
-                                  fontWeight: 600,
-                                  fontSize: '0.7rem',
-                                  height: 24,
-                                  border: 'none'
-                                }}
-                              />
-                            </TableCell>
-
-                            {/* Actions */}
-                            <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                              <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                                {isScheduled && (
-                                  <Tooltip title="Edit">
-                                    <IconButton size="small" sx={{ color: 'text.secondary', '&:hover': { color: theme.palette.primary.main } }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/landlord/announcements/edit?id=${announcement.id || announcement.Id}`);
-                                      }}
-                                    >
-                                      <EditOutlined style={{ fontSize: 15 }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                                <Tooltip title="View Details">
-                                  <IconButton size="small" sx={{ color: 'text.secondary', '&:hover': { color: theme.palette.primary.main } }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate(`/landlord/announcements/details?id=${announcement.id || announcement.Id}`);
-                                    }}
-                                  >
-                                    <EyeOutlined style={{ fontSize: 15 }} />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title={isScheduled ? 'Cancel Announcement' : 'Delete'}>
-                                  <IconButton size="small" sx={{ color: 'text.secondary', '&:hover': { color: theme.palette.error.main } }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClick(announcement);
-                                    }}
-                                  >
-                                    {isScheduled
-                                      ? <CloseOutlined style={{ fontSize: 15 }} />
-                                      : <DeleteOutlined style={{ fontSize: 15 }} />}
-                                  </IconButton>
-                                </Tooltip>
-                              </Stack>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-
-              </>
-            )}
-          </MainCard>
-                {filteredAnnouncements.length > 0 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" color="text.secondary">Items per page:</Typography>
-                      <FormControl size="small" sx={{ minWidth: 80 }}>
-                        <Select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} sx={{ height: 32 }}>
-                          <MenuItem value={10}>10</MenuItem>
-                          <MenuItem value={20}>20</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Typography variant="body2" color="text.secondary">Page {page + 1} of {totalPages}</Typography>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button size="small" variant="outlined" startIcon={<LeftOutlined />} onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} sx={{ minWidth: 100 }}>Previous</Button>
-                        <Button size="small" variant="outlined" endIcon={<RightOutlined />} onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} sx={{ minWidth: 100 }}>Next</Button>
-                      </Box>
-                    </Box>
-                  </Box>
-                )}
-        </AnimateIn>
-
-        {/* Delete Confirmation Dialog */}
-        <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel} PaperProps={{ sx: { borderRadius: 2, minWidth: 380 } }}>
-          <DialogTitle sx={{ pb: 1, fontWeight: 700 }}>
-            {announcementToDelete && (() => {
-              const isScheduled = (announcementToDelete.scheduledAt || announcementToDelete.ScheduledAt) &&
-                !(announcementToDelete.isCompleted || announcementToDelete.IsCompleted);
-              return isScheduled ? 'Cancel Scheduled Announcement?' : 'Delete Announcement?';
-            })()}
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText sx={{ fontSize: '0.875rem' }}>
-              {announcementToDelete && (() => {
-                const isScheduled = (announcementToDelete.scheduledAt || announcementToDelete.ScheduledAt) &&
-                  !(announcementToDelete.isCompleted || announcementToDelete.IsCompleted);
-                const title = announcementToDelete.title || announcementToDelete.Title || 'this announcement';
-                return isScheduled
-                  ? `Are you sure you want to cancel "${title}"? This action cannot be undone and the announcement will not be sent.`
-                  : `Are you sure you want to delete "${title}"? This action cannot be undone.`;
-              })()}
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2.5 }}>
-            <Button onClick={handleDeleteCancel} disabled={deleting} variant="outlined">Cancel</Button>
-            <Button onClick={handleDeleteConfirm} color="error" variant="contained" disabled={deleting}>
-              {deleting ? 'Processing...' : (announcementToDelete && (() => {
-                const isScheduled = (announcementToDelete.scheduledAt || announcementToDelete.ScheduledAt) &&
-                  !(announcementToDelete.isCompleted || announcementToDelete.IsCompleted);
-                return isScheduled ? 'Cancel Announcement' : 'Delete';
-              })())}
-            </Button>
-          </DialogActions>
-        </Dialog>
+    <Box sx={{ pb: 3 }}>
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Announcements' }]} />
       </Box>
-    </Fade>
+
+      <Box
+        sx={{
+          mb: 2.5,
+          p: { xs: 2, md: 2.75 },
+          borderRadius: 3,
+          color: '#fff',
+          background: 'linear-gradient(120deg, #061e35 0%, #0b3558 100%)',
+          boxShadow: `0 16px 38px ${alpha('#061e35', 0.18)}`
+        }}
+      >
+        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Announcements</Typography>
+            <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>
+              Plan tenant communications, monitor delivery, and keep every important update in one place.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<PlusOutlined />}
+            onClick={() => navigate('/landlord/announcements/selection')}
+            sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', alignSelf: { xs: 'stretch', md: 'center' } }}
+          >
+            New announcement
+          </Button>
+        </Stack>
+      </Box>
+
+      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Sent"
+            value={metrics.sent}
+            helper={`${metrics.delivered} total deliveries`}
+            icon={<CheckCircleOutlined />}
+            color={theme.palette.success.main}
+            active={status === 'sent'}
+            onClick={() => setStatus((value) => value === 'sent' ? 'all' : 'sent')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Scheduled"
+            value={metrics.scheduled}
+            helper="Queued to send later"
+            icon={<ClockCircleOutlined />}
+            color="#0ea5e9"
+            active={status === 'scheduled'}
+            onClick={() => setStatus((value) => value === 'scheduled' ? 'all' : 'scheduled')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Needs attention"
+            value={metrics.attention}
+            helper="Pending or delivery issues"
+            icon={<WarningOutlined />}
+            color={theme.palette.warning.main}
+            active={status === 'attention'}
+            onClick={() => setStatus((value) => value === 'attention' ? 'all' : 'attention')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="In this view"
+            value={metrics.total}
+            helper="Within the selected scope"
+            icon={<NotificationOutlined />}
+            color={theme.palette.primary.main}
+            active={status === 'all' && !search && delivery === 'all'}
+            onClick={clearViewFilters}
+          />
+        </Grid>
+      </Grid>
+
+      <Box
+        sx={{
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`,
+          overflow: 'hidden'
+        }}
+      >
+        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
+            <OutlinedInput
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search title, message, sender, or organization"
+              size="small"
+              startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+              sx={{ flex: 1, minWidth: { md: 280 }, borderRadius: 1.75 }}
+            />
+            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, md: 0 } }}>
+              <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 134, borderRadius: 1.75 }}>
+                <MenuItem value="all">All statuses</MenuItem>
+                <MenuItem value="sent">Sent</MenuItem>
+                <MenuItem value="scheduled">Scheduled</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="attention">Needs attention</MenuItem>
+              </Select>
+              <Select size="small" value={delivery} onChange={(event) => setDelivery(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 144, borderRadius: 1.75 }}>
+                <MenuItem value="all">All channels</MenuItem>
+                <MenuItem value="both">Email + in-app</MenuItem>
+                <MenuItem value="email">Includes email</MenuItem>
+                <MenuItem value="notification">Includes in-app</MenuItem>
+              </Select>
+              <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 160, borderRadius: 1.75 }}>
+                <MenuItem value="newest">Sort: Newest</MenuItem>
+                <MenuItem value="oldest">Sort: Oldest</MenuItem>
+                <MenuItem value="scheduled">Sort: Send date</MenuItem>
+                <MenuItem value="recipients">Sort: Recipients</MenuItem>
+              </Select>
+            </Stack>
+          </Stack>
+
+          <Divider sx={{ my: 1.5 }} />
+          <AnnouncementFilters filters={filters} onFiltersChange={setFilters} />
+
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.5 }}>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              {filteredAnnouncements.length} of {announcements.length} announcements
+            </Typography>
+            {hasViewFilters && <Button size="small" onClick={clearViewFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
+          </Stack>
+        </Box>
+
+        <Divider />
+
+        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(260px, 2fr) minmax(155px, 1fr) minmax(160px, 1fr) minmax(120px, .8fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+          {['Announcement', 'Audience', 'Timing & channels', 'Delivery', ''].map((label) => (
+            <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          ))}
+        </Box>
+
+        {loading ? (
+          <Stack alignItems="center" spacing={1} sx={{ py: 7 }}>
+            <CircularProgress size={26} />
+            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading communications…</Typography>
+          </Stack>
+        ) : error ? (
+          <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>
+        ) : announcements.length === 0 ? (
+          <Stack alignItems="center" spacing={1.4} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Avatar sx={{ width: 58, height: 58, bgcolor: alpha(theme.palette.primary.main, 0.08), color: theme.palette.primary.main }}>
+              <NotificationOutlined style={{ fontSize: 25 }} />
+            </Avatar>
+            <Typography variant="h5" fontWeight={700}>No announcements in this scope</Typography>
+            <Typography sx={{ maxWidth: 420, color: 'text.secondary', fontSize: '0.84rem' }}>
+              Create an update for your tenants or expand the date and property filters to find older communications.
+            </Typography>
+            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => navigate('/landlord/announcements/selection')} sx={{ textTransform: 'none' }}>
+              Create announcement
+            </Button>
+          </Stack>
+        ) : filteredAnnouncements.length === 0 ? (
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Typography variant="h6" fontWeight={700}>No announcements match this view</Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>Try a different search, status, or delivery channel.</Typography>
+            <Button variant="outlined" onClick={clearViewFilters} sx={{ textTransform: 'none' }}>Reset view</Button>
+          </Stack>
+        ) : (
+          paginatedAnnouncements.map((announcement) => (
+            <AnnouncementRow
+              key={getId(announcement)}
+              announcement={announcement}
+              onOpen={openAnnouncement}
+              onEdit={editAnnouncement}
+              onDelete={handleDeleteClick}
+            />
+          ))
+        )}
+
+        {pageCount > 1 && (
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredAnnouncements.length)} of {filteredAnnouncements.length}
+            </Typography>
+            <Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
+          </Stack>
+        )}
+      </Box>
+
+      <Dialog open={deleteDialogOpen} onClose={() => !deleting && setDeleteDialogOpen(false)} PaperProps={{ sx: { borderRadius: 2.5, maxWidth: 460 } }}>
+        <DialogTitle sx={{ pb: 1, fontWeight: 700 }}>
+          {isDeleteTargetScheduled ? 'Cancel scheduled announcement?' : 'Delete announcement?'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ fontSize: '0.875rem' }}>
+            {isDeleteTargetScheduled
+              ? `Cancel “${read(announcementToDelete, 'title', 'Title') || 'this announcement'}”? It will not be sent and this action cannot be undone.`
+              : `Delete “${read(announcementToDelete, 'title', 'Title') || 'this announcement'}”? This action cannot be undone.`}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button variant="outlined" disabled={deleting} onClick={() => { setDeleteDialogOpen(false); setAnnouncementToDelete(null); }}>Keep announcement</Button>
+          <Button color="error" variant="contained" disabled={deleting} onClick={handleDeleteConfirm}>
+            {deleting ? 'Processing…' : isDeleteTargetScheduled ? 'Cancel announcement' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

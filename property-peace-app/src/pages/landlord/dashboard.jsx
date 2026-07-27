@@ -143,6 +143,26 @@ export default function Dashboard() {
     return `${attentionCount} thing${attentionCount !== 1 ? 's' : ''} need your attention today`;
   }, [properties, allMaintenanceRequests]);
 
+  const dashboardStats = useMemo(() => {
+    const propertyCount = properties?.length || 0;
+    const units = (properties || []).flatMap((property) => property.units || property.Units || []);
+    const occupiedUnits = units.filter((unit) => {
+      const status = (unit.status || unit.Status || '').toLowerCase();
+      return status === 'occupied' || status === 'overdue';
+    }).length;
+    const openMaintenance = allMaintenanceRequests.filter(isOpenMaintenanceRequest).length;
+    const expected = Number(summary?.expectedThisMonth || 0);
+    const collected = Number(summary?.collectedThisMonth || 0);
+    const collectionRate = expected > 0 ? `${Math.min(100, Math.round((collected / expected) * 100))}%` : '—';
+
+    return [
+      { label: propertyCount === 1 ? 'Property' : 'Properties', value: propertyCount },
+      { label: 'Occupied units', value: units.length ? `${occupiedUnits}/${units.length}` : '—' },
+      { label: 'Open maintenance', value: openMaintenance },
+      { label: 'Rent collected', value: collectionRate }
+    ];
+  }, [properties, allMaintenanceRequests, summary]);
+
   // Get dashboard loading state from Redux
   const dashboardLoading = useSelector(selectDashboardLoading);
 
@@ -370,7 +390,7 @@ export default function Dashboard() {
     try {
       setCheckoutLoading(true);
       
-      const successUrl = `${window.location.origin}/landlord/subscription?success=true`;
+      const successUrl = `${window.location.origin}/landlord/settings?tab=subscription&success=true`;
       const cancelUrl = `${window.location.origin}/landlord/dashboard?canceled=true`;
 
       const response = await subscriptionAPI.createCheckoutSession(
@@ -476,10 +496,11 @@ export default function Dashboard() {
             t.palette.mode === 'light'
               ? {
                   '& .MuiCard-root': {
-                    boxShadow: 'none'
+                    borderColor: alpha('#061e35', 0.09),
+                    boxShadow: `0 12px 34px ${alpha('#061e35', 0.065)}`
                   },
                   '& .MuiCard-root:hover': {
-                    boxShadow: 'none'
+                    boxShadow: `0 16px 40px ${alpha('#061e35', 0.09)}`
                   }
                 }
               : undefined
@@ -496,10 +517,11 @@ export default function Dashboard() {
             <Box sx={{ mt: { xs: 2, sm: 2, md: 0 } }}>
               <DashboardHeader
                 userName={user?.firstname || user?.Firstname}
-                subscription={subscription}
-                subscriptionLoading={subLoading}
                 summaryText={headerSummaryText}
-                onCreateNew={null}
+                stats={dashboardStats}
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                onCreateNew={handleCreateMenuOpen}
               />
             </Box>
           </AnimateIn>
@@ -513,9 +535,17 @@ export default function Dashboard() {
                 <Box
                   sx={{
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    p: 2,
+                    borderRadius: 2.5,
+                    border: `1px solid ${alpha('#061e35', 0.09)}`,
+                    bgcolor: 'background.paper',
+                    boxShadow: `0 12px 34px ${alpha('#061e35', 0.06)}`
                   }}
                 >
+                    <Typography variant="h5" fontWeight={750} sx={{ mb: 1.5, color: '#061e35' }}>
+                      Quick actions
+                    </Typography>
                     <Stack spacing={1}>
                       {[
                         { icon: <DollarCircleOutlined style={{ fontSize: 18 }} />, label: 'Record Payment', sub: 'Log rent paid', color: theme.palette.success.main, onClick: () => drawer.openPaymentAddDrawer() },
@@ -534,7 +564,7 @@ export default function Dashboard() {
                             px: 1.25,
                             py: 1,
                             border: `1px solid ${alpha('#94a3b8', 0.45)}`,
-                            borderRadius: 2,
+                            borderRadius: 1.75,
                             textAlign: 'left',
                             cursor: 'pointer',
                             color: '#061e35',
@@ -542,10 +572,10 @@ export default function Dashboard() {
                             backgroundImage: 'none',
                             transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease',
                             '&:hover': {
-                              transform: 'translateY(-1px)',
-                              borderColor: alpha('#94a3b8', 0.7),
-                              boxShadow: `0 10px 22px ${alpha('#061e35', 0.12)}`,
-                              bgcolor: alpha('#061e35', 0.035)
+                              transform: 'translateX(3px)',
+                              borderColor: alpha(theme.palette.success.main, 0.55),
+                              boxShadow: `0 8px 18px ${alpha('#061e35', 0.09)}`,
+                              bgcolor: alpha(theme.palette.success.main, 0.045)
                             },
                             '&:focus-visible': {
                               outline: `2px solid ${alpha('#061e35', 0.45)}`,
@@ -619,8 +649,9 @@ export default function Dashboard() {
             mt: 1,
             minWidth: 220,
             borderRadius: 2,
-            background: (t) => `linear-gradient(145deg, ${t.palette.primary.dark} 0%, ${t.palette.primary.main} 100%)`,
-            boxShadow: (t) => `0 8px 24px ${alpha(t.palette.primary.main, 0.35)}`,
+            background: '#061e35',
+            border: `1px solid ${alpha('#ffffff', 0.12)}`,
+            boxShadow: `0 18px 45px ${alpha('#061e35', 0.32)}`,
             py: 0.5,
             '& .MuiMenuItem-root': { color: '#fff', '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' } },
             '& .MuiDivider-root': { borderColor: 'rgba(255,255,255,0.2)' }
@@ -717,6 +748,7 @@ export default function Dashboard() {
         open={showOnboardingWizard}
         onClose={handleOnboardingWizardClose}
         onStartSetupTasks={() => setSetupTasksOpen(true)}
+        steps={setupState.steps}
       />
       <FinishSetup
         open={setupTasksOpen}
@@ -794,7 +826,7 @@ export default function Dashboard() {
               variant="contained"
               color="primary"
               size="large"
-              onClick={() => navigate('/landlord/subscription')}
+              onClick={() => navigate('/landlord/settings?tab=subscription')}
               sx={{
                 textTransform: 'none',
                 fontWeight: 600,

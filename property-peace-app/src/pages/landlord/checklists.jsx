@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, CircularProgress, Stack, Typography, alpha, useTheme } from '@mui/material';
-import { AuditOutlined, HomeOutlined, RightOutlined } from '@ant-design/icons';
+import { AuditOutlined, CheckCircleOutlined, HomeOutlined, RightOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
@@ -16,6 +16,10 @@ function isMultiUnitProperty(property) {
 
 function getPropertyLabel(property) {
   return property?.name || property?.streetAddress || `Property ${property?.id}`;
+}
+
+function getPropertyAddress(property) {
+  return [property?.streetAddress, property?.city, property?.state].filter(Boolean).join(', ');
 }
 
 export default function ChecklistsPage() {
@@ -84,26 +88,27 @@ export default function ChecklistsPage() {
     <Box>
       <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Checklists' }]} />
 
-      <Box sx={{ maxWidth: 720, mx: 'auto', pt: { xs: 2, md: 6 } }}>
-        <Stack alignItems="center" textAlign="center" spacing={1} sx={{ mb: 3.5 }}>
+      <Box sx={{ maxWidth: 760, mx: 'auto', pt: { xs: 2, md: 4.5 } }}>
+        <Stack alignItems="center" textAlign="center" spacing={1} sx={{ mb: 3 }}>
           <Box
             sx={{
-              width: 54,
-              height: 54,
-              borderRadius: '50%',
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              color: 'primary.main',
+              width: 52,
+              height: 52,
+              borderRadius: 2.25,
+              bgcolor: '#061e35',
+              color: '#fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              mb: 0.5
+              mb: 0.5,
+              boxShadow: `0 8px 22px ${alpha('#061e35', 0.16)}`
             }}
           >
-            <AuditOutlined style={{ fontSize: 25 }} />
+            <AuditOutlined style={{ fontSize: 24 }} />
           </Box>
           <Typography variant="h3" fontWeight={700}>Checklists</Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 520 }}>
-            Choose a property to view its move-in and move-out checklists.
+          <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 560 }}>
+            Choose a home to start a move-in or move-out checklist and review its history.
           </Typography>
         </Stack>
 
@@ -111,11 +116,21 @@ export default function ChecklistsPage() {
           content={false}
           sx={{
             border: `1px solid ${alpha(theme.palette.divider, 0.75)}`,
-            boxShadow: `0 12px 32px ${alpha(theme.palette.primary.main, 0.08)}`
+            boxShadow: `0 14px 36px ${alpha('#061e35', 0.08)}`,
+            borderRadius: 2.5,
+            overflow: 'hidden'
           }}
         >
+          <Box sx={{ height: 4, bgcolor: 'success.main' }} />
           <Box sx={{ p: { xs: 2.5, sm: 3.5 } }}>
-            <Stack spacing={3}>
+            <Stack spacing={2.75}>
+              <Box>
+                <Typography variant="h5" fontWeight={750}>Find the home</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  We’ll keep the current work and past records together in one quiet workspace.
+                </Typography>
+              </Box>
+
               <Stack spacing={0.75}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <HomeOutlined style={{ color: theme.palette.primary.main }} />
@@ -131,6 +146,20 @@ export default function ChecklistsPage() {
                   loading={propertiesLoading}
                   disabled={propertiesLoading}
                   disablePortal={false}
+                  renderOption={(props, option) => {
+                    const { key, ...optionProps } = props;
+                    const address = getPropertyAddress(option);
+                    return (
+                      <Box component="li" key={key} {...optionProps} sx={{ py: 1.25, alignItems: 'flex-start !important' }}>
+                        <Box>
+                          <Typography variant="body2" fontWeight={700}>{option.label}</Typography>
+                          {address && address !== option.label && (
+                            <Typography variant="caption" color="text.secondary">{address}</Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    );
+                  }}
                 />
                 {!propertiesLoading && propertyOptions.length === 0 && (
                   <Typography variant="caption" color="text.secondary">
@@ -174,8 +203,13 @@ export default function ChecklistsPage() {
                 fullWidth
                 sx={{ textTransform: 'none', borderRadius: 1.5, fontWeight: 700 }}
               >
-                View Checklists
+                Open Checklists
               </Button>
+
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ color: 'text.secondary', pt: 0.25 }}>
+                <CheckCircleOutlined style={{ color: theme.palette.success.main, fontSize: 14 }} />
+                <Typography variant="caption">History stays organized by home, tenant, and lease.</Typography>
+              </Stack>
             </Stack>
           </Box>
         </MainCard>

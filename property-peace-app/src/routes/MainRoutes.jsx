@@ -84,7 +84,6 @@ const Ledger = Loadable(lazy(() => import('pages/landlord/ledger')));
 const ExpensesProperty = Loadable(lazy(() => import('pages/landlord/expenses-property')));
 const ExpenseAddWorkflow = Loadable(lazy(() => import('pages/landlord/expense-add-workflow')));
 const Messages = Loadable(lazy(() => import('pages/landlord/messages')));
-const PropertiesPage = Loadable(lazy(() => import('pages/landlord/properties-page')));
 const UrgentMessages = Loadable(lazy(() => import('pages/landlord/urgent-messages')));
 const ReportsDashboard = Loadable(lazy(() => import('pages/landlord/reports/index')));
 const OccupancyReport = Loadable(lazy(() => import('pages/landlord/reports/occupancy')));
@@ -103,7 +102,6 @@ const Settings = Loadable(lazy(() => import('pages/landlord/settings')));
 const Notifications = Loadable(lazy(() => import('pages/landlord/notifications')));
 const Activity = Loadable(lazy(() => import('pages/landlord/activity')));
 const Appearance = Loadable(lazy(() => import('pages/landlord/appearance')));
-const Subscription = Loadable(lazy(() => import('pages/landlord/subscription/index')));
 const SubscriptionSuccess = Loadable(lazy(() => import('pages/landlord/subscription-success')));
 const BillingHistory = Loadable(lazy(() => import('pages/landlord/subscription/billing-history')));
 const Vendors = Loadable(lazy(() => import('pages/landlord/vendors')));
@@ -148,9 +146,6 @@ const TenantNotifications = Loadable(lazy(() => import('pages/tenant/notificatio
 const TenantInviteAcceptPortal = Loadable(lazy(() => import('pages/tenant/invite-accept-portal')));
 const TenantAnnouncements = Loadable(lazy(() => import('pages/tenant/announcements')));
 const TenantDocuments = Loadable(lazy(() => import('pages/tenant/documents')));
-const TenantLeaseShield = Loadable(lazy(() => import('pages/landlord/lease-shield')));
-const TenantSubscription = Loadable(lazy(() => import('pages/tenant/subscription')));
-const TenantSubscriptionSuccess = Loadable(lazy(() => import('pages/tenant/subscription-success')));
 
 // admin pages (lazy-loaded)
 const AdminDashboard = Loadable(lazy(() => import('pages/admin/dashboard')));
@@ -812,6 +807,22 @@ const MainRoutes = {
           )
         },
         {
+          path: 'landlord/checklists/property/:propertyId/compare/:moveInId/:moveOutId',
+          element: (
+            <SubscriptionPausedGuard>
+              <PropertyChecklistsPage />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/checklists/property/:propertyId/unit/:unitId/compare/:moveInId/:moveOutId',
+          element: (
+            <SubscriptionPausedGuard>
+              <PropertyChecklistsPage />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
           path: 'landlord/inspection/:propertyId',
           element: <LegacyInspectionRedirect />
         },
@@ -859,14 +870,6 @@ const MainRoutes = {
             </SubscriptionPausedGuard>
           )
         },
-      {
-        path: 'landlord/properties',
-        element: (
-          <SubscriptionPausedGuard>
-            <PropertiesPage />
-          </SubscriptionPausedGuard>
-        )
-      },
         {
           path: 'landlord/urgent-messages',
           element: (
@@ -953,11 +956,7 @@ const MainRoutes = {
         },
         {
           path: 'landlord/settings',
-          element: (
-            <SubscriptionPausedGuard>
-              <Settings />
-            </SubscriptionPausedGuard>
-          )
+          element: <Settings />
         },
         {
           path: 'landlord/help',
@@ -1049,7 +1048,7 @@ const MainRoutes = {
         },
         {
           path: 'landlord/subscription',
-          element: <Subscription />
+          element: <Navigate to="/landlord/settings?tab=subscription" replace />
         },
         {
           path: 'landlord/subscription-success',
@@ -1223,22 +1222,6 @@ const MainRoutes = {
         {
           path: 'tenant/documents',
           element: <TenantDocuments />
-        },
-        {
-          path: 'tenant/lease-shield',
-          element: (
-            <SubscriptionPausedGuard>
-              <TenantLeaseShield />
-            </SubscriptionPausedGuard>
-          )
-        },
-        {
-          path: 'tenant/subscription',
-          element: <TenantSubscription />
-        },
-        {
-          path: 'tenant/subscription-success',
-          element: <TenantSubscriptionSuccess />
         },
         {
           path: 'tenant/help',

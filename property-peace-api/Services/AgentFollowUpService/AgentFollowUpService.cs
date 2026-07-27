@@ -153,7 +153,7 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                 - Do not say you are an AI or mention internal data fields.
                 - Return ONLY a JSON object with two keys:
                   "in_app_message": a friendly 2-3 sentence in-app message for this tenant
-                  "email_message": a professional 3-5 sentence email body with greeting and closing, personalized to this tenant
+                  "email_message": a professional 3-5 sentence email body with a greeting but no closing or signature, personalized to this tenant
                 """;
 
             var sentCount = 0;
@@ -170,6 +170,7 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                     tenant.Email ?? string.Empty,
                     lease.PropertyName,
                     lease.UnitName,
+                    string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase),
                     overdueAmount > 0 ? "CollectionsAgent_Overdue" : "CollectionsAgent_PreDue",
                     3,
                     lease.RentAmount,
@@ -190,7 +191,10 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                 {
                     selected_tenant = new { tenant_id = tenant.Id, name = tenantName, first_name = tenant.Firstname, email = tenant.Email },
                     property = lease.PropertyName,
-                    unit = lease.UnitName,
+                    unit = string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase) ? lease.UnitName : null,
+                    residence_reference = string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase)
+                        ? $"{lease.PropertyName}, {lease.UnitName}"
+                        : $"the home at {lease.PropertyName}",
                     lease_id = lease.Id,
                     rent_amount = lease.RentAmount,
                     rent_due_day = lease.RentDueDay,
@@ -200,7 +204,7 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                     next_due_date = nextDueDate?.ToString("yyyy-MM-dd"),
                     rent_due_date = rentDueDate?.ToString("yyyy-MM-dd"),
                     recent_payments = recentPayments,
-                    landlord_instruction = "Send a collection-agent follow-up only to this selected tenant for this unit/property. Make the email personal to this tenant."
+                    landlord_instruction = "Send a collection-agent follow-up only to this selected tenant. Make the email personal. For a single-family home, say 'the home' and never mention a unit name such as 'Unit 1'. Do not add an email signature; the application adds the landlord organization's Team signature."
                 });
 
                 var parameters = new MessageParameters
@@ -339,6 +343,7 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                     tenant.Email ?? string.Empty,
                     lease.PropertyName,
                     lease.UnitName,
+                    string.Equals(lease.PropertyType, "MultiUnit", StringComparison.OrdinalIgnoreCase),
                     actionType,
                     suppressionDays,
                     lease.RentAmount,
@@ -433,12 +438,14 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                     For each input item, return an object with:
                     - lease_id
                     - in_app_message: friendly, conversational, 2-4 sentences
-                    - email_message: professional but empathetic, 3-5 sentences with greeting and closing
+                    - email_message: professional but empathetic, 3-5 sentences with a greeting but no closing or signature
 
                     Rules:
                     - Address the tenant by first name.
                     - Never threaten eviction, legal action, penalties, or use intimidating language.
                     - Do not say you are an AI or mention internal fields.
+                    - For a single-family home, call it "the home" and never mention a unit name such as "Unit 1".
+                    - Do not add a closing or signature. The application appends the landlord organization's Team signature.
                     - For overdue rent, include the overdue balance, rent due date, days past due, and an invitation to reach out about payment options.
                     - For upcoming rent, keep it light and mention the upcoming due date.
                     - If repeat late-payer context is present, gently mention autopay or a structured payment plan.
@@ -453,7 +460,10 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
                         tenant_first_name = r.TenantFirstName,
                         tenant_name = r.TenantName,
                         property = r.PropertyName,
-                        unit = r.UnitName,
+                        unit = r.IsMultiUnit ? r.UnitName : null,
+                        residence_reference = r.IsMultiUnit
+                            ? $"{r.PropertyName}, {r.UnitName}"
+                            : $"the home at {r.PropertyName}",
                         action_type = r.ActionType,
                         rent_amount = r.RentAmount,
                         overdue_amount = r.OverdueAmount,
@@ -583,7 +593,9 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
 
         private static GeneratedFollowUpMessage CreateFallbackFollowUpMessage(FollowUpMessageRequest request)
         {
-            var property = string.Join("", [request.PropertyName, request.UnitName != null ? $", {request.UnitName}" : ""]);
+            var property = request.IsMultiUnit && !string.IsNullOrWhiteSpace(request.UnitName)
+                ? $"{request.PropertyName}, {request.UnitName}"
+                : $"the home at {request.PropertyName}";
             if (request.ActionType == "CollectionsAgent_PreDue")
             {
                 var inApp = $"Hi {request.TenantFirstName}, this is a friendly reminder that rent for {property} is due on {request.NextDueDate}. Please reach out if you have any questions.";
@@ -1225,6 +1237,7 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
             string TenantEmail,
             string? PropertyName,
             string? UnitName,
+            bool IsMultiUnit,
             string ActionType,
             int SuppressionDays,
             decimal? RentAmount,

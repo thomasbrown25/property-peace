@@ -36,7 +36,8 @@ import {
   Checkbox,
   Drawer,
   TextField,
-  Divider
+  Divider,
+  Avatar
 } from '@mui/material';
 import MainCard from 'components/MainCard';
 import AnimateIn from 'components/AnimateIn';
@@ -131,6 +132,45 @@ const leaseSectionHeaderSx = {
   textTransform: 'uppercase'
 };
 
+function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
+  const theme = useTheme();
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        width: '100%',
+        minHeight: 112,
+        p: 2,
+        borderRadius: 2.5,
+        border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`,
+        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.12 : 0.055) : 'background.paper',
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha('#061e35', 0.05)}`,
+        color: 'text.primary',
+        textAlign: 'left',
+        cursor: 'pointer',
+        font: 'inherit',
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+        <Box minWidth={0}>
+          <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>
+            {label}
+          </Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }} noWrap>{value}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }} noWrap>{helper}</Typography>
+        </Box>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
+      </Stack>
+    </Box>
+  );
+}
+
 const getLeaseDisplayName = (lease) => {
   const leaseName = lease.name || lease.Name;
   if (leaseName && leaseName.trim()) return leaseName.trim();
@@ -161,7 +201,7 @@ const getTenantDisplay = (lease) => {
   const primaryTenant = lease.tenants?.[0];
   const first = primaryTenant?.firstname || primaryTenant?.firstName || primaryTenant?.Firstname || primaryTenant?.FirstName || '';
   const last = primaryTenant?.lastname || primaryTenant?.lastName || primaryTenant?.Lastname || primaryTenant?.LastName || '';
-  return [first, last].filter(Boolean).join(' ') || lease.tenantName || lease.TenantName || 'No tenant';
+  return [first, last].filter(Boolean).join(' ') || lease.tenantName || lease.TenantName || 'No tenants added';
 };
 
 const isLeaseDraft = (lease) =>
@@ -1257,7 +1297,11 @@ export default function LeasesPage({ onEditLease }) {
         const name = (l.name || l.Name || '').toLowerCase();
         const propName = (l.propertyName || '').toLowerCase();
         const unitName = (l.unitName || '').toLowerCase();
-        return name.includes(q) || propName.includes(q) || unitName.includes(q);
+        const tenantNames = (l.tenants || [])
+          .map((tenant) => [tenant.firstname || tenant.firstName || tenant.FirstName, tenant.lastname || tenant.lastName || tenant.LastName].filter(Boolean).join(' '))
+          .join(' ')
+          .toLowerCase();
+        return name.includes(q) || propName.includes(q) || unitName.includes(q) || tenantNames.includes(q);
       });
     }
     return base;
@@ -1272,7 +1316,7 @@ export default function LeasesPage({ onEditLease }) {
 
   useEffect(() => {
     setLeasesPage(0);
-  }, [leasesItemsPerPage]);
+  }, [leasesItemsPerPage, leaseSearch, filters.status, selectedProperty?.id, sortField, sortOrder]);
 
   const handleLeasesPageChange = (newPage) => {
     setLeasesPage(newPage);
@@ -1510,7 +1554,7 @@ export default function LeasesPage({ onEditLease }) {
       return endDate >= today && endDate <= ninetyDaysFromNow;
     });
 
-    const totalUnits = properties.reduce((sum, property) => sum + Math.max(1, property.units?.length || 0), 0);
+    const totalUnits = (properties || []).reduce((sum, property) => sum + Math.max(1, property.units?.length || 0), 0);
     const occupiedUnits = allLeases.filter((lease) => isStartedActiveLease(lease)).length;
     const occupancy = totalUnits ? Math.round((occupiedUnits / totalUnits) * 100) : 0;
 
@@ -1544,7 +1588,10 @@ export default function LeasesPage({ onEditLease }) {
       <Box sx={{ overflow: 'visible' }}>
         {/* Header */}
         <AnimateIn direction="bottom" delay={100} distance={120}>
-          <LeasesHeader />
+          <LeasesHeader
+            onCreateLease={() => drawer.openLeaseAddDrawer()}
+            onCreateAgreement={() => openCreateAgreementDrawer()}
+          />
         </AnimateIn>
 
         {/* Tabs */}
@@ -1610,69 +1657,49 @@ export default function LeasesPage({ onEditLease }) {
           <TabPanel key="leases" value={activeTab} index={0} slideDirection={slideDirection}>
             <AnimateIn direction="bottom" delay={300} distance={120}>
             <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                <Card sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.12)}`, boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}` }}>
-                  <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                    <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                      <Box sx={{ width: 34, height: 34, borderRadius: 2, bgcolor: alpha(theme.palette.success.main, 0.12), color: 'success.main', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <DollarOutlined style={{ fontSize: 17 }} />
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.68rem', letterSpacing: 1.1, textTransform: 'uppercase', color: 'text.secondary', fontWeight: 800 }}>Expected this month</Typography>
-                        <Typography variant="h4" sx={{ lineHeight: 1.05, fontWeight: 800 }}>{formatCurrency(overviewMetrics.expectedThisMonth)}</Typography>
-                        <Typography variant="caption" color="text.secondary">{overviewMetrics.billingCount} of {allLeases.length} leases billing</Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+              <Grid size={{ xs: 6, lg: 3 }}>
+                <SummaryCard
+                  label="Active leases"
+                  value={overviewMetrics.billingCount}
+                  helper={`${allLeases.length - overviewMetrics.billingCount} not started or archived`}
+                  icon={<HomeOutlined />}
+                  color={theme.palette.success.main}
+                  active={filters.status?.[0] === 'active'}
+                  onClick={() => setFilters({ status: [filters.status?.[0] === 'active' ? 'current' : 'active'] })}
+                />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                <Card sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.12)}`, boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}` }}>
-                  <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                    <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                      <Box sx={{ width: 34, height: 34, borderRadius: 2, bgcolor: alpha(theme.palette.error.main, 0.12), color: 'error.main', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <AlertOutlined style={{ fontSize: 17 }} />
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.68rem', letterSpacing: 1.1, textTransform: 'uppercase', color: 'text.secondary', fontWeight: 800 }}>Outstanding</Typography>
-                        <Typography variant="h4" sx={{ lineHeight: 1.05, fontWeight: 800 }}>{formatCurrency(overviewMetrics.outstanding)}</Typography>
-                        <Typography variant="caption" color="text.secondary">{overviewMetrics.overdueCount} lease{overviewMetrics.overdueCount === 1 ? '' : 's'} late</Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+              <Grid size={{ xs: 6, lg: 3 }}>
+                <SummaryCard
+                  label="Monthly rent roll"
+                  value={formatCurrency(overviewMetrics.expectedThisMonth)}
+                  helper={`${overviewMetrics.billingCount} active lease${overviewMetrics.billingCount === 1 ? '' : 's'} billing`}
+                  icon={<DollarOutlined />}
+                  color={theme.palette.primary.main}
+                  active={sortField === 'rentAmount' && sortOrder === 'desc'}
+                  onClick={() => { setSortField('rentAmount'); setSortOrder('desc'); }}
+                />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                <Card sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.12)}`, boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}` }}>
-                  <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                    <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                      <Box sx={{ width: 34, height: 34, borderRadius: 2, bgcolor: alpha(theme.palette.warning.main, 0.14), color: 'warning.main', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <ClockCircleOutlined style={{ fontSize: 17 }} />
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.68rem', letterSpacing: 1.1, textTransform: 'uppercase', color: 'text.secondary', fontWeight: 800 }}>Expiring &lt; 90 days</Typography>
-                        <Typography variant="h4" sx={{ lineHeight: 1.05, fontWeight: 800 }}>{overviewMetrics.expiringCount} lease{overviewMetrics.expiringCount === 1 ? '' : 's'}</Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>{overviewMetrics.nextExpiring ? `${overviewMetrics.nextExpiring.tenantName || getTenantDisplay(overviewMetrics.nextExpiring)} · ${formatDate(overviewMetrics.nextExpiring.endDate)}` : 'No upcoming expirations'}</Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+              <Grid size={{ xs: 6, lg: 3 }}>
+                <SummaryCard
+                  label="Outstanding"
+                  value={formatCurrency(overviewMetrics.outstanding)}
+                  helper={`${overviewMetrics.overdueCount} overdue lease${overviewMetrics.overdueCount === 1 ? '' : 's'}`}
+                  icon={<AlertOutlined />}
+                  color={theme.palette.error.main}
+                  active={filters.status?.[0] === 'overdue'}
+                  onClick={() => setFilters({ status: [filters.status?.[0] === 'overdue' ? 'current' : 'overdue'] })}
+                />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-                <Card sx={{ borderRadius: 2, border: `1px solid ${alpha(theme.palette.divider, 0.12)}`, boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}` }}>
-                  <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                    <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                      <Box sx={{ width: 34, height: 34, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.12), color: 'primary.main', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <HomeOutlined style={{ fontSize: 17 }} />
-                      </Box>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="caption" sx={{ fontSize: '0.68rem', letterSpacing: 1.1, textTransform: 'uppercase', color: 'text.secondary', fontWeight: 800 }}>Avg occupancy</Typography>
-                        <Typography variant="h4" sx={{ lineHeight: 1.05, fontWeight: 800 }}>{overviewMetrics.occupancy}%</Typography>
-                        <Typography variant="caption" color="text.secondary">{overviewMetrics.occupiedUnits} of {overviewMetrics.totalUnits} units occupied</Typography>
-                      </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+              <Grid size={{ xs: 6, lg: 3 }}>
+                <SummaryCard
+                  label="Renewals due"
+                  value={overviewMetrics.expiringCount}
+                  helper={overviewMetrics.nextExpiring ? `Next: ${formatDate(overviewMetrics.nextExpiring.endDate)}` : 'No expirations in 90 days'}
+                  icon={<ClockCircleOutlined />}
+                  color={theme.palette.warning.main}
+                  active={filters.status?.[0] === 'renewals'}
+                  onClick={() => setFilters({ status: [filters.status?.[0] === 'renewals' ? 'current' : 'renewals'] })}
+                />
               </Grid>
             </Grid>
             </AnimateIn>
@@ -1681,48 +1708,97 @@ export default function LeasesPage({ onEditLease }) {
             <AnimateIn direction="bottom" delay={400} distance={120}>
             <Box
               sx={{
-                display: 'flex',
-                gap: 1.5,
-                alignItems: 'center',
-                justifyContent: 'space-between',
                 mb: 2,
-                flexDirection: { xs: 'column', sm: 'row' }
+                p: { xs: 1.5, md: 2 },
+                bgcolor: 'background.paper',
+                border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+                borderRadius: 3,
+                boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`
               }}
             >
-              <OutlinedInput
-                size="small"
-                placeholder="Search leases, properties, tenants..."
-                value={leaseSearch}
-                onChange={(e) => setLeaseSearch(e.target.value)}
-                startAdornment={
-                  <InputAdornment position="start">
-                    <SearchOutlined style={{ fontSize: 14, opacity: 0.5 }} />
-                  </InputAdornment>
-                }
-                sx={{
-                  flex: 1,
-                  width: '100%',
-                  minWidth: 0,
-                  bgcolor: 'background.paper',
-                  height: 34,
-                  fontSize: '0.8rem'
-                }}
-              />
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<PlusOutlined style={{ fontSize: 16 }} />}
-                onClick={() => drawer.openLeaseAddDrawer()}
-                sx={{ borderRadius: 1.5, textTransform: 'none', flexShrink: 0, fontWeight: 700, width: { xs: '100%', sm: 'auto' }, height: 34 }}
-              >
-                Create Lease
-              </Button>
+              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
+                <OutlinedInput
+                  size="small"
+                  placeholder="Search leases, properties, units, or tenants"
+                  value={leaseSearch}
+                  onChange={(e) => setLeaseSearch(e.target.value)}
+                  startAdornment={<InputAdornment position="start"><SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} /></InputAdornment>}
+                  sx={{ flex: 1, minWidth: { lg: 260 }, borderRadius: 1.75 }}
+                />
+                <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
+                  <Select
+                    size="small"
+                    value={filters.status?.[0] || 'current'}
+                    onChange={(event) => setFilters({ status: [event.target.value] })}
+                    sx={{ minWidth: 150, borderRadius: 1.75 }}
+                  >
+                    <MenuItem value="current">Current leases</MenuItem>
+                    <MenuItem value="active">Active leases</MenuItem>
+                    <MenuItem value="notStarted">Not started</MenuItem>
+                    <MenuItem value="renewals">Renewals due</MenuItem>
+                    <MenuItem value="overdue">Overdue rent</MenuItem>
+                    <MenuItem value="history">Lease history</MenuItem>
+                  </Select>
+                  <Select
+                    size="small"
+                    value={selectedProperty?.id || 'all'}
+                    onChange={(event) => {
+                      const property = event.target.value === 'all' ? null : (properties || []).find((item) => Number(item.id) === Number(event.target.value));
+                      dispatch(setProperty(property || null));
+                      dispatch(setUnit(null));
+                    }}
+                    sx={{ minWidth: 155, maxWidth: 220, borderRadius: 1.75 }}
+                  >
+                    <MenuItem value="all">All properties</MenuItem>
+                    {(properties || []).map((property) => (
+                      <MenuItem key={property.id} value={property.id}>{property.name || property.streetAddress || `Property ${property.id}`}</MenuItem>
+                    ))}
+                  </Select>
+                  <Select
+                    size="small"
+                    value={`${sortField}:${sortOrder}`}
+                    onChange={(event) => {
+                      const [field, order] = event.target.value.split(':');
+                      setSortField(field);
+                      setSortOrder(order);
+                    }}
+                    sx={{ minWidth: 160, borderRadius: 1.75 }}
+                  >
+                    <MenuItem value="status:asc">Sort: Attention</MenuItem>
+                    <MenuItem value="property:asc">Sort: Property</MenuItem>
+                    <MenuItem value="endDate:asc">Sort: Lease end</MenuItem>
+                    <MenuItem value="rentAmount:desc">Sort: Highest rent</MenuItem>
+                    <MenuItem value="startDate:desc">Sort: Newest start</MenuItem>
+                  </Select>
+                </Stack>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
+                <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+                  {displayLeases.length} of {allLeases.length} leases
+                </Typography>
+                {(leaseSearch || filters.status?.[0] !== 'current' || selectedProperty || sortField !== 'status' || sortOrder !== 'asc') && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setLeaseSearch('');
+                      setFilters({ status: ['current'] });
+                      dispatch(setProperty(null));
+                      dispatch(setUnit(null));
+                      setSortField('status');
+                      setSortOrder('asc');
+                    }}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Reset view
+                  </Button>
+                )}
+              </Stack>
             </Box>
             </AnimateIn>
 
             <AnimateIn direction="bottom" delay={500} distance={120}>
             <Grid container spacing={2.5} alignItems="flex-start">
-              <Grid size={{ xs: 12, lg: 9 }}>
+              <Grid size={{ xs: 12 }}>
                 <Stack spacing={2}>
                   {draftCount > 0 && (
                     <Paper
@@ -1776,6 +1852,7 @@ export default function LeasesPage({ onEditLease }) {
                                       <Checkbox size="small" checked={isSelected} onClick={(e) => e.stopPropagation()} onChange={() => handleSelectLease(lease.id)} sx={{ p: 0.25 }} />
                                       <Box sx={{ minWidth: 0 }}>
                                         <Typography variant="body2" fontWeight={700} noWrap>{propertyTenantTitle}</Typography>
+                                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mb: 0.55 }}>{getTenantDisplay(lease)}</Typography>
                                         <Chip
                                           size="small"
                                           label={isActiveLease ? 'Active lease' : 'No active lease'}
@@ -1906,7 +1983,8 @@ export default function LeasesPage({ onEditLease }) {
                                   </TableCell>
                                   <TableCell sx={{ width: 175, minWidth: 175, maxWidth: 190 }}>
                                     <Box sx={{ minWidth: 0 }}>
-                                      <Typography variant="body2" fontWeight={500} noWrap>{propertyTenantTitle}</Typography>
+                                      <Typography variant="body2" fontWeight={700} noWrap>{propertyTenantTitle}</Typography>
+                                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{getTenantDisplay(lease)}</Typography>
                                       <Chip
                                         size="small"
                                         label={isActiveLease ? 'Active lease' : 'No active lease'}
@@ -2011,12 +2089,6 @@ export default function LeasesPage({ onEditLease }) {
                 </Stack>
               </Grid>
 
-              <Grid size={{ xs: 12, lg: 3 }}>
-                <Stack spacing={2} sx={{ position: { lg: 'sticky' }, top: { lg: 88 } }}>
-                  <PortfolioRiskCard leases={allLeases} rentRecords={rentRecords} />
-                  <UpcomingCard leases={allLeases} rentRecords={rentRecords} onCalendarClick={() => navigate('/landlord/calendar')} />
-                </Stack>
-              </Grid>
             </Grid>
             </AnimateIn>
 
@@ -2106,34 +2178,16 @@ export default function LeasesPage({ onEditLease }) {
                 const isActive = activeAgreementFilter === filterKey;
 
                 return (
-                  <Grid key={c.key} size={{ xs: 12, sm: 6, lg: 3 }}>
-                    <Card
-                      variant="outlined"
+                  <Grid key={c.key} size={{ xs: 6, lg: 3 }}>
+                    <SummaryCard
+                      label={c.label}
+                      value={c.value}
+                      helper={c.caption}
+                      icon={<Icon />}
+                      color={paletteColor}
+                      active={isActive}
                       onClick={() => setActiveAgreementFilter(isActive ? null : filterKey)}
-                      sx={{
-                        height: '100%',
-                        borderRadius: 2,
-                        border: (t) => `1px solid ${isActive ? t.palette.primary.main : alpha(t.palette.divider, 0.12)}`,
-                        bgcolor: (t) => isActive ? alpha(t.palette.primary.main, 0.06) : 'background.paper',
-                        boxShadow: (t) => isActive ? 'none' : t.palette.mode === 'dark' ? `0 0 0 1px ${alpha(t.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(t.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(t.palette.primary.main, 0.08)}`,
-                        cursor: 'pointer',
-                        transition: 'border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease',
-                        '&:hover': { borderColor: (t) => alpha(t.palette.primary.main, 0.55), bgcolor: (t) => alpha(t.palette.primary.main, 0.035) }
-                      }}
-                    >
-                      <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                        <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                          <Box sx={{ width: 34, height: 34, borderRadius: 2, bgcolor: alpha(paletteColor, 0.12), color: paletteColor, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                            <Icon style={{ fontSize: 17 }} />
-                          </Box>
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="caption" sx={{ fontSize: '0.68rem', letterSpacing: 1.1, textTransform: 'uppercase', color: 'text.secondary', fontWeight: 800 }}>{c.label}</Typography>
-                            <Typography variant="h4" sx={{ lineHeight: 1.05, fontWeight: 800 }}>{c.value}</Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{c.caption}</Typography>
-                          </Box>
-                        </Stack>
-                      </CardContent>
-                    </Card>
+                    />
                   </Grid>
                 );
               })}
@@ -2185,7 +2239,7 @@ export default function LeasesPage({ onEditLease }) {
 
             <AnimateIn direction="bottom" delay={500} distance={120}>
             <Grid container spacing={2.5} alignItems="flex-start">
-              <Grid size={{ xs: 12, lg: 9 }}>
+              <Grid size={{ xs: 12 }}>
                 {loading || loadingAgreements ? (
                   <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
                     <CircularProgress />
@@ -2306,51 +2360,6 @@ export default function LeasesPage({ onEditLease }) {
                 )}
               </Grid>
 
-              <Grid size={{ xs: 12, lg: 3 }}>
-                <Stack spacing={2}>
-                  <Box sx={sectionCardSx}>
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-                      <Typography sx={leaseSectionHeaderSx}>
-                        Signed agreements
-                      </Typography>
-                      <Typography sx={{ fontSize: '0.78rem', color: leaseAgreementsMetrics.signedRate >= 80 ? 'success.main' : leaseAgreementsMetrics.signedRate >= 50 ? 'warning.main' : 'error.main', fontWeight: 700 }}>
-                        {leaseAgreementsMetrics.signedRate}% complete
-                      </Typography>
-                    </Stack>
-                    <Stack spacing={1.6}>
-                      <RiskMetric label="Fully signed" value={`${leaseAgreementsMetrics.signedComplete} of ${leaseAgreementsMetrics.total}`} progress={leaseAgreementsMetrics.signedRate} color="success.main" />
-                      <RiskMetric label="Awaiting signature" value={leaseAgreementsMetrics.awaitingSignature} progress={leaseAgreementsMetrics.total ? (leaseAgreementsMetrics.awaitingSignature / leaseAgreementsMetrics.total) * 100 : 0} color="warning.main" />
-                      <RiskMetric label="Owner signed" value={`${leaseAgreementsMetrics.landlordSigned} of ${leaseAgreementsMetrics.total}`} progress={leaseAgreementsMetrics.total ? (leaseAgreementsMetrics.landlordSigned / leaseAgreementsMetrics.total) * 100 : 0} color="primary.main" />
-                      <RiskMetric
-                        label="Tenant signatures"
-                        value={leaseAgreementsMetrics.tenantSignatureSlots ? `${leaseAgreementsMetrics.tenantSignatures} of ${leaseAgreementsMetrics.tenantSignatureSlots}` : '—'}
-                        progress={leaseAgreementsMetrics.tenantSignatureRate}
-                        color="success.main"
-                      />
-                    </Stack>
-                  </Box>
-
-                  <Box sx={sectionCardSx}>
-                    <Typography sx={{ ...leaseSectionHeaderSx, mb: 1 }}>
-                      Agreement workflow
-                    </Typography>
-                    <Stack spacing={1.1}>
-                      <Typography variant="body2" color="text.secondary">
-                        Keep agreements moving by reviewing rows marked <strong>Need to be signed</strong> and using the row action menu to view or sign the document.
-                      </Typography>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        startIcon={<FileTextOutlined />}
-                        onClick={() => openCreateAgreementDrawer()}
-                        sx={{ alignSelf: 'flex-start', textTransform: 'none', fontWeight: 700 }}
-                      >
-                        Create lease agreement
-                      </Button>
-                    </Stack>
-                  </Box>
-                </Stack>
-              </Grid>
             </Grid>
             </AnimateIn>
 

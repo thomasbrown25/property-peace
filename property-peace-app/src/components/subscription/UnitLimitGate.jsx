@@ -4,7 +4,7 @@ import { HomeOutlined, CrownOutlined } from '@ant-design/icons';
 import { useSubscription, useSubscriptionStatus } from 'hooks/useSubscription';
 
 // Pages where the gate should not appear — these are where the user goes to fix their situation
-const EXEMPT_PATHS = ['/landlord/subscription', '/landlord/properties', '/landlord/property/'];
+const EXEMPT_PATHS = ['/landlord/settings', '/landlord/properties', '/landlord/property/'];
 
 export default function UnitLimitGate({ children }) {
   const { subscription, loading: subLoading } = useSubscription();
@@ -86,7 +86,7 @@ export default function UnitLimitGate({ children }) {
               variant="contained"
               size="large"
               startIcon={<CrownOutlined />}
-              onClick={() => navigate('/landlord/subscription')}
+              onClick={() => navigate('/landlord/settings?tab=subscription')}
               sx={{ textTransform: 'none', py: 1.25 }}
             >
               Upgrade to Premium

@@ -51,11 +51,16 @@ function isAllIncludedPlan(plan) {
   return name.includes('premium') || name.includes('lifetime');
 }
 
+const FREE_INCLUDED_FEATURES = new Set(['expense', 'online rent']);
+
 function hasFeature(plan, check) {
   // Premium/lifetime include every listed comparison feature. This avoids a misleading dash
   // when API copy changes (for example, "Everything in Free") but the comparison row text
   // does not exactly match the feature string.
   if (isAllIncludedPlan(plan)) return true;
+
+  const planName = plan.name?.toLowerCase().trim() || '';
+  if (planName === 'free' && FREE_INCLUDED_FEATURES.has(check.toLowerCase())) return true;
 
   const features = plan._expanded ?? parseFeatures(plan);
   return features.some((f) => f.toLowerCase().includes(check.toLowerCase()));
@@ -99,7 +104,7 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
 
   return (
     <Box>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2.5 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} spacing={1.5} sx={{ mb: 2.5 }}>
         <Box>
           <Typography variant="overline" color="text.secondary" fontWeight={600} sx={{ letterSpacing: 1 }}>
             Available Plans
@@ -111,6 +116,7 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
           exclusive
           onChange={(_, v) => { if (v) setBillingCycle(v); }}
           size="small"
+          sx={{ width: { xs: '100%', sm: 'auto' }, '& .MuiToggleButton-root': { flex: { xs: 1, sm: 'initial' } } }}
         >
           <ToggleButton value="Monthly" sx={{ textTransform: 'none', px: 2, fontSize: 13 }}>Monthly</ToggleButton>
           <ToggleButton value="Annual" sx={{ textTransform: 'none', px: 2, fontSize: 13 }}>
@@ -129,7 +135,66 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
         </ToggleButtonGroup>
       </Stack>
 
-      <Box sx={{ position: 'relative', border: `1px solid ${theme.palette.divider}`, borderRadius: 3, overflow: 'hidden' }}>
+      <Stack spacing={1.5} sx={{ display: { xs: 'flex', md: 'none' } }}>
+        {displayPlans.map((plan) => {
+          const isCurrentPlan = plan.id === currentPlanId && currentBillingCycle === billingCycle;
+          const isRecommended = plan.id === recommendedPlanId && plan.id !== currentPlanId;
+          const price = billingCycle === 'Annual' ? plan.annualPrice : plan.monthlyPrice;
+          const currentPlan = displayPlans.find((candidate) => candidate.id === currentPlanId);
+          const currentPrice = currentPlan ? (billingCycle === 'Annual' ? currentPlan.annualPrice : currentPlan.monthlyPrice) : 0;
+          const isDowngrade = currentPlanId && price < currentPrice;
+
+          return (
+            <Box
+              key={plan.id}
+              sx={{
+                p: 2.25,
+                borderRadius: 2.5,
+                border: '1px solid',
+                borderColor: isCurrentPlan ? 'success.main' : isRecommended ? 'primary.main' : 'divider',
+                borderWidth: isCurrentPlan || isRecommended ? 2 : 1,
+                bgcolor: isRecommended ? alpha(theme.palette.primary.main, 0.035) : 'background.paper'
+              }}
+            >
+              <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mb: 0.75 }}>
+                    {isCurrentPlan && <Chip label="CURRENT" size="small" color="success" sx={{ fontWeight: 700, fontSize: 10, height: 20 }} />}
+                    {isRecommended && <Chip label="★ RECOMMENDED" size="small" color="primary" sx={{ fontWeight: 700, fontSize: 10, height: 20 }} />}
+                  </Stack>
+                  <Typography variant="h5" fontWeight={800}>{plan.name}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>{plan.description}</Typography>
+                </Box>
+                <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                  <Typography variant="h4" fontWeight={800}>${price?.toFixed(2)}</Typography>
+                  <Typography variant="caption" color="text.secondary">per month</Typography>
+                </Box>
+              </Stack>
+
+              <Stack spacing={0.85} sx={{ my: 2 }}>
+                {visibleFeatures.slice(0, 8).map((feature) => (
+                  <Stack key={feature.label} direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
+                    <Typography variant="body2" color="text.secondary">{feature.label}</Typography>
+                    <Box sx={{ flexShrink: 0 }}>{getCellValue(plan, feature)}</Box>
+                  </Stack>
+                ))}
+              </Stack>
+
+              <Button
+                variant={isCurrentPlan ? 'outlined' : 'contained'}
+                fullWidth
+                disabled={isCurrentPlan || loading}
+                onClick={() => onSelectPlan && onSelectPlan(plan, billingCycle)}
+                sx={{ textTransform: 'none', borderRadius: 1.5, fontWeight: 700, py: 1 }}
+              >
+                {loading ? 'Processing...' : isCurrentPlan ? 'Current plan' : isDowngrade ? 'Downgrade plan' : 'Choose plan'}
+              </Button>
+            </Box>
+          );
+        })}
+      </Stack>
+
+      <Box sx={{ display: { xs: 'none', md: 'block' }, position: 'relative', border: `1px solid ${theme.palette.divider}`, borderRadius: 3, overflow: 'hidden' }}>
 
         {/* ── Plan header row ── */}
         <Box sx={{ display: 'flex', borderBottom: `1px solid ${theme.palette.divider}` }}>

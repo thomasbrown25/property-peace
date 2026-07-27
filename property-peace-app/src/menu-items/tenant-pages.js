@@ -6,9 +6,7 @@ import {
   DollarCircleTwoTone,
   MessageTwoTone,
   FolderTwoTone,
-  FormOutlined,
-  SafetyCertificateOutlined,
-  CreditCardOutlined
+  FormOutlined
 } from '@ant-design/icons';
 
 // icons
@@ -19,13 +17,11 @@ const icons = {
   DollarCircleTwoTone,
   MessageTwoTone,
   FolderTwoTone,
-  FormOutlined,
-  SafetyCertificateOutlined,
-  CreditCardOutlined
+  FormOutlined
 };
 
 // ==============================|| MENU ITEMS - TENANT PAGES ||============================== //
-// Export as array of groups: main tenant nav + Features section
+// Export as an array of tenant navigation groups
 
 const tenantPages = [
   {
@@ -80,27 +76,6 @@ const tenantPages = [
         type: 'item',
         url: '/tenant/messages',
         icon: icons.MessageTwoTone
-      }
-    ]
-  },
-  {
-    id: 'group-tenant-features',
-    type: 'group',
-    title: 'Features',
-    children: [
-      {
-        id: 'tenant-lease-shield',
-        title: 'LeaseShield',
-        type: 'item',
-        url: '/tenant/lease-shield',
-        icon: icons.SafetyCertificateOutlined
-      },
-      {
-        id: 'tenant-subscription',
-        title: 'Subscription',
-        type: 'item',
-        url: '/tenant/subscription',
-        icon: icons.CreditCardOutlined
       }
     ]
   }

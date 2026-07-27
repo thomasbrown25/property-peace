@@ -42,6 +42,21 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
+        [HttpPost("recipients/preview")]
+        public async Task<IActionResult> PreviewRecipients([FromBody] PreviewAnnouncementRecipientsDto dto)
+        {
+            var response = await _announcementService.PreviewRecipientsAsync(dto);
+
+            if (!response.Success)
+                return StatusCode(response.StatusCode, new
+                {
+                    response.Message,
+                    response.Errors
+                });
+
+            return Ok(response);
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetAnnouncements(
             [FromQuery] DateTime? fromDate, 

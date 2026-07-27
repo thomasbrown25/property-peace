@@ -29,20 +29,38 @@ const isLeaseDeleted = (lease) => {
   return isDeleted === true || isDeleted === 1;
 };
 
+const isLeaseDraft = (lease) => {
+  const agreement = getValue(lease, 'leaseAgreement');
+  return (
+    getValue(agreement, 'isDrafted') === true ||
+    getValue(lease, 'isDrafted') === true
+  );
+};
+
 const isLeaseRecordable = (lease) => {
-  if (!lease) return false;
+  if (!lease || getValue(lease, 'hasLease') === false || isLeaseDeleted(lease)) return false;
+
   const isActive = getValue(lease, 'isActive');
-  const startDate = getValue(lease, 'startDate');
+  if (!(isActive === true || isActive === 1) || isLeaseDraft(lease)) return false;
 
-  if (isActive === false || isActive === 0 || isLeaseDeleted(lease)) return false;
-  if (!startDate) return false;
+  const startDateValue = getValue(lease, 'startDate');
+  if (!startDateValue) return false;
 
-  const leaseStart = new Date(startDate);
+  const leaseStart = new Date(startDateValue);
   if (Number.isNaN(leaseStart.getTime())) return false;
+  leaseStart.setHours(0, 0, 0, 0);
 
   const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  return leaseStart <= today;
+  today.setHours(0, 0, 0, 0);
+  if (leaseStart > today) return false;
+
+  const endDateValue = getValue(lease, 'endDate');
+  if (!endDateValue) return true;
+
+  const leaseEnd = new Date(endDateValue);
+  if (Number.isNaN(leaseEnd.getTime())) return false;
+  leaseEnd.setHours(23, 59, 59, 999);
+  return leaseEnd >= today;
 };
 
 const getTenantName = (tenant) => {

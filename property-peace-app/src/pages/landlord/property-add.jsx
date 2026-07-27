@@ -753,7 +753,7 @@ export default function PropertyAdd() {
                               <Typography variant="caption" sx={{ mt: 0.5, display: 'block' }}>
                                 <Typography
                                   component="span"
-                                  onClick={() => navigate('/landlord/subscription')}
+                                  onClick={() => navigate('/landlord/settings?tab=subscription')}
                                   sx={{
                                     color: 'primary.main',
                                     cursor: 'pointer',

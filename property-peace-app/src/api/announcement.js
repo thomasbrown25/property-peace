@@ -55,6 +55,29 @@ export const sendAnnouncement = async (data) => {
 };
 
 /**
+ * Preview the tenant portal users who will receive an announcement.
+ * @param {Object} data - Selected organization, property, and unit IDs
+ * @returns {Promise<{success: boolean, data?: {userId: number, name: string, email: string}[], message?: string}>}
+ */
+export const previewAnnouncementRecipients = async (data) => {
+  try {
+    const response = await axiosServices.post('/api/announcement/recipients/preview', data);
+    return {
+      success: response.data?.success || false,
+      data: response.data?.data || [],
+      message: response.data?.message
+    };
+  } catch (error) {
+    console.error('Error previewing announcement recipients:', error);
+    return {
+      success: false,
+      data: [],
+      message: 'We could not verify the recipients for this announcement. Please refresh and try again.'
+    };
+  }
+};
+
+/**
  * Get past announcements
  * @param {Object} params - Query parameters
  * @param {string} params.fromDate - Start date (yyyy-MM-dd format)

@@ -22,8 +22,6 @@ import Transitions from 'components/@extended/Transitions';
 // assets
 import QuestionCircleOutlined from '@ant-design/icons/QuestionCircleOutlined';
 import FileTextOutlined from '@ant-design/icons/FileTextOutlined';
-import PlayCircleOutlined from '@ant-design/icons/PlayCircleOutlined';
-import BulbOutlined from '@ant-design/icons/BulbOutlined';
 import useAuth from 'hooks/useAuth';
 
 // ==============================|| HEADER CONTENT - SUPPORT ||============================== //
@@ -135,52 +133,17 @@ export default function Support() {
                       <ListItemText 
                         primary={
                           <Typography variant="body1" fontWeight={500}>
-                            Submit a support ticket
+                            Support
                           </Typography>
                         }
                         secondary={
                           <Typography variant="caption" color="text.secondary">
-                            Submit a ticket and our support will reach out with more details.
+                            Ask a question, report an issue, or share feedback with our team.
                           </Typography>
                         }
                       />
                     </ListItemButton>
 
-                    <ListItemButton onClick={() => handleMenuItemClick('/landlord/support/ticket')}>
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        <PlayCircleOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body1" fontWeight={500}>
-                            Tutorials
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="caption" color="text.secondary">
-                            Get to know Property Peace with our videos.
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton>
-
-                    <ListItemButton onClick={() => handleMenuItemClick('/landlord/support/ticket')}>
-                      <ListItemIcon sx={{ minWidth: 40 }}>
-                        <BulbOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body1" fontWeight={500}>
-                            Submit feedback request
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="caption" color="text.secondary">
-                            Share ideas, bugs, or feature requests with our team.
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton>
                   </List>
                 </MainCard>
               </ClickAwayListener>

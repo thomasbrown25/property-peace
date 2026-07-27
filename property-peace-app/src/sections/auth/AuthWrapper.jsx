@@ -8,6 +8,7 @@ import { Alert } from '@mui/material';
 import { Typography } from '@mui/material';
 import { Link } from '@mui/material';
 import { Box } from '@mui/material';
+import { Stack } from '@mui/material';
 import { Container } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 
@@ -88,7 +89,7 @@ export default function AuthWrapper({ children, splitScreen = false }) {
 
             {/* Sign Up/Login Link - Right */}
             <Typography variant="body2" sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              {(location.pathname.includes('/register') || location.pathname.includes('/tenant/invite/')) ? (
+              {location.pathname.includes('/register') || location.pathname.includes('/tenant/invite/') ? (
                 <>
                   <Box component="span" sx={{ display: { xs: 'none', sm: 'none', md: 'inline' } }}>
                     Already have an account?{' '}
@@ -141,7 +142,7 @@ export default function AuthWrapper({ children, splitScreen = false }) {
                       py: 0.75,
                       '&:hover': {
                         bgcolor: 'primary.main',
-                        color: (t) => t.palette.mode === 'dark' ? '#000000' : '#ffffff'
+                        color: (t) => (t.palette.mode === 'dark' ? '#000000' : '#ffffff')
                       }
                     }}
                   >
@@ -163,9 +164,7 @@ export default function AuthWrapper({ children, splitScreen = false }) {
               pb: { xs: 4, md: 6 }
             }}
           >
-            <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: isRegistrationFlow ? 680 : 400 } }}>
-              {children}
-            </Box>
+            <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: isRegistrationFlow ? 680 : 400 } }}>{children}</Box>
           </Box>
         </Box>
 
@@ -187,146 +186,64 @@ export default function AuthWrapper({ children, splitScreen = false }) {
               content: '""',
               position: 'absolute',
               inset: 0,
-              background: 'radial-gradient(circle at 82% 76%, rgba(34, 197, 94, 0.18), transparent 28%)',
-              zIndex: 0
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              inset: 0,
-              backgroundImage:
-                'linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)',
-              backgroundSize: '42px 42px',
-              maskImage: 'linear-gradient(180deg, rgba(0,0,0,0.72), transparent 88%)',
+              background: 'radial-gradient(circle at 82% 76%, rgba(34, 197, 94, 0.12), transparent 34%)',
               zIndex: 0
             }
           }}
         >
           <Box sx={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 560 }}>
-            <Box
-              sx={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 1,
-                mb: 3,
-                px: 1.5,
-                py: 0.75,
-                borderRadius: 999,
-                bgcolor: 'rgba(34, 197, 94, 0.12)',
-                border: '1px solid rgba(34, 197, 94, 0.34)',
-                color: '#22c55e',
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: '0.16em',
-                textTransform: 'uppercase'
-              }}
-            >
-              Built for independent landlords
-            </Box>
-
             <Typography
               component="h2"
               sx={{
                 mb: 2,
                 color: '#ffffff',
-                fontWeight: 800,
-                lineHeight: 1.05,
-                letterSpacing: '-0.04em',
-                fontSize: { md: 44, lg: 56 }
+                fontWeight: 700,
+                lineHeight: 1.12,
+                letterSpacing: '-0.025em',
+                fontSize: { md: 40, lg: 50 }
               }}
             >
-              Run rentals with less chasing and <Box component="span" sx={{ color: '#22c55e' }}>more control.</Box>
+              A calmer way to manage your rentals.
             </Typography>
 
             <Typography
               sx={{
-                maxWidth: 500,
-                mb: 4,
+                maxWidth: 470,
+                mb: 3.5,
                 color: 'rgba(255,255,255,0.74)',
                 fontSize: { md: 17, lg: 18 },
                 lineHeight: 1.7
               }}
             >
-              Property Peace keeps rent, leases, maintenance, documents, and tenant conversations organized in one calm workspace — so your day starts with a clear picture instead of scattered tabs and spreadsheets.
+              Keep properties, rent, maintenance, documents, and tenant communication together in one clear workspace.
             </Typography>
 
-            <Box sx={{ display: 'grid', gap: 2 }}>
+            <Stack spacing={2.25}>
               {[
-                {
-                  eyebrow: 'Daily command center',
-                  title: 'Know what needs attention before tenants text you.',
-                  text: 'Morning summaries surface overdue rent, open maintenance, upcoming lease dates, and recent activity.'
-                },
-                {
-                  eyebrow: 'Everything tied together',
-                  title: 'One place for properties, people, payments, and paperwork.',
-                  text: 'Track the details that usually live across spreadsheets, inboxes, folders, and payment portals.'
-                },
-                {
-                  eyebrow: 'Professional by default',
-                  title: 'Give renters a smoother, more credible experience.',
-                  text: 'Tenant portals, online payments, applications, invites, and clean communication help small operators look buttoned up.'
-                }
-              ].map((item, index) => (
-                <Box
-                  key={item.eyebrow}
-                  sx={{
-                    display: 'grid',
-                    gridTemplateColumns: 'auto 1fr',
-                    gap: 2,
-                    p: 2.25,
-                    borderRadius: 3,
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.07))',
-                    border: '1px solid rgba(255,255,255,0.18)',
-                    boxShadow: '0 20px 55px rgba(0,0,0,0.16)',
-                    backdropFilter: 'blur(14px)'
-                  }}
-                >
+                'See rent, leases, and maintenance at a glance',
+                'Keep documents and conversations organized',
+                'Give tenants a simple, professional experience'
+              ].map((item) => (
+                <Box key={item} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <Box
+                    aria-hidden
                     sx={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      bgcolor: index === 1 ? 'rgba(66, 202, 119, 0.18)' : 'rgba(255,255,255,0.16)',
-                      color: index === 1 ? '#7ee3a3' : '#ffffff',
-                      fontWeight: 800,
-                      border: '1px solid rgba(255,255,255,0.2)'
+                      width: 24,
+                      height: 24,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(34,197,94,.16)',
+                      color: '#4ade80',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontWeight: 800
                     }}
                   >
-                    {index + 1}
+                    ✓
                   </Box>
-                  <Box>
-                    <Typography sx={{ mb: 0.5, color: '#22c55e', fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                      {item.eyebrow}
-                    </Typography>
-                    <Typography sx={{ mb: 0.75, color: '#ffffff', fontSize: 16, fontWeight: 800, lineHeight: 1.35 }}>
-                      {item.title}
-                    </Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,0.68)', fontSize: 14.5, lineHeight: 1.55 }}>
-                      {item.text}
-                    </Typography>
-                  </Box>
+                  <Typography sx={{ color: 'rgba(255,255,255,.88)', fontSize: 16 }}>{item}</Typography>
                 </Box>
               ))}
-            </Box>
-
-            <Box
-              sx={{
-                mt: 4,
-                display: 'flex',
-                gap: 3,
-                color: 'rgba(255,255,255,0.78)',
-                fontSize: 13,
-                fontWeight: 700
-              }}
-            >
-              <Box><Box component="span" sx={{ color: '#ffffff', fontSize: 24, fontWeight: 900 }}>1–50</Box><br />unit portfolios</Box>
-              <Box><Box component="span" sx={{ color: '#ffffff', fontSize: 24, fontWeight: 900 }}>24/7</Box><br />tenant access</Box>
-              <Box><Box component="span" sx={{ color: '#ffffff', fontSize: 24, fontWeight: 900 }}>10am</Box><br />daily clarity</Box>
-            </Box>
+            </Stack>
           </Box>
         </Box>
       </Box>
@@ -344,10 +261,21 @@ export default function AuthWrapper({ children, splitScreen = false }) {
 
       {/* Main Content - centered with Container constraint */}
       <Container>
-        <Grid container justifyContent="center" alignItems="center" sx={{ minHeight: { xs: 'calc(100vh - 200px)', sm: 'calc(100vh - 150px)', md: 'calc(100vh - 150px)' }, py: { xs: 4, md: 6 } }}>
+        <Grid
+          container
+          justifyContent="center"
+          alignItems="center"
+          sx={{ minHeight: { xs: 'calc(100vh - 200px)', sm: 'calc(100vh - 150px)', md: 'calc(100vh - 150px)' }, py: { xs: 4, md: 6 } }}
+        >
           <Grid sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {!isLoggedIn && authParam && (
-              <Box sx={{ maxWidth: { xs: 400, lg: 475 }, margin: { xs: '0 auto 2.5rem', md: '0 auto 3rem' }, '& > *': { flexGrow: 1, flexBasis: '50%' } }}>
+              <Box
+                sx={{
+                  maxWidth: { xs: 400, lg: 475 },
+                  margin: { xs: '0 auto 2.5rem', md: '0 auto 3rem' },
+                  '& > *': { flexGrow: 1, flexBasis: '50%' }
+                }}
+              >
                 <Alert variant="border" color="primary" icon={<ExclamationCircleOutlined />}>
                   <Typography variant="h5">View Only</Typography>
                   <Typography variant="h6">
@@ -360,9 +288,7 @@ export default function AuthWrapper({ children, splitScreen = false }) {
                 </Alert>
               </Box>
             )}
-            <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: 600 }, display: 'flex', justifyContent: 'center' }}>
-              {children}
-            </Box>
+            <Box sx={{ width: '100%', maxWidth: { xs: '100%', sm: 600 }, display: 'flex', justifyContent: 'center' }}>{children}</Box>
           </Grid>
         </Grid>
       </Container>

@@ -89,7 +89,7 @@ export default function PropertyMarketRent({ property }) {
         color="success"
         size="small"
         startIcon={<StarOutlined style={{ fontSize: 13 }} />}
-        onClick={() => navigate('/landlord/subscription')}
+        onClick={() => navigate('/landlord/settings?tab=subscription')}
         sx={{
           textTransform: 'none',
           fontWeight: 700,

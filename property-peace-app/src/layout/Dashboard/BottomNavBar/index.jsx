@@ -29,7 +29,7 @@ import {
   ToolOutlined,
   CloseOutlined
 } from '@ant-design/icons';
-import { StarOutlined, CreditCardOutlined, SettingOutlined } from '@ant-design/icons';
+import { StarOutlined, SettingOutlined } from '@ant-design/icons';
 
 import { useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
@@ -38,7 +38,7 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { selectConversations } from 'store/conversation/conversation.selector';
 import pages from 'menu-items/pages';
 
-// Flatten all landlord menu items (no section titles) and add Subscription + Settings
+// Flatten all landlord menu items (no section titles) and add Settings
 const flattenedLandlordItems = (() => {
   const items = [];
   const groups = Array.isArray(pages) ? pages : [pages];
@@ -51,7 +51,6 @@ const flattenedLandlordItems = (() => {
       });
     }
   });
-  items.push({ id: 'subscription', title: 'Subscription', url: '/landlord/subscription', icon: CreditCardOutlined });
   items.push({ id: 'settings', title: 'Settings', url: '/landlord/settings', icon: SettingOutlined });
   return items;
 })();
@@ -79,7 +78,7 @@ export default function BottomNavBar() {
   const planName = subscription?.plan?.name?.toLowerCase() ?? '';
   const isPremium = planName === 'premium';
   const isLifetime = planName.includes('lifetime');
-  const subscriptionUrl = '/landlord/subscription?tab=0';
+  const subscriptionUrl = '/landlord/settings?tab=subscription';
   const showUpgrade = !subscriptionLoading && !isPremium && !isLifetime;
 
   const [moreOpen, setMoreOpen] = useState(false);

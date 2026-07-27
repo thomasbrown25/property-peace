@@ -4,7 +4,7 @@ namespace brownstone_hub_api.Services.SupportRequestService
 {
     public interface ISupportRequestService
     {
-        Task<ServiceResponse<bool>> SubmitSupportRequest(SubmitSupportRequestDto request);
+        Task<ServiceResponse<SupportTicketSummaryDto>> SubmitSupportRequest(SubmitSupportRequestDto request);
     }
 }
 

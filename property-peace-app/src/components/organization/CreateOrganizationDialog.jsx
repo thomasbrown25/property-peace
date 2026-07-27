@@ -18,7 +18,16 @@ import { openSnackbar } from 'api/snackbar';
 import { useOrganization } from 'contexts/OrganizationContext';
 import { setActiveOrganizationId } from 'utils/impersonationSession';
 
-export default function CreateOrganizationDialog({ open, onClose, onCreatingStart }) {
+export default function CreateOrganizationDialog({
+  open,
+  onClose,
+  onCreatingStart,
+  onCreated,
+  allowClose = false,
+  prefillUserName = true,
+  title = 'Create Your Organization',
+  description = 'To get started, please create an organization. This will be used to manage your properties and team members. You can use your business name or your personal name.'
+}) {
   const [organizationName, setOrganizationName] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, updateUser } = useAuth();
@@ -26,7 +35,7 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
 
   // Pre-fill with user's name if available
   useEffect(() => {
-    if (user && !organizationName) {
+    if (prefillUserName && user && !organizationName) {
       const firstName = user?.FirstName || user?.firstname || user?.Firstname || '';
       const lastName = user?.LastName || user?.lastname || user?.Lastname || '';
       const fullName = `${firstName} ${lastName}`.trim();
@@ -34,7 +43,7 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
         setOrganizationName(fullName);
       }
     }
-  }, [user, organizationName]);
+  }, [prefillUserName, user, organizationName]);
 
   const handleCreate = async () => {
     if (!organizationName.trim()) {
@@ -49,9 +58,10 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
 
     setLoading(true);
     
-    // Close dialog and show loading overlay
-    onClose();
+    // The initial setup flow uses a full-page creating overlay. Optional creation
+    // flows keep the dialog open so API errors can be corrected in place.
     if (onCreatingStart) {
+      onClose();
       onCreatingStart();
     }
 
@@ -73,6 +83,13 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
         }
 
         setActiveOrganizationId(response.data.id);
+
+        if (onCreated) {
+          onCreated(response.data);
+        }
+        if (!onCreatingStart) {
+          onClose();
+        }
 
         openSnackbar({
           open: true,
@@ -112,13 +129,14 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
       open={open}
       onClose={(event, reason) => {
         // Prevent closing by clicking outside or pressing ESC
-        if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+        if (!allowClose && (reason === 'backdropClick' || reason === 'escapeKeyDown')) {
           return;
         }
+        if (!loading) onClose();
       }}
       maxWidth="sm"
       fullWidth
-      disableEscapeKeyDown
+      disableEscapeKeyDown={!allowClose}
       PaperProps={{
         sx: {
           borderRadius: 2
@@ -127,12 +145,12 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
     >
       <DialogTitle>
         <Typography variant="h4" fontWeight={600}>
-          Create Your Organization
+          {title}
         </Typography>
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-          To get started, please create an organization. This will be used to manage your properties and team members. You can use your business name or your personal name.
+          {description}
         </Typography>
         <TextField
           fullWidth
@@ -148,6 +166,11 @@ export default function CreateOrganizationDialog({ open, onClose, onCreatingStar
         />
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 3, justifyContent: 'flex-end' }}>
+        {allowClose && (
+          <Button onClick={onClose} disabled={loading}>
+            Cancel
+          </Button>
+        )}
         <Button
           onClick={handleCreate}
           variant="contained"

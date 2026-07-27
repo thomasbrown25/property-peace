@@ -149,7 +149,7 @@ export default function BillingHistory() {
     <Container maxWidth="xl">
       <PageBreadcrumbs
         links={[
-          { title: 'Subscription', to: '/landlord/subscription' },
+          { title: 'Manage Subscription', to: '/landlord/settings?tab=subscription' },
           { title: 'Billing History' }
         ]}
       />
@@ -165,7 +165,7 @@ export default function BillingHistory() {
         </Box>
         <Button
           startIcon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/landlord/subscription')}
+          onClick={() => navigate('/landlord/settings?tab=subscription')}
           sx={{ textTransform: 'none' }}
         >
           Back to Subscription

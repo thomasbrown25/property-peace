@@ -216,7 +216,7 @@ export default function SmsNumberSettings() {
               <Typography variant="body2" color="text.secondary">
                 Upgrade to Premium to choose one Property Peace number for tenant texts. Tenants text normally, and replies stay organized in your app inbox.
               </Typography>
-              <Button variant="contained" onClick={() => navigate('/landlord/subscription')} sx={{ textTransform: 'none' }}>
+              <Button variant="contained" onClick={() => navigate('/landlord/settings?tab=subscription')} sx={{ textTransform: 'none' }}>
                 Upgrade to Premium
               </Button>
             </Stack>

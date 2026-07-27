@@ -45,7 +45,7 @@ export default function PropertyLimitMeter({ status }) {
             variant="contained"
             size="small"
             color="warning"
-            onClick={() => navigate('/landlord/subscription')}
+            onClick={() => navigate('/landlord/settings?tab=subscription')}
           >
             Upgrade Plan
           </Button>
@@ -74,7 +74,7 @@ export default function PropertyLimitMeter({ status }) {
               variant="contained"
               size="small"
               color="warning"
-              onClick={() => navigate('/landlord/subscription')}
+              onClick={() => navigate('/landlord/settings?tab=subscription')}
             >
               Upgrade Plan
             </Button>

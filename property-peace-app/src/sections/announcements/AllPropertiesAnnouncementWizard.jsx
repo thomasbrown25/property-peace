@@ -31,9 +31,10 @@ const steps = [
 
 // ==============================|| ALL PROPERTIES ANNOUNCEMENT WIZARD ||============================== //
 
-export default function AllPropertiesAnnouncementWizard({ onComplete, onCancel, initialData = null }) {
+export default function AllPropertiesAnnouncementWizard({ onComplete, onCancel, selectedOrganizations, initialData = null }) {
   const theme = useTheme();
   const [activeStep, setActiveStep] = useState(0);
+  const [recipientsReady, setRecipientsReady] = useState(false);
   
   // Default scheduled date/time to current date/time
   const getDefaultDateTime = () => {
@@ -101,8 +102,8 @@ export default function AllPropertiesAnnouncementWizard({ onComplete, onCancel, 
         }
         return true; // "now" is always valid
       case 3:
-        // Step 4: Review step - always valid
-        return true;
+        // Step 4: Never send until the exact audience has been verified.
+        return recipientsReady;
       default:
         return true;
     }
@@ -140,6 +141,8 @@ export default function AllPropertiesAnnouncementWizard({ onComplete, onCancel, 
             message={message}
             scheduleType={scheduleType}
             scheduledDateTime={scheduledDateTime}
+            selectedOrganizations={selectedOrganizations}
+            onRecipientsReady={setRecipientsReady}
           />
         );
       default:
@@ -225,6 +228,7 @@ export default function AllPropertiesAnnouncementWizard({ onComplete, onCancel, 
 AllPropertiesAnnouncementWizard.propTypes = {
   onComplete: PropTypes.func.isRequired,
   onCancel: PropTypes.func.isRequired,
+  selectedOrganizations: PropTypes.instanceOf(Set).isRequired,
   initialData: PropTypes.shape({
     deliveryMethods: PropTypes.shape({
       inApp: PropTypes.bool,

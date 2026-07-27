@@ -1,77 +1,74 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { CSVLink } from 'react-csv';
 import {
-  Box,
-  Typography,
-  Stack,
-  Button,
-  FormControl,
-  Select,
-  MenuItem,
-  Chip,
   alpha,
-  useTheme,
-  useMediaQuery,
-  TextField,
-  InputLabel,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer,
+  Avatar,
+  Box,
+  Button,
+  Chip,
   CircularProgress,
-  InputAdornment,
-  OutlinedInput,
-  Tabs,
-  Tab,
+  Grid,
   IconButton,
+  InputAdornment,
+  Menu,
+  MenuItem,
+  OutlinedInput,
+  Pagination,
+  Select,
+  Stack,
+  Tab,
+  Tabs,
   Tooltip,
-  Card,
-  CardContent
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
-import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
-import ExpenseEditDrawer from 'components/expense/ExpenseEditDrawer';
 import {
-  PlusOutlined,
-  DownloadOutlined,
-  SearchOutlined,
-  EditOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   DeleteOutlined,
+  DollarOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  FileDoneOutlined,
+  MoreOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
-  CheckCircleOutlined,
-  LeftOutlined,
-  RightOutlined
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  TagsOutlined
 } from '@ant-design/icons';
-import MainCard from 'components/MainCard';
-import { LandlordKpiCard } from 'components/landlord/PagePrimitives';
-import AnimateIn from 'components/AnimateIn';
+
+import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
+import ExpenseEditDrawer from 'components/expense/ExpenseEditDrawer';
+import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import PropertySelect from 'components/PropertySelect';
+import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import useAuth from 'hooks/useAuth';
+import useFetchExpenses from 'hooks/useFetchExpenses';
+import useFetchProperties from 'hooks/useFetchProperties';
+import { openSnackbar } from 'api/snackbar';
 import { setProperty } from 'store/property/property.action';
 import { setUnit } from 'store/unit/unit.action';
 import { selectProperty } from 'store/property/property.selector';
-import { selectRecurringExpenses } from 'store/recurring-expense/recurring-expense.selector';
-import { selectFutureExpenses } from 'store/future-expense/future-expense.selector';
-import { getFutureExpensesAction, deleteFutureExpenseAction } from 'store/future-expense/future-expense.action';
-import useFetchProperties from 'hooks/useFetchProperties';
-import useFetchExpenses from 'hooks/useFetchExpenses';
-import useAuth from 'hooks/useAuth';
-import { formatCurrency, formatDate } from 'utils/formatters';
-import axiosServices from 'utils/axios';
-import { 
-  getRecurringExpensesAction, 
-  pauseRecurringExpenseAction, 
-  resumeRecurringExpenseAction,
-  deleteRecurringExpenseAction
+import { addExpenseAction, deleteExpenseAction, updateExpenseAction } from 'store/expense/expense.action';
+import {
+  deleteRecurringExpenseAction,
+  getRecurringExpensesAction,
+  pauseRecurringExpenseAction,
+  resumeRecurringExpenseAction
 } from 'store/recurring-expense/recurring-expense.action';
-import { addExpenseAction, updateExpenseAction, deleteExpenseAction } from 'store/expense/expense.action';
-import { openSnackbar } from 'api/snackbar';
-import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
-// Expense categories
+import { selectRecurringExpenses } from 'store/recurring-expense/recurring-expense.selector';
+import { deleteFutureExpenseAction, getFutureExpensesAction } from 'store/future-expense/future-expense.action';
+import { selectFutureExpenses } from 'store/future-expense/future-expense.selector';
+
+const PAGE_SIZE = 10;
+const NAVY = '#061e35';
 const EXPENSE_CATEGORIES = [
   'Repairs',
   'Maintenance',
@@ -90,1580 +87,576 @@ const EXPENSE_CATEGORIES = [
   'Other'
 ];
 
-export default function Expenses() {
-  const dispatch = useDispatch();
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
+const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
+const getId = (object) => read(object, 'id', 'Id');
+const getAmount = (object) => Number(read(object, 'amount', 'Amount') || 0);
+const isPaid = (expense) => Boolean(read(expense, 'isPaid', 'IsPaid'));
+const hasReceipts = (expense) => {
+  const receipts = read(expense, 'receipts', 'Receipts');
+  return (Array.isArray(receipts) && receipts.length > 0) || Boolean(read(expense, 'receiptUrl', 'ReceiptUrl'));
+};
+const isTaxDeductible = (expense) => Boolean(read(expense, 'isTaxDeductible', 'IsTaxDeductible'));
+
+function formatMoney(value) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value || 0);
+}
+
+function formatDate(value) {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not set';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function toDateInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getPeriodDates(period) {
+  const now = new Date();
+  if (period === 'all') return { startDate: null, endDate: null };
+  if (period === 'year') return { startDate: `${now.getFullYear()}-01-01`, endDate: toDateInput(now) };
+  const start = new Date(now);
+  start.setDate(start.getDate() - (period === '30' ? 29 : 89));
+  return { startDate: toDateInput(start), endDate: toDateInput(now) };
+}
+
+function getSearchText(item) {
+  return [
+    read(item, 'name', 'Name'),
+    read(item, 'category', 'Category'),
+    read(item, 'propertyName', 'PropertyName'),
+    read(item, 'unitName', 'UnitName'),
+    read(item, 'vendor', 'Vendor')
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function MetricCard({ label, value, helper, icon, color, active, onClick }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { user } = useAuth();
-  const { properties, propertiesRefetch, isLoading: propertiesLoading } = useFetchProperties();
-  const selectedProperty = useSelector(selectProperty);
-  const recurringExpenses = useSelector(selectRecurringExpenses);
-  const futureExpenses = useSelector(selectFutureExpenses);
-  const previousPathname = useRef(null);
-  const hasClearedProperty = useRef(false);
-  
-  // Get propertyId and type from URL params (when coming from other pages)
-  const propertyIdFromUrl = searchParams.get('propertyId');
-  const typeFromUrl = searchParams.get('type'); // 'expenses' or 'income'
-  
-  // Filter states
-  const [filters, setFilters] = useState({
-    status: 'Active',
-    category: null
-  });
-  const [activeTab, setActiveTab] = useState(0);
-  const [search, setSearch] = useState('');
-  const [recurringSearch, setRecurringSearch] = useState('');
-  const [addExpenseDrawerOpen, setAddExpenseDrawerOpen] = useState(false);
-  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [expenseToDelete, setExpenseToDelete] = useState(null);
-  
-
-  // Recurring expenses state
-  const [recurringExpensesLoading, setRecurringExpensesLoading] = useState(false);
-  
-  // Future expenses state
-  const [futureExpensesLoading, setFutureExpensesLoading] = useState(false);
-
-  // Date filter state - default to last 5 years
-  const [timespanFilter, setTimespanFilter] = useState(() => {
-    const now = new Date();
-    // Calculate start of 5 years ago
-    const fiveYearsAgoStart = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
-    fiveYearsAgoStart.setHours(0, 0, 0, 0);
-    return {
-      timespan: 'custom',
-      dateFrom: fiveYearsAgoStart,
-      dateTo: now
-    };
-  });
-  const [dateFrom, setDateFrom] = useState(() => {
-    // Calculate start of 5 years ago
-    const now = new Date();
-    const fiveYearsAgoStart = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
-    return fiveYearsAgoStart.toISOString().split('T')[0];
-  });
-  const [dateTo, setDateTo] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
-  const [page, setPage] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  const formatDate = (date) => {
-    if (!date) return '';
-    const d = date instanceof Date ? date : new Date(date);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  const handleTimespanChange = (timespanData) => {
-    setTimespanFilter(timespanData);
-    if (timespanData.dateFrom) {
-      setDateFrom(timespanData.dateFrom.toISOString().split('T')[0]);
-    }
-    if (timespanData.dateTo) {
-      setDateTo(timespanData.dateTo.toISOString().split('T')[0]);
-    }
-  };
-
-  // Clear property selection when navigating to this page, unless there's a propertyId in URL
-  useEffect(() => {
-    const isOnThisPage = location.pathname === '/landlord/expenses';
-    const justNavigatedToPage = previousPathname.current !== null && previousPathname.current !== location.pathname && isOnThisPage;
-    const isInitialMount = previousPathname.current === null && isOnThisPage;
-    const justNavigatedAway = previousPathname.current === '/landlord/expenses' && !isOnThisPage;
-    
-    // Clear property when navigating to this page (initial mount or route change) and no propertyId in URL
-    if ((isInitialMount || justNavigatedToPage) && !propertyIdFromUrl && !hasClearedProperty.current) {
-      dispatch(setProperty(null));
-      hasClearedProperty.current = true;
-    }
-    
-    // Clear property when navigating away from this page
-    if (justNavigatedAway && selectedProperty) {
-      dispatch(setProperty(null));
-    }
-    
-    // Reset the flag if we navigate away
-    if (!isOnThisPage) {
-      hasClearedProperty.current = false;
-    }
-    
-    // Update previous pathname
-    previousPathname.current = location.pathname;
-  }, [location.pathname, propertyIdFromUrl, dispatch, selectedProperty]);
-
-  // Set property from URL param if provided
-  useEffect(() => {
-    if (propertyIdFromUrl && properties) {
-      const property = properties.find(p => p.id === Number(propertyIdFromUrl));
-      if (property) {
-        dispatch(setProperty(property));
-      }
-    }
-  }, [propertyIdFromUrl, properties, dispatch]);
-
-
-  // Fetch expenses with filters
-  const expenseFilters = useMemo(() => ({
-    propertyId: selectedProperty?.id || null,
-    category: filters.category || null,
-    startDate: dateFrom || null,
-    endDate: dateTo || null
-  }), [selectedProperty, filters.category, dateFrom, dateTo]);
-
-  const { expenses: allExpenses, loading: expensesLoading, refetch: refetchExpenses } = useFetchExpenses(expenseFilters);
-  const [payments, setPayments] = useState([]);
-  const [paymentsLoading, setPaymentsLoading] = useState(false);
-  
-  // Get context to update expenses page loading state
-  const { setExpensesLoading } = useDashboardLoading();
-
-  // Fetch payments (for potential income display if needed)
-  useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        setPaymentsLoading(true);
-        const params = new URLSearchParams();
-        if (selectedProperty?.id) {
-          params.append('propertyId', selectedProperty.id);
-        }
-        
-        const response = await axiosServices.get(`/api/payment/all?${params.toString()}`);
-        const paymentsData = response.data?.data || response.data || [];
-        setPayments(Array.isArray(paymentsData) ? paymentsData : []);
-      } catch (error) {
-        console.error('Error fetching payments:', error);
-        setPayments([]);
-      } finally {
-        setPaymentsLoading(false);
-      }
-    };
-
-    fetchPayments();
-  }, [selectedProperty?.id]);
-
-  // Fetch recurring expenses
-  const fetchRecurringExpenses = async () => {
-    if (!user?.id && !user?.Id) return;
-    
-    try {
-      setRecurringExpensesLoading(true);
-      const landlordId = user.id || user.Id;
-      await dispatch(getRecurringExpensesAction(landlordId, { 
-        propertyId: selectedProperty?.id || null 
-      }));
-    } catch (error) {
-      console.error('Error fetching recurring expenses:', error);
-      openSnackbar({
-        open: true,
-        message: 'Failed to load recurring expenses',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setRecurringExpensesLoading(false);
-    }
-  };
-
-  // Fetch future expenses
-  const fetchFutureExpenses = async () => {
-    if (!user?.id && !user?.Id) return;
-    
-    try {
-      setFutureExpensesLoading(true);
-      const landlordId = user.id || user.Id;
-      await dispatch(getFutureExpensesAction(landlordId, { 
-        propertyId: selectedProperty?.id || null 
-      }));
-    } catch (error) {
-      console.error('Error fetching future expenses:', error);
-      openSnackbar({
-        open: true,
-        message: 'Failed to load future expenses',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setFutureExpensesLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRecurringExpenses();
-    fetchFutureExpenses();
-  }, [dispatch, user?.id, user?.Id, selectedProperty?.id]);
-
-  // Refresh recurring expenses when returning to the page (e.g., after creating one)
-  const previousLocation = useRef(location.pathname);
-  useEffect(() => {
-    if (previousLocation.current !== location.pathname) {
-      // Only refresh if we're on the expenses page and came from a different page
-      if (location.pathname === '/landlord/expenses' || location.pathname.includes('/expenses')) {
-        fetchRecurringExpenses();
-      }
-      previousLocation.current = location.pathname;
-    }
-  }, [location.pathname]);
-
-  // Refresh when window regains focus (user might have created a recurring expense in another tab/window)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (location.pathname === '/landlord/expenses' || location.pathname.includes('/expenses')) {
-        fetchRecurringExpenses();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [location.pathname]);
-
-  // Filter payments and expenses by date range
-  const filteredPayments = useMemo(() => {
-    let filtered = payments || [];
-
-    if (dateFrom) {
-      const startDate = new Date(dateFrom);
-      filtered = filtered.filter((payment) => {
-        const paymentDate = new Date(payment.paymentDate);
-        return paymentDate >= startDate;
-      });
-    }
-
-    if (dateTo) {
-      const endDate = new Date(dateTo);
-      endDate.setHours(23, 59, 59, 999);
-      filtered = filtered.filter((payment) => {
-        const paymentDate = new Date(payment.paymentDate);
-        return paymentDate <= endDate;
-      });
-    }
-
-    return filtered;
-  }, [payments, dateFrom, dateTo]);
-
-  const filteredExpenses = useMemo(() => {
-    let filtered = allExpenses || [];
-
-    console.log('=== EXPENSE FILTERING DEBUG ===');
-    console.log('Total expenses:', allExpenses?.length || 0);
-    console.log('dateFrom:', dateFrom);
-    console.log('dateTo:', dateTo);
-
-    // Note: We now show ALL expenses in the expenses table regardless of isRecurring flag
-    // Recurring templates are shown in a separate "Recurring Expenses" section
-    // The status filter only applies to the recurring templates section, not the expenses table
-    // So we don't filter by status here - all expenses should be visible
-
-    if (dateFrom || dateTo) {
-      // Normalize dates to start of day for comparison
-      const startDate = dateFrom ? new Date(dateFrom) : null;
-      if (startDate) {
-        startDate.setHours(0, 0, 0, 0);
-      }
-
-      const endDate = dateTo ? new Date(dateTo) : null;
-      let endDateForComparison = null;
-      if (endDate) {
-        // Normalize endDate to start of day for comparison
-        // We want to include expenses on the endDate, so we check if dateToCheck > endDate
-        // To do this, we add 1 day to endDate and check if dateToCheck >= endDate+1
-        // Parse the date string to get year, month, day to avoid timezone issues
-        const endDateParts = dateTo.split('-');
-        const endYear = parseInt(endDateParts[0], 10);
-        const endMonth = parseInt(endDateParts[1], 10) - 1; // Month is 0-indexed
-        const endDay = parseInt(endDateParts[2], 10);
-        
-        // Create endDateForComparison as the day after endDate in local timezone
-        endDateForComparison = new Date(endYear, endMonth, endDay + 1);
-        endDateForComparison.setHours(0, 0, 0, 0);
-        
-        console.log('  endDate calculation:');
-        console.log('    endDate input:', dateTo);
-        console.log('    endDate parts:', { year: endYear, month: endMonth + 1, day: endDay });
-        console.log('    endDateForComparison (endDate + 1 day):', endDateForComparison.toISOString());
-      }
-
-      // For paid expenses, we want to show dates starting from tomorrow
-      // Calculate tomorrow's date in local timezone
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      console.log('Date calculations:');
-      console.log('  today:', today.toISOString());
-      console.log('  tomorrow:', tomorrow.toISOString());
-      console.log('  startDate:', startDate ? startDate.toISOString() : 'null');
-      console.log('  endDate (original):', endDate ? endDate.toISOString() : 'null');
-      console.log('  endDateForComparison:', endDateForComparison ? endDateForComparison.toISOString() : 'null');
-
-      const filteredResults = [];
-      const excludedResults = [];
-
-      filtered = filtered.filter((expense) => {
-        // For paid expenses, use paidDate if available, otherwise use expenseDate
-        // For unpaid expenses, use expenseDate
-        const dateToCheck = expense.isPaid && expense.paidDate 
-          ? new Date(expense.paidDate) 
-          : new Date(expense.expenseDate);
-        
-        // Normalize to start of day for comparison
-        dateToCheck.setHours(0, 0, 0, 0);
-
-        const expenseInfo = {
-          id: expense.id,
-          name: expense.name,
-          isPaid: expense.isPaid,
-          expenseDate: expense.expenseDate,
-          paidDate: expense.paidDate,
-          dateToCheck: dateToCheck.toISOString(),
-          dateToCheckTime: dateToCheck.getTime(),
-          endDateForComparisonTime: endDateForComparison ? endDateForComparison.getTime() : null,
-          comparison: endDateForComparison ? `${dateToCheck.getTime()} >= ${endDateForComparison.getTime()} = ${dateToCheck >= endDateForComparison}` : 'N/A'
-        };
-
-        // For paid expenses, show them if they're within the date range
-        // The "starting from tomorrow" rule applies to when we check for paid expenses,
-        // but we still show all paid expenses that are within the selected date range
-        if (expense.isPaid) {
-          // Check if paid expense is within the date range
-          if (startDate && dateToCheck < startDate) {
-            excludedResults.push({
-              ...expenseInfo,
-              reason: `Paid expense date (${dateToCheck.toISOString()}) is before startDate (${startDate.toISOString()})`
-            });
-            return false;
-          }
-          if (endDateForComparison) {
-            // endDateForComparison is endDate + 1 day, so we check if dateToCheck >= endDateForComparison
-            // which means dateToCheck is after the end date
-            if (dateToCheck >= endDateForComparison) {
-              excludedResults.push({
-                ...expenseInfo,
-                reason: `Paid expense date (${dateToCheck.toISOString()}) is on or after endDate+1 (${endDateForComparison.toISOString()})`
-              });
-              return false;
-            }
-          }
-          filteredResults.push({
-            ...expenseInfo,
-            reason: 'Paid expense passed all filters'
-          });
-          return true;
-        } else {
-          // For unpaid expenses, use the original logic - compare dates only
-          if (startDate && dateToCheck < startDate) {
-            excludedResults.push({
-              ...expenseInfo,
-              reason: `Unpaid expense date (${dateToCheck.toISOString()}) is before startDate (${startDate.toISOString()})`
-            });
-            return false;
-          }
-          if (endDateForComparison) {
-            // endDateForComparison is endDate + 1 day, so we check if dateToCheck >= endDateForComparison
-            // which means dateToCheck is after the end date
-            if (dateToCheck >= endDateForComparison) {
-              excludedResults.push({
-                ...expenseInfo,
-                reason: `Unpaid expense date (${dateToCheck.toISOString()}) is on or after endDate+1 (${endDateForComparison.toISOString()})`
-              });
-              return false;
-            }
-          }
-          filteredResults.push({
-            ...expenseInfo,
-            reason: 'Unpaid expense passed all filters'
-          });
-          return true;
-        }
-      });
-
-      console.log('Filtered expenses (included):', filteredResults.length);
-      console.log('Filtered expenses details:', filteredResults);
-      console.log('Excluded expenses:', excludedResults.length);
-      console.log('Excluded expenses details:', excludedResults);
-      console.log('Final filtered count:', filtered.length);
-    } else {
-      console.log('No date filters applied, showing all expenses');
-    }
-
-    console.log('=== END EXPENSE FILTERING DEBUG ===');
-
-    return filtered;
-  }, [allExpenses, dateFrom, dateTo]);
-
-  // Combine payments and expenses into cash flow items
-  const cashFlowItems = useMemo(() => {
-    const items = [];
-
-    // Add payments as income
-    filteredPayments.forEach((payment) => {
-      items.push({
-        id: `payment-${payment.id}`,
-        type: 'income',
-        date: payment.paymentDate,
-        name: payment.reference || 'Rent Payment',
-        category: 'Rent Payment',
-        propertyName: payment.propertyName,
-        unitName: payment.unitName,
-        amount: payment.amount,
-        method: payment.method
-      });
-    });
-
-    // Add expenses
-    filteredExpenses.forEach((expense) => {
-      items.push({
-        id: `expense-${expense.id}`,
-        type: 'expenses',
-        date: expense.expenseDate,
-        name: expense.name,
-        category: expense.category,
-        propertyName: expense.propertyName,
-        unitName: expense.unitName,
-        amount: expense.amount,
-        vendor: expense.vendor,
-        status: expense.status,
-        isPaid: expense.isPaid || false,
-        isRecurring: expense.isRecurring || false
-      });
-    });
-
-    // Sort by date (most recent first)
-    return items.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [filteredPayments, filteredExpenses]);
-
-  // Filter by transaction type and search query - only show expenses
-  const filteredCashFlow = useMemo(() => {
-    let filtered = cashFlowItems;
-
-    // Only show expenses (filter out income)
-    filtered = filtered.filter((item) => item.type === 'expenses');
-
-    // Filter by search query
-    if (search.trim()) {
-      const query = search.toLowerCase();
-      filtered = filtered.filter(
-        (item) =>
-          item.name?.toLowerCase().includes(query) ||
-          item.category?.toLowerCase().includes(query) ||
-          item.propertyName?.toLowerCase().includes(query) ||
-          item.unitName?.toLowerCase().includes(query) ||
-          item.vendor?.toLowerCase().includes(query)
-      );
-    }
-
-    return filtered;
-  }, [cashFlowItems, search]);
-
-  // Calculate totals
-  const totals = useMemo(() => {
-    const totalIncome = filteredPayments.reduce((sum, payment) => sum + (parseFloat(payment.amount) || 0), 0);
-    const totalExpenses = filteredExpenses
-      .filter(expense => expense.isPaid === true)
-      .reduce((sum, expense) => sum + (parseFloat(expense.amount) || 0), 0);
-    const netCashFlow = totalIncome - totalExpenses;
-
-    return { totalIncome, totalExpenses, netCashFlow };
-  }, [filteredPayments, filteredExpenses]);
-
-  const filteredRecurringExpenses = useMemo(() => {
-    let filtered = recurringExpenses || [];
-
-    if (recurringSearch.trim()) {
-      const query = recurringSearch.toLowerCase();
-      filtered = filtered.filter((item) =>
-        item.name?.toLowerCase().includes(query) ||
-        item.category?.toLowerCase().includes(query) ||
-        item.propertyName?.toLowerCase().includes(query) ||
-        item.unitName?.toLowerCase().includes(query) ||
-        item.vendor?.toLowerCase().includes(query)
-      );
-    }
-
-    return filtered;
-  }, [recurringExpenses, recurringSearch]);
-
-  const recurringTotals = useMemo(() => {
-    const active = filteredRecurringExpenses.filter((item) => !item.isPaused);
-    const paused = filteredRecurringExpenses.filter((item) => item.isPaused);
-    const monthlyTotal = active.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-    const annualizedTotal = monthlyTotal * 12;
-
-    return {
-      activeCount: active.length,
-      pausedCount: paused.length,
-      monthlyTotal,
-      annualizedTotal
-    };
-  }, [filteredRecurringExpenses]);
-
-  const csvData = useMemo(() =>
-    filteredCashFlow.map((item) => ({
-      Date: item.date ? new Date(item.date).toLocaleDateString() : '',
-      Name: item.name || '',
-      Category: item.category || '',
-      Property: item.propertyName || '',
-      Unit: item.unitName || '',
-      Status: item.isPaid ? 'Paid' : 'Unpaid',
-      Amount: item.amount || 0
-    })), [filteredCashFlow]);
-
-  // Pagination calculations
-  const totalPages = Math.ceil(filteredCashFlow.length / itemsPerPage);
-  const paginatedCashFlow = useMemo(() => {
-    const startIndex = page * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredCashFlow.slice(startIndex, endIndex);
-  }, [filteredCashFlow, page, itemsPerPage]);
-
-  // Reset to first page when items per page changes
-  useEffect(() => {
-    setPage(0);
-  }, [itemsPerPage]);
-
-  const handlePageChange = (newPage) => {
-    setPage(newPage);
-  };
-
-  const getOriginalExpenseFromCashFlowItem = (item) => {
-    if (!item?.id || item.type !== 'expenses') return null;
-    const expenseId = item.id.replace('expense-', '');
-    return allExpenses.find(e => String(e.id) === expenseId) || null;
-  };
-
-  const handleEditCashFlowExpense = (item) => {
-    const originalExpense = getOriginalExpenseFromCashFlowItem(item);
-
-    if (originalExpense) {
-      const property = properties?.find(p => p.id === originalExpense.propertyId);
-      if (property) {
-        dispatch(setProperty(property));
-      }
-
-      if (originalExpense.unitId && property) {
-        const unit = property.units?.find(u => u.id === originalExpense.unitId);
-        if (unit) {
-          dispatch(setUnit(unit));
-        }
-      } else {
-        dispatch(setUnit(null));
-      }
-    }
-
-    setEditingExpense(originalExpense || item);
-    setExpenseModalOpen(true);
-  };
-
-  const handleDeleteCashFlowExpense = (item) => {
-    if (!item?.id) return;
-    const expenseId = item.id.replace('expense-', '');
-    setExpenseToDelete(Number(expenseId));
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleMarkCashFlowExpensePaid = async (item) => {
-    try {
-      const expenseId = item.id.replace('expense-', '');
-      const originalExpense = getOriginalExpenseFromCashFlowItem(item);
-      if (!originalExpense) {
-        openSnackbar({
-          open: true,
-          message: 'Expense not found',
-          variant: 'alert',
-          alert: { color: 'error' }
-        });
-        return;
-      }
-
-      const now = new Date();
-      const updatePayload = {
-        id: originalExpense.id,
-        propertyId: originalExpense.propertyId,
-        unitId: originalExpense.unitId || null,
-        name: originalExpense.name || '',
-        category: originalExpense.category || '',
-        amount: originalExpense.amount || 0,
-        expenseDate: originalExpense.expenseDate,
-        vendor: originalExpense.vendor || null,
-        vendorId: originalExpense.vendorId || null,
-        paymentMethod: originalExpense.paymentMethod || null,
-        receiptUrl: originalExpense.receiptUrl || null,
-        isRecurring: originalExpense.isRecurring || false,
-        isTaxDeductible: originalExpense.isTaxDeductible || false,
-        taxCategory: originalExpense.taxCategory || null,
-        maintenanceRequestId: originalExpense.maintenanceRequestId || null,
-        frequency: originalExpense.frequency || null,
-        dayOfPeriod: originalExpense.dayOfPeriod || null,
-        startDate: originalExpense.startDate || null,
-        endDate: originalExpense.endDate || null,
-        isPaused: originalExpense.isPaused || false,
-        isPaid: true,
-        paidDate: now.toISOString()
-      };
-
-      await dispatch(updateExpenseAction(Number(expenseId), updatePayload));
-      openSnackbar({
-        open: true,
-        message: 'Expense marked as paid',
-        variant: 'alert',
-        alert: { color: 'success' }
-      });
-    } catch (error) {
-      console.error('Error marking expense as paid:', error);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || 'Failed to mark expense as paid',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    }
-  };
-
-  // Comprehensive loading state - tracks when ALL expenses page components are loaded
-  // This combines all individual component loading states
-  const isExpensesPageLoading = useMemo(() => {
-    return (
-      propertiesLoading ||
-      expensesLoading ||
-      paymentsLoading ||
-      recurringExpensesLoading ||
-      futureExpensesLoading
-    );
-  }, [
-    propertiesLoading,
-    expensesLoading,
-    paymentsLoading,
-    recurringExpensesLoading,
-    futureExpensesLoading
-  ]);
-  
-  // Update the context whenever the expenses page loading state changes
-  useEffect(() => {
-    setExpensesLoading(isExpensesPageLoading);
-  }, [isExpensesPageLoading, setExpensesLoading]);
-  
-  // Keep the existing loading variable for backward compatibility with existing code
-  const loading = isExpensesPageLoading;
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        width: '100%',
+        minHeight: 112,
+        p: 2,
+        borderRadius: 2.5,
+        border: `1px solid ${active ? alpha(color, 0.52) : alpha(theme.palette.divider, 0.16)}`,
+        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.14 : 0.055) : 'background.paper',
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`,
+        color: 'text.primary',
+        textAlign: 'left',
+        cursor: 'pointer',
+        font: 'inherit',
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.42), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+        <Box minWidth={0}>
+          <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>
+            {label}
+          </Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }} noWrap>{value}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
+        </Box>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
+      </Stack>
+    </Box>
+  );
+}
+
+function ExpenseRow({ expense, onEdit, onMarkPaid, onDelete }) {
+  const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const name = read(expense, 'name', 'Name') || 'Untitled expense';
+  const category = read(expense, 'category', 'Category') || 'Uncategorized';
+  const propertyName = read(expense, 'propertyName', 'PropertyName') || 'No property';
+  const unitName = read(expense, 'unitName', 'UnitName');
+  const vendor = read(expense, 'vendor', 'Vendor');
+  const date = read(expense, 'paidDate', 'PaidDate') || read(expense, 'expenseDate', 'ExpenseDate');
+  const paid = isPaid(expense);
 
   return (
-    <Box sx={{ overflow: 'visible' }}>
-      {/* Page header */}
-      <AnimateIn direction="bottom" delay={100} distance={120}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+    <Box
+      sx={{
+        px: { xs: 1.5, md: 2 },
+        py: { xs: 1.55, md: 1.35 },
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: 'minmax(230px, 1.55fr) minmax(180px, 1.05fr) minmax(130px, .8fr) minmax(100px, .62fr) 44px',
+        gap: { xs: 1.25, md: 2 },
+        alignItems: 'center',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) }
+      }}
+    >
+      <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(theme.palette.error.main, 0.1), color: 'error.main' }}>
+          <TagsOutlined />
+        </Avatar>
+        <Box minWidth={0}>
+          <Typography fontWeight={700} noWrap>{name}</Typography>
+          <Typography noWrap sx={{ mt: 0.25, fontSize: '0.75rem', color: 'text.secondary' }}>
+            {[category, vendor].filter(Boolean).join(' · ')}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 650 }}>{propertyName}</Typography>
+        {unitName && <Typography sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>{unitName}</Typography>}
+      </Box>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>{formatDate(date)}</Typography>
+        <Stack direction="row" spacing={0.6} sx={{ mt: 0.45 }}>
+          <Chip label={paid ? 'Paid' : 'Unpaid'} size="small" color={paid ? 'success' : 'warning'} variant={paid ? 'filled' : 'outlined'} sx={{ height: 20, fontSize: '0.65rem' }} />
+          {hasReceipts(expense) && <Chip label="Receipt" size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />}
+        </Stack>
+      </Box>
+
+      <Typography sx={{ fontSize: '0.92rem', fontWeight: 750, color: paid ? 'text.primary' : 'warning.dark', textAlign: { md: 'right' } }}>
+        {formatMoney(getAmount(expense))}
+      </Typography>
+
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+        <Tooltip title="Expense actions">
+          <IconButton size="small" aria-label={`Actions for ${name}`} onClick={(event) => setAnchorEl(event.currentTarget)}><MoreOutlined /></IconButton>
+        </Tooltip>
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+          {!paid && <MenuItem onClick={() => { setAnchorEl(null); onMarkPaid(expense); }}><CheckCircleOutlined style={{ marginRight: 10 }} />Mark as paid</MenuItem>}
+          <MenuItem onClick={() => { setAnchorEl(null); onEdit(expense); }}><EditOutlined style={{ marginRight: 10 }} />Edit expense</MenuItem>
+          <MenuItem sx={{ color: 'error.main' }} onClick={() => { setAnchorEl(null); onDelete(expense); }}><DeleteOutlined style={{ marginRight: 10 }} />Delete expense</MenuItem>
+        </Menu>
+      </Box>
+    </Box>
+  );
+}
+
+function PlanRow({ item, type, onRecord, onToggle, onDelete }) {
+  const theme = useTheme();
+  const recurring = type === 'recurring';
+  const paused = Boolean(read(item, 'isPaused', 'IsPaused'));
+  const name = read(item, 'name', 'Name') || 'Untitled expense';
+  const propertyName = read(item, 'propertyName', 'PropertyName') || 'No property';
+  const unitName = read(item, 'unitName', 'UnitName');
+  const dueDate = recurring ? read(item, 'nextOccurrenceDate', 'NextOccurrenceDate') : read(item, 'dueDate', 'DueDate');
+  const frequency = read(item, 'frequency', 'Frequency');
+
+  return (
+    <Box
+      sx={{
+        px: { xs: 1.5, md: 2 }, py: 1.45,
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: 'minmax(230px, 1.5fr) minmax(180px, 1fr) minmax(150px, .8fr) minmax(100px, .6fr) minmax(130px, .75fr)',
+        gap: { xs: 1.2, md: 2 }, alignItems: 'center',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) }
+      }}
+    >
+      <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+          {recurring ? <ReloadOutlined /> : <ClockCircleOutlined />}
+        </Avatar>
+        <Box minWidth={0}>
+          <Typography fontWeight={700} noWrap>{name}</Typography>
+          <Typography sx={{ mt: 0.25, fontSize: '0.73rem', color: 'text.secondary' }} noWrap>
+            {read(item, 'category', 'Category') || 'Uncategorized'}
+          </Typography>
+        </Box>
+      </Stack>
+      <Box>
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 650 }}>{propertyName}</Typography>
+        {unitName && <Typography sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>{unitName}</Typography>}
+      </Box>
+      <Box>
+        <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>{recurring ? 'Next due' : 'Due date'}</Typography>
+        <Typography sx={{ mt: 0.2, fontSize: '0.82rem', fontWeight: 650 }}>{formatDate(dueDate)}</Typography>
+      </Box>
+      <Box>
+        <Typography sx={{ fontSize: '0.92rem', fontWeight: 750 }}>{formatMoney(getAmount(item))}</Typography>
+        {recurring && <Chip label={paused ? 'Paused' : frequency || 'Active'} size="small" color={paused ? 'warning' : 'success'} variant="outlined" sx={{ mt: 0.45, height: 20, fontSize: '0.65rem' }} />}
+      </Box>
+      <Stack direction="row" spacing={0.5} justifyContent={{ xs: 'flex-end', md: 'flex-start' }}>
+        <Tooltip title="Record as paid"><IconButton size="small" color="success" onClick={() => onRecord(item)}><CheckCircleOutlined /></IconButton></Tooltip>
+        {recurring && <Tooltip title={paused ? 'Resume schedule' : 'Pause schedule'}><IconButton size="small" onClick={() => onToggle(item)}>{paused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}</IconButton></Tooltip>}
+        <Tooltip title={recurring ? 'Delete schedule' : 'Delete planned expense'}><IconButton size="small" color="error" onClick={() => onDelete(item)}><DeleteOutlined /></IconButton></Tooltip>
+      </Stack>
+    </Box>
+  );
+}
+
+export default function Expenses() {
+  const dispatch = useDispatch();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
+  const { properties, isLoading: propertiesLoading } = useFetchProperties();
+  const selectedProperty = useSelector(selectProperty);
+  const recurringExpenses = useSelector(selectRecurringExpenses) || [];
+  const futureExpenses = useSelector(selectFutureExpenses) || [];
+  const { setExpensesLoading } = useDashboardLoading();
+
+  const [activeTab, setActiveTab] = useState(0);
+  const [search, setSearch] = useState('');
+  const [period, setPeriod] = useState('year');
+  const [customDates, setCustomDates] = useState({ startDate: '', endDate: '' });
+  const [category, setCategory] = useState('all');
+  const [status, setStatus] = useState('all');
+  const [sort, setSort] = useState('newest');
+  const [page, setPage] = useState(1);
+  const [addOpen, setAddOpen] = useState(false);
+  const [editExpense, setEditExpense] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [recurringLoading, setRecurringLoading] = useState(false);
+  const [futureLoading, setFutureLoading] = useState(false);
+
+  const periodDates = period === 'custom' ? customDates : getPeriodDates(period);
+  const expenseFilters = useMemo(() => ({
+    propertyId: selectedProperty?.id || selectedProperty?.Id || null,
+    startDate: periodDates.startDate || null,
+    endDate: periodDates.endDate || null
+  }), [selectedProperty, periodDates.startDate, periodDates.endDate]);
+  const { expenses: allExpenses = [], loading: expensesLoading, refetch: refetchExpenses } = useFetchExpenses(expenseFilters);
+
+  const landlordId = user?.id || user?.Id;
+  const propertyId = selectedProperty?.id || selectedProperty?.Id || null;
+
+  const refreshPlans = async () => {
+    if (!landlordId) return;
+    setRecurringLoading(true);
+    setFutureLoading(true);
+    try {
+      await Promise.all([
+        dispatch(getRecurringExpensesAction(landlordId, { propertyId })),
+        dispatch(getFutureExpensesAction(landlordId, { propertyId }))
+      ]);
+    } finally {
+      setRecurringLoading(false);
+      setFutureLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const id = Number(searchParams.get('propertyId'));
+    if (id && properties?.length) {
+      const property = properties.find((item) => Number(getId(item)) === id);
+      if (property) dispatch(setProperty(property));
+    } else if (location.pathname === '/landlord/expenses') {
+      dispatch(setProperty(null));
+    }
+  }, [dispatch, location.pathname, properties, searchParams]);
+
+  useEffect(() => {
+    refreshPlans();
+  }, [landlordId, propertyId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, search, period, customDates.startDate, customDates.endDate, category, status, sort, propertyId]);
+
+  const pageLoading = propertiesLoading || expensesLoading || recurringLoading || futureLoading;
+  useEffect(() => {
+    setExpensesLoading(pageLoading);
+  }, [pageLoading, setExpensesLoading]);
+
+  const visibleExpenses = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...allExpenses]
+      .filter((expense) => !query || getSearchText(expense).includes(query))
+      .filter((expense) => category === 'all' || read(expense, 'category', 'Category') === category)
+      .filter((expense) => status === 'all' || (status === 'paid' && isPaid(expense)) || (status === 'unpaid' && !isPaid(expense)) || (status === 'tax' && isTaxDeductible(expense)) || (status === 'missing-receipt' && !hasReceipts(expense)))
+      .sort((a, b) => {
+        if (sort === 'amount-high') return getAmount(b) - getAmount(a);
+        if (sort === 'amount-low') return getAmount(a) - getAmount(b);
+        if (sort === 'category') return String(read(a, 'category', 'Category') || '').localeCompare(String(read(b, 'category', 'Category') || ''));
+        const aDate = new Date(read(a, 'expenseDate', 'ExpenseDate') || 0).getTime();
+        const bDate = new Date(read(b, 'expenseDate', 'ExpenseDate') || 0).getTime();
+        return sort === 'oldest' ? aDate - bDate : bDate - aDate;
+      });
+  }, [allExpenses, category, search, sort, status]);
+
+  const filteredRecurring = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return recurringExpenses.filter((item) => (!query || getSearchText(item).includes(query)) && (category === 'all' || read(item, 'category', 'Category') === category));
+  }, [category, recurringExpenses, search]);
+
+  const filteredFuture = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...futureExpenses]
+      .filter((item) => (!query || getSearchText(item).includes(query)) && (category === 'all' || read(item, 'category', 'Category') === category))
+      .sort((a, b) => new Date(read(a, 'dueDate', 'DueDate') || 0) - new Date(read(b, 'dueDate', 'DueDate') || 0));
+  }, [category, futureExpenses, search]);
+
+  const metrics = useMemo(() => {
+    const paid = allExpenses.filter(isPaid);
+    const unpaid = allExpenses.filter((expense) => !isPaid(expense));
+    const deductible = allExpenses.filter(isTaxDeductible);
+    const receiptCount = allExpenses.filter(hasReceipts).length;
+    return {
+      paid: paid.reduce((sum, expense) => sum + getAmount(expense), 0),
+      unpaid: unpaid.reduce((sum, expense) => sum + getAmount(expense), 0),
+      unpaidCount: unpaid.length,
+      deductible: deductible.reduce((sum, expense) => sum + getAmount(expense), 0),
+      receiptCoverage: allExpenses.length ? Math.round((receiptCount / allExpenses.length) * 100) : 0
+    };
+  }, [allExpenses]);
+
+  const categorySummary = useMemo(() => {
+    const totals = allExpenses.reduce((result, expense) => {
+      const key = read(expense, 'category', 'Category') || 'Other';
+      result[key] = (result[key] || 0) + getAmount(expense);
+      return result;
+    }, {});
+    return Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  }, [allExpenses]);
+
+  const csvData = visibleExpenses.map((expense) => ({
+    Date: formatDate(read(expense, 'expenseDate', 'ExpenseDate')),
+    Name: read(expense, 'name', 'Name') || '',
+    Category: read(expense, 'category', 'Category') || '',
+    Property: read(expense, 'propertyName', 'PropertyName') || '',
+    Unit: read(expense, 'unitName', 'UnitName') || '',
+    Vendor: read(expense, 'vendor', 'Vendor') || '',
+    Status: isPaid(expense) ? 'Paid' : 'Unpaid',
+    TaxDeductible: isTaxDeductible(expense) ? 'Yes' : 'No',
+    Amount: getAmount(expense)
+  }));
+
+  const activeList = activeTab === 0 ? visibleExpenses : activeTab === 1 ? filteredRecurring : filteredFuture;
+  const pageCount = Math.ceil(activeList.length / PAGE_SIZE);
+  const pageItems = activeList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasFilters = search || period !== 'year' || category !== 'all' || status !== 'all' || sort !== 'newest' || propertyId;
+
+  const clearFilters = () => {
+    setSearch('');
+    setPeriod('year');
+    setCustomDates({ startDate: '', endDate: '' });
+    setCategory('all');
+    setStatus('all');
+    setSort('newest');
+    dispatch(setProperty(null));
+  };
+
+  const prepareExpenseSelection = (expense) => {
+    const expensePropertyId = Number(read(expense, 'propertyId', 'PropertyId'));
+    const property = properties?.find((item) => Number(getId(item)) === expensePropertyId);
+    dispatch(setProperty(property || null));
+    const unitId = Number(read(expense, 'unitId', 'UnitId'));
+    const units = read(property, 'units', 'Units') || [];
+    dispatch(setUnit(unitId ? units.find((unit) => Number(getId(unit)) === unitId) || null : null));
+  };
+
+  const markExpensePaid = async (expense) => {
+    try {
+      const id = getId(expense);
+      const payload = {
+        ...expense,
+        id,
+        propertyId: read(expense, 'propertyId', 'PropertyId'),
+        unitId: read(expense, 'unitId', 'UnitId') || null,
+        name: read(expense, 'name', 'Name') || '',
+        category: read(expense, 'category', 'Category') || 'Other',
+        amount: getAmount(expense),
+        expenseDate: read(expense, 'expenseDate', 'ExpenseDate'),
+        isPaid: true,
+        paidDate: new Date().toISOString()
+      };
+      await dispatch(updateExpenseAction(id, payload));
+      refetchExpenses();
+      openSnackbar({ open: true, message: 'Expense marked as paid', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.response?.data?.message || 'Failed to mark expense as paid', variant: 'alert', alert: { color: 'error' } });
+    }
+  };
+
+  const recordPlanPaid = async (item, type) => {
+    try {
+      const now = new Date();
+      const date = toDateInput(now);
+      await dispatch(addExpenseAction({
+        landlordId,
+        propertyId: read(item, 'propertyId', 'PropertyId'),
+        unitId: read(item, 'unitId', 'UnitId') || null,
+        name: read(item, 'name', 'Name') || '',
+        category: read(item, 'category', 'Category') || 'Other',
+        amount: getAmount(item),
+        expenseDate: date,
+        vendor: read(item, 'vendor', 'Vendor') || null,
+        paymentMethod: read(item, 'paymentMethod', 'PaymentMethod') || null,
+        isRecurring: type === 'recurring',
+        isTaxDeductible: isTaxDeductible(item),
+        maintenanceRequestId: read(item, 'maintenanceRequestId', 'MaintenanceRequestId') || null,
+        isPaid: true,
+        paidDate: now.toISOString()
+      }));
+      if (type === 'future') await dispatch(deleteFutureExpenseAction(getId(item)));
+      refetchExpenses();
+      await refreshPlans();
+      openSnackbar({ open: true, message: type === 'future' ? 'Planned expense recorded as paid' : 'Recurring expense recorded as paid', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.response?.data?.message || 'Failed to record expense', variant: 'alert', alert: { color: 'error' } });
+    }
+  };
+
+  const toggleRecurring = async (item) => {
+    try {
+      if (read(item, 'isPaused', 'IsPaused')) await dispatch(resumeRecurringExpenseAction(getId(item)));
+      else await dispatch(pauseRecurringExpenseAction(getId(item)));
+      await refreshPlans();
+      openSnackbar({ open: true, message: read(item, 'isPaused', 'IsPaused') ? 'Schedule resumed' : 'Schedule paused', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({ open: true, message: 'Failed to update schedule', variant: 'alert', alert: { color: 'error' } });
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.type === 'expense') await dispatch(deleteExpenseAction(getId(deleteTarget.item)));
+      if (deleteTarget.type === 'recurring') await dispatch(deleteRecurringExpenseAction(getId(deleteTarget.item)));
+      if (deleteTarget.type === 'future') await dispatch(deleteFutureExpenseAction(getId(deleteTarget.item)));
+      setDeleteTarget(null);
+      refetchExpenses();
+      await refreshPlans();
+      openSnackbar({ open: true, message: 'Expense deleted', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.response?.data?.message || 'Failed to delete expense', variant: 'alert', alert: { color: 'error' } });
+    }
+  };
+
+  return (
+    <Box sx={{ pb: 3 }}>
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Expenses' }]} />
+      </Box>
+
+      <Box sx={{ mb: 2.5, p: { xs: 2, md: 2.75 }, borderRadius: 3, color: '#fff', background: `linear-gradient(120deg, ${NAVY} 0%, #0b3558 100%)`, boxShadow: `0 16px 38px ${alpha(NAVY, 0.18)}` }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-              Expenses
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Track, categorize, and manage your property expenses
+            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Expenses</Typography>
+            <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>
+              Track spending, clear unpaid items, and keep tax-ready records across your portfolio.
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
-            <CSVLink data={csvData} filename={`expenses-${new Date().toISOString().slice(0, 10)}.csv`} style={{ textDecoration: 'none' }}>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<DownloadOutlined style={{ fontSize: 13 }} />}
-                disabled={filteredCashFlow.length === 0}
-                sx={{ textTransform: 'none', borderRadius: 1.5 }}
-              >
+            <CSVLink data={csvData} filename={`expenses-${toDateInput(new Date())}.csv`} style={{ textDecoration: 'none' }}>
+              <Button variant="outlined" startIcon={<DownloadOutlined />} disabled={!visibleExpenses.length} sx={{ color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none', '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) } }}>
                 Export
               </Button>
             </CSVLink>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<PlusOutlined style={{ fontSize: 11 }} />}
-              onClick={() => setAddExpenseDrawerOpen(true)}
-              sx={{
-                textTransform: 'none',
-                borderRadius: 1.5,
-                boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
-                '&:hover': { boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}` }
-              }}
-            >
-              Add Expense
+            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => setAddOpen(true)} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
+              Add expense
             </Button>
           </Stack>
-        </Box>
-      </AnimateIn>
+        </Stack>
+      </Box>
 
-      <AnimateIn direction="bottom" delay={125} distance={120}>
-        <Box sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.16)}`, mb: 3 }}>
-          <Tabs
-            value={activeTab}
-            onChange={(event, value) => setActiveTab(value)}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{
-              minHeight: 42,
-              '& .MuiTab-root': {
-                minHeight: 42,
-                px: 1.25,
-                mr: 1.5,
-                borderRadius: 1.5,
-                textTransform: 'none',
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                color: 'text.secondary',
-                transition: theme.transitions.create(['background-color', 'box-shadow', 'color'], {
-                  duration: theme.transitions.duration.shorter
-                }),
-                '&:hover': {
-                  color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
-                  backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08),
-                  boxShadow: theme.palette.mode === 'dark' ? `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.24)}` : 'none'
-                },
-                '&.Mui-selected': {
-                  color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
-                  backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04)
-                }
-              },
-              '& .MuiTabs-indicator': { height: 2, borderRadius: 2 }
-            }}
-          >
-            <Tab label={`Expenses (${filteredCashFlow.length})`} />
-            <Tab label={`Recurring expenses (${recurringExpenses.length})`} />
-          </Tabs>
-        </Box>
-      </AnimateIn>
+      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+        <Grid size={{ xs: 6, lg: 3 }}><MetricCard label="Paid spending" value={formatMoney(metrics.paid)} helper="In the selected period" icon={<DollarOutlined />} color={theme.palette.primary.main} active={status === 'paid'} onClick={() => { setActiveTab(0); setStatus((value) => value === 'paid' ? 'all' : 'paid'); }} /></Grid>
+        <Grid size={{ xs: 6, lg: 3 }}><MetricCard label="Still unpaid" value={formatMoney(metrics.unpaid)} helper={`${metrics.unpaidCount} item${metrics.unpaidCount === 1 ? '' : 's'} to clear`} icon={<ClockCircleOutlined />} color={theme.palette.warning.main} active={status === 'unpaid'} onClick={() => { setActiveTab(0); setStatus((value) => value === 'unpaid' ? 'all' : 'unpaid'); }} /></Grid>
+        <Grid size={{ xs: 6, lg: 3 }}><MetricCard label="Tax deductible" value={formatMoney(metrics.deductible)} helper="Marked for tax reporting" icon={<FileDoneOutlined />} color={theme.palette.success.main} active={status === 'tax'} onClick={() => { setActiveTab(0); setStatus((value) => value === 'tax' ? 'all' : 'tax'); }} /></Grid>
+        <Grid size={{ xs: 6, lg: 3 }}><MetricCard label="Receipt coverage" value={`${metrics.receiptCoverage}%`} helper="Click to find missing receipts" icon={<FileDoneOutlined />} color={theme.palette.error.main} active={status === 'missing-receipt'} onClick={() => { setActiveTab(0); setStatus((value) => value === 'missing-receipt' ? 'all' : 'missing-receipt'); }} /></Grid>
+      </Grid>
 
-      {activeTab === 0 && (
-        <>
-      {/* KPI cards */}
-      <AnimateIn direction="bottom" delay={150} distance={120}>
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-          {[
-            { label: 'TOTAL INCOME', value: formatCurrency(totals.totalIncome) },
-            { label: 'TOTAL EXPENSES (PAID)', value: formatCurrency(totals.totalExpenses) },
-            { label: 'NET CASH FLOW', value: formatCurrency(totals.netCashFlow) },
-            { label: 'RECURRING & FUTURE', value: recurringExpenses.length + futureExpenses.length }
-          ].map((kpi) => (
-            <LandlordKpiCard key={kpi.label} label={kpi.label} value={kpi.value} />
-          ))}
-        </Box>
-      </AnimateIn>
-
-      {/* Toolbar */}
-      <AnimateIn direction="bottom" delay={200} distance={120}>
-        <Box
-          sx={{
-            display: 'flex',
-            gap: 1.5,
-            alignItems: 'center',
-            mb: 2
-          }}
-        >
-          <OutlinedInput
-            size="small"
-            placeholder="Search expenses..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            startAdornment={
-              <InputAdornment position="start">
-                <SearchOutlined style={{ fontSize: 14, opacity: 0.5 }} />
-              </InputAdornment>
-            }
-            sx={{ flex: 2, minWidth: 0, bgcolor: 'background.paper', height: 34, fontSize: '0.8rem' }}
-          />
-          <TextField
-            size="small"
-            type="date"
-            label="Start Date"
-            value={dateFrom || ''}
-            onChange={(e) => {
-              const newDateFrom = e.target.value;
-              setDateFrom(newDateFrom);
-              if (newDateFrom && dateTo) {
-                handleTimespanChange({ timespan: 'custom', dateFrom: new Date(newDateFrom), dateTo: (() => { const d = new Date(dateTo); d.setHours(23,59,59,999); return d; })() });
-              }
-            }}
-            InputLabelProps={{ shrink: true, style: { backgroundColor: 'transparent' } }}
-            sx={{
-              flex: 1.5, minWidth: 0,
-              '& .MuiOutlinedInput-notchedOutline': { top: 0 },
-              '& .MuiOutlinedInput-notchedOutline legend': { display: 'none' }
-            }}
-            inputProps={{ style: { height: 17, fontSize: '0.8rem' } }}
-          />
-          <TextField
-            size="small"
-            type="date"
-            label="End Date"
-            value={dateTo || ''}
-            onChange={(e) => {
-              const newDateTo = e.target.value;
-              setDateTo(newDateTo);
-              if (dateFrom && newDateTo) {
-                handleTimespanChange({ timespan: 'custom', dateFrom: new Date(dateFrom), dateTo: (() => { const d = new Date(newDateTo); d.setHours(23,59,59,999); return d; })() });
-              }
-            }}
-            InputLabelProps={{ shrink: true, style: { backgroundColor: 'transparent' } }}
-            sx={{
-              flex: 1.5, minWidth: 0,
-              '& .MuiOutlinedInput-notchedOutline': { top: 0 },
-              '& .MuiOutlinedInput-notchedOutline legend': { display: 'none' }
-            }}
-            inputProps={{ style: { height: 17, fontSize: '0.8rem' } }}
-          />
-          <Box sx={{
-            flex: 2, minWidth: 0,
-            '& .MuiInputLabel-root': { backgroundColor: 'transparent' },
-            '& .MuiOutlinedInput-notchedOutline': { top: 0 },
-            '& .MuiOutlinedInput-notchedOutline legend': { display: 'none' }
-          }}>
-            <PropertySelect width="100%" disableAllOption={false} />
-          </Box>
-        </Box>
-      </AnimateIn>
-
-      {/* Expenses Table */}
-      <AnimateIn direction="bottom" delay={300} distance={120}>
-        <MainCard
-          content={false}
-          boxShadow
-          border={false}
-          shadow={theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`}
-          sx={{ bgcolor: 'background.paper', overflow: 'hidden', border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}` }}
-        >
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-            <CircularProgress />
-          </Box>
-        ) : filteredCashFlow.length === 0 ? (
-          <Box sx={{ p: 5, textAlign: 'center' }}>
-            <Typography variant="h6" color="text.primary" sx={{ mt: 2 }}>
-              {search.trim() ? 'No matching transactions' : 'No transactions in this view'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, maxWidth: 420, mx: 'auto' }}>
-              {search.trim()
-                ? 'Try a different expense name, property, unit, or category.'
-                : selectedProperty
-                  ? `No expenses were found for ${selectedProperty.name || 'the selected property'} in the selected date range.`
-                  : 'Add an expense or choose a property/date range to start tracking cash flow.'}
-            </Typography>
-            {!search.trim() && (
-              <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => setAddExpenseDrawerOpen(true)} sx={{ mt: 2, textTransform: 'none' }}>
-                Add Expense
-              </Button>
-            )}
-          </Box>
-        ) : isMobile ? (
-          <Stack spacing={1.5} sx={{ p: 1.5 }}>
-            {paginatedCashFlow.map((item) => (
-              <Card key={item.id} variant="outlined" sx={{ borderRadius: 2, boxShadow: `0 6px 18px ${alpha(theme.palette.common.black, 0.05)}` }}>
-                <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                  <Stack spacing={1.25}>
-                    <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="caption" color="text.secondary">{formatDate(item.date)}</Typography>
-                        <Typography variant="body2" fontWeight={700} noWrap>{item.name || '-'}</Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                          {[item.propertyName, item.unitName].filter(Boolean).join(' · ') || 'No property assigned'}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body1" fontWeight={800} color={item.type === 'income' ? 'success.main' : 'error.main'} sx={{ flexShrink: 0 }}>
-                        {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
-                      </Typography>
-                    </Stack>
-
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      {item.type === 'expenses' ? (
-                        <Chip label={item.isPaid ? 'Paid' : 'Unpaid'} size="small" color={item.isPaid ? 'success' : 'warning'} variant={item.isPaid ? 'filled' : 'outlined'} />
-                      ) : (
-                        <Chip label="Income" size="small" color="success" variant="outlined" />
-                      )}
-                      {item.type === 'expenses' && (
-                        <Stack direction="row" spacing={0.5}>
-                          {!item.isPaid && (
-                            <Tooltip title="Mark as Paid">
-                              <IconButton size="small" color="success" aria-label={`Mark ${item.name || 'expense'} as paid`} onClick={() => handleMarkCashFlowExpensePaid(item)}>
-                                <CheckCircleOutlined style={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                          <Tooltip title="Edit Expense">
-                            <IconButton size="small" aria-label={`Edit ${item.name || 'expense'}`} onClick={() => handleEditCashFlowExpense(item)}>
-                              <EditOutlined style={{ fontSize: 16 }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete Expense">
-                            <IconButton size="small" color="error" aria-label={`Delete ${item.name || 'expense'}`} onClick={() => handleDeleteCashFlowExpense(item)}>
-                              <DeleteOutlined style={{ fontSize: 16 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      )}
-                    </Stack>
-                  </Stack>
-                </CardContent>
-              </Card>
-            ))}
-          </Stack>
-        ) : (
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Property</TableCell>
-                  <TableCell>Unit</TableCell>
-                  <TableCell>Paid Status</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {paginatedCashFlow.map((item) => (
-                  <TableRow key={item.id} hover>
-                    <TableCell>{formatDate(item.date)}</TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={500}>
-                        {item.name || '-'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>{item.propertyName || '-'}</TableCell>
-                    <TableCell>{item.unitName || '-'}</TableCell>
-                    <TableCell>
-                      {item.type === 'expenses' ? (
-                        <Chip
-                          label={item.isPaid ? 'Paid' : 'Unpaid'}
-                          size="small"
-                          color={item.isPaid ? 'success' : 'warning'}
-                          variant={item.isPaid ? 'filled' : 'outlined'}
-                        />
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">-</Typography>
-                      )}
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography 
-                        variant="body2" 
-                        fontWeight={500} 
-                        color={item.type === 'income' ? 'success.main' : 'error.main'}
-                      >
-                        {item.type === 'income' ? '+' : '-'}{formatCurrency(item.amount)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      {item.type === 'expenses' && (
-                        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                          {!item.isPaid && (
-                            <Tooltip title="Mark as Paid">
-                              <IconButton
-                                size="small"
-                                color="success"
-                                onClick={async () => {
-                                  try {
-                                    // Extract expense ID from item.id (format: "expense-{id}")
-                                    const expenseId = item.id.replace('expense-', '');
-                                    // Find the original expense from allExpenses
-                                    const originalExpense = allExpenses.find(e => String(e.id) === expenseId);
-                                    if (!originalExpense) {
-                                      openSnackbar({
-                                        open: true,
-                                        message: 'Expense not found',
-                                        variant: 'alert',
-                                        alert: { color: 'error' }
-                                      });
-                                      return;
-                                    }
-
-                                    const now = new Date();
-                                    // Build proper update payload with all required fields
-                                    const updatePayload = {
-                                      id: originalExpense.id,
-                                      propertyId: originalExpense.propertyId,
-                                      unitId: originalExpense.unitId || null,
-                                      name: originalExpense.name || '',
-                                      category: originalExpense.category || '',
-                                      amount: originalExpense.amount || 0,
-                                      expenseDate: originalExpense.expenseDate,
-                                      vendor: originalExpense.vendor || null,
-                                      vendorId: originalExpense.vendorId || null,
-                                      paymentMethod: originalExpense.paymentMethod || null,
-                                      receiptUrl: originalExpense.receiptUrl || null,
-                                      isRecurring: originalExpense.isRecurring || false,
-                                      isTaxDeductible: originalExpense.isTaxDeductible || false,
-                                      taxCategory: originalExpense.taxCategory || null,
-                                      maintenanceRequestId: originalExpense.maintenanceRequestId || null,
-                                      frequency: originalExpense.frequency || null,
-                                      dayOfPeriod: originalExpense.dayOfPeriod || null,
-                                      startDate: originalExpense.startDate || null,
-                                      endDate: originalExpense.endDate || null,
-                                      isPaused: originalExpense.isPaused || false,
-                                      isPaid: true,
-                                      paidDate: now.toISOString()
-                                    };
-
-                                    console.log('Marking expense as paid:', { expenseId, updatePayload });
-                                    await dispatch(updateExpenseAction(Number(expenseId), updatePayload));
-                                    openSnackbar({
-                                      open: true,
-                                      message: 'Expense marked as paid',
-                                      variant: 'alert',
-                                      alert: { color: 'success' }
-                                    });
-                                    // No need to refetch - Redux reducer will update the state automatically
-                                  } catch (error) {
-                                    console.error('Error marking expense as paid:', error);
-                                    openSnackbar({
-                                      open: true,
-                                      message: error?.response?.data?.message || 'Failed to mark expense as paid',
-                                      variant: 'alert',
-                                      alert: { color: 'error' }
-                                    });
-                                  }
-                                }}
-                              >
-                                <CheckCircleOutlined style={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                          <Tooltip title="Edit Expense">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                // Extract expense ID from item.id (format: "expense-{id}")
-                                const expenseId = item.id.replace('expense-', '');
-                                // Find the original expense from allExpenses
-                                const originalExpense = allExpenses.find(e => String(e.id) === expenseId);
-                                
-                                if (originalExpense) {
-                                  // Set property and unit in Redux so they're pre-selected in the modal
-                                  const property = properties?.find(p => p.id === originalExpense.propertyId);
-                                  if (property) {
-                                    dispatch(setProperty(property));
-                                  }
-                                  
-                                  if (originalExpense.unitId && property) {
-                                    const unit = property.units?.find(u => u.id === originalExpense.unitId);
-                                    if (unit) {
-                                      dispatch(setUnit(unit));
-                                    }
-                                  } else {
-                                    dispatch(setUnit(null));
-                                  }
-                                }
-                                
-                                setEditingExpense(originalExpense || item);
-                                setExpenseModalOpen(true);
-                              }}
-                            >
-                              <EditOutlined style={{ fontSize: 16 }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete Expense">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => {
-                                // Extract expense ID from item.id (format: "expense-{id}")
-                                const expenseId = item.id.replace('expense-', '');
-                                setExpenseToDelete(Number(expenseId));
-                                setDeleteConfirmOpen(true);
-                              }}
-                            >
-                              <DeleteOutlined style={{ fontSize: 16 }} />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-
-      </MainCard>
-        {filteredCashFlow.length > 0 && (
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="body2" color="text.secondary">Items per page:</Typography>
-              <FormControl size="small" sx={{ minWidth: 80 }}>
-                <Select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} sx={{ height: 32 }}>
-                  <MenuItem value={10}>10</MenuItem>
-                  <MenuItem value={20}>20</MenuItem>
-                </Select>
-              </FormControl>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, xl: 9 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
+            <Box sx={{ px: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+              <Tabs value={activeTab} onChange={(_, value) => setActiveTab(value)} variant="scrollable" scrollButtons="auto" sx={{ minHeight: 48, '& .MuiTab-root': { minHeight: 48, textTransform: 'none', fontWeight: 700 } }}>
+                <Tab label={`Transactions (${visibleExpenses.length})`} />
+                <Tab label={`Recurring (${filteredRecurring.length})`} />
+                <Tab label={`Upcoming (${filteredFuture.length})`} />
+              </Tabs>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Typography variant="body2" color="text.secondary">Page {page + 1} of {totalPages}</Typography>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button size="small" variant="outlined" startIcon={<LeftOutlined />} onClick={() => handlePageChange(Math.max(0, page - 1))} disabled={page === 0} sx={{ minWidth: 100 }}>Previous</Button>
-                <Button size="small" variant="outlined" endIcon={<RightOutlined />} onClick={() => handlePageChange(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} sx={{ minWidth: 100 }}>Next</Button>
-              </Box>
-            </Box>
-          </Box>
-        )}
-      </AnimateIn>
 
-        </>
-      )}
-
-      {activeTab === 1 && (
-        <>
-          <AnimateIn direction="bottom" delay={150} distance={120}>
-            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-              {[
-                { label: 'ACTIVE RECURRING', value: recurringTotals.activeCount },
-                { label: 'PAUSED', value: recurringTotals.pausedCount },
-                { label: 'MONTHLY TOTAL', value: formatCurrency(recurringTotals.monthlyTotal) },
-                { label: 'ANNUALIZED', value: formatCurrency(recurringTotals.annualizedTotal) }
-              ].map((kpi) => (
-                <LandlordKpiCard key={kpi.label} label={kpi.label} value={kpi.value} />
-              ))}
-            </Box>
-          </AnimateIn>
-
-          <AnimateIn direction="bottom" delay={200} distance={120}>
-            <Box
-              sx={{
-                display: 'flex',
-                gap: 1.5,
-                alignItems: 'center',
-                mb: 2,
-                flexDirection: { xs: 'column', sm: 'row' }
-              }}
-            >
-              <OutlinedInput
-                size="small"
-                placeholder="Search recurring expenses..."
-                value={recurringSearch}
-                onChange={(e) => setRecurringSearch(e.target.value)}
-                startAdornment={
-                  <InputAdornment position="start">
-                    <SearchOutlined style={{ fontSize: 14, opacity: 0.5 }} />
-                  </InputAdornment>
-                }
-                sx={{ flex: 2, width: '100%', minWidth: 0, bgcolor: 'background.paper', height: 34, fontSize: '0.8rem' }}
-              />
-              <Box sx={{
-                flex: 2,
-                width: '100%',
-                minWidth: 0,
-                '& .MuiInputLabel-root': { backgroundColor: 'transparent' },
-                '& .MuiOutlinedInput-notchedOutline': { top: 0 },
-                '& .MuiOutlinedInput-notchedOutline legend': { display: 'none' }
-              }}>
-                <PropertySelect width="100%" disableAllOption={false} />
-              </Box>
-            </Box>
-          </AnimateIn>
-
-          <AnimateIn direction="bottom" delay={300} distance={120}>
-            <MainCard
-              content={false}
-              boxShadow
-              border={false}
-              shadow={theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`}
-              sx={{ bgcolor: 'background.paper', overflow: 'hidden', border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}` }}
-            >
-              {recurringExpensesLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
-                  <CircularProgress />
-                </Box>
-              ) : filteredRecurringExpenses.length === 0 ? (
-                <Box sx={{ p: 5, textAlign: 'center' }}>
-                  <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
-                    No recurring expenses found
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    {selectedProperty
-                      ? `No recurring expenses found for ${selectedProperty.name || 'selected property'}`
-                      : 'Create recurring expenses to see them here.'}
-                  </Typography>
-                </Box>
-              ) : isMobile ? (
-                <Stack spacing={1.5} sx={{ p: 1.5 }}>
-                  {filteredRecurringExpenses.map((recurring) => {
-                    const frequency = recurring.frequency
-                      ? recurring.frequency.charAt(0) + recurring.frequency.slice(1).toLowerCase()
-                      : 'N/A';
-                    const nextDueDate = recurring.nextOccurrenceDate
-                      ? formatDate(recurring.nextOccurrenceDate)
-                      : 'N/A';
-                    const status = recurring.isPaused ? 'Paused' : 'Active';
-
-                    return (
-                      <Card key={`recurring-card-${recurring.id}`} variant="outlined" sx={{ borderRadius: 2, boxShadow: `0 6px 18px ${alpha(theme.palette.common.black, 0.05)}` }}>
-                        <CardContent sx={{ p: 1.75, '&:last-child': { pb: 1.75 } }}>
-                          <Stack spacing={1.25}>
-                            <Stack direction="row" justifyContent="space-between" spacing={1} alignItems="flex-start">
-                              <Box sx={{ minWidth: 0 }}>
-                                <Typography variant="body2" fontWeight={700} noWrap>{recurring.name || '-'}</Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                                  {[recurring.propertyName, recurring.unitName].filter(Boolean).join(' · ') || 'No property assigned'}
-                                </Typography>
-                              </Box>
-                              <Typography variant="body1" fontWeight={800} color="error.main" sx={{ flexShrink: 0 }}>{formatCurrency(recurring.amount)}</Typography>
-                            </Stack>
-
-                            <Stack direction="row" spacing={1} flexWrap="wrap">
-                              <Chip label={status} size="small" color={recurring.isPaused ? 'warning' : 'success'} variant={recurring.isPaused ? 'outlined' : 'filled'} />
-                              <Chip label={frequency} size="small" variant="outlined" />
-                              <Chip label={`Next ${nextDueDate}`} size="small" variant="outlined" />
-                            </Stack>
-
-                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                              <Tooltip title="Mark as Paid">
-                                <IconButton size="small" color="success" aria-label={`Mark ${recurring.name || 'recurring expense'} as paid`} onClick={async () => {
-                                  try {
-                                    const now = new Date();
-                                    const todayDateString = now.toISOString().split('T')[0];
-                                    const expensePayload = {
-                                      landlordId: user.id || user.Id,
-                                      propertyId: recurring.propertyId,
-                                      unitId: recurring.unitId || null,
-                                      name: recurring.name,
-                                      category: recurring.category,
-                                      amount: recurring.amount,
-                                      expenseDate: todayDateString,
-                                      vendor: recurring.vendor || null,
-                                      vendorId: null,
-                                      paymentMethod: recurring.paymentMethod || null,
-                                      receiptUrl: null,
-                                      isRecurring: true,
-                                      isTaxDeductible: recurring.isTaxDeductible || false,
-                                      taxCategory: null,
-                                      maintenanceRequestId: recurring.maintenanceRequestId || null,
-                                      frequency: recurring.frequency,
-                                      dayOfPeriod: recurring.dayOfPeriod,
-                                      startDate: recurring.startDate,
-                                      endDate: recurring.endDate || null,
-                                      isPaused: false,
-                                      dueDate: todayDateString,
-                                      billDate: todayDateString,
-                                      isPaid: true,
-                                      paidDate: now.toISOString()
-                                    };
-                                    await dispatch(addExpenseAction(expensePayload));
-                                    openSnackbar({ open: true, message: 'Expense marked as paid and added to expenses', variant: 'alert', alert: { color: 'success' } });
-                                    setTimeout(() => { refetchExpenses(); }, 1000);
-                                  } catch (error) {
-                                    console.error('Error marking recurring expense as paid:', error);
-                                    openSnackbar({ open: true, message: 'Failed to mark expense as paid', variant: 'alert', alert: { color: 'error' } });
-                                  }
-                                }}>
-                                  <CheckCircleOutlined style={{ fontSize: 18 }} />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title={recurring.isPaused ? 'Resume' : 'Pause'}>
-                                <IconButton size="small" aria-label={`${recurring.isPaused ? 'Resume' : 'Pause'} ${recurring.name || 'recurring expense'}`} onClick={async () => {
-                                  try {
-                                    if (recurring.isPaused) {
-                                      await dispatch(resumeRecurringExpenseAction(recurring.id));
-                                      openSnackbar({ open: true, message: 'Recurring expense resumed', variant: 'alert', alert: { color: 'success' } });
-                                    } else {
-                                      await dispatch(pauseRecurringExpenseAction(recurring.id));
-                                      openSnackbar({ open: true, message: 'Recurring expense paused', variant: 'alert', alert: { color: 'warning' } });
-                                    }
-                                    const landlordId = user.id || user.Id;
-                                    await dispatch(getRecurringExpensesAction(landlordId, { propertyId: selectedProperty?.id || null }));
-                                    setRecurringExpensesLoading(false);
-                                  } catch (error) {
-                                    console.error('Error toggling recurring expense:', error);
-                                    openSnackbar({ open: true, message: 'Failed to update recurring expense', variant: 'alert', alert: { color: 'error' } });
-                                  }
-                                }}>
-                                  {recurring.isPaused ? <PlayCircleOutlined style={{ fontSize: 18 }} /> : <PauseCircleOutlined style={{ fontSize: 18 }} />}
-                                </IconButton>
-                              </Tooltip>
-                            </Stack>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+            <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
+                <OutlinedInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, vendor, category, or property" size="small" startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ flex: 1, minWidth: { lg: 250 }, borderRadius: 1.75 }} />
+                <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
+                  <Box sx={{ minWidth: 210, '& .MuiOutlinedInput-root': { height: 40, borderRadius: 1.75 }, '& .MuiInputLabel-root': { display: 'none' } }}><PropertySelect width="100%" disableAllOption={false} /></Box>
+                  <Select size="small" value={period} onChange={(event) => setPeriod(event.target.value)} sx={{ minWidth: 120, borderRadius: 1.75 }}>
+                    <MenuItem value="year">This year</MenuItem><MenuItem value="30">Last 30 days</MenuItem><MenuItem value="90">Last 90 days</MenuItem><MenuItem value="all">All time</MenuItem><MenuItem value="custom">Custom dates</MenuItem>
+                  </Select>
+                  <Select size="small" value={category} onChange={(event) => setCategory(event.target.value)} sx={{ minWidth: 142, borderRadius: 1.75 }}>
+                    <MenuItem value="all">All categories</MenuItem>{EXPENSE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
+                  </Select>
+                  {activeTab === 0 && <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} sx={{ minWidth: 130, borderRadius: 1.75 }}>
+                    <MenuItem value="all">All records</MenuItem><MenuItem value="paid">Paid</MenuItem><MenuItem value="unpaid">Unpaid</MenuItem><MenuItem value="tax">Tax deductible</MenuItem><MenuItem value="missing-receipt">Missing receipt</MenuItem>
+                  </Select>}
+                  {activeTab === 0 && <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} sx={{ minWidth: 135, borderRadius: 1.75 }}>
+                    <MenuItem value="newest">Newest first</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="amount-high">Amount: high</MenuItem><MenuItem value="amount-low">Amount: low</MenuItem><MenuItem value="category">Category</MenuItem>
+                  </Select>}
                 </Stack>
-              ) : (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Category</TableCell>
-                        <TableCell>Property</TableCell>
-                        <TableCell>Amount</TableCell>
-                        <TableCell>Frequency</TableCell>
-                        <TableCell>Next Due Date</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell align="center">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {filteredRecurringExpenses.map((recurring) => {
-                        const frequency = recurring.frequency
-                          ? recurring.frequency.charAt(0) + recurring.frequency.slice(1).toLowerCase()
-                          : 'N/A';
-                        const nextDueDate = recurring.nextOccurrenceDate
-                          ? formatDate(recurring.nextOccurrenceDate)
-                          : 'N/A';
-                        const status = recurring.isPaused ? 'Paused' : 'Active';
+              </Stack>
+              {period === 'custom' && <Stack direction="row" spacing={1} sx={{ mt: 1.2 }}>
+                <OutlinedInput type="date" size="small" value={customDates.startDate} onChange={(event) => setCustomDates((value) => ({ ...value, startDate: event.target.value }))} inputProps={{ 'aria-label': 'Start date' }} />
+                <OutlinedInput type="date" size="small" value={customDates.endDate} onChange={(event) => setCustomDates((value) => ({ ...value, endDate: event.target.value }))} inputProps={{ 'aria-label': 'End date' }} />
+              </Stack>}
+              {hasFilters && <Button size="small" onClick={clearFilters} sx={{ mt: 1, px: 0, textTransform: 'none' }}>Clear filters</Button>}
+            </Box>
 
-                        return (
-                          <TableRow key={`recurring-${recurring.id}`} hover>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={500}>
-                                {recurring.name || '-'}
-                              </Typography>
-                              {recurring.vendor && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {recurring.vendor}
-                                </Typography>
-                              )}
-                            </TableCell>
-                            <TableCell>{recurring.category || '-'}</TableCell>
-                            <TableCell>
-                              <Typography variant="body2">{recurring.propertyName || '-'}</Typography>
-                              {recurring.unitName && <Typography variant="caption" color="text.secondary">{recurring.unitName}</Typography>}
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" fontWeight={500} color="error.main">
-                                {formatCurrency(recurring.amount)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>{frequency}</TableCell>
-                            <TableCell>{nextDueDate}</TableCell>
-                            <TableCell>
-                              <Chip
-                                label={status}
-                                size="small"
-                                color={recurring.isPaused ? 'warning' : 'success'}
-                                variant={recurring.isPaused ? 'outlined' : 'filled'}
-                              />
-                            </TableCell>
-                            <TableCell align="center">
-                              <Stack direction="row" spacing={1} justifyContent="center">
-                                <Tooltip title="Mark as Paid">
-                                  <IconButton
-                                    size="small"
-                                    color="success"
-                                    onClick={async () => {
-                                      try {
-                                        const now = new Date();
-                                        const todayDateString = now.toISOString().split('T')[0];
-                                        const expensePayload = {
-                                          landlordId: user.id || user.Id,
-                                          propertyId: recurring.propertyId,
-                                          unitId: recurring.unitId || null,
-                                          name: recurring.name,
-                                          category: recurring.category,
-                                          amount: recurring.amount,
-                                          expenseDate: todayDateString,
-                                          vendor: recurring.vendor || null,
-                                          vendorId: null,
-                                          paymentMethod: recurring.paymentMethod || null,
-                                          receiptUrl: null,
-                                          isRecurring: true,
-                                          isTaxDeductible: recurring.isTaxDeductible || false,
-                                          taxCategory: null,
-                                          maintenanceRequestId: recurring.maintenanceRequestId || null,
-                                          frequency: recurring.frequency,
-                                          dayOfPeriod: recurring.dayOfPeriod,
-                                          startDate: recurring.startDate,
-                                          endDate: recurring.endDate || null,
-                                          isPaused: false,
-                                          dueDate: todayDateString,
-                                          billDate: todayDateString,
-                                          isPaid: true,
-                                          paidDate: now.toISOString()
-                                        };
+            {pageLoading ? <Box sx={{ minHeight: 280, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : pageItems.length === 0 ? (
+              <Box sx={{ px: 3, py: 7, textAlign: 'center' }}>
+                <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>{activeTab === 0 ? <DollarOutlined /> : activeTab === 1 ? <ReloadOutlined /> : <CalendarOutlined />}</Avatar>
+                <Typography variant="h6" sx={{ mt: 1.5 }}>{hasFilters ? 'No expenses match this view' : activeTab === 0 ? 'No expenses yet' : activeTab === 1 ? 'No recurring expenses' : 'No upcoming expenses'}</Typography>
+                <Typography color="text.secondary" sx={{ mt: 0.6, fontSize: '0.84rem' }}>{hasFilters ? 'Clear or adjust the filters to see more records.' : 'Add an expense to start building a clean financial record.'}</Typography>
+                {hasFilters ? <Button onClick={clearFilters} sx={{ mt: 1.5, textTransform: 'none' }}>Clear filters</Button> : <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => setAddOpen(true)} sx={{ mt: 2, textTransform: 'none' }}>Add expense</Button>}
+              </Box>
+            ) : (
+              <>
+                {!isMobile && <Box sx={{ px: 2, py: 1, display: 'grid', gridTemplateColumns: activeTab === 0 ? 'minmax(230px, 1.55fr) minmax(180px, 1.05fr) minmax(130px, .8fr) minmax(100px, .62fr) 44px' : 'minmax(230px, 1.5fr) minmax(180px, 1fr) minmax(150px, .8fr) minmax(100px, .6fr) minmax(130px, .75fr)', gap: 2, bgcolor: alpha(theme.palette.primary.main, 0.025), borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  {(activeTab === 0 ? ['Expense', 'Property', 'Date & status', 'Amount', ''] : ['Schedule', 'Property', 'Timing', 'Amount', 'Actions']).map((label, index) => <Typography key={`${label}-${index}`} sx={{ fontSize: '0.68rem', fontWeight: 750, letterSpacing: 0.55, textTransform: 'uppercase', color: 'text.secondary', textAlign: activeTab === 0 && index === 3 ? 'right' : 'left' }}>{label}</Typography>)}
+                </Box>}
+                {activeTab === 0 && pageItems.map((expense) => <ExpenseRow key={getId(expense)} expense={expense} onEdit={(item) => { prepareExpenseSelection(item); setEditExpense(item); }} onMarkPaid={markExpensePaid} onDelete={(item) => setDeleteTarget({ type: 'expense', item })} />)}
+                {activeTab === 1 && pageItems.map((item) => <PlanRow key={getId(item)} item={item} type="recurring" onRecord={(value) => recordPlanPaid(value, 'recurring')} onToggle={toggleRecurring} onDelete={(value) => setDeleteTarget({ type: 'recurring', item: value })} />)}
+                {activeTab === 2 && pageItems.map((item) => <PlanRow key={getId(item)} item={item} type="future" onRecord={(value) => recordPlanPaid(value, 'future')} onDelete={(value) => setDeleteTarget({ type: 'future', item: value })} />)}
+              </>
+            )}
 
-                                        await dispatch(addExpenseAction(expensePayload));
-                                        openSnackbar({
-                                          open: true,
-                                          message: 'Expense marked as paid and added to expenses',
-                                          variant: 'alert',
-                                          alert: { color: 'success' }
-                                        });
-                                        setTimeout(() => {
-                                          refetchExpenses();
-                                        }, 1000);
-                                      } catch (error) {
-                                        console.error('Error marking recurring expense as paid:', error);
-                                        openSnackbar({
-                                          open: true,
-                                          message: 'Failed to mark expense as paid',
-                                          variant: 'alert',
-                                          alert: { color: 'error' }
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    <CheckCircleOutlined style={{ fontSize: 18 }} />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title={recurring.isPaused ? 'Resume' : 'Pause'}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={async () => {
-                                      try {
-                                        if (recurring.isPaused) {
-                                          await dispatch(resumeRecurringExpenseAction(recurring.id));
-                                          openSnackbar({
-                                            open: true,
-                                            message: 'Recurring expense resumed',
-                                            variant: 'alert',
-                                            alert: { color: 'success' }
-                                          });
-                                        } else {
-                                          await dispatch(pauseRecurringExpenseAction(recurring.id));
-                                          openSnackbar({
-                                            open: true,
-                                            message: 'Recurring expense paused',
-                                            variant: 'alert',
-                                            alert: { color: 'warning' }
-                                          });
-                                        }
-                                        const landlordId = user.id || user.Id;
-                                        await dispatch(getRecurringExpensesAction(landlordId, {
-                                          propertyId: selectedProperty?.id || null
-                                        }));
-                                        setRecurringExpensesLoading(false);
-                                      } catch (error) {
-                                        console.error('Error toggling recurring expense:', error);
-                                        openSnackbar({
-                                          open: true,
-                                          message: 'Failed to update recurring expense',
-                                          variant: 'alert',
-                                          alert: { color: 'error' }
-                                        });
-                                      }
-                                    }}
-                                  >
-                                    {recurring.isPaused ? (
-                                      <PlayCircleOutlined style={{ fontSize: 18 }} />
-                                    ) : (
-                                      <PauseCircleOutlined style={{ fontSize: 18 }} />
-                                    )}
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Edit">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => {
-                                      openSnackbar({
-                                        open: true,
-                                        message: 'Edit functionality coming soon',
-                                        variant: 'alert',
-                                        alert: { color: 'info' }
-                                      });
-                                    }}
-                                  >
-                                    <EditOutlined style={{ fontSize: 18 }} />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Delete">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={async () => {
-                                      if (window.confirm('Are you sure you want to delete this recurring expense? This will not delete existing expense instances.')) {
-                                        try {
-                                          await dispatch(deleteRecurringExpenseAction(recurring.id));
-                                          openSnackbar({
-                                            open: true,
-                                            message: 'Recurring expense deleted',
-                                            variant: 'alert',
-                                            alert: { color: 'success' }
-                                          });
-                                          const landlordId = user.id || user.Id;
-                                          await dispatch(getRecurringExpensesAction(landlordId, {
-                                            propertyId: selectedProperty?.id || null
-                                          }));
-                                          setRecurringExpensesLoading(false);
-                                        } catch (error) {
-                                          console.error('Error deleting recurring expense:', error);
-                                          openSnackbar({
-                                            open: true,
-                                            message: 'Failed to delete recurring expense',
-                                            variant: 'alert',
-                                            alert: { color: 'error' }
-                                          });
-                                        }
-                                      }
-                                    }}
-                                  >
-                                    <DeleteOutlined style={{ fontSize: 18 }} />
-                                  </IconButton>
-                                </Tooltip>
-                              </Stack>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </MainCard>
-          </AnimateIn>
-        </>
-      )}
+            {pageCount > 1 && <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ p: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+              <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, activeList.length)} of {activeList.length}</Typography>
+              <Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} size="small" color="primary" />
+            </Stack>}
+          </Box>
+        </Grid>
 
-      <ExpenseEditDrawer
-        open={expenseModalOpen}
-        expense={editingExpense}
-        onClose={() => {
-          setExpenseModalOpen(false);
-          setEditingExpense(null);
-        }}
-        onSuccess={() => {
-          refetchExpenses();
-          setEditingExpense(null);
-        }}
-      />
+        <Grid size={{ xs: 12, xl: 3 }}>
+          <Stack spacing={2}>
+            <Box sx={{ p: 2, bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha(NAVY, 0.045)}` }}>
+              <Typography fontWeight={750}>Spend by category</Typography>
+              <Typography sx={{ mt: 0.35, fontSize: '0.75rem', color: 'text.secondary' }}>Top categories in the selected period</Typography>
+              <Stack spacing={1.4} sx={{ mt: 2 }}>
+                {categorySummary.length ? categorySummary.map(([name, amount], index) => {
+                  const max = categorySummary[0][1] || 1;
+                  return <Box key={name} component="button" type="button" onClick={() => { setActiveTab(0); setCategory(name); }} sx={{ p: 0, border: 0, bgcolor: 'transparent', color: 'inherit', textAlign: 'left', font: 'inherit', cursor: 'pointer' }}>
+                    <Stack direction="row" justifyContent="space-between" spacing={1}><Typography sx={{ fontSize: '0.78rem', fontWeight: 650 }} noWrap>{name}</Typography><Typography sx={{ fontSize: '0.78rem', fontWeight: 700 }}>{formatMoney(amount)}</Typography></Stack>
+                    <Box sx={{ mt: 0.65, height: 6, borderRadius: 8, bgcolor: alpha(theme.palette.divider, 0.14), overflow: 'hidden' }}><Box sx={{ width: `${Math.max((amount / max) * 100, 6)}%`, height: '100%', borderRadius: 8, bgcolor: index === 0 ? 'primary.main' : alpha(theme.palette.primary.main, 0.55) }} /></Box>
+                  </Box>;
+                }) : <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>No category data yet.</Typography>}
+              </Stack>
+            </Box>
 
-      {/* Delete Confirmation Dialog */}
-      <ConfirmationDialog
-        open={deleteConfirmOpen}
-        onClose={() => {
-          setDeleteConfirmOpen(false);
-          setExpenseToDelete(null);
-        }}
-        onConfirm={async () => {
-          if (!expenseToDelete) return;
-          try {
-            await dispatch(deleteExpenseAction(expenseToDelete));
-            openSnackbar({
-              open: true,
-              message: 'Expense deleted successfully',
-              variant: 'alert',
-              alert: { color: 'success' }
-            });
-            setDeleteConfirmOpen(false);
-            setExpenseToDelete(null);
-            refetchExpenses();
-          } catch (error) {
-            console.error('Error deleting expense:', error);
-            openSnackbar({
-              open: true,
-              message: error?.response?.data?.message || 'Failed to delete expense',
-              variant: 'alert',
-              alert: { color: 'error' }
-            });
-          }
-        }}
-        title="Delete Expense"
-        message="Are you sure you want to delete this expense? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmColor="error"
-      />
+            <Box sx={{ p: 2, bgcolor: alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.1 : 0.045), border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`, borderRadius: 3 }}>
+              <Typography fontWeight={750}>Keep records tax-ready</Typography>
+              <Typography sx={{ mt: 0.6, fontSize: '0.78rem', color: 'text.secondary', lineHeight: 1.55 }}>Attach receipts while the details are fresh, and mark deductible expenses so reports need less cleanup later.</Typography>
+              <Button size="small" startIcon={<PlusOutlined />} onClick={() => setAddOpen(true)} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>Add with receipt</Button>
+            </Box>
+          </Stack>
+        </Grid>
+      </Grid>
 
-      <ExpenseAddDrawer
-        open={addExpenseDrawerOpen}
-        onClose={() => setAddExpenseDrawerOpen(false)}
-      />
+      <ExpenseAddDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={() => { refetchExpenses(); refreshPlans(); }} />
+      <ExpenseEditDrawer open={Boolean(editExpense)} expense={editExpense} onClose={() => setEditExpense(null)} onSuccess={() => { setEditExpense(null); refetchExpenses(); refreshPlans(); }} />
+      <ConfirmationDialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onConfirm={confirmDelete} title={deleteTarget?.type === 'recurring' ? 'Delete recurring schedule' : deleteTarget?.type === 'future' ? 'Delete planned expense' : 'Delete expense'} message={deleteTarget?.type === 'recurring' ? 'Delete this recurring schedule? Existing expense records will not be removed.' : 'Delete this expense? This action cannot be undone.'} confirmText="Delete" cancelText="Cancel" confirmColor="error" />
     </Box>
   );
 }

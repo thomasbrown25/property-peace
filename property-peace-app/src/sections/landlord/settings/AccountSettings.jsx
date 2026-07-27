@@ -267,7 +267,7 @@ export default function AccountSettings() {
           <Stack direction="row" spacing={2}>
             <Button
               variant="contained"
-              onClick={() => navigate('/landlord/subscription')}
+              onClick={() => navigate('/landlord/settings?tab=subscription')}
               startIcon={<CreditCardOutlined />}
             >
               View Plan

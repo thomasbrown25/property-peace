@@ -1,5 +1,5 @@
 import { Box, Divider, Typography, Button, Stack, ListItemButton, ListItemIcon, ListItemText, List, Tooltip, alpha } from '@mui/material';
-import { SettingOutlined, CreditCardOutlined, StarOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { SettingOutlined, StarOutlined, ArrowRightOutlined, CustomerServiceOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSubscriptionStatus, useSubscription } from 'hooks/useSubscription';
 import { useGetMenuMaster } from 'api/menu';
@@ -35,8 +35,7 @@ export default function SidebarBottomSection() {
   const showUpgradeCard = !hasAdminRole && hasLandlordRole && !subLoading && !isPremium && !isLifetime;
 
   const handleBuyNow = () => {
-    // Navigate to subscription page
-    navigate('/landlord/subscription');
+    navigate('/landlord/settings?tab=subscription');
   };
 
   const isSelected = (path) => {
@@ -62,7 +61,7 @@ export default function SidebarBottomSection() {
     };
   };
 
-  const subscriptionSelected = isSelected('/landlord/subscription');
+  const helpSupportSelected = isSelected('/landlord/support');
   const settingsSelected = isSelected('/landlord/settings') || isSelected('/tenant/settings');
   return (
     <Box sx={{ pt: 4, mb: 5 }}>
@@ -126,7 +125,7 @@ export default function SidebarBottomSection() {
           </Typography>
           <Button
             component={Link}
-            to="/landlord/subscription"
+            to="/landlord/settings?tab=subscription"
             variant="contained"
             color="success"
             size="small"
@@ -148,15 +147,15 @@ export default function SidebarBottomSection() {
       {/* Bottom Menu Items - Hide for admin */}
       {!hasAdminRole && (
         <List disablePadding>
-          {/* Subscription - Visible for landlord only (above Settings) */}
+          {/* Support - Visible for landlord only (directly above Settings) */}
           {hasLandlordRole && (
-            <Tooltip title={!drawerOpen ? 'Subscription' : ''} placement="right" arrow disableHoverListener={drawerOpen}>
+            <Tooltip title={!drawerOpen ? 'Support' : ''} placement="right" arrow disableHoverListener={drawerOpen}>
               <ListItemButton
                 component={Link}
-                to="/landlord/subscription"
-                selected={subscriptionSelected}
+                to="/landlord/support/ticket"
+                selected={helpSupportSelected}
                 sx={(theme) => {
-                  const colors = getItemColors(theme, subscriptionSelected);
+                  const colors = getItemColors(theme, helpSupportSelected);
                   return {
                     pl: drawerOpen ? 3 : 1.5,
                     py: !drawerOpen ? 0.75 : 0.5,
@@ -176,7 +175,7 @@ export default function SidebarBottomSection() {
               >
                 <ListItemIcon
                   sx={(theme) => {
-                    const colors = getItemColors(theme, subscriptionSelected);
+                    const colors = getItemColors(theme, helpSupportSelected);
                     return {
                       minWidth: 28,
                       color: `${colors.iconColor} !important`,
@@ -188,14 +187,14 @@ export default function SidebarBottomSection() {
                         justifyContent: 'center',
                         '&:hover': { bgcolor: colors.hoverBg }
                       }),
-                      ...(!drawerOpen && subscriptionSelected && {
+                      ...(!drawerOpen && helpSupportSelected && {
                         bgcolor: colors.selectedBg,
                         '&:hover': { bgcolor: colors.selectedBg }
                       })
                     };
                   }}
                 >
-                  <CreditCardOutlined style={{ fontSize: drawerOpen ? '1rem' : '1.25rem' }} />
+                  <CustomerServiceOutlined style={{ fontSize: drawerOpen ? '1rem' : '1.25rem' }} />
                 </ListItemIcon>
                 {drawerOpen && (
                   <ListItemText
@@ -203,12 +202,12 @@ export default function SidebarBottomSection() {
                       <Typography
                         variant="h6"
                         sx={(theme) => ({
-                          color: getItemColors(theme, subscriptionSelected).textColor,
+                          color: getItemColors(theme, helpSupportSelected).textColor,
                           fontFamily: "'Inter', sans-serif",
                           fontSize: '0.8125rem'
                         })}
                       >
-                        Subscription
+                        Support
                       </Typography>
                     }
                   />

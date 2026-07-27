@@ -57,7 +57,7 @@ export default function SubscriptionSuccess() {
                 <Button
                   variant="outlined"
                   size="small"
-                  onClick={() => navigate('/landlord/subscription?tab=1')}
+                  onClick={() => navigate('/landlord/settings?tab=subscription')}
                 >
                   View Subscription
                 </Button>

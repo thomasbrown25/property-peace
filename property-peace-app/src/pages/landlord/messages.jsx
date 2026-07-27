@@ -50,6 +50,8 @@ import RobotOutlined from '@ant-design/icons/RobotOutlined';
 import ThunderboltOutlined from '@ant-design/icons/ThunderboltOutlined';
 import InboxOutlined from '@ant-design/icons/InboxOutlined';
 import HomeOutlined from '@ant-design/icons/HomeOutlined';
+import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
+import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 
 // Project imports
 import MainCard from 'components/MainCard';
@@ -93,6 +95,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const AGENT_PURPLE = '#7c3aed';
 const SENT_MESSAGE_BLUE = '#1877F2';
+const MAX_MESSAGE_LENGTH = 2000;
+const QUICK_REPLIES = [
+  'Thanks for the update.',
+  'I’ll look into this and follow up shortly.',
+  'Can you send a photo so I can take a closer look?'
+];
 
 function formatConversationTimestamp(dateStr) {
   if (!dateStr) return '';
@@ -167,6 +175,12 @@ function formatTenantSince(tenant) {
   return date.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 }
 
+function formatUnitLabel(unitName) {
+  const value = String(unitName || '').trim();
+  if (!value) return null;
+  return /^unit\b/i.test(value) ? value : `Unit ${value}`;
+}
+
 export default function Messages() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -188,7 +202,7 @@ export default function Messages() {
   // Local state
   const [sendingMessage, setSendingMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [messageInput, setMessageInput] = useState('');
+  const [messageDrafts, setMessageDrafts] = useState({});
   const [isNewConversation, setIsNewConversation] = useState(false);
   const [tenantSearchQuery, setTenantSearchQuery] = useState('');
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
@@ -208,6 +222,26 @@ export default function Messages() {
   const initialLoadDone = useRef(false);
   const hasBeenLoading = useRef(false);
   const activeTabRef = useRef('all');
+
+  const selectedConversationId = selectedConversation?.id || null;
+  const messageInput = selectedConversationId ? messageDrafts[String(selectedConversationId)] || '' : '';
+  const setConversationDraft = useCallback((conversationId, value) => {
+    if (!conversationId) return;
+    const key = String(conversationId);
+    setMessageDrafts((previous) => {
+      const nextValue = typeof value === 'function' ? value(previous[key] || '') : value;
+      if (!nextValue) {
+        const next = { ...previous };
+        delete next[key];
+        return next;
+      }
+      return { ...previous, [key]: nextValue };
+    });
+  }, []);
+  const setMessageInput = useCallback(
+    (value) => setConversationDraft(selectedConversationId, value),
+    [selectedConversationId, setConversationDraft]
+  );
 
   // Reset per-conversation UI state when conversation changes
   useEffect(() => {
@@ -310,11 +344,12 @@ export default function Messages() {
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation || sendingMessage) return;
     const content = messageInput.trim();
+    const conversationId = selectedConversation.id;
     const optimisticId = `optimistic-${Date.now()}`;
     const userId = user?.Id || user?.id;
     const optimisticMsg = {
       id: optimisticId,
-      conversationId: selectedConversation.id,
+      conversationId,
       content,
       senderId: userId,
       createdAt: new Date().toISOString(),
@@ -322,22 +357,24 @@ export default function Messages() {
       _optimistic: true
     };
     setOptimisticMessages((prev) => [...prev, optimisticMsg]);
-    setMessageInput('');
+    setConversationDraft(conversationId, '');
     setSendingMessage(true);
     setTimeout(() => scrollToBottom(), 50);
     try {
-      const result = await dispatch(addMessage({ conversationId: selectedConversation.id, content }));
+      const result = await dispatch(addMessage({ conversationId, content }));
       if (result.success) {
         setOptimisticMessages((prev) => prev.filter((m) => m.id !== optimisticId));
         dispatch(getConversations(activeTabRef.current === 'archived'));
         setTimeout(() => scrollToBottom(), 50);
       } else {
         setOptimisticMessages((prev) => prev.filter((m) => m.id !== optimisticId));
-        setMessageInput(content);
+        setConversationDraft(conversationId, content);
+        openSnackbar({ open: true, message: result.message || 'Message could not be sent. Please try again.', variant: 'alert', alert: { color: 'error' } });
       }
     } catch (err) {
       setOptimisticMessages((prev) => prev.filter((m) => m.id !== optimisticId));
-      setMessageInput(content);
+      setConversationDraft(conversationId, content);
+      openSnackbar({ open: true, message: err?.message || 'Message could not be sent. Please try again.', variant: 'alert', alert: { color: 'error' } });
     } finally {
       setSendingMessage(false);
     }
@@ -408,6 +445,23 @@ export default function Messages() {
     }
   }, [selectedConversation, dispatch, loadConversations]);
 
+  const handleRestore = useCallback(async () => {
+    if (!selectedConversation?.id || !selectedConversation.isArchived) return;
+    setActionMenuAnchor(null);
+    try {
+      const result = await dispatch(archiveConversation(selectedConversation.id, false));
+      if (result.success) {
+        dispatch(setSelectedConversation(null));
+        loadConversations();
+        openSnackbar({ open: true, message: 'Conversation restored to the inbox.', variant: 'alert', alert: { color: 'success' } });
+      } else {
+        openSnackbar({ open: true, message: result.message || 'Failed to restore conversation.', variant: 'alert', alert: { color: 'error' } });
+      }
+    } catch (err) {
+      openSnackbar({ open: true, message: err?.message || 'Failed to restore conversation.', variant: 'alert', alert: { color: 'error' } });
+    }
+  }, [selectedConversation, dispatch, loadConversations]);
+
   const filteredConversations = useMemo(() => {
     let convs = conversations;
     if (activeTab === 'archived') {
@@ -455,19 +509,33 @@ export default function Messages() {
     return properties?.find((property) => String(property.id) === String(activePropertyId)) || null;
   }, [activePropertyId, properties]);
 
-  const activeLeaseStatus = activeTenant?.leaseStatus || activeTenant?.status || activeConversation?.leaseStatus || 'Active';
-
-  // Derive lease data from property store (same source as property page) so rent/dates are always available
-  const activeLeaseFromProperty = useMemo(() => {
+  // Match the tenant's actual unit
+  const activeUnitFromProperty = useMemo(() => {
     if (!activeProperty) return null;
     const units = activeProperty.units || activeProperty.Units || [];
-    const tenantUnitName = activeTenant?.unitName || activeTenant?.UnitName;
-    const tenantLeaseId = activeTenant?.leaseId || activeTenant?.LeaseId;
-    let unit = tenantUnitName ? units.find(u => (u.name || u.Name) === tenantUnitName) : null;
-    if (!unit && tenantLeaseId) unit = units.find(u => { const l = u.lease || u.Lease; return l && (String(l.id || l.Id) === String(tenantLeaseId)); });
-    if (!unit) unit = units[0];
-    return unit?.lease || unit?.Lease || null;
-  }, [activeProperty, activeTenant]);
+    const tenantUnitId = activeTenant?.unitId || activeTenant?.UnitId || activeConversation?.unitId || activeConversation?.UnitId;
+    const tenantUnitName = activeTenant?.unitName || activeTenant?.UnitName || activeConversation?.unitName || activeConversation?.UnitName;
+    const tenantLeaseId = activeTenant?.leaseId || activeTenant?.LeaseId || activeConversation?.leaseId || activeConversation?.LeaseId;
+
+    let unit = tenantUnitId
+      ? units.find((candidate) => String(candidate.id || candidate.Id) === String(tenantUnitId))
+      : null;
+    if (!unit && tenantLeaseId) {
+      unit = units.find((candidate) => {
+        const lease = candidate.lease || candidate.Lease;
+        return lease && String(lease.id || lease.Id) === String(tenantLeaseId);
+      });
+    }
+    if (!unit && tenantUnitName) {
+      const normalizedUnitName = String(tenantUnitName).trim().toLowerCase();
+      unit = units.find((candidate) => String(candidate.name || candidate.Name || '').trim().toLowerCase() === normalizedUnitName);
+    }
+    return unit || (units.length === 1 ? units[0] : null);
+  }, [activeProperty, activeTenant, activeConversation]);
+
+  const activeLeaseFromProperty = activeUnitFromProperty?.lease || activeUnitFromProperty?.Lease || null;
+  const activeLeaseStatus = activeTenant?.leaseStatus || activeTenant?.status || activeConversation?.leaseStatus || (activeLeaseFromProperty ? 'Active lease' : 'No active lease');
+  const isActiveLeaseStatus = ['active', 'active lease'].includes(String(activeLeaseStatus).trim().toLowerCase());
 
   const activeLeaseDates = [
     activeTenant?.leaseStartDate || activeTenant?.LeaseStartDate || activeLeaseFromProperty?.startDate || activeLeaseFromProperty?.StartDate,
@@ -475,10 +543,19 @@ export default function Messages() {
   ].filter(Boolean);
   const activeMonthlyRent = activeTenant?.rentAmount || activeTenant?.RentAmount || activeLeaseFromProperty?.rentAmount || activeLeaseFromProperty?.RentAmount || activeConversation?.monthlyRent || null;
   const activeLeaseId = activeTenant?.leaseId || activeTenant?.LeaseId || activeConversation?.leaseId || activeConversation?.LeaseId || activeLeaseFromProperty?.id || activeLeaseFromProperty?.Id || null;
+  const activeUnitName = activeTenant?.unitName || activeTenant?.UnitName || activeUnitFromProperty?.name || activeUnitFromProperty?.Name;
   const activePropertyLine = [
     activeProperty?.name?.trim() || activeProperty?.streetAddress?.trim() || activeTenant?.propertyName || activeConversation?.propertyName,
-    activeTenant?.unitName ? `Unit ${activeTenant.unitName}` : null
+    formatUnitLabel(activeUnitName)
   ].filter(Boolean).join(' · ');
+
+  const visibleMessages = useMemo(
+    () => [
+      ...messages,
+      ...optimisticMessages.filter((message) => String(message.conversationId) === String(activeConversation?.id))
+    ],
+    [messages, optimisticMessages, activeConversation?.id]
+  );
 
   const filteredTenants = useMemo(() => {
     if (!tenants || !Array.isArray(tenants)) return [];
@@ -756,7 +833,7 @@ export default function Messages() {
     const propertyId = conversation?.propertyId || tenant?.propertyId;
     const property = propertyId ? properties?.find((p) => p.id === propertyId || p.id === Number(propertyId) || String(p.id) === String(propertyId)) : null;
     const propertyDisplay = property?.name?.trim() || property?.streetAddress?.trim() || tenant?.propertyName || conversation?.propertyName || '';
-    const unitDisplay = tenant?.unitName || '';
+    const unitDisplay = formatUnitLabel(tenant?.unitName);
     const locationLine = [propertyDisplay, unitDisplay].filter(Boolean).join(' · ');
     const isSelected = selectedConversation?.id === conversation.id;
     const hasUnread = conversation.unreadCount > 0;
@@ -814,12 +891,8 @@ export default function Messages() {
             >
               {conversation.lastMessagePreview || 'No messages yet'}
             </Typography>
-            {(conversation.hasUrgentItems || conversation.isPinned) && (
-              <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }} flexWrap="wrap">
-                {conversation.hasUrgentItems && (
-                  <Chip label="Urgent" color="error" size="small" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 700 }} />
-                )}
-              </Stack>
+            {conversation.hasUrgentItems && (
+              <Chip label="Urgent" color="error" size="small" sx={{ mt: 0.5, height: 18, fontSize: '0.65rem', fontWeight: 700 }} />
             )}
           </Box>
         </ListItemButton>
@@ -889,20 +962,25 @@ export default function Messages() {
 
   return (
     <Box>
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
         <PageBreadcrumbs
           items={[
             { label: 'Dashboard', path: '/landlord/dashboard' },
             { label: 'Messages' }
           ]}
         />
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ mb: 1 }}>
-          <Box>
-            <Typography variant="h3" fontWeight={700}>
-              Messages
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-              Communicate with your tenants and manage all your conversations
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5} sx={{ mb: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="h3" fontWeight={750}>
+                Messages
+              </Typography>
+              {unreadTabCount > 0 && (
+                <Chip size="small" color="primary" label={`${unreadTabCount} unread`} sx={{ height: 24, fontWeight: 700 }} />
+              )}
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, display: { xs: 'none', sm: 'block' } }}>
+              One inbox for tenant conversations, urgent updates, and follow-up
             </Typography>
           </Box>
           <Button
@@ -913,9 +991,10 @@ export default function Messages() {
               setTenantSearchQuery('');
               dispatch(setSelectedConversation(null));
             }}
-            sx={{ textTransform: 'none', borderRadius: 1, flexShrink: 0, boxShadow: 'none' }}
+            sx={{ textTransform: 'none', borderRadius: 2, flexShrink: 0, boxShadow: 'none', minHeight: 40, px: { xs: 1.5, sm: 2 } }}
           >
-            New Message
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>New message</Box>
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>New</Box>
           </Button>
         </Stack>
       </Box>
@@ -932,18 +1011,37 @@ export default function Messages() {
           ':hover': { boxShadow: messagesPanelShadow }
         }}
       >
-        <Grid container sx={{ height: 'calc(100vh - 340px)', minHeight: 600, overflow: 'hidden' }}>
+        <Grid
+          container
+          sx={{
+            height: { xs: 'calc(100dvh - 188px)', sm: 'calc(100dvh - 220px)', md: 'calc(100vh - 300px)' },
+            minHeight: { xs: 520, md: 600 },
+            maxHeight: { md: 920 },
+            overflow: 'hidden'
+          }}
+        >
 
           {/* ── Conversations Sidebar ── */}
           <Grid
             size={{ xs: 12, md: 4, lg: 3 }}
             sx={{
+              minWidth: 0,
               borderRight: `1px solid ${messagesDivider}`,
               display: isMobile && (selectedConversation || isNewConversation) ? 'none' : 'flex',
               flexDirection: 'column',
               bgcolor: 'background.paper'
             }}
           >
+            <Box sx={{ px: 2, pt: 1.75, pb: 1.25 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={750}>Inbox</Typography>
+                  <Typography variant="caption" color="text.secondary">{isConnected ? 'Live updates on' : 'Connecting…'}</Typography>
+                </Box>
+                <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: isConnected ? 'success.main' : 'warning.main', boxShadow: `0 0 0 4px ${alpha(isConnected ? theme.palette.success.main : theme.palette.warning.main, 0.12)}` }} />
+              </Stack>
+            </Box>
+
             {/* Tab strip */}
             <Box sx={{ borderBottom: `1px solid ${messagesDivider}`, px: 1 }}>
               <Tabs
@@ -1053,15 +1151,13 @@ export default function Messages() {
             </Box>
 
             {/* Count line */}
-            {!loadingConversations && (
-              <Box sx={{ px: 2, py: 0.75 }}>
-                <Typography variant="caption" color="text.secondary">
-                  {activeTab === 'archived'
-                    ? `${archivedTabCount} archived · kept for history`
-                    : `${totalActiveCount} conversation${totalActiveCount !== 1 ? 's' : ''}${unreadTabCount > 0 ? ` · ${unreadTabCount} unread` : ''}`}
-                </Typography>
-              </Box>
-            )}
+            <Box sx={{ px: 2, py: 0.75 }}>
+              <Typography variant="caption" color="text.secondary">
+                {activeTab === 'archived'
+                  ? `${archivedTabCount} archived · kept for history`
+                  : `${totalActiveCount} conversation${totalActiveCount !== 1 ? 's' : ''}${unreadTabCount > 0 ? ` · ${unreadTabCount} unread` : ''}`}
+              </Typography>
+            </Box>
 
             {/* Conversation List */}
             <Box sx={{ flex: 1, overflow: 'auto' }}>
@@ -1095,28 +1191,55 @@ export default function Messages() {
                 <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>
               ) : filteredConversations.length === 0 ? (
                 <Box sx={{ p: 3, textAlign: 'center' }}>
-                  {activeTab === 'archived' ? (
+                  {searchQuery ? (
+                    <Stack spacing={1.25} alignItems="center">
+                      <SearchOutlined style={{ fontSize: 36, color: theme.palette.text.disabled }} />
+                      <Typography variant="subtitle2" fontWeight={700}>No matching conversations</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 260 }}>
+                        No results for “{searchQuery}” in {activeTab === 'all' ? 'your inbox' : activeTab}.
+                      </Typography>
+                      <Button size="small" variant="text" onClick={() => setSearchQuery('')} sx={{ textTransform: 'none' }}>
+                        Clear search
+                      </Button>
+                    </Stack>
+                  ) : activeTab === 'archived' ? (
                     <Stack spacing={1} alignItems="center">
-                      <InboxOutlined style={{ fontSize: 40, color: '#ccc' }} />
-                      <Typography variant="body2" color="text.secondary">No archived conversations</Typography>
+                      <InboxOutlined style={{ fontSize: 40, color: theme.palette.text.disabled }} />
+                      <Typography variant="subtitle2" fontWeight={700}>No archived conversations</Typography>
+                      <Typography variant="body2" color="text.secondary">Archived tenant threads will appear here.</Typography>
                     </Stack>
                   ) : activeTab === 'unread' ? (
                     <Stack spacing={1} alignItems="center">
-                      <CheckOutlined style={{ fontSize: 40, color: '#ccc' }} />
-                      <Typography variant="body2" color="text.secondary">You're all caught up!</Typography>
+                      <CheckOutlined style={{ fontSize: 40, color: theme.palette.success.main }} />
+                      <Typography variant="subtitle2" fontWeight={700}>You’re all caught up</Typography>
+                      <Typography variant="body2" color="text.secondary">There are no unread tenant messages.</Typography>
                     </Stack>
                   ) : !tenants || tenants.length === 0 ? (
                     <Stack spacing={2} alignItems="center">
-                      <Typography variant="h3" sx={{ color: 'text.primary', fontWeight: 600, mb: 1 }}>You don't have any tenants</Typography>
-                      <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 500, mb: 2 }}>
-                        You don't have renters yet. Once you do, you'll be able to start a conversation here.
+                      <Typography variant="h5" sx={{ color: 'text.primary', fontWeight: 700 }}>You don’t have any tenants yet</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360 }}>
+                        Add your first tenant to start secure conversations and keep property context together.
                       </Typography>
-                      <Button variant="contained" onClick={() => drawer.openTenantAddDrawer()} sx={{ mt: 1 }}>Add Tenants</Button>
+                      <Button variant="contained" onClick={() => drawer.openTenantAddDrawer()}>Add tenant</Button>
                     </Stack>
                   ) : (
-                    <Stack spacing={1} alignItems="center">
-                      <MessageOutlined style={{ fontSize: 40, color: '#ccc' }} />
-                      <Typography variant="body2" color="text.secondary">{searchQuery ? 'No conversations found' : 'No conversations yet'}</Typography>
+                    <Stack spacing={1.25} alignItems="center">
+                      <MessageOutlined style={{ fontSize: 40, color: theme.palette.text.disabled }} />
+                      <Typography variant="subtitle2" fontWeight={700}>No conversations yet</Typography>
+                      <Typography variant="body2" color="text.secondary">Choose a tenant and send the first message.</Typography>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<PlusOutlined />}
+                        onClick={() => {
+                          setIsNewConversation(true);
+                          setTenantSearchQuery('');
+                          dispatch(setSelectedConversation(null));
+                        }}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        Start a message
+                      </Button>
                     </Stack>
                   )}
                 </Box>
@@ -1232,7 +1355,7 @@ export default function Messages() {
                             const hasEmail = Boolean(tenant.email);
                             const contactLabel = hasAccount ? 'In-app' : hasEmail ? 'Email only' : 'No email';
                             const contactColor = hasAccount ? 'success' : hasEmail ? 'warning' : 'default';
-                            const propertyLine = [tenant.propertyName, tenant.unitName ? `Unit ${tenant.unitName}` : null].filter(Boolean).join(' · ');
+                            const propertyLine = [tenant.propertyName, formatUnitLabel(tenant.unitName)].filter(Boolean).join(' · ');
                             return (
                               <Box
                                 key={tenant.id}
@@ -1333,7 +1456,7 @@ export default function Messages() {
                 ) : selectedConversation ? (
                   <>
                     {/* ── Chat Header ── */}
-                    <Box sx={{ p: 2, borderBottom: `1px solid ${messagesDivider}`, flexShrink: 0 }}>
+                    <Box sx={{ px: { xs: 1.25, sm: 2 }, py: { xs: 1.25, sm: 2 }, borderBottom: `1px solid ${messagesDivider}`, flexShrink: 0, bgcolor: 'background.paper' }}>
 
                       {/* Tenant name row + action buttons */}
                       {(() => {
@@ -1350,13 +1473,20 @@ export default function Messages() {
 
                         return (
                           <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
-                            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                            <Stack direction="row" spacing={{ xs: 1, sm: 1.5 }} alignItems="center" sx={{ minWidth: 0 }}>
+                              {isMobile && (
+                                <Tooltip title="Back to inbox">
+                                  <IconButton aria-label="Back to inbox" onClick={() => dispatch(setSelectedConversation(null))} sx={{ ml: -0.5, flexShrink: 0 }}>
+                                    <ArrowLeftOutlined />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                               <Avatar sx={{ bgcolor: avatarColor, color: '#fff', width: 42, height: 42, fontSize: '0.9rem', fontWeight: 600, flexShrink: 0 }}>
                                 {initials}
                               </Avatar>
-                              <Box>
+                              <Box sx={{ minWidth: 0 }}>
                                 <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                                  <Typography variant="h6" fontWeight={600}>
+                                  <Typography variant="h6" fontWeight={700} noWrap sx={{ maxWidth: { xs: 150, sm: 280 } }}>
                                     {tenantName}
                                   </Typography>
                                   {selectedConversation.hasUrgentItems && (
@@ -1375,14 +1505,7 @@ export default function Messages() {
                             </Stack>
 
                             <Stack direction="row" spacing={0.75} alignItems="center" sx={{ flexShrink: 0 }}>
-                              {isMobile && (
-                                <Tooltip title="Back">
-                                  <IconButton size="small" onClick={() => dispatch(setSelectedConversation(null))}>
-                                    <CloseOutlined />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                              <Tooltip title="More">
+                              <Tooltip title="Conversation actions">
                                 <IconButton size="small" onClick={(e) => setActionMenuAnchor(e.currentTarget)}>
                                   <MoreOutlined />
                                 </IconButton>
@@ -1396,10 +1519,15 @@ export default function Messages() {
                               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                             >
-                              {!selectedConversation.isArchived && (
+                              {!selectedConversation.isArchived ? (
                                 <MenuItem onClick={handleOpenArchiveConfirm}>
                                   <InboxOutlined style={{ marginRight: 8 }} />
-                                  Archive
+                                  Archive conversation
+                                </MenuItem>
+                              ) : (
+                                <MenuItem onClick={handleRestore}>
+                                  <CheckCircleOutlined style={{ marginRight: 8 }} />
+                                  Restore to inbox
                                 </MenuItem>
                               )}
                               {(() => {
@@ -1429,9 +1557,9 @@ export default function Messages() {
                         minHeight: 0,
                         overflowY: 'auto',
                         overflowX: 'hidden',
-                        p: 2,
-                        pt: 4,
-                        bgcolor: 'background.paper',
+                        px: { xs: 1, sm: 2.5 },
+                        py: { xs: 1.5, sm: 2.5 },
+                        bgcolor: isDarkMode ? alpha(theme.palette.background.default, 0.25) : '#f7f9fc',
                         position: 'relative',
                         zIndex: 0,
                         '&::-webkit-scrollbar': { width: '8px' },
@@ -1445,19 +1573,21 @@ export default function Messages() {
                         </Box>
                       ) : error ? (
                         <Alert severity="error">{error}</Alert>
-                      ) : messages.length === 0 && optimisticMessages.length === 0 ? (
-                        <Box sx={{ textAlign: 'center', p: 3 }}>
-                          <Typography variant="body2" color="text.secondary">No messages yet. Start the conversation!</Typography>
-                        </Box>
+                      ) : visibleMessages.length === 0 ? (
+                        <Stack spacing={1} alignItems="center" justifyContent="center" sx={{ textAlign: 'center', p: 3, minHeight: 220 }}>
+                          <MessageOutlined style={{ fontSize: 38, color: theme.palette.text.disabled }} />
+                          <Typography variant="subtitle2" fontWeight={700}>Start the conversation</Typography>
+                          <Typography variant="body2" color="text.secondary">Send a message below to begin this tenant thread.</Typography>
+                        </Stack>
                       ) : (
                         <Stack spacing={0} sx={{ overflow: 'visible', position: 'relative' }}>
-                          {[...messages, ...optimisticMessages].map((message, index) => {
+                          {visibleMessages.map((message, index) => {
                             const userId = user?.Id || user?.id;
-                            const isOwnMessage = message.senderId === userId;
+                            const isOwnMessage = String(message.senderId) === String(userId);
                             const isAgentMessage = !isOwnMessage && message.senderName?.toLowerCase().includes('agent');
                             const isHovered = hoveredMessageId === message.id;
-                            const previousMessage = index > 0 ? messages[index - 1] : null;
-                            const isConsecutive = previousMessage && previousMessage.senderId === message.senderId &&
+                            const previousMessage = index > 0 ? visibleMessages[index - 1] : null;
+                            const isConsecutive = previousMessage && String(previousMessage.senderId) === String(message.senderId) &&
                               new Date(message.createdAt).toDateString() === new Date(previousMessage.createdAt).toDateString();
                             const showAvatar = !isConsecutive && !isOwnMessage;
                             const showSenderName = !isConsecutive && !isOwnMessage;
@@ -1512,7 +1642,7 @@ export default function Messages() {
                                     </Box>
                                   )}
 
-                                  <Box sx={{ position: 'relative', width: 'fit-content', maxWidth: isOwnMessage ? '70%' : 'calc(70% - 50px)', display: 'flex', flexDirection: 'column', alignItems: isOwnMessage ? 'flex-end' : 'flex-start' }}>
+                                  <Box sx={{ position: 'relative', width: 'fit-content', maxWidth: { xs: isOwnMessage ? '86%' : 'calc(88% - 42px)', sm: isOwnMessage ? '74%' : 'calc(76% - 50px)' }, display: 'flex', flexDirection: 'column', alignItems: isOwnMessage ? 'flex-end' : 'flex-start' }}>
                                     {/* Sender name + time */}
                                     {showSenderName && (
                                       <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, px: 0.5 }}>
@@ -1614,16 +1744,6 @@ export default function Messages() {
                                         </Typography>
                                       </Paper>
                                     )}
-
-                                    {/* Agent footer — purple */}
-                                    {isOwnMessage && isAgentMessage && (
-                                      <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.4, px: 0.5 }}>
-                                        <RobotOutlined style={{ fontSize: 11, color: AGENT_PURPLE }} />
-                                        <Typography variant="caption" sx={{ fontSize: '0.68rem', color: AGENT_PURPLE, fontStyle: 'italic' }}>
-                                          {message.senderName} · {formatMessageTime(message.createdAt)}
-                                        </Typography>
-                                      </Stack>
-                                    )}
                                   </Box>
                                 </Box>
                               </Fragment>
@@ -1682,62 +1802,151 @@ export default function Messages() {
                       )}
                     </Box>
 
-                    {/* ── Message Input ── */}
-                    <Box sx={{ p: 2, borderTop: `1px solid ${messagesDivider}`, bgcolor: 'background.paper', flexShrink: 0 }}>
-                      <Paper
-                        elevation={0}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          borderRadius: 1,
-                          border: `1px solid ${messagesCardBorder}`,
-                          bgcolor: 'background.paper',
-                          boxShadow: messagesCardShadow,
-                          px: 1,
-                          py: 0.5,
-                          '&:focus-within': { borderColor: 'primary.main' }
-                        }}
-                      >
-                        <TextField
-                          fullWidth
-                          multiline
-                          maxRows={4}
-                          placeholder="Type a message"
-                          value={messageInput}
-                          onChange={(e) => setMessageInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                              e.preventDefault();
-                              handleSendMessage();
-                            }
-                          }}
-                          disabled={sendingMessage}
-                          variant="standard"
-                          InputProps={{
-                            disableUnderline: true,
-                            sx: { fontSize: '0.9375rem', py: 0.5, '& .MuiInputBase-input': { py: 0.5 } }
-                          }}
-                          sx={{ flex: 1, '& .MuiInputBase-root': { border: 'none' } }}
-                        />
-                        <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 24, alignSelf: 'center', borderColor: messagesSoftDivider }} />
-                        <IconButton
-                          onClick={handleSendMessage}
-                          disabled={!messageInput.trim() || sendingMessage}
-                          sx={{ ml: 0.5, color: 'primary.main', '&:hover': { bgcolor: 'action.hover' }, '&.Mui-disabled': { color: 'text.disabled' } }}
-                          title="Send"
-                        >
-                          {sendingMessage ? <CircularProgress size={20} /> : <SendOutlined style={{ fontSize: 18 }} />}
-                        </IconButton>
-                      </Paper>
+                    {/* ── Message Composer ── */}
+                    <Box
+                      sx={{
+                        px: { xs: 1.25, sm: 2 },
+                        pt: 1.25,
+                        pb: { xs: 'max(12px, env(safe-area-inset-bottom))', sm: 1.5 },
+                        borderTop: `1px solid ${messagesDivider}`,
+                        bgcolor: 'background.paper',
+                        flexShrink: 0
+                      }}
+                    >
+                      {selectedConversation.isArchived ? (
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between">
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <InboxOutlined style={{ color: theme.palette.text.secondary }} />
+                            <Typography variant="body2" color="text.secondary">
+                              This conversation is archived and read-only.
+                            </Typography>
+                          </Stack>
+                          <Button size="small" variant="outlined" onClick={handleRestore} sx={{ textTransform: 'none', borderRadius: 2 }}>
+                            Restore to inbox
+                          </Button>
+                        </Stack>
+                      ) : (
+                        <>
+                          {!messageInput && (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                gap: 0.75,
+                                overflowX: 'auto',
+                                pb: 1,
+                                scrollbarWidth: 'none',
+                                '&::-webkit-scrollbar': { display: 'none' }
+                              }}
+                            >
+                              {QUICK_REPLIES.map((reply) => (
+                                <Chip
+                                  key={reply}
+                                  label={reply}
+                                  variant="outlined"
+                                  onClick={() => setMessageInput(reply)}
+                                  sx={{ flexShrink: 0, maxWidth: { xs: 250, sm: 'none' }, borderRadius: 2, bgcolor: 'background.paper', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+                                />
+                              ))}
+                            </Box>
+                          )}
+                          <Paper
+                            elevation={0}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'flex-end',
+                              borderRadius: 2.5,
+                              border: `1px solid ${messagesCardBorder}`,
+                              bgcolor: 'background.paper',
+                              boxShadow: messagesCardShadow,
+                              pl: 1.5,
+                              pr: 0.75,
+                              py: 0.6,
+                              transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                              '&:focus-within': {
+                                borderColor: 'primary.main',
+                                boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`
+                              }
+                            }}
+                          >
+                            <TextField
+                              fullWidth
+                              multiline
+                              minRows={1}
+                              maxRows={5}
+                              placeholder="Write a message…"
+                              value={messageInput}
+                              onChange={(e) => setMessageInput(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey && !isMobile && !e.nativeEvent.isComposing) {
+                                  e.preventDefault();
+                                  handleSendMessage();
+                                }
+                              }}
+                              disabled={sendingMessage}
+                              variant="standard"
+                              inputProps={{ maxLength: MAX_MESSAGE_LENGTH, 'aria-label': 'Message' }}
+                              InputProps={{
+                                disableUnderline: true,
+                                sx: { fontSize: '0.9375rem', py: 0.55, '& .MuiInputBase-input': { py: 0.35, lineHeight: 1.5 } }
+                              }}
+                              sx={{ flex: 1, '& .MuiInputBase-root': { border: 'none' } }}
+                            />
+                            <Tooltip title="Send message">
+                              <span>
+                                <IconButton
+                                  onClick={handleSendMessage}
+                                  disabled={!messageInput.trim() || sendingMessage}
+                                  aria-label="Send message"
+                                  sx={{
+                                    ml: 0.75,
+                                    width: 40,
+                                    height: 40,
+                                    bgcolor: 'primary.main',
+                                    color: '#fff',
+                                    '&:hover': { bgcolor: 'primary.dark' },
+                                    '&.Mui-disabled': { bgcolor: 'action.disabledBackground', color: 'text.disabled' }
+                                  }}
+                                >
+                                  {sendingMessage ? <CircularProgress size={19} color="inherit" /> : <SendOutlined style={{ fontSize: 18 }} />}
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </Paper>
+                          <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.65, px: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>
+                              Enter to send · Shift + Enter for a new line
+                            </Typography>
+                            <Typography variant="caption" color={messageInput.length > MAX_MESSAGE_LENGTH * 0.9 ? 'warning.main' : 'text.secondary'} sx={{ ml: 'auto' }}>
+                              {messageInput.length}/{MAX_MESSAGE_LENGTH}
+                            </Typography>
+                          </Stack>
+                        </>
+                      )}
                     </Box>
 
                   </>
 
                 ) : (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Stack spacing={2} alignItems="center">
-                      <MessageOutlined style={{ fontSize: 64, color: '#ccc' }} />
-                      <Typography variant="h6" color="text.secondary">Select a conversation to start messaging</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', p: 3, bgcolor: isDarkMode ? 'background.paper' : '#f7f9fc' }}>
+                    <Stack spacing={1.5} alignItems="center" sx={{ textAlign: 'center', maxWidth: 360 }}>
+                      <Avatar sx={{ width: 64, height: 64, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+                        <MessageOutlined style={{ fontSize: 28 }} />
+                      </Avatar>
+                      <Typography variant="h5" fontWeight={700}>Your tenant inbox</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Select a conversation to review its history and tenant context, or start a new message.
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        startIcon={<PlusOutlined />}
+                        onClick={() => {
+                          setIsNewConversation(true);
+                          setTenantSearchQuery('');
+                        }}
+                        sx={{ mt: 0.5, textTransform: 'none' }}
+                      >
+                        New message
+                      </Button>
                     </Stack>
                   </Box>
                 )}
@@ -1795,7 +2004,7 @@ export default function Messages() {
                       <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Lease status
                       </Typography>
-                      <Chip size="small" label={activeLeaseStatus} color={String(activeLeaseStatus).toLowerCase().includes('active') ? 'success' : 'default'} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
+                      <Chip size="small" label={activeLeaseStatus} color={isActiveLeaseStatus ? 'success' : 'default'} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
                     </Stack>
                     <Stack spacing={0.75} sx={{ mt: 1.25 }}>
                       <Stack direction="row" justifyContent="space-between" spacing={1}>
@@ -1848,7 +2057,7 @@ export default function Messages() {
           onClose={() => setArchiveConfirmOpen(false)}
           onConfirm={handleArchive}
           title="Archive conversation?"
-          message="This will move the conversation out of your active inbox. Archived conversations cannot be unarchived from this screen."
+          message="This will move the conversation out of your active inbox. You can restore it later from Archived."
           confirmText="Archive"
           cancelText="Cancel"
           confirmColor="primary"
@@ -1926,7 +2135,7 @@ export default function Messages() {
                   <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Lease status
                   </Typography>
-                  <Chip size="small" label={activeLeaseStatus} color={String(activeLeaseStatus).toLowerCase().includes('active') ? 'success' : 'default'} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
+                  <Chip size="small" label={activeLeaseStatus} color={isActiveLeaseStatus ? 'success' : 'default'} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
                 </Stack>
                 <Stack spacing={0.75} sx={{ mt: 1.25 }}>
                   <Stack direction="row" justifyContent="space-between" spacing={1}>

@@ -1,15 +1,33 @@
 import { useState } from 'react';
-import { Box, Typography, Stack, Paper, TextField, Button, alpha, Alert } from '@mui/material';
-import { LockOutlined } from '@ant-design/icons';
+import {
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+  alpha
+} from '@mui/material';
+import { DeleteOutlined, LockOutlined } from '@ant-design/icons';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import PasskeySettingsCard from 'components/security/PasskeySettingsCard';
+import useAuth from 'hooks/useAuth';
 
 // ==============================|| TENANT ACCOUNT SETTINGS ||============================== //
 
 export default function AccountSettings() {
+  const { logout } = useAuth();
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -92,6 +110,30 @@ export default function AccountSettings() {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (deleteLoading) return;
+    setDeleteDialogOpen(false);
+    setDeleteConfirmation('');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmation !== 'DELETE') return;
+
+    setDeleteLoading(true);
+    try {
+      await axiosServices.delete('/api/user');
+      await logout();
+    } catch (error) {
+      openSnackbar({
+        open: true,
+        message: error.response?.data?.message || error.message || 'Failed to delete your account',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+      setDeleteLoading(false);
+    }
+  };
+
   return (
     <Box>
       <Stack spacing={3}>
@@ -154,7 +196,67 @@ export default function AccountSettings() {
           </form>
         </Paper>
         <PasskeySettingsCard />
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 3,
+            borderColor: (theme) => alpha(theme.palette.error.main, 0.35),
+            bgcolor: (theme) => alpha(theme.palette.error.main, 0.025)
+          }}
+        >
+          <Stack spacing={2} alignItems="flex-start">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DeleteOutlined style={{ fontSize: 20, color: '#d32f2f' }} />
+              <Typography variant="h6" fontWeight="bold" color="error.main">
+                Delete account
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              Delete your tenant portal account and sign out on all devices. This is a soft delete: records that your property manager must
+              retain, such as lease and payment history, will remain available to them.
+            </Typography>
+            <Button color="error" variant="outlined" onClick={() => setDeleteDialogOpen(true)}>
+              Delete my account
+            </Button>
+          </Stack>
+        </Paper>
       </Stack>
+
+      <Dialog open={deleteDialogOpen} onClose={closeDeleteDialog} fullWidth maxWidth="xs">
+        <DialogTitle>Delete your account?</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <Alert severity="error">
+              You will immediately lose access to the tenant portal. This action cannot be undone from your account.
+            </Alert>
+            <Typography variant="body2" color="text.secondary">
+              Type <strong>DELETE</strong> to confirm.
+            </Typography>
+            <TextField
+              autoFocus
+              fullWidth
+              label="Confirmation"
+              value={deleteConfirmation}
+              onChange={(event) => setDeleteConfirmation(event.target.value)}
+              disabled={deleteLoading}
+              inputProps={{ autoComplete: 'off' }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={closeDeleteDialog} disabled={deleteLoading} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAccount}
+            disabled={deleteConfirmation !== 'DELETE' || deleteLoading}
+            color="error"
+            variant="contained"
+          >
+            {deleteLoading ? 'Deleting...' : 'Delete account'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

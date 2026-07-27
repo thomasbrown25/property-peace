@@ -6,14 +6,15 @@ import {
   Button,
   TextField,
   CircularProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
   Chip,
+  Avatar,
+  Menu,
+  MenuItem,
+  OutlinedInput,
+  Pagination,
+  Select,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -48,9 +49,13 @@ import {
   UserOutlined,
   ContactsOutlined,
   DollarOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  MoreOutlined,
+  DownOutlined,
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  ToolOutlined
 } from '@ant-design/icons';
-import MainCard from 'components/MainCard';
 import { formatPhoneInput } from 'utils/formatters';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { VendorCsvImportButton } from 'components/import/CsvImportButtons';
@@ -86,6 +91,9 @@ const CustomStepConnector = styled(StepConnector)(({ theme }) => ({
   }
 }));
 
+const PAGE_SIZE = 10;
+const NAVY = '#061e35';
+
 const EMPTY_FORM = {
   name: '',
   businessName: '',
@@ -102,6 +110,118 @@ const EMPTY_FORM = {
   notes: ''
 };
 
+function formatMoney(value) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(value) || 0);
+}
+
+function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
+  const theme = useTheme();
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        width: '100%', minHeight: 112, p: 2, borderRadius: 2.5, font: 'inherit', color: 'text.primary', textAlign: 'left', cursor: 'pointer',
+        border: `1px solid ${active ? alpha(color, 0.5) : alpha(theme.palette.divider, 0.16)}`,
+        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.14 : 0.055) : 'background.paper',
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`,
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.42), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.25)}`, outlineOffset: 2 }
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+        <Box minWidth={0}>
+          <Typography sx={{ fontSize: '0.72rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          <Typography sx={{ mt: 0.5, fontSize: '1.5rem', lineHeight: 1.15, fontWeight: 800 }}>{value}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
+        </Box>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
+      </Stack>
+    </Box>
+  );
+}
+
+function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
+  const theme = useTheme();
+  const address = [vendor.address, vendor.city, vendor.state, vendor.zipCode].filter(Boolean).join(', ');
+  const hasContact = Boolean(vendor.email || vendor.phone);
+  const initial = (vendor.businessName || vendor.name || 'V').trim().charAt(0).toUpperCase();
+
+  return (
+    <Box
+      role="button"
+      tabIndex={0}
+      onClick={() => onEdit(vendor)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onEdit(vendor);
+        }
+      }}
+      sx={{
+        width: '100%', px: { xs: 1.5, md: 2 }, py: { xs: 1.6, md: 1.4 }, border: 0, bgcolor: 'transparent', color: 'text.primary',
+        textAlign: 'left', font: 'inherit', cursor: 'pointer', display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(190px, 1.1fr) minmax(145px, .8fr) minmax(155px, .85fr) 44px',
+        gap: { xs: 1.25, md: 2 }, alignItems: 'center', borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.07 : 0.025) },
+        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`, outlineOffset: -2 }
+      }}
+    >
+      <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
+        <Avatar sx={{ width: 42, height: 42, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', fontWeight: 750 }}>{initial}</Avatar>
+        <Box minWidth={0}>
+          <Stack direction="row" spacing={0.7} alignItems="center" minWidth={0}>
+            <Typography fontWeight={720} noWrap>{vendor.name || 'Unnamed vendor'}</Typography>
+            {!vendor.isActive && <Chip label="Inactive" size="small" sx={{ height: 20, fontSize: '0.64rem' }} />}
+          </Stack>
+          <Typography noWrap sx={{ mt: 0.25, fontSize: '0.74rem', color: 'text.secondary' }}>
+            {[vendor.businessName, vendor.category].filter(Boolean).join(' · ') || 'Category not set'}
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Box minWidth={0}>
+        <Stack spacing={0.4}>
+          {vendor.email && (
+            <Typography component="a" href={`mailto:${vendor.email}`} onClick={(event) => event.stopPropagation()} noWrap sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}>
+              <MailOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />{vendor.email}
+            </Typography>
+          )}
+          {vendor.phone && (
+            <Typography component="a" href={`tel:${vendor.phone}`} onClick={(event) => event.stopPropagation()} sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}>
+              <PhoneOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />{formatPhoneInput(vendor.phone)}
+            </Typography>
+          )}
+          {!hasContact && <Typography sx={{ fontSize: '0.75rem', fontWeight: 650, color: 'warning.dark' }}>Contact details needed</Typography>}
+          <Typography noWrap sx={{ fontSize: '0.69rem', color: 'text.secondary' }}>{address || 'Address not added'}</Typography>
+        </Stack>
+      </Box>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{openRequestCount} open request{openRequestCount === 1 ? '' : 's'}</Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{vendor.maintenanceRequestCount || 0} requests all time</Typography>
+      </Box>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 750 }}>{formatMoney(vendor.totalExpenseAmount)}</Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{vendor.expenseCount || 0} expense{vendor.expenseCount === 1 ? '' : 's'}</Typography>
+        <Stack direction="row" spacing={0.55} sx={{ mt: 0.55 }}>
+          {vendor.requires1099 && <Chip label="1099" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.64rem' }} />}
+          {vendor.licenseNumber && <Chip label="Licensed" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.64rem' }} />}
+        </Stack>
+      </Box>
+
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+        <Tooltip title="Vendor actions">
+          <IconButton size="small" aria-label={`Actions for ${vendor.name}`} onClick={(event) => { event.stopPropagation(); onActions(event, vendor); }}><MoreOutlined /></IconButton>
+        </Tooltip>
+      </Box>
+    </Box>
+  );
+}
+
 export default function Vendors() {
   const dispatch = useDispatch();
   const theme = useTheme();
@@ -111,8 +231,14 @@ export default function Vendors() {
   const maintenanceRequests = useSelector(selectMaintenanceRequests);
   useFetchMaintenances();
 
-  const [activeFilter, setActiveFilter] = useState('total');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('active');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [workloadFilter, setWorkloadFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('workload');
+  const [page, setPage] = useState(1);
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const [menuVendor, setMenuVendor] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState(null);
@@ -123,52 +249,74 @@ export default function Vendors() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user?.id) {
-      dispatch(getVendors(user.id, false));
-    }
+    if (user?.id) dispatch(getVendors(user.id, true));
   }, [dispatch, user?.id]);
 
-  const totalVendors = vendors?.length || 0;
-  const activeVendors = useMemo(() => vendors?.filter((v) => v.isActive).length || 0, [vendors]);
-  const assignedVendorIds = useMemo(() => {
-    if (!maintenanceRequests) return new Set();
-    const openStatuses = ['open', 'inprogress', 'in-progress', 'pending', 'onhold', 'on-hold'];
-    return new Set(
-      maintenanceRequests
-        .filter((r) => openStatuses.includes(r.status?.toLowerCase() || '') && r.vendorId)
-        .map((r) => r.vendorId)
-    );
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, categoryFilter, workloadFilter, sortBy]);
+
+  const openRequestCounts = useMemo(() => {
+    const counts = new Map();
+    const openStatuses = ['reported', 'open', 'acknowledged', 'pending', 'scheduled', 'inprogress', 'in-progress', 'onhold', 'on-hold'];
+    (maintenanceRequests || []).forEach((request) => {
+      if (!request.vendorId || !openStatuses.includes(String(request.status || '').toLowerCase().replace(/\s/g, ''))) return;
+      counts.set(request.vendorId, (counts.get(request.vendorId) || 0) + 1);
+    });
+    return counts;
   }, [maintenanceRequests]);
 
-  const assignedToOpen = useMemo(
-    () => vendors?.filter((v) => assignedVendorIds.has(v.id)).length || 0,
-    [vendors, assignedVendorIds]
+  const categories = useMemo(
+    () => [...new Set((vendors || []).map((vendor) => vendor.category?.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [vendors]
   );
 
+  const metrics = useMemo(() => {
+    const list = vendors || [];
+    const active = list.filter((vendor) => vendor.isActive).length;
+    const assigned = list.filter((vendor) => (openRequestCounts.get(vendor.id) || 0) > 0).length;
+    const needsSetup = list.filter((vendor) => !vendor.email && !vendor.phone).length;
+    const spend = list.reduce((total, vendor) => total + Number(vendor.totalExpenseAmount || 0), 0);
+    return { active, assigned, needsSetup, spend };
+  }, [openRequestCounts, vendors]);
+
   const filteredVendors = useMemo(() => {
-    let filtered = vendors || [];
+    const query = searchTerm.trim().toLowerCase();
+    const list = (vendors || []).filter((vendor) => {
+      const searchable = [vendor.name, vendor.businessName, vendor.category, vendor.email, vendor.phone, vendor.city, vendor.state, vendor.specialties]
+        .filter(Boolean).join(' ').toLowerCase();
+      const openCount = openRequestCounts.get(vendor.id) || 0;
 
-    if (activeFilter === 'active') {
-      filtered = filtered.filter((v) => v.isActive);
-    } else if (activeFilter === 'assigned') {
-      filtered = filtered.filter((v) => assignedVendorIds.has(v.id));
-    } else if (activeFilter === 'contact') {
-      filtered = filtered.filter((v) => !v.email && !v.phone);
-    }
+      if (query && !searchable.includes(query)) return false;
+      if (statusFilter === 'active' && !vendor.isActive) return false;
+      if (statusFilter === 'inactive' && vendor.isActive) return false;
+      if (categoryFilter !== 'all' && vendor.category !== categoryFilter) return false;
+      if (workloadFilter === 'assigned' && openCount === 0) return false;
+      if (workloadFilter === 'available' && openCount > 0) return false;
+      if (workloadFilter === 'contact' && (vendor.email || vendor.phone)) return false;
+      if (workloadFilter === '1099' && !vendor.requires1099) return false;
+      return true;
+    });
 
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (v) =>
-          v.name?.toLowerCase().includes(searchLower) ||
-          v.email?.toLowerCase().includes(searchLower) ||
-          v.phone?.includes(searchTerm) ||
-          v.category?.toLowerCase().includes(searchLower)
-      );
-    }
+    return list.sort((a, b) => {
+      if (sortBy === 'name') return String(a.name || '').localeCompare(String(b.name || ''));
+      if (sortBy === 'spend') return Number(b.totalExpenseAmount || 0) - Number(a.totalExpenseAmount || 0);
+      if (sortBy === 'recent') return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+      return (openRequestCounts.get(b.id) || 0) - (openRequestCounts.get(a.id) || 0) || String(a.name || '').localeCompare(String(b.name || ''));
+    });
+  }, [categoryFilter, openRequestCounts, searchTerm, sortBy, statusFilter, vendors, workloadFilter]);
 
-    return filtered.sort((a, b) => a.name.localeCompare(b.name));
-  }, [vendors, searchTerm, activeFilter, assignedVendorIds]);
+  const pageCount = Math.ceil(filteredVendors.length / PAGE_SIZE);
+  const paginatedVendors = filteredVendors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasFilters = searchTerm || statusFilter !== 'active' || categoryFilter !== 'all' || workloadFilter !== 'all' || sortBy !== 'workload';
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('active');
+    setCategoryFilter('all');
+    setWorkloadFilter('all');
+    setSortBy('workload');
+  };
 
   // Drawer helpers
   const transitionToStep = (newStep, direction) => {
@@ -247,7 +395,12 @@ export default function Vendors() {
     }
 
     setSaving(true);
-    const vendorData = { ...formData, landlordId: user.id };
+    const vendorData = {
+      ...(selectedVendor || {}),
+      ...formData,
+      isActive: selectedVendor?.isActive ?? true,
+      landlordId: user.id
+    };
 
     let result;
     if (selectedVendor) {
@@ -265,7 +418,7 @@ export default function Vendors() {
         alert: { color: 'success' }
       });
       handleCloseDrawer();
-      dispatch(getVendors(user.id, false));
+      dispatch(getVendors(user.id, true));
     } else {
       openSnackbar({
         open: true,
@@ -289,11 +442,44 @@ export default function Vendors() {
       });
       setDeleteDialogOpen(false);
       setSelectedVendor(null);
-      dispatch(getVendors(user.id, false));
+      dispatch(getVendors(user.id, true));
     } else {
       openSnackbar({
         open: true,
         message: result.message || 'Failed to delete vendor',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+    }
+  };
+
+  const handleVendorActions = (event, vendor) => {
+    setMenuAnchor(event.currentTarget);
+    setMenuVendor(vendor);
+  };
+
+  const closeVendorMenu = () => {
+    setMenuAnchor(null);
+    setMenuVendor(null);
+  };
+
+  const handleToggleActive = async () => {
+    if (!menuVendor) return;
+    const vendor = menuVendor;
+    closeVendorMenu();
+    const result = await dispatch(updateVendor(vendor.id, { ...vendor, id: vendor.id, isActive: !vendor.isActive }));
+    if (result.success) {
+      openSnackbar({
+        open: true,
+        message: `${vendor.name} ${vendor.isActive ? 'marked inactive' : 'reactivated'}`,
+        variant: 'alert',
+        alert: { color: 'success' }
+      });
+      dispatch(getVendors(user.id, true));
+    } else {
+      openSnackbar({
+        open: true,
+        message: result.message || 'Failed to update vendor status',
         variant: 'alert',
         alert: { color: 'error' }
       });
@@ -553,294 +739,207 @@ export default function Vendors() {
     }
   };
 
-  const inactiveVendors = Math.max(totalVendors - activeVendors, 0);
-  const missingContact = useMemo(
-    () => vendors?.filter((vendor) => !vendor.email && !vendor.phone).length || 0,
-    [vendors]
-  );
-
-  const sidebarRows = [
-    { label: 'Active vendors', value: activeVendors },
-    { label: 'Inactive vendors', value: inactiveVendors },
-    { label: 'Assigned to open requests', value: assignedToOpen },
-    { label: 'Missing contact info', value: missingContact }
-  ];
-
   return (
-    <Box>
-      <Box sx={{ mb: 2.5 }}>
-        <PageBreadcrumbs
-          items={[
-            { label: 'Dashboard', path: '/landlord/dashboard' },
-            { label: 'Vendors' }
-          ]}
-        />
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
-          <Box>
-            <Typography variant="h3" fontWeight={700}>
-              Vendors
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Manage trusted contractors, contact details, tax info, and maintenance assignments.
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-            <VendorCsvImportButton buttonProps={{ sx: { borderRadius: 1.25, textTransform: 'none' } }} />
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<PlusOutlined />}
-              onClick={() => handleOpenDrawer()}
-              sx={{ borderRadius: 1.25, textTransform: 'none' }}
-            >
-              Add Vendor
-            </Button>
-          </Stack>
-        </Stack>
+    <Box sx={{ pb: 3 }}>
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Vendors' }]} />
       </Box>
 
       <Box
         sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: 1.5,
-          alignItems: { xs: 'stretch', sm: 'center' },
-          justifyContent: 'space-between',
-          mb: 2.5
+          mb: 2.5,
+          p: { xs: 2, md: 2.75 },
+          borderRadius: 3,
+          color: '#fff',
+          background: `linear-gradient(120deg, ${NAVY} 0%, #0b3558 100%)`,
+          boxShadow: `0 16px 38px ${alpha(NAVY, 0.18)}`
         }}
       >
-        <TextField
-          size="small"
-          placeholder="Search vendors..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} />
-              </InputAdornment>
-            )
-          }}
-          sx={{
-            width: { xs: '100%', sm: 320 },
-            bgcolor: 'background.paper',
-            '& .MuiOutlinedInput-root': { height: 34, fontSize: '0.8rem', borderRadius: 1.25 }
-          }}
-        />
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent={{ xs: 'space-between', sm: 'flex-end' }}>
-          <Chip size="small" label={`${filteredVendors.length} shown`} variant="outlined" sx={{ bgcolor: 'background.paper' }} />
-          {activeFilter !== 'total' && (
-            <Button size="small" variant="text" onClick={() => setActiveFilter('total')} sx={{ textTransform: 'none' }}>
-              Clear filter
+        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Vendors</Typography>
+            <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>
+              Keep your contractor network ready, reachable, and connected to the work in progress.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1}>
+            <VendorCsvImportButton
+              buttonProps={{
+                sx: {
+                  color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none',
+                  '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) }
+                }
+              }}
+            />
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<PlusOutlined />}
+              onClick={() => handleOpenDrawer()}
+              sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+            >
+              Add vendor
             </Button>
-          )}
+          </Stack>
         </Stack>
       </Box>
 
-      <Grid container spacing={2.5}>
-        <Grid size={{ xs: 12, lg: 9 }}>
-          {loading ? (
-            <MainCard boxShadow border={false} shadow={theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`} sx={{ border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, borderRadius: 1.5 }}>
-              <Box textAlign="center" py={5}>
-                <CircularProgress size={24} />
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Loading vendors...
-                </Typography>
-              </Box>
-            </MainCard>
-          ) : filteredVendors.length === 0 ? (
-            <MainCard boxShadow border={false} shadow={theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`} sx={{ border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, borderRadius: 1.5 }}>
-              <Box textAlign="center" py={5}>
-                <ShopOutlined style={{ fontSize: 42, color: theme.palette.text.disabled, marginBottom: 8 }} />
-                <Typography variant="h6" color="text.primary">
-                  {vendors.length === 0 ? 'No vendors yet' : 'No vendors match your search'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {vendors.length === 0 ? 'Add your first trusted contractor or service provider.' : 'Try a different name, category, email, or phone number.'}
-                </Typography>
-              </Box>
-            </MainCard>
-          ) : (
-            <TableContainer
-              sx={{
-                width: '100%',
-                bgcolor: 'background.paper',
-                border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`,
-                borderRadius: 1.5,
-                overflow: 'hidden',
-                boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`
-              }}
-            >
-              <Table size="small" sx={{ minWidth: 900 }}>
-                <TableHead>
-                  <TableRow
-                    sx={{
-                      '& .MuiTableCell-head': {
-                        bgcolor: alpha(theme.palette.grey[500], 0.06),
-                        color: 'text.secondary',
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        letterSpacing: 0.5,
-                        textTransform: 'uppercase',
-                        py: 1.25
-                      }
-                    }}
-                  >
-                    <TableCell>Vendor</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Address</TableCell>
-                    <TableCell>Spend</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredVendors.map((vendor) => (
-                    <TableRow key={vendor.id} hover sx={{ '&:last-of-type td': { borderBottom: 0 }, '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.025) } }}>
-                      <TableCell sx={{ py: 1.5 }}>
-                        <Typography variant="body2" fontWeight={600}>
-                          {vendor.name}
-                        </Typography>
-                        {vendor.businessName && (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                            {vendor.businessName}
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {vendor.category ? (
-                          <Chip label={vendor.category} size="small" variant="outlined" sx={{ height: 22 }} />
-                        ) : (
-                          <Typography variant="caption" color="text.secondary">No category</Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Stack spacing={0.35}>
-                          {vendor.email ? (
-                            <Stack direction="row" spacing={0.75} alignItems="center">
-                              <MailOutlined style={{ fontSize: 13, color: theme.palette.text.secondary }} />
-                              <Typography variant="caption">{vendor.email}</Typography>
-                            </Stack>
-                          ) : null}
-                          {vendor.phone ? (
-                            <Stack direction="row" spacing={0.75} alignItems="center">
-                              <PhoneOutlined style={{ fontSize: 13, color: theme.palette.text.secondary }} />
-                              <Typography variant="caption">{formatPhoneInput(vendor.phone)}</Typography>
-                            </Stack>
-                          ) : null}
-                          {!vendor.email && !vendor.phone && (
-                            <Typography variant="caption" color="text.secondary">No contact info</Typography>
-                          )}
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', maxWidth: 220 }}>
-                          {[vendor.address, vendor.city, vendor.state, vendor.zipCode].filter(Boolean).join(', ') || 'No address'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight={600}>
-                          ${(vendor.totalExpenseAmount || 0).toFixed(2)}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {vendor.expenseCount || 0} expenses
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={vendor.isActive ? 'Active' : 'Inactive'}
-                          color={vendor.isActive ? 'success' : 'default'}
-                          size="small"
-                          variant={vendor.isActive ? 'filled' : 'outlined'}
-                          sx={{ height: 22 }}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton size="small" onClick={() => handleOpenDrawer(vendor)} color="primary">
-                          <EditOutlined />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setSelectedVendor(vendor);
-                            setDeleteDialogOpen(true);
-                          }}
-                          color="error"
-                        >
-                          <DeleteOutlined />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Active network"
+            value={metrics.active}
+            helper={`${vendors.length - metrics.active} inactive vendor${vendors.length - metrics.active === 1 ? '' : 's'}`}
+            icon={<CheckCircleOutlined />}
+            color={theme.palette.success.main}
+            active={statusFilter === 'active' && workloadFilter === 'all'}
+            onClick={() => { setStatusFilter('active'); setWorkloadFilter('all'); }}
+          />
         </Grid>
-
-        <Grid size={{ xs: 12, lg: 3 }}>
-          <Stack spacing={2}>
-            <MainCard
-              title="Vendor coverage"
-              content={false}
-              sx={{ border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, borderRadius: 1.5, boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}` }}
-            >
-              <Stack divider={<Divider />}>
-                {sidebarRows.map((row) => (
-                  <Box key={row.label} sx={{ px: 2, py: 1.4, display: 'flex', justifyContent: 'space-between', gap: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      {row.label}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={700}>
-                      {row.value}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
-            </MainCard>
-
-            <MainCard
-              title="Vendor workflow"
-              content={false}
-              sx={{ border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, borderRadius: 1.5, boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}` }}
-            >
-              <Stack divider={<Divider />}>
-                {[
-                  'Keep phone and email filled in for fast maintenance routing.',
-                  'Use categories so the right contractor is easy to find.',
-                  'Track 1099 and license details before year-end.'
-                ].map((item, index) => (
-                  <Box key={item} sx={{ px: 2, py: 1.4 }}>
-                    <Stack direction="row" spacing={1} alignItems="flex-start">
-                      <Box
-                        sx={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: '50%',
-                          bgcolor: alpha(theme.palette.primary.main, 0.1),
-                          color: theme.palette.primary.main,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          flexShrink: 0
-                        }}
-                      >
-                        {index + 1}
-                      </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                        {item}
-                      </Typography>
-                    </Stack>
-                  </Box>
-                ))}
-              </Stack>
-            </MainCard>
-          </Stack>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Working now"
+            value={metrics.assigned}
+            helper="Assigned to open maintenance"
+            icon={<ToolOutlined />}
+            color={theme.palette.info.main}
+            active={workloadFilter === 'assigned'}
+            onClick={() => setWorkloadFilter((value) => value === 'assigned' ? 'all' : 'assigned')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Recorded spend"
+            value={formatMoney(metrics.spend)}
+            helper="Across vendor-linked expenses"
+            icon={<DollarOutlined />}
+            color={theme.palette.primary.main}
+            active={sortBy === 'spend'}
+            onClick={() => setSortBy((value) => value === 'spend' ? 'workload' : 'spend')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Needs setup"
+            value={metrics.needsSetup}
+            helper="Missing phone and email"
+            icon={<ExclamationCircleOutlined />}
+            color={theme.palette.warning.main}
+            active={workloadFilter === 'contact'}
+            onClick={() => setWorkloadFilter((value) => value === 'contact' ? 'all' : 'contact')}
+          />
         </Grid>
       </Grid>
+
+      <Box
+        sx={{
+          bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden'
+        }}
+      >
+        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
+            <OutlinedInput
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search vendors, categories, contact details, or location"
+              size="small"
+              startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+              sx={{ flex: 1, minWidth: { md: 280 }, borderRadius: 1.75 }}
+            />
+            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, md: 0 } }}>
+              <Select size="small" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 120, borderRadius: 1.75 }}>
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="inactive">Inactive</MenuItem>
+                <MenuItem value="all">All status</MenuItem>
+              </Select>
+              <Select size="small" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 150, borderRadius: 1.75 }}>
+                <MenuItem value="all">All categories</MenuItem>
+                {categories.map((category) => <MenuItem key={category} value={category}>{category}</MenuItem>)}
+              </Select>
+              <Select size="small" value={workloadFilter} onChange={(event) => setWorkloadFilter(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 158, borderRadius: 1.75 }}>
+                <MenuItem value="all">All workload</MenuItem>
+                <MenuItem value="assigned">Working now</MenuItem>
+                <MenuItem value="available">No open work</MenuItem>
+                <MenuItem value="contact">Missing contact</MenuItem>
+                <MenuItem value="1099">Requires 1099</MenuItem>
+              </Select>
+              <Select size="small" value={sortBy} onChange={(event) => setSortBy(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 155, borderRadius: 1.75 }}>
+                <MenuItem value="workload">Sort: Workload</MenuItem>
+                <MenuItem value="name">Sort: Name</MenuItem>
+                <MenuItem value="spend">Sort: Spend</MenuItem>
+                <MenuItem value="recent">Sort: Recently updated</MenuItem>
+              </Select>
+            </Stack>
+          </Stack>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              {filteredVendors.length} of {vendors.length} vendors
+            </Typography>
+            {hasFilters && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
+          </Stack>
+        </Box>
+
+        <Divider />
+
+        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(190px, 1.1fr) minmax(145px, .8fr) minmax(155px, .85fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+          {['Vendor', 'Contact', 'Workload', 'Spend & compliance', ''].map((label) => (
+            <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          ))}
+        </Box>
+
+        {loading ? (
+          <Stack alignItems="center" spacing={1} sx={{ py: 7 }}>
+            <CircularProgress size={26} />
+            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading vendor network…</Typography>
+          </Stack>
+        ) : vendors.length === 0 ? (
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Avatar sx={{ width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><ShopOutlined /></Avatar>
+            <Typography variant="h6" fontWeight={700}>Build your vendor network</Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>Add contractors and service providers so maintenance work, contact details, expenses, and tax information stay connected.</Typography>
+            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => handleOpenDrawer()} sx={{ textTransform: 'none' }}>Add your first vendor</Button>
+          </Stack>
+        ) : filteredVendors.length === 0 ? (
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Typography variant="h6" fontWeight={700}>No vendors match this view</Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>Try a different search or reset the vendor filters.</Typography>
+            <Button variant="outlined" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset filters</Button>
+          </Stack>
+        ) : (
+          paginatedVendors.map((vendor) => (
+            <VendorRow
+              key={vendor.id}
+              vendor={vendor}
+              openRequestCount={openRequestCounts.get(vendor.id) || 0}
+              onEdit={handleOpenDrawer}
+              onActions={handleVendorActions}
+            />
+          ))
+        )}
+
+        {pageCount > 1 && (
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredVendors.length)} of {filteredVendors.length}
+            </Typography>
+            <Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
+          </Stack>
+        )}
+      </Box>
+
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeVendorMenu}>
+        <MenuItem onClick={() => { const vendor = menuVendor; closeVendorMenu(); if (vendor) handleOpenDrawer(vendor); }}><EditOutlined style={{ marginRight: 10 }} />Edit vendor</MenuItem>
+        <MenuItem onClick={handleToggleActive}>
+          <CheckCircleOutlined style={{ marginRight: 10 }} />{menuVendor?.isActive ? 'Mark inactive' : 'Reactivate vendor'}
+        </MenuItem>
+        <MenuItem
+          sx={{ color: 'error.main' }}
+          onClick={() => { const vendor = menuVendor; closeVendorMenu(); if (vendor) { setSelectedVendor(vendor); setDeleteDialogOpen(true); } }}
+        >
+          <DeleteOutlined style={{ marginRight: 10 }} />Delete vendor
+        </MenuItem>
+      </Menu>
 
       {/* Add/Edit Drawer */}
       <Drawer

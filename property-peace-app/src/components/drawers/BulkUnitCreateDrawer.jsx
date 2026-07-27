@@ -304,7 +304,7 @@ export default function BulkUnitCreateDrawer({ property, open, onClose, onSucces
                       component="span"
                       onClick={() => {
                         onClose();
-                        navigate('/landlord/subscription');
+                        navigate('/landlord/settings?tab=subscription');
                       }}
                       sx={{
                         color: 'primary.main',
@@ -337,7 +337,7 @@ export default function BulkUnitCreateDrawer({ property, open, onClose, onSucces
                         component="span"
                         onClick={() => {
                           onClose();
-                          navigate('/landlord/subscription');
+                          navigate('/landlord/settings?tab=subscription');
                         }}
                         sx={{
                           color: 'primary.main',

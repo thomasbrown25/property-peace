@@ -11,7 +11,8 @@ namespace brownstone_hub_api.Enums
         System,
         Application,
         RentPaymentSetupReminder,
-        TenantInvite
+        TenantInvite,
+        Support
     }
 }
 

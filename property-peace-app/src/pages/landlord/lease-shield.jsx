@@ -239,7 +239,7 @@ export default function LeaseShield() {
     { label: 'Dashboard', path: dashboardPath },
     { label: 'LeaseShield' }
   ];
-  const subscriptionPlansUrl = isTenantPortal ? '/tenant/subscription' : '/landlord/subscription?tab=0';
+  const subscriptionPlansUrl = isTenantPortal ? '/tenant/subscription' : '/landlord/settings?tab=subscription';
 
   // Current conversation's state (read-only when a convo is active)
   const activeConvState = selected

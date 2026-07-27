@@ -21,6 +21,8 @@ using brownstone_hub_api.Utils;
 using brownstone_hub_api.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Text.RegularExpressions;
 
 namespace brownstone_hub_api.Services.AIFollowUpService
 {
@@ -164,11 +166,13 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                 var emailSubject = !string.IsNullOrEmpty(request.EmailSubjectOverride)
                     ? request.EmailSubjectOverride
                     : GetEmailSubject(request.ActionType, context);
+                var organizationName = await GetOrganizationNameAsync(organizationId.Value);
+                var emailPlainText = BuildEmailPlainText(emailMessage, context, tenantInfo.Name, organizationName);
                 var emailSent = await _emailService.SendEmailAsync(
                     tenantInfo.Email,
                     emailSubject,
-                    BuildEmailHtml(emailMessage, context, tenantInfo.Name, landlord),
-                    emailMessage
+                    BuildEmailHtml(emailMessage, context, tenantInfo.Name, organizationName),
+                    emailPlainText
                 );
 
                 if (!emailSent)
@@ -448,7 +452,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                 return $"{propertyName} - {context["unitName"]}";
             }
             
-            return propertyName;
+            return $"the home at {propertyName}";
         }
 
         private static bool IsOverdueRentAction(string actionType)
@@ -558,7 +562,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
 
         private string BuildEmailMessagePrompt(string actionType, Dictionary<string, object> context)
         {
-            var basePrompt = "You are a professional property management assistant. Write a formal email message to a tenant. Use proper email format with greeting, body, and closing. ";
+            var basePrompt = "You are a professional property management assistant. Write a formal email message to a tenant. Use a greeting and body only; do not add a closing or signature because the application adds the landlord organization's signature. For a single-family home, call it 'the home' and never mention a unit name such as 'Unit 1'. ";
             
             switch (actionType)
             {
@@ -568,15 +572,13 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         BuildOverdueRentMessageDetailInstructions(context) +
                         $"The property is {emailPropertyRef1}. " +
                         $"Start with 'Dear [Tenant's Name],' then write 3-5 professional sentences that include the overdue amount, rent due date, and how many days past due it is. " +
-                        $"End with 'Best regards,' followed by '[Your Name]' and '[Your Contact Information]'. " +
                         $"Make it professional but friendly. Include a clear call to action asking them to contact you at their earliest convenience to discuss and resolve this matter.";
 
                 case "sendAIFollowUp_TenantAccount":
                     var emailPropertyRef2 = FormatPropertyReference(context);
                     return $"{basePrompt}" +
                         $"The tenant {context["tenantName"]} at {emailPropertyRef2} has not yet created their account. " +
-                        $"Start with 'Dear [Tenant's Name],' then write 2-3 professional sentences encouraging them to create their account. " +
-                        $"End with 'Best regards,' followed by '[Your Name]' and '[Your Contact Information]'.";
+                        $"Start with 'Dear [Tenant's Name],' then write 2-3 professional sentences encouraging them to create their account.";
 
                 case "sendAIFollowUp_LeaseSigning":
                     var emailPropertyRef3 = FormatPropertyReference(context);
@@ -584,8 +586,7 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         $"The lease for {emailPropertyRef3} starting on {context["startDate"]:MM/dd/yyyy} " +
                         $"has not been signed yet by the tenant(s): {context["tenantNames"]}. " +
                         $"The monthly rent is ${context["rentAmount"]:F2}. " +
-                        $"Start with 'Dear [Tenant's Name],' then write 2-3 professional sentences reminding them to sign. " +
-                        $"End with 'Best regards,' followed by '[Your Name]' and '[Your Contact Information]'.";
+                        $"Start with 'Dear [Tenant's Name],' then write 2-3 professional sentences reminding them to sign.";
 
                 case "sendAIFollowUp_Deposit":
                     var emailPropertyRef4 = FormatPropertyReference(context);
@@ -594,11 +595,10 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                         $"still owe ${context["depositOwed"]:F2} of the ${context["depositAmount"]:F2} security deposit. " +
                         $"They have paid ${context["depositPaid"]:F2} so far. " +
                         $"Start with 'Dear [Tenant's Name],' then write 2-3 professional sentences about the outstanding deposit. " +
-                        $"End with 'Best regards,' followed by '[Your Name]' and '[Your Contact Information]'. " +
                         $"Make it professional but friendly. Include a clear call to action asking them to contact you to discuss payment options.";
 
                 default:
-                    return basePrompt + "Write a formal email follow-up message with proper greeting and closing.";
+                    return basePrompt + "Write a formal email follow-up message with a proper greeting.";
             }
         }
 
@@ -778,59 +778,86 @@ namespace brownstone_hub_api.Services.AIFollowUpService
             };
         }
 
-        private string BuildEmailHtml(string message, Dictionary<string, object> context, string tenantName, User landlord)
+        private async Task<string> GetOrganizationNameAsync(long organizationId)
         {
-            // Build landlord name
-            var landlordName = $"{landlord.FirstName} {landlord.LastName}".Trim();
-            if (string.IsNullOrEmpty(landlordName))
-            {
-                landlordName = landlord.Email ?? "Your Landlord";
-            }
+            var organizationName = await _dataContext.Organizations
+                .Where(o => o.Id == organizationId)
+                .Select(o => o.Name)
+                .FirstOrDefaultAsync();
 
-            // Build landlord contact information
-            var contactInfoParts = new List<string>();
-            if (!string.IsNullOrEmpty(landlord.Email))
-            {
-                contactInfoParts.Add(landlord.Email);
-            }
-            if (!string.IsNullOrEmpty(landlord.PhoneNumber))
-            {
-                contactInfoParts.Add(landlord.PhoneNumber);
-            }
-            var contactInfo = contactInfoParts.Count > 0 
-                ? string.Join(" | ", contactInfoParts)
-                : "Please contact us through your tenant portal or reply to this email.";
+            return string.IsNullOrWhiteSpace(organizationName) ? "Property Management" : organizationName.Trim();
+        }
 
-            // Replace placeholders in the message
+        private static string BuildEmailPlainText(
+            string message,
+            Dictionary<string, object> context,
+            string tenantName,
+            string organizationName)
+        {
+            var body = NormalizeEmailBody(message, context, tenantName);
+            return $"{body}\n\nBest regards,\n{organizationName} Team";
+        }
+
+        private static string NormalizeEmailBody(string message, Dictionary<string, object> context, string tenantName)
+        {
             var formattedMessage = message
                 .Replace("[Tenant's Name]", tenantName)
-                .Replace("[Your Name]", landlordName)
-                .Replace("[Your Contact Information]", contactInfo);
-            
+                .Replace("[Your Name]", string.Empty)
+                .Replace("[Your Contact Information]", string.Empty)
+                .Trim();
+
+            // Generated and landlord-edited content may contain an old closing such as
+            // "Collections Team". The organization signature is appended deterministically below.
+            formattedMessage = Regex.Replace(
+                formattedMessage,
+                @"(?is)\n\s*(?:(?:best|kind|warm)\s+regards|regards|sincerely|thank you)\s*[,!.]?\s*.*$",
+                string.Empty).Trim();
+
+            var isMultiUnit = context.TryGetValue("isMultiUnit", out var multiUnitValue)
+                && multiUnitValue is bool multiUnit
+                && multiUnit;
+            if (!isMultiUnit)
+            {
+                formattedMessage = Regex.Replace(formattedMessage, @"(?i)(?:,\s*|\s+-\s*)unit\s*1\b", string.Empty);
+                formattedMessage = Regex.Replace(formattedMessage, @"(?i)\bunit\s*1\b", "the home");
+                formattedMessage = Regex.Replace(formattedMessage, @"(?i)\bthe\s+the\s+home\b", "the home");
+            }
+
+            return formattedMessage;
+        }
+
+        private static string BuildEmailHtml(
+            string message,
+            Dictionary<string, object> context,
+            string tenantName,
+            string organizationName)
+        {
+            var formattedMessage = NormalizeEmailBody(message, context, tenantName);
+            var encodedBody = WebUtility.HtmlEncode(formattedMessage).Replace("\n", "<br>");
+            var encodedOrganizationName = WebUtility.HtmlEncode(organizationName);
+
             return $@"
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8'>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background-color: #1976d2; color: white; padding: 20px; text-align: center; }}
-        .content {{ background-color: #f9f9f9; padding: 20px; margin-top: 20px; }}
-        .footer {{ margin-top: 20px; padding: 10px; text-align: center; color: #666; font-size: 12px; }}
-    </style>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
 </head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <h1>Property Peace</h1>
+<body style='font-family: -apple-system, BlinkMacSystemFont, ""Segoe UI"", Roboto, ""Helvetica Neue"", Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f5f5f5; margin: 0; padding: 20px;'>
+    <div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'>
+        <div style='background-color: #ffffff; padding: 24px 30px; text-align: center; border-bottom: 1px solid #e8e8e8;'>
+            <img src='https://propertypeace.io/images/logos/property-peace-dark.png' alt='Property Peace' style='height: 44px; width: auto; display: block; margin: 0 auto;' />
         </div>
-        <div class='content'>
-            <p>{formattedMessage.Replace("\n", "<br>")}</p>
+        <div style='padding: 36px 30px; background-color: #ffffff;'>
+            <div style='font-size: 15px; color: #4a4a4a; line-height: 1.6;'>{encodedBody}</div>
+            <div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 15px; color: #4a4a4a;'>
+                <div>Best regards,</div>
+                <div style='font-weight: 600; color: #042238; margin-top: 4px;'>{encodedOrganizationName} Team</div>
+            </div>
         </div>
-        <div class='footer'>
-            <p>This is an automated notification from Property Peace.</p>
-            <p>You can manage your notification preferences in your account settings.</p>
+        <div style='background-color: #042238; padding: 28px 30px; text-align: center;'>
+            <p style='color: rgba(255,255,255,0.65); font-size: 12px; margin: 0;'>This is an automated notification from Property Peace.</p>
+            <p style='color: rgba(255,255,255,0.65); font-size: 12px; margin: 8px 0 0;'>You can manage your notification preferences in your account settings.</p>
         </div>
     </div>
 </body>
@@ -872,11 +899,15 @@ namespace brownstone_hub_api.Services.AIFollowUpService
                 if (!messageResult.Success)
                     _logger.LogError("Failed to add message to conversation {ConversationId}", conversation.Id);
 
+                var organizationName = await GetOrganizationNameAsync(organizationId);
                 var emailHtml = context != null
-                    ? BuildEmailHtml(emailMessage, context, tenantInfo.Name, landlord)
+                    ? BuildEmailHtml(emailMessage, context, tenantInfo.Name, organizationName)
+                    : emailMessage;
+                var emailPlainText = context != null
+                    ? BuildEmailPlainText(emailMessage, context, tenantInfo.Name, organizationName)
                     : emailMessage;
 
-                var emailSent = await _emailService.SendEmailAsync(tenantInfo.Email, emailSubject, emailHtml, emailMessage);
+                var emailSent = await _emailService.SendEmailAsync(tenantInfo.Email, emailSubject, emailHtml, emailPlainText);
                 if (!emailSent)
                     _logger.LogWarning("Failed to send email to {Email} for agent follow-up", tenantInfo.Email);
 

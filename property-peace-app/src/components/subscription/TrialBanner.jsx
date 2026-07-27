@@ -1,18 +1,10 @@
 import { Alert, AlertTitle, Typography } from '@mui/material';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function TrialBanner() {
   const navigate = useNavigate();
-  const location = useLocation();
-
   const handleStartTrial = () => {
-    // If already on subscription page, navigate to Plans tab
-    if (location.pathname === '/landlord/subscription') {
-      navigate('/landlord/subscription?tab=0');
-    } else {
-      // Otherwise, navigate to subscription page
-      navigate('/landlord/subscription');
-    }
+    navigate('/landlord/settings?tab=subscription');
   };
 
   return (

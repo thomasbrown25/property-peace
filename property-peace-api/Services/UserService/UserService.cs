@@ -1339,33 +1339,39 @@ namespace brownstone_hub_api.Services.UserService
                     return response;
                 }
 
-                // Check if user has active leases (as landlord)
-                var hasActiveLeases = await _dataContext.Leases
-                    .Include(l => l.Unit)
-                        .ThenInclude(u => u.Property)
-                    .AnyAsync(l => l.Unit.Property.LandlordId == userId && !l.IsDeleted);
+                var isTenantOnly = user.UserRoles.Any(userRole =>
+                    string.Equals(userRole.Role?.RoleName, "Tenant", StringComparison.OrdinalIgnoreCase))
+                    && !user.UserRoles.Any(userRole =>
+                        string.Equals(userRole.Role?.RoleName, "Landlord", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(userRole.Role?.RoleName, "Admin", StringComparison.OrdinalIgnoreCase));
 
-                if (hasActiveLeases)
+                if (!isTenantOnly)
                 {
-                    response.Success = false;
-                    response.Message = "Cannot delete account: User has active leases. Please end all leases before deleting your account.";
-                    return response;
-                }
+                    // Tenant users do not own their landlord's leases, organization, or subscription.
+                    // Keep the ownership safeguards for landlord/admin accounts only.
+                    var hasActiveLeases = await _dataContext.Leases
+                        .Include(l => l.Unit)
+                            .ThenInclude(u => u.Property)
+                        .AnyAsync(l => l.Unit.Property.LandlordId == userId && !l.IsDeleted);
 
-                // Check if user's organization has active subscription (subscriptions are organization-only)
-                // 'user' is already declared above and is not null here (we checked earlier)
-                var hasActiveSubscription = false;
-                if (user.CurrentOrganizationId.HasValue)
-                {
-                    hasActiveSubscription = await _dataContext.Subscriptions
-                        .AnyAsync(s => s.OrganizationId == user.CurrentOrganizationId.Value && (s.Status == "Active" || s.Status == "Trial"));
-                }
+                    if (hasActiveLeases)
+                    {
+                        response.Success = false;
+                        response.Message = "Cannot delete account: User has active leases. Please end all leases before deleting your account.";
+                        return response;
+                    }
 
-                if (hasActiveSubscription)
-                {
-                    response.Success = false;
-                    response.Message = "Cannot delete account: Your organization has an active subscription. Please cancel the organization's subscription or leave the organization before deleting your account.";
-                    return response;
+                    var hasActiveSubscription = user.CurrentOrganizationId.HasValue
+                        && await _dataContext.Subscriptions.AnyAsync(s =>
+                            s.OrganizationId == user.CurrentOrganizationId.Value
+                            && (s.Status == "Active" || s.Status == "Trial"));
+
+                    if (hasActiveSubscription)
+                    {
+                        response.Success = false;
+                        response.Message = "Cannot delete account: Your organization has an active subscription. Please cancel the organization's subscription or leave the organization before deleting your account.";
+                        return response;
+                    }
                 }
 
                 // Check if user owns any organizations
@@ -1430,6 +1436,11 @@ namespace brownstone_hub_api.Services.UserService
 
                 // Soft delete the user
                 await _userRepository.DeleteUser(user);
+
+                // Prevent any existing browser/device refresh session from creating a new access token.
+                await _dataContext.UserRefreshTokens
+                    .Where(token => token.UserId == userId && token.RevokedAt == null)
+                    .ExecuteUpdateAsync(update => update.SetProperty(token => token.RevokedAt, DateTime.UtcNow));
 
                 response.Success = true;
                 response.Data = "User account has been deactivated successfully";

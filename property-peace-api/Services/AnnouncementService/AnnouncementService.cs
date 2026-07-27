@@ -1,9 +1,12 @@
+using Anthropic.SDK;
+using Anthropic.SDK.Common;
+using Anthropic.SDK.Messaging;
+using brownstone_hub_api.Config;
 using brownstone_hub_api.Dtos.Announcement;
 using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Dtos.Message;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
-using brownstone_hub_api.Services.OpenAIService;
 using brownstone_hub_api.Services.NotificationService;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.MessageService;
@@ -13,11 +16,13 @@ using brownstone_hub_api.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
+using System.Text.RegularExpressions;
+using AnthropicMessage = Anthropic.SDK.Messaging.Message;
 
 namespace brownstone_hub_api.Services.AnnouncementService
 {
     public class AnnouncementService(
-        IOpenAIService openAIService,
         INotificationService notificationService,
         IEmailService emailService,
         IMessageService messageService,
@@ -25,9 +30,9 @@ namespace brownstone_hub_api.Services.AnnouncementService
         IUserRepository userRepository,
         DataContext dataContext,
         IHttpContextAccessor httpContextAccessor,
+        IOptions<AnthropicSettings> anthropicSettings,
         ILogger<AnnouncementService> logger) : IAnnouncementService
     {
-        private readonly IOpenAIService _openAIService = openAIService;
         private readonly INotificationService _notificationService = notificationService;
         private readonly IEmailService _emailService = emailService;
         private readonly IMessageService _messageService = messageService;
@@ -35,7 +40,43 @@ namespace brownstone_hub_api.Services.AnnouncementService
         private readonly IUserRepository _userRepository = userRepository;
         private readonly DataContext _dataContext = dataContext;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly AnthropicSettings _anthropicSettings = anthropicSettings.Value;
         private readonly ILogger<AnnouncementService> _logger = logger;
+
+        private async Task<string> GenerateAnnouncementTextAsync(string prompt, int maxTokens)
+        {
+            if (string.IsNullOrWhiteSpace(_anthropicSettings.ApiKey))
+                throw new InvalidOperationException("Anthropic API key is not configured.");
+
+            var client = new AnthropicClient(_anthropicSettings.ApiKey);
+            var parameters = new MessageParameters
+            {
+                Model = _anthropicSettings.AgentModel,
+                MaxTokens = maxTokens,
+                Messages = [new AnthropicMessage(RoleType.User, prompt)],
+                Temperature = 0.3m,
+                Stream = false
+            };
+
+            var response = await client.Messages.GetClaudeMessageAsync(parameters);
+            var text = response.Content.OfType<TextContent>().FirstOrDefault()?.Text?.Trim();
+
+            if (string.IsNullOrWhiteSpace(text))
+                throw new InvalidOperationException("Anthropic returned an empty announcement response.");
+
+            return text;
+        }
+
+        private static string RemoveUnsupportedBoldFormatting(string text)
+        {
+            var withoutMarkdownBold = Regex.Replace(text, @"(?s)(\*\*|__)(.+?)\1", "$2");
+            return Regex.Replace(
+                withoutMarkdownBold,
+                @"</?(?:strong|b)(?:\s[^>]*)?>",
+                string.Empty,
+                RegexOptions.IgnoreCase
+            ).Trim();
+        }
 
         private async Task<long?> GetCurrentUserIdAsync()
         {
@@ -73,25 +114,19 @@ Guidelines:
 - Ensure the message is well-structured and easy to read
 - Keep it concise while preserving all important information
 - Make it suitable for both in-app notifications and email delivery
+- Return plain text only
+- Do NOT use Markdown, HTML, bold text, italics, headings, or any other font styling; use wording, spacing, and line breaks for emphasis
 - Return ONLY the message body, do not include a subject line
 - Do NOT add any signature, closing, or team name (such as ""[Your Property Management Team]"" or similar) - the signature will be added automatically
 
 Original message:
 {dto.Message}
 
-Please provide the enhanced, professionally formatted message body (no subject line, no signature):";
+Please provide the enhanced, professionally formatted plain-text message body (no subject line, no signature, no font styling):";
 
-                var response = await _openAIService.GenerateTextAsync(prompt, maxTokens: 2000);
-
-                if (!response.Success || string.IsNullOrEmpty(response.Data))
-                {
-                    return ServiceResponse<FormatMessageResponseDto>.CreateError(
-                        "Failed to format message",
-                        response.Message ?? "AI service error",
-                        "",
-                        500
-                    );
-                }
+                var formattedMessage = RemoveUnsupportedBoldFormatting(
+                    await GenerateAnnouncementTextAsync(prompt, maxTokens: 2000)
+                );
 
                 // Generate subject separately
                 var subjectPrompt = $@"Based on the following announcement message, generate a concise, professional email subject line (maximum 60 characters):
@@ -100,11 +135,10 @@ Please provide the enhanced, professionally formatted message body (no subject l
 
 Subject line only (no quotes, no 'Subject:' prefix):";
 
-                var subjectResponse = await _openAIService.GenerateTextAsync(subjectPrompt, maxTokens: 100);
-
-                var subject = subjectResponse.Success && !string.IsNullOrEmpty(subjectResponse.Data)
-                    ? subjectResponse.Data.Trim().Replace("\"", "").Replace("Subject:", "").Trim()
-                    : "Announcement";
+                var subject = (await GenerateAnnouncementTextAsync(subjectPrompt, maxTokens: 100))
+                    .Replace("\"", "")
+                    .Replace("Subject:", "", StringComparison.OrdinalIgnoreCase)
+                    .Trim();
 
                 // Limit subject to 60 characters
                 if (subject.Length > 60)
@@ -116,7 +150,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                 {
                     Data = new FormatMessageResponseDto
                     {
-                        FormattedMessage = response.Data.Trim(),
+                        FormattedMessage = formattedMessage,
                         Subject = subject
                     },
                     Message = "Message formatted successfully"
@@ -127,6 +161,159 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                 _logger.LogError(ex, "Error formatting message with AI");
                 return ServiceResponse<FormatMessageResponseDto>.CreateError(
                     "Error formatting message",
+                    ex.Message,
+                    ex.InnerException?.Message,
+                    500
+                );
+            }
+        }
+
+        private async Task<HashSet<long>> ResolveRecipientUserIdsAsync(
+            IReadOnlyCollection<long> organizationIds,
+            IReadOnlyCollection<long>? propertyIds,
+            IReadOnlyCollection<long>? unitIds)
+        {
+            var tenantUserIds = new HashSet<long>();
+            var hasSpecificTargets = (propertyIds?.Count ?? 0) > 0 || (unitIds?.Count ?? 0) > 0;
+
+            if (!hasSpecificTargets)
+            {
+                var properties = await _dataContext.Properties
+                    .Include(p => p.Units)
+                        .ThenInclude(u => u.Lease!)
+                            .ThenInclude(l => l.TenantLeases!)
+                                .ThenInclude(tl => tl.Tenant)
+                    .Where(p => organizationIds.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
+                    .ToListAsync();
+
+                foreach (var property in properties)
+                {
+                    foreach (var unit in property.Units ?? [])
+                    {
+                        foreach (var tenantLease in unit.Lease?.TenantLeases ?? [])
+                        {
+                            if (tenantLease.Tenant.UserId.HasValue)
+                                tenantUserIds.Add(tenantLease.Tenant.UserId.Value);
+                        }
+                    }
+                }
+
+                return tenantUserIds;
+            }
+
+            if (unitIds?.Count > 0)
+            {
+                var units = await _dataContext.Units
+                    .Include(u => u.Lease!)
+                        .ThenInclude(l => l.TenantLeases!)
+                            .ThenInclude(tl => tl.Tenant)
+                    .Where(u => unitIds.Contains(u.Id) && organizationIds.Contains(u.Property.OrganizationId ?? 0))
+                    .ToListAsync();
+
+                foreach (var unit in units)
+                {
+                    foreach (var tenantLease in unit.Lease?.TenantLeases ?? [])
+                    {
+                        if (tenantLease.Tenant.UserId.HasValue)
+                            tenantUserIds.Add(tenantLease.Tenant.UserId.Value);
+                    }
+                }
+            }
+
+            if (propertyIds?.Count > 0)
+            {
+                var properties = await _dataContext.Properties
+                    .Include(p => p.Units)
+                        .ThenInclude(u => u.Lease!)
+                            .ThenInclude(l => l.TenantLeases!)
+                                .ThenInclude(tl => tl.Tenant)
+                    .Where(p => propertyIds.Contains(p.Id) && organizationIds.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
+                    .ToListAsync();
+
+                foreach (var property in properties)
+                {
+                    foreach (var unit in property.Units ?? [])
+                    {
+                        foreach (var tenantLease in unit.Lease?.TenantLeases ?? [])
+                        {
+                            if (tenantLease.Tenant.UserId.HasValue)
+                                tenantUserIds.Add(tenantLease.Tenant.UserId.Value);
+                        }
+                    }
+                }
+            }
+
+            return tenantUserIds;
+        }
+
+        public async Task<ServiceResponse<List<AnnouncementRecipientPreviewDto>>> PreviewRecipientsAsync(PreviewAnnouncementRecipientsDto dto)
+        {
+            try
+            {
+                var currentUserId = await GetCurrentUserIdAsync();
+                if (!currentUserId.HasValue)
+                {
+                    return ServiceResponse<List<AnnouncementRecipientPreviewDto>>.CreateError(
+                        "Unauthorized",
+                        "User not authenticated",
+                        "",
+                        401
+                    );
+                }
+
+                var accessibleOrganizationIds = await _dataContext.OrganizationMembers
+                    .Where(member => member.UserId == currentUserId.Value && member.IsActive)
+                    .Select(member => member.OrganizationId)
+                    .ToListAsync();
+
+                var currentOrganizationId = GetCurrentOrganizationId();
+                if (currentOrganizationId.HasValue && !accessibleOrganizationIds.Contains(currentOrganizationId.Value))
+                    accessibleOrganizationIds.Add(currentOrganizationId.Value);
+
+                var requestedOrganizationIds = dto.OrganizationIds?.Distinct().ToList() ?? [];
+                if (requestedOrganizationIds.Count == 0 && currentOrganizationId.HasValue)
+                    requestedOrganizationIds.Add(currentOrganizationId.Value);
+
+                if (requestedOrganizationIds.Count == 0 || requestedOrganizationIds.Any(id => !accessibleOrganizationIds.Contains(id)))
+                {
+                    return ServiceResponse<List<AnnouncementRecipientPreviewDto>>.CreateError(
+                        "Forbidden",
+                        "You do not have access to one or more selected organizations",
+                        "",
+                        403
+                    );
+                }
+
+                var tenantUserIds = await ResolveRecipientUserIdsAsync(
+                    requestedOrganizationIds,
+                    dto.PropertyIds,
+                    dto.UnitIds
+                );
+
+                var recipients = await _dataContext.Users
+                    .Where(user => tenantUserIds.Contains(user.Id) && !user.IsDeleted)
+                    .OrderBy(user => user.FirstName)
+                    .ThenBy(user => user.LastName)
+                    .ThenBy(user => user.Email)
+                    .Select(user => new AnnouncementRecipientPreviewDto
+                    {
+                        UserId = user.Id,
+                        Name = (user.FirstName + " " + user.LastName).Trim(),
+                        Email = user.Email
+                    })
+                    .ToListAsync();
+
+                return new ServiceResponse<List<AnnouncementRecipientPreviewDto>>
+                {
+                    Data = recipients,
+                    Message = $"{recipients.Count} recipient(s) found"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error previewing announcement recipients");
+                return ServiceResponse<List<AnnouncementRecipientPreviewDto>>.CreateError(
+                    "Error loading recipients",
                     ex.Message,
                     ex.InnerException?.Message,
                     500
@@ -300,41 +487,6 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                         }
                     }
 
-                    // Get tenants from selected organizations (all units in all properties in those orgs, excluding already processed)
-                    if (dto.OrganizationIds != null && dto.OrganizationIds.Any())
-                    {
-                        var properties = await _dataContext.Properties
-                            .Include(p => p.Units)
-                                .ThenInclude(u => u.Lease!)
-                                    .ThenInclude(l => l.TenantLeases!)
-                                        .ThenInclude(tl => tl.Tenant)
-                            .Where(p => dto.OrganizationIds.Contains(p.OrganizationId ?? 0) && !processedPropertyIds.Contains(p.Id) && !p.IsDeleted)
-                            .ToListAsync();
-
-                        foreach (var property in properties)
-                        {
-                            foreach (var unit in property.Units ?? [])
-                            {
-                                // Skip if this unit was already processed
-                                if (processedUnitIds.Contains(unit.Id))
-                                {
-                                    continue;
-                                }
-
-                                if (unit.Lease != null && unit.Lease.TenantLeases != null)
-                                {
-                                    foreach (var tenantLease in unit.Lease.TenantLeases)
-                                    {
-                                        var tenant = tenantLease.Tenant;
-                                        if (tenant.UserId.HasValue)
-                                        {
-                                            tenantUserIds.Add(tenant.UserId.Value);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
                 }
 
                 // Get current user's name for signature
@@ -364,14 +516,13 @@ Subject line only (no quotes, no 'Subject:' prefix):";
 
 Title only (no quotes, no 'Title:' prefix):";
 
-                    var titleResponse = await _openAIService.GenerateTextAsync(titlePrompt, maxTokens: 100);
-                    if (titleResponse.Success && !string.IsNullOrEmpty(titleResponse.Data))
+                    announcementTitle = (await GenerateAnnouncementTextAsync(titlePrompt, maxTokens: 100))
+                        .Replace("\"", "")
+                        .Replace("Title:", "", StringComparison.OrdinalIgnoreCase)
+                        .Trim();
+                    if (announcementTitle.Length > 80)
                     {
-                        announcementTitle = titleResponse.Data.Trim().Replace("\"", "").Replace("Title:", "").Trim();
-                        if (announcementTitle.Length > 80)
-                        {
-                            announcementTitle = announcementTitle.Substring(0, 77) + "...";
-                        }
+                        announcementTitle = announcementTitle.Substring(0, 77) + "...";
                     }
                 }
                 catch (Exception ex)
@@ -407,14 +558,13 @@ Title only (no quotes, no 'Title:' prefix):";
 
 Subject line only (no quotes, no 'Subject:' prefix):";
 
-                        var subjectResponse = await _openAIService.GenerateTextAsync(subjectPrompt, maxTokens: 100);
-                        if (subjectResponse.Success && !string.IsNullOrEmpty(subjectResponse.Data))
+                        emailSubject = (await GenerateAnnouncementTextAsync(subjectPrompt, maxTokens: 100))
+                            .Replace("\"", "")
+                            .Replace("Subject:", "", StringComparison.OrdinalIgnoreCase)
+                            .Trim();
+                        if (emailSubject.Length > 60)
                         {
-                            emailSubject = subjectResponse.Data.Trim().Replace("\"", "").Replace("Subject:", "").Trim();
-                            if (emailSubject.Length > 60)
-                            {
-                                emailSubject = emailSubject.Substring(0, 57) + "...";
-                            }
+                            emailSubject = emailSubject.Substring(0, 57) + "...";
                         }
                     }
                     catch (Exception ex)
@@ -1225,14 +1375,13 @@ Subject line only (no quotes, no 'Subject:' prefix):";
 
 Subject line only (no quotes, no 'Subject:' prefix):";
 
-                        var subjectResponse = await _openAIService.GenerateTextAsync(subjectPrompt, maxTokens: 100);
-                        if (subjectResponse.Success && !string.IsNullOrEmpty(subjectResponse.Data))
+                        emailSubject = (await GenerateAnnouncementTextAsync(subjectPrompt, maxTokens: 100))
+                            .Replace("\"", "")
+                            .Replace("Subject:", "", StringComparison.OrdinalIgnoreCase)
+                            .Trim();
+                        if (emailSubject.Length > 60)
                         {
-                            emailSubject = subjectResponse.Data.Trim().Replace("\"", "").Replace("Subject:", "").Trim();
-                            if (emailSubject.Length > 60)
-                            {
-                                emailSubject = emailSubject.Substring(0, 57) + "...";
-                            }
+                            emailSubject = emailSubject.Substring(0, 57) + "...";
                         }
                     }
                     catch (Exception ex)

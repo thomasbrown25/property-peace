@@ -38,6 +38,23 @@ const parseCurrencyToNumber = (value) => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
+const formatDueDate = (value) => {
+  if (!value) return null;
+
+  const dateOnlyMatch = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const date = dateOnlyMatch
+    ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
+    : new Date(value);
+
+  if (Number.isNaN(date.getTime())) return null;
+
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
+
 // ==============================|| PAYMENT ENTRY FORM ||============================== //
 
 export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChange, rentRecordOverride }) {
@@ -133,6 +150,7 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
   const amountDueNow = rentRecord?.amountDueNow ?? rentRecord?.AmountDueNow ?? 0;
   const overdue = rentRecord?.overdueAmount ?? rentRecord?.OverdueAmount ?? 0;
   const monthlyDue = Math.max(amountDueNow - overdue, 0);
+  const nextPaymentDueDate = formatDueDate(rentRecord?.dueDate ?? rentRecord?.DueDate);
   const totalDue = amountDueNow + unpaidDeposit + (unpaidFees?.reduce((sum, fee) => sum + (fee.amount || 0), 0) || 0);
   const paymentAmount = parseFloat(paymentData.amount) || 0;
   const isPartialPayment = paymentAmount > 0 && paymentAmount < totalDue;
@@ -260,6 +278,19 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
                 {formatCurrency(monthlyDue)}
               </Typography>
             </Stack>
+            {nextPaymentDueDate && (
+              <>
+                <Divider sx={{ my: 0.5 }} />
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Next Payment Due
+                  </Typography>
+                  <Typography variant="body1" fontWeight={600} color="text.primary">
+                    {nextPaymentDueDate}
+                  </Typography>
+                </Stack>
+              </>
+            )}
             <Divider sx={{ my: 0.5 }} />
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Stack direction="row" spacing={1} alignItems="center">

@@ -199,6 +199,13 @@ export default function Notification() {
             navigate(`${basePath}/property/${notification.relatedId}`);
           }
           break;
+        case 'support':
+          if (isAdmin) {
+            navigate(`/admin/messages?tab=support${notification.relatedId ? `&ticket=${notification.relatedId}` : ''}`);
+          } else {
+            navigate(`/landlord/support/ticket${notification.relatedId ? `?ticket=${notification.relatedId}` : ''}`);
+          }
+          break;
         default:
           // For unknown types, go to notifications page
           navigate(`${basePath}/notifications`);

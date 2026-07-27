@@ -391,7 +391,8 @@ namespace brownstone_hub_api.Services.TenantDocumentService
                         DocumentType = ETenantDocumentType.LeaseAgreement,
                         BlobName = lease.LeaseAgreement.SignedDocumentBlobName,
                         BlobUrl = sasUri,
-                        CreatedAt = lease.LeaseAgreement.SignatureCompletedAt ?? DateTime.UtcNow
+                        CreatedAt = lease.LeaseAgreement.SignatureCompletedAt ?? DateTime.UtcNow,
+                        LeaseId = leaseId
                     };
 
                     return new ServiceResponse<LoadTenantDocumentDto>

@@ -1095,41 +1095,36 @@ export default function LeasePage() {
     };
   }, [lease, rentRecord, leaseAgreement, property, tenants]);
 
-  // Check if lease is a draft (SignatureStatus === 0 means NotSent, or IsDrafted === true)
-  // Also consider a lease incomplete/draft if it's missing critical information
-  // MUST be called before any early returns (Rules of Hooks)
+  // A lease is a draft only when the persisted draft flag says so, or when
+  // required lease terms are genuinely missing. Signature state is a separate
+  // concern: a valid lease can exist without having been sent for signature.
   const isDraftLease = useMemo(() => {
     if (!lease) return false;
-    
-    // Check IsDrafted property first (explicit flag from database)
-    const isDrafted = lease.leaseAgreement?.isDrafted ?? lease.isDrafted ?? lease.IsDrafted ?? false;
+
+    const isDrafted =
+      lease.leaseAgreement?.isDrafted ??
+      lease.LeaseAgreement?.IsDrafted ??
+      lease.isDrafted ??
+      lease.IsDrafted ??
+      false;
     if (isDrafted === true || isDrafted === 1) return true;
 
-    // Check signature status (0 = NotSent means draft)
-    const signatureStatus = lease.leaseAgreement?.signatureStatus ?? lease.signatureStatus ?? lease.SignatureStatus;
-    if (signatureStatus === 0) return true;
-    
-    // Also consider draft if lease is missing critical information
-    // (e.g., no start date, no end date, or no rent amount)
-    const hasStartDate = !!(lease.startDate || lease.StartDate);
-    const hasEndDate = !!(lease.endDate || lease.EndDate);
-    const hasRentAmount = !!(lease.rentAmount || lease.RentAmount);
-    
-    // If missing critical fields and signature hasn't been sent, treat as draft
-    if (!hasStartDate || !hasEndDate || !hasRentAmount) {
-      // Only treat as draft if signature status is NotSent (0) or null/undefined
-      if (signatureStatus === 0 || signatureStatus === null || signatureStatus === undefined) {
-        return true;
-      }
-    }
-    
-    return false;
+    const hasStartDate = Boolean(lease.startDate ?? lease.StartDate);
+    const hasEndDate = Boolean(lease.endDate ?? lease.EndDate);
+    const rentAmount = Number(lease.rentAmount ?? lease.RentAmount ?? 0);
+    return !hasStartDate || !hasEndDate || rentAmount <= 0;
   }, [lease]);
 
   // Only mark draft complete (IsDrafted = false) when ALL "Finish Setting Up" steps are complete (e.g. all 4 steps).
   // Do not clear draft when only Set up rent payments (or 3 of 4) is complete.
   const allSetupStepsComplete = setupProgress.completed === setupProgress.total;
-  const isDraftedByFlag = lease?.leaseAgreement?.isDrafted === true || lease?.isDrafted === true || lease?.IsDrafted === true || lease?.isDrafted === 1 || lease?.IsDrafted === 1;
+  const isDraftedByFlag =
+    lease?.leaseAgreement?.isDrafted === true ||
+    lease?.LeaseAgreement?.IsDrafted === true ||
+    lease?.isDrafted === true ||
+    lease?.IsDrafted === true ||
+    lease?.isDrafted === 1 ||
+    lease?.IsDrafted === 1;
   const completedDraftForLeaseRef = useRef(null);
   useEffect(() => {
     if (!lease?.id || !isDraftedByFlag || !allSetupStepsComplete) return;
@@ -1703,7 +1698,8 @@ export default function LeasePage() {
         handleReopenLeaseClick={handleReopenLeaseClick}
         onRenew={() => { dispatch(setLease(lease)); drawer.openRenewLeaseDrawer(); }}
         onRecordPayment={() => drawer.openPaymentAddDrawer({ lease: { ...lease, tenants }, property, unit: lease?.unit || null, tenant: tenants[0] || null })}
-        onDocument={() => navigate(`/landlord/leases/${leaseId}`)}
+        onViewAgreement={handleViewLeaseAgreement}
+        onUploadDocument={() => navigate(`/landlord/leases/${leaseId}/upload-document`)}
         onEditTerms={() => { dispatch(setLease(lease)); drawer.openLeaseEditDrawer(); }}
         onAddTenant={() => {
           if (property) dispatch(setProperty(property));

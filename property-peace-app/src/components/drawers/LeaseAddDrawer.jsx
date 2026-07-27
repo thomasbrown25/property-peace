@@ -39,7 +39,6 @@ import { leaseLengthOptions, rentDueDayOptions, rentFrequencyOptions } from 'uti
 import { useSWRConfig } from 'swr';
 import { dashboardEndpoints } from 'api/dashbord';
 import { useDispatch, useSelector } from 'react-redux';
-import { addOrUpdateLease } from '../../store/lease/lease.action';
 
 // ---------- steps ----------
 const STEP_PROPERTY = 0;
@@ -285,7 +284,6 @@ export default function LeaseAddDrawer() {
         };
 
         const response = await axiosServices.post('/api/lease', payload);
-        await dispatch(addOrUpdateLease(payload));
         await mutate(dashboardEndpoints.summary(user.id));
         if (user?.id) await dispatch(getProperties());
 

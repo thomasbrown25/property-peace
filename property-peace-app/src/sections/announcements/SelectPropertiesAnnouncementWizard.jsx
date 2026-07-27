@@ -38,6 +38,7 @@ const steps = [
 export default function SelectPropertiesAnnouncementWizard({ onComplete, onCancel, initialData = null }) {
   const theme = useTheme();
   const [activeStep, setActiveStep] = useState(0);
+  const [recipientsReady, setRecipientsReady] = useState(false);
   
   // Initialize with existing data if editing
   const [selectedOrganizations, setSelectedOrganizations] = useState(
@@ -122,8 +123,8 @@ export default function SelectPropertiesAnnouncementWizard({ onComplete, onCance
         }
         return true; // "now" is always valid
       case 4:
-        // Step 5: Review step - always valid
-        return true;
+        // Step 5: Never send until the exact audience has been verified.
+        return recipientsReady;
       default:
         return true;
     }
@@ -186,6 +187,10 @@ export default function SelectPropertiesAnnouncementWizard({ onComplete, onCance
             message={message}
             scheduleType={scheduleType}
             scheduledDateTime={scheduledDateTime}
+            selectedOrganizations={selectedOrganizations}
+            selectedProperties={selectedProperties}
+            selectedUnits={selectedUnits}
+            onRecipientsReady={setRecipientsReady}
           />
         );
       default:

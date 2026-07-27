@@ -1,460 +1,483 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  alpha,
+  Avatar,
   Box,
-  Typography,
-  Grid,
-  Stack,
   Button,
-  CircularProgress,
-  Fade,
-  OutlinedInput,
-  InputAdornment,
-  Select,
-  MenuItem,
-  FormControl,
   Chip,
+  CircularProgress,
+  Divider,
+  Grid,
+  IconButton,
+  InputAdornment,
   LinearProgress,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  IconButton
+  Menu,
+  MenuItem,
+  OutlinedInput,
+  Pagination,
+  Select,
+  Stack,
+  Tooltip,
+  Typography,
+  useTheme
 } from '@mui/material';
-import { PlusOutlined, SearchOutlined, CloseOutlined, MoreOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons';
-import { alpha } from '@mui/system';
-
-import AnimateIn from 'components/AnimateIn';
-
-import ListingsHeader from 'sections/landlord/listings/ListingsHeader';
-import ListingsEmptyState from 'sections/landlord/listings/ListingsEmptyState';
-
+import {
+  CalendarOutlined,
+  CameraOutlined,
+  CheckCircleOutlined,
+  DownOutlined,
+  EditOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  WarningOutlined
+} from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+
+import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
+import { useDrawer } from 'contexts/DrawerContext';
 import { getListings } from 'store/listing/listing.action';
 import { selectListings, selectListingLoading } from 'store/listing/listing.selector';
-import { useDrawer } from 'contexts/DrawerContext';
-import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from 'utils/formatters';
-import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
+import placeholderImage from 'assets/images/placeholder-house.png';
 
-const PER_PAGE = 6;
+const PAGE_SIZE = 10;
 
-const darkAwareBorder = (theme, opacity = 0.14) =>
-  theme.palette.mode === 'dark' ? alpha('#cbd5e1', opacity) : 'rgba(0,0,0,0.09)';
-
-const sidebarHeaderColor = (theme) => (theme.palette.mode === 'dark' ? theme.palette.text.primary : alpha('#061e35', 0.58));
-
-const sectionCardSx = {
-  p: 2,
-  borderRadius: 2,
-  bgcolor: 'background.paper',
-  border: (t) => `1px solid ${darkAwareBorder(t)}`,
-  boxShadow: (t) => t.palette.mode === 'dark'
-    ? `0 0 0 1px ${alpha(t.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(t.palette.primary.main, 0.14)}`
-    : `0 2px 12px ${alpha(t.palette.primary.main, 0.08)}`
+const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
+const getId = (listing) => read(listing, 'id', 'Id');
+const getStatus = (listing) => {
+  const value = read(listing, 'status', 'Status');
+  if (typeof value === 'string') return value.toLowerCase();
+  return ({ 0: 'draft', 1: 'active', 2: 'expired', 3: 'unlisted' })[value] || 'draft';
 };
-
-const getStatusLabel = (status) => {
-  if (typeof status === 'string') return status;
-  const map = { 0: 'Draft', 1: 'Active', 2: 'Expired', 3: 'Unlisted' };
-  return map[status] ?? 'Draft';
-};
-
-const getListingTitle = (listing) => {
-  const propertyName = listing.propertyName || listing.PropertyName || 'Untitled listing';
-  const unitName = listing.unitName || listing.UnitName || '';
+const isActiveListing = (listing) => ['active', 'published'].includes(getStatus(listing));
+const getDisplayStatus = (listing) => isActiveListing(listing) ? 'Active' : 'Draft';
+const getTitle = (listing) => {
+  const propertyName = read(listing, 'propertyName', 'PropertyName') || 'Untitled listing';
+  const unitName = read(listing, 'unitName', 'UnitName');
   return unitName ? `${propertyName}, ${unitName}` : propertyName;
 };
-
-const getListingDate = (listing, fields) => {
-  const raw = fields.map((field) => listing?.[field]).find(Boolean);
-  return raw ? new Date(raw) : null;
+const getAddress = (listing) => read(listing, 'propertyAddress', 'PropertyAddress') || 'Address not added';
+const getRent = (listing) => Number(read(listing, 'monthlyRent', 'MonthlyRent') || 0);
+const getImages = (listing) => read(listing, 'images', 'Images') || [];
+const getDate = (listing, camel, pascal) => {
+  const value = read(listing, camel, pascal);
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
 };
-
-const hasListingPhoto = (listing) => {
-  const images = listing.images || listing.Images || [];
-  return Boolean((Array.isArray(images) && images.length > 0) || listing.coverImageUrl || listing.CoverImageUrl);
+const getAvailableDate = (listing) => getDate(listing, 'dateAvailable', 'DateAvailable') || getDate(listing, 'availableDate', 'AvailableDate');
+const getUpdatedDate = (listing) => getDate(listing, 'updatedAt', 'UpdatedAt') || getDate(listing, 'createdAt', 'CreatedAt');
+const hasPhoto = (listing) => getImages(listing).length > 0 || Boolean(read(listing, 'coverImageUrl', 'CoverImageUrl'));
+const isStale = (listing) => {
+  const updated = getUpdatedDate(listing);
+  return Boolean(updated && Date.now() - updated.getTime() >= 30 * 86400000);
 };
+const getReadinessIssues = (listing) => [
+  !hasPhoto(listing) && 'photos',
+  getRent(listing) <= 0 && 'rent',
+  isStale(listing) && 'stale'
+].filter(Boolean);
 
-const getListingAddress = (listing) => listing.propertyAddress || listing.PropertyAddress || listing.streetAddress || listing.StreetAddress || 'No address';
+function getImageUrl(listing) {
+  const images = getImages(listing);
+  const cover = images.find((image) => read(image, 'isCoverPhoto', 'IsCoverPhoto'));
+  return read(cover, 'blobUrl', 'BlobUrl') || read(images[0], 'blobUrl', 'BlobUrl') || read(listing, 'coverImageUrl', 'CoverImageUrl') || placeholderImage;
+}
 
-const getListingRent = (listing) => Number(listing.monthlyRent ?? listing.MonthlyRent ?? 0);
+function formatDate(date, options = { month: 'short', day: 'numeric', year: 'numeric' }) {
+  return date ? date.toLocaleDateString('en-US', options) : 'Not set';
+}
 
-const getListingAvailabilityDate = (listing) => getListingDate(listing, ['availableDate', 'AvailableDate', 'availabilityDate', 'AvailabilityDate', 'dateAvailable', 'DateAvailable', 'availableOn', 'AvailableOn']);
+function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
+  const theme = useTheme();
 
-const formatListingDate = (date, options = { month: 'short', day: 'numeric', year: 'numeric' }) => {
-  if (!date || Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString(undefined, options);
-};
-
-const getListingReadiness = (listing) => {
-  const issues = [];
-  if (!hasListingPhoto(listing)) issues.push('photos');
-  if (getListingRent(listing) <= 0) issues.push('rent');
-  const status = String(getStatusLabel(listing.status ?? listing.Status)).toLowerCase();
-  if (status === 'draft') issues.push('draft');
-  const updated = getListingDate(listing, ['updatedAt', 'UpdatedAt', 'createdAt', 'CreatedAt']);
-  if (updated && Math.floor((Date.now() - updated.getTime()) / 86400000) >= 30) issues.push('stale');
-  return issues;
-};
-
-
-function HealthMetric({ label, value, color = 'success.main', progress = 0, note, onClick }) {
   return (
     <Box
+      component="button"
+      type="button"
       onClick={onClick}
       sx={{
-        cursor: onClick ? 'pointer' : 'default',
-        borderRadius: 1.25,
-        p: onClick ? 0.75 : 0,
-        mx: onClick ? -0.75 : 0,
-        transition: 'background-color 0.15s ease',
-        '&:hover': onClick ? { bgcolor: (t) => alpha(t.palette.action.hover, t.palette.mode === 'dark' ? 0.5 : 0.7) } : undefined
+        width: '100%',
+        minHeight: 112,
+        p: 2,
+        borderRadius: 2.5,
+        border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`,
+        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.12 : 0.055) : 'background.paper',
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha('#061e35', 0.05)}`,
+        color: 'text.primary',
+        textAlign: 'left',
+        cursor: 'pointer',
+        font: 'inherit',
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
       }}
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.4 }}>
-        <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary', fontWeight: 500 }}>{label}</Typography>
-        <Typography sx={{ fontSize: '0.88rem', fontWeight: 700 }}>{value}</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+        <Box>
+          <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>
+            {label}
+          </Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
+        </Box>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
+      </Stack>
+    </Box>
+  );
+}
+
+function Readiness({ listing }) {
+  const theme = useTheme();
+  const issues = getReadinessIssues(listing);
+  const score = Math.round(((3 - issues.length) / 3) * 100);
+  const color = issues.length === 0 ? theme.palette.success.main : issues.length === 1 ? theme.palette.warning.main : theme.palette.error.main;
+
+  return (
+    <Box>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+        <Typography sx={{ fontSize: '0.76rem', fontWeight: 650, color }}>{issues.length ? `${issues.length} item${issues.length === 1 ? '' : 's'} to review` : 'Ready to market'}</Typography>
+        <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>{score}%</Typography>
       </Stack>
       <LinearProgress
         variant="determinate"
-        value={Math.min(100, Math.max(0, progress))}
-        sx={{ height: 5, borderRadius: 99, bgcolor: (t) => alpha(t.palette.text.primary, t.palette.mode === 'dark' ? 0.14 : 0.07), '& .MuiLinearProgress-bar': { borderRadius: 99, bgcolor: color } }}
+        value={score}
+        sx={{ mt: 0.65, height: 5, borderRadius: 8, bgcolor: alpha(theme.palette.divider, 0.12), '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: color } }}
       />
-      {note && <Typography sx={{ mt: 0.35, fontSize: '0.68rem', color, fontWeight: 700 }}>{note}</Typography>}
+      <Typography sx={{ mt: 0.5, fontSize: '0.68rem', color: 'text.secondary' }}>
+        {issues.length ? `Check ${issues.join(', ')}` : `${getImages(listing).length} photo${getImages(listing).length === 1 ? '' : 's'} · rent set`}
+      </Typography>
     </Box>
   );
 }
 
-function ListingHealthCard({ listings, onFilter }) {
-  const metrics = useMemo(() => {
-    const total = listings.length || 0;
-    const draft = listings.filter((listing) => String(getStatusLabel(listing.status ?? listing.Status)).toLowerCase() === 'draft').length;
-    const inactive = listings.filter((listing) => {
-      const status = String(getStatusLabel(listing.status ?? listing.Status)).toLowerCase();
-      return status === 'unlisted' || status === 'expired' || status === 'inactive';
-    }).length;
-    const missingPhotos = listings.filter((listing) => !hasListingPhoto(listing)).length;
-    const missingRent = listings.filter((listing) => Number(listing.monthlyRent ?? listing.MonthlyRent ?? 0) <= 0).length;
-    const stale = listings.filter((listing) => {
-      const updated = getListingDate(listing, ['updatedAt', 'UpdatedAt', 'createdAt', 'CreatedAt']);
-      if (!updated) return false;
-      return Math.floor((Date.now() - updated.getTime()) / 86400000) >= 30;
-    }).length;
-    const issues = missingPhotos + missingRent + draft + inactive + stale;
-    const health = total ? Math.max(0, Math.round(((total * 4 - issues) / (total * 4)) * 100)) : 100;
-    const level = health >= 85 ? 'healthy' : health >= 65 ? 'watch' : 'needs work';
-    const levelColor = level === 'healthy' ? 'success.main' : level === 'watch' ? 'warning.main' : 'error.main';
-    return { total, draft, inactive, missingPhotos, missingRent, stale, health, level, levelColor };
-  }, [listings]);
+function ListingRow({ listing, onOpen }) {
+  const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const title = getTitle(listing);
+  const rent = getRent(listing);
+  const available = getAvailableDate(listing);
+  const updated = getUpdatedDate(listing);
+  const active = isActiveListing(listing);
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpen(listing);
+    }
+  };
 
   return (
-    <Box sx={sectionCardSx}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-        <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.8, color: sidebarHeaderColor, textTransform: 'uppercase' }}>
-          Listing Health
-        </Typography>
-        <Typography sx={{ fontSize: '0.78rem', color: metrics.levelColor, fontWeight: 700 }}>• {metrics.level}</Typography>
+    <Box
+      role="link"
+      tabIndex={0}
+      onClick={() => onOpen(listing)}
+      onKeyDown={handleKeyDown}
+      sx={{
+        px: { xs: 1.5, md: 2 },
+        py: { xs: 1.5, md: 1.35 },
+        display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: 'minmax(245px, 1.8fr) minmax(105px, .7fr) minmax(90px, .65fr) minmax(125px, .85fr) minmax(160px, 1fr) 44px',
+        gap: { xs: 1.5, md: 2 },
+        alignItems: 'center',
+        cursor: 'pointer',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        transition: 'background-color 140ms ease',
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.028) },
+        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`, outlineOffset: -2 }
+      }}
+    >
+      <Stack direction="row" spacing={1.4} alignItems="center" minWidth={0}>
+        <Box component="img" src={getImageUrl(listing)} alt="" sx={{ width: 62, height: 58, borderRadius: 1.8, objectFit: 'cover', bgcolor: alpha(theme.palette.primary.main, 0.08), flexShrink: 0 }} />
+        <Box minWidth={0}>
+          <Typography fontWeight={700} noWrap>{title}</Typography>
+          <Typography noWrap sx={{ mt: 0.3, fontSize: '0.77rem', color: 'text.secondary' }}>{getAddress(listing)}</Typography>
+          <Typography sx={{ mt: 0.3, fontSize: '0.68rem', color: 'text.disabled' }}>
+            {read(listing, 'listingNumber', 'ListingNumber') ? `#${read(listing, 'listingNumber', 'ListingNumber')} · ` : ''}Updated {formatDate(updated, { month: 'short', day: 'numeric' })}
+          </Typography>
+        </Box>
       </Stack>
-      <Stack spacing={1.45}>
-        <HealthMetric label="Publish readiness" value={`${metrics.health}%`} progress={metrics.health} color={metrics.levelColor} note={metrics.total ? `${metrics.total} listing${metrics.total === 1 ? '' : 's'} reviewed` : 'No listings yet'} />
-        <HealthMetric label="Missing photos" value={metrics.missingPhotos} progress={metrics.total ? (metrics.missingPhotos / metrics.total) * 100 : 0} color={metrics.missingPhotos ? 'warning.main' : 'success.main'} note={metrics.missingPhotos ? 'add photos before publishing' : 'photos look good'} onClick={metrics.missingPhotos ? () => onFilter('missingPhotos') : undefined} />
-        <HealthMetric label="Missing rent" value={metrics.missingRent} progress={metrics.total ? (metrics.missingRent / metrics.total) * 100 : 0} color={metrics.missingRent ? 'error.main' : 'success.main'} note={metrics.missingRent ? 'rent needed for marketing' : 'rent is set'} onClick={metrics.missingRent ? () => onFilter('missingRent') : undefined} />
-        <HealthMetric label="Draft / inactive" value={metrics.draft + metrics.inactive} progress={metrics.total ? ((metrics.draft + metrics.inactive) / metrics.total) * 100 : 0} color={metrics.draft + metrics.inactive ? 'primary.main' : 'success.main'} note={metrics.draft + metrics.inactive ? 'review unpublished listings' : 'all visible listings ready'} onClick={metrics.draft ? () => onFilter('draft') : metrics.inactive ? () => onFilter('unlisted') : undefined} />
-        <HealthMetric label="Stale listings" value={metrics.stale} progress={metrics.total ? (metrics.stale / metrics.total) * 100 : 0} color={metrics.stale ? 'warning.main' : 'success.main'} note={metrics.stale ? '30+ days without updates' : 'recently maintained'} onClick={metrics.stale ? () => onFilter('stale') : undefined} />
-      </Stack>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.92rem', fontWeight: 750, color: rent > 0 ? 'text.primary' : 'text.disabled' }}>{rent > 0 ? formatCurrency(rent) : 'Not set'}</Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>per month</Typography>
+      </Box>
+
+      <Box>
+        <Chip
+          size="small"
+          label={getDisplayStatus(listing)}
+          color={active ? 'success' : 'warning'}
+          sx={{ height: 23, fontWeight: 700, '& .MuiChip-label': { px: 0.9 } }}
+        />
+      </Box>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{formatDate(available)}</Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{available && available <= new Date() ? 'Available now' : 'Availability'}</Typography>
+      </Box>
+
+      <Readiness listing={listing} />
+
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+        <Tooltip title="Listing actions">
+          <IconButton
+            size="small"
+            aria-label={`Actions for ${title}`}
+            onClick={(event) => { event.stopPropagation(); setAnchorEl(event.currentTarget); }}
+          >
+            <MoreOutlined />
+          </IconButton>
+        </Tooltip>
+        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+          <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); onOpen(listing); }}>
+            {active ? 'Open listing' : 'Continue draft'}
+          </MenuItem>
+        </Menu>
+      </Box>
     </Box>
   );
 }
-
-function UpcomingAvailabilityCard({ listings }) {
-  const upcomingItems = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return listings
-      .map((listing) => {
-        const date = getListingDate(listing, ['availableDate', 'AvailableDate', 'availabilityDate', 'AvailabilityDate', 'dateAvailable', 'DateAvailable', 'availableOn', 'AvailableOn']);
-        if (!date || Number.isNaN(date.getTime())) return null;
-        date.setHours(0, 0, 0, 0);
-        if (date < today) return null;
-        const status = getStatusLabel(listing.status ?? listing.Status);
-        return { date, title: getListingTitle(listing), subtitle: `${status} · available ${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.date - b.date)
-      .slice(0, 4);
-  }, [listings]);
-
-  return (
-    <Box sx={sectionCardSx}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-        <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.8, color: sidebarHeaderColor, textTransform: 'uppercase' }}>
-          Upcoming Availability
-        </Typography>
-      </Stack>
-      <Stack spacing={1.25}>
-        {upcomingItems.length ? upcomingItems.map((item, index) => (
-          <Stack key={`${item.title}-${index}`} direction="row" spacing={1.25} alignItems="center">
-            <Box sx={{ width: 58, py: 0.65, borderRadius: 1.5, bgcolor: (t) => alpha(t.palette.text.primary, t.palette.mode === 'dark' ? 0.08 : 0.04), border: (t) => `1px solid ${darkAwareBorder(t, 0.1)}`, textAlign: 'center', flexShrink: 0 }}>
-              <Typography sx={{ fontSize: '0.72rem', color: index === 0 ? 'success.main' : index === 1 ? 'primary.main' : 'warning.main', fontWeight: 800 }}>
-                {item.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()}
-              </Typography>
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontSize: '0.9rem', fontWeight: 700, lineHeight: 1.25 }} noWrap>{item.title}</Typography>
-              <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }} noWrap>{item.subtitle}</Typography>
-            </Box>
-          </Stack>
-        )) : (
-          <Typography variant="body2" color="text.secondary">No upcoming availability dates.</Typography>
-        )}
-      </Stack>
-    </Box>
-  );
-}
-
-
-function ListingsTableView({ listings, onOpenListing }) {
-  return (
-    <Box sx={{ ...sectionCardSx, p: 0, overflow: 'hidden' }}>
-      <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-        <Table size="small" sx={{ minWidth: 860 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>Listing</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>Rent</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>Available</TableCell>
-              <TableCell sx={{ fontWeight: 700, color: 'text.secondary', fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>Updated</TableCell>
-              <TableCell align="right" />
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {listings.map((listing) => {
-              const status = getStatusLabel(listing.status ?? listing.Status);
-              const statusKey = String(status).toLowerCase();
-              const availableDate = getListingAvailabilityDate(listing);
-              const updatedDate = getListingDate(listing, ['updatedAt', 'UpdatedAt', 'createdAt', 'CreatedAt']);
-              const rent = getListingRent(listing);
-              const statusLabel = statusKey === 'active' || statusKey === 'published' ? 'Active' : 'Draft';
-              const statusColor = statusLabel === 'Active' ? 'success' : 'warning';
-
-              return (
-                <TableRow key={listing.id || listing.Id} hover onClick={() => onOpenListing(listing)} sx={{ cursor: 'pointer', '&:last-child td': { borderBottom: 0 } }}>
-                  <TableCell sx={{ py: 1.35 }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" fontWeight={500} noWrap>{getListingTitle(listing)}</Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{getListingAddress(listing)}</Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ py: 1.35 }}>
-                    <Typography variant="body2" fontWeight={600} color={rent > 0 ? 'text.primary' : 'text.disabled'}>{rent > 0 ? formatCurrency(rent) : '—'}</Typography>
-                    <Typography variant="caption" color="text.secondary">monthly</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 1.35 }}>
-                    <Chip size="small" label={statusLabel} color={statusColor} sx={{ height: 22, fontWeight: 700, '& .MuiChip-label': { px: 0.8 } }} />
-                  </TableCell>
-                  <TableCell sx={{ py: 1.35 }}>
-                    <Typography variant="body2" fontWeight={500}>{formatListingDate(availableDate)}</Typography>
-                    <Typography variant="caption" color="text.secondary">availability</Typography>
-                  </TableCell>
-                  <TableCell sx={{ py: 1.35 }}>
-                    <Typography variant="body2" color="text.secondary">{formatListingDate(updatedDate, { month: 'short', day: 'numeric' })}</Typography>
-                  </TableCell>
-                  <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                    <IconButton size="small" onClick={() => onOpenListing(listing)}>
-                      <MoreOutlined />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
-  );
-}
-
-// ================================|| LANDLORD - LISTINGS ||================================ //
 
 export default function ListingsPage() {
+  const theme = useTheme();
   const dispatch = useDispatch();
   const drawer = useDrawer();
   const navigate = useNavigate();
-  const listings = useSelector(selectListings);
+  const listings = useSelector(selectListings) || [];
   const isLoading = useSelector(selectListingLoading);
 
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState(null);
-  const [sort, setSort] = useState('newest');
-  const [fadeIn, setFadeIn] = useState(false);
-
-  useEffect(() => {
-    setFadeIn(true);
-  }, []);
+  const [status, setStatus] = useState('all');
+  const [readiness, setReadiness] = useState('all');
+  const [availability, setAvailability] = useState('all');
+  const [sort, setSort] = useState('updated');
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     dispatch(getListings());
   }, [dispatch]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [availability, readiness, search, sort, status]);
+
+  const metrics = useMemo(() => {
+    const active = listings.filter(isActiveListing).length;
+    const drafts = listings.length - active;
+    const needsAttention = listings.filter((listing) => getReadinessIssues(listing).length > 0).length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const upcoming = listings.filter((listing) => {
+      const date = getAvailableDate(listing);
+      if (!date) return false;
+      const difference = Math.ceil((date.getTime() - today.getTime()) / 86400000);
+      return difference >= 0 && difference <= 60;
+    }).length;
+    return { active, drafts, needsAttention, upcoming };
+  }, [listings]);
+
   const filteredListings = useMemo(() => {
-    if (!listings || !Array.isArray(listings)) return [];
-    let list = [...listings];
-    if (activeFilter === 'published') {
-      list = list.filter((l) => {
-        const s = String(getStatusLabel(l.status ?? l.Status)).toLowerCase();
-        return s === 'active' || s === 'published' || s === '1';
-      });
-    } else if (activeFilter === 'draft') {
-      list = list.filter((l) => {
-        const s = String(getStatusLabel(l.status ?? l.Status)).toLowerCase();
-        return s === 'draft' || s === '0';
-      });
-    } else if (activeFilter === 'unlisted') {
-      list = list.filter((l) => {
-        const s = String(getStatusLabel(l.status ?? l.Status)).toLowerCase();
-        return s === 'unlisted' || s === 'expired' || s === 'inactive';
-      });
-    } else if (activeFilter === 'missingPhotos') {
-      list = list.filter((l) => !hasListingPhoto(l));
-    } else if (activeFilter === 'missingRent') {
-      list = list.filter((l) => Number(l.monthlyRent ?? l.MonthlyRent ?? 0) <= 0);
-    } else if (activeFilter === 'stale') {
-      list = list.filter((l) => {
-        const updated = getListingDate(l, ['updatedAt', 'UpdatedAt', 'createdAt', 'CreatedAt']);
-        return updated && Math.floor((Date.now() - updated.getTime()) / 86400000) >= 30;
-      });
-    }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((l) =>
-        (l.propertyName || l.PropertyName || '').toLowerCase().includes(q) ||
-        (l.propertyAddress || l.PropertyAddress || l.streetAddress || l.StreetAddress || '').toLowerCase().includes(q)
-      );
-    }
-    if (sort === 'newest') list.sort((a, b) => new Date(b.createdAt || b.CreatedAt || 0) - new Date(a.createdAt || a.CreatedAt || 0));
-    else if (sort === 'oldest') list.sort((a, b) => new Date(a.createdAt || a.CreatedAt || 0) - new Date(b.createdAt || b.CreatedAt || 0));
-    else if (sort === 'rent_asc') list.sort((a, b) => (a.monthlyRent || 0) - (b.monthlyRent || 0));
-    else if (sort === 'rent_desc') list.sort((a, b) => (b.monthlyRent || 0) - (a.monthlyRent || 0));
-    return list;
-  }, [listings, search, activeFilter, sort]);
+    const query = search.trim().toLowerCase();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  const count = Math.ceil(filteredListings.length / PER_PAGE);
-  const paginated = filteredListings.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+    const filtered = listings.filter((listing) => {
+      const searchable = [
+        getTitle(listing),
+        getAddress(listing),
+        read(listing, 'listingNumber', 'ListingNumber')
+      ].filter(Boolean).join(' ').toLowerCase();
+      const issues = getReadinessIssues(listing);
+      const available = getAvailableDate(listing);
 
-  const handleOpenListing = (listing) => {
-    const status = String(getStatusLabel(listing.status ?? listing.Status)).toLowerCase();
-    if (status === 'draft') {
+      if (query && !searchable.includes(query)) return false;
+      if (status === 'active' && !isActiveListing(listing)) return false;
+      if (status === 'draft' && isActiveListing(listing)) return false;
+      if (readiness === 'ready' && issues.length > 0) return false;
+      if (readiness === 'attention' && issues.length === 0) return false;
+      if (readiness === 'photos' && !issues.includes('photos')) return false;
+      if (readiness === 'rent' && !issues.includes('rent')) return false;
+      if (readiness === 'stale' && !issues.includes('stale')) return false;
+      if (availability === 'now' && (!available || available > today)) return false;
+      if (availability === 'upcoming') {
+        const difference = available ? Math.ceil((available.getTime() - today.getTime()) / 86400000) : -1;
+        if (difference < 0 || difference > 60) return false;
+      }
+      if (availability === 'unset' && available) return false;
+      return true;
+    });
+
+    return filtered.sort((a, b) => {
+      if (sort === 'rent-desc') return getRent(b) - getRent(a);
+      if (sort === 'rent-asc') return getRent(a) - getRent(b);
+      if (sort === 'availability') return (getAvailableDate(a)?.getTime() || Number.MAX_SAFE_INTEGER) - (getAvailableDate(b)?.getTime() || Number.MAX_SAFE_INTEGER);
+      if (sort === 'name') return getTitle(a).localeCompare(getTitle(b));
+      if (sort === 'readiness') return getReadinessIssues(b).length - getReadinessIssues(a).length;
+      return (getUpdatedDate(b)?.getTime() || 0) - (getUpdatedDate(a)?.getTime() || 0);
+    });
+  }, [availability, listings, readiness, search, sort, status]);
+
+  const pageCount = Math.ceil(filteredListings.length / PAGE_SIZE);
+  const paginatedListings = filteredListings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasFilters = search || status !== 'all' || readiness !== 'all' || availability !== 'all' || sort !== 'updated';
+
+  const clearFilters = () => {
+    setSearch('');
+    setStatus('all');
+    setReadiness('all');
+    setAvailability('all');
+    setSort('updated');
+  };
+
+  const openListing = (listing) => {
+    if (!isActiveListing(listing)) {
       drawer.openListingAddDrawer(listing);
       return;
     }
-    const id = listing.id || listing.Id;
-    if (id) navigate(`/landlord/listings/${id}`);
+    navigate(`/landlord/listings/${getId(listing)}`);
   };
 
   return (
-    <>
-    <Fade in={fadeIn} timeout={600}>
-      <Box sx={{ overflow: 'visible' }}>
-        <AnimateIn direction="bottom" delay={100} distance={120}>
-          <ListingsHeader />
-        </AnimateIn>
-
-        <Box>
-          <AnimateIn direction="bottom" delay={400} distance={120}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="space-between" sx={{ mt: 3, mb: 3 }}>
-              {/* Left: Search card + Sort + Active filter chip */}
-              <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" flex={1}>
-                <OutlinedInput
-                  size="small"
-                  placeholder="Search properties..."
-                  value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <SearchOutlined style={{ fontSize: 14, opacity: 0.5 }} />
-                    </InputAdornment>
-                  }
-                  sx={{ flex: 1, width: '100%', minWidth: 0, bgcolor: 'background.paper', height: 34, fontSize: '0.8rem' }}
-                />
-                <FormControl size="small" sx={{ minWidth: 140 }}>
-                  <Select value={sort} onChange={(e) => { setSort(e.target.value); setPage(1); }} sx={{ bgcolor: 'background.paper', height: 34, fontSize: '0.8rem' }}>
-                    <MenuItem value="newest">Newest First</MenuItem>
-                    <MenuItem value="oldest">Oldest First</MenuItem>
-                    <MenuItem value="rent_desc">Rent: High → Low</MenuItem>
-                    <MenuItem value="rent_asc">Rent: Low → High</MenuItem>
-                  </Select>
-                </FormControl>
-                {activeFilter && (
-                  <Chip
-                    label={activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}
-                    size="small"
-                    onDelete={() => { setActiveFilter(null); setPage(1); }}
-                    deleteIcon={<CloseOutlined style={{ fontSize: 11 }} />}
-                    color="primary"
-                    variant="outlined"
-                  />
-                )}
-              </Stack>
-              <Button
-                size="small"
-                variant="contained"
-                color="primary"
-                startIcon={<PlusOutlined style={{ fontSize: 13 }} />}
-                onClick={() => drawer.openListingAddDrawer()}
-                sx={{ borderRadius: 1.5, textTransform: 'none', flexShrink: 0, height: 34 }}
-              >
-                Add Listing
-              </Button>
-            </Stack>
-          </AnimateIn>
-
-          <AnimateIn direction="bottom" delay={500} distance={120}>
-            <Grid container spacing={2.5} alignItems="flex-start">
-              <Grid size={{ xs: 12, lg: 9 }}>
-                {isLoading ? (
-                  <Box textAlign="center" py={5}>
-                    <CircularProgress size={24} />
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                      Loading listings...
-                    </Typography>
-                  </Box>
-                ) : filteredListings.length === 0 ? (
-                  <ListingsEmptyState />
-                ) : (
-                  <>
-                    <ListingsTableView listings={paginated} onOpenListing={handleOpenListing} />
-                    {count > 1 && (
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 2, gap: 2 }}>
-                        <Typography variant="body2" color="text.secondary">Page {page} of {count}</Typography>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <Button size="small" variant="outlined" startIcon={<LeftOutlined />} onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} sx={{ minWidth: 100 }}>Previous</Button>
-                          <Button size="small" variant="outlined" endIcon={<RightOutlined />} onClick={() => setPage((p) => Math.min(count, p + 1))} disabled={page >= count} sx={{ minWidth: 100 }}>Next</Button>
-                        </Box>
-                      </Box>
-                    )}
-                  </>
-                )}
-              </Grid>
-
-              <Grid size={{ xs: 12, lg: 3 }}>
-                <Stack spacing={2} sx={{ position: { lg: 'sticky' }, top: { lg: 88 } }}>
-                  <ListingHealthCard listings={listings || []} onFilter={(filter) => { setActiveFilter(filter); setPage(1); }} />
-                  <UpcomingAvailabilityCard listings={listings || []} />
-                </Stack>
-              </Grid>
-            </Grid>
-          </AnimateIn>
-        </Box>
+    <Box sx={{ pb: 3 }}>
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Listings' }]} />
       </Box>
-    </Fade>
 
-    <ListingAddWorkflowDrawer />
-    </>
+      <Box
+        sx={{
+          mb: 2.5,
+          p: { xs: 2, md: 2.75 },
+          borderRadius: 3,
+          color: '#fff',
+          background: 'linear-gradient(120deg, #061e35 0%, #0b3558 100%)',
+          boxShadow: `0 16px 38px ${alpha('#061e35', 0.18)}`
+        }}
+      >
+        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
+          <Box>
+            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Listings</Typography>
+            <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>
+              Prepare, publish, and monitor every rental listing from one focused workspace.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<PlusOutlined />}
+            onClick={() => drawer.openListingAddDrawer()}
+            sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', alignSelf: { xs: 'flex-start', md: 'center' } }}
+          >
+            Add listing
+          </Button>
+        </Stack>
+      </Box>
+
+      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard label="Active listings" value={metrics.active} helper="Currently marketed" icon={<CheckCircleOutlined />} color={theme.palette.success.main} active={status === 'active'} onClick={() => setStatus((value) => value === 'active' ? 'all' : 'active')} />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard label="Drafts" value={metrics.drafts} helper="Continue preparing" icon={<EditOutlined />} color={theme.palette.warning.main} active={status === 'draft'} onClick={() => setStatus((value) => value === 'draft' ? 'all' : 'draft')} />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard label="Needs attention" value={metrics.needsAttention} helper="Photos, rent, or stale content" icon={<WarningOutlined />} color={theme.palette.error.main} active={readiness === 'attention'} onClick={() => setReadiness((value) => value === 'attention' ? 'all' : 'attention')} />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard label="Available soon" value={metrics.upcoming} helper="Within the next 60 days" icon={<CalendarOutlined />} color={theme.palette.primary.main} active={availability === 'upcoming'} onClick={() => setAvailability((value) => value === 'upcoming' ? 'all' : 'upcoming')} />
+        </Grid>
+      </Grid>
+
+      <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>
+        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
+            <OutlinedInput
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search listings, addresses, units, or listing numbers"
+              size="small"
+              startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+              sx={{ flex: 1, minWidth: { md: 260 }, borderRadius: 1.75 }}
+            />
+            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, md: 0 } }}>
+              <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 126, borderRadius: 1.75 }}>
+                <MenuItem value="all">All status</MenuItem>
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="draft">Draft</MenuItem>
+              </Select>
+              <Select size="small" value={readiness} onChange={(event) => setReadiness(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 160, borderRadius: 1.75 }}>
+                <MenuItem value="all">All readiness</MenuItem>
+                <MenuItem value="ready">Ready to market</MenuItem>
+                <MenuItem value="attention">Needs attention</MenuItem>
+                <MenuItem value="photos">Missing photos</MenuItem>
+                <MenuItem value="rent">Missing rent</MenuItem>
+                <MenuItem value="stale">Stale content</MenuItem>
+              </Select>
+              <Select size="small" value={availability} onChange={(event) => setAvailability(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 156, borderRadius: 1.75 }}>
+                <MenuItem value="all">All availability</MenuItem>
+                <MenuItem value="now">Available now</MenuItem>
+                <MenuItem value="upcoming">Next 60 days</MenuItem>
+                <MenuItem value="unset">Date not set</MenuItem>
+              </Select>
+              <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 158, borderRadius: 1.75 }}>
+                <MenuItem value="updated">Sort: Recently updated</MenuItem>
+                <MenuItem value="readiness">Sort: Needs attention</MenuItem>
+                <MenuItem value="availability">Sort: Availability</MenuItem>
+                <MenuItem value="rent-desc">Sort: Rent high</MenuItem>
+                <MenuItem value="rent-asc">Sort: Rent low</MenuItem>
+                <MenuItem value="name">Sort: Name</MenuItem>
+              </Select>
+            </Stack>
+          </Stack>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>{filteredListings.length} of {listings.length} listings</Typography>
+            {hasFilters && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
+          </Stack>
+        </Box>
+
+        <Divider />
+
+        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(245px, 1.8fr) minmax(105px, .7fr) minmax(90px, .65fr) minmax(125px, .85fr) minmax(160px, 1fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+          {['Listing', 'Rent', 'Status', 'Available', 'Marketing readiness', ''].map((label) => (
+            <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          ))}
+        </Box>
+
+        {isLoading ? (
+          <Stack alignItems="center" spacing={1} sx={{ py: 7 }}>
+            <CircularProgress size={26} />
+            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading listings…</Typography>
+          </Stack>
+        ) : listings.length === 0 ? (
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}><CameraOutlined /></Avatar>
+            <Typography variant="h5" fontWeight={700}>Create your first listing</Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>Add the rent, availability, photos, and marketing details tenants need to discover your property.</Typography>
+            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openListingAddDrawer()} sx={{ textTransform: 'none', fontWeight: 700 }}>Add listing</Button>
+          </Stack>
+        ) : filteredListings.length === 0 ? (
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Typography variant="h6" fontWeight={700}>No listings match this view</Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>Try a different search or reset the listing filters.</Typography>
+            <Button variant="outlined" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset filters</Button>
+          </Stack>
+        ) : (
+          paginatedListings.map((listing) => <ListingRow key={getId(listing)} listing={listing} onOpen={openListing} />)
+        )}
+
+        {pageCount > 1 && (
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredListings.length)} of {filteredListings.length}
+            </Typography>
+            <Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
+          </Stack>
+        )}
+      </Box>
+
+      <ListingAddWorkflowDrawer />
+    </Box>
   );
 }
-
-

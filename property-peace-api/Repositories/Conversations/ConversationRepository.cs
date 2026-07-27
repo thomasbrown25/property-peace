@@ -24,7 +24,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                 // per lease/property/new-message click. Reuse an existing active direct
                 // conversation when the same tenant user/participant is already connected
                 // to this landlord.
-                if (!conversation.IsGroupChat)
+                if (!conversation.IsGroupChat && !conversation.ForceNewConversation)
                 {
                     var existingConversation = await FindExistingDirectConversationAsync(conversation, landlordId, organizationId);
                     if (existingConversation != null)
@@ -137,7 +137,8 @@ namespace brownstone_hub_api.Repositories.Conversations
             IQueryable<Conversation> query = _context.Conversations
                 .Include(c => c.Tenant)
                 .Include(c => c.Participants)
-                .Where(c => !c.IsGroupChat && c.LandlordId == landlordId);
+                .Where(c => !c.IsGroupChat && c.LandlordId == landlordId &&
+                    !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
             if (organizationId.HasValue)
             {
@@ -174,7 +175,8 @@ namespace brownstone_hub_api.Repositories.Conversations
             IQueryable<Conversation> query = _context.Conversations
                 .Include(c => c.Tenant)
                 .Include(c => c.Participants)
-                .Where(c => !c.IsGroupChat && c.LandlordId == landlordId);
+                .Where(c => !c.IsGroupChat && c.LandlordId == landlordId &&
+                    !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
             if (organizationId.HasValue)
             {
@@ -361,7 +363,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
-                    .Where(c => c.LandlordId == landlordId);
+                    .Where(c => c.LandlordId == landlordId &&
+                        !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
                 if (!includeArchived)
                 {
@@ -469,7 +472,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
-                    .Where(c => c.OrganizationId == organizationId);
+                    .Where(c => c.OrganizationId == organizationId &&
+                        !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
                 if (!includeArchived)
                 {
@@ -586,7 +590,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
-                    .Where(c => c.Participants.Any(p => p.UserId == userId && !p.IsDeleted));
+                    .Where(c => c.Participants.Any(p => p.UserId == userId && !p.IsDeleted) &&
+                        !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
                 if (!includeArchived)
                 {
@@ -952,7 +957,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants).ThenInclude(p => p.User)
-                    .Where(c => c.TenantId == tenant.Id || c.Participants.Any(p => p.UserId == tenantUserId && !p.IsDeleted));
+                    .Where(c => (c.TenantId == tenant.Id || c.Participants.Any(p => p.UserId == tenantUserId && !p.IsDeleted)) &&
+                        !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
                 if (!includeArchived)
                     query = query.Where(c => !c.IsArchived);
@@ -1407,6 +1413,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Where(c => c.OrganizationId == organizationId 
                         && !c.IsArchived 
                         && c.HasUrgentItems 
+                        && !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id)
                         && !string.IsNullOrEmpty(c.UrgentItemsJson))
                     .ToListAsync();
 

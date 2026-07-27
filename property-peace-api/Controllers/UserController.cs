@@ -550,8 +550,10 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
             if (!response.Success)
             {
-                return Unauthorized(response);
+                return BadRequest(response);
             }
+
+            ClearRefreshTokenCookie();
             return Ok(response);
         }
 

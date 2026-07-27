@@ -10,7 +10,6 @@ import {
   FormOutlined,
   ArrowUpOutlined,
   NotificationOutlined,
-  CustomerServiceOutlined,
   FallOutlined,
   SafetyCertificateOutlined,
   ShopOutlined,
@@ -32,7 +31,6 @@ const icons = {
   FormOutlined,
   ArrowUpOutlined,
   NotificationOutlined,
-  CustomerServiceOutlined,
   FallOutlined,
   SafetyCertificateOutlined,
   ShopOutlined,
@@ -204,21 +202,6 @@ const pages = [
         url: '/landlord/lease-shield',
         icon: icons.SafetyCertificateOutlined
       }
-    ]
-  },
-  // RESOURCES section
-  {
-    id: 'group-resources',
-    type: 'group',
-    title: 'RESOURCES',
-    children: [
-      {
-        id: 'help-support',
-        title: 'Help & Support',
-        type: 'item',
-        url: '/landlord/support/ticket',
-        icon: icons.CustomerServiceOutlined
-      },
     ]
   }
 ];

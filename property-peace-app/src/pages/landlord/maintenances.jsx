@@ -1,1877 +1,631 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
-import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  alpha,
+  Avatar,
   Box,
-  Typography,
-  Stack,
   Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Chip,
-  IconButton as MuiIconButton,
-  Tooltip,
-  OutlinedInput,
-  InputAdornment,
   CircularProgress,
+  FormControl,
+  Grid,
+  IconButton,
+  InputAdornment,
   Menu,
   MenuItem,
-  MenuList,
-  ListItemText,
-  Fade,
-  alpha,
-  useTheme,
-  useMediaQuery,
-  Grid,
+  OutlinedInput,
+  Pagination,
   Select,
-  FormControl,
-  Divider,
-  Avatar
+  Stack,
+  Tooltip,
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
-import MainCard from 'components/MainCard';
-import FilterDeleteIcon from 'components/FilterDeleteIcon';
-import AnimateIn from 'components/AnimateIn';
 import {
-  HomeOutlined,
-  EditOutlined,
+  AppstoreOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   DeleteOutlined,
+  EditOutlined,
+  ExclamationCircleOutlined,
   EyeOutlined,
-  SearchOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
+  MoreOutlined,
   PlusOutlined,
-  ToolOutlined,
-  CalendarOutlined,
-  LeftOutlined,
-  RightOutlined,
-  FilterOutlined,
-  UserOutlined,
-  TeamOutlined,
   RobotOutlined,
-  PauseOutlined,
-  PlaySquareOutlined,
+  SearchOutlined,
   SettingOutlined,
   ShopOutlined,
-  MoreOutlined
+  ToolOutlined,
+  UnorderedListOutlined,
+  UserOutlined
 } from '@ant-design/icons';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { formatDateAndTime } from 'utils/formatters';
-import { openSnackbar } from 'api/snackbar';
-import useFetchMaintenances from 'hooks/useFetchMaintenances';
-import { selectMaintenanceRequests } from 'store/maintenance/maintenance.selector';
-import { selectHistoryMaintenances } from 'store/maintenance/maintenance.selector';
-import { selectMaintenanceLoading } from 'store/maintenance/maintenance.selector';
-import { setProperty } from 'store/property/property.action';
-import { deleteMaintenance, updateMaintenance, reopenMaintenanceRequest } from 'store/maintenance/maintenance.action';
-import { useDrawer } from 'contexts/DrawerContext';
+import { DndContext, DragOverlay, closestCenter, pointerWithin, useDraggable, useDroppable } from '@dnd-kit/core';
+
+import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import MaintenanceEditDrawer from 'components/drawers/MaintenanceEditDrawer';
 import VendorAssignDrawer from 'components/drawers/VendorAssignDrawer';
-import { selectProperty, selectProperties } from 'store/property/property.selector';
+import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import { useDrawer } from 'contexts/DrawerContext';
+import { openSnackbar } from 'api/snackbar';
+import useFetchMaintenances from 'hooks/useFetchMaintenances';
 import useFetchProperties from 'hooks/useFetchProperties';
-import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
-import MaintenanceCard from 'components/cards/MaintenanceCard';
-import IconButton from 'components/@extended/IconButton';
-import { DndContext, DragOverlay, useDraggable, useDroppable, closestCenter, pointerWithin } from '@dnd-kit/core';
+import {
+  deleteMaintenance,
+  reopenMaintenanceRequest,
+  resolveMaintenanceRequest,
+  updateMaintenance
+} from 'store/maintenance/maintenance.action';
+import {
+  selectHistoryMaintenances,
+  selectMaintenanceLoading,
+  selectMaintenanceRequests
+} from 'store/maintenance/maintenance.selector';
+import { setProperty } from 'store/property/property.action';
+import { selectProperties, selectProperty } from 'store/property/property.selector';
 
-// ─── Board column config ──────────────────────────────────────────────────────
+const NAVY = '#061e35';
+const PAGE_SIZE = 10;
+const ACTIVE_STATUSES = ['reported', 'acknowledged', 'scheduled', 'inprogress'];
 const BOARD_COLUMNS = [
-  { key: 'reported',     label: 'Reported',     color: 'error' },
-  { key: 'acknowledged', label: 'Acknowledged', color: 'warning' },
-  { key: 'scheduled',    label: 'Scheduled',    color: 'info' },
-  { key: 'inprogress',   label: 'In Progress',  color: 'warning' },
-  { key: 'resolved',     label: 'Resolved',     color: 'success' },
+  { key: 'reported', label: 'Reported', color: '#dc2626' },
+  { key: 'acknowledged', label: 'Acknowledged', color: '#d97706' },
+  { key: 'scheduled', label: 'Scheduled', color: '#2563eb' },
+  { key: 'inprogress', label: 'In progress', color: '#7c3aed' },
+  { key: 'resolved', label: 'Resolved', color: '#16a34a' }
 ];
+const STATUS_OPTIONS = BOARD_COLUMNS.map(({ key, label }) => ({ key, label }));
+const PRIORITY_OPTIONS = ['high', 'medium', 'low'];
 
-const COLUMN_BG = {
-  reported:     (t) => alpha(t.palette.info.main, 0.04),
-  acknowledged: (t) => alpha(t.palette.info.main, 0.04),
-  scheduled:    (t) => alpha(t.palette.info.main, 0.04),
-  inprogress:   (t) => alpha(t.palette.info.main, 0.04),
-  resolved:     (t) => alpha(t.palette.info.main, 0.04),
-};
+const normalizeToken = (value) => String(value ?? '').trim().toLowerCase().replace(/[-_\s]/g, '');
 
-const COLUMN_BORDER_COLOR = {
-  reported:     (t) => alpha(t.palette.info.main, 0.25),
-  acknowledged: (t) => alpha(t.palette.info.main, 0.25),
-  scheduled:    (t) => alpha(t.palette.info.main, 0.25),
-  inprogress:   (t) => alpha(t.palette.info.main, 0.25),
-  resolved:     (t) => alpha(t.palette.info.main, 0.25),
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const normalizeStatus = (s) => (s || '').toString().toLowerCase().replace(/[-_ ]/g, '');
-
-const statusToColumn = (status) => {
-  const n = normalizeStatus(status);
-  if (n === 'reported' || n === 'open' || n === 'notstarted') return 'reported';
-  if (n === 'acknowledged' || n === 'triaged' || n === 'pending') return 'acknowledged';
-  if (n === 'scheduled') return 'scheduled';
-  if (n === 'inprogress') return 'inprogress';
-  if (n === 'resolved' || n === 'completed' || n === 'cancelled' || n === 'closed') return 'resolved';
+function normalizeStatus(value) {
+  const status = normalizeToken(value);
+  if (['reported', 'open', 'notstarted'].includes(status)) return 'reported';
+  if (['acknowledged', 'triaged', 'pending', 'onhold'].includes(status)) return 'acknowledged';
+  if (status === 'scheduled') return 'scheduled';
+  if (status === 'inprogress') return 'inprogress';
+  if (['resolved', 'completed', 'closed', 'cancelled', 'canceled'].includes(status)) return 'resolved';
   return 'reported';
-};
+}
 
-const getDaysAgo = (dateStr) => {
-  if (!dateStr) return null;
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return 'today';
-  if (days === 1) return '1d ago';
-  return `${days}d ago`;
-};
+function getCategory(request) {
+  const category = request?.category;
+  if (typeof category === 'string') return category;
+  return category?.name || category?.value || category?.Value || 'General repair';
+}
 
-const PRIORITY_COLOR = { high: 'error', medium: 'warning', low: 'success' };
-const BOARD_VISIBLE_CARD_LIMIT = 4;
-const BOARD_REVEAL_INCREMENT = 5;
-const BOARD_PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+function titleCase(value) {
+  return String(value || '').replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
-const getBoardPriorityRank = (priority) => BOARD_PRIORITY_ORDER[(priority || '').toString().toLowerCase()] ?? 999;
+function getAssignment(request) {
+  const memberAssigned = Number(request?.assignedToType) === 4 || Boolean(request?.assignedToUserId);
+  if (memberAssigned && request?.assignedContactName) return { name: request.assignedContactName, type: 'Team member' };
+  if (request?.vendorName) return { name: request.vendorName, type: 'Vendor' };
+  if (request?.assignedContactName) return { name: request.assignedContactName, type: 'Assigned' };
+  return null;
+}
 
-const getCreatedTime = (request) => {
-  if (!request?.createdAt) return 0;
-  const time = new Date(request.createdAt).getTime();
-  return Number.isNaN(time) ? 0 : time;
-};
+function getPropertyLabel(request, properties) {
+  const property = properties?.find((item) => Number(item.id) === Number(request?.propertyId));
+  const propertyName = property?.name?.trim() || property?.streetAddress?.trim() || request?.propertyName || 'Property not set';
+  return request?.unitName ? `${propertyName} · ${request.unitName}` : propertyName;
+}
 
-const sortBoardCards = (cards) => [...cards].sort((a, b) => {
-  const priorityComparison = getBoardPriorityRank(a.priority) - getBoardPriorityRank(b.priority);
-  if (priorityComparison !== 0) return priorityComparison;
+function getAge(value) {
+  if (!value) return 'Date not set';
+  const created = new Date(value);
+  if (Number.isNaN(created.getTime())) return 'Date not set';
+  const days = Math.max(0, Math.floor((Date.now() - created.getTime()) / 86400000));
+  if (days === 0) return 'Reported today';
+  if (days === 1) return 'Reported 1 day ago';
+  return `Reported ${days} days ago`;
+}
 
-  const createdComparison = getCreatedTime(b) - getCreatedTime(a);
-  if (createdComparison !== 0) return createdComparison;
+function formatDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
-  return (b.id || 0) - (a.id || 0);
-});
+function statusPresentation(status) {
+  const normalized = normalizeStatus(status);
+  return BOARD_COLUMNS.find((column) => column.key === normalized) || BOARD_COLUMNS[0];
+}
 
-// Modifier: keeps the DragOverlay centered under the cursor
-const snapCenterToCursor = ({ activatorEvent, draggingNodeRect, transform }) => {
-  if (draggingNodeRect && activatorEvent) {
-    const offsetX = activatorEvent.clientX - (draggingNodeRect.left + draggingNodeRect.width / 2);
-    const offsetY = activatorEvent.clientY - (draggingNodeRect.top + draggingNodeRect.height / 2);
-    return { ...transform, x: transform.x + offsetX, y: transform.y + offsetY };
-  }
-  return transform;
-};
+function priorityColor(priority, theme) {
+  const normalized = normalizeToken(priority);
+  if (normalized === 'high') return theme.palette.error.main;
+  if (normalized === 'medium') return theme.palette.warning.main;
+  return theme.palette.success.main;
+}
 
-// ─── Draggable card ───────────────────────────────────────────────────────────
-function CardContent({ request, properties, onCardClick, onMoveClick, theme, isOverlay = false }) {
-  const prop = properties?.find((p) => p.id === request.propertyId);
-  const propName = prop?.name?.trim() || prop?.streetAddress?.trim() || request.propertyName || '—';
-  const priority = (request.priority || '').toLowerCase();
-  const age = getDaysAgo(request.createdAt);
-  const isResolved = statusToColumn(request.status) === 'resolved';
-
+function StatusChip({ status }) {
+  const theme = useTheme();
+  const view = statusPresentation(status);
   return (
-    <>
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 0.5 }}>
-        {isResolved ? (
-          <Chip
-            label="COMPLETED"
-            size="small"
-            sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, borderRadius: 1, px: 0.5, '& .MuiChip-label': { px: 0.5 }, bgcolor: alpha(theme.palette.success.main, 0.12), color: 'success.main' }}
-          />
-        ) : (
-          <Chip
-            label={(priority || 'low').toUpperCase()}
-            color={PRIORITY_COLOR[priority] || 'default'}
-            size="small"
-            sx={{ height: 18, fontSize: '0.6rem', fontWeight: 700, borderRadius: 1, px: 0.5, '& .MuiChip-label': { px: 0.5 } }}
-          />
-        )}
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <Typography variant="caption" color="text.disabled">{age}</Typography>
-          {!isOverlay && onMoveClick && (
-            <Tooltip title="Move to status">
-              <MuiIconButton
-                size="small"
-                aria-label={`Move ${request.orderNumber || request.title || 'maintenance request'} to another status`}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMoveClick(e, request);
-                }}
-                sx={{ width: 24, height: 24, ml: 0.25 }}
-              >
-                <MoreOutlined style={{ fontSize: 14 }} />
-              </MuiIconButton>
-            </Tooltip>
-          )}
-        </Stack>
+    <Chip
+      label={view.label}
+      size="small"
+      sx={{ height: 23, fontWeight: 700, fontSize: '0.68rem', bgcolor: alpha(view.color, 0.1), color: view.color, border: `1px solid ${alpha(view.color, 0.22)}` }}
+    />
+  );
+}
+
+function PriorityChip({ priority }) {
+  const theme = useTheme();
+  const color = priorityColor(priority, theme);
+  return (
+    <Chip
+      label={titleCase(priority || 'Low')}
+      size="small"
+      sx={{ height: 23, fontWeight: 700, fontSize: '0.68rem', bgcolor: alpha(color, 0.1), color, border: `1px solid ${alpha(color, 0.22)}` }}
+    />
+  );
+}
+
+function MetricCard({ label, value, helper, icon, color, active, onClick }) {
+  const theme = useTheme();
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        width: '100%', minHeight: 112, p: 2, borderRadius: 2.5, font: 'inherit', color: 'text.primary', textAlign: 'left', cursor: 'pointer',
+        border: `1px solid ${active ? alpha(color, 0.5) : alpha(theme.palette.divider, 0.16)}`,
+        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.14 : 0.055) : 'background.paper',
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`,
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.4), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.25)}`, outlineOffset: 2 }
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" spacing={1.5}>
+        <Box minWidth={0}>
+          <Typography sx={{ fontSize: '0.72rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          <Typography sx={{ mt: 0.5, fontSize: '1.5rem', lineHeight: 1.15, fontWeight: 800 }}>{value}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
+        </Box>
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
       </Stack>
+    </Box>
+  );
+}
 
-      {request.orderNumber && (
-        <Typography
-          variant="caption"
-          color="primary.main"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); if (!isOverlay) onCardClick(request.id); }}
-          sx={{ display: 'block', fontWeight: 600, mb: 0.25, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-        >
-          {request.orderNumber}
-        </Typography>
-      )}
+function ViewToggle({ value, onChange }) {
+  return (
+    <Stack direction="row" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 0.35, bgcolor: 'background.paper' }}>
+      <Button size="small" variant={value === 'list' ? 'contained' : 'text'} startIcon={<UnorderedListOutlined />} onClick={() => onChange('list')} sx={{ minWidth: 86, textTransform: 'none', borderRadius: 1.5 }}>List</Button>
+      <Button size="small" variant={value === 'board' ? 'contained' : 'text'} startIcon={<AppstoreOutlined />} onClick={() => onChange('board')} sx={{ minWidth: 90, textTransform: 'none', borderRadius: 1.5 }}>Board</Button>
+    </Stack>
+  );
+}
 
-      <Typography
-        variant="subtitle2"
-        fontWeight={600}
-        sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', mb: 0.5, lineHeight: 1.3 }}
-      >
-        {request.title || 'Untitled'}
-      </Typography>
+function MaintenanceRow({ request, properties, onOpen, onActions }) {
+  const theme = useTheme();
+  const assignment = getAssignment(request);
+  const scheduled = formatDate(request.scheduledDate);
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={() => onOpen(request)}
+      sx={{
+        width: '100%', px: { xs: 1.5, md: 2 }, py: { xs: 1.55, md: 1.35 }, border: 0, bgcolor: 'transparent', color: 'text.primary', textAlign: 'left', font: 'inherit', cursor: 'pointer',
+        display: { xs: 'block', md: 'grid' }, gridTemplateColumns: 'minmax(250px, 1.35fr) minmax(190px, 1fr) minmax(145px, .72fr) minmax(150px, .78fr) 44px',
+        gap: { xs: 1.15, md: 2 }, alignItems: 'center', borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.07 : 0.025) },
+        '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`, outlineOffset: -2 }
+      }}
+    >
+      <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}>
+        <Avatar sx={{ width: 39, height: 39, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><ToolOutlined /></Avatar>
+        <Box minWidth={0}>
+          <Stack direction="row" spacing={0.75} alignItems="center">
+            <Typography sx={{ fontSize: '0.69rem', fontWeight: 750, color: 'primary.main' }}>{request.orderNumber || `MR-${request.id}`}</Typography>
+            <Typography sx={{ fontSize: '0.68rem', color: 'text.disabled' }}>· {titleCase(getCategory(request))}</Typography>
+          </Stack>
+          <Typography fontWeight={720} noWrap>{request.title || 'Untitled maintenance request'}</Typography>
+        </Box>
+      </Stack>
+      <Box minWidth={0}>
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 650 }} noWrap>{getPropertyLabel(request, properties)}</Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>{getAge(request.createdAt)}</Typography>
+      </Box>
+      <Stack direction="row" spacing={0.65} flexWrap="wrap" useFlexGap><PriorityChip priority={request.priority} /><StatusChip status={request.status} /></Stack>
+      <Box minWidth={0}>
+        {assignment ? (
+          <Stack direction="row" spacing={0.8} alignItems="center">
+            <Avatar sx={{ width: 25, height: 25, fontSize: '0.7rem', bgcolor: alpha(theme.palette.info.main, 0.12), color: 'info.main' }}>{assignment.name[0]?.toUpperCase()}</Avatar>
+            <Box minWidth={0}><Typography sx={{ fontSize: '0.78rem', fontWeight: 650 }} noWrap>{assignment.name}</Typography><Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>{assignment.type}</Typography></Box>
+          </Stack>
+        ) : <Typography sx={{ fontSize: '0.76rem', fontWeight: 650, color: 'warning.dark' }}>Unassigned</Typography>}
+        {scheduled && <Typography sx={{ mt: 0.3, fontSize: '0.68rem', color: 'text.secondary' }}>Scheduled {scheduled}</Typography>}
+      </Box>
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+        <Tooltip title="Request actions"><IconButton size="small" aria-label={`Actions for ${request.title || 'maintenance request'}`} onClick={(event) => { event.stopPropagation(); onActions(event, request); }}><MoreOutlined /></IconButton></Tooltip>
+      </Box>
+    </Box>
+  );
+}
 
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-        {propName}
-      </Typography>
-
-      {(request.vendorName || request.assignedContactName) && (
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <Avatar sx={{ width: 18, height: 18, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.15), color: 'primary.main' }}>
-            {(request.vendorName || request.assignedContactName || '?')[0].toUpperCase()}
-          </Avatar>
-          <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 120 }}>
-            {request.vendorName || request.assignedContactName}
-          </Typography>
-        </Stack>
-      )}
+function BoardCard({ request, properties, onOpen, onActions, overlay = false }) {
+  const theme = useTheme();
+  const assignment = getAssignment(request);
+  const content = (
+    <>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
+        <PriorityChip priority={request.priority} />
+        {!overlay && <IconButton size="small" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onActions(event, request); }}><MoreOutlined /></IconButton>}
+      </Stack>
+      <Typography sx={{ mt: 1, fontSize: '0.68rem', fontWeight: 750, color: 'primary.main' }}>{request.orderNumber || `MR-${request.id}`}</Typography>
+      <Typography sx={{ mt: 0.25, fontWeight: 720, lineHeight: 1.35 }} display="-webkit-box" overflow="hidden" style={{ WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{request.title || 'Untitled maintenance request'}</Typography>
+      <Typography sx={{ mt: 0.65, fontSize: '0.73rem', color: 'text.secondary' }} noWrap>{getPropertyLabel(request, properties)}</Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.1 }}>
+        <Typography sx={{ fontSize: '0.68rem', color: 'text.secondary' }}>{getAge(request.createdAt).replace('Reported ', '')}</Typography>
+        <Typography sx={{ fontSize: '0.68rem', fontWeight: 650, color: assignment ? 'text.secondary' : 'warning.dark' }} noWrap>{assignment?.name || 'Unassigned'}</Typography>
+      </Stack>
     </>
   );
+  if (overlay) return <Box sx={{ width: 250, p: 1.5, bgcolor: 'background.paper', borderRadius: 2, boxShadow: `0 12px 32px ${alpha(NAVY, 0.25)}` }}>{content}</Box>;
+  return <DraggableBoardCard request={request} onOpen={onOpen}>{content}</DraggableBoardCard>;
 }
 
-function DraggableCard({ request, properties, onCardClick, onMoveClick, theme }) {
+function DraggableBoardCard({ request, onOpen, children }) {
+  const theme = useTheme();
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: String(request.id) });
-
   return (
-    <Box
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      onClick={() => onCardClick(request.id)}
-      sx={{
-        bgcolor: 'background.paper',
-        border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`,
-        borderRadius: 2,
-        p: 1.5,
-        opacity: isDragging ? 0.25 : 1,
-        transition: 'box-shadow 0.15s, opacity 0.15s',
-        '&:hover': { boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.12)}` },
-        userSelect: 'none',
-        cursor: isDragging ? 'grabbing' : 'grab',
-        position: 'relative',
-        touchAction: 'none'
-      }}
-    >
-      <CardContent request={request} properties={properties} onCardClick={onCardClick} onMoveClick={onMoveClick} theme={theme} />
-    </Box>
+    <Box ref={setNodeRef} {...attributes} {...listeners} onClick={() => onOpen(request)} sx={{ p: 1.5, bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 2, cursor: isDragging ? 'grabbing' : 'grab', opacity: isDragging ? 0.28 : 1, touchAction: 'none', userSelect: 'none', boxShadow: `0 3px 12px ${alpha(NAVY, 0.055)}`, '&:hover': { boxShadow: `0 8px 20px ${alpha(NAVY, 0.1)}` } }}>{children}</Box>
   );
 }
 
-// ─── Droppable column ─────────────────────────────────────────────────────────
-function DroppableColumn({ columnKey, label, color, cards, properties, onCardClick, onMoveClick, theme }) {
-  const { setNodeRef, isOver } = useDroppable({ id: columnKey });
-  const [visibleCardLimit, setVisibleCardLimit] = useState(BOARD_VISIBLE_CARD_LIMIT);
-  const colorMain = theme.palette.info.main;
-  const visibleCards = cards.slice(0, visibleCardLimit);
-  const hiddenCount = Math.max(cards.length - visibleCards.length, 0);
-  const canShowFewer = hiddenCount === 0 && visibleCardLimit > BOARD_VISIBLE_CARD_LIMIT && cards.length > BOARD_VISIBLE_CARD_LIMIT;
-  const shouldShowMoreControl = hiddenCount > 0 || canShowFewer;
-  const nextRevealCount = Math.min(BOARD_REVEAL_INCREMENT, hiddenCount);
-
+function BoardColumn({ column, requests, properties, onOpen, onActions, wide = false }) {
+  const theme = useTheme();
+  const { setNodeRef, isOver } = useDroppable({ id: column.key });
   return (
     <Box
       ref={setNodeRef}
       sx={{
-        flex: '0 0 240px',
-        minWidth: 220,
-        bgcolor: isOver ? alpha(colorMain, 0.1) : COLUMN_BG[columnKey](theme),
-        border: `1px dashed ${COLUMN_BORDER_COLOR[columnKey](theme)}`,
-        borderRadius: 2,
-        p: 1.5,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-        minHeight: 400,
-        transition: 'background-color 0.15s'
+        minWidth: 0,
+        minHeight: 430,
+        p: 1.25,
+        borderRadius: 2.5,
+        border: `1px solid ${alpha(column.color, isOver ? 0.48 : 0.2)}`,
+        bgcolor: alpha(column.color, isOver ? 0.09 : 0.04),
+        transition: 'background-color 150ms ease, border-color 150ms ease'
       }}
     >
-      {/* Column header */}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-        <Typography variant="caption" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.8, color: colorMain }}>
-          {label}
-        </Typography>
-        <Chip
-          label={cards.length}
-          size="small"
-          sx={{ height: 18, fontSize: '0.65rem', bgcolor: alpha(colorMain, 0.12), color: colorMain, fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }}
-        />
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 0.4, pb: 1.1, mb: 1.1, borderBottom: `1px solid ${alpha(column.color, 0.16)}` }}>
+        <Stack direction="row" spacing={0.75} alignItems="center"><Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: column.color }} /><Typography sx={{ fontSize: '0.74rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.55 }}>{column.label}</Typography></Stack>
+        <Chip label={requests.length} size="small" sx={{ height: 20, fontSize: '0.66rem', fontWeight: 750, bgcolor: alpha(column.color, 0.1), color: column.color }} />
       </Stack>
-
-      {/* Cards */}
-      {visibleCards.map((req) => (
-        <DraggableCard
-          key={req.id}
-          request={req}
-          properties={properties}
-          onCardClick={onCardClick}
-          onMoveClick={onMoveClick}
-          theme={theme}
-        />
-      ))}
-
-      {shouldShowMoreControl && (
-        <Box
-          component="button"
-          type="button"
-          onClick={() => {
-            if (hiddenCount > 0) {
-              setVisibleCardLimit((prev) => Math.min(prev + BOARD_REVEAL_INCREMENT, cards.length));
-            } else {
-              setVisibleCardLimit(BOARD_VISIBLE_CARD_LIMIT);
-            }
-          }}
-          aria-label={hiddenCount > 0 ? `Show next ${nextRevealCount} hidden ${label} items` : `Collapse ${label} column`}
-          sx={{
-            width: '100%',
-            border: `1px dashed ${alpha(colorMain, canShowFewer ? 0.38 : 0.28)}`,
-            borderRadius: 1.5,
-            py: 0.85,
-            px: 1,
-            bgcolor: canShowFewer ? alpha(colorMain, 0.08) : alpha(colorMain, 0.045),
-            color: 'text.secondary',
-            textAlign: 'center',
-            cursor: 'pointer',
-            transition: 'background-color 0.15s, border-color 0.15s, color 0.15s',
-            '&:hover': {
-              bgcolor: alpha(colorMain, 0.12),
-              borderColor: alpha(colorMain, 0.5),
-              color: colorMain
-            },
-            '&:focus-visible': {
-              outline: `2px solid ${alpha(colorMain, 0.5)}`,
-              outlineOffset: 2
-            }
-          }}
-        >
-          <Typography component="span" variant="caption" fontWeight={700}>
-            {hiddenCount > 0 ? `+${hiddenCount} more hidden` : 'Show fewer'}
-          </Typography>
-        </Box>
-      )}
-
-      {cards.length === 0 && (
-        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.35 }}>
-          <Typography variant="caption" color="text.secondary">drop here</Typography>
-        </Box>
-      )}
+      <Box sx={{ display: 'grid', gridTemplateColumns: wide ? 'repeat(auto-fill, minmax(235px, 1fr))' : 'minmax(0, 1fr)', gap: 1 }}>
+        {requests.map((request) => <BoardCard key={request.id} request={request} properties={properties} onOpen={onOpen} onActions={onActions} />)}
+      </Box>
+      {requests.length === 0 && <Box sx={{ minHeight: 130, display: 'grid', placeItems: 'center' }}><Typography sx={{ fontSize: '0.72rem', color: 'text.disabled' }}>Drop a request here</Typography></Box>}
     </Box>
   );
 }
 
-// ─── Status / priority chip helpers ──────────────────────────────────────────
-function StatusChip({ status }) {
-  const n = normalizeStatus(status);
-  let label = status || '—';
-  let color = 'default';
-  if (n === 'reported' || n === 'open' || n === 'notstarted') { label = 'Reported'; color = 'error'; }
-  else if (n === 'acknowledged') { label = 'Acknowledged'; color = 'warning'; }
-  else if (n === 'scheduled') { label = 'Scheduled'; color = 'info'; }
-  else if (n === 'inprogress') { label = 'In Progress'; color = 'info'; }
-  else if (n === 'resolved' || n === 'completed') { label = 'Resolved'; color = 'success'; }
-  return <Chip label={label} color={color} size="small" sx={{ fontWeight: 600 }} />;
-}
-
-function PriorityChipDisplay({ priority }) {
-  const p = (priority || '').toLowerCase();
-  const color = PRIORITY_COLOR[p] || 'default';
-  return <Chip label={p ? p.charAt(0).toUpperCase() + p.slice(1) : '—'} color={color} size="small" sx={{ fontWeight: 600 }} />;
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
 export default function Maintenances() {
-  const drawer = useDrawer();
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const requests = useSelector(selectMaintenanceRequests);
-  const historyRequests = useSelector(selectHistoryMaintenances);
-  const selectedProperty = useSelector(selectProperty);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { propertiesRefetch, isLoading: propertiesLoading } = useFetchProperties();
-  const properties = useSelector(selectProperties);
-  const maintenanceLoading = useSelector(selectMaintenanceLoading);
-
-  // Get context to update maintenances page loading state
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const drawer = useDrawer();
+  const [searchParams] = useSearchParams();
   const { setMaintenancesLoading } = useDashboardLoading();
-
-  // Clear any inherited property selection when arriving at this page (unless URL specifies one)
-  useEffect(() => {
-    if (!searchParams.get('propertyId')) {
-      dispatch(setProperty(null));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Check for propertyId in URL query params and set property if present
-  useEffect(() => {
-    const propertyIdParam = searchParams.get('propertyId');
-    if (propertyIdParam && properties && properties.length > 0) {
-      const propertyId = parseInt(propertyIdParam);
-      const property = properties.find(p => p.id === propertyId);
-      if (property) {
-        dispatch(setProperty(property));
-      }
-    }
-  }, [searchParams, dispatch, properties]);
-
-  // Reset property selection when leaving this page
-  const location = useLocation();
-  const previousPathname = useRef(null);
-  useEffect(() => {
-    const isOnThisPage = location.pathname === '/landlord/maintenances';
-    const justNavigatedAway = previousPathname.current === '/landlord/maintenances' && !isOnThisPage;
-    if (justNavigatedAway && selectedProperty) {
-      dispatch(setProperty(null));
-    }
-    previousPathname.current = location.pathname;
-  }, [location.pathname, dispatch, selectedProperty]);
-
-  // Update filters when URL parameters change
-  useEffect(() => {
-    const statusParam = searchParams.get('status');
-    const priorityParam = searchParams.get('priority');
-    if (statusParam) {
-      const normalizedStatus = statusParam.toLowerCase() === 'inprogress' ? 'in-progress' : statusParam.toLowerCase();
-      const metricKey = (normalizedStatus === 'completed' || normalizedStatus === 'cancelled') ? 'resolved' : normalizedStatus;
-      setActiveMetricFilter(metricKey);
-    }
-    if (priorityParam) {
-      setFilters(prev => ({ ...prev, priority: [priorityParam.toLowerCase()] }));
-    }
-  }, [searchParams]);
-
-  // ── State ──────────────────────────────────────────────────────────────────
-  const [tab, setTab] = useState('current');
-  const [activeMetricFilter, setActiveMetricFilter] = useState('total');
-  const [search, setSearch] = useState('');
-  const [sortField, setSortField] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState('desc');
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [requestToDelete, setRequestToDelete] = useState(null);
-  const [statusMenuAnchor, setStatusMenuAnchor] = useState(null);
-  const [page, setPage] = useState(0);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [selectedRequestForStatus, setSelectedRequestForStatus] = useState(null);
-  const [priorityMenuAnchor, setPriorityMenuAnchor] = useState(null);
-  const [selectedRequestForPriority, setSelectedRequestForPriority] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [filterAnchorEl, setFilterAnchorEl] = useState(null);
-  const [subMenuAnchorEl, setSubMenuAnchorEl] = useState(null);
-  const [activeSubMenu, setActiveSubMenu] = useState(null);
-  const [clickedChipFilter, setClickedChipFilter] = useState(null);
-  const [fadeIn, setFadeIn] = useState(false);
-  // New state
-  const [viewMode, setViewMode] = useState('board');
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [dragActive, setDragActive] = useState(null);
-  const [optimisticOverrides, setOptimisticOverrides] = useState({});
-  const [boardMoveMenuAnchor, setBoardMoveMenuAnchor] = useState(null);
-  const [selectedRequestForBoardMove, setSelectedRequestForBoardMove] = useState(null);
-
-  // Set viewMode based on mobile on first render
-  useEffect(() => {
-    if (isMobile) setViewMode('queue');
-  }, []); // intentionally only on mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-
-  // Initialize filters from URL parameters if present
-  const getInitialFilters = () => {
-    const priorityParam = searchParams.get('priority');
-    return {
-      priority: priorityParam ? [priorityParam.toLowerCase()] : [],
-      category: []
-    };
-  };
-  const [filters, setFilters] = useState(getInitialFilters());
-
+  const requests = useSelector(selectMaintenanceRequests) || [];
+  const historyRequests = useSelector(selectHistoryMaintenances) || [];
+  const maintenanceLoading = useSelector(selectMaintenanceLoading);
+  const properties = useSelector(selectProperties) || [];
+  const selectedProperty = useSelector(selectProperty);
+  const { propertiesRefetch, isLoading: propertiesLoading } = useFetchProperties();
   const { refetch } = useFetchMaintenances();
 
-  // Fade-in on mount
-  useEffect(() => { setFadeIn(true); }, []);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('maintenanceViewMode') || 'list');
+  const [scope, setScope] = useState('active');
+  const [metric, setMetric] = useState('open');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [assignmentFilter, setAssignmentFilter] = useState('all');
+  const [sort, setSort] = useState('priority');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [actionAnchor, setActionAnchor] = useState(null);
+  const [actionRequest, setActionRequest] = useState(null);
+  const [statusMenuPosition, setStatusMenuPosition] = useState(null);
+  const [priorityMenuPosition, setPriorityMenuPosition] = useState(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [dragId, setDragId] = useState(null);
+  const [optimisticStatus, setOptimisticStatus] = useState({});
 
-  // Comprehensive loading state
-  const isMaintenancesPageLoading = useMemo(() => {
-    return propertiesLoading || maintenanceLoading || loading;
-  }, [propertiesLoading, maintenanceLoading, loading]);
+  const busy = loading || propertiesLoading || maintenanceLoading;
 
-  useEffect(() => {
-    setMaintenancesLoading(isMaintenancesPageLoading);
-  }, [isMaintenancesPageLoading, setMaintenancesLoading]);
+  useEffect(() => setMaintenancesLoading(busy), [busy, setMaintenancesLoading]);
 
-  // Initial load
   useEffect(() => {
     setLoading(true);
-    Promise.all([propertiesRefetch(), refetch()]).finally(() => { setLoading(false); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertiesRefetch]);
+    Promise.all([propertiesRefetch(), refetch()]).finally(() => setLoading(false));
+  }, [propertiesRefetch, refetch]);
 
-  // ── Data computations ──────────────────────────────────────────────────────
-  const currentRequests = useMemo(() => {
-    if (!requests) return [];
-    return requests.filter((r) => {
-      const status = (r.status || '').toLowerCase();
-      return status !== 'completed' && status !== 'cancelled';
-    });
-  }, [requests]);
+  useEffect(() => {
+    const propertyId = Number(searchParams.get('propertyId'));
+    if (propertyId && properties.length) dispatch(setProperty(properties.find((property) => Number(property.id) === propertyId) || null));
+    else if (!searchParams.get('propertyId')) dispatch(setProperty(null));
+  }, [dispatch, properties, searchParams]);
 
-  const historyMaintenanceRequests = useMemo(() => historyRequests || [], [historyRequests]);
-
-  const source = useMemo(() => {
-    const current = currentRequests || [];
-    const history = historyMaintenanceRequests || [];
-    if (tab === 'history') return history;
-    if (tab === 'current' && (activeMetricFilter === 'resolved' || activeMetricFilter === 'total')) {
-      return [...current, ...history];
+  useEffect(() => {
+    const status = searchParams.get('status');
+    const priority = searchParams.get('priority');
+    if (status) {
+      const normalized = normalizeStatus(status);
+      setStatusFilter(normalized);
+      if (normalized === 'resolved') setScope('resolved');
     }
-    return current;
-  }, [tab, currentRequests, historyMaintenanceRequests, activeMetricFilter]);
+    if (priority) setPriorityFilter(normalizeToken(priority));
+  }, [searchParams]);
 
-  const filteredByProperty = useMemo(() => {
-    if (!selectedProperty?.id) return source;
-    return source.filter((r) => r.propertyId === selectedProperty.id);
-  }, [source, selectedProperty]);
+  useEffect(() => {
+    if (isMobile && viewMode === 'board') setViewMode('list');
+  }, [isMobile, viewMode]);
 
-  const convertBackendStatusToFrontend = (backendStatus) => {
-    if (!backendStatus) return '';
-    const status = backendStatus.toString();
-    const statusLower = status.toLowerCase();
-    if (statusLower === 'inprogress' || statusLower === 'in-progress' || status === 'InProgress' || status === 'In Progress') return 'in-progress';
-    if (statusLower === 'onhold' || statusLower === 'on-hold' || status === 'OnHold' || status === 'On Hold') return 'on-hold';
-    const statusMap = { 'Open': 'open', 'InProgress': 'in-progress', 'Pending': 'pending', 'OnHold': 'on-hold', 'Completed': 'completed', 'Cancelled': 'cancelled' };
-    return statusMap[status] || statusLower;
+  const changeView = (next) => {
+    setViewMode(next);
+    localStorage.setItem('maintenanceViewMode', next);
   };
 
-  const convertBackendPriorityToFrontend = (backendPriority) => {
-    if (!backendPriority) return '';
-    const priority = backendPriority.toString();
-    const priorityMap = { 'Low': 'low', 'Medium': 'medium', 'High': 'high' };
-    return priorityMap[priority] || priority.toLowerCase();
-  };
+  const allRequests = useMemo(() => {
+    const map = new Map();
+    [...requests, ...historyRequests].forEach((request) => {
+      const next = optimisticStatus[request.id] ? { ...request, status: optimisticStatus[request.id] } : request;
+      map.set(String(request.id), next);
+    });
+    return [...map.values()];
+  }, [requests, historyRequests, optimisticStatus]);
 
-  const filteredRequests = useMemo(() => {
-    if (!filteredByProperty) return [];
-    const searchLower = search.toLowerCase();
-    return filteredByProperty.filter((r) => {
-      if (activeMetricFilter === 'open') {
-        if (convertBackendStatusToFrontend(r.status) !== 'open') return false;
-      } else if (activeMetricFilter === 'in-progress') {
-        if (convertBackendStatusToFrontend(r.status) !== 'in-progress') return false;
-      } else if (activeMetricFilter === 'resolved') {
-        const s = convertBackendStatusToFrontend(r.status);
-        if (s !== 'completed' && s !== 'cancelled' && s !== 'resolved') return false;
-      } else if (activeMetricFilter === 'triaging') {
-        if (normalizeStatus(r.status) !== 'reported') return false;
-      } else if (activeMetricFilter === 'awaitingApproval') {
-        if (normalizeStatus(r.status) !== 'acknowledged') return false;
-      }
-      const matchesSearch =
-        search.trim() === '' ||
-        r.orderNumber?.toLowerCase().includes(searchLower) ||
-        r.title?.toLowerCase().includes(searchLower) ||
-        r.propertyName?.toLowerCase().includes(searchLower) ||
-        r.unitName?.toLowerCase().includes(searchLower) ||
-        r.category?.toLowerCase().includes(searchLower) ||
-        r.description?.toLowerCase().includes(searchLower);
-      if (!matchesSearch) return false;
-      if (filters.priority && filters.priority.length > 0) {
-        const requestPriority = convertBackendPriorityToFrontend(r.priority);
-        if (!filters.priority.includes(requestPriority)) return false;
-      }
-      if (filters.category && filters.category.length > 0) {
-        const categoryValue = typeof r.category === 'string' ? r.category : r.category?.Value || r.category?.value || '';
-        const requestCategory = categoryValue.toLowerCase();
-        const matchesCategory = filters.category.some(filterCategory => requestCategory === filterCategory.toLowerCase());
-        if (!matchesCategory) return false;
+  const kpis = useMemo(() => {
+    const active = allRequests.filter((request) => ACTIVE_STATUSES.includes(normalizeStatus(request.status)));
+    return {
+      open: active.length,
+      triage: active.filter((request) => normalizeStatus(request.status) === 'reported').length,
+      unassigned: active.filter((request) => !getAssignment(request)).length,
+      high: active.filter((request) => normalizeToken(request.priority) === 'high').length
+    };
+  }, [allRequests]);
+
+  const categories = useMemo(() => [...new Set(allRequests.map(getCategory).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [allRequests]);
+
+  const visibleRequests = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const filtered = allRequests.filter((request) => {
+      const status = normalizeStatus(request.status);
+      const active = ACTIVE_STATUSES.includes(status);
+      if (scope === 'active' && !active) return false;
+      if (scope === 'resolved' && active) return false;
+      if (selectedProperty?.id && Number(request.propertyId) !== Number(selectedProperty.id)) return false;
+      if (statusFilter !== 'all' && status !== statusFilter) return false;
+      if (priorityFilter !== 'all' && normalizeToken(request.priority) !== priorityFilter) return false;
+      if (categoryFilter !== 'all' && getCategory(request) !== categoryFilter) return false;
+      const assignment = getAssignment(request);
+      if (assignmentFilter === 'unassigned' && assignment) return false;
+      if (assignmentFilter === 'vendor' && assignment?.type !== 'Vendor') return false;
+      if (assignmentFilter === 'team' && assignment?.type !== 'Team member') return false;
+      if (metric === 'triage' && status !== 'reported') return false;
+      if (metric === 'unassigned' && assignment) return false;
+      if (metric === 'high' && normalizeToken(request.priority) !== 'high') return false;
+      if (query) {
+        const haystack = [request.orderNumber, request.title, request.description, request.propertyName, request.unitName, getCategory(request), assignment?.name].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(query)) return false;
       }
       return true;
     });
-  }, [filteredByProperty, search, activeMetricFilter, filters]);
-
-  const getPropertyDisplayLabel = (request, propsList) => {
-    const prop = propsList?.find((p) => p.id === request.propertyId);
-    if (prop) return prop.name?.trim() || prop.streetAddress?.trim() || 'Property';
-    const raw = request.propertyName || request.PropertyName || '';
-    if (!raw) return '—';
-    const trimmed = raw.trim();
-    if (trimmed.includes(', ')) {
-      const firstPart = trimmed.split(', ')[0];
-      return firstPart || trimmed;
-    }
-    return trimmed;
-  };
-
-  const handleMetricFilterChange = (filter) => {
-    setActiveMetricFilter(filter);
-    setPage(0);
-  };
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
-  };
-
-  const sortedRequests = useMemo(() => {
-    if (!filteredRequests || filteredRequests.length === 0) return [];
-    return [...filteredRequests].sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'orderNumber': {
-          const aOrderNumber = a.orderNumber || '';
-          const bOrderNumber = b.orderNumber || '';
-          if (!aOrderNumber && !bOrderNumber) comparison = 0;
-          else if (!aOrderNumber) comparison = 1;
-          else if (!bOrderNumber) comparison = -1;
-          else comparison = aOrderNumber.localeCompare(bOrderNumber);
-          break;
-        }
-        case 'property': {
-          const aPropName = a.propertyName || '';
-          const bPropName = b.propertyName || '';
-          comparison = aPropName.toLowerCase().localeCompare(bPropName.toLowerCase());
-          if (comparison === 0) {
-            const aUnitName = a.unitName || '';
-            const bUnitName = b.unitName || '';
-            comparison = aUnitName.toLowerCase().localeCompare(bUnitName.toLowerCase());
-          }
-          break;
-        }
-        case 'title':
-          comparison = (a.title || '').toLowerCase().localeCompare((b.title || '').toLowerCase());
-          break;
-        case 'category':
-          comparison = (a.category || '').toLowerCase().localeCompare((b.category || '').toLowerCase());
-          break;
-        case 'priority': {
-          const priorityOrder = { high: 0, medium: 1, low: 2 };
-          const aPriority = priorityOrder[(a.priority || '').toLowerCase()] ?? 999;
-          const bPriority = priorityOrder[(b.priority || '').toLowerCase()] ?? 999;
-          comparison = aPriority - bPriority;
-          break;
-        }
-        case 'status': {
-          const statusOrder = { open: 0, 'in-progress': 1, pending: 2, 'on-hold': 3, completed: 4, cancelled: 5 };
-          const aStatus = statusOrder[convertBackendStatusToFrontend(a.status)] ?? 999;
-          const bStatus = statusOrder[convertBackendStatusToFrontend(b.status)] ?? 999;
-          comparison = aStatus - bStatus;
-          break;
-        }
-        case 'createdAt': {
-          const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          comparison = aDate - bDate;
-          break;
-        }
-        default:
-          return 0;
-      }
-      return sortOrder === 'asc' ? comparison : -comparison;
+    const priorityRank = { high: 0, medium: 1, low: 2 };
+    const statusRank = { reported: 0, acknowledged: 1, scheduled: 2, inprogress: 3, resolved: 4 };
+    return filtered.sort((a, b) => {
+      if (sort === 'newest') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      if (sort === 'oldest') return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+      if (sort === 'status') return statusRank[normalizeStatus(a.status)] - statusRank[normalizeStatus(b.status)];
+      const priorityDifference = (priorityRank[normalizeToken(a.priority)] ?? 9) - (priorityRank[normalizeToken(b.priority)] ?? 9);
+      return priorityDifference || new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
     });
-  }, [filteredRequests, sortField, sortOrder]);
+  }, [allRequests, assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort, statusFilter]);
 
-  const totalPages = Math.ceil(sortedRequests.length / itemsPerPage);
-  const paginatedRequests = useMemo(() => {
-    const startIndex = page * itemsPerPage;
-    return sortedRequests.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedRequests, page, itemsPerPage]);
+  useEffect(() => setPage(1), [assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort, statusFilter]);
 
-  useEffect(() => { setPage(0); }, [itemsPerPage]);
+  const pageCount = Math.max(1, Math.ceil(visibleRequests.length / PAGE_SIZE));
+  const paginated = visibleRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
-  const handlePageChange = (newPage) => { setPage(newPage); };
-
-  // KPI computation — applies optimistic overrides so counts update immediately on drag
-  const kpis = useMemo(() => {
-    const raw = [...(currentRequests || []), ...(historyMaintenanceRequests || [])];
-    const all = Object.keys(optimisticOverrides).length
-      ? raw.map(r => optimisticOverrides[r.id] ? { ...r, status: optimisticOverrides[r.id] } : r)
-      : raw;
-    const total = all.length;
-    const open = all.filter(r => {
-      const n = normalizeStatus(r.status);
-      return n !== 'resolved' && n !== 'completed' && n !== 'cancelled';
-    }).length;
-    const triaging = all.filter(r => normalizeStatus(r.status) === 'reported').length;
-    const awaitingApproval = all.filter(r => normalizeStatus(r.status) === 'acknowledged').length;
-    return { total, open, triaging, awaitingApproval };
-  }, [currentRequests, historyMaintenanceRequests, optimisticOverrides]);
-
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleDeleteClick = (request) => {
-    setRequestToDelete(request);
-    setDeleteConfirmOpen(true);
+  const clearFilters = () => {
+    setScope('active'); setMetric('open'); setSearch(''); setStatusFilter('all'); setPriorityFilter('all'); setCategoryFilter('all'); setAssignmentFilter('all'); dispatch(setProperty(null));
   };
 
-  const handleConfirmDelete = async () => {
-    if (!requestToDelete) return;
-    setDeleteConfirmOpen(false);
+  const showSuccess = (message) => openSnackbar({ open: true, message, variant: 'alert', alert: { color: 'success', variant: 'filled' }, close: true });
+  const showError = (message) => openSnackbar({ open: true, message, variant: 'alert', alert: { color: 'error', variant: 'filled' }, close: true });
+
+  const buildUpdatePayload = (request, updates = {}) => ({
+    id: request.id,
+    title: request.title || '',
+    unitName: request.unitName || '',
+    status: request.status,
+    priority: request.priority,
+    description: request.description || '',
+    categoryId: request.categoryId || 0,
+    imageUrl: request.imageUrl || '',
+    completedAt: request.completedAt || null,
+    scheduledDate: request.scheduledDate || null,
+    vendorId: request.vendorId || null,
+    assignedToType: request.assignedToType || 0,
+    assignedToUserId: request.assignedToUserId || null,
+    assignedContactName: request.assignedContactName || null,
+    assignedContactPhone: request.assignedContactPhone || null,
+    assignedContactEmail: request.assignedContactEmail || null,
+    assignedAt: request.assignedAt || null,
+    assignedByUserId: request.assignedByUserId || null,
+    ...updates
+  });
+
+  const changeStatus = useCallback(async (request, target, notify = true) => {
+    const current = normalizeStatus(request.status);
+    if (current === target) return;
+    const backendStatus = { reported: 'Reported', acknowledged: 'Acknowledged', scheduled: 'Scheduled', inprogress: 'InProgress', resolved: 'Resolved' }[target];
+    setOptimisticStatus((currentValues) => ({ ...currentValues, [request.id]: backendStatus }));
     try {
-      await dispatch(deleteMaintenance(requestToDelete.id));
+      if (target === 'resolved') await dispatch(resolveMaintenanceRequest(request.id));
+      else if (current === 'resolved') {
+        await dispatch(reopenMaintenanceRequest(request.id));
+        if (target !== 'reported') await dispatch(updateMaintenance(buildUpdatePayload(request, { status: backendStatus, completedAt: null })));
+      } else await dispatch(updateMaintenance(buildUpdatePayload(request, { status: backendStatus, completedAt: null })));
       await refetch();
-      openSnackbar({
-        open: true,
-        message: `Maintenance request "${requestToDelete.title}" has been deleted successfully`,
-        variant: 'alert',
-        alert: { color: 'success', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-      setRequestToDelete(null);
+      if (notify) showSuccess(`Request moved to ${statusPresentation(backendStatus).label}`);
     } catch (error) {
-      console.error('Error deleting maintenance request:', error);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || error?.message || 'Failed to delete maintenance request',
-        variant: 'alert',
-        alert: { color: 'error', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-    }
-  };
-
-  const handleStatusClick = (event, request) => {
-    event.stopPropagation();
-    setStatusMenuAnchor(event.currentTarget);
-    setSelectedRequestForStatus(request);
-  };
-
-  const handleStatusMenuClose = () => {
-    setStatusMenuAnchor(null);
-    setSelectedRequestForStatus(null);
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    if (!selectedRequestForStatus) return;
-    const statusMap = { 'open': 'Open', 'in-progress': 'InProgress', 'pending': 'Pending', 'on-hold': 'OnHold', 'completed': 'Completed', 'cancelled': 'Cancelled' };
-    const backendStatus = statusMap[newStatus] || newStatus;
-    try {
-      const convertLocal = (bs) => {
-        if (!bs) return 'open';
-        const s = bs.toString();
-        const m = { 'Open': 'open', 'InProgress': 'in-progress', 'Pending': 'pending', 'OnHold': 'on-hold', 'Completed': 'completed', 'Cancelled': 'cancelled' };
-        return m[s] || s.toLowerCase();
-      };
-      const convertPriorityLocal = (bp) => {
-        if (!bp) return 'medium';
-        const p = bp.toString();
-        const m = { 'Low': 'low', 'Medium': 'medium', 'High': 'high' };
-        return m[p] || p.toLowerCase();
-      };
-      const priorityMap = { 'low': 'Low', 'medium': 'Medium', 'high': 'High' };
-      const currentPriority = convertPriorityLocal(selectedRequestForStatus.priority);
-      const backendPriority = priorityMap[currentPriority] || currentPriority;
-      const updatePayload = {
-        id: selectedRequestForStatus.id,
-        title: selectedRequestForStatus.title || '',
-        unitName: selectedRequestForStatus.unitName || '',
-        status: backendStatus,
-        priority: backendPriority,
-        description: selectedRequestForStatus.description || '',
-        categoryId: selectedRequestForStatus.categoryId || 0,
-        imageUrl: selectedRequestForStatus.imageUrl || '',
-        completedAt: newStatus === 'completed' ? new Date().toISOString() : null
-      };
-      await dispatch(updateMaintenance(updatePayload));
-      await refetch();
-      openSnackbar({
-        open: true,
-        message: `Maintenance request status updated to ${newStatus === 'in-progress' ? 'In Progress' : newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
-        variant: 'alert',
-        alert: { color: 'success', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-      handleStatusMenuClose();
-    } catch (error) {
-      console.error('Error updating maintenance status:', error);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || error?.message || 'Failed to update maintenance status',
-        variant: 'alert',
-        alert: { color: 'error', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-    }
-  };
-
-  const handlePriorityClick = (event, request) => {
-    event.stopPropagation();
-    setPriorityMenuAnchor(event.currentTarget);
-    setSelectedRequestForPriority(request);
-  };
-
-  const handlePriorityMenuClose = () => {
-    setPriorityMenuAnchor(null);
-    setSelectedRequestForPriority(null);
-  };
-
-  const handlePriorityChange = async (newPriority) => {
-    if (!selectedRequestForPriority) return;
-    const priorityMap = { 'low': 'Low', 'medium': 'Medium', 'high': 'High' };
-    const backendPriority = priorityMap[newPriority] || newPriority;
-    try {
-      const convertStatusLocal = (bs) => {
-        if (!bs) return 'open';
-        const s = bs.toString();
-        const m = { 'Open': 'open', 'InProgress': 'in-progress', 'Pending': 'pending', 'OnHold': 'on-hold', 'Completed': 'completed', 'Cancelled': 'cancelled' };
-        return m[s] || s.toLowerCase();
-      };
-      const currentStatus = convertStatusLocal(selectedRequestForPriority.status);
-      const statusMap = { 'open': 'Open', 'in-progress': 'InProgress', 'pending': 'Pending', 'on-hold': 'OnHold', 'completed': 'Completed', 'cancelled': 'Cancelled' };
-      const backendStatus = statusMap[currentStatus] || currentStatus;
-      const updatePayload = {
-        id: selectedRequestForPriority.id,
-        title: selectedRequestForPriority.title || '',
-        unitName: selectedRequestForPriority.unitName || '',
-        status: backendStatus,
-        priority: backendPriority,
-        description: selectedRequestForPriority.description || '',
-        categoryId: selectedRequestForPriority.categoryId || 0,
-        imageUrl: selectedRequestForPriority.imageUrl || '',
-        completedAt: currentStatus === 'completed' ? new Date().toISOString() : null
-      };
-      await dispatch(updateMaintenance(updatePayload));
-      await refetch();
-      openSnackbar({
-        open: true,
-        message: `Maintenance request priority updated to ${newPriority.charAt(0).toUpperCase() + newPriority.slice(1)}`,
-        variant: 'alert',
-        alert: { color: 'success', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-      handlePriorityMenuClose();
-    } catch (error) {
-      console.error('Error updating maintenance priority:', error);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || error?.message || 'Failed to update maintenance priority',
-        variant: 'alert',
-        alert: { color: 'error', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-    }
-  };
-
-  const handleBoardMoveClick = (event, request) => {
-    event.stopPropagation();
-    setBoardMoveMenuAnchor(event.currentTarget);
-    setSelectedRequestForBoardMove(request);
-  };
-
-  const handleBoardMoveMenuClose = () => {
-    setBoardMoveMenuAnchor(null);
-    setSelectedRequestForBoardMove(null);
-  };
-
-  const handleBoardMoveChange = async (newColumnKey) => {
-    const req = selectedRequestForBoardMove;
-    if (!req || statusToColumn(req.status) === newColumnKey) {
-      handleBoardMoveMenuClose();
-      return;
-    }
-
-    const statusMap = { reported: 'Reported', acknowledged: 'Acknowledged', scheduled: 'Scheduled', inprogress: 'InProgress', resolved: 'Resolved' };
-    const backendStatus = statusMap[newColumnKey] || newColumnKey;
-    setOptimisticOverrides(prev => ({ ...prev, [req.id]: backendStatus }));
-
-    try {
-      if (statusToColumn(req.status) === 'resolved') {
-        await dispatch(reopenMaintenanceRequest(req.id));
-        if (newColumnKey !== 'reported') {
-          await dispatch(updateMaintenance({
-            id: req.id,
-            title: req.title,
-            unitName: req.unitName || '',
-            status: backendStatus,
-            priority: req.priority,
-            description: req.description || '',
-            categoryId: req.categoryId || 0,
-            imageUrl: req.imageUrl || '',
-            completedAt: null
-          }));
-        }
-      } else {
-        await dispatch(updateMaintenance({
-          id: req.id,
-          title: req.title,
-          unitName: req.unitName || '',
-          status: backendStatus,
-          priority: req.priority,
-          description: req.description || '',
-          categoryId: req.categoryId || 0,
-          imageUrl: req.imageUrl || '',
-          completedAt: newColumnKey === 'resolved' ? new Date().toISOString() : null
-        }));
-      }
-      await refetch();
-      openSnackbar({
-        open: true,
-        message: `Maintenance request moved to ${BOARD_COLUMNS.find((col) => col.key === newColumnKey)?.label || backendStatus}`,
-        variant: 'alert',
-        alert: { color: 'success', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-    } catch (error) {
-      console.error('Error moving maintenance request:', error);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || error?.message || 'Failed to update status',
-        variant: 'alert',
-        alert: { color: 'error', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
+      showError(error?.response?.data?.message || error?.message || 'Failed to update request status');
     } finally {
-      setOptimisticOverrides(prev => {
-        const next = { ...prev };
-        delete next[req.id];
-        return next;
-      });
-      handleBoardMoveMenuClose();
+      setOptimisticStatus((currentValues) => { const next = { ...currentValues }; delete next[request.id]; return next; });
     }
+  }, [dispatch, refetch]);
+
+  const changePriority = async (request, priority) => {
+    try {
+      await dispatch(updateMaintenance(buildUpdatePayload(request, { priority: titleCase(priority) })));
+      await refetch();
+      showSuccess(`Priority updated to ${titleCase(priority)}`);
+    } catch (error) { showError(error?.response?.data?.message || error?.message || 'Failed to update priority'); }
   };
 
-  // Drag and drop handler
+  const openActions = (event, request) => { setActionAnchor(event.currentTarget); setActionRequest(request); };
+  const closeActions = () => { setActionAnchor(null); };
+  const runAction = (callback) => { closeActions(); callback(); };
+
+  const confirmDelete = async () => {
+    if (!actionRequest) return;
+    setDeleteOpen(false);
+    try { await dispatch(deleteMaintenance(actionRequest.id)); await refetch(); showSuccess('Maintenance request deleted'); }
+    catch (error) { showError(error?.response?.data?.message || error?.message || 'Failed to delete maintenance request'); }
+  };
+
   const handleDragEnd = async ({ active, over }) => {
-    setDragActive(null);
-    if (!over || active.id === over.id) return;
-    const req = boardAllRequests.find(r => String(r.id) === String(active.id));
-    if (!req) return;
-    const newColumnKey = over.id;
-    if (statusToColumn(req.status) === newColumnKey) return;
-    const statusMap = { reported: 'Reported', acknowledged: 'Acknowledged', scheduled: 'Scheduled', inprogress: 'InProgress', resolved: 'Resolved' };
-    const backendStatus = statusMap[newColumnKey] || newColumnKey;
-
-    // Move the card immediately, before the network round-trip
-    setOptimisticOverrides(prev => ({ ...prev, [req.id]: backendStatus }));
-
-    try {
-      if (statusToColumn(req.status) === 'resolved') {
-        // Resolved/completed items need the dedicated reopen endpoint
-        await dispatch(reopenMaintenanceRequest(req.id));
-        // If target isn't 'reported' (the default state after reopen), set the specific status
-        if (newColumnKey !== 'reported') {
-          await dispatch(updateMaintenance({
-            id: req.id,
-            title: req.title,
-            unitName: req.unitName || '',
-            status: backendStatus,
-            priority: req.priority,
-            description: req.description || '',
-            categoryId: req.categoryId || 0,
-            imageUrl: req.imageUrl || '',
-            completedAt: null
-          }));
-        }
-      } else {
-        await dispatch(updateMaintenance({
-          id: req.id,
-          title: req.title,
-          unitName: req.unitName || '',
-          status: backendStatus,
-          priority: req.priority,
-          description: req.description || '',
-          categoryId: req.categoryId || 0,
-          imageUrl: req.imageUrl || '',
-          completedAt: newColumnKey === 'resolved' ? new Date().toISOString() : null
-        }));
-      }
-      await refetch();
-    } catch {
-      openSnackbar({
-        open: true,
-        message: 'Failed to update status',
-        variant: 'alert',
-        alert: { color: 'error', variant: 'filled' },
-        close: true,
-        actionButton: false,
-        anchorOrigin: { vertical: 'bottom', horizontal: 'right' },
-        transition: 'SlideUp',
-        autoHideDuration: 5000
-      });
-    } finally {
-      setOptimisticOverrides(prev => {
-        const next = { ...prev };
-        delete next[req.id];
-        return next;
-      });
-    }
+    setDragId(null);
+    if (!over) return;
+    const request = visibleRequests.find((item) => String(item.id) === String(active.id));
+    if (request && BOARD_COLUMNS.some((column) => column.key === over.id)) await changeStatus(request, over.id, false);
   };
 
-  // Status options
-  const statusOptions = [
-    { value: 'open', label: 'Not Started', color: 'default' },
-    { value: 'in-progress', label: 'In Progress', color: 'info' },
-    { value: 'pending', label: 'Pending', color: 'info' },
-    { value: 'on-hold', label: 'On Hold', color: 'info' },
-    { value: 'completed', label: 'Completed', color: 'primary' },
-    { value: 'cancelled', label: 'Cancelled', color: 'default' }
-  ];
+  const activeFilterCount = [statusFilter, priorityFilter, categoryFilter, assignmentFilter].filter((value) => value !== 'all').length + (selectedProperty ? 1 : 0);
+  const pageStart = visibleRequests.length ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const pageEnd = Math.min(page * PAGE_SIZE, visibleRequests.length);
+  const boardColumns = BOARD_COLUMNS.filter((column) => scope === 'all' || (scope === 'active' ? column.key !== 'resolved' : column.key === 'resolved'));
 
-  // Priority options
-  const priorityOptions = [
-    { value: 'low', label: 'Low', color: 'success' },
-    { value: 'medium', label: 'Medium', color: 'warning' },
-    { value: 'high', label: 'High', color: 'error' }
-  ];
-
-  // High priority count — resolved/completed/cancelled requests should not contribute
-  const highPriorityCount = sortedRequests.filter(r =>
-    (r.priority || '').toLowerCase() === 'high' && statusToColumn(r.status) !== 'resolved'
-  ).length;
-
-  // Property options for filter dropdown
-  const propertyOptions = useMemo(() => {
-    if (!properties) return [];
-    return properties.map(p => ({ id: p.id, label: p.name?.trim() || p.streetAddress?.trim() || `Property ${p.id}` }));
-  }, [properties]);
-
-  // ── Board view — use all property-filtered requests, ignore status/metric filters
-  const boardAllRequests = useMemo(() => {
-    const all = [...(currentRequests || []), ...(historyMaintenanceRequests || [])];
-    const base = selectedProperty?.id ? all.filter(r => r.propertyId === selectedProperty.id) : all;
-    const withOverrides = Object.keys(optimisticOverrides).length
-      ? base.map(r => optimisticOverrides[r.id] ? { ...r, status: optimisticOverrides[r.id] } : r)
-      : base;
-    if (!search.trim()) return withOverrides;
-    const s = search.toLowerCase();
-    return withOverrides.filter(r =>
-      r.title?.toLowerCase().includes(s) ||
-      r.orderNumber?.toLowerCase().includes(s) ||
-      r.propertyName?.toLowerCase().includes(s)
-    );
-  }, [currentRequests, historyMaintenanceRequests, selectedProperty, search, optimisticOverrides]);
-
-  const boardColumns = useMemo(() => {
-    return BOARD_COLUMNS.map(col => ({
-      ...col,
-      cards: sortBoardCards(boardAllRequests.filter(r => statusToColumn(r.status) === col.key))
-    }));
-  }, [boardAllRequests]);
-
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <Fade in={fadeIn} timeout={600}>
-      <Box sx={{ overflow: 'visible' }}>
+    <Box>
+      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Maintenance' }]} />
 
-        {/* ── Page header ── */}
-        <AnimateIn direction="bottom" delay={100} distance={120}>
-          <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-            <Box>
-              <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-                Maintenance
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Tickets, repairs, vendors — the AI agent triages and routes — you approve &amp; track
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<ShopOutlined />}
-                onClick={() => navigate('/landlord/vendors')}
-                sx={{ textTransform: 'none', borderRadius: 1.5 }}
-              >
-                Manage Vendors
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<SettingOutlined />}
-                onClick={() => navigate('/landlord/ai-center/maintenance-agent')}
-                sx={{ textTransform: 'none', borderRadius: 1.5 }}
-              >
-                Agent Settings
-              </Button>
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<PlusOutlined style={{ fontSize: 11 }} />}
-                onClick={() => drawer.openMaintenanceAddDrawer()}
-                sx={{
-                  textTransform: 'none',
-                  borderRadius: 1.5,
-                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
-                  '&:hover': { boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}` }
-                }}
-              >
-                New Ticket
-              </Button>
-            </Stack>
+      <Box sx={{ mt: 2, mb: 3, p: { xs: 2.25, md: 3 }, borderRadius: 3, color: '#fff', background: `linear-gradient(125deg, ${NAVY} 0%, #0b3555 100%)`, boxShadow: `0 16px 38px ${alpha(NAVY, 0.18)}` }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2.5}>
+          <Box>
+            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 780 }}>Maintenance</Typography>
+            <Typography sx={{ mt: 0.7, maxWidth: 650, color: alpha('#fff', 0.76), fontSize: { xs: '0.84rem', md: '0.92rem' } }}>Triage requests, coordinate vendors, and keep repairs moving across your portfolio.</Typography>
+            <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mt: 1.5 }}><RobotOutlined /><Typography sx={{ fontSize: '0.74rem', color: alpha('#fff', 0.75) }}>{kpis.triage ? `${kpis.triage} ${kpis.triage === 1 ? 'request needs' : 'requests need'} review` : 'No requests are waiting for initial review'}</Typography></Stack>
           </Box>
-        </AnimateIn>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Button variant="outlined" startIcon={<ShopOutlined />} onClick={() => navigate('/landlord/vendors')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.38), textTransform: 'none', '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>Vendors</Button>
+            <Button variant="outlined" startIcon={<SettingOutlined />} onClick={() => navigate('/landlord/ai-center/maintenance-agent')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.38), textTransform: 'none', '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>Agent settings</Button>
+            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openMaintenanceAddDrawer()} sx={{ textTransform: 'none', fontWeight: 750 }}>New request</Button>
+          </Stack>
+        </Stack>
+      </Box>
 
-        {/* ── KPI cards row ── */}
-        <AnimateIn delay={150} direction="bottom" distance={120}>
-          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-            {[
-              { key: 'total', label: 'TOTAL', value: kpis.total },
-              { key: 'open', label: 'OPEN', value: kpis.open },
-              { key: 'triaging', label: 'TRIAGING NOW', value: kpis.triaging },
-              { key: 'awaitingApproval', label: 'AWAITING APPROVAL', value: kpis.awaitingApproval }
-            ].map((kpi) => {
-              const isActive = activeMetricFilter === kpi.key;
-              return (
-                <Box
-                  key={kpi.key}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleMetricFilterChange(kpi.key)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleMetricFilterChange(kpi.key); } }}
-                  sx={(t) => {
-                    const isDark = t.palette.mode === 'dark';
-                    return {
-                      flex: '1 1 160px',
-                      border: '1px solid',
-                      borderColor: isActive ? 'primary.main' : isDark ? 'rgba(148, 163, 184, 0.18)' : 'rgba(0,0,0,0.15)',
-                      borderRadius: 2,
-                      p: 2,
-                      bgcolor: isActive ? (isDark ? 'rgba(59, 130, 246, 0.12)' : 'primary.lighter') : 'background.paper',
-                      backgroundImage: isDark ? 'linear-gradient(180deg, rgba(30, 41, 59, 0.78) 0%, rgba(15, 23, 42, 0.9) 100%)' : 'none',
-                      boxShadow: isDark ? 'inset 0 1px 0 rgba(255,255,255,0.04)' : 'none',
-                      cursor: 'pointer',
-                      transition: 'border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease',
-                      '&:hover': {
-                        borderColor: isDark ? 'rgba(96, 165, 250, 0.65)' : 'primary.main',
-                        transform: 'translateY(-1px)',
-                        boxShadow: isDark ? '0 18px 40px rgba(2, 8, 23, 0.34), inset 0 1px 0 rgba(255,255,255,0.07)' : 'none'
-                      }
-                    };
-                  }}
-                >
-                  <Typography variant="caption" fontWeight={700} sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.7, display: 'block', mb: 0.5 }}>
-                    {kpi.label}
-                  </Typography>
-                  <Typography variant="h4" fontWeight={800} sx={{ color: 'text.primary' }}>
-                    {kpi.value}
-                  </Typography>
-                </Box>
-              );
-            })}
-          </Box>
-        </AnimateIn>
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          { key: 'open', label: 'Open requests', value: kpis.open, helper: 'All work still in motion', icon: <ToolOutlined />, color: theme.palette.primary.main },
+          { key: 'triage', label: 'Needs triage', value: kpis.triage, helper: 'New requests to review', icon: <ClockCircleOutlined />, color: theme.palette.warning.main },
+          { key: 'unassigned', label: 'Unassigned', value: kpis.unassigned, helper: 'Needs a vendor or team member', icon: <UserOutlined />, color: theme.palette.info.main },
+          { key: 'high', label: 'High priority', value: kpis.high, helper: 'Active urgent requests', icon: <ExclamationCircleOutlined />, color: theme.palette.error.main }
+        ].map(({ key, ...cardProps }) => <Grid key={key} size={{ xs: 12, sm: 6, lg: 3 }}><MetricCard {...cardProps} active={metric === key && scope === 'active'} onClick={() => { setScope('active'); setMetric(key); }} /></Grid>)}
+      </Grid>
 
-        {/* ── Agent banner ── */}
-        <AnimateIn delay={200} direction="bottom" distance={120}>
-          <Box
-            sx={{
-              bgcolor: alpha(theme.palette.primary.main, 0.04),
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              borderRadius: 2,
-              p: 1.5,
-              mb: 3,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 1
-            }}
-          >
-            <Box>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.25 }}>
-                <RobotOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />
-                <Typography variant="body2" fontWeight={700}>Peace · maintenance agent</Typography>
-                <Chip
-                  label="• working"
-                  size="small"
-                  sx={{
-                    height: 20,
-                    bgcolor: alpha(theme.palette.success.main, 0.1),
-                    color: 'success.main',
-                    fontWeight: 700,
-                    fontSize: '0.65rem',
-                    '& .MuiChip-label': { px: 1 }
-                  }}
-                />
-              </Stack>
-              <Typography variant="caption" color="text.secondary">
-                reviewing open tickets and routing to vendors
-              </Typography>
-            </Box>
-            <Stack direction="row" spacing={1}>
-              <Button
-                size="small"
-                variant="text"
-                startIcon={<PlaySquareOutlined />}
-                sx={{ textTransform: 'none', fontSize: '0.75rem' }}
-              >
-                watch live
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<PauseOutlined />}
-                sx={{ textTransform: 'none', fontSize: '0.75rem', borderRadius: 1.5 }}
-              >
-                pause agent
-              </Button>
-            </Stack>
-          </Box>
-        </AnimateIn>
-
-        {/* ── Toolbar ── */}
-        <AnimateIn delay={250} direction="bottom" distance={120}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 1,
-              alignItems: 'center',
-              mb: 2
-            }}
-          >
-            {/* Board / Queue toggle */}
-            <Box
-              sx={{
-                display: 'flex',
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 1.5,
-                overflow: 'hidden'
-              }}
-            >
-              {['board', 'queue'].map((mode) => (
-                <Box
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  sx={{
-                    px: 1.5,
-                    py: 0.6,
-                    cursor: 'pointer',
-                    bgcolor: viewMode === mode ? 'primary.main' : 'transparent',
-                    color: viewMode === mode ? 'primary.contrastText' : 'text.secondary',
-                    fontWeight: 600,
-                    fontSize: '0.75rem',
-                    textTransform: 'capitalize',
-                    transition: 'all 0.15s',
-                    '&:hover': {
-                      bgcolor: viewMode === mode ? 'primary.main' : alpha(theme.palette.primary.main, 0.06)
-                    }
-                  }}
-                >
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </Box>
-              ))}
-            </Box>
-
-            {/* Property filter */}
-            <FormControl size="small" sx={{ minWidth: 140 }}>
-              <Select
-                displayEmpty
-                value={selectedProperty?.id || ''}
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    dispatch(setProperty(null));
-                  } else {
-                    const prop = properties?.find(p => p.id === e.target.value);
-                    if (prop) dispatch(setProperty(prop));
-                  }
-                }}
-                sx={{ fontSize: '0.75rem', height: 34 }}
-              >
-                <MenuItem value=""><em>All properties</em></MenuItem>
-                {propertyOptions.map(p => (
-                  <MenuItem key={p.id} value={p.id}>{p.label}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            {/* High priority chip filter */}
-            {highPriorityCount > 0 && (
-              <Chip
-                label={`• high priority (${highPriorityCount})`}
-                size="small"
-                onClick={() => {
-                  if (filters.priority.includes('high')) {
-                    setFilters(prev => ({ ...prev, priority: prev.priority.filter(p => p !== 'high') }));
-                  } else {
-                    setFilters(prev => ({ ...prev, priority: [...prev.priority, 'high'] }));
-                  }
-                }}
-                sx={{
-                  fontWeight: 600,
-                  fontSize: '0.7rem',
-                  bgcolor: filters.priority.includes('high') ? alpha(theme.palette.error.main, 0.12) : 'transparent',
-                  color: 'error.main',
-                  border: `1px solid ${alpha(theme.palette.error.main, 0.4)}`,
-                  cursor: 'pointer'
-                }}
-              />
-            )}
-
-            {/* Active filter chips */}
-            {filters.priority.filter(p => p !== 'high').map((priority) => (
-              <Chip
-                key={priority}
-                label={`Priority: ${priority.charAt(0).toUpperCase() + priority.slice(1)}`}
-                onDelete={() => setFilters(prev => ({ ...prev, priority: prev.priority.filter(p => p !== priority) }))}
-                deleteIcon={<FilterDeleteIcon fontSize={10} />}
-                size="small"
-                variant="outlined"
-                sx={{ color: 'primary.main', borderColor: 'primary.main', '& .MuiChip-label': { color: 'primary.main' } }}
-              />
-            ))}
-            {filters.category.map((category) => (
-              <Chip
-                key={category}
-                label={`Category: ${category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}`}
-                onDelete={() => setFilters(prev => ({ ...prev, category: prev.category.filter(c => c !== category) }))}
-                deleteIcon={<FilterDeleteIcon fontSize={10} />}
-                size="small"
-                variant="outlined"
-                sx={{ color: 'primary.main', borderColor: 'primary.main', '& .MuiChip-label': { color: 'primary.main' } }}
-              />
-            ))}
-
-            {/* Spacer */}
+      <Box sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, bgcolor: 'background.paper', boxShadow: `0 6px 24px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
+        <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.15} alignItems={{ lg: 'center' }}>
+            <OutlinedInput size="small" placeholder="Search requests, properties, vendors..." value={search} onChange={(event) => setSearch(event.target.value)} startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ width: { xs: '100%', lg: 310 } }} />
+            <FormControl size="small" sx={{ minWidth: 150 }}><Select value={selectedProperty?.id || ''} displayEmpty onChange={(event) => dispatch(setProperty(properties.find((property) => Number(property.id) === Number(event.target.value)) || null))}><MenuItem value="">All properties</MenuItem>{properties.map((property) => <MenuItem key={property.id} value={property.id}>{property.name?.trim() || property.streetAddress?.trim() || `Property ${property.id}`}</MenuItem>)}</Select></FormControl>
+            <FormControl size="small" sx={{ minWidth: 125 }}><Select value={scope} onChange={(event) => { setScope(event.target.value); setMetric('open'); }}><MenuItem value="active">Active</MenuItem><MenuItem value="resolved">Resolved</MenuItem><MenuItem value="all">All requests</MenuItem></Select></FormControl>
+            <FormControl size="small" sx={{ minWidth: 140 }}><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><MenuItem value="all">All statuses</MenuItem>{STATUS_OPTIONS.map((option) => <MenuItem key={option.key} value={option.key}>{option.label}</MenuItem>)}</Select></FormControl>
+            <FormControl size="small" sx={{ minWidth: 125 }}><Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><MenuItem value="all">All priorities</MenuItem>{PRIORITY_OPTIONS.map((priority) => <MenuItem key={priority} value={priority}>{titleCase(priority)}</MenuItem>)}</Select></FormControl>
             <Box sx={{ flex: 1 }} />
+            {!isMobile && <ViewToggle value={viewMode} onChange={changeView} />}
+          </Stack>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }} sx={{ mt: 1.15 }}>
+            <FormControl size="small" sx={{ minWidth: 155 }}><Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><MenuItem value="all">All categories</MenuItem>{categories.map((category) => <MenuItem key={category} value={category}>{titleCase(category)}</MenuItem>)}</Select></FormControl>
+            <FormControl size="small" sx={{ minWidth: 145 }}><Select value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}><MenuItem value="all">All assignments</MenuItem><MenuItem value="unassigned">Unassigned</MenuItem><MenuItem value="vendor">Vendor</MenuItem><MenuItem value="team">Team member</MenuItem></Select></FormControl>
+            <FormControl size="small" sx={{ minWidth: 160 }}><Select value={sort} onChange={(event) => setSort(event.target.value)}><MenuItem value="priority">Priority · oldest</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="newest">Newest first</MenuItem><MenuItem value="status">Workflow status</MenuItem></Select></FormControl>
+            <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>{visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}{activeFilterCount ? ` · ${activeFilterCount} ${activeFilterCount === 1 ? 'filter' : 'filters'} active` : ''}</Typography>
+            {(activeFilterCount > 0 || search || scope !== 'active' || metric !== 'open') && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
+          </Stack>
+        </Box>
 
-            {/* Search */}
-            <OutlinedInput
-              size="small"
-              placeholder="search tickets..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-              startAdornment={
-                <InputAdornment position="start">
-                  <SearchOutlined style={{ fontSize: 14, opacity: 0.5 }} />
-                </InputAdornment>
-              }
-              sx={{ width: { xs: '100%', sm: 220 }, bgcolor: 'background.paper', height: 34, fontSize: '0.8rem' }}
-            />
-
-            {/* Filter icon */}
-            <Tooltip title="More filters">
-              <IconButton
-                size="small"
-                onClick={(e) => { setClickedChipFilter(null); setFilterAnchorEl(e.currentTarget); }}
-              >
-                <FilterOutlined />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </AnimateIn>
-
-        {/* ── Filter menus ── */}
-        <Menu
-          anchorEl={filterAnchorEl}
-          open={Boolean(filterAnchorEl) && !clickedChipFilter}
-          onClose={() => { setFilterAnchorEl(null); setSubMenuAnchorEl(null); setActiveSubMenu(null); setClickedChipFilter(null); }}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        >
-          <MenuList>
-            <MenuItem onClick={(e) => { setActiveSubMenu('priority'); setSubMenuAnchorEl(e.currentTarget); }}>
-              <ListItemText primary="Priority" />
-              {filters.priority.length > 0 && (
-                <Typography variant="caption" color="primary" sx={{ ml: 1 }}>{filters.priority.length} selected</Typography>
-              )}
-            </MenuItem>
-            <MenuItem onClick={(e) => { setActiveSubMenu('category'); setSubMenuAnchorEl(e.currentTarget); }}>
-              <ListItemText primary="Category" />
-              {filters.category.length > 0 && (
-                <Typography variant="caption" color="primary" sx={{ ml: 1 }}>{filters.category.length} selected</Typography>
-              )}
-            </MenuItem>
-          </MenuList>
-        </Menu>
-
-        <Menu
-          anchorEl={subMenuAnchorEl}
-          open={Boolean(subMenuAnchorEl) && (activeSubMenu === 'priority' || activeSubMenu === 'category')}
-          onClose={() => { setSubMenuAnchorEl(null); setActiveSubMenu(null); setFilterAnchorEl(null); setClickedChipFilter(null); }}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        >
-          <MenuList>
-            {activeSubMenu === 'priority' && (
-              <>
-                <MenuItem onClick={() => { setFilters(prev => ({ ...prev, priority: [] })); setSubMenuAnchorEl(null); setActiveSubMenu(null); setFilterAnchorEl(null); setClickedChipFilter(null); }}>
-                  <ListItemText primary="All Priorities" />
-                </MenuItem>
-                {['low', 'medium', 'high'].map(p => (
-                  <MenuItem key={p} selected={filters.priority.includes(p)} onClick={() => {
-                    setFilters(prev => ({
-                      ...prev,
-                      priority: prev.priority.includes(p) ? prev.priority.filter(x => x !== p) : [...prev.priority, p]
-                    }));
-                    setSubMenuAnchorEl(null); setActiveSubMenu(null); setFilterAnchorEl(null); setClickedChipFilter(null);
-                  }}>
-                    <ListItemText primary={p.charAt(0).toUpperCase() + p.slice(1)} />
-                  </MenuItem>
-                ))}
-              </>
-            )}
-            {activeSubMenu === 'category' && (
-              <>
-                <MenuItem onClick={() => { setFilters(prev => ({ ...prev, category: [] })); setSubMenuAnchorEl(null); setActiveSubMenu(null); setFilterAnchorEl(null); setClickedChipFilter(null); }}>
-                  <ListItemText primary="All Categories" />
-                </MenuItem>
-                {['plumbing', 'electrical', 'hvac', 'appliances', 'pest_control', 'landscaping', 'general_repair', 'roofing', 'flooring', 'painting'].map(cat => (
-                  <MenuItem key={cat} selected={filters.category.includes(cat)} onClick={() => {
-                    setFilters(prev => ({
-                      ...prev,
-                      category: prev.category.includes(cat) ? prev.category.filter(c => c !== cat) : [...prev.category, cat]
-                    }));
-                  }}>
-                    <ListItemText primary={cat.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} />
-                  </MenuItem>
-                ))}
-              </>
-            )}
-          </MenuList>
-        </Menu>
-
-        {/* ── Main content area ── */}
-        <AnimateIn delay={300} direction="bottom" distance={120}>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-              <CircularProgress />
-            </Box>
-          ) : viewMode === 'board' ? (
-            /* ────────────────── BOARD VIEW ────────────────── */
-            <DndContext
-              collisionDetection={(args) => {
-                const pointer = pointerWithin(args);
-                return pointer.length > 0 ? pointer : closestCenter(args);
-              }}
-              onDragStart={({ active }) => setDragActive(active.id)}
-              onDragEnd={handleDragEnd}
-              onDragCancel={() => setDragActive(null)}
-            >
+        {busy ? <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : visibleRequests.length === 0 ? (
+          <Box sx={{ py: 8, px: 2, textAlign: 'center' }}><Avatar sx={{ mx: 'auto', mb: 1.5, width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.09), color: 'primary.main' }}><ToolOutlined /></Avatar><Typography variant="h6">No matching maintenance requests</Typography><Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: '0.82rem' }}>{allRequests.length ? 'Try clearing or changing the current filters.' : 'Create your first request to start tracking repairs.'}</Typography><Button variant="contained" startIcon={allRequests.length ? <SearchOutlined /> : <PlusOutlined />} onClick={allRequests.length ? clearFilters : () => drawer.openMaintenanceAddDrawer()} sx={{ mt: 2, textTransform: 'none' }}>{allRequests.length ? 'Clear filters' : 'New request'}</Button></Box>
+        ) : viewMode === 'list' || isMobile ? (
+          <>
+            <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(250px, 1.35fr) minmax(190px, 1fr) minmax(145px, .72fr) minmax(150px, .78fr) 44px', gap: 2, px: 2, py: 1, bgcolor: alpha(theme.palette.background.default, 0.55), borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>{['Request', 'Property & timing', 'Priority & status', 'Assigned to', ''].map((label) => <Typography key={label} sx={{ fontSize: '0.66rem', fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.55 }}>{label}</Typography>)}</Box>
+            {paginated.map((request) => <MaintenanceRow key={request.id} request={request} properties={properties} onOpen={(item) => navigate(`/landlord/maintenance/${item.id}`)} onActions={openActions} />)}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems="center" sx={{ p: 2 }}><Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>Showing {pageStart}–{pageEnd} of {visibleRequests.length}</Typography><Pagination count={pageCount} page={page} onChange={(_, value) => setPage(value)} size="small" color="primary" /></Stack>
+          </>
+        ) : (
+          <DndContext collisionDetection={(args) => pointerWithin(args).length ? pointerWithin(args) : closestCenter(args)} onDragStart={({ active }) => setDragId(active.id)} onDragCancel={() => setDragId(null)} onDragEnd={handleDragEnd}>
+            <Box sx={{ overflowX: 'auto', p: 2, bgcolor: alpha(theme.palette.background.default, 0.42) }}>
               <Box
                 sx={{
-                  display: 'flex',
-                  gap: 2,
-                  overflowX: 'auto',
-                  overflowY: 'visible',
-                  pb: 2,
-                  mx: -0.5,
-                  px: 0.5,
-                  '&::-webkit-scrollbar': { height: 8 },
-                  '&::-webkit-scrollbar-track': { bgcolor: 'rgba(0,0,0,0.04)', borderRadius: 4 },
-                  '&::-webkit-scrollbar-thumb': { bgcolor: alpha(theme.palette.info.main, 0.35), borderRadius: 4, '&:hover': { bgcolor: alpha(theme.palette.info.main, 0.55) } }
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${boardColumns.length}, minmax(260px, 1fr))`,
+                  gap: 1.5,
+                  minWidth: boardColumns.length > 1 ? boardColumns.length * 276 : '100%',
+                  alignItems: 'stretch'
                 }}
               >
-                {boardColumns.map(col => (
-                  <DroppableColumn
-                    key={col.key}
-                    columnKey={col.key}
-                    label={col.label}
-                    color={col.color}
-                    cards={col.cards}
+                {boardColumns.map((column) => (
+                  <BoardColumn
+                    key={column.key}
+                    column={column}
+                    requests={visibleRequests.filter((request) => normalizeStatus(request.status) === column.key)}
                     properties={properties}
-                    onCardClick={(id) => navigate(`/landlord/maintenance/${id}`)}
-                    onMoveClick={handleBoardMoveClick}
-                    theme={theme}
+                    onOpen={(item) => navigate(`/landlord/maintenance/${item.id}`)}
+                    onActions={openActions}
+                    wide={boardColumns.length === 1}
                   />
                 ))}
               </Box>
-
-              <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
-                {dragActive ? (() => {
-                  const req = boardAllRequests.find(r => String(r.id) === String(dragActive));
-                  if (!req) return null;
-                  return (
-                    <Box
-                      sx={{
-                        bgcolor: 'background.paper',
-                        border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.12)}`,
-                        borderRadius: 2,
-                        p: 1.5,
-                        width: 220,
-                        boxShadow: theme.palette.mode === 'dark' ? `0 8px 32px ${alpha(theme.palette.common.black, 0.4)}, inset 0 1px 0 rgba(255,255,255,0.06)` : `0 8px 24px ${alpha(theme.palette.common.black, 0.14)}`,
-                        cursor: 'grabbing',
-                        userSelect: 'none'
-                      }}
-                    >
-                      <CardContent request={req} properties={properties} onCardClick={() => {}} theme={theme} isOverlay />
-                    </Box>
-                  );
-                })() : null}
-              </DragOverlay>
-
-            </DndContext>
-          ) : (
-            /* ────────────────── QUEUE VIEW ────────────────── */
-            <Box sx={{ display: 'flex', gap: 0, border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, borderRadius: 2, overflow: 'hidden', bgcolor: 'background.paper', boxShadow: theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}` }}>
-              {/* Left panel: table */}
-              <Box sx={{ flex: 1, overflow: 'auto' }}>
-                {sortedRequests.length === 0 ? (
-                  <Box sx={{ p: 4, textAlign: 'center' }}>
-                    <ToolOutlined style={{ fontSize: 48, color: theme.palette.text.disabled, marginBottom: 16 }} />
-                    <Typography variant="h6" color="text.secondary" gutterBottom>No maintenance requests found</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {search.trim() !== '' || selectedProperty ? 'Try adjusting your search or filter criteria.' : 'Get started by creating your first maintenance request.'}
-                    </Typography>
-                  </Box>
-                ) : (
-                  <>
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: alpha(theme.palette.background.default, 0.6) }}>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6, cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => handleSort('orderNumber')}>
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <span>Order #</span>
-                                {sortField === 'orderNumber' && (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />)}
-                              </Stack>
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6, cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => handleSort('property')}>
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <span>Property</span>
-                                {sortField === 'property' && (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />)}
-                              </Stack>
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6, cursor: 'pointer' }} onClick={() => handleSort('title')}>
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <span>Title</span>
-                                {sortField === 'title' && (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />)}
-                              </Stack>
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6, cursor: 'pointer' }} onClick={() => handleSort('category')}>
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <span>Category</span>
-                                {sortField === 'category' && (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />)}
-                              </Stack>
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6, cursor: 'pointer' }} align="center" onClick={() => handleSort('priority')}>
-                              <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                                <span>Priority</span>
-                                {sortField === 'priority' && (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />)}
-                              </Stack>
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6, cursor: 'pointer' }} align="center" onClick={() => handleSort('status')}>
-                              <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
-                                <span>Status</span>
-                                {sortField === 'status' && (sortOrder === 'asc' ? <ArrowUpOutlined style={{ fontSize: 10 }} /> : <ArrowDownOutlined style={{ fontSize: 10 }} />)}
-                              </Stack>
-                            </TableCell>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>Vendor</TableCell>
-                            <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: 0.6 }}>Age</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {paginatedRequests.map((request) => {
-                            const isSelected = selectedRequest?.id === request.id;
-                            const propLabel = getPropertyDisplayLabel(request, properties);
-                            const categoryDisplay = request.category
-                              ? request.category.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                              : '—';
-                            const isMember = request.assignedToType === 4;
-                            const vendorName = isMember ? request.assignedContactName : request.vendorName;
-
-                            return (
-                              <TableRow
-                                key={request.id}
-                                hover
-                                selected={isSelected}
-                                onClick={() => navigate(`/landlord/maintenance/${request.id}`)}
-                                sx={{
-                                  cursor: 'pointer',
-                                  bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.06) : undefined,
-                                  '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.06) },
-                                  '&.Mui-selected:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
-                                }}
-                              >
-                                <TableCell>
-                                  <Typography variant="caption" fontWeight={700} color="primary.main">
-                                    {request.orderNumber || '—'}
-                                  </Typography>
-                                </TableCell>
-                                <TableCell>
-                                  <Typography variant="caption" noWrap sx={{ maxWidth: 120, display: 'block' }}>{propLabel}</Typography>
-                                </TableCell>
-                                <TableCell sx={{ maxWidth: 180 }}>
-                                  <Typography variant="caption" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
-                                    {request.title || '—'}
-                                  </Typography>
-                                </TableCell>
-                                <TableCell>
-                                  <Typography variant="caption" color="text.secondary">{categoryDisplay}</Typography>
-                                </TableCell>
-                                <TableCell align="center" onClick={(e) => e.stopPropagation()}>
-                                  <PriorityChipDisplay priority={request.priority} />
-                                </TableCell>
-                                <TableCell align="center" onClick={(e) => e.stopPropagation()}>
-                                  <StatusChip status={request.status} />
-                                </TableCell>
-                                <TableCell>
-                                  {vendorName ? (
-                                    <Stack direction="row" spacing={0.5} alignItems="center">
-                                      <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: alpha(theme.palette.primary.main, 0.15), color: 'primary.main' }}>
-                                        {vendorName[0].toUpperCase()}
-                                      </Avatar>
-                                      <Typography variant="caption" noWrap sx={{ maxWidth: 100 }}>{vendorName}</Typography>
-                                    </Stack>
-                                  ) : (
-                                    <Typography variant="caption" color="text.disabled">—</Typography>
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  <Typography variant="caption" color="text.secondary">{getDaysAgo(request.createdAt) || '—'}</Typography>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-
-                    {/* Pagination */}
-                    {sortedRequests.length > 0 && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="caption" color="text.secondary">Items per page:</Typography>
-                          <FormControl size="small" sx={{ minWidth: 70 }}>
-                            <Select value={itemsPerPage} onChange={(e) => setItemsPerPage(Number(e.target.value))} sx={{ height: 28, fontSize: '0.75rem' }}>
-                              <MenuItem value={10}>10</MenuItem>
-                              <MenuItem value={20}>20</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="caption" color="text.secondary">Page {page + 1} of {totalPages}</Typography>
-                          <Button size="small" variant="outlined" startIcon={<LeftOutlined />} onClick={() => handlePageChange(Math.max(0, page - 1))} disabled={page === 0} sx={{ minWidth: 90, fontSize: '0.7rem' }}>Prev</Button>
-                          <Button size="small" variant="outlined" endIcon={<RightOutlined />} onClick={() => handlePageChange(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} sx={{ minWidth: 90, fontSize: '0.7rem' }}>Next</Button>
-                        </Box>
-                      </Box>
-                    )}
-                  </>
-                )}
-              </Box>
-
-              {/* Right sidebar - hidden on mobile */}
-              {!isMobile && (
-                <Box
-                  sx={{
-                    width: 380,
-                    flexShrink: 0,
-                    borderLeft: `1px solid ${theme.palette.divider}`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    bgcolor: alpha(theme.palette.background.default, 0.5)
-                  }}
-                >
-                  {selectedRequest ? (
-                    <Box sx={{ p: 2.5, flex: 1, overflowY: 'auto' }}>
-                      {/* Header */}
-                      <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.5, fontSize: '0.65rem' }}>
-                        SELECTED · {selectedRequest.orderNumber || `MR-${selectedRequest.id}`}
-                      </Typography>
-                      <Typography variant="h5" fontWeight={700} sx={{ mt: 0.5, mb: 0.5, lineHeight: 1.25 }}>
-                        {selectedRequest.title}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {getPropertyDisplayLabel(selectedRequest, properties)} · reported by · {getDaysAgo(selectedRequest.createdAt) || '—'}
-                      </Typography>
-                      <Stack direction="row" spacing={1} sx={{ mt: 1.5, mb: 1.5 }}>
-                        <PriorityChipDisplay priority={selectedRequest.priority} />
-                        <StatusChip status={selectedRequest.status} />
-                      </Stack>
-
-                      <Divider sx={{ mb: 2 }} />
-
-                      {/* Agent transcript */}
-                      <Typography variant="caption" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'primary.main', display: 'block', mb: 1.5 }}>
-                        Agent Transcript · Live
-                      </Typography>
-                      <Stack spacing={1} sx={{ mb: 2 }}>
-                        <Box sx={{ bgcolor: alpha(theme.palette.primary.main, 0.06), borderRadius: 1.5, p: 1.25 }}>
-                          <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ display: 'block', mb: 0.25 }}>Peace · agent</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            I&apos;ve reviewed this ticket and identified it as a {(selectedRequest.category || 'general').toLowerCase()} issue. Searching for qualified vendors now.
-                          </Typography>
-                        </Box>
-                        <Box sx={{ bgcolor: alpha(theme.palette.background.paper, 0.8), border: `1px solid ${theme.palette.divider}`, borderRadius: 1.5, p: 1.25 }}>
-                          <Typography variant="caption" fontWeight={700} sx={{ display: 'block', mb: 0.25 }}>Peace · agent</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            Found {Math.floor(Math.random() * 3) + 1} vendors in your network with availability. Recommend assigning based on rating and proximity.
-                          </Typography>
-                        </Box>
-                      </Stack>
-
-                      <Divider sx={{ mb: 2 }} />
-
-                      {/* Agent recommends */}
-                      <Typography variant="caption" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1, color: 'text.secondary', display: 'block', mb: 1.5 }}>
-                        Agent Recommends
-                      </Typography>
-                      {selectedRequest.vendorName ? (
-                        <Box sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 1.5, p: 1.5, mb: 1.5 }}>
-                          <Stack direction="row" spacing={1.5} alignItems="center">
-                            <Avatar sx={{ width: 36, height: 36, bgcolor: alpha(theme.palette.primary.main, 0.15), color: 'primary.main', fontWeight: 700 }}>
-                              {selectedRequest.vendorName[0].toUpperCase()}
-                            </Avatar>
-                            <Box sx={{ flex: 1 }}>
-                              <Typography variant="body2" fontWeight={600}>{selectedRequest.vendorName}</Typography>
-                              <Typography variant="caption" color="text.secondary">Assigned vendor</Typography>
-                            </Box>
-                          </Stack>
-                          <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
-                            <Button size="small" variant="outlined" fullWidth sx={{ textTransform: 'none', fontSize: '0.72rem' }}
-                              onClick={(e) => { e.stopPropagation(); drawer.openVendorAssignDrawer(selectedRequest, refetch); }}>
-                              Change vendor
-                            </Button>
-                          </Stack>
-                        </Box>
-                      ) : (
-                        <Box sx={{ border: `1px dashed ${theme.palette.divider}`, borderRadius: 1.5, p: 1.5, mb: 1.5, textAlign: 'center' }}>
-                          <Typography variant="caption" color="text.secondary">No vendor assigned yet</Typography>
-                          <Button size="small" variant="contained" fullWidth sx={{ mt: 1, textTransform: 'none', fontSize: '0.72rem' }}
-                            onClick={(e) => { e.stopPropagation(); drawer.openVendorAssignDrawer(selectedRequest, refetch); }}>
-                            Assign vendor
-                          </Button>
-                        </Box>
-                      )}
-
-                      <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                        <Button size="small" variant="outlined" fullWidth sx={{ textTransform: 'none', fontSize: '0.72rem' }}
-                          onClick={() => navigate(`/landlord/maintenance/${selectedRequest.id}`)}>
-                          View details
-                        </Button>
-                        <Tooltip title="Delete request">
-                          <MuiIconButton size="small" onClick={() => handleDeleteClick(selectedRequest)}>
-                            <DeleteOutlined style={{ color: theme.palette.error.main, fontSize: 16 }} />
-                          </MuiIconButton>
-                        </Tooltip>
-                      </Stack>
-                    </Box>
-                  ) : null}
-                </Box>
-              )}
             </Box>
-          )}
-        </AnimateIn>
-
-        {/* ── Board Move Menu ── */}
-        <Menu
-          anchorEl={boardMoveMenuAnchor}
-          open={Boolean(boardMoveMenuAnchor)}
-          onClose={handleBoardMoveMenuClose}
-          slots={{ transition: Fade }}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        >
-          <MenuItem disabled dense>
-            <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              Move to…
-            </Typography>
-          </MenuItem>
-          {BOARD_COLUMNS.map((column) => {
-            const isSelected = selectedRequestForBoardMove && statusToColumn(selectedRequestForBoardMove.status) === column.key;
-            return (
-              <MenuItem key={column.key} onClick={() => handleBoardMoveChange(column.key)} selected={isSelected}>
-                <Chip label={column.label} color={column.color} size="small" sx={{ fontWeight: 600 }} />
-              </MenuItem>
-            );
-          })}
-        </Menu>
-
-        {/* ── Status Change Menu ── */}
-        <Menu
-          anchorEl={statusMenuAnchor}
-          open={Boolean(statusMenuAnchor)}
-          onClose={handleStatusMenuClose}
-          slots={{ transition: Fade }}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        >
-          {statusOptions.map((option) => {
-            const currentStatus = selectedRequestForStatus?.status?.toString().toLowerCase() || '';
-            const normalizedCurrent = currentStatus === 'inprogress' ? 'in-progress' : currentStatus === 'onhold' ? 'on-hold' : currentStatus;
-            const isSelected = normalizedCurrent === option.value;
-            return (
-              <MenuItem key={option.value} onClick={() => handleStatusChange(option.value)} selected={isSelected}>
-                <Chip label={option.label} color={option.color} size="small" sx={{ fontWeight: 600 }} />
-              </MenuItem>
-            );
-          })}
-        </Menu>
-
-        {/* ── Priority Change Menu ── */}
-        <Menu
-          anchorEl={priorityMenuAnchor}
-          open={Boolean(priorityMenuAnchor)}
-          onClose={handlePriorityMenuClose}
-          slots={{ transition: Fade }}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        >
-          {priorityOptions.map((option) => {
-            const currentPriority = selectedRequestForPriority?.priority?.toString().toLowerCase() || '';
-            const isSelected = currentPriority === option.value;
-            return (
-              <MenuItem key={option.value} onClick={() => handlePriorityChange(option.value)} selected={isSelected}>
-                <Chip label={option.label} color={option.color} size="small" sx={{ fontWeight: 600 }} />
-              </MenuItem>
-            );
-          })}
-        </Menu>
-
-        {/* ── Confirmation Dialog ── */}
-        <ConfirmationDialog
-          open={deleteConfirmOpen}
-          onClose={() => { setDeleteConfirmOpen(false); setRequestToDelete(null); }}
-          onConfirm={handleConfirmDelete}
-          title="Confirm Delete Maintenance Request"
-          message={`Are you sure you want to delete maintenance request "${requestToDelete?.title}"? This action cannot be undone.`}
-          confirmText="Delete Request"
-          confirmColor="error"
-        />
-
-        {/* ── Drawers ── */}
-        <LandlordMaintenanceDrawer onAddSuccess={async () => { await refetch(); }} />
-        <MaintenanceEditDrawer maintenance={drawer.selectedMaintenance} onUpdateSuccess={async () => { await refetch(); }} />
-        <VendorAssignDrawer />
-
+            <DragOverlay>{dragId ? <BoardCard overlay request={visibleRequests.find((item) => String(item.id) === String(dragId))} properties={properties} onOpen={() => {}} onActions={() => {}} /> : null}</DragOverlay>
+          </DndContext>
+        )}
       </Box>
-    </Fade>
+
+      <Menu anchorEl={actionAnchor} open={Boolean(actionAnchor)} onClose={closeActions}>
+        <MenuItem onClick={() => runAction(() => navigate(`/landlord/maintenance/${actionRequest.id}`))}><EyeOutlined style={{ marginRight: 10 }} />View details</MenuItem>
+        <MenuItem onClick={() => runAction(() => drawer.openMaintenanceEditDrawer(actionRequest))}><EditOutlined style={{ marginRight: 10 }} />Edit request</MenuItem>
+        <MenuItem onClick={() => runAction(() => drawer.openVendorAssignDrawer(actionRequest, refetch))}><ShopOutlined style={{ marginRight: 10 }} />{getAssignment(actionRequest) ? 'Change assignment' : 'Assign vendor or team'}</MenuItem>
+        <MenuItem onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setStatusMenuPosition({ top: rect.top, left: rect.right }); setActionAnchor(null); }}><CheckCircleOutlined style={{ marginRight: 10 }} />Change status</MenuItem>
+        <MenuItem onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setPriorityMenuPosition({ top: rect.top, left: rect.right }); setActionAnchor(null); }}><ExclamationCircleOutlined style={{ marginRight: 10 }} />Change priority</MenuItem>
+        <MenuItem sx={{ color: 'error.main' }} onClick={() => runAction(() => setDeleteOpen(true))}><DeleteOutlined style={{ marginRight: 10 }} />Delete</MenuItem>
+      </Menu>
+      <Menu anchorReference="anchorPosition" anchorPosition={statusMenuPosition} open={Boolean(statusMenuPosition)} onClose={() => setStatusMenuPosition(null)}>{STATUS_OPTIONS.map((option) => <MenuItem key={option.key} selected={actionRequest && normalizeStatus(actionRequest.status) === option.key} onClick={() => { setStatusMenuPosition(null); changeStatus(actionRequest, option.key); }}><StatusChip status={option.key} /></MenuItem>)}</Menu>
+      <Menu anchorReference="anchorPosition" anchorPosition={priorityMenuPosition} open={Boolean(priorityMenuPosition)} onClose={() => setPriorityMenuPosition(null)}>{PRIORITY_OPTIONS.map((priority) => <MenuItem key={priority} selected={actionRequest && normalizeToken(actionRequest.priority) === priority} onClick={() => { setPriorityMenuPosition(null); changePriority(actionRequest, priority); }}><PriorityChip priority={priority} /></MenuItem>)}</Menu>
+
+      <ConfirmationDialog open={deleteOpen} onClose={() => setDeleteOpen(false)} onConfirm={confirmDelete} title="Delete maintenance request?" message={`Delete “${actionRequest?.title || 'this request'}”? This action cannot be undone.`} confirmText="Delete request" confirmColor="error" />
+      <LandlordMaintenanceDrawer onAddSuccess={refetch} />
+      <MaintenanceEditDrawer maintenance={drawer.selectedMaintenance} onUpdateSuccess={refetch} />
+      <VendorAssignDrawer />
+    </Box>
   );
 }

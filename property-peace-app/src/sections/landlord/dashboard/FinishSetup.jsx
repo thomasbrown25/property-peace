@@ -170,7 +170,7 @@ function SmsNumberSetupPanel({ step, onBack }) {
                 <Typography variant="body2" color="text.secondary">
                   Upgrade to Premium to choose a Property Peace texting number for tenant communication. Tenants text normally, and replies stay grouped in your app inbox.
                 </Typography>
-                <Button variant="contained" onClick={() => navigate('/landlord/subscription')} sx={{ textTransform: 'none', alignSelf: 'flex-start' }}>
+                <Button variant="contained" onClick={() => navigate('/landlord/settings?tab=subscription')} sx={{ textTransform: 'none', alignSelf: 'flex-start' }}>
                   Upgrade to Premium
                 </Button>
               </Stack>

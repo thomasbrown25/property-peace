@@ -63,7 +63,7 @@ export default function SubscriptionPausedGuard({ children }) {
               <Button
                 variant="contained"
                 size="large"
-                onClick={() => navigate('/landlord/subscription?tab=1')}
+                onClick={() => navigate('/landlord/settings?tab=subscription')}
                 sx={{ mt: 2 }}
               >
                 Resume Subscription

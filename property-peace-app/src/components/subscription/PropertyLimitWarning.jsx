@@ -17,7 +17,7 @@ export default function PropertyLimitWarning({ status }) {
           <Button
             color="inherit"
             size="small"
-            onClick={() => navigate('/landlord/subscription')}
+            onClick={() => navigate('/landlord/settings?tab=subscription')}
           >
             Upgrade Plan
           </Button>

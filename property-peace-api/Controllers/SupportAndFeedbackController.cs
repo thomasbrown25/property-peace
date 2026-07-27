@@ -75,6 +75,16 @@ namespace brownstone_hub_api.Controllers
                         Subject = sf.Subject,
                         Message = sf.Message,
                         CreatedAt = sf.CreatedAt,
+                        LastActivityAt = sf.LastActivityAt,
+                        ResolvedAt = sf.ResolvedAt,
+                        TicketNumber = sf.TicketNumber,
+                        ConversationId = sf.ConversationId,
+                        LastMessageBy = sf.ConversationId == null ? null : _context.Conversations
+                            .Where(conversation => conversation.Id == sf.ConversationId)
+                            .Select(conversation => conversation.LastMessageBy)
+                            .FirstOrDefault(),
+                        MessageCount = sf.ConversationId == null ? 1 : _context.Messages
+                            .Count(message => message.ConversationId == sf.ConversationId && !message.IsDeleted),
                         IsResolved = sf.IsResolved,
                         IsFavorite = sf.IsFavorite
                     })
@@ -101,6 +111,13 @@ namespace brownstone_hub_api.Controllers
                     item.Subject,
                     item.Message,
                     item.CreatedAt,
+                    item.LastActivityAt,
+                    item.ResolvedAt,
+                    item.TicketNumber,
+                    item.ConversationId,
+                    item.LastMessageBy,
+                    item.MessageCount,
+                    CanReply = item.ConversationId != null,
                     item.IsResolved,
                     item.IsFavorite
                 }).ToList();
@@ -147,6 +164,10 @@ namespace brownstone_hub_api.Controllers
                         sf.Subject,
                         sf.Message,
                         sf.CreatedAt,
+                        sf.LastActivityAt,
+                        sf.ResolvedAt,
+                        sf.TicketNumber,
+                        sf.ConversationId,
                         sf.IsResolved,
                         sf.IsFavorite
                     })
@@ -181,6 +202,8 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 item.IsResolved = isResolved;
+                item.ResolvedAt = isResolved ? DateTime.UtcNow : null;
+                item.LastActivityAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
                 return Ok(new { success = true, message = $"Support and feedback request {(isResolved ? "marked as resolved" : "marked as unresolved")}" });

@@ -26,6 +26,11 @@ import axiosServices from 'utils/axios';
 
 // ==============================|| RECIPIENT SELECTOR ||============================== //
 
+const hasAnnouncementRecipient = (unit) => {
+  const tenants = unit?.lease?.tenants || unit?.tenants || [];
+  return tenants.some((tenant) => Boolean(tenant?.userId || tenant?.user?.id));
+};
+
 export default function RecipientSelector({
   selectedOrganizations,
   selectedProperties,
@@ -84,7 +89,6 @@ export default function RecipientSelector({
         const uniqueProperties = Array.from(
           new Map(allProperties.map(p => [p.id, p])).values()
         );
-        setProperties(uniqueProperties);
 
         // Fetch units for all properties
         // Group properties by organization to set correct header
@@ -113,7 +117,23 @@ export default function RecipientSelector({
 
         const unitResults = await Promise.all(unitPromises);
         const allUnits = unitResults.flat();
-        setUnits(allUnits);
+        const eligibleUnits = allUnits.filter(hasAnnouncementRecipient);
+        const eligiblePropertyIds = new Set(eligibleUnits.map((unit) => unit.propertyId));
+        const eligibleProperties = uniqueProperties.filter((property) => eligiblePropertyIds.has(property.id));
+
+        setProperties(eligibleProperties);
+        setUnits(eligibleUnits);
+
+        const nextSelectedProperties = new Set(
+          Array.from(selectedProperties).filter((propertyId) => eligiblePropertyIds.has(propertyId))
+        );
+        const eligibleUnitIds = new Set(eligibleUnits.map((unit) => unit.id));
+        const nextSelectedUnits = new Set(
+          Array.from(selectedUnits).filter((unitId) => eligibleUnitIds.has(unitId))
+        );
+
+        if (nextSelectedProperties.size !== selectedProperties.size) onPropertiesChange(nextSelectedProperties);
+        if (nextSelectedUnits.size !== selectedUnits.size) onUnitsChange(nextSelectedUnits);
       } catch (err) {
         setError(err.message || 'Failed to load properties and units');
         console.error('Error fetching properties/units:', err);
@@ -365,7 +385,9 @@ export default function RecipientSelector({
                     <TableRow>
                       <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedPropertyFilter ? 'No properties match your selection' : 'No properties found'}
+                          {selectedPropertyFilter
+                            ? 'No properties match your selection'
+                            : 'No properties have tenants with portal accounts'}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -469,7 +491,9 @@ export default function RecipientSelector({
                     <TableRow>
                       <TableCell colSpan={3} align="center" sx={{ py: 3 }}>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedUnitFilter || selectedPropertyFilter ? 'No units match your selection' : 'No units found'}
+                          {selectedUnitFilter || selectedPropertyFilter
+                            ? 'No units match your selection'
+                            : 'No units have tenants with portal accounts'}
                         </Typography>
                       </TableCell>
                     </TableRow>
@@ -505,7 +529,8 @@ export default function RecipientSelector({
 
       <Box sx={{ mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
-          Selected: {selectedProperties.size} property(ies), {selectedUnits.size} unit(s)
+          Only homes with tenants who can receive announcements are shown. Selected: {selectedProperties.size} property(ies),{' '}
+          {selectedUnits.size} unit(s)
         </Typography>
       </Box>
     </Box>

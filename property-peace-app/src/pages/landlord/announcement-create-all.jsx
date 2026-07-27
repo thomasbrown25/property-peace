@@ -331,6 +331,7 @@ export default function AnnouncementCreateAllPage() {
       <AllPropertiesAnnouncementWizard
         onComplete={handleWizardComplete}
         onCancel={() => navigate('/landlord/announcements')}
+        selectedOrganizations={selectedOrganizations}
         initialData={initialData}
       />
     </Box>

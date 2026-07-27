@@ -1,48 +1,61 @@
-import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
-// Material-UI
 import {
-  Box,
-  Grid,
-  Stack,
-  Typography,
-  TextField,
-  IconButton,
-  Avatar,
-  Paper,
-  Divider,
-  CircularProgress,
   Alert,
+  Avatar,
+  Badge,
+  Box,
   Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  Grid,
+  IconButton,
+  InputAdornment,
   List,
   ListItem,
-  ListItemButton,
   ListItemAvatar,
+  ListItemButton,
   ListItemText,
-  Badge,
-  InputAdornment,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  useTheme,
+  Paper,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+  alpha,
   useMediaQuery,
-  alpha
+  useTheme
 } from '@mui/material';
 
-// Icons
-import SendOutlined from '@ant-design/icons/SendOutlined';
+import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
+import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
+import HomeOutlined from '@ant-design/icons/HomeOutlined';
+import InboxOutlined from '@ant-design/icons/InboxOutlined';
 import MessageOutlined from '@ant-design/icons/MessageOutlined';
+import MobileOutlined from '@ant-design/icons/MobileOutlined';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import SearchOutlined from '@ant-design/icons/SearchOutlined';
-import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
-import MobileOutlined from '@ant-design/icons/MobileOutlined';
-import ArrowLeftOutlined from '@ant-design/icons/ArrowLeftOutlined';
+import SendOutlined from '@ant-design/icons/SendOutlined';
 import UserOutlined from '@ant-design/icons/UserOutlined';
 
-const FALLBACK_SMS_NUMBER = import.meta.env.VITE_TWILIO_SMS_NUMBER || '+198****0067';
+import MainCard from 'components/MainCard';
+import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import useAuth from 'hooks/useAuth';
+import axiosServices from 'utils/axios';
+import { formatMessageTime } from 'utils/formatters';
+import { addMessage, getMessages, markConversationAsRead } from 'store/message/message.action';
+import { selectMessageError, selectMessageLoading, selectMessages } from 'store/message/message.selector';
 
-function formatPhone(raw) {
+const FALLBACK_SMS_NUMBER = import.meta.env.VITE_TWILIO_SMS_NUMBER || '+198****0067';
+const MAX_MESSAGE_LENGTH = 2000;
+const QUICK_REPLIES = ['Thanks for the update.', 'I’ll take a look and get back to you.', 'Could you share a little more detail?'];
+const AVATAR_COLORS = ['#0f766e', '#2563eb', '#7c3aed', '#c2410c', '#0369a1', '#4f46e5'];
+
+function formatPhone(raw = '') {
   const digits = raw.replace(/\D/g, '');
   if (digits.length === 11 && digits[0] === '1') {
     return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
@@ -69,131 +82,170 @@ function formatConversationTime(dateStr) {
   const now = new Date();
   const diffMins = Math.floor((now - date) / 60000);
   if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m`;
+  if (diffMins < 60) return `${diffMins}m ago`;
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h`;
+  if (diffHours < 24) return `${diffHours}h ago`;
   const sameYear = date.getFullYear() === now.getFullYear();
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
 }
 
-// Project imports
-import MainCard from 'components/MainCard';
-import useAuth from 'hooks/useAuth';
-import axiosServices from 'utils/axios';
-import { formatMessageTime } from 'utils/formatters';
-import { getMessages, addMessage, markConversationAsRead } from 'store/message/message.action';
-import { selectMessages, selectMessageLoading, selectMessageError } from 'store/message/message.selector';
+function getAvatarColor(name = '') {
+  let hash = 0;
+  for (let index = 0; index < name.length; index += 1) hash = name.charCodeAt(index) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
 
-// ==============================|| TENANT - MESSAGES ||============================== //
+function getLandlordName(conversation) {
+  return conversation?.landlordName || conversation?.LandlordName || 'Landlord';
+}
+
+function getConversationPropertyLine(conversation) {
+  if (!conversation) return '';
+  const propertyName = conversation.propertyName || conversation.PropertyName || '';
+  const unitName = conversation.unitName || conversation.UnitName || '';
+  const normalizedUnit = String(unitName).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const showUnit = unitName && normalizedUnit !== 'unit1' && normalizedUnit !== '1';
+  return [propertyName, showUnit ? (/^unit\b/i.test(unitName) ? unitName : `Unit ${unitName}`) : null].filter(Boolean).join(' · ');
+}
 
 export default function TenantMessages() {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isDarkMode = theme.palette.mode === 'dark';
 
-  // Redux message state
   const messages = useSelector(selectMessages);
   const loadingMessages = useSelector(selectMessageLoading);
   const messageError = useSelector(selectMessageError);
 
-  // Local state
   const [conversations, setConversations] = useState([]);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [conversationError, setConversationError] = useState(null);
   const [sendingMessage, setSendingMessage] = useState(false);
-  const [messageInput, setMessageInput] = useState('');
+  const [messageDrafts, setMessageDrafts] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
-  const [pendingMessages, setPendingMessages] = useState(new Map());
-  const [sentMessageIds, setSentMessageIds] = useState(new Set());
+  const [optimisticMessages, setOptimisticMessages] = useState([]);
+  const [sendError, setSendError] = useState('');
 
-  // New message dialog
   const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [availableLandlords, setAvailableLandlords] = useState([]);
   const [loadingLandlords, setLoadingLandlords] = useState(false);
-  const [startingConversation, setStartingConversation] = useState(false);
+  const [startingLandlordId, setStartingLandlordId] = useState(null);
+  const [landlordSearchQuery, setLandlordSearchQuery] = useState('');
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
-  // Load all conversations for this tenant
+  const selectedConversationId = selectedConversation?.id;
+  const messageInput = selectedConversationId ? messageDrafts[String(selectedConversationId)] || '' : '';
+  const userId = user?.Id || user?.id;
+  const messagesDivider = isDarkMode ? alpha(theme.palette.primary.main, 0.2) : alpha(theme.palette.divider, 0.9);
+  const messagesCardBorder = isDarkMode ? alpha(theme.palette.primary.main, 0.26) : alpha(theme.palette.divider, 0.92);
+  const panelShadow = isDarkMode ? `0 16px 40px ${alpha('#020617', 0.3)}` : '0 18px 46px rgba(15, 23, 42, 0.07)';
+
+  const setConversationDraft = useCallback((conversationId, value) => {
+    if (!conversationId) return;
+    const key = String(conversationId);
+    setMessageDrafts((previous) => {
+      const nextValue = typeof value === 'function' ? value(previous[key] || '') : value;
+      if (!nextValue) {
+        const next = { ...previous };
+        delete next[key];
+        return next;
+      }
+      return { ...previous, [key]: nextValue };
+    });
+  }, []);
+
+  const refreshConversations = useCallback(async () => {
+    const response = await axiosServices.get('/api/Conversation/tenant/my-conversations');
+    const nextConversations = response.data?.success ? response.data.data || [] : [];
+    setConversations(nextConversations);
+    setSelectedConversation((current) => {
+      if (!current) return current;
+      return nextConversations.find((conversation) => String(conversation.id) === String(current.id)) || current;
+    });
+    return nextConversations;
+  }, []);
+
+  const selectConversation = useCallback(async (conversation) => {
+    setSelectedConversation(conversation);
+    setSendError('');
+    dispatch(getMessages(conversation.id));
+    try {
+      await dispatch(markConversationAsRead(conversation.id));
+      setConversations((current) => current.map((item) => (
+        String(item.id) === String(conversation.id) ? { ...item, unreadCount: 0 } : item
+      )));
+    } catch (_) {
+      // Reading the thread should still work if marking it read fails.
+    }
+  }, [dispatch]);
+
   const loadConversations = useCallback(async () => {
     try {
       setLoadingConversations(true);
       setConversationError(null);
-      const res = await axiosServices.get('/api/Conversation/tenant/my-conversations');
-      if (res.data?.success) {
-        const convs = res.data.data || [];
-        setConversations(convs);
-        // Auto-select first if none selected
-        if (!selectedConversation && convs.length > 0) {
-          selectConversation(convs[0]);
-        }
-      }
-    } catch (err) {
-      const status = err?.response?.status;
-      if (status === 404 || status === 400) {
-        setConversations([]);
-      } else {
-        setConversationError(err?.response?.data?.message || 'Failed to load conversations');
-      }
+      await refreshConversations();
+    } catch (error) {
+      const status = error?.response?.status;
+      if (status === 404 || status === 400) setConversations([]);
+      else setConversationError(error?.response?.data?.message || 'We could not load your conversations.');
     } finally {
       setLoadingConversations(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshConversations]);
 
-  const selectConversation = useCallback(async (conv) => {
-    setSelectedConversation(conv);
-    setMessageInput('');
-    dispatch(getMessages(conv.id));
-    try {
-      await dispatch(markConversationAsRead(conv.id));
-    } catch (_) {}
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 150);
-  }, [dispatch]);
+  useEffect(() => {
+    if (user?.Id || user?.id) loadConversations();
+  }, [loadConversations, user]);
+
+  useEffect(() => {
+    if (!loadingMessages) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [loadingMessages, messages.length, optimisticMessages.length, selectedConversationId]);
+
+  useEffect(() => {
+    if (!messages.length || !optimisticMessages.length) return;
+    setOptimisticMessages((current) => current.filter((pending) => !messages.some((message) => (
+      String(message.conversationId) === String(pending.conversationId)
+      && String(message.senderId) === String(pending.senderId)
+      && message.content === pending.content
+      && Math.abs(new Date(message.createdAt).getTime() - new Date(pending.createdAt).getTime()) < 15000
+    ))));
+  }, [messages, optimisticMessages.length]);
 
   const handleSendMessage = async () => {
-    if (!messageInput.trim() || !selectedConversation || sendingMessage) return;
-
+    const conversationId = selectedConversation?.id;
     const messageContent = messageInput.trim();
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
-    const userId = user?.Id || user?.id;
-    const userName = user?.firstName || user?.FirstName || user?.email || 'You';
+    if (!messageContent || !conversationId || sendingMessage) return;
 
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
     const optimisticMessage = {
       id: tempId,
-      conversationId: selectedConversation.id,
+      conversationId,
       senderId: userId,
-      senderName: userName,
+      senderName: user?.firstName || user?.FirstName || user?.email || 'You',
       content: messageContent,
       createdAt: new Date().toISOString(),
-      isOptimistic: true,
-      isSending: true
+      _optimistic: true
     };
 
-    setPendingMessages(prev => new Map(prev).set(tempId, optimisticMessage));
-    setMessageInput('');
-    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+    setSendError('');
+    setOptimisticMessages((current) => [...current, optimisticMessage]);
+    setConversationDraft(conversationId, '');
 
     try {
       setSendingMessage(true);
-      const result = await dispatch(addMessage({ conversationId: selectedConversation.id, content: messageContent }));
-      if (result.success) {
-        dispatch(getMessages(selectedConversation.id));
-        // Refresh conversation list to update preview
-        const res = await axiosServices.get('/api/Conversation/tenant/my-conversations');
-        if (res.data?.success) setConversations(res.data.data || []);
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-      } else {
-        setPendingMessages(prev => { const m = new Map(prev); m.delete(tempId); return m; });
-        setMessageInput(messageContent);
-      }
-    } catch {
-      setPendingMessages(prev => { const m = new Map(prev); m.delete(tempId); return m; });
-      setMessageInput(messageContent);
+      const result = await dispatch(addMessage({ conversationId, content: messageContent }));
+      if (!result?.success) throw new Error(result?.error || 'Message could not be sent');
+      await dispatch(getMessages(conversationId));
+      await refreshConversations();
+    } catch (_) {
+      setOptimisticMessages((current) => current.filter((message) => message.id !== tempId));
+      setConversationDraft(conversationId, (current) => current || messageContent);
+      setSendError('Your message was not sent. Your draft has been restored so you can try again.');
     } finally {
       setSendingMessage(false);
     }
@@ -201,11 +253,12 @@ export default function TenantMessages() {
 
   const handleOpenNewMessage = async () => {
     setNewMessageOpen(true);
+    setLandlordSearchQuery('');
     setLoadingLandlords(true);
     try {
-      const res = await axiosServices.get('/api/Conversation/tenant/available-landlords');
-      if (res.data?.success) setAvailableLandlords(res.data.data || []);
-    } catch {
+      const response = await axiosServices.get('/api/Conversation/tenant/available-landlords');
+      setAvailableLandlords(response.data?.success ? response.data.data || [] : []);
+    } catch (_) {
       setAvailableLandlords([]);
     } finally {
       setLoadingLandlords(false);
@@ -213,270 +266,250 @@ export default function TenantMessages() {
   };
 
   const handleStartConversation = async (landlordUserId) => {
-    setStartingConversation(true);
+    setStartingLandlordId(landlordUserId);
     try {
-      const res = await axiosServices.post('/api/Conversation/tenant/start', { landlordUserId });
-      if (res.data?.success) {
-        const conv = res.data.data;
+      const response = await axiosServices.post('/api/Conversation/tenant/start', { landlordUserId });
+      if (response.data?.success) {
+        const conversation = response.data.data;
         setNewMessageOpen(false);
-        // Refresh list and select the new/existing conversation
-        const listRes = await axiosServices.get('/api/Conversation/tenant/my-conversations');
-        if (listRes.data?.success) setConversations(listRes.data.data || []);
-        selectConversation(conv);
+        await refreshConversations();
+        await selectConversation(conversation);
       }
-    } catch {
-      // ignore
+    } catch (_) {
+      setConversationError('We could not start that conversation. Please try again.');
+      setNewMessageOpen(false);
     } finally {
-      setStartingConversation(false);
+      setStartingLandlordId(null);
     }
   };
 
-  useEffect(() => {
-    if (user?.Id || user?.id) loadConversations();
-  }, [loadConversations, user]);
+  const filteredConversations = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return conversations;
+    return conversations.filter((conversation) => [
+      getLandlordName(conversation),
+      conversation.propertyName,
+      conversation.unitName,
+      conversation.lastMessagePreview
+    ].some((value) => String(value || '').toLowerCase().includes(query)));
+  }, [conversations, searchQuery]);
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    }
-  }, [messages.length]);
+  const filteredLandlords = useMemo(() => {
+    const query = landlordSearchQuery.trim().toLowerCase();
+    if (!query) return availableLandlords;
+    return availableLandlords.filter((landlord) => [landlord.name, landlord.propertyName, landlord.email]
+      .some((value) => String(value || '').toLowerCase().includes(query)));
+  }, [availableLandlords, landlordSearchQuery]);
 
-  // Clean up pending messages when real ones arrive
-  useEffect(() => {
-    if (messages.length > 0 && pendingMessages.size > 0) {
-      const now = Date.now();
-      const tenSecondsAgo = now - 10000;
-      setPendingMessages(prev => {
-        const newMap = new Map(prev);
-        let changed = false;
-        for (const [tempId, pending] of newMap.entries()) {
-          const match = messages.find(m =>
-            m.content === pending.content &&
-            m.senderId === pending.senderId &&
-            new Date(m.createdAt).getTime() > tenSecondsAgo
-          );
-          if (match) {
-            newMap.delete(tempId);
-            changed = true;
-            if (match.id) {
-              setSentMessageIds(prev => {
-                if (prev.has(match.id)) return prev;
-                const s = new Set(prev);
-                s.add(match.id);
-                setTimeout(() => setSentMessageIds(p => { const u = new Set(p); u.delete(match.id); return u; }), 3000);
-                return s;
-              });
-            }
-          }
-        }
-        return changed ? newMap : prev;
-      });
-    }
-  }, [messages, pendingMessages.size]);
+  const visibleMessages = useMemo(() => {
+    const persisted = messages.filter((message) => (
+      !message.conversationId || String(message.conversationId) === String(selectedConversationId)
+    ));
+    const pending = optimisticMessages.filter((message) => String(message.conversationId) === String(selectedConversationId));
+    return [...persisted, ...pending].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  }, [messages, optimisticMessages, selectedConversationId]);
 
-  const filteredConversations = conversations.filter(c => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      c.landlordName?.toLowerCase().includes(q) ||
-      c.propertyName?.toLowerCase().includes(q) ||
-      c.lastMessagePreview?.toLowerCase().includes(q)
-    );
-  });
+  const unreadCount = conversations.reduce((total, conversation) => total + (conversation.unreadCount || 0), 0);
+  const activeLandlordName = getLandlordName(selectedConversation);
+  const activePropertyLine = getConversationPropertyLine(selectedConversation);
+  const activeSmsNumber = selectedConversation?.landlordSmsNumber || selectedConversation?.LandlordSmsNumber || FALLBACK_SMS_NUMBER;
 
-  const userId = user?.Id || user?.id;
+  const renderLandlordSnapshot = () => (
+    <Stack spacing={1.5}>
+      <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.paper', border: `1px solid ${messagesCardBorder}` }}>
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <Avatar sx={{ width: 40, height: 40, bgcolor: getAvatarColor(activeLandlordName), color: '#fff', fontWeight: 700 }}>
+            {activeLandlordName.charAt(0).toUpperCase()}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={700} noWrap>{activeLandlordName}</Typography>
+            <Typography variant="caption" color="text.secondary">Your landlord contact</Typography>
+          </Box>
+        </Stack>
+      </Box>
+
+      <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.paper', border: `1px solid ${messagesCardBorder}` }}>
+        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+          <HomeOutlined style={{ fontSize: 14, color: theme.palette.text.secondary }} />
+          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Home
+          </Typography>
+        </Stack>
+        <Typography variant="body2" fontWeight={600}>{activePropertyLine || 'Property details unavailable'}</Typography>
+      </Box>
+
+      <Box sx={{ p: 1.5, borderRadius: 1.5, bgcolor: 'background.paper', border: `1px solid ${messagesCardBorder}` }}>
+        <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mb: 0.75 }}>
+          <MobileOutlined style={{ fontSize: 14, color: theme.palette.text.secondary }} />
+          <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Text message access
+          </Typography>
+        </Stack>
+        <Typography variant="body2" fontWeight={600}>{formatPhone(activeSmsNumber)}</Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, lineHeight: 1.5 }}>
+          You can reply from the tenant portal or by SMS. Both stay in this conversation.
+        </Typography>
+      </Box>
+    </Stack>
+  );
 
   if (loadingConversations) {
     return (
-      <MainCard>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-          <CircularProgress />
-        </Box>
+      <MainCard content={false}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 520 }}><CircularProgress /></Box>
       </MainCard>
     );
   }
 
   return (
     <Box>
-      {/* Page header */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        justifyContent="space-between"
-        spacing={{ xs: 1.5, sm: 2 }}
+      <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
+        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/tenant/dashboard' }, { label: 'Messages' }]} />
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5} sx={{ mb: 1 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="h3" fontWeight={750}>Messages</Typography>
+              {unreadCount > 0 && <Chip size="small" color="primary" label={`${unreadCount} unread`} sx={{ height: 24, fontWeight: 700 }} />}
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, display: { xs: 'none', sm: 'block' } }}>
+              Keep conversations with your landlord organized in one place
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<PlusOutlined />}
+            onClick={handleOpenNewMessage}
+            sx={{ textTransform: 'none', borderRadius: 2, flexShrink: 0, boxShadow: 'none', minHeight: 40, px: { xs: 1.5, sm: 2 } }}
+          >
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>New message</Box>
+            <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>New</Box>
+          </Button>
+        </Stack>
+      </Box>
+
+      <MainCard
+        content={false}
         sx={{
-          mb: 2,
-          p: { xs: 2, sm: 0 },
-          borderRadius: { xs: 3, sm: 0 },
-          border: { xs: '1px solid', sm: 'none' },
-          borderColor: { xs: alpha(theme.palette.primary.main, 0.14), sm: 'transparent' },
-          bgcolor: {
-            xs: theme.palette.mode === 'dark'
-              ? alpha(theme.palette.primary.main, 0.12)
-              : alpha(theme.palette.primary.main, 0.035),
-            sm: 'transparent'
-          },
-          backgroundImage: {
-            xs: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.18 : 0.09)} 0%, ${alpha(theme.palette.background.paper, 0.92)} 62%)`,
-            sm: 'none'
-          },
-          boxShadow: { xs: `0 12px 30px ${alpha(theme.palette.primary.main, 0.08)}`, sm: 'none' }
+          p: 0,
+          overflow: 'hidden',
+          borderRadius: 1.25,
+          border: `1px solid ${messagesCardBorder}`,
+          boxShadow: panelShadow,
+          bgcolor: 'background.paper',
+          ':hover': { boxShadow: panelShadow }
         }}
       >
-        <Stack direction="row" alignItems="center" spacing={{ xs: 1.25, sm: 2 }} sx={{ minWidth: 0 }}>
-          <Box
-            sx={{
-              width: { xs: 46, sm: 56 },
-              height: { xs: 46, sm: 56 },
-              borderRadius: { xs: 2.5, sm: 2 },
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              color: 'primary.main',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              boxShadow: { xs: `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.12)}`, sm: 'none' }
-            }}
-          >
-            <MessageOutlined style={{ fontSize: isMobile ? 24 : 28 }} />
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant={isMobile ? 'h4' : 'h3'} fontWeight={700} sx={{ letterSpacing: '-0.02em' }}>
-              Messages
-            </Typography>
-            <Typography variant={isMobile ? 'body2' : 'body1'} color="text.secondary">
-              Communicate with your landlord
-            </Typography>
-          </Box>
-        </Stack>
-        <Button
-          variant="contained"
-          startIcon={<PlusOutlined />}
-          onClick={handleOpenNewMessage}
+        <Grid
+          container
           sx={{
-            textTransform: 'none',
-            borderRadius: '20px',
-            flexShrink: 0,
-            alignSelf: { xs: 'stretch', sm: 'center' },
-            boxShadow: { xs: `0 10px 22px ${alpha(theme.palette.primary.main, 0.2)}`, sm: 'none' }
+            height: { xs: 'calc(100dvh - 188px)', sm: 'calc(100dvh - 220px)', md: 'calc(100vh - 300px)' },
+            minHeight: { xs: 520, md: 600 },
+            maxHeight: { md: 920 },
+            overflow: 'hidden'
           }}
         >
-          New Message
-        </Button>
-      </Stack>
-
-      <MainCard sx={{ p: 0 }}>
-        <Grid container sx={{ height: 'calc(100vh - 340px)', minHeight: 560, overflow: 'hidden' }}>
-
-          {/* ── Sidebar ── */}
           <Grid
-            size={{ xs: 12, md: 4 }}
+            size={{ xs: 12, md: 4, lg: 3 }}
             sx={{
-              borderRight: 1,
-              borderColor: 'divider',
-              height: '100%',
-              overflow: 'hidden',
+              minWidth: 0,
+              borderRight: `1px solid ${messagesDivider}`,
               display: isMobile && selectedConversation ? 'none' : 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              bgcolor: 'background.paper'
             }}
           >
-            {/* Search */}
-            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Box sx={{ px: 2, pt: 1.75, pb: 1.25, borderBottom: `1px solid ${messagesDivider}` }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Box>
+                  <Typography variant="subtitle1" fontWeight={750}>Inbox</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {conversations.length} conversation{conversations.length === 1 ? '' : 's'}{unreadCount ? ` · ${unreadCount} unread` : ''}
+                  </Typography>
+                </Box>
+                <Box sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: 'success.main', boxShadow: `0 0 0 4px ${alpha(theme.palette.success.main, 0.12)}` }} />
+              </Stack>
+            </Box>
+
+            <Box sx={{ p: 1.25, borderBottom: `1px solid ${messagesDivider}` }}>
               <TextField
                 fullWidth
                 size="small"
-                placeholder="Search conversations..."
+                placeholder="Search messages..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchOutlined style={{ fontSize: 18 }} />
-                    </InputAdornment>
-                  )
-                }}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                InputProps={{ startAdornment: <InputAdornment position="start"><SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} /></InputAdornment> }}
+                sx={{ '& .MuiOutlinedInput-root': { height: 36, fontSize: '0.8rem', borderRadius: 1.25, bgcolor: 'background.paper' } }}
               />
             </Box>
 
-            {/* Conversation list */}
             <Box sx={{ flex: 1, overflowY: 'auto' }}>
-              {conversationError && (
-                <Alert severity="error" sx={{ m: 2 }}>{conversationError}</Alert>
-              )}
+              {conversationError && <Alert severity="error" sx={{ m: 1.5 }}>{conversationError}</Alert>}
               {filteredConversations.length === 0 ? (
-                <Box sx={{ p: 4, textAlign: 'center' }}>
-                  <MessageOutlined style={{ fontSize: 48, opacity: 0.3, marginBottom: 8 }} />
+                <Stack spacing={1.25} alignItems="center" sx={{ p: 3, textAlign: 'center' }}>
+                  {searchQuery ? <SearchOutlined style={{ fontSize: 36, color: theme.palette.text.disabled }} /> : <InboxOutlined style={{ fontSize: 40, color: theme.palette.text.disabled }} />}
+                  <Typography variant="subtitle2" fontWeight={700}>{searchQuery ? 'No matching conversations' : 'Your inbox is empty'}</Typography>
                   <Typography variant="body2" color="text.secondary">
-                    {conversations.length === 0
-                      ? 'No conversations yet. Click "New Message" to start one.'
-                      : 'No conversations match your search.'}
+                    {searchQuery ? `No results for “${searchQuery}”.` : 'Start a secure conversation with your landlord.'}
                   </Typography>
-                </Box>
+                  <Button
+                    size="small"
+                    variant={searchQuery ? 'text' : 'contained'}
+                    startIcon={searchQuery ? undefined : <PlusOutlined />}
+                    onClick={searchQuery ? () => setSearchQuery('') : handleOpenNewMessage}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    {searchQuery ? 'Clear search' : 'Start a message'}
+                  </Button>
+                </Stack>
               ) : (
                 <List disablePadding>
-                  {filteredConversations.map((conv, idx) => {
-                    const isSelected = selectedConversation?.id === conv.id;
-                    const avatarLetter = conv.landlordName?.charAt(0)?.toUpperCase() || 'L';
+                  {filteredConversations.map((conversation) => {
+                    const landlordName = getLandlordName(conversation);
+                    const propertyLine = getConversationPropertyLine(conversation);
+                    const isSelected = String(selectedConversation?.id) === String(conversation.id);
+                    const hasUnread = conversation.unreadCount > 0;
                     return (
-                      <Box key={conv.id}>
-                        {idx > 0 && <Divider />}
-                        <ListItem disablePadding>
-                          <ListItemButton
-                            selected={isSelected}
-                            onClick={() => selectConversation(conv)}
-                            sx={{
-                              py: 1.5,
-                              px: 2,
-                              '&.Mui-selected': {
-                                bgcolor: alpha(theme.palette.primary.main, 0.08),
-                                '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.12) }
-                              }
-                            }}
-                          >
-                            <ListItemAvatar>
-                              <Badge
-                                badgeContent={conv.unreadCount > 0 ? conv.unreadCount : null}
-                                color="primary"
-                                max={9}
-                              >
-                                <Avatar sx={{ bgcolor: isSelected ? 'primary.main' : 'primary.light', color: '#fff', width: 42, height: 42 }}>
-                                  {avatarLetter}
-                                </Avatar>
-                              </Badge>
-                            </ListItemAvatar>
-                            <ListItemText
-                              primary={
-                                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                                  <Typography variant="subtitle2" fontWeight={conv.unreadCount > 0 ? 700 : 500} noWrap sx={{ maxWidth: 140 }}>
-                                    {conv.landlordName || 'Landlord'}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, ml: 1 }}>
-                                    {formatConversationTime(conv.lastMessageAt)}
-                                  </Typography>
-                                </Stack>
-                              }
-                              secondary={
-                                <Stack spacing={0.25}>
-                                  {conv.propertyName && (
-                                    <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.7rem' }}>
-                                      {conv.propertyName}
-                                    </Typography>
-                                  )}
-                                  <Typography
-                                    variant="caption"
-                                    color={conv.unreadCount > 0 ? 'text.primary' : 'text.secondary'}
-                                    fontWeight={conv.unreadCount > 0 ? 600 : 400}
-                                    noWrap
-                                    sx={{ fontSize: '0.78rem' }}
-                                  >
-                                    {conv.lastMessagePreview || 'Start the conversation'}
-                                  </Typography>
-                                </Stack>
-                              }
-                            />
-                          </ListItemButton>
-                        </ListItem>
-                      </Box>
+                      <ListItem key={conversation.id} disablePadding sx={{ borderBottom: `1px solid ${messagesDivider}` }}>
+                        <ListItemButton
+                          selected={isSelected}
+                          onClick={() => selectConversation(conversation)}
+                          sx={{
+                            py: 1.35,
+                            px: 2,
+                            alignItems: 'flex-start',
+                            borderLeft: '3px solid transparent',
+                            '&.Mui-selected': { bgcolor: alpha(theme.palette.primary.main, 0.07), borderLeftColor: 'primary.main' },
+                            '&.Mui-selected:hover': { bgcolor: alpha(theme.palette.primary.main, 0.1) }
+                          }}
+                        >
+                          <ListItemAvatar sx={{ mt: 0.4, minWidth: 48 }}>
+                            <Badge badgeContent={hasUnread ? conversation.unreadCount : 0} color="error" max={99} showZero={false}>
+                              <Avatar sx={{ width: 40, height: 40, bgcolor: getAvatarColor(landlordName), color: '#fff', fontWeight: 700 }}>
+                                {landlordName.charAt(0).toUpperCase()}
+                              </Avatar>
+                            </Badge>
+                          </ListItemAvatar>
+                          <ListItemText
+                            disableTypography
+                            primary={
+                              <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                                <Typography variant="subtitle2" noWrap fontWeight={hasUnread ? 700 : 500}>{landlordName}</Typography>
+                                <Typography variant="caption" color={hasUnread ? 'primary.main' : 'text.secondary'} fontWeight={hasUnread ? 700 : 400} sx={{ flexShrink: 0, fontSize: '0.7rem' }}>
+                                  {formatConversationTime(conversation.lastMessageAt)}
+                                </Typography>
+                              </Stack>
+                            }
+                            secondary={
+                              <Box>
+                                {propertyLine && <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', lineHeight: 1.4 }}>{propertyLine}</Typography>}
+                                <Typography variant="body2" color={hasUnread ? 'text.primary' : 'text.secondary'} fontWeight={hasUnread ? 600 : 400} noWrap sx={{ fontSize: '0.8rem', mt: 0.25 }}>
+                                  {conversation.lastMessagePreview || 'Start the conversation'}
+                                </Typography>
+                              </Box>
+                            }
+                          />
+                        </ListItemButton>
+                      </ListItem>
                     );
                   })}
                 </List>
@@ -484,91 +517,38 @@ export default function TenantMessages() {
             </Box>
           </Grid>
 
-          {/* ── Chat Area ── */}
           <Grid
-            size={{ xs: 12, md: 8 }}
+            size={{ xs: 12, md: 8, lg: 6 }}
             sx={{
-              height: '100%',
-              overflow: 'hidden',
               display: isMobile && !selectedConversation ? 'none' : 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              height: '100%',
+              minHeight: 0,
+              overflow: 'hidden'
             }}
           >
             {selectedConversation ? (
               <>
-                {/* Chat Header */}
-                <Box
-                  sx={{
-                    p: { xs: 1.5, sm: 2 },
-                    borderBottom: 1,
-                    borderColor: 'divider',
-                    flexShrink: 0,
-                    bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.08) : alpha(theme.palette.primary.main, 0.025)
-                  }}
-                >
-                  <Stack
-                    direction={{ xs: 'column', sm: 'row' }}
-                    alignItems={{ xs: 'stretch', sm: 'center' }}
-                    spacing={{ xs: 1, sm: 1.5 }}
-                    justifyContent="space-between"
-                  >
-                    <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: 0 }}>
+                <Box sx={{ px: { xs: 1.25, sm: 2 }, py: { xs: 1.25, sm: 1.75 }, borderBottom: `1px solid ${messagesDivider}`, bgcolor: 'background.paper', flexShrink: 0 }}>
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                    <Stack direction="row" alignItems="center" spacing={{ xs: 1, sm: 1.25 }} sx={{ minWidth: 0 }}>
                       {isMobile && (
-                        <IconButton
-                          size="small"
-                          onClick={() => setSelectedConversation(null)}
-                          sx={{
-                            bgcolor: 'background.paper',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            flexShrink: 0,
-                            '&:hover': { bgcolor: 'action.hover' }
-                          }}
-                        >
-                          <ArrowLeftOutlined />
-                        </IconButton>
+                        <Tooltip title="Back to inbox">
+                          <IconButton aria-label="Back to inbox" onClick={() => setSelectedConversation(null)} sx={{ ml: -0.5, flexShrink: 0 }}><ArrowLeftOutlined /></IconButton>
+                        </Tooltip>
                       )}
-                      <Avatar sx={{ bgcolor: 'primary.main', color: '#fff', width: { xs: 38, sm: 40 }, height: { xs: 38, sm: 40 }, flexShrink: 0 }}>
-                        {selectedConversation.landlordName?.charAt(0)?.toUpperCase() || 'L'}
+                      <Avatar sx={{ width: 42, height: 42, bgcolor: getAvatarColor(activeLandlordName), color: '#fff', fontWeight: 700, flexShrink: 0 }}>
+                        {activeLandlordName.charAt(0).toUpperCase()}
                       </Avatar>
-                      <Stack sx={{ minWidth: 0 }}>
-                        <Typography variant="h6" fontWeight={600} noWrap sx={{ lineHeight: 1.2 }}>
-                          {selectedConversation.landlordName || 'Landlord'}
-                        </Typography>
-                        {selectedConversation.propertyName && (
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {selectedConversation.propertyName}
-                          </Typography>
-                        )}
-                      </Stack>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography variant="h6" fontWeight={700} noWrap>{activeLandlordName}</Typography>
+                        {activePropertyLine && <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{activePropertyLine}</Typography>}
+                      </Box>
                     </Stack>
-                    {/* SMS hint */}
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent={{ xs: 'center', sm: 'flex-start' }}
-                      spacing={0.75}
-                      sx={{
-                        px: 1.5, py: 0.75, borderRadius: 2,
-                        bgcolor: alpha(theme.palette.primary.main, 0.06),
-                        border: '1px solid',
-                        borderColor: alpha(theme.palette.primary.main, 0.15),
-                        flexShrink: 0,
-                        maxWidth: { xs: '100%', sm: 260 }
-                      }}
-                    >
-                      <MobileOutlined style={{ fontSize: 13, opacity: 0.7, flexShrink: 0 }} />
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', minWidth: 0 }}>
-                        Reply by SMS to{' '}
-                        <Box component="span" sx={{ fontWeight: 600, color: 'primary.main', whiteSpace: 'nowrap' }}>
-                          {formatPhone(selectedConversation.landlordSmsNumber || selectedConversation.LandlordSmsNumber || FALLBACK_SMS_NUMBER)}
-                        </Box>
-                      </Typography>
-                    </Stack>
+                    <Chip label="Landlord" size="small" variant="outlined" sx={{ height: 24, fontWeight: 600, flexShrink: 0, display: { xs: 'none', sm: 'flex' } }} />
                   </Stack>
                 </Box>
 
-                {/* Messages */}
                 <Box
                   ref={messagesContainerRef}
                   sx={{
@@ -576,240 +556,250 @@ export default function TenantMessages() {
                     minHeight: 0,
                     overflowY: 'auto',
                     overflowX: 'hidden',
-                    p: 2,
-                    bgcolor: 'background.paper',
+                    px: { xs: 1, sm: 2.5 },
+                    py: { xs: 1.5, sm: 2.5 },
+                    bgcolor: isDarkMode ? alpha(theme.palette.background.default, 0.25) : '#f7f9fc',
                     '&::-webkit-scrollbar': { width: 8 },
                     '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
-                    '&::-webkit-scrollbar-thumb': { bgcolor: 'grey.300', borderRadius: 4 }
+                    '&::-webkit-scrollbar-thumb': { bgcolor: isDarkMode ? alpha(theme.palette.primary.main, 0.24) : 'grey.300', borderRadius: 4 }
                   }}
                 >
-                  {loadingMessages && messages.length === 0 && pendingMessages.size === 0 ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                      <CircularProgress size={24} />
-                    </Box>
+                  {loadingMessages && visibleMessages.length === 0 ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress size={24} /></Box>
                   ) : messageError ? (
                     <Alert severity="error">{messageError}</Alert>
-                  ) : messages.length === 0 && pendingMessages.size === 0 ? (
-                    <Box sx={{ textAlign: 'center', p: 3 }}>
-                      <MessageOutlined style={{ fontSize: 48, opacity: 0.2, marginBottom: 8 }} />
-                      <Typography variant="body2" color="text.secondary">
-                        No messages yet. Start the conversation!
-                      </Typography>
-                    </Box>
+                  ) : visibleMessages.length === 0 ? (
+                    <Stack spacing={1} alignItems="center" justifyContent="center" sx={{ textAlign: 'center', p: 3, minHeight: 220 }}>
+                      <MessageOutlined style={{ fontSize: 38, color: theme.palette.text.disabled }} />
+                      <Typography variant="subtitle2" fontWeight={700}>Start the conversation</Typography>
+                      <Typography variant="body2" color="text.secondary">Send a message below to begin this landlord thread.</Typography>
+                    </Stack>
                   ) : (
                     <Stack spacing={0}>
-                      {messages.map((message, index) => {
-                        const isOwn = message.senderId === userId;
-                        const prev = index > 0 ? messages[index - 1] : null;
-                        const isConsecutive = prev?.senderId === message.senderId &&
-                          new Date(message.createdAt).toDateString() === new Date(prev.createdAt).toDateString();
-                        const showDateSeparator = !prev ||
-                          new Date(message.createdAt).toDateString() !== new Date(prev.createdAt).toDateString();
-                        const showCheckmark = isOwn && sentMessageIds.has(message.id);
+                      {visibleMessages.map((message, index) => {
+                        const isOwn = String(message.senderId) === String(userId);
+                        const previousMessage = index > 0 ? visibleMessages[index - 1] : null;
+                        const isConsecutive = previousMessage
+                          && String(previousMessage.senderId) === String(message.senderId)
+                          && new Date(message.createdAt).toDateString() === new Date(previousMessage.createdAt).toDateString();
+                        const showDateSeparator = !previousMessage
+                          || new Date(message.createdAt).toDateString() !== new Date(previousMessage.createdAt).toDateString();
                         return (
                           <Fragment key={message.id}>
                             {showDateSeparator && (
                               <Box sx={{ display: 'flex', alignItems: 'center', my: 2, px: 1 }}>
-                                <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
-                                <Typography variant="caption" color="text.secondary" sx={{ mx: 2, whiteSpace: 'nowrap', fontWeight: 500 }}>
-                                  {getDateLabel(message.createdAt)}
-                                </Typography>
-                                <Box sx={{ flex: 1, height: '1px', bgcolor: 'divider' }} />
+                                <Box sx={{ flex: 1, height: 1, bgcolor: messagesDivider }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ mx: 2, whiteSpace: 'nowrap', fontWeight: 500 }}>{getDateLabel(message.createdAt)}</Typography>
+                                <Box sx={{ flex: 1, height: 1, bgcolor: messagesDivider }} />
                               </Box>
                             )}
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              flexDirection: 'row',
-                              justifyContent: isOwn ? 'flex-end' : 'flex-start',
-                              alignItems: 'flex-start',
-                              mt: isConsecutive ? 0.25 : 1.5,
-                              px: 1
-                            }}
-                          >
-                            {!isOwn && (
-                              <Box sx={{ width: 40, height: 40, flexShrink: 0, mr: 1, display: 'flex', alignItems: 'flex-start', pt: isConsecutive ? 0.5 : 0 }}>
-                                {!isConsecutive && (
-                                  <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main', color: '#fff' }}>
-                                    {message.senderName?.charAt(0)?.toUpperCase() || '?'}
-                                  </Avatar>
-                                )}
-                              </Box>
-                            )}
-                            <Box sx={{ maxWidth: isOwn ? '70%' : 'calc(70% - 50px)', display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
-                              {!isConsecutive && (
-                                <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, px: 0.5 }}>
-                                  {!isOwn && (
-                                    <Typography variant="caption" fontWeight={500} color="text.primary">
-                                      {message.senderName || 'Unknown'}
-                                    </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start', alignItems: 'flex-start', mt: isConsecutive ? 0.25 : 1.5, px: 1, opacity: message._optimistic ? 0.65 : 1 }}>
+                              {!isOwn && (
+                                <Box sx={{ width: 40, flexShrink: 0, mr: 1 }}>
+                                  {!isConsecutive && (
+                                    <Avatar sx={{ width: 40, height: 40, bgcolor: getAvatarColor(activeLandlordName), color: '#fff', fontWeight: 700 }}>
+                                      {activeLandlordName.charAt(0).toUpperCase()}
+                                    </Avatar>
                                   )}
-                                  <Typography variant="caption" sx={{ opacity: 0.6, fontSize: '0.7rem', color: 'text.secondary' }}>
-                                    {formatMessageTime(message.createdAt)}
-                                  </Typography>
-                                </Stack>
+                                </Box>
                               )}
-                              <Paper
-                                elevation={0}
-                                sx={{
-                                  p: 1.25, px: 1.5,
-                                  width: 'fit-content',
-                                  maxWidth: '100%',
-                                  bgcolor: isOwn ? 'primary.main' : (t => t.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
-                                  color: isOwn ? '#fff' : 'text.primary',
-                                  borderRadius: 3,
-                                  borderTopLeftRadius: isConsecutive ? 2 : (isOwn ? 3 : 0),
-                                  borderTopRightRadius: isConsecutive ? 2 : (isOwn ? 0 : 3),
-                                  borderBottomLeftRadius: 3,
-                                  borderBottomRightRadius: 3,
-                                  boxShadow: 'none',
-                                  border: isOwn ? 'none' : (t => `1px solid ${alpha(t.palette.mode === 'dark' ? '#fff' : '#000', t.palette.mode === 'dark' ? 0.1 : 0.06)}`)
-                                }}
-                              >
-                                <Stack direction="row" alignItems="flex-end" spacing={0.5}>
-                                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: isOwn ? '#fff' : 'inherit', flex: 1 }}>
-                                    {message.content}
-                                  </Typography>
-                                  {showCheckmark && (
-                                    <CheckCircleOutlined style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', flexShrink: 0, marginBottom: 2 }} />
-                                  )}
-                                </Stack>
-                              </Paper>
+                              <Box sx={{ width: 'fit-content', maxWidth: { xs: isOwn ? '86%' : 'calc(88% - 42px)', sm: isOwn ? '74%' : 'calc(76% - 50px)' }, display: 'flex', flexDirection: 'column', alignItems: isOwn ? 'flex-end' : 'flex-start' }}>
+                                {!isConsecutive && (
+                                  <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, px: 0.5 }}>
+                                    {!isOwn && <Typography variant="caption" fontWeight={500}>{message.senderName || activeLandlordName}</Typography>}
+                                    <Typography variant="caption" color="text.secondary" sx={{ opacity: 0.7, fontSize: '0.7rem' }}>{formatMessageTime(message.createdAt)}</Typography>
+                                  </Stack>
+                                )}
+                                <Paper
+                                  elevation={0}
+                                  sx={{
+                                    p: 1.25,
+                                    px: 1.5,
+                                    width: 'fit-content',
+                                    maxWidth: '100%',
+                                    bgcolor: isOwn ? 'primary.main' : (isDarkMode ? alpha(theme.palette.primary.main, 0.08) : 'grey.100'),
+                                    color: isOwn ? '#fff' : 'text.primary',
+                                    borderRadius: 3,
+                                    borderTopLeftRadius: isConsecutive ? 2 : (isOwn ? 3 : 0),
+                                    borderTopRightRadius: isConsecutive ? 2 : (isOwn ? 0 : 3),
+                                    border: isOwn ? 'none' : `1px solid ${isDarkMode ? alpha(theme.palette.primary.main, 0.16) : alpha('#000', 0.06)}`
+                                  }}
+                                >
+                                  <Stack direction="row" spacing={0.75} alignItems="flex-end">
+                                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: isOwn ? '#fff' : 'inherit' }}>{message.content}</Typography>
+                                    {message._optimistic && <CircularProgress size={11} sx={{ color: 'rgba(255,255,255,0.82)', mb: '2px' }} />}
+                                    {!message._optimistic && isOwn && <CheckCircleOutlined style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', marginBottom: 2 }} />}
+                                  </Stack>
+                                </Paper>
+                              </Box>
                             </Box>
-                          </Box>
                           </Fragment>
                         );
                       })}
-
-                      {/* Pending optimistic messages */}
-                      {Array.from(pendingMessages.values()).map(message => (
-                        <Box
-                          key={message.id}
-                          sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', mt: 1.5, px: 1 }}
-                        >
-                          <Box sx={{ maxWidth: '70%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mb: 0.5, px: 0.5 }}>
-                              <Typography variant="caption" sx={{ opacity: 0.6, fontSize: '0.7rem', color: 'text.secondary' }}>
-                                {formatMessageTime(message.createdAt)}
-                              </Typography>
-                            </Stack>
-                            <Paper elevation={0} sx={{ p: 1.25, px: 1.5, bgcolor: 'primary.main', color: '#fff', borderRadius: 3, borderTopRightRadius: 0, boxShadow: 'none' }}>
-                              <Stack direction="row" alignItems="flex-end" spacing={0.5}>
-                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, color: '#fff', flex: 1 }}>
-                                  {message.content}
-                                </Typography>
-                                <CircularProgress size={11} sx={{ color: 'rgba(255,255,255,0.8)', flexShrink: 0, mb: '2px' }} />
-                              </Stack>
-                            </Paper>
-                          </Box>
-                        </Box>
-                      ))}
-
                       <div ref={messagesEndRef} />
                     </Stack>
                   )}
                 </Box>
 
-                {/* Input */}
-                <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper', flexShrink: 0 }}>
+                <Box sx={{ px: { xs: 1.25, sm: 2 }, pt: 1.25, pb: { xs: 'max(12px, env(safe-area-inset-bottom))', sm: 1.5 }, borderTop: `1px solid ${messagesDivider}`, bgcolor: 'background.paper', flexShrink: 0 }}>
+                  {sendError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setSendError('')}>{sendError}</Alert>}
+                  {!messageInput && (
+                    <Box sx={{ display: 'flex', gap: 0.75, overflowX: 'auto', pb: 1, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+                      {QUICK_REPLIES.map((reply) => (
+                        <Chip key={reply} label={reply} variant="outlined" onClick={() => setConversationDraft(selectedConversationId, reply)} sx={{ flexShrink: 0, maxWidth: { xs: 240, sm: 'none' }, borderRadius: 2, bgcolor: 'background.paper', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
+                      ))}
+                    </Box>
+                  )}
                   <Paper
                     elevation={0}
                     sx={{
                       display: 'flex',
-                      alignItems: 'center',
-                      borderRadius: 1,
-                      border: 1,
-                      borderColor: 'divider',
+                      alignItems: 'flex-end',
+                      borderRadius: 2.5,
+                      border: `1px solid ${messagesCardBorder}`,
                       bgcolor: 'background.paper',
-                      px: 1, py: 0.5,
-                      '&:focus-within': { borderColor: 'primary.main' }
+                      pl: 1.5,
+                      pr: 0.75,
+                      py: 0.6,
+                      transition: 'border-color 150ms ease, box-shadow 150ms ease',
+                      '&:focus-within': { borderColor: 'primary.main', boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}` }
                     }}
                   >
                     <TextField
-                      fullWidth multiline maxRows={4}
-                      placeholder="Type a message"
+                      fullWidth
+                      multiline
+                      minRows={1}
+                      maxRows={5}
+                      placeholder="Write a message…"
                       value={messageInput}
-                      onChange={e => setMessageInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
+                      onChange={(event) => {
+                        setSendError('');
+                        setConversationDraft(selectedConversationId, event.target.value.slice(0, MAX_MESSAGE_LENGTH));
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' && !event.shiftKey && !isMobile && !event.nativeEvent.isComposing) {
+                          event.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
                       disabled={sendingMessage}
                       variant="standard"
-                      InputProps={{
-                        disableUnderline: true,
-                        sx: { fontSize: '0.9375rem', py: 0.5, '& .MuiInputBase-input': { py: 0.5 } }
-                      }}
-                      sx={{ flex: 1 }}
+                      inputProps={{ maxLength: MAX_MESSAGE_LENGTH, 'aria-label': 'Message' }}
+                      InputProps={{ disableUnderline: true, sx: { fontSize: '0.9375rem', py: 0.55, '& .MuiInputBase-input': { py: 0.35, lineHeight: 1.5 } } }}
+                      sx={{ flex: 1, '& .MuiInputBase-root': { border: 'none' } }}
                     />
-                    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, height: 24, alignSelf: 'center' }} />
-                    <IconButton
-                      onClick={handleSendMessage}
-                      disabled={!messageInput.trim() || sendingMessage}
-                      sx={{ ml: 0.5, color: 'primary.main', '&.Mui-disabled': { color: 'text.disabled' } }}
-                    >
-                      {sendingMessage ? <CircularProgress size={20} /> : <SendOutlined style={{ fontSize: 18 }} />}
-                    </IconButton>
+                    <Tooltip title="Send message">
+                      <span>
+                        <IconButton
+                          onClick={handleSendMessage}
+                          disabled={!messageInput.trim() || sendingMessage}
+                          aria-label="Send message"
+                          sx={{ ml: 0.75, width: 40, height: 40, bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' }, '&.Mui-disabled': { bgcolor: 'action.disabledBackground', color: 'text.disabled' } }}
+                        >
+                          {sendingMessage ? <CircularProgress size={19} color="inherit" /> : <SendOutlined style={{ fontSize: 18 }} />}
+                        </IconButton>
+                      </span>
+                    </Tooltip>
                   </Paper>
+                  <Stack direction="row" justifyContent="space-between" sx={{ mt: 0.65, px: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>Enter to send · Shift + Enter for a new line</Typography>
+                    <Typography variant="caption" color={messageInput.length > MAX_MESSAGE_LENGTH * 0.9 ? 'warning.main' : 'text.secondary'} sx={{ ml: 'auto' }}>{messageInput.length}/{MAX_MESSAGE_LENGTH}</Typography>
+                  </Stack>
                 </Box>
               </>
             ) : (
-              /* Empty state — no conversation selected */
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <Stack spacing={2} alignItems="center">
-                  <MessageOutlined style={{ fontSize: 64, opacity: 0.2 }} />
-                  <Typography variant="h6" color="text.secondary">
-                    {conversations.length === 0 ? 'No conversations yet' : 'Select a conversation'}
-                  </Typography>
-                  {conversations.length === 0 && (
-                    <Button variant="contained" startIcon={<PlusOutlined />} onClick={handleOpenNewMessage} sx={{ textTransform: 'none' }}>
-                      New Message
-                    </Button>
-                  )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', p: 3, bgcolor: isDarkMode ? 'background.paper' : '#f7f9fc' }}>
+                <Stack spacing={1.5} alignItems="center" sx={{ textAlign: 'center', maxWidth: 360 }}>
+                  <Avatar sx={{ width: 64, height: 64, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><MessageOutlined style={{ fontSize: 28 }} /></Avatar>
+                  <Typography variant="h5" fontWeight={700}>Select a conversation</Typography>
+                  <Typography variant="body2" color="text.secondary">Review your message history or start a new conversation.</Typography>
+                  <Button variant="contained" startIcon={<PlusOutlined />} onClick={handleOpenNewMessage} sx={{ mt: 0.5, textTransform: 'none' }}>New message</Button>
                 </Stack>
               </Box>
             )}
           </Grid>
+
+          <Grid size={{ xs: 12, lg: 3 }} sx={{ display: { xs: 'none', lg: 'flex' }, flexDirection: 'column', borderLeft: `1px solid ${messagesDivider}`, bgcolor: alpha(theme.palette.background.default, 0.28) }}>
+            <Box sx={{ p: 2, borderBottom: `1px solid ${messagesDivider}`, bgcolor: 'background.paper' }}>
+              <Typography variant="subtitle2" fontWeight={700}>Conversation details</Typography>
+              <Typography variant="caption" color="text.secondary">Landlord and property context</Typography>
+            </Box>
+            <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+              {selectedConversation ? renderLandlordSnapshot() : (
+                <Box sx={{ p: 2, border: `1px dashed ${messagesCardBorder}`, borderRadius: 1.5, bgcolor: 'background.paper', textAlign: 'center' }}>
+                  <Typography variant="body2" fontWeight={700}>No conversation selected</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>Choose a thread to see your landlord and property details.</Typography>
+                </Box>
+              )}
+            </Box>
+          </Grid>
         </Grid>
       </MainCard>
 
-      {/* New Message Dialog */}
-      <Dialog open={newMessageOpen} onClose={() => setNewMessageOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <MessageOutlined style={{ fontSize: 20 }} />
-            <Typography variant="h6">New Message</Typography>
+      {selectedConversation && (
+        <MainCard content={false} sx={{ mt: 2, display: { xs: 'block', lg: 'none' }, border: `1px solid ${messagesCardBorder}`, boxShadow: 'none' }}>
+          <Box sx={{ p: 2, borderBottom: `1px solid ${messagesDivider}` }}>
+            <Typography variant="subtitle2" fontWeight={700}>Conversation details</Typography>
+            <Typography variant="caption" color="text.secondary">Landlord and property context</Typography>
+          </Box>
+          <Box sx={{ p: 2 }}>{renderLandlordSnapshot()}</Box>
+        </MainCard>
+      )}
+
+      <Dialog open={newMessageOpen} onClose={() => !startingLandlordId && setNewMessageOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={1.25}>
+            <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><MessageOutlined /></Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight={700}>New message</Typography>
+              <Typography variant="caption" color="text.secondary">Choose a landlord to open a secure conversation</Typography>
+            </Box>
           </Stack>
         </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
+        <DialogContent sx={{ pt: '12px !important' }}>
           {loadingLandlords ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-              <CircularProgress size={28} />
-            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}><CircularProgress size={28} /></Box>
           ) : availableLandlords.length === 0 ? (
-            <Alert severity="info">
-              We could not find a landlord connected to your tenant account yet. Ask your landlord to add you as a tenant or resend your invite.
-            </Alert>
+            <Alert severity="info">We could not find a landlord connected to your tenant account yet. Ask your landlord to add you as a tenant or resend your invite.</Alert>
           ) : (
-            <List disablePadding>
-              {availableLandlords.map(landlord => (
-                <ListItem key={landlord.landlordUserId} disablePadding>
-                  <ListItemButton
-                    onClick={() => handleStartConversation(landlord.landlordUserId)}
-                    disabled={startingConversation}
-                    sx={{ borderRadius: 1, mb: 0.5 }}
-                  >
-                    <ListItemAvatar>
-                      <Avatar sx={{ bgcolor: 'primary.main', color: '#fff' }}>
-                        <UserOutlined />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={<Typography fontWeight={600}>{landlord.name}</Typography>}
-                      secondary={landlord.propertyName}
-                    />
-                    {startingConversation && <CircularProgress size={18} />}
-                  </ListItemButton>
-                </ListItem>
-              ))}
-            </List>
+            <>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search landlords or properties..."
+                value={landlordSearchQuery}
+                onChange={(event) => setLandlordSearchQuery(event.target.value)}
+                InputProps={{ startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment> }}
+                sx={{ mb: 1.5 }}
+              />
+              {filteredLandlords.length === 0 ? (
+                <Stack spacing={1} alignItems="center" sx={{ py: 4, textAlign: 'center' }}>
+                  <SearchOutlined style={{ fontSize: 34, color: theme.palette.text.disabled }} />
+                  <Typography variant="subtitle2" fontWeight={700}>No matching landlords</Typography>
+                  <Button size="small" onClick={() => setLandlordSearchQuery('')} sx={{ textTransform: 'none' }}>Clear search</Button>
+                </Stack>
+              ) : (
+                <Stack spacing={1}>
+                  {filteredLandlords.map((landlord) => {
+                    const isStarting = startingLandlordId === landlord.landlordUserId;
+                    return (
+                      <ListItemButton
+                        key={landlord.landlordUserId}
+                        onClick={() => handleStartConversation(landlord.landlordUserId)}
+                        disabled={Boolean(startingLandlordId)}
+                        sx={{ border: `1px solid ${messagesCardBorder}`, borderRadius: 2, px: 1.5, py: 1.25 }}
+                      >
+                        <ListItemAvatar>
+                          <Avatar sx={{ bgcolor: getAvatarColor(landlord.name), color: '#fff', fontWeight: 700 }}>{landlord.name?.charAt(0)?.toUpperCase() || <UserOutlined />}</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary={<Typography fontWeight={700}>{landlord.name || 'Landlord'}</Typography>} secondary={landlord.propertyName || 'Connected landlord'} />
+                        {isStarting && <CircularProgress size={18} />}
+                      </ListItemButton>
+                    );
+                  })}
+                </Stack>
+              )}
+            </>
           )}
         </DialogContent>
       </Dialog>

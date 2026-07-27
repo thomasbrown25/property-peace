@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Avatar,
@@ -138,11 +138,11 @@ function RequestRow({ item, selected, onSelect, onToggleFavorite }) {
               {item.subject || 'Untitled request'}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-              {formatRelativeTime(item.createdAt)}
+              {formatRelativeTime(item.lastActivityAt || item.createdAt)}
             </Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.35 }}>
-            {item.message || 'No request details provided.'}
+            {item.ticketNumber ? `${item.ticketNumber} · ` : ''}{item.message || 'No request details provided.'}
           </Typography>
           <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
             <Chip
@@ -181,11 +181,66 @@ function RequestRow({ item, selected, onSelect, onToggleFavorite }) {
   );
 }
 
-function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updating }) {
+function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updating, onThreadUpdated }) {
   const theme = useTheme();
   const requestType = getRequestType(item.type);
   const ageInDays = getAgeInDays(item.createdAt);
   const emailAddress = item.userEmail || '';
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(Boolean(item.conversationId));
+  const [reply, setReply] = useState('');
+  const [replying, setReplying] = useState(false);
+
+  const loadDetail = useCallback(async () => {
+    if (!item.conversationId) {
+      setDetail(null);
+      setDetailLoading(false);
+      return;
+    }
+    setDetailLoading(true);
+    try {
+      const response = await axiosServices.get(`/api/support/tickets/${item.id}`);
+      setDetail(response.data?.data || null);
+    } catch (requestError) {
+      openSnackbar({
+        open: true,
+        message: requestError.response?.data?.message || 'The ticket conversation could not be loaded.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [item.conversationId, item.id]);
+
+  useEffect(() => {
+    setReply('');
+    loadDetail();
+  }, [loadDetail]);
+
+  const sendReply = async () => {
+    const content = reply.trim();
+    if (!content) return;
+    setReplying(true);
+    try {
+      await axiosServices.post(`/api/support/tickets/${item.id}/reply`, { message: content });
+      setReply('');
+      await loadDetail();
+      onThreadUpdated?.();
+      openSnackbar({ open: true, message: `Reply sent on ${item.ticketNumber}`, variant: 'alert', alert: { color: 'success' } });
+    } catch (requestError) {
+      openSnackbar({
+        open: true,
+        message: requestError.response?.data?.message || 'The reply could not be sent.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+    } finally {
+      setReplying(false);
+    }
+  };
+
+  const messages = detail?.messages || [];
 
   return (
     <Stack sx={{ height: '100%', minHeight: 0 }}>
@@ -204,60 +259,98 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
               <Stack direction="row" spacing={0.75}>
                 <Chip
                   size="small"
-                  label={requestType === 'support' ? 'Support request' : 'Product feedback'}
+                  label={item.subType ? item.subType.replace('-', ' ') : requestType === 'support' ? 'Support request' : 'Product feedback'}
                   color={requestType === 'support' ? 'primary' : 'info'}
                   variant="outlined"
+                  sx={{ textTransform: 'capitalize' }}
                 />
-                <Chip size="small" label={item.isResolved ? 'Resolved' : 'Open'} color={item.isResolved ? 'success' : 'warning'} />
+                <Chip size="small" label={item.isResolved ? 'Closed' : 'Open'} color={item.isResolved ? 'default' : 'success'} />
               </Stack>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-              Submitted by {item.userName || 'Unknown requester'} {emailAddress ? `· ${emailAddress}` : ''}
+              {item.ticketNumber ? `${item.ticketNumber} · ` : ''}Submitted by {item.userName || 'Unknown requester'} {emailAddress ? `· ${emailAddress}` : ''}
             </Typography>
           </Box>
         </Stack>
       </Box>
 
-      <Box sx={{ flex: 1, overflow: 'auto', p: { xs: 2, md: 3 }, bgcolor: 'grey.50' }}>
-        <Stack spacing={2.5}>
-          <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, bgcolor: 'background.paper' }}>
-            <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 750, letterSpacing: 1 }}>
-              Request details
-            </Typography>
-            <Typography variant="body1" sx={{ mt: 1, whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>
-              {item.message || 'No request details were provided.'}
-            </Typography>
-          </Paper>
-
-          <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 2, bgcolor: 'background.paper' }}>
-            <Typography variant="subtitle2" sx={{ mb: 2 }}>
-              Request context
-            </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 1.5, sm: 4 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Submitted</Typography>
-                <Typography variant="body2" sx={{ mt: 0.25 }}>{formatRelativeTime(item.createdAt)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Queue age</Typography>
-                <Typography variant="body2" sx={{ mt: 0.25 }}>{item.isResolved ? 'Closed' : ageInDays === 0 ? 'New today' : `${ageInDays} day${ageInDays === 1 ? '' : 's'} open`}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">Priority</Typography>
-                <Typography variant="body2" sx={{ mt: 0.25 }}>{item.isFavorite ? 'Flagged for follow-up' : 'Normal'}</Typography>
-              </Box>
-            </Stack>
-          </Paper>
-
-          {!item.isResolved && ageInDays >= 7 && (
-            <Alert severity="warning" icon={<ClockCircleOutlined />}>
-              This request has been open for {ageInDays} days. Follow up with the requester or resolve it if the issue is complete.
-            </Alert>
-          )}
-        </Stack>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: { xs: 2, md: 3 }, bgcolor: 'grey.50' }}>
+        {detailLoading ? (
+          <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 300 }}><CircularProgress size={28} /></Stack>
+        ) : item.conversationId ? (
+          <Stack spacing={2.25}>
+            {messages.map((message) => {
+              const fromSupport = message.isFromSupport;
+              return (
+                <Stack key={message.id} direction="row" justifyContent={fromSupport ? 'flex-end' : 'flex-start'}>
+                  <Box sx={{ maxWidth: { xs: '90%', md: '76%' } }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, textAlign: fromSupport ? 'right' : 'left' }}>
+                      {fromSupport ? message.senderName || 'Property Peace Support' : item.userName || message.senderName} · {formatRelativeTime(message.createdAt)}
+                    </Typography>
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        px: 2,
+                        py: 1.5,
+                        borderRadius: fromSupport ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                        bgcolor: fromSupport ? '#061e35' : 'background.paper',
+                        color: fromSupport ? '#fff' : 'text.primary',
+                        border: fromSupport ? 0 : `1px solid ${theme.palette.divider}`
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', lineHeight: 1.65 }}>
+                        {message.content}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                </Stack>
+              );
+            })}
+            {!messages.length && <Alert severity="info">This ticket does not have any messages yet.</Alert>}
+          </Stack>
+        ) : (
+          <Stack spacing={2.5}>
+            <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, bgcolor: 'background.paper' }}>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 750, letterSpacing: 1 }}>Legacy request</Typography>
+              <Typography variant="body1" sx={{ mt: 1, whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>
+                {item.message || 'No request details were provided.'}
+              </Typography>
+            </Paper>
+            <Alert severity="info">This request predates ticket conversations. Contact the requester by email or ask them to open a new ticket for threaded replies.</Alert>
+          </Stack>
+        )}
       </Box>
 
       <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+        {item.conversationId && (
+          <Stack spacing={1.25} sx={{ mb: 1.5 }}>
+            {item.isResolved && <Alert severity="info">This ticket is closed. A new reply automatically reopens it.</Alert>}
+            <TextField
+              value={reply}
+              onChange={(event) => setReply(event.target.value)}
+              fullWidth
+              multiline
+              minRows={2}
+              maxRows={5}
+              placeholder={`Reply to ${item.userName || 'the landlord'}…`}
+              inputProps={{ maxLength: 5000 }}
+              onKeyDown={(event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') sendReply();
+              }}
+            />
+            <Stack direction="row" justifyContent="flex-end">
+              <Button
+                variant="contained"
+                startIcon={replying ? <CircularProgress size={15} color="inherit" /> : <MailOutlined />}
+                onClick={sendReply}
+                disabled={replying || !reply.trim()}
+              >
+                Send reply
+              </Button>
+            </Stack>
+          </Stack>
+        )}
+        <Divider sx={{ mb: 1.5 }} />
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} justifyContent="space-between">
           <Button
             variant="text"
@@ -269,18 +362,9 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
             {item.isFavorite ? 'Priority flagged' : 'Flag for follow-up'}
           </Button>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            {item.userId && (
-              <Button component={RouterLink} to={`/admin/users/${item.userId}`} variant="text">
-                View account
-              </Button>
-            )}
-            {emailAddress && (
-              <Button
-                component="a"
-                href={`mailto:${emailAddress}?subject=${encodeURIComponent(`Re: ${item.subject || 'Your Property Peace request'}`)}`}
-                variant="outlined"
-                startIcon={<MailOutlined />}
-              >
+            {item.userId && <Button component={RouterLink} to={`/admin/users/${item.userId}`} variant="text">View account</Button>}
+            {!item.conversationId && emailAddress && (
+              <Button component="a" href={`mailto:${emailAddress}?subject=${encodeURIComponent(`Re: ${item.subject || 'Your Property Peace request'}`)}`} variant="outlined" startIcon={<MailOutlined />}>
                 Contact requester
               </Button>
             )}
@@ -291,7 +375,7 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
               onClick={() => onToggleResolved(item)}
               disabled={updating}
             >
-              {item.isResolved ? 'Reopen request' : 'Mark resolved'}
+              {item.isResolved ? 'Reopen ticket' : 'Close ticket'}
             </Button>
           </Stack>
         </Stack>
@@ -303,8 +387,12 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
 export default function AdminSupportWorkspace({ onCountChange }) {
   const theme = useTheme();
   const isNarrow = useMediaQuery(theme.breakpoints.down('lg'));
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
-  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [selectedItemId, setSelectedItemId] = useState(() => {
+    const ticketId = Number(searchParams.get('ticket'));
+    return Number.isFinite(ticketId) && ticketId > 0 ? ticketId : null;
+  });
   const [filter, setFilter] = useState('attention');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -370,13 +458,13 @@ export default function AdminSupportWorkspace({ onCountChange }) {
           (filter === 'resolved' && item.isResolved);
         if (!matchesFilter) return false;
         if (!query) return true;
-        return [item.subject, item.message, item.userName, item.userEmail]
+        return [item.ticketNumber, item.subject, item.message, item.userName, item.userEmail]
           .some((value) => value?.toLowerCase().includes(query));
       })
       .sort((a, b) => {
         if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
         if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        return new Date(b.lastActivityAt || b.createdAt).getTime() - new Date(a.lastActivityAt || a.createdAt).getTime();
       });
   }, [filter, items, searchQuery]);
 
@@ -543,6 +631,7 @@ export default function AdminSupportWorkspace({ onCountChange }) {
                 onToggleFavorite={(request) => updateItem(request, 'favorite')}
                 onToggleResolved={(request) => updateItem(request, 'resolved')}
                 updating={updatingId === selectedItem.id}
+                onThreadUpdated={() => loadRequests(true)}
               />
             </Box>
           ) : !isNarrow && (

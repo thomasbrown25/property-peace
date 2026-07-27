@@ -96,6 +96,19 @@ namespace brownstone_hub_api.Services.OrganizationMemberService
                     return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "You do not have permission to update members.", "", 403);
                 }
 
+                var allowedRoles = new[] { "Owner", "Manager", "Viewer" };
+                var canonicalRole = allowedRoles.FirstOrDefault(role => string.Equals(role, dto.Role, StringComparison.OrdinalIgnoreCase));
+                if (canonicalRole == null)
+                {
+                    return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Invalid role", "Role must be Owner, Manager, or Viewer.", "", 400);
+                }
+                dto.Role = canonicalRole;
+
+                if ((member.Role == "Owner" || dto.Role == "Owner") && requestingMember.Role != "Owner")
+                {
+                    return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "Only an organization owner can grant or change owner access.", "", 403);
+                }
+
                 // Prevent changing the last owner
                 if (member.Role == "Owner" && dto.Role != "Owner")
                 {
@@ -149,6 +162,11 @@ namespace brownstone_hub_api.Services.OrganizationMemberService
                 if (requestingMember == null || (!requestingMember.CanManageMembers && requestingMember.Role != "Owner"))
                 {
                     return ServiceResponse<bool>.CreateError("Unauthorized", "You do not have permission to remove members.", "", 403);
+                }
+
+                if (member.Role == "Owner" && requestingMember.Role != "Owner")
+                {
+                    return ServiceResponse<bool>.CreateError("Unauthorized", "Only an organization owner can remove another owner.", "", 403);
                 }
 
                 // Prevent removing the last owner

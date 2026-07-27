@@ -9,13 +9,14 @@ import {
   CheckOutlined, DollarOutlined, EditOutlined, EllipsisOutlined,
   FileTextOutlined, MessageOutlined, PlusOutlined, RedoOutlined,
   StopOutlined, UploadOutlined, ArrowRightOutlined, StarFilled,
-  MailOutlined, PhoneOutlined, DeleteOutlined
+  MailOutlined, PhoneOutlined, DeleteOutlined, CalendarOutlined,
+  UserOutlined
 } from '@ant-design/icons';
 import PaymentEditDrawer from 'components/drawers/PaymentEditDrawer';
 import TenantMessageDrawer from 'components/drawers/TenantMessageDrawer';
 import { openSnackbar } from 'api/snackbar';
 import axios from 'utils/axios';
-import { differenceInMonths, format } from 'date-fns';
+import { format } from 'date-fns';
 import { formatCurrency, formatPhoneInput } from 'utils/formatters';
 
 const detailCardSx = {
@@ -41,13 +42,13 @@ const subtleDivider = (theme, darkAlpha = 0.22, lightAlpha = 0.12) => alpha(them
 
 // ─── Lifecycle helpers ────────────────────────────────────────────────────────
 
-function getLeaseLifecycleStages(lease) {
+function getLeaseLifecycleStages(lease, isDraftLease = false) {
   const now = new Date();
   const startDate = lease.startDate ? new Date(lease.startDate) : null;
   const endDate   = lease.endDate   ? new Date(lease.endDate)   : null;
   const daysUntilEnd = endDate ? Math.max(0, Math.floor((endDate - now) / 86400000)) : null;
 
-  const hasStarted        = !!(startDate && startDate <= now);
+  const hasStarted        = !isDraftLease && !!(startDate && startDate <= now);
   const isActive          = !!lease.isActive && hasStarted;
   const isInRenewalWindow = isActive && daysUntilEnd !== null && daysUntilEnd <= 90;
   const hasEnded          = !lease.isActive && hasStarted;
@@ -315,7 +316,7 @@ export default function LeaseDetailView({
   propertyDisplay, unitDisplay, isDraftLease, isNotStarted, leaseId,
   dashboardSummary, user, leaseDocuments, leaseAgreement,
   handleEndLeaseClick, handleReopenLeaseClick,
-  onRenew, onRecordPayment, onDocument, onEditTerms,
+  onRenew, onRecordPayment, onViewAgreement, onUploadDocument, onEditTerms,
   onAddTenant, onPaymentUpdated, propertiesRefetch,
 }) {
   const theme = useTheme();
@@ -334,25 +335,22 @@ export default function LeaseDetailView({
     primaryTenant?.lastname  || primaryTenant?.Lastname,
   ].filter(Boolean).join(' ');
 
-  const startDate = lease.startDate ? new Date(lease.startDate) : null;
-  const endDate   = lease.endDate   ? new Date(lease.endDate)   : null;
-  const now       = new Date();
+  const startDateValue = lease.startDate ?? lease.StartDate;
+  const endDateValue = lease.endDate ?? lease.EndDate;
+  const startDate = startDateValue ? new Date(startDateValue) : null;
+  const endDate = endDateValue ? new Date(endDateValue) : null;
+  const now = new Date();
 
   const leaseLength = useMemo(() => {
-    if (lease.leaseLength) return lease.leaseLength;
+    if (lease.leaseLength ?? lease.LeaseLength) return lease.leaseLength ?? lease.LeaseLength;
     if (!startDate || !endDate) return null;
     return Math.round(Math.abs((endDate - startDate) / (1000 * 60 * 60 * 24 * 30.44)));
-  }, [lease.leaseLength, startDate, endDate]);
-
-  const monthsIn = useMemo(() => {
-    if (!startDate) return 0;
-    return Math.max(0, differenceInMonths(now, startDate));
-  }, [startDate]);
+  }, [lease.leaseLength, lease.LeaseLength, startDate, endDate]);
 
   const daysUntilEnd = useMemo(() => {
     if (!endDate) return null;
     return Math.max(0, Math.floor((endDate - now) / 86400000));
-  }, [endDate]);
+  }, [endDate, now]);
 
   const hasLeaseAgreementDocument = !!(
     leaseAgreement?.blobUrl ||
@@ -360,7 +358,7 @@ export default function LeaseDetailView({
     leaseAgreement?.blobName ||
     leaseAgreement?.BlobName
   );
-  const leaseLifecycleStages    = useMemo(() => getLeaseLifecycleStages(lease),            [lease]);
+  const leaseLifecycleStages    = useMemo(() => getLeaseLifecycleStages(lease, isDraftLease), [lease, isDraftLease]);
   const leaseAgreementStages    = useMemo(() => getLeaseAgreementStages(lease, hasLeaseAgreementDocument), [lease, hasLeaseAgreementDocument]);
   const leaseAgreementSetupUrl = useMemo(() => {
     const params = new URLSearchParams();
@@ -376,8 +374,7 @@ export default function LeaseDetailView({
     return `/landlord/leases/build-lease-agreement${query ? `?${query}` : ''}`;
   }, [lease, leaseId, property]);
 
-  const statusLabel = isDraftLease ? 'Draft' : isNotStarted ? 'Not Started' : lease?.isActive ? 'Active' : 'Ended';
-  const statusColor = isDraftLease ? 'info'  : isNotStarted ? 'warning'    : lease?.isActive ? 'success' : 'default';
+  const statusLabel = isDraftLease ? 'Draft' : isNotStarted ? 'Not started' : lease?.isActive ? 'Active' : 'Ended';
 
   const handlePaymentActionsClick = (event, payment) => {
     setPaymentActionsAnchor(event.currentTarget);
@@ -454,7 +451,7 @@ export default function LeaseDetailView({
 
   // Payment calendar
   const paymentCalendar = useMemo(() => {
-    if (!startDate || !endDate) return [];
+    if (isDraftLease || !startDate || !endDate) return [];
     const rentDueDay    = lease.rentDueDay || lease.RentDueDay || 1;
     const gracePeriod   = lease.lateFeeGracePeriod || lease.LateFeeGracePeriod || 5;
     const nowMonth  = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -503,7 +500,7 @@ export default function LeaseDetailView({
       cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
     }
     return months;
-  }, [startDate, endDate, payments, now, rentAmount, lease.rentDueDay, lease.RentDueDay, lease.lateFeeGracePeriod, lease.LateFeeGracePeriod]);
+  }, [isDraftLease, startDate, endDate, payments, now, rentAmount, lease.rentDueDay, lease.RentDueDay, lease.lateFeeGracePeriod, lease.LateFeeGracePeriod]);
 
   const paidCycles     = paymentCalendar.filter(m => m.paid).length;
   const paidLateCycles = paymentCalendar.filter(m => m.paidLate).length;
@@ -532,6 +529,7 @@ export default function LeaseDetailView({
     lateCycles === 0 && minorIssues === 0 ? 'Good' :
     'Medium Risk';
   const healthColor = healthLabel === 'Good' ? '#16a34a' : healthLabel === 'Medium Risk' ? '#d97706' : '#dc2626';
+  const summaryColor = isDraftLease ? '#d97706' : healthColor;
   const renewalGuidance = healthLabel === 'At Risk'
     ? 'review before renewal'
     : daysUntilEnd !== null && daysUntilEnd <= 90 ? 'renewal window open' : 'renewal recommended';
@@ -566,51 +564,74 @@ export default function LeaseDetailView({
   // Docs
   const docs = useMemo(() => {
     const list = [];
-    if (hasLeaseAgreementDocument) list.push({ name: 'Lease agreement PDF', tag: 'master' });
-    (leaseDocuments || []).forEach(d => list.push({ name: d.name || d.Name || 'Document', tag: null }));
+    if (hasLeaseAgreementDocument) {
+      list.push({ name: 'Lease agreement PDF', tag: 'master', onClick: onViewAgreement });
+    }
+    (leaseDocuments || []).forEach(d => {
+      const url = d.url || d.Url || d.blobUrl || d.BlobUrl || d.documentUrl || d.DocumentUrl;
+      list.push({
+        name: d.name || d.Name || 'Document',
+        tag: null,
+        onClick: url ? () => window.open(url, '_blank', 'noopener,noreferrer') : onUploadDocument
+      });
+    });
     return list;
-  }, [hasLeaseAgreementDocument, leaseDocuments]);
+  }, [hasLeaseAgreementDocument, leaseDocuments, onUploadDocument, onViewAgreement]);
 
   return (
     <Box>
-      {/* ── Identity bar ─────────────────────────────────────────────────── */}
-      <Box sx={{ mb: 2, p: 2.5, borderRadius: 2.5, bgcolor: 'background.paper', border: '1px solid', borderColor: (t) => subtleDivider(t, 0.22, 0.14), boxShadow: t => t.palette.mode === 'dark' ? `0 16px 36px ${alpha(t.palette.common.black, 0.22)}, inset 0 1px 0 ${alpha(t.palette.common.white, 0.04)}` : `0 2px 12px ${alpha(t.palette.primary.main, 0.06)}` }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={1.5}>
+      {/* ── Lease hero ───────────────────────────────────────────────────── */}
+      <Box sx={{ mb: 2, p: { xs: 2.5, md: 3 }, borderRadius: 3, color: '#fff', bgcolor: '#061e35', overflow: 'hidden', position: 'relative', boxShadow: `0 18px 44px ${alpha('#061e35', 0.2)}` }}>
+        <Box sx={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -100, top: -170, bgcolor: alpha('#22c55e', 0.12), pointerEvents: 'none' }} />
+        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'flex-start' }} justifyContent="space-between" spacing={2.5} sx={{ position: 'relative' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography sx={{ ...detailHeaderSx, fontSize: '0.65rem', letterSpacing: 1.2, mb: 0.4 }}>
-              LEASE{leaseId ? ` · ${leaseId}` : ''}{leaseLength ? ` · ${leaseLength}-MONTH RESIDENTIAL` : ''}
-            </Typography>
-            <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2, mb: 0.4 }}>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+              <Typography sx={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: 1.25, color: alpha('#fff', 0.66), textTransform: 'uppercase' }}>
+                Lease{leaseId ? ` · ${leaseId}` : ''}
+              </Typography>
+              <Chip
+                label={statusLabel}
+                size="small"
+                sx={{ height: 24, bgcolor: isDraftLease ? '#fef3c7' : isNotStarted ? alpha('#f59e0b', 0.2) : lease?.isActive ? alpha('#22c55e', 0.18) : alpha('#fff', 0.12), color: isDraftLease ? '#92400e' : isNotStarted ? '#fde68a' : lease?.isActive ? '#86efac' : '#fff', fontWeight: 700, '& .MuiChip-label': { px: 1.15 } }}
+              />
+            </Stack>
+            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, lineHeight: 1.12, mb: 0.65 }}>
               {propertyDisplay}
-              {unitDisplay && <Box component="span" sx={{ color: 'text.secondary', fontWeight: 500 }}> — {unitDisplay}</Box>}
+              {unitDisplay && <Box component="span" sx={{ color: alpha('#fff', 0.66), fontWeight: 500 }}> — {unitDisplay}</Box>}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {tenantFullName && `${tenantFullName} renting · `}
-              {startDate ? format(startDate, 'MMM d, yyyy') : '—'} – {endDate ? format(endDate, 'MMM d, yyyy') : '—'}
-              {leaseLength && monthsIn > 0 ? ` · ${monthsIn} of ${leaseLength} months in` : ''}
+            <Typography variant="body2" sx={{ color: alpha('#fff', 0.7), maxWidth: 650 }}>
+              {isDraftLease
+                ? 'This lease is saved as a draft and has not started. Review the terms and complete the agreement when you are ready.'
+                : tenantFullName ? `${tenantFullName} · Residential lease` : 'Residential lease'}
             </Typography>
           </Box>
-          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" sx={{ flexShrink: 0 }}>
+          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ flexShrink: 0 }}>
+            {isDraftLease && (
+              <Button size="small" variant="contained" startIcon={<EditOutlined />} onClick={onEditTerms}
+                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, bgcolor: '#22c55e', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#16a34a', boxShadow: 'none' } }}>
+                Edit lease
+              </Button>
+            )}
             {!isDraftLease && lease?.isActive && (
               <Button size="small" variant="outlined" startIcon={<RedoOutlined style={{ fontSize: 11 }} />} onClick={onRenew}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', borderRadius: 1.5, borderColor: (t) => subtleDivider(t, 0.34, 0.24), px: 1.5 }}>
+                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', borderRadius: 1.5, borderColor: alpha('#fff', 0.35), color: '#fff', px: 1.5, '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>
                 Renew
               </Button>
             )}
             {!isDraftLease && (
-              <Button size="small" variant="outlined" startIcon={<FileTextOutlined style={{ fontSize: 11 }} />} onClick={onDocument}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', borderRadius: 1.5, borderColor: (t) => subtleDivider(t, 0.34, 0.24), px: 1.5 }}>
+              <Button size="small" variant="outlined" startIcon={<FileTextOutlined style={{ fontSize: 11 }} />} onClick={onUploadDocument}
+                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', borderRadius: 1.5, borderColor: alpha('#fff', 0.35), color: '#fff', px: 1.5, '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>
                 Document
               </Button>
             )}
             {!isDraftLease && (lease?.isActive || isNotStarted) && (
-              <Button size="small" variant="contained" color="primary" onClick={onRecordPayment}
-                sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.8rem', borderRadius: 1.5 }}>
+              <Button size="small" variant="contained" onClick={onRecordPayment}
+                sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.8rem', borderRadius: 1.5, bgcolor: '#22c55e', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#16a34a', boxShadow: 'none' } }}>
                 Record payment
               </Button>
             )}
             <IconButton size="small" onClick={e => setActionsAnchor(e.currentTarget)}
-              sx={{ border: (t) => `1px solid ${subtleDivider(t, 0.34, 0.24)}`, borderRadius: 1.5 }}>
+              sx={{ border: `1px solid ${alpha('#fff', 0.35)}`, borderRadius: 1.5, color: '#fff', '&:hover': { bgcolor: alpha('#fff', 0.08) } }}>
               <EllipsisOutlined style={{ fontSize: 14 }} />
             </IconButton>
             <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
@@ -618,12 +639,12 @@ export default function LeaseDetailView({
               <MenuItem onClick={() => { setActionsAnchor(null); onEditTerms(); }} sx={{ py: 1, fontSize: '0.85rem' }}>
                 <EditOutlined style={{ marginRight: 8, fontSize: 13 }} /> Edit terms
               </MenuItem>
-              {lease?.isActive && (
+              {lease?.isActive && !isDraftLease && (
                 <MenuItem onClick={() => { setActionsAnchor(null); handleEndLeaseClick(); }} sx={{ py: 1, fontSize: '0.85rem', color: 'error.main' }}>
                   <StopOutlined style={{ marginRight: 8, fontSize: 13 }} /> End lease early
                 </MenuItem>
               )}
-              {!lease?.isActive && (
+              {!lease?.isActive && !isDraftLease && (
                 <MenuItem onClick={() => { setActionsAnchor(null); handleReopenLeaseClick(); }} sx={{ py: 1, fontSize: '0.85rem', color: 'success.main' }}>
                   Reopen lease
                 </MenuItem>
@@ -631,7 +652,44 @@ export default function LeaseDetailView({
             </Menu>
           </Stack>
         </Stack>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, minmax(0, 1fr))' }, gap: 1, mt: 3, position: 'relative' }}>
+          {[
+            { label: 'Start date', value: startDate ? format(startDate, 'MMM d, yyyy') : 'Not set', icon: <CalendarOutlined /> },
+            { label: 'End date', value: endDate ? format(endDate, 'MMM d, yyyy') : 'Not set', icon: <CalendarOutlined /> },
+            { label: 'Monthly rent', value: rentAmount > 0 ? formatCurrency(rentAmount) : 'Not set', icon: <DollarOutlined /> },
+            { label: 'Tenant', value: tenantFullName || 'Not assigned', icon: <UserOutlined /> },
+          ].map((item) => (
+            <Box key={item.label} sx={{ p: 1.35, borderRadius: 2, bgcolor: alpha('#fff', 0.075), border: `1px solid ${alpha('#fff', 0.1)}` }}>
+              <Stack direction="row" alignItems="center" spacing={0.75} sx={{ color: alpha('#fff', 0.58), mb: 0.45 }}>
+                {item.icon}
+                <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'inherit' }}>{item.label}</Typography>
+              </Stack>
+              <Typography sx={{ color: '#fff', fontWeight: 650, fontSize: '0.82rem' }}>{item.value}</Typography>
+            </Box>
+          ))}
+        </Box>
       </Box>
+
+      {isDraftLease && (
+        <Box sx={{ mb: 2, p: { xs: 2, md: 2.25 }, borderRadius: 2.5, bgcolor: '#fffbeb', border: '1px solid #fde68a', borderLeft: '4px solid #f59e0b' }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
+            <Box>
+              <Typography sx={{ fontWeight: 750, color: '#78350f', mb: 0.35 }}>Draft lease — not started</Typography>
+              <Typography sx={{ fontSize: '0.78rem', color: '#92400e', maxWidth: 720 }}>
+                Drafts do not collect rent or count as active occupancy. Add the start date, rent, tenants, and agreement before starting this lease.
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1} flexShrink={0}>
+              <Button variant="outlined" size="small" onClick={() => navigate(leaseAgreementSetupUrl)} sx={{ textTransform: 'none', fontWeight: 650, borderColor: '#d97706', color: '#92400e' }}>
+                Create agreement
+              </Button>
+              <Button variant="contained" size="small" startIcon={<EditOutlined />} onClick={onEditTerms} sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#22c55e', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#16a34a', boxShadow: 'none' } }}>
+                Edit lease details
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      )}
 
       {/* ── Lifecycle bars ────────────────────────────────────────────────── */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -668,41 +726,52 @@ export default function LeaseDetailView({
           <Stack spacing={2}>
 
             {/* Payment heartbeat */}
-            <SectionCard title="Payment heartbeat">
-              <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', mb: 1.25 }}>
-                {leaseLength} cycles · auto-collected via Stripe ACH
-              </Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(paymentCalendar.length, 6)}, 1fr)`, gap: 0.75, mb: 1 }}>
-                {paymentCalendar.map((m, i) => (
-                  <Box key={i} sx={{
-                    borderRadius: 1.5, border: '1px solid',
-                    borderColor: m.overdue ? theme.palette.error.main : m.paidLate ? theme.palette.warning.main : m.paid ? alpha(theme.palette.success.main, 0.3) : m.upcoming ? alpha(theme.palette.primary.main, 0.4) : subtleDivider(theme, 0.24, 0.16),
-                    bgcolor: m.overdue ? alpha(theme.palette.error.main, 0.07) : m.paidLate ? alpha(theme.palette.warning.main, 0.07) : m.paid ? alpha(theme.palette.success.main, 0.07) : m.upcoming ? alpha(theme.palette.primary.main, 0.05) : alpha(theme.palette.text.primary, 0.03),
-                    p: 0.75, textAlign: 'center'
-                  }}>
-                    <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: 'text.secondary', letterSpacing: 0.3, mb: 0.2 }}>
-                      {m.label}
-                    </Typography>
-                    <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: m.overdue ? 'error.main' : m.paidLate ? 'warning.main' : m.paid ? 'success.main' : m.upcoming ? 'primary.main' : 'text.disabled' }}>
-                      {formatCurrency(m.amount)}
-                    </Typography>
+            <SectionCard title={isDraftLease ? 'Payment schedule' : 'Payment heartbeat'}>
+              {isDraftLease ? (
+                <Box sx={{ py: 2, px: 1, textAlign: 'center' }}>
+                  <Typography sx={{ fontSize: '0.82rem', fontWeight: 700, mb: 0.5 }}>No payment cycles yet</Typography>
+                  <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', maxWidth: 430, mx: 'auto' }}>
+                    Payment tracking begins after this lease is completed and reaches its start date.
+                  </Typography>
+                </Box>
+              ) : (
+                <>
+                  <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', mb: 1.25 }}>
+                    {leaseLength} cycles · auto-collected via Stripe ACH
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(1, Math.min(paymentCalendar.length, 6))}, 1fr)`, gap: 0.75, mb: 1 }}>
+                    {paymentCalendar.map((m, i) => (
+                      <Box key={i} sx={{
+                        borderRadius: 1.5, border: '1px solid',
+                        borderColor: m.overdue ? theme.palette.error.main : m.paidLate ? theme.palette.warning.main : m.paid ? alpha(theme.palette.success.main, 0.3) : m.upcoming ? alpha(theme.palette.primary.main, 0.4) : subtleDivider(theme, 0.24, 0.16),
+                        bgcolor: m.overdue ? alpha(theme.palette.error.main, 0.07) : m.paidLate ? alpha(theme.palette.warning.main, 0.07) : m.paid ? alpha(theme.palette.success.main, 0.07) : m.upcoming ? alpha(theme.palette.primary.main, 0.05) : alpha(theme.palette.text.primary, 0.03),
+                        p: 0.75, textAlign: 'center'
+                      }}>
+                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: 'text.secondary', letterSpacing: 0.3, mb: 0.2 }}>
+                          {m.label}
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: m.overdue ? 'error.main' : m.paidLate ? 'warning.main' : m.paid ? 'success.main' : m.upcoming ? 'primary.main' : 'text.disabled' }}>
+                          {formatCurrency(m.amount)}
+                        </Typography>
+                      </Box>
+                    ))}
                   </Box>
-                ))}
-              </Box>
-              <Stack direction="row" spacing={2}>
-                {[
-                  { color: alpha(theme.palette.success.main, 0.3),  label: 'paid on time' },
-                  { color: theme.palette.warning.main,               label: 'paid late' },
-                  { color: theme.palette.error.main,                 label: 'overdue' },
-                  { color: alpha(theme.palette.primary.main, 0.4),  label: 'upcoming' },
-                  { color: alpha(theme.palette.text.primary, 0.1),  label: 'future' },
-                ].map(item => (
-                  <Stack key={item.label} direction="row" alignItems="center" spacing={0.5}>
-                    <Box sx={{ width: 8, height: 8, borderRadius: 0.5, bgcolor: item.color }} />
-                    <Typography sx={{ fontSize: '0.62rem', color: 'text.disabled' }}>{item.label}</Typography>
+                  <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
+                    {[
+                      { color: alpha(theme.palette.success.main, 0.3), label: 'paid on time' },
+                      { color: theme.palette.warning.main, label: 'paid late' },
+                      { color: theme.palette.error.main, label: 'overdue' },
+                      { color: alpha(theme.palette.primary.main, 0.4), label: 'upcoming' },
+                      { color: alpha(theme.palette.text.primary, 0.1), label: 'future' },
+                    ].map(item => (
+                      <Stack key={item.label} direction="row" alignItems="center" spacing={0.5}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: 0.5, bgcolor: item.color }} />
+                        <Typography sx={{ fontSize: '0.62rem', color: 'text.disabled' }}>{item.label}</Typography>
+                      </Stack>
+                    ))}
                   </Stack>
-                ))}
-              </Stack>
+                </>
+              )}
             </SectionCard>
 
             {/* Key terms */}
@@ -713,17 +782,17 @@ export default function LeaseDetailView({
                   variant="caption"
                   color="primary"
                   sx={{ fontWeight: 600, fontSize: '0.68rem', cursor: 'pointer' }}
-                  onClick={hasLeaseAgreementDocument ? onDocument : () => navigate(leaseAgreementSetupUrl)}
+                  onClick={hasLeaseAgreementDocument ? onViewAgreement : () => navigate(leaseAgreementSetupUrl)}
                 >
                   {hasLeaseAgreementDocument ? 'View full agreement →' : '+ Create agreement'}
                 </Typography>
               }
             >
-              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' }, gap: 1 }}>
                 {[
-                  { label: 'Lease length',     value: leaseLength ? `${leaseLength} months` : '—', sub: startDate && endDate ? `${format(startDate, 'MMM d yyyy')} – ${format(endDate, 'MMM d yyyy')}` : null },
-                  { label: 'Monthly rent',      value: formatCurrency(rentAmount),   sub: `Due 1st · ${lease.lateFeeGracePeriod || 5}d grace` },
-                  { label: 'Security deposit',  value: formatCurrency(depositAmount), sub: deposits?.length ? 'received' : 'pending' },
+                  { label: 'Lease length', value: leaseLength ? `${leaseLength} months` : 'Not set', sub: startDate && endDate ? `${format(startDate, 'MMM d yyyy')} – ${format(endDate, 'MMM d yyyy')}` : 'Add start and end dates' },
+                  { label: 'Monthly rent', value: rentAmount > 0 ? formatCurrency(rentAmount) : 'Not set', sub: rentAmount > 0 ? `Due day ${lease.rentDueDay || lease.RentDueDay || 1} · ${lease.lateFeeGracePeriod || lease.LateFeeGracePeriod || 5}d grace` : 'Add rent terms' },
+                  { label: 'Security deposit', value: depositAmount > 0 ? formatCurrency(depositAmount) : 'Not set', sub: depositAmount > 0 ? (deposits?.length ? 'received' : 'pending') : null },
                   { label: 'Late fee',          value: lateFeeAmount > 0 ? formatCurrency(lateFeeAmount) : 'None', sub: lateFeeAmount > 0 ? `after day ${lease.lateFeeGracePeriod || 5}` : null },
                   { label: 'Auto-renew',        value: (lease.autoRenew || lease.AutoRenew) ? 'ON' : 'OFF', sub: 'month-to-month 2-alert' },
                   { label: 'Notice period',     value: '60 days', sub: 'either party' },
@@ -738,8 +807,9 @@ export default function LeaseDetailView({
                 ))}
               </Box>
               <Button size="small" startIcon={<PlusOutlined style={{ fontSize: 10 }} />}
+                onClick={onUploadDocument}
                 sx={{ mt: 1.25, textTransform: 'none', fontSize: '0.72rem', color: 'text.secondary', justifyContent: 'flex-start', py: 0.4 }}>
-                Add addendum
+                Upload addendum
               </Button>
             </SectionCard>
 
@@ -747,7 +817,7 @@ export default function LeaseDetailView({
             <SectionCard
               title="Documents"
               action={
-                <Button size="small" variant="outlined" startIcon={<UploadOutlined style={{ fontSize: 11 }} />} onClick={onDocument}
+                <Button size="small" variant="outlined" startIcon={<UploadOutlined style={{ fontSize: 11 }} />} onClick={onUploadDocument}
                   sx={{ textTransform: 'none', fontSize: '0.7rem', borderRadius: 1.25, px: 1.25, py: 0.35, borderColor: (t) => subtleDivider(t, 0.34, 0.24) }}>
                   + upload
                 </Button>
@@ -756,7 +826,7 @@ export default function LeaseDetailView({
               {docs.length > 0 ? (
                 <Stack spacing={0.75}>
                   {docs.map((d, i) => (
-                    <Stack key={i} direction="row" alignItems="center" spacing={1} onClick={onDocument}
+                    <Stack key={i} direction="row" alignItems="center" spacing={1} onClick={d.onClick}
                       sx={{ p: 1, borderRadius: 1.25, border: (t) => `1px solid ${subtleDivider(t, 0.22, 0.14)}`, cursor: 'pointer', '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.03) } }}>
                       <FileTextOutlined style={{ fontSize: 16, color: theme.palette.text.secondary, flexShrink: 0 }} />
                       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -770,7 +840,7 @@ export default function LeaseDetailView({
               ) : (
                 <Stack alignItems="center" spacing={1} sx={{ py: 2 }}>
                   <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>No documents uploaded</Typography>
-                  <Button size="small" variant="outlined" onClick={onDocument}
+                  <Button size="small" variant="outlined" onClick={onUploadDocument}
                     sx={{ textTransform: 'none', fontSize: '0.72rem', borderRadius: 1.25, borderColor: (t) => subtleDivider(t, 0.34, 0.24) }}>
                     Upload lease agreement
                   </Button>
@@ -838,30 +908,44 @@ export default function LeaseDetailView({
         <Grid size={{ xs: 12, lg: 4 }}>
           <Stack spacing={2}>
 
-            {/* Lease Health */}
+            {/* Lease summary */}
             <Box sx={{
               p: 2, borderRadius: 2,
-              bgcolor: `${healthColor}12`,
-              border: `1.5px dashed ${healthColor}`,
+              bgcolor: `${summaryColor}12`,
+              border: `1.5px dashed ${summaryColor}`,
             }}>
               <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 1 }}>
-                <StarFilled style={{ fontSize: 12, color: healthColor }} />
-                <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.8, color: healthColor, textTransform: 'uppercase' }}>
-                  Lease Health · {healthLabel}
+                <StarFilled style={{ fontSize: 12, color: summaryColor }} />
+                <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.8, color: summaryColor, textTransform: 'uppercase' }}>
+                  {isDraftLease ? 'Draft setup' : `Lease health · ${healthLabel}`}
                 </Typography>
               </Stack>
-              <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'text.primary', mb: 0.75 }}>
-                {paidCycles} of {paymentCalendar.length || leaseLength || '—'} cycles paid · {lateCycles} late
-                {minorIssues > 0 ? ` · ${minorIssues} minor issue${minorIssues !== 1 ? 's' : ''}` : ''}
-                {daysUntilEnd !== null && daysUntilEnd <= 180 ? ` (renewal in ${daysUntilEnd}d)` : ''}
-              </Typography>
-              <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', lineHeight: 1.5 }}>
-                {lateCycles === 0
-                  ? 'tenant has perfect payment record · '
-                  : `${lateCycles} late payment${lateCycles !== 1 ? 's' : ''} on record · `}
-                {minorIssues === 0 ? 'maintenance volume normal · ' : `${minorIssues} open issue${minorIssues !== 1 ? 's' : ''} · `}
-                {renewalGuidance}
-              </Typography>
+              {isDraftLease ? (
+                <>
+                  <Typography sx={{ fontSize: '0.78rem', fontWeight: 650, color: 'text.primary', mb: 0.75 }}>
+                    This lease is not active yet
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', lineHeight: 1.55 }}>
+                    {startDate ? `Planned start: ${format(startDate, 'MMMM d, yyyy')}. ` : 'A start date still needs to be set. '}
+                    Health and payment insights will appear after the lease starts.
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <Typography sx={{ fontSize: '0.78rem', fontWeight: 600, color: 'text.primary', mb: 0.75 }}>
+                    {paidCycles} of {paymentCalendar.length || leaseLength || '—'} cycles paid · {lateCycles} late
+                    {minorIssues > 0 ? ` · ${minorIssues} minor issue${minorIssues !== 1 ? 's' : ''}` : ''}
+                    {daysUntilEnd !== null && daysUntilEnd <= 180 ? ` (renewal in ${daysUntilEnd}d)` : ''}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', lineHeight: 1.5 }}>
+                    {lateCycles === 0
+                      ? 'tenant has perfect payment record · '
+                      : `${lateCycles} late payment${lateCycles !== 1 ? 's' : ''} on record · `}
+                    {minorIssues === 0 ? 'maintenance volume normal · ' : `${minorIssues} open issue${minorIssues !== 1 ? 's' : ''} · `}
+                    {renewalGuidance}
+                  </Typography>
+                </>
+              )}
             </Box>
 
             {/* Tenants */}
@@ -875,8 +959,8 @@ export default function LeaseDetailView({
             <SectionCard
               title="This lease, in money"
               action={
-                <Typography variant="caption" color="primary" sx={{ fontWeight: 600, fontSize: '0.68rem', cursor: 'pointer' }}>
-                  View ledger →
+                <Typography variant="caption" color="primary" onClick={() => navigate(`/landlord/leases/${leaseId}/payment-history`)} sx={{ fontWeight: 600, fontSize: '0.68rem', cursor: 'pointer' }}>
+                  Payment history →
                 </Typography>
               }
             >

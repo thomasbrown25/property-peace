@@ -6,9 +6,11 @@ import { Box } from '@mui/material';
 import { Button } from '@mui/material';
 import { CircularProgress } from '@mui/material';
 import { LinearProgress } from '@mui/material';
+import { Link } from '@mui/material';
 import { Stack } from '@mui/material';
 import { Typography } from '@mui/material';
 import { ArrowLeftOutlined } from '@ant-design/icons';
+import { Link as RouterLink } from 'react-router-dom';
 
 // project imports
 import useAuth from 'hooks/useAuth';
@@ -16,28 +18,13 @@ import { openSnackbar } from 'api/snackbar';
 import { organizationAPI } from 'api';
 import axiosServices from 'utils/axios';
 import { trackSignUpConversion } from 'utils/googleAds';
-import { PASSWORD_SPECIAL_CHARACTERS } from 'utils/password-validation';
 
 // ============================|| CREATING ACCOUNT STEP ||============================ //
 
-function generatePassword() {
-  const length = 16;
-  const lower = 'abcdefghijklmnopqrstuvwxyz';
-  const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const digits = '0123456789';
-  const charset = `${lower}${upper}${digits}${PASSWORD_SPECIAL_CHARACTERS}`;
-  const required = [lower, upper, digits, PASSWORD_SPECIAL_CHARACTERS].map((group) => group.charAt(Math.floor(Math.random() * group.length)));
-
-  for (let i = required.length; i < length; i++) {
-    required.push(charset.charAt(Math.floor(Math.random() * charset.length)));
-  }
-
-  return required.sort(() => Math.random() - 0.5).join('');
-}
-
-export default function CreatingAccountStep({ onComplete, onBack }) {
+export default function CreatingAccountStep({ password = '', onComplete, onBack }) {
   const { user, register, isLoggedIn, updateUser } = useAuth();
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
@@ -60,10 +47,7 @@ export default function CreatingAccountStep({ onComplete, onBack }) {
 
       try {
         if (isLoggedIn && user) {
-          const orgResponse = await organizationAPI.createOrganization(
-            organizationName.trim(),
-            organizationDescription?.trim() || null
-          );
+          const orgResponse = await organizationAPI.createOrganization(organizationName.trim(), organizationDescription?.trim() || null);
 
           if (!orgResponse.success || !orgResponse.data) {
             throw new Error(orgResponse.message || 'Failed to create organization');
@@ -97,9 +81,18 @@ export default function CreatingAccountStep({ onComplete, onBack }) {
           }
 
           [
-            'registerEmail', 'registerPassword', 'registerFirstName', 'registerLastName',
-            'registerProfileImageUrl', 'registerPhoneNumber', 'googleAccessToken', 'registerOrganizationName',
-            'registerOrganizationDescription', 'registerRole', 'registerUserType'
+            'registerEmail',
+            'registerPassword',
+            'registerFirstName',
+            'registerLastName',
+            'registerProfileImageUrl',
+            'registerPhoneNumber',
+            'googleAccessToken',
+            'registerOrganizationName',
+            'registerOrganizationDescription',
+            'registerRole',
+            'registerUserType',
+            'emailVerified'
           ].forEach((key) => sessionStorage.removeItem(key));
 
           trackSignUpConversion();
@@ -113,29 +106,33 @@ export default function CreatingAccountStep({ onComplete, onBack }) {
 
           if (!cancelled) onCompleteRef.current?.();
         } else {
-          const storedPassword = sessionStorage.getItem('registerPassword') || '';
-          const tempPassword = googleToken ? '' : storedPassword || generatePassword();
+          if (!googleToken && !password) {
+            throw new Error('Your password is no longer available. Go back to the account step and enter it again.');
+          }
+          const accountPassword = googleToken ? '' : password;
           const storedRole = sessionStorage.getItem('registerRole') || 'Landlord';
 
-          await register(
-            storedEmail,
-            tempPassword,
-            storedFirstName,
-            storedLastName,
-            storedPhoneNumber || null,
-            {
-              businessName: organizationName.trim(),
-              businessEmail: storedEmail,
-              businessPhone: storedPhoneNumber?.trim() || null,
-              googleAccessToken: googleToken || null,
-              roles: [storedRole]
-            }
-          );
+          await register(storedEmail, accountPassword, storedFirstName, storedLastName, storedPhoneNumber || null, {
+            businessName: organizationName.trim(),
+            businessEmail: storedEmail,
+            businessPhone: storedPhoneNumber?.trim() || null,
+            googleAccessToken: googleToken || null,
+            roles: [storedRole]
+          });
 
           [
-            'registerEmail', 'registerPassword', 'registerFirstName', 'registerLastName',
-            'registerProfileImageUrl', 'registerPhoneNumber', 'googleAccessToken', 'registerOrganizationName',
-            'registerOrganizationDescription', 'registerRole', 'registerUserType'
+            'registerEmail',
+            'registerPassword',
+            'registerFirstName',
+            'registerLastName',
+            'registerProfileImageUrl',
+            'registerPhoneNumber',
+            'googleAccessToken',
+            'registerOrganizationName',
+            'registerOrganizationDescription',
+            'registerRole',
+            'registerUserType',
+            'emailVerified'
           ].forEach((key) => sessionStorage.removeItem(key));
 
           trackSignUpConversion();
@@ -164,8 +161,10 @@ export default function CreatingAccountStep({ onComplete, onBack }) {
     };
 
     run();
-    return () => { cancelled = true; };
-  }, [isLoggedIn, user, updateUser, register]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn, user, updateUser, register, password, retryCount]);
 
   if (error) {
     return (
@@ -185,16 +184,40 @@ export default function CreatingAccountStep({ onComplete, onBack }) {
         <Typography variant="body1" color="error" sx={{ textAlign: 'center' }}>
           {error}
         </Typography>
-        {onBack && (
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+          Your details are still saved. Check them, retry, or log in if the account was already created.
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ width: '100%' }}>
+          {onBack && (
+            <Button fullWidth startIcon={<ArrowLeftOutlined />} onClick={onBack} variant="outlined">
+              Review details
+            </Button>
+          )}
           <Button
-            startIcon={<ArrowLeftOutlined />}
-            onClick={onBack}
-            variant="outlined"
-            color="primary"
+            fullWidth
+            onClick={() => {
+              setError(null);
+              setRetryCount((count) => count + 1);
+            }}
+            variant="contained"
           >
-            Back
+            Try again
           </Button>
-        )}
+        </Stack>
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+          By creating an account, you agree to our{' '}
+          <Link component={RouterLink} to="/terms">
+            Terms of Use
+          </Link>{' '}
+          and{' '}
+          <Link component={RouterLink} to="/privacy">
+            Privacy Policy
+          </Link>
+          .
+        </Typography>
+        <Button component={RouterLink} to="/login" variant="text" sx={{ textTransform: 'none' }}>
+          Go to login
+        </Button>
       </Box>
     );
   }
@@ -232,6 +255,7 @@ export default function CreatingAccountStep({ onComplete, onBack }) {
 }
 
 CreatingAccountStep.propTypes = {
+  password: PropTypes.string,
   onComplete: PropTypes.func,
   onBack: PropTypes.func
 };

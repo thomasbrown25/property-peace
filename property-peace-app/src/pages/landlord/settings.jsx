@@ -6,6 +6,7 @@ import {
   SettingOutlined,
   UserOutlined,
   DollarOutlined,
+  CreditCardOutlined,
   BellOutlined,
   HighlightOutlined,
   ProfileOutlined,
@@ -21,6 +22,7 @@ import PaymentsSettings from 'sections/landlord/settings/PaymentsSettings';
 import ProfileSettings from 'sections/landlord/settings/ProfileSettings';
 import AISummarySettings from 'sections/landlord/settings/AISummarySettings';
 import SmsNumberSettings from 'sections/landlord/settings/SmsNumberSettings';
+import SubscriptionSettings from 'sections/landlord/settings/SubscriptionSettings';
 
 // ==============================|| SETTINGS PAGE ||============================== //
 
@@ -28,11 +30,12 @@ const tabMap = {
   profile: 0,
   general: 1,
   account: 2,
-  payments: 3,
-  smsnumber: 4,
-  notifications: 5,
-  appearance: 6,
-  aiSummary: 7
+  subscription: 3,
+  payments: 4,
+  smsnumber: 5,
+  notifications: 6,
+  appearance: 7,
+  aisummary: 8
 };
 
 const tabKeys = Object.keys(tabMap);
@@ -41,11 +44,12 @@ const tabConfig = [
   { key: 'profile', label: 'Profile', description: 'Your name, contact details, and public identity.', icon: ProfileOutlined, component: ProfileSettings },
   { key: 'general', label: 'General', description: 'Default app behavior and landlord preferences.', icon: SettingOutlined, component: GeneralSettings },
   { key: 'account', label: 'Account Settings', description: 'Login, security, and account-level controls.', icon: UserOutlined, component: AccountSettings },
+  { key: 'subscription', label: 'Manage Subscription', description: 'Plans, portfolio usage, billing details, and invoices.', icon: CreditCardOutlined, component: SubscriptionSettings },
   { key: 'payments', label: 'Bank Settings', description: 'Payment accounts, payouts, and billing rails.', icon: DollarOutlined, component: PaymentsSettings },
   { key: 'smsnumber', label: 'SMS Number Settings', description: 'Dedicated tenant texting number, routing, and setup.', icon: MobileOutlined, component: SmsNumberSettings },
   { key: 'notifications', label: 'Notifications', description: 'Alerts, reminders, and communication preferences.', icon: BellOutlined, component: NotificationSettings },
   { key: 'appearance', label: 'Appearance', description: 'Theme, color, and display customization.', icon: HighlightOutlined, component: AppearanceSettings },
-  { key: 'aiSummary', label: 'AI Summary', description: 'Configure automated summaries and AI assistance.', icon: RobotOutlined, component: AISummarySettings }
+  { key: 'aisummary', label: 'AI Summary', description: 'Configure automated summaries and AI assistance.', icon: RobotOutlined, component: AISummarySettings }
 ];
 
 export default function Settings() {

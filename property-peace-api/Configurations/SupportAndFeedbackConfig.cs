@@ -27,6 +27,13 @@ namespace brownstone_hub_api.Configurations
             
             builder.Property(sf => sf.CreatedAt)
                 .IsRequired();
+
+            builder.Property(sf => sf.LastActivityAt)
+                .IsRequired();
+
+            builder.Property(sf => sf.TicketNumber)
+                .IsRequired()
+                .HasMaxLength(32);
             
             builder.Property(sf => sf.IsResolved)
                 .IsRequired()
@@ -41,9 +48,16 @@ namespace brownstone_hub_api.Configurations
                 .WithMany()
                 .HasForeignKey(sf => sf.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.HasOne(sf => sf.Conversation)
+                .WithOne()
+                .HasForeignKey<SupportAndFeedback>(sf => sf.ConversationId)
+                .OnDelete(DeleteBehavior.SetNull);
             
             // Indexes
             builder.HasIndex(sf => sf.UserId);
+            builder.HasIndex(sf => sf.TicketNumber).IsUnique();
+            builder.HasIndex(sf => sf.ConversationId).IsUnique().HasFilter("[ConversationId] IS NOT NULL");
             builder.HasIndex(sf => sf.Type);
             builder.HasIndex(sf => sf.CreatedAt);
             builder.HasIndex(sf => sf.IsResolved);

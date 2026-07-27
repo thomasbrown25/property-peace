@@ -127,8 +127,8 @@ export default function useRedirectUser() {
         (subscriptionStatus.trialDaysRemaining === null || subscriptionStatus.trialDaysRemaining <= 0);
       
       // If trial expired, only allow subscription page
-      if (isTrialExpired && isLandlordRoute && !pathname.includes('/landlord/subscription')) {
-        navigate('/landlord/subscription', { replace: true });
+      if (isTrialExpired && isLandlordRoute && !pathname.includes('/landlord/settings')) {
+        navigate('/landlord/settings?tab=subscription', { replace: true });
         return;
       }
     }

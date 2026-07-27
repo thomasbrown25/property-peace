@@ -12,7 +12,7 @@ import pages from 'menu-items/pages';
 import useConfig from 'hooks/useConfig';
 import { HORIZONTAL_MAX_ITEM, MenuOrientation } from 'config';
 import useAuth from 'hooks/useAuth';
-import { useSubscriptionStatus, useSubscription } from 'hooks/useSubscription';
+import { useSubscriptionStatus } from 'hooks/useSubscription';
 
 // ==============================|| DRAWER CONTENT - NAVIGATION ||============================== //
 
@@ -21,7 +21,6 @@ export default function Navigation() {
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
   const auth = useAuth();
   const { status: subscriptionStatus } = useSubscriptionStatus();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
 
   // Get roles from JWTContext only - ensure it's an array
   const userRoles = Array.isArray(auth?.user?.Roles)
@@ -34,13 +33,8 @@ export default function Navigation() {
   const hasLandlordRole = normalizedRoles.includes('landlord');
   const hasAdminRole = normalizedRoles.includes('admin');
 
-  const isPremium = subscription?.plan?.name?.toLowerCase() === 'premium';
-  const subscriptionUrl = hasTenantRole ? '/tenant/subscription?tab=0' : '/landlord/subscription?tab=0';
-  // Only show upgrade when we've determined they're on the free plan (hide until subscription has loaded)
-  const showUpgrade = !subscriptionLoading && !isPremium;
-
-  // Check if trial is expired
-  const isTrialExpired = subscriptionStatus?.isTrialActive &&
+  // Subscription restrictions only apply to landlord accounts. Tenants are always free.
+  const isTrialExpired = !hasTenantRole && subscriptionStatus?.isTrialActive &&
     (subscriptionStatus?.trialDaysRemaining === null || subscriptionStatus?.trialDaysRemaining <= 0);
 
 

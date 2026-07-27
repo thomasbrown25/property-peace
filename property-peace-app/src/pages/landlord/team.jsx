@@ -1,1214 +1,496 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  alpha,
+  Avatar,
   Box,
-  Typography,
-  Stack,
   Button,
   Chip,
-  IconButton,
-  Tooltip,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
-  Alert,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
-  alpha,
-  useTheme,
-  Fab,
-  useMediaQuery,
-  Container,
+  FormControl,
+  FormHelperText,
+  Grid,
+  IconButton,
   InputAdornment,
   Menu,
-  MenuList,
-  ListItemText,
-  Checkbox,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Drawer
+  MenuItem,
+  OutlinedInput,
+  Select,
+  Stack,
+  Tooltip,
+  Typography,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
-import Autocomplete from 'components/@extended/AutoComplete';
-import MainCard from 'components/MainCard';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import {
-  UserAddOutlined,
-  MailOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  CopyOutlined,
-  TeamOutlined,
-  PlusOutlined,
-  SendOutlined,
+  CheckCircleOutlined,
   CloseOutlined,
+  DeleteOutlined,
+  DownOutlined,
+  EditOutlined,
+  MailOutlined,
   MoreOutlined,
-  SearchOutlined
+  PlusOutlined,
+  ReloadOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  TeamOutlined,
+  UserOutlined
 } from '@ant-design/icons';
-import WarningIcon from '@mui/icons-material/Warning';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
-import { useOrganization } from 'contexts/OrganizationContext';
-import useOrganizationRole from 'hooks/useOrganizationRole';
-import { organizationAPI, organizationMemberAPI, organizationInviteAPI } from 'api';
-import { openSnackbar } from 'api/snackbar';
+
+import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import CreateOrganizationDialog from 'components/organization/CreateOrganizationDialog';
 import useAuth from 'hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import OrganizationCreatingOverlay from 'components/organization/OrganizationCreatingOverlay';
-import EditOrganizationModal from 'components/dialogs/EditOrganizationModal';
-import { clearActiveOrganizationId } from 'utils/impersonationSession';
+import { openSnackbar } from 'api/snackbar';
+import { getCurrentOrganization } from 'api/organization';
+import { getMembers, removeMember, updateMember } from 'api/organizationMember';
+import { createInvite, deleteInvite, getInvites, resendInvite } from 'api/organizationInvite';
 
-export default function Team() {
-  const { currentOrganization, organizations, refreshOrganizations, switchOrganization } = useOrganization();
-  const { hasPermission, isOwner, isManager } = useOrganizationRole();
-  const auth = useAuth();
+const ROLE_DETAILS = {
+  Owner: {
+    description: 'Full organization access, including billing and team management.',
+    permissions: ['All organization access', 'Billing and team management'],
+    color: 'primary'
+  },
+  Manager: {
+    description: 'Runs day-to-day property operations without billing or team access.',
+    permissions: ['Properties, tenants, and leases', 'Maintenance operations'],
+    color: 'success'
+  },
+  Viewer: {
+    description: 'Read-only access for accountants, partners, or other stakeholders.',
+    permissions: ['View organization information', 'No editing or management access'],
+    color: 'default'
+  }
+};
+
+const ROLE_PERMISSIONS = {
+  Owner: {
+    canManageProperties: true,
+    canManageTenants: true,
+    canManageLeases: true,
+    canManageMaintenance: true,
+    canManageBilling: true,
+    canManageMembers: true
+  },
+  Manager: {
+    canManageProperties: true,
+    canManageTenants: true,
+    canManageLeases: true,
+    canManageMaintenance: true,
+    canManageBilling: false,
+    canManageMembers: false
+  },
+  Viewer: {
+    canManageProperties: false,
+    canManageTenants: false,
+    canManageLeases: false,
+    canManageMaintenance: false,
+    canManageBilling: false,
+    canManageMembers: false
+  }
+};
+
+const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
+const unwrap = (response) => response?.data ?? response?.Data ?? response ?? null;
+const normalizeEmail = (value) => value.trim().toLowerCase();
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+function getInitials(name, email) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (words.length) return words.slice(0, 2).map((word) => word[0]).join('').toUpperCase();
+  return String(email || '?').slice(0, 2).toUpperCase();
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function roleDetail(role) {
+  return ROLE_DETAILS[role] || ROLE_DETAILS.Viewer;
+}
+
+function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const navigate = useNavigate();
-
-  const [members, setMembers] = useState([]);
-  const [invites, setInvites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('Viewer');
-  const [sendingInvite, setSendingInvite] = useState(false);
-  const [removingMember, setRemovingMember] = useState(null);
-  const [resendingInvite, setResendingInvite] = useState(null);
-  const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
-  const [orgName, setOrgName] = useState('');
-  const [orgDescription, setOrgDescription] = useState('');
-  const [creatingOrg, setCreatingOrg] = useState(false);
-  const [deleteOrgDialogOpen, setDeleteOrgDialogOpen] = useState(false);
-  const [deletingOrg, setDeletingOrg] = useState(false);
-  const [selectedOrganizationId, setSelectedOrganizationId] = useState(null);
-  const [availableOrganizations, setAvailableOrganizations] = useState([]);
-  const [loadingOrganizations, setLoadingOrganizations] = useState(true);
-  const [filteredMembersList, setFilteredMembersList] = useState([]);
-  const [loadingFilteredMembers, setLoadingFilteredMembers] = useState(false);
-  const [editOrgModalOpen, setEditOrgModalOpen] = useState(false);
-  const [orgMenuAnchor, setOrgMenuAnchor] = useState(null);
-  const [teamSearchQuery, setTeamSearchQuery] = useState('');
-
-  // Get current user's role from organization context (primary) or members list (fallback)
-  const orgUserRole = currentOrganization?.userRole || null;
-  const currentUserMember = members.find(m => m.userId === auth?.user?.Id);
-  const memberUserRole = currentUserMember?.role || null;
-  const userRole = orgUserRole || memberUserRole;
-  
-  // Owners can always manage members. Managers can if they have the permission.
-  const canManageMembers = 
-    userRole === 'Owner' || 
-    isOwner || 
-    (userRole === 'Manager' && (currentUserMember?.canManageMembers || hasPermission('CanManageMembers')));
-  
-  const canViewAccountStatus = canManageMembers; // Only owners/managers with CanManageMembers can see account status
-
-  useEffect(() => {
-    if (currentOrganization) {
-      loadTeamData();
-      // Default to current organization
-      if (!selectedOrganizationId) {
-        setSelectedOrganizationId(currentOrganization.id);
-      }
-    }
-  }, [currentOrganization]);
-
-  // Load members for selected organization without switching context
-  useEffect(() => {
-    if (selectedOrganizationId) {
-      loadMembersForOrganization(selectedOrganizationId);
-    } else {
-      setFilteredMembersList([]);
-    }
-  }, [selectedOrganizationId]);
-
-  // Load organizations for filter
-  useEffect(() => {
-    const loadOrganizations = async () => {
-      try {
-        setLoadingOrganizations(true);
-        const response = await organizationAPI.getUserOrganizations();
-        if (response.success && response.data) {
-          setAvailableOrganizations(response.data);
-        } else {
-          setAvailableOrganizations([]);
-        }
-      } catch (error) {
-        console.error('Error loading organizations:', error);
-        setAvailableOrganizations([]);
-      } finally {
-        setLoadingOrganizations(false);
-      }
-    };
-
-    loadOrganizations();
-  }, []);
-
-  const loadTeamData = async () => {
-    if (!currentOrganization) return;
-
-    try {
-      setLoading(true);
-      const [membersResponse, invitesResponse] = await Promise.allSettled([
-        organizationMemberAPI.getMembers(currentOrganization.id),
-        organizationInviteAPI.getInvites(currentOrganization.id)
-      ]);
-
-      // Handle members response
-      if (membersResponse.status === 'fulfilled' && membersResponse.value.success) {
-        setMembers(membersResponse.value.data || []);
-      } else {
-        const error = membersResponse.status === 'rejected' ? membersResponse.reason : membersResponse.value;
-        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load team members';
-        console.error('Error loading members:', errorMessage, error);
-        openSnackbar({
-          open: true,
-          message: errorMessage,
-          variant: 'alert',
-          alert: { color: 'error' }
-        });
-        setMembers([]);
-      }
-
-      // Handle invites response - don't show error for 403 (expected for viewers)
-      if (invitesResponse.status === 'fulfilled' && invitesResponse.value.success) {
-        setInvites(invitesResponse.value.data || []);
-      } else {
-        const error = invitesResponse.status === 'rejected' ? invitesResponse.reason : invitesResponse.value;
-        const isForbidden = error?.response?.status === 403 || 
-                          error?.statusCode === 403 ||
-                          (invitesResponse.status === 'fulfilled' && invitesResponse.value.statusCode === 403);
-        
-        // Only log non-403 errors
-        if (!isForbidden) {
-          const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load invites';
-          console.error('Error loading invites:', errorMessage);
-        }
-        setInvites([]); // Set empty array on error
-      }
-    } catch (error) {
-      console.error('Unexpected error loading team data:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load team data';
-      openSnackbar({
-        open: true,
-        message: errorMessage,
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-      setMembers([]);
-      setInvites([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendInvite = async () => {
-    if (!inviteEmail.trim() || !currentOrganization) return;
-
-    try {
-      setSendingInvite(true);
-      const response = await organizationInviteAPI.createInvite(
-        currentOrganization.id,
-        inviteEmail.trim(),
-        inviteRole
-      );
-
-      if (response.success) {
-        openSnackbar({
-          open: true,
-          message: `Invite sent successfully! Email sent to ${inviteEmail}`,
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-
-        setInviteDialogOpen(false);
-        setInviteEmail('');
-        setInviteRole('Viewer');
-        loadTeamData();
-        // Reload filtered members if viewing a different organization
-        if (selectedOrganizationId && selectedOrganizationId !== currentOrganization?.id) {
-          loadMembersForOrganization(selectedOrganizationId);
-        }
-      } else {
-        throw new Error(response.message || 'Failed to send invite');
-      }
-    } catch (error) {
-      console.error('Error sending invite:', error);
-      openSnackbar({
-        open: true,
-        message: error.response?.data?.message || error.message || 'Failed to send invite',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setSendingInvite(false);
-    }
-  };
-
-  const handleRemoveMember = async (memberUserId) => {
-    // Use selected organization if filtering, otherwise use current organization
-    const organizationId = selectedOrganizationId || currentOrganization?.id;
-    if (!organizationId) return;
-
-    // Check if trying to remove self
-    const isRemovingSelf = String(memberUserId) === String(auth?.user?.Id) || 
-                          String(memberUserId) === String(auth?.user?.id);
-    
-    if (isRemovingSelf) {
-      // Check if user is the owner - use filtered members or regular members
-      const membersToCheck = selectedOrganizationId && selectedOrganizationId !== currentOrganization?.id 
-        ? filteredMembersList 
-        : members;
-      const memberToRemove = membersToCheck.find(m => 
-        String(m.userId || m.id) === String(memberUserId)
-      );
-      
-      if (memberToRemove?.role === 'Owner') {
-        // Count how many owners exist
-        const ownerCount = membersToCheck.filter(m => m.role === 'Owner' && m.isActive).length;
-        
-        if (ownerCount <= 1) {
-          openSnackbar({
-            open: true,
-            message: 'You cannot remove yourself as you are the last owner. Please transfer ownership to another member first.',
-            variant: 'alert',
-            alert: { color: 'warning' }
-          });
-          return;
-        } else {
-          openSnackbar({
-            open: true,
-            message: 'You cannot remove yourself from the organization. Please have another owner remove you if needed.',
-            variant: 'alert',
-            alert: { color: 'warning' }
-          });
-          return;
-        }
-      }
-    }
-
-    try {
-      setRemovingMember(memberUserId);
-      const response = await organizationMemberAPI.removeMember(
-        organizationId,
-        memberUserId
-      );
-
-      if (response.success) {
-        openSnackbar({
-          open: true,
-          message: 'Member removed successfully',
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-        loadTeamData();
-        // Reload filtered members if viewing a different organization
-        if (selectedOrganizationId && selectedOrganizationId !== currentOrganization?.id) {
-          loadMembersForOrganization(selectedOrganizationId);
-        }
-      } else {
-        throw new Error(response.message || 'Failed to remove member');
-      }
-    } catch (error) {
-      console.error('Error removing member:', error);
-      openSnackbar({
-        open: true,
-        message: error.response?.data?.message || error.message || 'Failed to remove member',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setRemovingMember(null);
-    }
-  };
-
-  const handleCopyInviteLink = async (token) => {
-    const baseUrl = window.location.origin;
-    const inviteLink = `${baseUrl}/organization/invite/${token}`;
-    await navigator.clipboard.writeText(inviteLink);
-    openSnackbar({
-      open: true,
-      message: 'Invite link copied to clipboard!',
-      variant: 'alert',
-      alert: { color: 'success' }
-    });
-  };
-
-  const handleResendInvite = async (memberEmailOrInvite) => {
-    if (!currentOrganization) return;
-
-    try {
-      let invite;
-      let inviteId;
-      
-      // If it's an invite object (from pending invites), use it directly
-      if (typeof memberEmailOrInvite === 'object' && memberEmailOrInvite.token) {
-        invite = memberEmailOrInvite;
-        inviteId = memberEmailOrInvite.id;
-      } else {
-        // Otherwise, find the invite by email (from members section)
-        invite = invites.find(
-          inv => inv.email?.toLowerCase() === memberEmailOrInvite?.toLowerCase() && !inv.isAccepted
-        );
-
-        if (!invite) {
-          openSnackbar({
-            open: true,
-            message: 'No pending invite found for this member',
-            variant: 'alert',
-            alert: { color: 'warning' }
-          });
-          return;
-        }
-        inviteId = invite.id;
-      }
-
-      const emailKey = typeof memberEmailOrInvite === 'object' ? memberEmailOrInvite.email : memberEmailOrInvite;
-      setResendingInvite(emailKey);
-      
-      // Call the API to resend the invite (generates new token and extends expiration)
-      const response = await organizationInviteAPI.resendInvite(inviteId);
-      
-      if (response.success) {
-        openSnackbar({
-          open: true,
-          message: 'Invite resent successfully! Email sent with the invite link.',
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-
-        // Refresh the team data to get the updated invite
-        loadTeamData();
-      } else {
-        throw new Error(response.message || 'Failed to resend invite');
-      }
-    } catch (error) {
-      console.error('Error resending invite:', error);
-      openSnackbar({
-        open: true,
-        message: error.response?.data?.message || error.message || 'Failed to resend invite',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setResendingInvite(null);
-    }
-  };
-
-  // Helper function to get invite for a member
-  const getMemberInvite = (member) => {
-    const memberEmail = member.userEmail || member.email;
-    if (!memberEmail) return null;
-    
-    return invites.find(
-      inv => inv.email?.toLowerCase() === memberEmail?.toLowerCase()
-    );
-  };
-
-  const handleDeleteInvite = async (inviteId) => {
-    try {
-      const response = await organizationInviteAPI.deleteInvite(inviteId);
-      if (response.success) {
-        openSnackbar({
-          open: true,
-          message: 'Invite deleted',
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-        loadTeamData();
-      }
-    } catch (error) {
-      console.error('Error deleting invite:', error);
-      openSnackbar({
-        open: true,
-        message: 'Failed to delete invite',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    }
-  };
-
-  const handleCreateOrganization = async () => {
-    if (!orgName.trim()) return;
-
-    try {
-      setCreatingOrg(true);
-      const response = await organizationAPI.createOrganization(
-        orgName.trim(),
-        orgDescription.trim() || null
-      );
-
-      if (response.success && response.data) {
-        openSnackbar({
-          open: true,
-          message: 'Organization created successfully!',
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-
-        // Refresh organizations list
-        await refreshOrganizations();
-
-        // Switch to the new organization
-        await switchOrganization(response.data.id);
-
-        // Close dialog and reset form
-        setCreateOrgDialogOpen(false);
-        setOrgName('');
-        setOrgDescription('');
-
-        // Note: useEffect will automatically reload team data when currentOrganization changes
-      } else {
-        throw new Error(response.message || 'Failed to create organization');
-      }
-    } catch (error) {
-      console.error('Error creating organization:', error);
-      openSnackbar({
-        open: true,
-        message: error.response?.data?.message || error.message || 'Failed to create organization',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setCreatingOrg(false);
-    }
-  };
-
-  const handleDeleteOrganization = async () => {
-    if (!currentOrganization) return;
-
-    try {
-      setDeletingOrg(true);
-      const response = await organizationAPI.deleteOrganization(currentOrganization.id);
-
-      if (response.success) {
-        openSnackbar({
-          open: true,
-          message: 'Organization and all related data deleted successfully. User accounts were preserved.',
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-
-        // Refresh organizations list
-        await refreshOrganizations();
-
-        // Close dialog
-        setDeleteOrgDialogOpen(false);
-
-        // If there are other organizations, switch to the first one
-        if (organizations && organizations.length > 1) {
-          const otherOrg = organizations.find(o => o.id !== currentOrganization.id);
-          if (otherOrg) {
-            await switchOrganization(otherOrg.id);
-          }
-        } else {
-          // No other organizations - clear current organization
-          clearActiveOrganizationId();
-          // Reload page to refresh all data
-          window.location.reload();
-        }
-      } else {
-        throw new Error(response.message || 'Failed to delete organization');
-      }
-    } catch (error) {
-      console.error('Error deleting organization:', error);
-      openSnackbar({
-        open: true,
-        message: error.response?.data?.message || error.message || 'Failed to delete organization',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setDeletingOrg(false);
-    }
-  };
-
-  const getRoleColor = (role) => {
-    switch (role) {
-      case 'Owner':
-        return 'error';
-      case 'Manager':
-        return 'primary';
-      case 'Viewer':
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
-  // Load members for a specific organization without switching context
-  const loadMembersForOrganization = async (organizationId) => {
-    try {
-      setLoadingFilteredMembers(true);
-      const response = await organizationMemberAPI.getMembers(organizationId);
-      
-      if (response.success) {
-        setFilteredMembersList(response.data || []);
-      } else {
-        setFilteredMembersList([]);
-      }
-    } catch (error) {
-      console.error('Error loading members for organization:', error);
-      setFilteredMembersList([]);
-    } finally {
-      setLoadingFilteredMembers(false);
-    }
-  };
-
-  // Use filtered members from selected organization, or fall back to current organization members
-  const filteredMembers = useMemo(() => {
-    if (selectedOrganizationId && selectedOrganizationId !== currentOrganization?.id) {
-      return filteredMembersList;
-    }
-    return members;
-  }, [members, filteredMembersList, selectedOrganizationId, currentOrganization]);
-
-  const pendingInvites = useMemo(() => invites.filter((invite) => !invite.isAccepted), [invites]);
-
-  const teamRows = useMemo(() => {
-    const memberEmailSet = new Set(
-      filteredMembers
-        .map((member) => (member.userEmail || member.email || '').toLowerCase())
-        .filter(Boolean)
-    );
-
-    const memberRows = filteredMembers.map((member) => {
-      const memberInvite = getMemberInvite(member);
-      const hasPendingInvite = memberInvite && !memberInvite.isAccepted;
-      return {
-        type: 'member',
-        id: `member-${member.id || member.userId || member.email}`,
-        member,
-        invite: memberInvite,
-        name: member.userName || member.email || 'Pending',
-        email: member.userEmail || member.email || '',
-        role: member.role || 'Viewer',
-        invitedBy: member.invitedByName || '—',
-        status: hasPendingInvite ? 'Pending invite' : member.isActive === false ? 'Inactive' : 'Active'
-      };
-    });
-
-    const inviteRows = pendingInvites
-      .filter((invite) => !memberEmailSet.has((invite.email || '').toLowerCase()))
-      .map((invite) => ({
-        type: 'invite',
-        id: `invite-${invite.id || invite.email}`,
-        invite,
-        name: 'Pending invite',
-        email: invite.email || '',
-        role: invite.role || 'Viewer',
-        invitedBy: invite.invitedByName || '—',
-        status: new Date(invite.expiresAt) < new Date() ? 'Expired' : 'Pending invite'
-      }));
-
-    return [...memberRows, ...inviteRows];
-  }, [filteredMembers, pendingInvites, invites]);
-
-  const filteredTeamRows = useMemo(() => {
-    const query = teamSearchQuery.trim().toLowerCase();
-    if (!query) return teamRows;
-    return teamRows.filter((row) =>
-      [row.name, row.email, row.role, row.invitedBy, row.status]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(query))
-    );
-  }, [teamRows, teamSearchQuery]);
-
-  // Show loading spinner on full page until data is loaded
-  if (loading) {
-    return (
-      <Container maxWidth="xl">
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <CircularProgress />
-        </Box>
-      </Container>
-    );
-  }
-
-  // Show organization creating overlay
-  if (creatingOrg) {
-    return (
-      <>
-        <OrganizationCreatingOverlay />
-        {!currentOrganization && (
-          <MainCard boxShadow border={false} shadow={theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`} sx={{ border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}` }}>
-            <Stack spacing={3}>
-              <Box>
-                <Typography variant="h3" sx={{ mb: 0.5 }}>
-                  Admin Members
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Create or join an organization to manage your team
-                </Typography>
-              </Box>
-            </Stack>
-          </MainCard>
-        )}
-      </>
-    );
-  }
-
-  if (!currentOrganization) {
-    return (
-      <MainCard sx={{ border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, boxShadow: theme.palette.mode === 'dark' ? `0 4px 24px ${alpha(theme.palette.common.black, 0.3)}, inset 0 1px 0 rgba(255,255,255,0.04)` : `0 2px 12px ${alpha(theme.palette.common.black, 0.06)}` }}>
-        <Stack spacing={3}>
-          <Box>
-            <Typography variant="h3" sx={{ mb: 0.5 }}>
-              Team Management
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Create or join an organization to manage your team
-            </Typography>
-          </Box>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            You need to be part of an organization to manage team members. Create a new organization to get started.
-          </Alert>
-          <Button
-            variant="contained"
-            startIcon={<PlusOutlined />}
-            onClick={() => setCreateOrgDialogOpen(true)}
-            size="small"
-          >
-            Create Organization
-          </Button>
-        </Stack>
-
-        {/* Create Organization Dialog */}
-        <Dialog open={createOrgDialogOpen} onClose={() => setCreateOrgDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Create New Organization</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField
-                label="Organization Name"
-                type="text"
-                fullWidth
-                required
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                placeholder="My Organization"
-                inputProps={{ maxLength: 255 }}
-                helperText={`${orgName.length} / 255 characters`}
-              />
-              <TextField
-                label="Description (Optional)"
-                type="text"
-                fullWidth
-                multiline
-                rows={3}
-                value={orgDescription}
-                onChange={(e) => setOrgDescription(e.target.value)}
-                placeholder="Brief description of your organization"
-                inputProps={{ maxLength: 1000 }}
-                helperText={`${orgDescription.length} / 1000 characters`}
-              />
-              <Alert severity="info">
-                You'll be the owner of this organization and can invite team members after creation.
-              </Alert>
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCreateOrgDialogOpen(false)}>Cancel</Button>
-            <Button
-              variant="contained"
-              onClick={handleCreateOrganization}
-              disabled={!orgName.trim() || creatingOrg}
-            >
-              {creatingOrg ? 'Creating...' : 'Create Organization'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </MainCard>
-    );
-  }
-
   return (
-    <Box>
-      <Stack spacing={3}>
-        {/* Breadcrumbs */}
-        <PageBreadcrumbs
-          items={[
-            { label: 'Dashboard', path: '/landlord/dashboard' },
-            { label: 'Team & Staff' }
-          ]}
-        />
-
-        {/* Header */}
-        <Box sx={{ mb: 0.5 }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'flex-start' }} spacing={2} justifyContent="space-between">
-            <Box>
-              <Typography variant="h3" fontWeight={700}>
-                Team & Staff
-              </Typography>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.25 }}>
-                {currentOrganization && (
-                  <Typography variant="body1" color="text.secondary">
-                    {currentOrganization.name}
-                  </Typography>
-                )}
-                {currentOrganization && (
-                  <>
-                    <Typography variant="body2" color="text.disabled">·</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {members.length} {members.length === 1 ? 'member' : 'members'}
-                    </Typography>
-                  </>
-                )}
-                {currentOrganization && canManageMembers && pendingInvites.length > 0 && (
-                  <>
-                    <Typography variant="body2" color="text.disabled">·</Typography>
-                    <Typography variant="body2" color="warning.main">
-                      {pendingInvites.length} pending {pendingInvites.length === 1 ? 'invite' : 'invites'}
-                    </Typography>
-                  </>
-                )}
-              </Stack>
-            </Box>
-            {currentOrganization && (
-              <>
-                <Tooltip title="Organization settings">
-                  <IconButton
-                    onClick={(e) => setOrgMenuAnchor(e.currentTarget)}
-                    size="small"
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    <MoreOutlined style={{ fontSize: 18 }} />
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  anchorEl={orgMenuAnchor}
-                  open={Boolean(orgMenuAnchor)}
-                  onClose={() => setOrgMenuAnchor(null)}
-                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-                >
-                  {isOwner && (
-                    <MenuItem onClick={() => { setOrgMenuAnchor(null); setEditOrgModalOpen(true); }}>
-                      <EditOutlined style={{ marginRight: 8, fontSize: 14 }} />
-                      Edit Organization
-                    </MenuItem>
-                  )}
-                  <MenuItem onClick={() => { setOrgMenuAnchor(null); setCreateOrgDialogOpen(true); }}>
-                    <PlusOutlined style={{ marginRight: 8, fontSize: 14 }} />
-                    Create Organization
-                  </MenuItem>
-                  {isOwner && <Divider />}
-                  {isOwner && (
-                    <MenuItem
-                      onClick={() => { setOrgMenuAnchor(null); setDeleteOrgDialogOpen(true); }}
-                      sx={{ color: 'error.main' }}
-                    >
-                      <DeleteOutlined style={{ marginRight: 8, fontSize: 14 }} />
-                      Delete Organization
-                    </MenuItem>
-                  )}
-                </Menu>
-              </>
-            )}
-          </Stack>
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        width: '100%', minHeight: 112, p: 2, borderRadius: 2.5, textAlign: 'left', cursor: 'pointer', font: 'inherit',
+        color: 'text.primary', bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.13 : 0.055) : 'background.paper',
+        border: `1px solid ${active ? alpha(color, 0.52) : alpha(theme.palette.divider, 0.16)}`,
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha('#061e35', 0.05)}`,
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.42), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.25)}`, outlineOffset: 2 }
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+        <Box>
+          <Typography sx={{ fontSize: '0.7rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
+          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
         </Box>
-
-        {/* Team access */}
-        <MainCard
-          content={false}
-          boxShadow
-          border={false}
-          shadow={theme.palette.mode === 'dark' ? `0 0 0 1px ${alpha(theme.palette.primary.main, 0.22)}, 0 8px 28px ${alpha(theme.palette.primary.main, 0.14)}` : `0 2px 12px ${alpha(theme.palette.primary.main, 0.08)}`}
-          sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}`, borderRadius: 1.5, overflow: 'hidden' }}
-        >
-          <Box sx={{ p: 2, borderBottom: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.18 : 0.1)}` }}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between">
-              <Box>
-                <Typography variant="h6" fontWeight={700}>
-                  Team access ({filteredTeamRows.length})
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Active members and pending invites in one list
-                </Typography>
-              </Box>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
-                {availableOrganizations.length > 1 && (
-                  <Autocomplete
-                    options={availableOrganizations}
-                    value={availableOrganizations.find(org => org.id === selectedOrganizationId) || null}
-                    onChange={(event, newValue) => setSelectedOrganizationId(newValue ? newValue.id : null)}
-                    getOptionLabel={(option) => option.name || ''}
-                    isOptionEqualToValue={(option, value) => option.id === value.id}
-                    loading={loadingOrganizations || loadingFilteredMembers}
-                    width="200px"
-                    label="Organization"
-                    disablePortal={false}
-                  />
-                )}
-                {canManageMembers && (
-                  <Button
-                    size="small"
-                    variant="contained"
-                    startIcon={<UserAddOutlined />}
-                    onClick={() => setInviteDialogOpen(true)}
-                    sx={{ borderRadius: 1, textTransform: 'none', whiteSpace: 'nowrap' }}
-                  >
-                    Invite Member
-                  </Button>
-                )}
-              </Stack>
-            </Stack>
-
-            <TextField
-              fullWidth
-              size="small"
-              value={teamSearchQuery}
-              onChange={(e) => setTeamSearchQuery(e.target.value)}
-              placeholder="Search team members, emails, roles, invites..."
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchOutlined style={{ fontSize: 16, opacity: 0.65 }} />
-                  </InputAdornment>
-                ),
-                sx: { height: 34, fontSize: '0.8rem', bgcolor: 'background.paper' }
-              }}
-              sx={{ mt: 1.5, maxWidth: { xs: '100%', md: 520 } }}
-            />
-          </Box>
-
-          <TableContainer sx={{ width: '100%', overflowX: 'auto' }}>
-            <Table size="small" sx={{ minWidth: 860 }}>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    bgcolor: alpha(theme.palette.grey[500], 0.06),
-                    '& th': {
-                      py: 1.15,
-                      color: 'text.secondary',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      letterSpacing: '0.05em',
-                      textTransform: 'uppercase'
-                    }
-                  }}
-                >
-                  <TableCell>Name</TableCell>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Invited By</TableCell>
-                  {canManageMembers && <TableCell align="right">Actions</TableCell>}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loadingFilteredMembers ? (
-                  <TableRow>
-                    <TableCell colSpan={canManageMembers ? 6 : 5} align="center" sx={{ py: 4 }}>
-                      <CircularProgress size={24} />
-                    </TableCell>
-                  </TableRow>
-                ) : filteredTeamRows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={canManageMembers ? 6 : 5} align="center" sx={{ py: 5 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: canManageMembers ? 1.5 : 0 }}>
-                        {teamSearchQuery ? 'No team members or invites match your search.' : 'No team members yet. Invite team members to get started.'}
-                      </Typography>
-                      {canManageMembers && !teamSearchQuery && (
-                        <Button
-                          variant="contained"
-                          startIcon={<UserAddOutlined />}
-                          onClick={() => setInviteDialogOpen(true)}
-                          size="small"
-                        >
-                          Invite Your First Member
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredTeamRows.map((row) => {
-                    const { member, invite } = row;
-                    const isInvite = row.type === 'invite';
-                    const isExpired = row.status === 'Expired';
-                    const canRemove =
-                      canManageMembers &&
-                      member?.userId != null &&
-                      String(member.userId) !== String(auth?.user?.Id) &&
-                      String(member.userId) !== String(auth?.user?.id);
-
-                    return (
-                      <TableRow
-                        key={row.id}
-                        hover
-                        sx={{
-                          '& td': { py: 1.25, borderBottomColor: alpha(theme.palette.divider, 0.7) },
-                          '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.025) }
-                        }}
-                      >
-                        <TableCell>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="body2" fontWeight={600} color={isInvite ? 'text.secondary' : 'text.primary'}>
-                              {row.name}
-                            </Typography>
-                            {canViewAccountStatus &&
-                              member?.userId != null &&
-                              String(member.userId) !== String(auth?.user?.Id) &&
-                              String(member.userId) !== String(auth?.user?.id) &&
-                              !member.hasAccount && (
-                                <Chip label="No account" color="default" size="small" sx={{ height: 20, fontSize: '0.68rem' }} />
-                              )}
-                          </Stack>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {row.email || '—'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip label={row.role} color={getRoleColor(row.role)} size="small" sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }} />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={row.status}
-                            color={isExpired ? 'error' : row.status === 'Active' ? 'success' : 'warning'}
-                            size="small"
-                            variant={row.status === 'Active' ? 'filled' : 'outlined'}
-                            sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700 }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="text.secondary">
-                            {row.invitedBy || '—'}
-                          </Typography>
-                        </TableCell>
-                        {canManageMembers && (
-                          <TableCell align="right">
-                            <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                              {(invite || isInvite) && (
-                                <Tooltip title="Resend Invite">
-                                  <IconButton
-                                    size="small"
-                                    color="primary"
-                                    onClick={() => handleResendInvite(isInvite ? invite : row.email)}
-                                    disabled={resendingInvite === row.email}
-                                  >
-                                    {resendingInvite === row.email ? <CircularProgress size={14} /> : <SendOutlined />}
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                              {isInvite && invite?.token && (
-                                <Tooltip title="Copy Invite Link">
-                                  <IconButton size="small" onClick={() => handleCopyInviteLink(invite.token)}>
-                                    <CopyOutlined />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                              {isInvite && invite?.id && (
-                                <Tooltip title="Delete Invite">
-                                  <IconButton size="small" color="error" onClick={() => handleDeleteInvite(invite.id)}>
-                                    <DeleteOutlined />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                              {canRemove && (
-                                <Tooltip title="Remove Member">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleRemoveMember(member.userId || member.id)}
-                                    disabled={removingMember === (member.userId || member.id)}
-                                  >
-                                    {removingMember === (member.userId || member.id) ? <CircularProgress size={14} /> : <DeleteOutlined />}
-                                  </IconButton>
-                                </Tooltip>
-                              )}
-                            </Stack>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </MainCard>
-
-
-        {/* Invite Drawer */}
-        <Drawer
-          anchor="right"
-          open={inviteDialogOpen}
-          onClose={() => setInviteDialogOpen(false)}
-          PaperProps={{ sx: { width: { xs: '100%', sm: 400 }, p: 3, bgcolor: 'background.paper', backgroundImage: 'none' } }}
-        >
-          <Stack spacing={3}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between">
-              <Typography variant="h5">Invite Team Member</Typography>
-              <IconButton size="small" onClick={() => setInviteDialogOpen(false)}>
-                <CloseOutlined />
-              </IconButton>
-            </Stack>
-            <TextField
-              label="Email Address"
-              type="email"
-              fullWidth
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="team.member@example.com"
-            />
-            <FormControl fullWidth>
-              <InputLabel>Role</InputLabel>
-              <Select
-                value={inviteRole}
-                label="Role"
-                onChange={(e) => setInviteRole(e.target.value)}
-              >
-                <MenuItem value="Viewer">Viewer - Read-only access</MenuItem>
-                <MenuItem value="Manager">Manager - Can manage properties, tenants, and leases</MenuItem>
-                {isOwner && <MenuItem value="Owner">Owner - Full access</MenuItem>}
-              </Select>
-            </FormControl>
-            <Alert severity="info">
-              An invite email will be sent to the user. They must click the link in the email to accept the invite.
-            </Alert>
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button onClick={() => setInviteDialogOpen(false)}>Cancel</Button>
-              <Button
-                variant="contained"
-                onClick={handleSendInvite}
-                disabled={!inviteEmail.trim() || sendingInvite}
-              >
-                {sendingInvite ? 'Sending...' : 'Send Invite'}
-              </Button>
-            </Stack>
-          </Stack>
-        </Drawer>
-
-        {/* Create Organization Dialog */}
-        <Dialog open={createOrgDialogOpen} onClose={() => setCreateOrgDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Create New Organization</DialogTitle>
-          <DialogContent>
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <TextField
-                label="Organization Name"
-                type="text"
-                fullWidth
-                required
-                value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
-                placeholder="My Organization"
-                inputProps={{ maxLength: 255 }}
-                helperText={`${orgName.length} / 255 characters`}
-              />
-              <TextField
-                label="Description (Optional)"
-                type="text"
-                fullWidth
-                multiline
-                rows={3}
-                value={orgDescription}
-                onChange={(e) => setOrgDescription(e.target.value)}
-                placeholder="Brief description of your organization"
-                inputProps={{ maxLength: 1000 }}
-                helperText={`${orgDescription.length} / 1000 characters`}
-              />
-              <Alert severity="info">
-                You'll be the owner of this organization and can invite team members after creation.
-              </Alert>
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setCreateOrgDialogOpen(false)}>Cancel</Button>
-            <Button
-              variant="contained"
-              onClick={handleCreateOrganization}
-              disabled={!orgName.trim() || creatingOrg}
-            >
-              {creatingOrg ? 'Creating...' : 'Create Organization'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Delete Organization Dialog */}
-        <Dialog open={deleteOrgDialogOpen} onClose={() => setDeleteOrgDialogOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>
-            {currentOrganization 
-              ? `Are you sure you want to delete '${currentOrganization.name}'?`
-              : 'Delete Organization'}
-          </DialogTitle>
-          <DialogContent>
-            <Stack spacing={2} sx={{ mt: 1 }}>
-              <Alert severity="error" icon={<WarningIcon />}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  Warning: This action cannot be undone!
-                </Typography>
-                <Typography variant="body2" component="div">
-                  Deleting this organization will permanently delete:
-                  <ul style={{ marginTop: 8, marginBottom: 8 }}>
-                    <li>All properties and units</li>
-                    <li>All leases and tenant data</li>
-                    <li>All maintenance requests</li>
-                    <li>All expenses and financial records</li>
-                    <li>All subscriptions and billing information</li>
-                    <li>All files and documents</li>
-                    <li>All team members and invites</li>
-                  </ul>
-                  <strong>User accounts (including tenants) will NOT be deleted.</strong>
-                </Typography>
-              </Alert>
-              <Alert severity="info">
-                If you have other organizations, you can switch to them after deletion. Otherwise, you'll need to create a new organization.
-              </Alert>
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDeleteOrgDialogOpen(false)} disabled={deletingOrg}>
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              color="error"
-              onClick={handleDeleteOrganization}
-              disabled={deletingOrg}
-              startIcon={deletingOrg ? <CircularProgress size={16} /> : <DeleteOutlined />}
-            >
-              {deletingOrg ? 'Deleting...' : 'Delete Organization'}
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Floating Action Button for Mobile */}
-        {canManageMembers && isMobile && (
-          <Fab
-            color="primary"
-            aria-label="invite member"
-            sx={{
-              position: 'fixed',
-              bottom: 24,
-              right: 24,
-              zIndex: 1000
-            }}
-            onClick={() => setInviteDialogOpen(true)}
-          >
-            <UserAddOutlined style={{ fontSize: 24 }} />
-          </Fab>
-        )}
-
-        {/* Edit Organization Modal */}
-        {currentOrganization && (
-          <EditOrganizationModal
-            open={editOrgModalOpen}
-            onClose={() => setEditOrgModalOpen(false)}
-            organization={currentOrganization}
-          />
-        )}
+        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
       </Stack>
     </Box>
   );
 }
 
+function RoleChip({ role }) {
+  const details = roleDetail(role);
+  return <Chip size="small" color={details.color} variant={role === 'Viewer' ? 'outlined' : 'filled'} label={role || 'Viewer'} sx={{ height: 24, fontWeight: 700, fontSize: '0.7rem' }} />;
+}
+
+function EmptyState({ filtered, onInvite, canManage }) {
+  return (
+    <Stack alignItems="center" spacing={1.4} sx={{ py: 8, px: 2, textAlign: 'center' }}>
+      <Avatar sx={{ width: 52, height: 52, bgcolor: alpha('#16a34a', 0.1), color: 'success.main' }}><TeamOutlined /></Avatar>
+      <Typography variant="h5" fontWeight={750}>{filtered ? 'No people match this view' : 'Build your property team'}</Typography>
+      <Typography sx={{ maxWidth: 480, color: 'text.secondary', fontSize: '0.85rem' }}>
+        {filtered ? 'Try a different search or reset the status filter.' : 'Invite teammates by email. People with an account can join immediately; everyone else can create one from the same link.'}
+      </Typography>
+      {!filtered && canManage && <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={onInvite} sx={{ mt: 0.5, textTransform: 'none', fontWeight: 700 }}>Invite a teammate</Button>}
+    </Stack>
+  );
+}
+
+function TeamRow({ item, canManage, isCurrentUser, onEdit, onRemove, onResend, onCancel }) {
+  const theme = useTheme();
+  const [anchorEl, setAnchorEl] = useState(null);
+  const isInvite = item.kind === 'invite';
+  const name = isInvite ? item.email : item.name;
+  const secondary = isInvite ? `Invited ${formatDate(item.createdAt)}` : item.email;
+
+  return (
+    <Box
+      sx={{
+        px: { xs: 1.5, md: 2 }, py: 1.45, display: { xs: 'block', md: 'grid' },
+        gridTemplateColumns: 'minmax(250px, 1.7fr) minmax(105px, .65fr) minmax(155px, .9fr) minmax(125px, .7fr) 44px',
+        gap: { xs: 1.25, md: 2 }, alignItems: 'center', borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.08 : 0.025) }
+      }}
+    >
+      <Stack direction="row" alignItems="center" spacing={1.35} minWidth={0}>
+        <Avatar sx={{ width: 42, height: 42, fontSize: '0.78rem', fontWeight: 750, bgcolor: isInvite ? alpha(theme.palette.warning.main, 0.13) : alpha(theme.palette.primary.main, 0.12), color: isInvite ? 'warning.dark' : 'primary.main' }}>
+          {isInvite ? <MailOutlined /> : getInitials(name, item.email)}
+        </Avatar>
+        <Box minWidth={0}>
+          <Stack direction="row" spacing={0.7} alignItems="center">
+            <Typography fontWeight={700} noWrap>{name || item.email}</Typography>
+            {isCurrentUser && <Chip label="You" size="small" sx={{ height: 19, fontSize: '0.62rem' }} />}
+          </Stack>
+          <Typography noWrap sx={{ mt: 0.25, color: 'text.secondary', fontSize: '0.75rem' }}>{secondary}</Typography>
+        </Box>
+      </Stack>
+
+      <Box><RoleChip role={item.role} /></Box>
+
+      <Box>
+        <Chip
+          size="small"
+          icon={isInvite ? <MailOutlined /> : <CheckCircleOutlined />}
+          label={isInvite ? 'Invitation pending' : 'Active member'}
+          color={isInvite ? 'warning' : 'success'}
+          variant="outlined"
+          sx={{ height: 26, fontSize: '0.68rem', fontWeight: 650 }}
+        />
+      </Box>
+
+      <Box>
+        <Typography sx={{ fontSize: '0.75rem', fontWeight: 650 }}>{isInvite ? `Expires ${formatDate(item.expiresAt)}` : `Joined ${formatDate(item.joinedAt)}`}</Typography>
+        <Typography sx={{ mt: 0.2, fontSize: '0.68rem', color: 'text.secondary' }}>{isInvite ? `Sent by ${item.invitedByName || 'your team'}` : roleDetail(item.role).description}</Typography>
+      </Box>
+
+      <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
+        {canManage && !(isCurrentUser && item.role === 'Owner') && (
+          <>
+            <Tooltip title="Team member actions"><IconButton size="small" aria-label={`Actions for ${name}`} onClick={(event) => setAnchorEl(event.currentTarget)}><MoreOutlined /></IconButton></Tooltip>
+            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+              {isInvite ? [
+                <MenuItem key="resend" onClick={() => { setAnchorEl(null); onResend(item); }}><ReloadOutlined style={{ marginRight: 10 }} />Resend invitation</MenuItem>,
+                <MenuItem key="cancel" onClick={() => { setAnchorEl(null); onCancel(item); }} sx={{ color: 'error.main' }}><DeleteOutlined style={{ marginRight: 10 }} />Revoke invitation</MenuItem>
+              ] : [
+                <MenuItem key="edit" onClick={() => { setAnchorEl(null); onEdit(item); }}><EditOutlined style={{ marginRight: 10 }} />Change role</MenuItem>,
+                <MenuItem key="remove" onClick={() => { setAnchorEl(null); onRemove(item); }} sx={{ color: 'error.main' }}><DeleteOutlined style={{ marginRight: 10 }} />Remove from organization</MenuItem>
+              ]}
+            </Menu>
+          </>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+function InviteDialog({ open, organization, onClose, onCreated }) {
+  const fullScreen = useMediaQuery((theme) => theme.breakpoints.down('sm'));
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState('Manager');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (open) { setEmail(''); setRole('Manager'); setError(''); }
+  }, [open]);
+
+  const submit = async () => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!isValidEmail(normalizedEmail)) { setError('Enter a valid email address.'); return; }
+    setSubmitting(true);
+    setError('');
+    try {
+      const response = await createInvite(organization.id, normalizedEmail, role);
+      if (response?.success === false || response?.Success === false) throw new Error(response.message || response.Message || 'Could not send the invitation.');
+      openSnackbar({ open: true, message: `Invitation sent to ${normalizedEmail}`, variant: 'alert', alert: { color: 'success' } });
+      onCreated();
+      onClose();
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.Message || err?.message || 'Could not send the invitation.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={submitting ? undefined : onClose} fullWidth maxWidth="sm" fullScreen={fullScreen}>
+      <DialogTitle sx={{ pb: 1 }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+          <Box><Typography variant="h4" fontWeight={750}>Invite to {organization?.name || 'your organization'}</Typography><Typography sx={{ mt: 0.5, color: 'text.secondary', fontSize: '0.82rem' }}>One invitation works whether they already use Property Peace or are brand new.</Typography></Box>
+          <IconButton onClick={onClose} disabled={submitting} aria-label="Close"><CloseOutlined /></IconButton>
+        </Stack>
+      </DialogTitle>
+      <DialogContent>
+        <Alert severity="info" icon={<MailOutlined />} sx={{ mb: 2.5, '& .MuiAlert-message': { width: '100%' } }}>
+          <Typography fontWeight={700} sx={{ fontSize: '0.8rem' }}>We email them a secure invitation link</Typography>
+          <Typography sx={{ mt: 0.3, fontSize: '0.75rem' }}>Existing users sign in and accept. New users create an account with this email and are placed directly into <strong>{organization?.name}</strong>—no separate organization is created.</Typography>
+        </Alert>
+
+        <Stack spacing={2.25}>
+          <Box>
+            <Typography sx={{ mb: 0.65, fontWeight: 700, fontSize: '0.78rem' }}>Email address</Typography>
+            <OutlinedInput autoFocus fullWidth type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(''); }} placeholder="teammate@company.com" startAdornment={<InputAdornment position="start"><MailOutlined /></InputAdornment>} onKeyDown={(event) => { if (event.key === 'Enter') submit(); }} />
+            {error && <FormHelperText error>{error}</FormHelperText>}
+          </Box>
+
+          <Box>
+            <Typography sx={{ mb: 0.65, fontWeight: 700, fontSize: '0.78rem' }}>Organization role</Typography>
+            <FormControl fullWidth>
+              <Select value={role} onChange={(event) => setRole(event.target.value)} IconComponent={DownOutlined}>
+                {['Manager', 'Viewer', 'Owner'].map((option) => <MenuItem key={option} value={option}><Stack><Typography fontWeight={700} sx={{ fontSize: '0.82rem' }}>{option}</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>{roleDetail(option).description}</Typography></Stack></MenuItem>)}
+              </Select>
+            </FormControl>
+            <Stack spacing={0.55} sx={{ mt: 1.2, p: 1.4, borderRadius: 1.5, bgcolor: (theme) => alpha(theme.palette.primary.main, 0.035) }}>
+              {roleDetail(role).permissions.map((permission) => <Stack key={permission} direction="row" spacing={0.8} alignItems="center"><CheckCircleOutlined style={{ color: '#16a34a', fontSize: 13 }} /><Typography sx={{ fontSize: '0.73rem' }}>{permission}</Typography></Stack>)}
+            </Stack>
+          </Box>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button onClick={onClose} disabled={submitting} sx={{ textTransform: 'none' }}>Cancel</Button>
+        <Button variant="contained" color="success" startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <MailOutlined />} onClick={submit} disabled={submitting} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>{submitting ? 'Sending…' : 'Send invitation'}</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+function RoleDialog({ member, open, onClose, onSaved }) {
+  const [role, setRole] = useState('Viewer');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { if (member) setRole(member.role); }, [member]);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await updateMember(member.id, role, ROLE_PERMISSIONS[role]);
+      openSnackbar({ open: true, message: `${member.name}'s role was updated`, variant: 'alert', alert: { color: 'success' } });
+      onSaved();
+      onClose();
+    } catch (err) {
+      openSnackbar({ open: true, message: err?.response?.data?.message || err?.message || 'Could not update the role', variant: 'alert', alert: { color: 'error' } });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onClose={saving ? undefined : onClose} fullWidth maxWidth="xs">
+      <DialogTitle><Typography variant="h4" fontWeight={750}>Change organization role</Typography><Typography sx={{ mt: 0.5, color: 'text.secondary', fontSize: '0.8rem' }}>{member?.name}</Typography></DialogTitle>
+      <DialogContent><Select fullWidth value={role} onChange={(event) => setRole(event.target.value)}>{['Manager', 'Viewer', 'Owner'].map((option) => <MenuItem key={option} value={option}><Stack><Typography fontWeight={700}>{option}</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.7rem' }}>{roleDetail(option).description}</Typography></Stack></MenuItem>)}</Select><Alert severity="warning" sx={{ mt: 2, display: role === 'Owner' ? 'flex' : 'none' }}>Owners can manage billing, members, and every organization setting.</Alert></DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}><Button onClick={onClose}>Cancel</Button><Button variant="contained" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save role'}</Button></DialogActions>
+    </Dialog>
+  );
+}
+
+export default function Team() {
+  const theme = useTheme();
+  const { user } = useAuth();
+  const [organization, setOrganization] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [invites, setInvites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [createOrganizationOpen, setCreateOrganizationOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+
+  const loadData = async (quiet = false) => {
+    quiet ? setRefreshing(true) : setLoading(true);
+    try {
+      const organizationResponse = await getCurrentOrganization();
+      const organizationData = unwrap(organizationResponse);
+      if (!organizationData?.id) throw new Error('No organization is currently selected.');
+      setOrganization(organizationData);
+      const [membersResponse, invitesResponse] = await Promise.all([
+        getMembers(organizationData.id),
+        getInvites(organizationData.id)
+      ]);
+      setMembers(unwrap(membersResponse) || []);
+      setInvites((unwrap(invitesResponse) || []).filter((invite) => !read(invite, 'isAccepted', 'IsAccepted')));
+    } catch (err) {
+      openSnackbar({ open: true, message: err?.response?.data?.message || err?.message || 'Could not load the organization team', variant: 'alert', alert: { color: 'error' } });
+    } finally { setLoading(false); setRefreshing(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const normalizedMembers = useMemo(() => members.map((member) => ({
+    kind: 'member',
+    id: read(member, 'id', 'Id'),
+    userId: read(member, 'userId', 'UserId'),
+    name: read(member, 'userName', 'UserName') || read(member, 'name', 'Name') || read(member, 'userEmail', 'UserEmail'),
+    email: read(member, 'userEmail', 'UserEmail') || read(member, 'email', 'Email'),
+    role: read(member, 'role', 'Role') || 'Viewer',
+    joinedAt: read(member, 'joinedAt', 'JoinedAt'),
+    canManageMembers: Boolean(read(member, 'canManageMembers', 'CanManageMembers'))
+  })), [members]);
+
+  const normalizedInvites = useMemo(() => invites.map((invite) => ({
+    kind: 'invite',
+    id: read(invite, 'id', 'Id'),
+    email: read(invite, 'email', 'Email'),
+    role: read(invite, 'role', 'Role') || 'Viewer',
+    createdAt: read(invite, 'createdAt', 'CreatedAt'),
+    expiresAt: read(invite, 'expiresAt', 'ExpiresAt'),
+    invitedByName: read(invite, 'invitedByName', 'InvitedByName')
+  })), [invites]);
+
+  const currentUserId = Number(user?.id ?? user?.Id);
+  const currentMember = normalizedMembers.find((member) => Number(member.userId) === currentUserId);
+  const currentRole = organization?.userRole || organization?.UserRole || user?.currentOrganizationRole || user?.CurrentOrganizationRole || currentMember?.role;
+  const canManage = currentRole === 'Owner' || currentMember?.canManageMembers;
+  const allPeople = useMemo(() => [...normalizedMembers, ...normalizedInvites], [normalizedMembers, normalizedInvites]);
+
+  const visiblePeople = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return allPeople.filter((item) => {
+      if (query && !`${item.name || ''} ${item.email || ''} ${item.role || ''}`.toLowerCase().includes(query)) return false;
+      if (status === 'active' && item.kind !== 'member') return false;
+      if (status === 'invited' && item.kind !== 'invite') return false;
+      if (roleFilter !== 'all' && item.role !== roleFilter) return false;
+      return true;
+    }).sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'invite' ? -1 : 1;
+      return String(a.name || a.email).localeCompare(String(b.name || b.email));
+    });
+  }, [allPeople, roleFilter, search, status]);
+
+  const owners = normalizedMembers.filter((member) => member.role === 'Owner').length;
+  const managers = normalizedMembers.filter((member) => member.role === 'Manager').length;
+  const filtered = Boolean(search || status !== 'all' || roleFilter !== 'all');
+
+  const confirmAndRun = async (message, action, successMessage) => {
+    if (!window.confirm(message)) return;
+    try {
+      await action();
+      openSnackbar({ open: true, message: successMessage, variant: 'alert', alert: { color: 'success' } });
+      await loadData(true);
+    } catch (err) {
+      openSnackbar({ open: true, message: err?.response?.data?.message || err?.response?.data?.Message || err?.message || 'The action could not be completed', variant: 'alert', alert: { color: 'error' } });
+    }
+  };
+
+  return (
+    <Box sx={{ pb: 3 }}>
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}><PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Team & staff' }]} /></Box>
+
+      <Box sx={{ mb: 2.5, p: { xs: 2, md: 2.75 }, borderRadius: 3, color: '#fff', background: 'linear-gradient(120deg, #061e35 0%, #0b3558 100%)', boxShadow: `0 16px 38px ${alpha('#061e35', 0.18)}` }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
+          <Box><Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Team & staff</Typography><Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>Manage who can access {organization?.name || 'your organization'}, what they can do, and invitations waiting to be accepted.</Typography></Box>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<PlusOutlined />}
+              onClick={() => setCreateOrganizationOpen(true)}
+              sx={{ color: '#fff', borderColor: alpha('#fff', 0.42), textTransform: 'none', fontWeight: 700, '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}
+            >
+              Create organization
+            </Button>
+            {canManage && <Button variant="contained" color="success" startIcon={<MailOutlined />} onClick={() => setInviteOpen(true)} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>Invite teammate</Button>}
+          </Stack>
+        </Stack>
+      </Box>
+
+      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
+        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Active members" value={normalizedMembers.length} helper="People with organization access" icon={<TeamOutlined />} color={theme.palette.success.main} active={status === 'active'} onClick={() => setStatus((value) => value === 'active' ? 'all' : 'active')} /></Grid>
+        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Pending invites" value={normalizedInvites.length} helper="Waiting for acceptance" icon={<MailOutlined />} color={theme.palette.warning.main} active={status === 'invited'} onClick={() => setStatus((value) => value === 'invited' ? 'all' : 'invited')} /></Grid>
+        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Managers" value={managers} helper="Day-to-day operations access" icon={<SafetyCertificateOutlined />} color={theme.palette.primary.main} active={roleFilter === 'Manager'} onClick={() => setRoleFilter((value) => value === 'Manager' ? 'all' : 'Manager')} /></Grid>
+        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Owners" value={owners} helper="Full access and billing" icon={<UserOutlined />} color={theme.palette.secondary.main} active={roleFilter === 'Owner'} onClick={() => setRoleFilter((value) => value === 'Owner' ? 'all' : 'Owner')} /></Grid>
+      </Grid>
+
+      {!canManage && !loading && <Alert severity="info" sx={{ mb: 2 }}>You can view the organization team. An owner or teammate with member-management access can send invitations and change roles.</Alert>}
+
+      <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>
+        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
+            <OutlinedInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search people, emails, or roles" size="small" startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ flex: 1, minWidth: { md: 260 }, borderRadius: 1.75 }} />
+            <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, md: 0 } }}>
+              <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 140, borderRadius: 1.75 }}><MenuItem value="all">All statuses</MenuItem><MenuItem value="active">Active members</MenuItem><MenuItem value="invited">Pending invites</MenuItem></Select>
+              <Select size="small" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 126, borderRadius: 1.75 }}><MenuItem value="all">All roles</MenuItem><MenuItem value="Owner">Owners</MenuItem><MenuItem value="Manager">Managers</MenuItem><MenuItem value="Viewer">Viewers</MenuItem></Select>
+              <Tooltip title="Refresh team"><span><IconButton onClick={() => loadData(true)} disabled={refreshing} aria-label="Refresh team">{refreshing ? <CircularProgress size={18} /> : <ReloadOutlined />}</IconButton></span></Tooltip>
+            </Stack>
+          </Stack>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}><Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>{visiblePeople.length} of {allPeople.length} people and invitations</Typography>{filtered && <Button size="small" onClick={() => { setSearch(''); setStatus('all'); setRoleFilter('all'); }} sx={{ textTransform: 'none' }}>Reset view</Button>}</Stack>
+        </Box>
+        <Divider />
+        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(250px, 1.7fr) minmax(105px, .65fr) minmax(155px, .9fr) minmax(125px, .7fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+          {['Person', 'Role', 'Status', 'Access', ''].map((label) => <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>)}
+        </Box>
+
+        {loading ? <Stack alignItems="center" spacing={1} sx={{ py: 8 }}><CircularProgress size={26} /><Typography sx={{ color: 'text.secondary', fontSize: '0.82rem' }}>Loading your organization team…</Typography></Stack> : visiblePeople.length === 0 ? <EmptyState filtered={filtered} onInvite={() => setInviteOpen(true)} canManage={canManage} /> : visiblePeople.map((item) => (
+          <TeamRow
+            key={`${item.kind}-${item.id}`}
+            item={item}
+            canManage={canManage}
+            isCurrentUser={item.kind === 'member' && Number(item.userId) === currentUserId}
+            onEdit={setEditingMember}
+            onRemove={(member) => confirmAndRun(`Remove ${member.name} from ${organization.name}? They will lose organization access immediately.`, () => removeMember(organization.id, member.id), `${member.name} was removed`)}
+            onResend={async (invite) => { try { await resendInvite(invite.id); openSnackbar({ open: true, message: `A fresh invitation was sent to ${invite.email}`, variant: 'alert', alert: { color: 'success' } }); await loadData(true); } catch (err) { openSnackbar({ open: true, message: err?.response?.data?.message || err?.message || 'Could not resend the invitation', variant: 'alert', alert: { color: 'error' } }); } }}
+            onCancel={(invite) => confirmAndRun(`Revoke the invitation for ${invite.email}? Their current link will stop working.`, () => deleteInvite(invite.id), `Invitation for ${invite.email} was revoked`)}
+          />
+        ))}
+      </Box>
+
+      <InviteDialog open={inviteOpen} organization={organization || {}} onClose={() => setInviteOpen(false)} onCreated={() => loadData(true)} />
+      <CreateOrganizationDialog
+        open={createOrganizationOpen}
+        onClose={() => setCreateOrganizationOpen(false)}
+        allowClose
+        prefillUserName={false}
+        title="Create another organization"
+        description="Set up a separate organization for another company, portfolio, or team. You will become its owner and Property Peace will switch to it after creation."
+      />
+      <RoleDialog member={editingMember} open={Boolean(editingMember)} onClose={() => setEditingMember(null)} onSaved={() => loadData(true)} />
+    </Box>
+  );
+}
