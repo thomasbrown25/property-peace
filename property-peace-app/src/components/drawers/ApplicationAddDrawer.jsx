@@ -631,41 +631,106 @@ export default function ApplicationAddDrawer() {
         setInitialForm({ email: '', propertyId: '', unitId: '' });
         setSelectedTenantFromModal(null);
       }}
+      slotProps={{
+        backdrop: {
+          sx: {
+            bgcolor: 'rgba(1, 11, 22, 0.62)',
+            backdropFilter: 'blur(2px)'
+          }
+        }
+      }}
       PaperProps={{
         sx: {
           width: { xs: '100%', sm: 600, md: 700 },
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          color: '#FFFFFF',
+          bgcolor: '#061E35',
+          backgroundImage: 'linear-gradient(155deg, rgba(126, 227, 163, 0.08) 0%, rgba(6, 30, 53, 0) 34%)',
+          borderLeft: '1px solid rgba(126, 227, 163, 0.48)',
+          boxShadow: '-24px 0 64px rgba(0, 0, 0, 0.42)',
+          '& .MuiDivider-root': { borderColor: 'rgba(255, 255, 255, 0.16)' },
+          '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.72)' },
+          '& .MuiInputLabel-root.Mui-focused': { color: '#7EE3A3' },
+          '& .MuiOutlinedInput-root': {
+            color: '#FFFFFF',
+            bgcolor: 'rgba(255, 255, 255, 0.07)',
+            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.42)' },
+            '&:hover fieldset': { borderColor: 'rgba(126, 227, 163, 0.78)' },
+            '&.Mui-focused': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+            '&.Mui-focused fieldset': { borderColor: '#7EE3A3', borderWidth: 2 },
+            '& input::placeholder': { color: 'rgba(255, 255, 255, 0.58)', opacity: 1 }
+          },
+          '& .MuiSelect-icon': { color: 'rgba(255, 255, 255, 0.78)' },
+          '& .MuiFormHelperText-root': { color: 'rgba(255, 255, 255, 0.68)' }
         }
       }}
     >
       {!showFullForm ? (
         // Initial Step: Email + Property Selection
         <>
-          <Toolbar sx={{ px: 2.5 }}>
-            <Typography variant="h6" sx={{ flexGrow: 1 }}>
-              New Rental Application
-            </Typography>
-            <IconButton onClick={() => {
-              drawer.closeApplicationAddDrawer();
-              setInitialForm({ email: '', propertyId: '', unitId: '' });
-              setSelectedTenantFromModal(null);
-            }} size="large">
+          <Toolbar sx={{ px: { xs: 2.5, sm: 3.5 }, py: 2, minHeight: '88px !important', gap: 2 }}>
+            <Box
+              sx={{
+                width: 42,
+                height: 42,
+                display: 'grid',
+                placeItems: 'center',
+                flexShrink: 0,
+                color: '#061E35',
+                bgcolor: '#7EE3A3',
+                borderRadius: 1,
+                boxShadow: '0 10px 24px rgba(126, 227, 163, 0.2)'
+              }}
+            >
+              <SendOutlined style={{ fontSize: 19 }} />
+            </Box>
+            <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+              <Typography variant="overline" sx={{ color: '#7EE3A3', fontWeight: 700, letterSpacing: '0.12em', lineHeight: 1.2 }}>
+                Applications
+              </Typography>
+              <Typography variant="h5" sx={{ color: '#FFFFFF', fontWeight: 700, lineHeight: 1.25 }}>
+                New Rental Application
+              </Typography>
+            </Box>
+            <IconButton
+              onClick={() => {
+                drawer.closeApplicationAddDrawer();
+                setInitialForm({ email: '', propertyId: '', unitId: '' });
+                setSelectedTenantFromModal(null);
+              }}
+              size="large"
+              aria-label="Close new application drawer"
+              sx={{ color: '#FFFFFF', bgcolor: 'rgba(255, 255, 255, 0.08)', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.16)' } }}
+            >
               <CloseOutlined />
             </IconButton>
           </Toolbar>
           <Divider />
 
-          <Box sx={{ p: 2.5, flex: 1, overflowY: 'auto' }}>
+          <Box sx={{ px: { xs: 2.5, sm: 3.5 }, py: 3, flex: 1, overflowY: 'auto' }}>
             <Stack spacing={3}>
-              <Typography variant="body1" color="text.secondary">
-                Enter the tenant's email address to send them an application invite, or fill out the application yourself.
-              </Typography>
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: 'rgba(126, 227, 163, 0.1)',
+                  border: '1px solid rgba(126, 227, 163, 0.28)',
+                  borderLeft: '4px solid #7EE3A3',
+                  borderRadius: 1
+                }}
+              >
+                <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.86)', lineHeight: 1.65 }}>
+                  Choose a property and enter the tenant's email to send an invite, or complete the application on their behalf.
+                </Typography>
+              </Box>
 
               {/* Property/Unit Selection */}
               <Box>
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                <Typography variant="subtitle1" sx={{ mb: 1.25, color: '#FFFFFF', fontWeight: 700 }}>
                   Property & Unit
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.68)' }}>
+                  Select the home this application is for.
                 </Typography>
                 <Grid container spacing={2}>
                   <Grid size={{ xs: 12 }}>
@@ -754,8 +819,11 @@ export default function ApplicationAddDrawer() {
 
               {/* Email Input */}
               <Box>
-                <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                <Typography variant="subtitle1" sx={{ mb: 1.25, color: '#FFFFFF', fontWeight: 700 }}>
                   Tenant Email
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.68)' }}>
+                  We will send the secure application link to this address.
                 </Typography>
                 <TextField
                   fullWidth
@@ -775,17 +843,31 @@ export default function ApplicationAddDrawer() {
               </Box>
 
               {/* Fill Out Myself Option */}
-              <Box>
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: fillOutMyself ? 'rgba(126, 227, 163, 0.1)' : 'rgba(255, 255, 255, 0.055)',
+                  border: `1px solid ${fillOutMyself ? 'rgba(126, 227, 163, 0.55)' : 'rgba(255, 255, 255, 0.16)'}`,
+                  borderRadius: 1,
+                  transition: 'background-color 160ms ease, border-color 160ms ease'
+                }}
+              >
                 <FormControlLabel
                   control={
                     <Checkbox
                       checked={fillOutMyself}
                       onChange={(e) => setFillOutMyself(e.target.checked)}
+                      sx={{ color: 'rgba(255, 255, 255, 0.62)', '&.Mui-checked': { color: '#7EE3A3' } }}
                     />
                   }
                   label="I'll fill out the application for the tenant"
+                  sx={{
+                    m: 0,
+                    alignItems: 'flex-start',
+                    '& .MuiFormControlLabel-label': { color: '#FFFFFF', fontWeight: 600, pt: 0.9 }
+                  }}
                 />
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, ml: 4 }}>
+                <Typography variant="body2" sx={{ mt: 0.75, ml: 4.5, color: 'rgba(255, 255, 255, 0.7)', lineHeight: 1.55 }}>
                   {fillOutMyself 
                     ? 'You will fill out the complete application form on behalf of the tenant.'
                     : 'An email invite will be sent to the tenant to complete the application themselves.'}
@@ -795,9 +877,19 @@ export default function ApplicationAddDrawer() {
           </Box>
 
           <Divider />
-          <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+          <Box
+            sx={{
+              px: { xs: 2.5, sm: 3.5 },
+              py: 2.25,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 1.5,
+              bgcolor: 'rgba(2, 18, 32, 0.76)',
+              boxShadow: '0 -12px 30px rgba(0, 0, 0, 0.18)'
+            }}
+          >
             <Button
-              variant="text"
+              variant="outlined"
               onClick={() => {
                 drawer.closeApplicationAddDrawer();
                 setInitialForm({ email: '', propertyId: '', unitId: '' });
@@ -805,12 +897,15 @@ export default function ApplicationAddDrawer() {
               disabled={loading}
               startIcon={<CloseOutlined style={{ fontSize: 16, color: 'inherit' }} />}
               sx={{
-                color: 'text.secondary',
+                color: 'rgba(255, 255, 255, 0.86)',
+                borderColor: 'rgba(255, 255, 255, 0.3)',
                 textTransform: 'none',
-                minWidth: 'auto',
-                px: 1,
+                minHeight: 42,
+                px: 2,
                 '&:hover': {
-                  bgcolor: alpha(theme.palette.common.black, 0.04)
+                  color: '#FFFFFF',
+                  borderColor: 'rgba(255, 255, 255, 0.58)',
+                  bgcolor: 'rgba(255, 255, 255, 0.08)'
                 },
                 '&:disabled': {
                   color: 'text.disabled'
@@ -820,20 +915,26 @@ export default function ApplicationAddDrawer() {
               Cancel
             </Button>
             <Button
-              variant="text"
+              variant="contained"
               disabled={loading || !initialForm.email || !selectedProperty?.id}
               onClick={handleInitialSubmit}
               startIcon={loading ? <CircularProgress size={16} /> : fillOutMyself ? undefined : <SendOutlined style={{ fontSize: 16, color: 'inherit' }} />}
               sx={{
-                color: 'primary.main',
+                color: '#061E35',
+                bgcolor: '#7EE3A3',
+                fontWeight: 700,
                 textTransform: 'none',
-                minWidth: 'auto',
-                px: 1,
+                minHeight: 42,
+                px: 2.5,
+                boxShadow: '0 10px 24px rgba(126, 227, 163, 0.2)',
                 '&:hover': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.08)
+                  bgcolor: '#96E9B4',
+                  boxShadow: '0 12px 28px rgba(126, 227, 163, 0.3)'
                 },
                 '&:disabled': {
-                  color: 'text.disabled'
+                  color: 'rgba(255, 255, 255, 0.4)',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  boxShadow: 'none'
                 }
               }}
             >
