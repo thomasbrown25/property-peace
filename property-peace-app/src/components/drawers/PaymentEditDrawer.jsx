@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useMemo, useState } from 'react';
 
@@ -6,7 +7,6 @@ import {
   Alert,
   Box,
   Button,
-  Drawer,
   Divider,
   IconButton,
   MenuItem,
@@ -136,7 +136,7 @@ const PaymentEditDrawer = ({ payment, open, onClose, onUpdateSuccess }) => {
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={handleCancel}
@@ -283,7 +283,7 @@ const PaymentEditDrawer = ({ payment, open, onClose, onUpdateSuccess }) => {
           </Box>
         </Form>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 };
 

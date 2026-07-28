@@ -1,10 +1,10 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Drawer,
   IconButton,
   TextField,
   Button,
@@ -371,7 +371,7 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
                 },
                 sx: {
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                    borderRadius: 1
                   }
                 }
               }
@@ -403,7 +403,7 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
           }}
           sx={{
             '& .MuiOutlinedInput-root': {
-              borderRadius: 1.5
+              borderRadius: 1
             }
           }}
           placeholder="Enter amount"
@@ -839,7 +839,7 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
                 }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                    borderRadius: 1
                   }
                 }}
                 placeholder="Enter amount"
@@ -1165,7 +1165,7 @@ export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp
 
   if (useDrawerShell) {
     return (
-      <Drawer
+      <ThemeAdaptiveDrawer
         anchor="right"
         open={open}
         onClose={handleClose}
@@ -1199,7 +1199,7 @@ export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp
           </Stack>
           <Box sx={{ flex: 1, overflowY: 'auto' }}>{content}</Box>
         </Stack>
-      </Drawer>
+      </ThemeAdaptiveDrawer>
     );
   }
 

@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useRef, useEffect } from 'react';
 import {
   Box,
@@ -14,7 +15,6 @@ import {
   TextField,
   CircularProgress,
   Chip,
-  Drawer,
   IconButton,
   styled,
   Paper
@@ -176,7 +176,7 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
   const isSingleFamily = selectedLease?.propertyType?.toLowerCase() === 'singlefamily';
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={handleClose}
@@ -415,7 +415,7 @@ export default function TenantMaintenanceFormDrawer({ open, onClose, onRequestCr
           </Stack>
         </Box>
       )}
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

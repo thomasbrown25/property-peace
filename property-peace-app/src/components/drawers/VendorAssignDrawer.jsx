@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -6,7 +7,6 @@ import {
   Button,
   CircularProgress,
   Divider,
-  Drawer,
   IconButton,
   Stack,
   TextField,
@@ -196,7 +196,7 @@ export default function VendorAssignDrawer() {
     : theme.palette.text.disabled;
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenVendorAssign}
       onClose={drawer.closeVendorAssignDrawer}
@@ -447,6 +447,6 @@ export default function VendorAssignDrawer() {
           </Button>
         </Stack>
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

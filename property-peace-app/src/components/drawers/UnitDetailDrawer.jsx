@@ -1,4 +1,5 @@
-import { alpha, Avatar, Box, Button, Chip, Divider, Drawer, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
+import { alpha, Avatar, Box, Button, Chip, Divider, IconButton, Stack, Typography, useTheme } from '@mui/material';
 import {
   CloseOutlined, MailOutlined, PhoneOutlined, HomeOutlined,
   FileTextOutlined, MessageOutlined, ToolOutlined, ArrowRightOutlined
@@ -76,7 +77,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
   const propertyId = property?.id || property?.Id;
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={onClose}
@@ -284,6 +285,6 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
 
         </Stack>
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

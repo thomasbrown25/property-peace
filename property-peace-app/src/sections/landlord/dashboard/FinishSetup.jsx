@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
@@ -9,7 +10,6 @@ import {
   CardContent,
   Chip,
   Divider,
-  Drawer,
   IconButton,
   LinearProgress,
   List,
@@ -324,7 +324,7 @@ export default function FinishSetup({ open, onOpen, onClose, steps, compact = fa
         </Button>
       )}
 
-      <Drawer anchor="right" open={open} onClose={closeDrawer} PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, maxWidth: '100%', bgcolor: 'background.paper' } }}>
+      <ThemeAdaptiveDrawer anchor="right" open={open} onClose={closeDrawer} PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, maxWidth: '100%', bgcolor: 'background.paper' } }}>
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           {!selectedStep && (
             <Box sx={(t) => ({ p: 2.5, color: t.palette.common.white, bgcolor: SETUP_NAVY, '& .MuiTypography-root': { color: t.palette.common.white } })}>
@@ -393,7 +393,7 @@ export default function FinishSetup({ open, onOpen, onClose, steps, compact = fa
             )}
           </Box>
         </Box>
-      </Drawer>
+      </ThemeAdaptiveDrawer>
     </>
   );
 }

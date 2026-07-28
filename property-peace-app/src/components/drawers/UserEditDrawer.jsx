@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect } from 'react';
 
@@ -5,7 +6,6 @@ import { useEffect } from 'react';
 import {
   Box,
   Button,
-  Drawer,
   Divider,
   Grid,
   IconButton,
@@ -145,7 +145,7 @@ const UserEditDrawer = ({ user, open, onClose, onUpdateSuccess }) => {
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={handleCancel}
@@ -404,7 +404,7 @@ const UserEditDrawer = ({ user, open, onClose, onUpdateSuccess }) => {
           </Box>
         </Form>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 };
 

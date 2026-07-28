@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import {
@@ -34,7 +35,6 @@ import {
   Slide,
   LinearProgress,
   Checkbox,
-  Drawer,
   TextField,
   Divider,
   Avatar
@@ -549,7 +549,7 @@ function CreateLeaseAgreementDrawer({ open, onClose, properties, initialLease, o
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={handleClose}
@@ -679,7 +679,7 @@ function CreateLeaseAgreementDrawer({ open, onClose, properties, initialLease, o
           )}
         </Box>
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

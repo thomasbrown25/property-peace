@@ -1,8 +1,9 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
 
 // material-ui
-import { Box, Button, Drawer, Divider, Grid, IconButton, InputLabel, Stack, Toolbar, Typography } from '@mui/material';
+import { Box, Button, Divider, Grid, IconButton, InputLabel, Stack, Toolbar, Typography } from '@mui/material';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -251,7 +252,7 @@ export default function RenewLeaseDrawer({ unitsByProperty = {}, onRenewSuccess 
   }
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenRenewLease}
       onClose={drawer.closeRenewLeaseDrawer}
@@ -322,7 +323,7 @@ export default function RenewLeaseDrawer({ unitsByProperty = {}, onRenewSuccess 
                         disablePortal={false}
                         sx={{
                           '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5
+                            borderRadius: 1
                           }
                         }}
                       />
@@ -444,7 +445,7 @@ export default function RenewLeaseDrawer({ unitsByProperty = {}, onRenewSuccess 
           </Form>
         </LocalizationProvider>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

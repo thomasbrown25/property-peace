@@ -1,8 +1,9 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 
 // material-ui
-import { Box, Button, Drawer, Divider, Grid, IconButton, Stack, Toolbar, Typography, Card, CardContent, CardHeader } from '@mui/material';
+import { Box, Button, Divider, Grid, IconButton, Stack, Toolbar, Typography, Card, CardContent, CardHeader } from '@mui/material';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import DeleteFilled from '@ant-design/icons/DeleteFilled';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
@@ -162,7 +163,7 @@ export default function HouseholdEditDrawer({ household, propertyId }) {
   }
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenHouseholdEdit}
       onClose={drawer.closeHouseholdEditDrawer}
@@ -292,7 +293,7 @@ export default function HouseholdEditDrawer({ household, propertyId }) {
           </Stack>
         </Form>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

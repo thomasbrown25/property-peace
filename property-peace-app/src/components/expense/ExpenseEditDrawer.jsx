@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import {
@@ -8,7 +9,6 @@ import {
   Checkbox,
   CircularProgress,
   Divider,
-  Drawer,
   FormControl,
   FormControlLabel,
   IconButton,
@@ -302,7 +302,7 @@ export default function ExpenseEditDrawer({ open, expense, onClose, onSuccess, t
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={processing ? undefined : onClose}
@@ -508,6 +508,6 @@ export default function ExpenseEditDrawer({ open, expense, onClose, onSuccess, t
           </Button>
         </Stack>
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

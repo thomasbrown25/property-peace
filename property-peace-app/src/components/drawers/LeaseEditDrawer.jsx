@@ -1,8 +1,9 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useMemo, useState } from 'react';
 
 // material-ui
-import { Box, Button, Drawer, Divider, Grid, IconButton, Stack, Toolbar, Typography, FormControlLabel, Switch } from '@mui/material';
+import { Box, Button, Divider, Grid, IconButton, Stack, Toolbar, Typography, FormControlLabel, Switch } from '@mui/material';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -218,7 +219,7 @@ export default function LeaseEditDrawer({ unitsByProperty = {}, onUpdateSuccess 
   }
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenLeaseEdit}
       onClose={drawer.closeLeaseEditDrawer}
@@ -476,7 +477,7 @@ export default function LeaseEditDrawer({ unitsByProperty = {}, onUpdateSuccess 
           </Form>
         </LocalizationProvider>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

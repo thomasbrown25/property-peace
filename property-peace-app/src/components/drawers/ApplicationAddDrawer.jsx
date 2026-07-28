@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -5,7 +6,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Button,
-  Drawer,
   Divider,
   Grid,
   IconButton,
@@ -130,6 +130,7 @@ export default function ApplicationAddDrawer() {
   const selectedProperty = useSelector(selectProperty);
   const properties = useSelector(selectProperties);
   const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
   const { propertiesRefetch } = useFetchProperties();
   const [loading, setLoading] = useState(false);
   const [fillOutMyself, setFillOutMyself] = useState(false);
@@ -618,7 +619,7 @@ export default function ApplicationAddDrawer() {
   }, [showFullForm, initialEmail, initialPropertyId, initialUnitId, setFieldValue]);
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenApplicationAdd}
       onClose={() => {
@@ -634,7 +635,7 @@ export default function ApplicationAddDrawer() {
       slotProps={{
         backdrop: {
           sx: {
-            bgcolor: 'rgba(1, 11, 22, 0.62)',
+            bgcolor: isDarkMode ? 'rgba(1, 11, 22, 0.62)' : 'rgba(6, 30, 53, 0.32)',
             backdropFilter: 'blur(2px)'
           }
         }
@@ -644,25 +645,25 @@ export default function ApplicationAddDrawer() {
           width: { xs: '100%', sm: 600, md: 700 },
           display: 'flex',
           flexDirection: 'column',
-          color: '#FFFFFF',
-          bgcolor: '#061E35',
-          backgroundImage: 'linear-gradient(155deg, rgba(126, 227, 163, 0.08) 0%, rgba(6, 30, 53, 0) 34%)',
-          borderLeft: '1px solid rgba(126, 227, 163, 0.48)',
-          boxShadow: '-24px 0 64px rgba(0, 0, 0, 0.42)',
-          '& .MuiDivider-root': { borderColor: 'rgba(255, 255, 255, 0.16)' },
-          '& .MuiInputLabel-root': { color: 'rgba(255, 255, 255, 0.72)' },
-          '& .MuiInputLabel-root.Mui-focused': { color: '#7EE3A3' },
+          color: isDarkMode ? '#FFFFFF' : 'text.primary',
+          bgcolor: isDarkMode ? '#061E35' : 'background.paper',
+          backgroundImage: isDarkMode ? 'linear-gradient(155deg, rgba(126, 227, 163, 0.08) 0%, rgba(6, 30, 53, 0) 34%)' : 'none',
+          borderLeft: isDarkMode ? '1px solid rgba(126, 227, 163, 0.48)' : `1px solid ${theme.palette.divider}`,
+          boxShadow: isDarkMode ? '-24px 0 64px rgba(0, 0, 0, 0.42)' : '-18px 0 48px rgba(6, 30, 53, 0.14)',
+          '& .MuiDivider-root': { borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.16)' : 'divider' },
+          '& .MuiInputLabel-root': { color: isDarkMode ? 'rgba(255, 255, 255, 0.72)' : 'text.secondary' },
+          '& .MuiInputLabel-root.Mui-focused': { color: isDarkMode ? '#7EE3A3' : 'primary.main' },
           '& .MuiOutlinedInput-root': {
-            color: '#FFFFFF',
-            bgcolor: 'rgba(255, 255, 255, 0.07)',
-            '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.42)' },
-            '&:hover fieldset': { borderColor: 'rgba(126, 227, 163, 0.78)' },
-            '&.Mui-focused': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
-            '&.Mui-focused fieldset': { borderColor: '#7EE3A3', borderWidth: 2 },
-            '& input::placeholder': { color: 'rgba(255, 255, 255, 0.58)', opacity: 1 }
+            color: isDarkMode ? '#FFFFFF' : 'text.primary',
+            bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.07)' : 'background.default',
+            '& fieldset': { borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.42)' : 'divider' },
+            '&:hover fieldset': { borderColor: isDarkMode ? 'rgba(126, 227, 163, 0.78)' : 'primary.main' },
+            '&.Mui-focused': { bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'background.paper' },
+            '&.Mui-focused fieldset': { borderColor: isDarkMode ? '#7EE3A3' : 'primary.main', borderWidth: 2 },
+            '& input::placeholder': { color: isDarkMode ? 'rgba(255, 255, 255, 0.58)' : 'text.secondary', opacity: 1 }
           },
-          '& .MuiSelect-icon': { color: 'rgba(255, 255, 255, 0.78)' },
-          '& .MuiFormHelperText-root': { color: 'rgba(255, 255, 255, 0.68)' }
+          '& .MuiSelect-icon': { color: isDarkMode ? 'rgba(255, 255, 255, 0.78)' : 'text.secondary' },
+          '& .MuiFormHelperText-root:not(.Mui-error)': { color: isDarkMode ? 'rgba(255, 255, 255, 0.68)' : 'text.secondary' }
         }
       }}
     >
@@ -677,19 +678,19 @@ export default function ApplicationAddDrawer() {
                 display: 'grid',
                 placeItems: 'center',
                 flexShrink: 0,
-                color: '#061E35',
-                bgcolor: '#7EE3A3',
+                color: isDarkMode ? '#061E35' : 'primary.main',
+                bgcolor: isDarkMode ? '#7EE3A3' : alpha(theme.palette.primary.main, 0.12),
                 borderRadius: 1,
-                boxShadow: '0 10px 24px rgba(126, 227, 163, 0.2)'
+                boxShadow: isDarkMode ? '0 10px 24px rgba(126, 227, 163, 0.2)' : `0 8px 20px ${alpha(theme.palette.primary.main, 0.14)}`
               }}
             >
               <SendOutlined style={{ fontSize: 19 }} />
             </Box>
             <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-              <Typography variant="overline" sx={{ color: '#7EE3A3', fontWeight: 700, letterSpacing: '0.12em', lineHeight: 1.2 }}>
+              <Typography variant="overline" sx={{ color: isDarkMode ? '#7EE3A3' : 'primary.main', fontWeight: 700, letterSpacing: '0.12em', lineHeight: 1.2 }}>
                 Applications
               </Typography>
-              <Typography variant="h5" sx={{ color: '#FFFFFF', fontWeight: 700, lineHeight: 1.25 }}>
+              <Typography variant="h5" sx={{ color: isDarkMode ? '#FFFFFF' : 'text.primary', fontWeight: 700, lineHeight: 1.25 }}>
                 New Rental Application
               </Typography>
             </Box>
@@ -701,7 +702,11 @@ export default function ApplicationAddDrawer() {
               }}
               size="large"
               aria-label="Close new application drawer"
-              sx={{ color: '#FFFFFF', bgcolor: 'rgba(255, 255, 255, 0.08)', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.16)' } }}
+              sx={{
+                color: isDarkMode ? '#FFFFFF' : 'text.secondary',
+                bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'action.hover',
+                '&:hover': { bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.16)' : alpha(theme.palette.primary.main, 0.1) }
+              }}
             >
               <CloseOutlined />
             </IconButton>
@@ -713,23 +718,23 @@ export default function ApplicationAddDrawer() {
               <Box
                 sx={{
                   p: 2,
-                  bgcolor: 'rgba(126, 227, 163, 0.1)',
-                  border: '1px solid rgba(126, 227, 163, 0.28)',
-                  borderLeft: '4px solid #7EE3A3',
+                  bgcolor: isDarkMode ? 'rgba(126, 227, 163, 0.1)' : alpha(theme.palette.primary.main, 0.045),
+                  border: `1px solid ${isDarkMode ? 'rgba(126, 227, 163, 0.28)' : alpha(theme.palette.primary.main, 0.16)}`,
+                  borderLeft: `4px solid ${isDarkMode ? '#7EE3A3' : theme.palette.primary.main}`,
                   borderRadius: 1
                 }}
               >
-                <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.86)', lineHeight: 1.65 }}>
+                <Typography variant="body1" sx={{ color: isDarkMode ? 'rgba(255, 255, 255, 0.86)' : 'text.secondary', lineHeight: 1.65 }}>
                   Choose a property and enter the tenant's email to send an invite, or complete the application on their behalf.
                 </Typography>
               </Box>
 
               {/* Property/Unit Selection */}
               <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1.25, color: '#FFFFFF', fontWeight: 700 }}>
+                <Typography variant="subtitle1" sx={{ mb: 1.25, color: isDarkMode ? '#FFFFFF' : 'text.primary', fontWeight: 700 }}>
                   Property & Unit
                 </Typography>
-                <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.68)' }}>
+                <Typography variant="body2" sx={{ mb: 2, color: isDarkMode ? 'rgba(255, 255, 255, 0.68)' : 'text.secondary' }}>
                   Select the home this application is for.
                 </Typography>
                 <Grid container spacing={2}>
@@ -819,10 +824,10 @@ export default function ApplicationAddDrawer() {
 
               {/* Email Input */}
               <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1.25, color: '#FFFFFF', fontWeight: 700 }}>
+                <Typography variant="subtitle1" sx={{ mb: 1.25, color: isDarkMode ? '#FFFFFF' : 'text.primary', fontWeight: 700 }}>
                   Tenant Email
                 </Typography>
-                <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255, 255, 255, 0.68)' }}>
+                <Typography variant="body2" sx={{ mb: 2, color: isDarkMode ? 'rgba(255, 255, 255, 0.68)' : 'text.secondary' }}>
                   We will send the secure application link to this address.
                 </Typography>
                 <TextField
@@ -846,8 +851,14 @@ export default function ApplicationAddDrawer() {
               <Box
                 sx={{
                   p: 2,
-                  bgcolor: fillOutMyself ? 'rgba(126, 227, 163, 0.1)' : 'rgba(255, 255, 255, 0.055)',
-                  border: `1px solid ${fillOutMyself ? 'rgba(126, 227, 163, 0.55)' : 'rgba(255, 255, 255, 0.16)'}`,
+                  bgcolor: fillOutMyself
+                    ? isDarkMode ? 'rgba(126, 227, 163, 0.1)' : alpha(theme.palette.primary.main, 0.06)
+                    : isDarkMode ? 'rgba(255, 255, 255, 0.055)' : 'background.default',
+                  border: `1px solid ${
+                    fillOutMyself
+                      ? isDarkMode ? 'rgba(126, 227, 163, 0.55)' : alpha(theme.palette.primary.main, 0.42)
+                      : isDarkMode ? 'rgba(255, 255, 255, 0.16)' : theme.palette.divider
+                  }`,
                   borderRadius: 1,
                   transition: 'background-color 160ms ease, border-color 160ms ease'
                 }}
@@ -857,17 +868,20 @@ export default function ApplicationAddDrawer() {
                     <Checkbox
                       checked={fillOutMyself}
                       onChange={(e) => setFillOutMyself(e.target.checked)}
-                      sx={{ color: 'rgba(255, 255, 255, 0.62)', '&.Mui-checked': { color: '#7EE3A3' } }}
+                      sx={{
+                        color: isDarkMode ? 'rgba(255, 255, 255, 0.62)' : 'text.secondary',
+                        '&.Mui-checked': { color: isDarkMode ? '#7EE3A3' : 'primary.main' }
+                      }}
                     />
                   }
                   label="I'll fill out the application for the tenant"
                   sx={{
                     m: 0,
                     alignItems: 'flex-start',
-                    '& .MuiFormControlLabel-label': { color: '#FFFFFF', fontWeight: 600, pt: 0.9 }
+                    '& .MuiFormControlLabel-label': { color: isDarkMode ? '#FFFFFF' : 'text.primary', fontWeight: 600, pt: 0.9 }
                   }}
                 />
-                <Typography variant="body2" sx={{ mt: 0.75, ml: 4.5, color: 'rgba(255, 255, 255, 0.7)', lineHeight: 1.55 }}>
+                <Typography variant="body2" sx={{ mt: 0.75, ml: 4.5, color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'text.secondary', lineHeight: 1.55 }}>
                   {fillOutMyself 
                     ? 'You will fill out the complete application form on behalf of the tenant.'
                     : 'An email invite will be sent to the tenant to complete the application themselves.'}
@@ -884,8 +898,8 @@ export default function ApplicationAddDrawer() {
               display: 'flex',
               justifyContent: 'flex-end',
               gap: 1.5,
-              bgcolor: 'rgba(2, 18, 32, 0.76)',
-              boxShadow: '0 -12px 30px rgba(0, 0, 0, 0.18)'
+              bgcolor: isDarkMode ? 'rgba(2, 18, 32, 0.76)' : 'background.paper',
+              boxShadow: isDarkMode ? '0 -12px 30px rgba(0, 0, 0, 0.18)' : '0 -10px 28px rgba(6, 30, 53, 0.07)'
             }}
           >
             <Button
@@ -897,15 +911,15 @@ export default function ApplicationAddDrawer() {
               disabled={loading}
               startIcon={<CloseOutlined style={{ fontSize: 16, color: 'inherit' }} />}
               sx={{
-                color: 'rgba(255, 255, 255, 0.86)',
-                borderColor: 'rgba(255, 255, 255, 0.3)',
+                color: isDarkMode ? 'rgba(255, 255, 255, 0.86)' : 'text.secondary',
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'divider',
                 textTransform: 'none',
                 minHeight: 42,
                 px: 2,
                 '&:hover': {
-                  color: '#FFFFFF',
-                  borderColor: 'rgba(255, 255, 255, 0.58)',
-                  bgcolor: 'rgba(255, 255, 255, 0.08)'
+                  color: isDarkMode ? '#FFFFFF' : 'primary.main',
+                  borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.58)' : 'primary.main',
+                  bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : alpha(theme.palette.primary.main, 0.05)
                 },
                 '&:disabled': {
                   color: 'text.disabled'
@@ -920,20 +934,20 @@ export default function ApplicationAddDrawer() {
               onClick={handleInitialSubmit}
               startIcon={loading ? <CircularProgress size={16} /> : fillOutMyself ? undefined : <SendOutlined style={{ fontSize: 16, color: 'inherit' }} />}
               sx={{
-                color: '#061E35',
-                bgcolor: '#7EE3A3',
+                color: isDarkMode ? '#061E35' : 'primary.contrastText',
+                bgcolor: isDarkMode ? '#7EE3A3' : 'primary.main',
                 fontWeight: 700,
                 textTransform: 'none',
                 minHeight: 42,
                 px: 2.5,
-                boxShadow: '0 10px 24px rgba(126, 227, 163, 0.2)',
+                boxShadow: isDarkMode ? '0 10px 24px rgba(126, 227, 163, 0.2)' : `0 10px 24px ${alpha(theme.palette.primary.main, 0.22)}`,
                 '&:hover': {
-                  bgcolor: '#96E9B4',
-                  boxShadow: '0 12px 28px rgba(126, 227, 163, 0.3)'
+                  bgcolor: isDarkMode ? '#96E9B4' : 'primary.dark',
+                  boxShadow: isDarkMode ? '0 12px 28px rgba(126, 227, 163, 0.3)' : `0 12px 28px ${alpha(theme.palette.primary.main, 0.3)}`
                 },
                 '&:disabled': {
-                  color: 'rgba(255, 255, 255, 0.4)',
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                  color: isDarkMode ? 'rgba(255, 255, 255, 0.4)' : 'action.disabled',
+                  bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'action.disabledBackground',
                   boxShadow: 'none'
                 }
               }}
@@ -1570,7 +1584,7 @@ export default function ApplicationAddDrawer() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

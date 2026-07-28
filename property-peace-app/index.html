@@ -78,8 +78,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Property Peace" />
 
-    <!-- Web App Manifest -->
-    <link rel="manifest" href="/manifest.json" />
+    <!-- The dev app protects static assets with Azure SWA auth, so include the auth cookie when fetching the manifest. -->
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials" />
 
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
