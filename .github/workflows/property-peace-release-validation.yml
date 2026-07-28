@@ -1,6 +1,8 @@
 name: Property Peace Release Validation
 
 on:
+  push:
+    branches: [dev, prod]
   workflow_dispatch:
 
 jobs:

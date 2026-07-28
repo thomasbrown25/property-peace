@@ -38,7 +38,9 @@ function Invoke-Native {
             return [pscustomobject]@{ ExitCode = $exitCode; Output = $output.Trim() }
         }
 
-        & $Command @Arguments 2>&1 | ForEach-Object { Write-Host $_ }
+        # Suppress successful native-command output. Deployment scripts report
+        # concise stage and workflow results instead of forwarding build/Git logs.
+        $output = & $Command @Arguments 2>&1 | Out-String
         $exitCode = $LASTEXITCODE
         if ($exitCode -ne 0 -and -not $AllowFailure) {
             throw "Command failed ($exitCode): $Command $($Arguments -join ' ')"
@@ -96,7 +98,6 @@ function Start-GitHubWorkflow {
         [Parameter(Mandatory)][string]$HeadSha
     )
 
-    Write-Host "Dispatching $Workflow on $Branch..."
     $dispatchedAt = (Get-Date).ToUniversalTime().AddSeconds(-10)
     Invoke-Native gh @('workflow', 'run', $Workflow, '--ref', $Branch) | Out-Null
 
@@ -126,7 +127,6 @@ function Start-GitHubWorkflow {
         throw "GitHub accepted $Workflow, but its run did not appear within two minutes."
     }
 
-    Write-Host "Run: $($run.url)"
     return [pscustomobject]@{
         Workflow = $Workflow
         RunId = [string]$run.databaseId
@@ -142,23 +142,55 @@ function Wait-GitHubWorkflow {
 
     $detailsResult = Invoke-Native gh @(
         'run', 'view', $Run.RunId,
-        '--json', 'conclusion,jobs,url,workflowName'
+        '--json', 'conclusion,url,workflowName'
     ) -CaptureOutput
     $details = $detailsResult.Output | ConvertFrom-Json
 
-    Write-Host "`n$($details.workflowName)"
-    foreach ($job in @($details.jobs)) {
-        $jobStatus = if ($job.conclusion) { $job.conclusion.ToUpperInvariant() } else { $job.status.ToUpperInvariant() }
-        Write-Host "  [$jobStatus] $($job.name)"
-        foreach ($step in @($job.steps)) {
-            $stepStatus = if ($step.conclusion) { $step.conclusion.ToUpperInvariant() } else { $step.status.ToUpperInvariant() }
-            Write-Host "    [$stepStatus] $($step.name)"
-        }
-    }
-    Write-Host "  $($details.url)"
-
     if ($watchExitCode -ne 0 -or $details.conclusion -ne 'success') {
-        throw "$($Run.Workflow) failed. See $($details.url)"
+        throw "FAIL: $($details.workflowName). See $($details.url)"
+    }
+
+    Write-Host "PASS: $($details.workflowName)" -ForegroundColor Green
+}
+
+function Find-GitHubWorkflowRunForCommit {
+    param(
+        [Parameter(Mandatory)][string]$WorkflowName,
+        [Parameter(Mandatory)][string]$Branch,
+        [Parameter(Mandatory)][string]$HeadSha
+    )
+
+    $deadline = (Get-Date).AddMinutes(3)
+    do {
+        $result = Invoke-Native gh @(
+            'run', 'list',
+            '--branch', $Branch,
+            '--limit', '100',
+            '--json', 'databaseId,headSha,status,conclusion,createdAt,url,workflowName,event'
+        ) -CaptureOutput
+
+        $runs = @($result.Output | ConvertFrom-Json)
+        $run = $runs |
+            Where-Object {
+                $_.workflowName -eq $WorkflowName -and
+                $_.headSha -eq $HeadSha
+            } |
+            Sort-Object { [datetime]$_.createdAt } -Descending |
+            Select-Object -First 1
+
+        if (-not $run) {
+            Start-Sleep -Seconds 3
+        }
+    } while (-not $run -and (Get-Date) -lt $deadline)
+
+    if (-not $run) {
+        throw "FAIL: $WorkflowName did not start for commit $HeadSha."
+    }
+
+    return [pscustomobject]@{
+        Workflow = $WorkflowName
+        RunId = [string]$run.databaseId
+        Url = [string]$run.url
     }
 }
 
@@ -168,8 +200,11 @@ function Invoke-ReleaseValidation {
         [Parameter(Mandatory)][string]$HeadSha
     )
 
-    $run = Start-GitHubWorkflow `
-        -Workflow 'property-peace-release-validation.yml' `
+    # Manual dispatch requires the workflow file on the repository's default
+    # branch. Validation runs from this branch's push instead, so dev-only
+    # workflow changes can be validated before they ever reach prod.
+    $run = Find-GitHubWorkflowRunForCommit `
+        -WorkflowName 'Property Peace Release Validation' `
         -Branch $Branch `
         -HeadSha $HeadSha
     Wait-GitHubWorkflow -Run $run
