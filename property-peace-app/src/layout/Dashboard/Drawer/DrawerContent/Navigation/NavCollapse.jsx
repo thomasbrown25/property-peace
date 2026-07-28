@@ -247,6 +247,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                   '&.Mui-selected': {
                     bgcolor: 'rgba(255, 255, 255, 0.12)',
                     color: iconSelectedColor,
+                    '& .MuiListItemIcon-root': { color: '#fff !important' },
                     '&:hover': { color: iconSelectedColor, bgcolor: 'rgba(255, 255, 255, 0.12)' }
                   }
                 }),
@@ -268,7 +269,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                 onClick={handlerIconLink}
                 sx={(theme) => ({
                   minWidth: 28,
-                  color: 'rgba(255, 255, 255, 0.7)',
+                  color: `${selected === menu.id ? '#fff' : 'rgba(255, 255, 255, 0.7)'} !important`,
                   ...(!drawerOpen && {
                     borderRadius: 1.5,
                     width: 36,

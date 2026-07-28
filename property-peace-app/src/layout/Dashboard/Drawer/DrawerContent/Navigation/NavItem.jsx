@@ -73,9 +73,10 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
       return;
     }
 
-    // Close all dropdowns when clicking on a non-dropdown item
+    // A nested item belongs to its open collapse, so keep that collapse selected.
+    // Only top-level items are outside a collapse and should close the open section.
     if (setSelectedItems) {
-      setSelectedItems('');
+      if (level === 1) setSelectedItems('');
     }
 
     if (downLG) handlerDrawerOpen(false);

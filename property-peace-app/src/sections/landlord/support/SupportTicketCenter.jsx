@@ -44,6 +44,7 @@ const CATEGORIES = [
 ];
 
 const categoryLabel = (value) => CATEGORIES.find((category) => category.value === value)?.label || 'Support';
+const capitalizeFirstLetter = (value = '') => value.charAt(0).toUpperCase() + value.slice(1);
 
 function TicketRow({ ticket, selected, onClick }) {
   const lastReplyFromSupport = ticket.lastMessageBy && ticket.lastMessageBy !== ticket.userId;
@@ -82,7 +83,7 @@ function TicketRow({ ticket, selected, onClick }) {
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1} alignItems="center">
             <Typography variant="subtitle2" noWrap sx={{ flex: 1, fontWeight: ticket.unreadCount ? 750 : 650 }}>
-              {ticket.subject}
+              {capitalizeFirstLetter(ticket.subject)}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
               {formatRelativeTime(ticket.lastActivityAt || ticket.createdAt)}
@@ -355,7 +356,7 @@ export default function SupportTicketCenter() {
                       )}
                       <Box sx={{ minWidth: 0, flex: 1 }}>
                         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} justifyContent="space-between">
-                          <Typography variant="h6" sx={{ fontWeight: 750 }}>{ticket.subject}</Typography>
+                          <Typography variant="h6" sx={{ fontWeight: 750 }}>{capitalizeFirstLetter(ticket.subject)}</Typography>
                           <Stack direction="row" spacing={0.75}>
                             <Chip size="small" label={categoryLabel(ticket.subType)} variant="outlined" />
                             <Chip size="small" label={ticket.isResolved ? 'Closed' : 'Open'} color={ticket.isResolved ? 'default' : 'success'} />
