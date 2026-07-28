@@ -113,7 +113,14 @@ function Start-GitHubWorkflow {
             '--json', 'databaseId,headSha,status,conclusion,createdAt,url'
         ) -CaptureOutput
 
-        $runs = @($result.Output | ConvertFrom-Json)
+        # Windows PowerShell 5.1 can return a top-level JSON array as one
+        # Object[] pipeline item. Enumerate it explicitly so each run remains
+        # a scalar object rather than a nested Object[].
+        $parsedRuns = $result.Output | ConvertFrom-Json
+        $runs = @()
+        foreach ($parsedRun in $parsedRuns) {
+            $runs += $parsedRun
+        }
         $run = $runs |
             Where-Object {
                 $_.headSha -eq $HeadSha -and
@@ -169,11 +176,19 @@ function Find-GitHubWorkflowRunForCommit {
             '--json', 'databaseId,headSha,status,conclusion,createdAt,url,workflowName,event'
         ) -CaptureOutput
 
-        $runs = @($result.Output | ConvertFrom-Json)
+        # Windows PowerShell 5.1 can return a top-level JSON array as one
+        # Object[] pipeline item. Enumerate it explicitly so each run remains
+        # a scalar object rather than a nested Object[].
+        $parsedRuns = $result.Output | ConvertFrom-Json
+        $runs = @()
+        foreach ($parsedRun in $parsedRuns) {
+            $runs += $parsedRun
+        }
         $run = $runs |
             Where-Object {
                 $_.workflowName -eq $WorkflowName -and
-                $_.headSha -eq $HeadSha
+                $_.headSha -eq $HeadSha -and
+                $_.event -eq 'push'
             } |
             Sort-Object { [datetime]$_.createdAt } -Descending |
             Select-Object -First 1
