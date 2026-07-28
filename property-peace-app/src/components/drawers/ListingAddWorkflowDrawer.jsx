@@ -1,4 +1,5 @@
-import { Box, Drawer, IconButton, Stack, Typography, alpha, useTheme } from '@mui/material';
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
+import { Box, IconButton, Stack, Typography, alpha, useTheme } from '@mui/material';
 import { CloseOutlined, RocketOutlined } from '@ant-design/icons';
 import { useDrawer } from 'contexts/DrawerContext';
 import ListingAddWorkflow from 'pages/landlord/listing-add-workflow';
@@ -8,7 +9,7 @@ export default function ListingAddWorkflowDrawer() {
   const theme = useTheme();
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenListingAdd}
       onClose={drawer.closeListingAddDrawer}
@@ -51,6 +52,6 @@ export default function ListingAddWorkflowDrawer() {
       <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: 'background.paper', p: 3 }}>
         <ListingAddWorkflow onClose={drawer.closeListingAddDrawer} draftListing={drawer.selectedListingDraft} />
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

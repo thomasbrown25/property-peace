@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useMemo, useEffect } from 'react';
 import {
   Box,
@@ -25,7 +26,6 @@ import {
   alpha,
   Card,
   CardContent,
-  Drawer,
   Stepper,
   Step,
   StepLabel,
@@ -942,7 +942,7 @@ export default function Vendors() {
       </Menu>
 
       {/* Add/Edit Drawer */}
-      <Drawer
+      <ThemeAdaptiveDrawer
         anchor="right"
         open={drawerOpen}
         onClose={handleCloseDrawer}
@@ -1044,7 +1044,7 @@ export default function Vendors() {
             </Button>
           )}
         </Box>
-      </Drawer>
+      </ThemeAdaptiveDrawer>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>

@@ -1,4 +1,5 @@
-import { Box, Drawer, Divider, IconButton, Stack, Toolbar, Typography, alpha, useTheme } from '@mui/material';
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
+import { Box, Divider, IconButton, Stack, Toolbar, Typography, alpha, useTheme } from '@mui/material';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import HomeOutlined from '@ant-design/icons/HomeOutlined';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -9,7 +10,7 @@ export default function PropertyAddWorkflowDrawer() {
   const theme = useTheme();
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenPropertyAddWorkflow}
       onClose={drawer.closePropertyAddWorkflowDrawer}
@@ -52,6 +53,6 @@ export default function PropertyAddWorkflowDrawer() {
       <Box sx={{ flex: 1, overflowY: 'auto', bgcolor: 'background.paper' }}>
         <PropertyAddWorkflow onClose={drawer.closePropertyAddWorkflowDrawer} />
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

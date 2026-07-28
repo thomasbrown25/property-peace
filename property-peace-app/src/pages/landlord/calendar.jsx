@@ -1,4 +1,5 @@
 'use client';
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useEffect, useMemo, useState } from 'react';
 import {
   alpha, Box, Button, Chip, Drawer, FormControl, IconButton,
@@ -340,7 +341,7 @@ function AddTaskDrawer({ open, onClose, onSave, defaultDate, properties, editTas
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={onClose}
@@ -438,7 +439,7 @@ function AddTaskDrawer({ open, onClose, onSave, defaultDate, properties, editTas
           </Button>
         </Stack>
       </Stack>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 
@@ -750,7 +751,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
       ? (checklistId ? `${checklistBase}/checklist/${checklistId}` : `${checklistBase}?type=${event.typeParam || 'move-in'}`)
     : null;
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={Boolean(event)}
       onClose={onClose}
@@ -825,7 +826,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
           </Button> : null}
         </Stack>
       </Stack>}
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

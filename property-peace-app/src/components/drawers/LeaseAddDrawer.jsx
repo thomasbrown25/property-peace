@@ -1,9 +1,10 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 // LeaseAddDrawer.jsx
 import { useEffect, useMemo, useState } from 'react';
 
 // material-ui
 import {
-  Box, Button, Drawer, Divider, Grid, IconButton,
+  Box, Button, Divider, Grid, IconButton,
   Stack, Toolbar, Typography, alpha, useTheme,
   Stepper, Step, StepLabel, StepConnector, stepConnectorClasses, styled,
   FormControlLabel, Switch, Chip, TextField
@@ -752,7 +753,7 @@ export default function LeaseAddDrawer() {
   const isSuccess = step === STEP_SUCCESS;
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenLeaseAdd}
       onClose={drawer.closeLeaseAddDrawer}
@@ -843,6 +844,6 @@ export default function LeaseAddDrawer() {
           </Form>
         </LocalizationProvider>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

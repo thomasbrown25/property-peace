@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
@@ -27,7 +28,6 @@ import {
   Card,
   CardContent,
   Chip,
-  Drawer,
   IconButton,
   Divider
 } from '@mui/material';
@@ -853,7 +853,7 @@ Respond in JSON format only: {"category": "...", "name": "..."}`;
   const showNav = currentStep < STEPS.PROCESSING;
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={currentStep === STEPS.PROCESSING ? undefined : onClose}
@@ -956,6 +956,6 @@ Respond in JSON format only: {"category": "...", "name": "..."}`;
           </Box>
         </>
       )}
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

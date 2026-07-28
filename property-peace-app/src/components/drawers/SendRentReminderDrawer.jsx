@@ -1,6 +1,7 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useMemo, useEffect } from 'react';
 import {
-  Box, Typography, Stack, Button, Drawer, IconButton,
+  Box, Typography, Stack, Button, IconButton,
   TextField, Checkbox, Chip, CircularProgress,
   alpha, useTheme, InputAdornment
 } from '@mui/material';
@@ -135,7 +136,7 @@ export default function SendRentReminderDrawer({ open, onClose, rentRecords }) {
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={onClose}
@@ -340,7 +341,7 @@ export default function SendRentReminderDrawer({ open, onClose, rentRecords }) {
           </Box>
         </>
       )}
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

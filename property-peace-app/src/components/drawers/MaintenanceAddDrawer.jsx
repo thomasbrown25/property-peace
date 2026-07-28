@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Box,
@@ -19,7 +20,6 @@ import {
   LinearProgress,
   Chip,
   Divider,
-  Drawer,
   IconButton,
   styled,
   Paper
@@ -504,7 +504,7 @@ const MaintenanceAddDrawer = ({ onAddSuccess }) => {
 
   return (
     <>
-      <Drawer
+      <ThemeAdaptiveDrawer
         anchor="right"
         open={drawer.isOpenMaintenanceAdd}
         onClose={handleClose}
@@ -605,7 +605,7 @@ const MaintenanceAddDrawer = ({ onAddSuccess }) => {
             )}
           </Box>
         )}
-      </Drawer>
+      </ThemeAdaptiveDrawer>
 
       {/* Edit overrides modal */}
       <Dialog open={editModalOpen} onClose={() => setEditModalOpen(false)} maxWidth="sm" fullWidth>

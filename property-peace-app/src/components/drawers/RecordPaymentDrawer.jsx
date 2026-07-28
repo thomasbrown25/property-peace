@@ -1,7 +1,8 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useCallback, useEffect } from 'react';
 import {
   Box, Typography, Stack, Button, Stepper, Step, StepLabel, StepConnector,
-  stepConnectorClasses, alpha, useTheme, Drawer, IconButton, styled,
+  stepConnectorClasses, alpha, useTheme, IconButton, styled,
   CircularProgress, Alert, Divider, Toolbar
 } from '@mui/material';
 import {
@@ -187,7 +188,7 @@ export default function RecordPaymentDrawer({ onSuccess }) {
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenPaymentAdd}
       onClose={() => drawer.closePaymentAddDrawer()}
@@ -270,7 +271,7 @@ export default function RecordPaymentDrawer({ onSuccess }) {
           </Button>
         </Box>
       )}
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

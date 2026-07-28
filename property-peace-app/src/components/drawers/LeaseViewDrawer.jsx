@@ -1,7 +1,8 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import React, { useState } from 'react';
 import { useDrawer } from 'contexts/DrawerContext';
 import { useNavigate } from 'react-router-dom';
-import { Drawer, Box, Typography, Divider, Stack, Chip, Button, IconButton, CircularProgress } from '@mui/material';
+import { Box, Typography, Divider, Stack, Chip, Button, IconButton, CircularProgress } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -140,7 +141,7 @@ const LeaseViewDrawer = () => {
   );
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenLeaseView}
       onClose={drawer.closeLeaseViewDrawer}
@@ -209,7 +210,7 @@ const LeaseViewDrawer = () => {
           )}
         </Box>
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 };
 

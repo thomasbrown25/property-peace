@@ -1,6 +1,7 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState } from 'react';
 import {
-  Box, Typography, Stack, Button, Drawer, IconButton, alpha, useTheme, TextField
+  Box, Typography, Stack, Button, IconButton, alpha, useTheme, TextField
 } from '@mui/material';
 import {
   CloseOutlined, CalendarOutlined, ArrowRightOutlined
@@ -54,7 +55,7 @@ export default function ScheduleInspectionDrawer() {
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenScheduleInspection}
       onClose={handleClose}
@@ -189,6 +190,6 @@ export default function ScheduleInspectionDrawer() {
           Start Inspection
         </Button>
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

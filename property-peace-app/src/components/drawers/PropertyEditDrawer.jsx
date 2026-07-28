@@ -1,9 +1,9 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
-  Drawer,
   Divider,
   Grid,
   IconButton,
@@ -273,7 +273,7 @@ export default function PropertyEditDrawer({ onUpdateSuccess }) {
   };
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenPropertyEdit}
       onClose={drawer.closePropertyEditDrawer}
@@ -455,7 +455,7 @@ export default function PropertyEditDrawer({ onUpdateSuccess }) {
         onCancel={handleCancelGooglePhoto}
         loading={fetchingPhoto}
       />
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

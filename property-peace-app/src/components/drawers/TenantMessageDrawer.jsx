@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +9,6 @@ import {
   Button,
   CircularProgress,
   Divider,
-  Drawer,
   IconButton,
   Paper,
   Stack,
@@ -191,7 +191,7 @@ export default function TenantMessageDrawer({ open, onClose, tenant, property })
   const userId = user?.Id || user?.id;
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={handleClose}
@@ -374,6 +374,6 @@ export default function TenantMessageDrawer({ open, onClose, tenant, property })
           </IconButton>
         </Paper>
       </Box>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

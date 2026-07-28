@@ -1,8 +1,9 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useState } from 'react';
 
 // material-ui
-import { Box, Button, Drawer, Divider, Stack, Typography, TextField, FormControlLabel, Checkbox, CircularProgress, IconButton, alpha, useTheme } from '@mui/material';
+import { Box, Button, Divider, Stack, Typography, TextField, FormControlLabel, Checkbox, CircularProgress, IconButton, alpha, useTheme } from '@mui/material';
 import SendOutlined from '@ant-design/icons/SendOutlined';
 import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
@@ -454,7 +455,7 @@ export default function TenantEditDrawer({ tenant, open, onClose, onUpdateSucces
   }
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={isOpen}
       onClose={handleClose}
@@ -609,7 +610,7 @@ export default function TenantEditDrawer({ tenant, open, onClose, onUpdateSucces
           </Form>
         </LocalizationProvider>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 

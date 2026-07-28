@@ -1,7 +1,7 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useMemo, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import {
-  Drawer,
   Box,
   Typography,
   Stack,
@@ -109,7 +109,7 @@ export default function AddToLeaseDrawer({ open, tenant, onClose, onSuccess }) {
   const tenantName = tenant ? `${tenant.firstname || ''} ${tenant.lastname || ''}`.trim() : '';
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={open}
       onClose={onClose}
@@ -276,6 +276,6 @@ export default function AddToLeaseDrawer({ open, tenant, onClose, onSuccess }) {
           {submitting ? <CircularProgress size={18} color="inherit" /> : 'Add to Lease'}
         </Button>
       </Stack>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }

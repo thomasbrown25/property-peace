@@ -1,3 +1,4 @@
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import PropTypes from 'prop-types';
 import { useEffect, useState, useRef, useMemo } from 'react';
 
@@ -5,7 +6,6 @@ import { useEffect, useState, useRef, useMemo } from 'react';
 import { 
   Box, 
   Button, 
-  Drawer, 
   Divider, 
   Grid, 
   IconButton, 
@@ -17,24 +17,23 @@ import {
   Tooltip, 
   Paper, 
   Chip,
-  Switch,
   FormControlLabel,
   FormControl,
   InputLabel,
   OutlinedInput,
   InputAdornment,
   FormHelperText,
+  TextField,
   alpha,
   RadioGroup,
   Radio,
-  FormLabel,
   useTheme
 } from '@mui/material';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import DeleteOutlined from '@ant-design/icons/DeleteOutlined';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import CheckOutlined from '@ant-design/icons/CheckOutlined';
-import { HomeOutlined, UserOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
+import { UserOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
@@ -46,6 +45,7 @@ import { useFormik, Form, FormikProvider, FieldArray } from 'formik';
 import { useDrawer } from 'contexts/DrawerContext';
 import CircularWithPath from 'components/@extended/progress/CircularWithPath';
 import FormInput from 'components/input/FormInput';
+import Autocomplete from 'components/@extended/AutoComplete';
 import { openSnackbar } from 'api/snackbar';
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
 import axiosServices from 'utils/axios';
@@ -54,6 +54,7 @@ import axiosServices from 'utils/axios';
 import { useDispatch, useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
 import useFetchTenants from 'hooks/useFetchTenants';
+import useFetchProperties from 'hooks/useFetchProperties';
 import { useSWRConfig } from 'swr';
 import { dashboardEndpoints } from 'api/dashbord';
 
@@ -64,10 +65,10 @@ import { tenantInviteAPI } from 'api';
 
 // selectors
 import { selectProperty } from 'store/property/property.selector';
+import { setProperty } from 'store/property/property.action';
 import { selectUnit } from 'store/unit/unit.selector';
 import { setUnit } from 'store/unit/unit.action';
-import PropertySelect from '../PropertySelect';
-import UnitSelect from '../UnitSelect';
+import { setLease } from 'store/lease/lease.action';
 
 // ---------- validation ----------
 const TenantSchema = Yup.object().shape({
@@ -100,6 +101,29 @@ const buildInitialValues = () => ({
   ]
 });
 
+const getPropertyId = (property) => property?.id ?? property?.Id ?? null;
+const getUnitId = (unit) => unit?.id ?? unit?.Id ?? null;
+const getPropertyUnits = (property) => property?.units || property?.Units || [];
+
+const isMultiUnitProperty = (property) => {
+  const propertyType = String(property?.propertyType || property?.PropertyType || '').toLowerCase();
+  return ['multiunit', 'multifamily', 'smallmultifamily', 'apartmentbuilding', 'other'].includes(propertyType)
+    || getPropertyUnits(property).length > 1;
+};
+
+const getPropertyName = (property) => (
+  property?.name || property?.Name || property?.streetAddress || property?.StreetAddress || 'Unnamed property'
+);
+
+const getUnitName = (unit) => unit?.name || unit?.Name || unit?.unitNumber || unit?.UnitNumber || `Unit ${unit?.id ?? unit?.Id}`;
+
+const formatPropertyUnitLabel = (property, unit) => {
+  const propertyName = getPropertyName(property);
+  if (!unit || !isMultiUnitProperty(property)) return propertyName;
+  const unitName = String(getUnitName(unit)).trim();
+  return `${propertyName}, ${unitName.startsWith('#') ? unitName : `#${unitName}`}`;
+};
+
 export default function TenantAddDrawer() {
   const drawer = useDrawer();
   const dispatch = useDispatch();
@@ -109,34 +133,77 @@ export default function TenantAddDrawer() {
 
   const selectedProperty = useSelector(selectProperty);
   const selectedUnit = useSelector(selectUnit);
+  const { properties = [] } = useFetchProperties();
   const { tenants = [], refetch: refetchTenants } = useFetchTenants();
-  const previousPropertyIdRef = useRef(null);
 
-  // Clear unit when property changes
-  useEffect(() => {
-    const currentPropertyId = selectedProperty?.id;
-    if (previousPropertyIdRef.current !== null && previousPropertyIdRef.current !== currentPropertyId) {
-      // Property changed, clear unit selection
-      dispatch(setUnit(null));
+  const propertyUnitOptions = useMemo(() => {
+    const sourceProperties = [...properties];
+    const selectedPropertyId = getPropertyId(selectedProperty);
+    if (selectedPropertyId && !sourceProperties.some((property) => String(getPropertyId(property)) === String(selectedPropertyId))) {
+      sourceProperties.unshift(selectedProperty);
     }
-    previousPropertyIdRef.current = currentPropertyId;
-  }, [selectedProperty?.id, dispatch]);
 
-  // Filter existing tenants for the selected property/unit
+    return sourceProperties.flatMap((property) => {
+      const propertyId = getPropertyId(property);
+      const units = getPropertyUnits(property);
+      if (isMultiUnitProperty(property)) {
+        if (!units.length) {
+          return [{ id: `${propertyId}-property`, property, unit: null, label: getPropertyName(property) }];
+        }
+        return units.map((unit) => ({
+          id: `${propertyId}-${getUnitId(unit)}`,
+          property,
+          unit,
+          label: formatPropertyUnitLabel(property, unit)
+        }));
+      }
+
+      const unit = units[0] || null;
+      return [{ id: `${propertyId}-${getUnitId(unit) ?? 'property'}`, property, unit, label: getPropertyName(property) }];
+    });
+  }, [properties, selectedProperty]);
+
+  const resolvedSelectedUnit = useMemo(() => {
+    if (!selectedProperty) return null;
+    const units = getPropertyUnits(selectedProperty);
+    if (!isMultiUnitProperty(selectedProperty)) return units[0] || null;
+
+    const selectedUnitId = getUnitId(selectedUnit);
+    if (!selectedUnitId) return null;
+    return units.find((unit) => String(getUnitId(unit)) === String(selectedUnitId)) || null;
+  }, [selectedProperty, selectedUnit]);
+
+  const selectedPropertyUnitOption = useMemo(() => {
+    const selectedPropertyId = getPropertyId(selectedProperty);
+    if (!selectedPropertyId) return null;
+
+    const selectedUnitId = getUnitId(resolvedSelectedUnit);
+    return propertyUnitOptions.find((option) => (
+      String(getPropertyId(option.property)) === String(selectedPropertyId)
+      && String(getUnitId(option.unit) ?? '') === String(selectedUnitId ?? '')
+    )) || null;
+  }, [propertyUnitOptions, resolvedSelectedUnit, selectedProperty]);
+
+  const handlePropertyUnitChange = (_, option) => {
+    dispatch(setProperty(option?.property || null));
+    dispatch(setUnit(option?.unit || null));
+    dispatch(setLease(option?.unit?.lease || option?.unit?.Lease || {}));
+  };
+
+  // Filter existing tenants for the selected property/unit.
   const existingTenants = useMemo(() => {
-    if (!selectedProperty?.id) return [];
-    
-    let filtered = tenants.filter(t => t.propertyId === selectedProperty.id);
-    
-    // If it's a multi-unit property and a unit is selected, filter by unit as well
-    const propertyType = selectedProperty.propertyType?.toLowerCase();
-    const isMultiUnit = propertyType === 'multiunit' || propertyType === 'multifamily';
-    if (isMultiUnit && selectedUnit?.id) {
-      filtered = filtered.filter(t => t.unitId === selectedUnit.id);
+    const selectedPropertyId = getPropertyId(selectedProperty);
+    if (!selectedPropertyId) return [];
+
+    let filtered = tenants.filter((tenant) => String(tenant.propertyId ?? tenant.PropertyId) === String(selectedPropertyId));
+    if (isMultiUnitProperty(selectedProperty)) {
+      const selectedUnitId = getUnitId(resolvedSelectedUnit);
+      if (!selectedUnitId) return [];
+      filtered = filtered.filter((tenant) => String(tenant.unitId ?? tenant.UnitId) === String(selectedUnitId));
     }
-    
+
     return filtered;
-  }, [tenants, selectedProperty, selectedUnit]);
+  }, [tenants, resolvedSelectedUnit, selectedProperty]);
 
   const [loading, setLoading] = useState(true);
   const [showPasswords, setShowPasswords] = useState({});
@@ -153,8 +220,9 @@ export default function TenantAddDrawer() {
       try {
         processedTenantsRef.current.clear();
 
-        // Validate property is selected
-        if (!selectedProperty?.id) {
+        // Validate property is selected.
+        const selectedPropertyId = getPropertyId(selectedProperty);
+        if (!selectedPropertyId) {
           openSnackbar({
             open: true,
             message: 'Please select a property before adding tenants',
@@ -165,10 +233,8 @@ export default function TenantAddDrawer() {
           return;
         }
 
-        // Validate unit is selected for multi-unit properties
-        const propertyType = selectedProperty.propertyType?.toLowerCase();
-        const isMultiUnit = propertyType === 'multiunit' || propertyType === 'multifamily';
-        if (isMultiUnit && !selectedUnit?.id) {
+        // Validate the selected unit belongs to the selected property whenever a unit is required.
+        if (isMultiUnitProperty(selectedProperty) && !resolvedSelectedUnit) {
           openSnackbar({
             open: true,
             message: 'Please select a unit before adding tenants',
@@ -179,21 +245,15 @@ export default function TenantAddDrawer() {
           return;
         }
 
-        // Loop tenants and add each
-        for (const t of values.tenants) {
-          // Determine unitId
-          let unitId = null;
-          const propType = selectedProperty?.propertyType?.toLowerCase();
-          if (propType === 'singlefamily') {
-            unitId = selectedProperty?.units?.[0]?.id || null;
-          } else if (selectedUnit?.id) {
-            unitId = selectedUnit.id;
-          }
+        const resolvedUnitId = getUnitId(resolvedSelectedUnit);
+        const resolvedLease = resolvedSelectedUnit?.lease || resolvedSelectedUnit?.Lease;
 
+        // Loop tenants and add each.
+        for (const t of values.tenants) {
           const tenantPayload = {
-            PropertyId: selectedProperty?.id || null,
-            UnitId: unitId,
-            LeaseId: selectedProperty?.units?.find(u => u.id === unitId)?.lease?.id || null,
+            PropertyId: selectedPropertyId,
+            UnitId: resolvedUnitId,
+            LeaseId: resolvedLease?.id ?? resolvedLease?.Id ?? null,
             Firstname: t.firstname,
             Lastname: t.lastname,
             Email: t.email || null,
@@ -388,7 +448,7 @@ export default function TenantAddDrawer() {
   }
 
   return (
-    <Drawer
+    <ThemeAdaptiveDrawer
       anchor="right"
       open={drawer.isOpenTenantAdd}
       onClose={drawer.closeTenantAddDrawer}
@@ -419,9 +479,6 @@ export default function TenantAddDrawer() {
               }}
             >
               <Box sx={{ flexGrow: 1 }}>
-                <Typography variant="overline" color="primary.main" sx={{ fontWeight: 800, letterSpacing: 1.2, lineHeight: 1 }}>
-                  Tenant intake
-                </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 800, lineHeight: 1.15 }}>
                   Add Tenants
                 </Typography>
@@ -454,43 +511,54 @@ export default function TenantAddDrawer() {
               }}
             >
               <Grid container spacing={3}>
-                {/* Property + Units */}
+                {/* Property + Unit */}
                 <Grid size={{ xs: 12 }}>
-                  <Box sx={sectionShellSx}>
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" spacing={1.25} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 1.5,
-                            display: 'grid',
-                            placeItems: 'center',
-                            color: 'primary.main',
-                            bgcolor: alpha(drawerAccent, isDark ? 0.16 : 0.1),
-                            border: `1px solid ${alpha(drawerAccent, isDark ? 0.26 : 0.18)}`
-                          }}
-                        >
-                          <HomeOutlined />
-                        </Box>
-                        <Box>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
-                            Select the Property & Unit
+                  <Stack spacing={0.75}>
+                    <Typography variant="caption" fontWeight={600} color="text.secondary">
+                      Property / Unit *
+                    </Typography>
+                    <Autocomplete
+                      options={propertyUnitOptions}
+                      width="100%"
+                      value={selectedPropertyUnitOption}
+                      onChange={handlePropertyUnitChange}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
+                      getOptionLabel={(option) => option?.label ?? ''}
+                      filterOptions={(options, state) => {
+                        const query = state.inputValue.trim().toLowerCase();
+                        if (!query) return options;
+                        return options.filter((option) => option.label.toLowerCase().includes(query));
+                      }}
+                      renderOption={(props, option) => (
+                        <Box component="li" {...props} key={option.id}>
+                          <Typography variant="body2" fontWeight={600}>
+                            {option.label}
                           </Typography>
                         </Box>
-                      </Stack>
-                      <PropertySelect disableAllOption label="" />
-                    </Stack>
-                  </Box>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          placeholder="Search property or unit"
+                          fullWidth
+                        />
+                      )}
+                      disablePortal={false}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          minHeight: 34,
+                          borderRadius: 1,
+                          bgcolor: 'background.paper',
+                          py: 0.25,
+                          '& fieldset': { borderColor: alpha(theme.palette.grey[500], 0.24) },
+                          '&:hover fieldset': { borderColor: alpha(theme.palette.primary.main, 0.45) },
+                          '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main, borderWidth: 1 }
+                        },
+                        '& .MuiInputBase-input': { fontSize: '0.875rem' }
+                      }}
+                    />
+                  </Stack>
                 </Grid>
-                {selectedProperty && (selectedProperty.propertyType?.toLowerCase() === 'multiunit' || 
-                                     selectedProperty.propertyType?.toLowerCase() === 'multifamily') && (
-                  <Grid size={{ xs: 12 }}>
-                    <Box sx={{ ...sectionShellSx, py: 1.5 }}>
-                      <UnitSelect width="100%" />
-                    </Box>
-                  </Grid>
-                )}
 
                 {/* Existing Tenants */}
                 {existingTenants.length > 0 && (
@@ -548,60 +616,47 @@ export default function TenantAddDrawer() {
                                 key={tenantId}
                                 variant="outlined"
                                 sx={{
-                                  position: 'relative',
                                   overflow: 'hidden',
-                                  borderRadius: 2.5,
-                                  bgcolor: isDark ? alpha('#16263b', 0.78) : alpha(theme.palette.background.paper, 0.92),
-                                  backgroundImage: isDark
-                                    ? `linear-gradient(145deg, ${alpha(drawerAccent, 0.13)} 0%, ${alpha('#16263b', 0.78)} 42%, ${alpha('#0f1b2b', 0.9)} 100%)`
-                                    : 'none',
-                                  border: `1px solid ${isDark ? alpha(drawerAccent, 0.36) : alpha(theme.palette.divider, 0.9)}`,
-                                  boxShadow: isDark
-                                    ? `0 18px 44px ${alpha(theme.palette.common.black, 0.28)}, 0 0 0 1px ${alpha(drawerAccent, 0.12)}, 0 0 26px ${alpha(drawerAccent, 0.13)}`
-                                    : `0 10px 28px ${alpha(theme.palette.grey[500], 0.08)}`,
-                                  '&::before': isDark
-                                    ? {
-                                        content: '""',
-                                        position: 'absolute',
-                                        left: 0,
-                                        top: 0,
-                                        width: '100%',
-                                        height: 3,
-                                        background: `linear-gradient(90deg, ${drawerAccent}, ${alpha(drawerAccent, 0.16)}, transparent)`
-                                      }
-                                    : undefined
+                                  borderRadius: 1,
+                                  bgcolor: isDark ? alpha(theme.palette.common.white, 0.035) : theme.palette.background.paper,
+                                  backgroundImage: 'none',
+                                  border: `1px solid ${isDark ? alpha(theme.palette.common.white, 0.16) : theme.palette.divider}`,
+                                  borderLeft: `3px solid ${drawerAccent}`,
+                                  boxShadow: 'none'
                                 }}
                               >
-                                <CardContent sx={{ p: 2.25, '&:last-child': { pb: 2.25 } }}>
-                                  <Stack spacing={2}>
-                                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                                      <Stack direction="row" spacing={1.25} alignItems="center">
-                                        <Box
-                                          sx={{
-                                            width: 32,
-                                            height: 32,
-                                            borderRadius: '50%',
-                                            display: 'grid',
-                                            placeItems: 'center',
-                                            color: 'primary.main',
-                                            bgcolor: alpha(drawerAccent, isDark ? 0.18 : 0.1),
-                                            border: `1px solid ${alpha(drawerAccent, isDark ? 0.32 : 0.18)}`
-                                          }}
-                                        >
-                                          <UserOutlined style={{ fontSize: 16 }} />
-                                        </Box>
-                                        <Box>
-                                          <Typography variant="body1" fontWeight={800}>
-                                            {tenant.firstname || tenant.lastname
-                                              ? `${tenant.firstname || ''} ${tenant.lastname || ''}`.trim()
-                                              : `Tenant ${index + 1}`}
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            {tenant.accountCreationMethod === 'create' ? 'Create account now' : 'Invite link will be sent'}
-                                          </Typography>
-                                        </Box>
-                                      </Stack>
-                                      <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="flex-end" sx={{ ml: 'auto' }}>
+                                <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+                                  <Stack spacing={0}>
+                                    <Stack
+                                      direction={{ xs: 'column', sm: 'row' }}
+                                      spacing={1.5}
+                                      alignItems={{ xs: 'stretch', sm: 'center' }}
+                                      justifyContent="space-between"
+                                      sx={{
+                                        px: 2,
+                                        py: 1.5,
+                                        borderBottom: `1px solid ${isDark ? alpha(theme.palette.common.white, 0.12) : theme.palette.divider}`,
+                                        bgcolor: isDark ? alpha(theme.palette.common.white, 0.025) : alpha(theme.palette.grey[500], 0.035)
+                                      }}
+                                    >
+                                      <Box>
+                                        <Typography variant="subtitle2" fontWeight={800}>
+                                          {tenant.firstname || tenant.lastname
+                                            ? `${tenant.firstname || ''} ${tenant.lastname || ''}`.trim()
+                                            : `Tenant ${index + 1}`}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          {tenant.accountCreationMethod === 'create' ? 'Account will be created now' : 'Invitation email will be sent'}
+                                        </Typography>
+                                      </Box>
+                                      <Stack
+                                        direction="row"
+                                        spacing={0.75}
+                                        alignItems="center"
+                                        justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}
+                                        useFlexGap
+                                        flexWrap="wrap"
+                                      >
                                         <FormControl component="fieldset">
                                           <RadioGroup
                                             row
@@ -624,39 +679,43 @@ export default function TenantAddDrawer() {
                                               }
                                             }}
                                             sx={{
-                                              justifyContent: 'flex-end',
                                               gap: 0.75,
+                                              flexWrap: 'wrap',
                                               '& .MuiFormControlLabel-root': {
                                                 m: 0,
                                                 px: 0.75,
                                                 py: 0.25,
+                                                minHeight: 32,
                                                 borderRadius: 1,
-                                                border: 0,
+                                                border: `1px solid ${isDark ? alpha(theme.palette.common.white, 0.16) : theme.palette.divider}`,
                                                 bgcolor: 'transparent'
                                               },
-                                              '& .MuiRadio-root': {
-                                                p: 0.5
+                                              '& .MuiFormControlLabel-root:has(.Mui-checked)': {
+                                                borderColor: alpha(drawerAccent, 0.72),
+                                                bgcolor: alpha(drawerAccent, isDark ? 0.12 : 0.07)
                                               },
+                                              '& .MuiRadio-root': { p: 0.5 },
                                               '& .MuiFormControlLabel-label': {
-                                                fontWeight: 800,
-                                                fontSize: 13,
-                                                lineHeight: 1.5,
-                                                color: 'text.secondary'
-                                              },
-                                              '& .Mui-checked + .MuiFormControlLabel-label': { color: 'primary.main' },
-                                              '& .MuiFormControlLabel-root:hover .MuiFormControlLabel-label': { color: 'primary.main' }
+                                                fontWeight: 700,
+                                                fontSize: 12,
+                                                whiteSpace: 'nowrap'
+                                              }
                                             }}
                                           >
-                                            <FormControlLabel value="invite" control={<Radio size="small" />} label="Send Invite" />
-                                            <FormControlLabel value="create" control={<Radio size="small" />} label="Create Account Now" />
+                                            <FormControlLabel value="invite" control={<Radio size="small" />} label="Send invite" />
+                                            <FormControlLabel value="create" control={<Radio size="small" />} label="Create account" />
                                           </RadioGroup>
                                         </FormControl>
                                         {values.tenants.length > 1 && (
                                           <IconButton
                                             size="small"
                                             onClick={() => arrayHelpers.remove(index)}
-                                            sx={{ color: 'error.main', mt: 0.25 }}
-                                            title="Remove Tenant"
+                                            sx={{
+                                              color: 'error.main',
+                                              border: `1px solid ${alpha(theme.palette.error.main, 0.28)}`,
+                                              borderRadius: 1
+                                            }}
+                                            title="Remove tenant"
                                           >
                                             <DeleteOutlined style={{ fontSize: 14 }} />
                                           </IconButton>
@@ -664,7 +723,8 @@ export default function TenantAddDrawer() {
                                       </Stack>
                                     </Stack>
 
-                                    <Grid container spacing={2}>
+                                    <Box sx={{ p: 2 }}>
+                                      <Grid container spacing={2}>
                                       {/* First and Last Name - always shown and required */}
                                       <Grid size={{ xs: 12, sm: 6 }}>
                                         <FormInput
@@ -794,6 +854,7 @@ export default function TenantAddDrawer() {
                                         </Stack>
                                       </Box>
                                     )}
+                                  </Box>
                                   </Stack>
                                 </CardContent>
                               </Card>
@@ -841,14 +902,12 @@ export default function TenantAddDrawer() {
                             onClick={() => arrayHelpers.push({ firstname: '', lastname: '', email: '', phoneNumber: '', accountCreationMethod: 'invite', createAccount: false, password: '', tempId: Date.now() })}
                             sx={{
                               py: 1.15,
-                              borderRadius: 2,
-                              borderStyle: 'dashed',
-                              fontWeight: 750,
-                              bgcolor: isDark ? alpha(drawerAccent, 0.07) : alpha(drawerAccent, 0.035),
-                              borderColor: alpha(drawerAccent, isDark ? 0.44 : 0.32),
+                              borderRadius: 1,
+                              fontWeight: 700,
+                              bgcolor: 'transparent',
+                              borderColor: isDark ? alpha(theme.palette.common.white, 0.28) : theme.palette.divider,
                               '&:hover': {
-                                borderStyle: 'dashed',
-                                bgcolor: alpha(drawerAccent, isDark ? 0.13 : 0.07),
+                                bgcolor: alpha(drawerAccent, isDark ? 0.1 : 0.05),
                                 borderColor: alpha(drawerAccent, 0.62)
                               }
                             }}
@@ -901,7 +960,11 @@ export default function TenantAddDrawer() {
                   <Button
                     type="submit"
                     variant="contained"
-                    disabled={isSubmitting || selectedProperty == null}
+                    disabled={
+                      isSubmitting
+                      || !getPropertyId(selectedProperty)
+                      || (isMultiUnitProperty(selectedProperty) && !resolvedSelectedUnit)
+                    }
                     startIcon={<CheckOutlined style={{ fontSize: 16, color: 'inherit' }} />}
                     sx={{
                       color: '#fff',
@@ -929,7 +992,7 @@ export default function TenantAddDrawer() {
           </Form>
         </LocalizationProvider>
       </FormikProvider>
-    </Drawer>
+    </ThemeAdaptiveDrawer>
   );
 }
 
