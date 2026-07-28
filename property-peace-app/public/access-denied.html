@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#061e35" />
+    <title>Access denied | Property Peace</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --navy: #061e35;
+        --navy-soft: #0d2d49;
+        --green: #22c55e;
+        --green-dark: #16a34a;
+        --ink: #102a43;
+        --muted: #5f7183;
+        --line: #dce7e2;
+        --mist: #f3f8f5;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 15%, rgba(34, 197, 94, 0.11), transparent 27rem),
+          radial-gradient(circle at 88% 80%, rgba(6, 30, 53, 0.08), transparent 25rem),
+          #f8fbf9;
+      }
+
+      .shell {
+        position: relative;
+        isolation: isolate;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 40px 22px;
+      }
+
+      .shell::before,
+      .shell::after {
+        position: fixed;
+        z-index: -1;
+        content: "";
+        border: 1px solid rgba(6, 30, 53, 0.07);
+        border-radius: 42% 58% 63% 37% / 52% 34% 66% 48%;
+        transform: rotate(-12deg);
+      }
+
+      .shell::before { width: 360px; height: 360px; top: -180px; right: -110px; }
+      .shell::after { width: 290px; height: 290px; bottom: -170px; left: -80px; }
+
+      .card {
+        width: min(100%, 1000px);
+        min-height: 570px;
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        overflow: hidden;
+        border: 1px solid rgba(6, 30, 53, 0.09);
+        border-radius: 32px;
+        background: #fff;
+        box-shadow: 0 30px 90px rgba(6, 30, 53, 0.15);
+      }
+
+      .brand-panel {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+        padding: 42px;
+        color: #fff;
+        background: linear-gradient(145deg, var(--navy) 0%, #082b48 68%, #0a3a52 100%);
+      }
+
+      .brand-panel::before {
+        position: absolute;
+        width: 330px;
+        height: 330px;
+        right: -150px;
+        bottom: -130px;
+        content: "";
+        border-radius: 50%;
+        border: 54px solid rgba(34, 197, 94, 0.13);
+      }
+
+      .brand-panel::after {
+        position: absolute;
+        width: 190px;
+        height: 190px;
+        top: 40%;
+        left: -135px;
+        content: "";
+        border-radius: 50%;
+        background: rgba(34, 197, 94, 0.08);
+      }
+
+      .logo { position: relative; z-index: 1; width: min(245px, 80%); height: auto; }
+
+      .illustration {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 330px;
+        margin: 38px auto 16px;
+      }
+
+      .illustration svg { display: block; width: 100%; height: auto; }
+
+      .promise {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.72);
+        font-size: 13px;
+        letter-spacing: 0.02em;
+      }
+
+      .promise::before {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 auto;
+        content: "";
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.13);
+      }
+
+      .content {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 64px 58px;
+      }
+
+      .eyebrow {
+        align-self: flex-start;
+        margin: 0 0 22px;
+        padding: 8px 12px;
+        border: 1px solid #b9e8c8;
+        border-radius: 999px;
+        color: #137a3d;
+        background: #effbf3;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 520px;
+        margin: 0;
+        color: var(--navy);
+        font-size: clamp(38px, 5vw, 58px);
+        line-height: 0.98;
+        letter-spacing: -0.045em;
+      }
+
+      .lead {
+        max-width: 520px;
+        margin: 24px 0 0;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.7;
+      }
+
+      .note {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 13px;
+        margin-top: 30px;
+        padding: 17px 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--mist);
+      }
+
+      .note-icon {
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+        color: var(--green-dark);
+        background: #dcf8e5;
+      }
+
+      .note strong { display: block; color: var(--navy); font-size: 14px; }
+      .note span { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+      .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+
+      .button {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        padding: 0 20px;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 800;
+        text-decoration: none;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+      }
+
+      .button:hover { transform: translateY(-2px); }
+      .button:focus-visible { outline: 3px solid rgba(34, 197, 94, 0.28); outline-offset: 3px; }
+
+      .button-primary {
+        color: #fff;
+        background: var(--green);
+        box-shadow: 0 10px 22px rgba(34, 197, 94, 0.22);
+      }
+
+      .button-primary:hover { background: var(--green-dark); box-shadow: 0 12px 26px rgba(22, 163, 74, 0.25); }
+      .button-secondary { color: var(--navy); border-color: #cad8d2; background: #fff; }
+      .button-secondary:hover { border-color: #9fb7ad; background: #f8fbf9; }
+
+      .help { margin: 24px 0 0; color: #7c8c9b; font-size: 12px; line-height: 1.5; }
+      .help a { color: #14783d; font-weight: 700; text-underline-offset: 3px; }
+
+      @media (max-width: 800px) {
+        .card { max-width: 620px; grid-template-columns: 1fr; }
+        .brand-panel { min-height: 215px; padding: 28px; }
+        .logo { width: 200px; }
+        .illustration { position: absolute; right: 18px; bottom: -45px; width: 210px; margin: 0; opacity: 0.78; }
+        .promise { margin-top: 92px; }
+        .content { padding: 44px 30px 38px; }
+      }
+
+      @media (max-width: 480px) {
+        .shell { padding: 14px; }
+        .card { border-radius: 23px; }
+        .brand-panel { min-height: 180px; padding: 24px; }
+        .illustration { right: -8px; bottom: -40px; width: 180px; }
+        .promise { max-width: 210px; margin-top: 72px; }
+        .content { padding: 36px 24px 30px; }
+        h1 { font-size: 39px; }
+        .lead { font-size: 15px; }
+        .actions { display: grid; }
+        .button { width: 100%; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .button { transition: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="card" aria-labelledby="page-title">
+        <div class="brand-panel">
+          <img class="logo" src="/property-peace-access-logo.png" alt="Property Peace" />
+
+          <div class="illustration" aria-hidden="true">
+            <svg viewBox="0 0 360 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M61 211.5h238" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-linecap="round"/>
+              <path d="M108 115 180 61l72 54v96H108v-96Z" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.65)" stroke-width="2.5"/>
+              <path d="M140 211v-62h80v62" stroke="rgba(255,255,255,.65)" stroke-width="2.5"/>
+              <path d="M154 161h52M154 176h52M154 191h52" stroke="rgba(255,255,255,.17)" stroke-width="2"/>
+              <circle cx="180" cy="135" r="47" fill="#061e35" stroke="#22c55e" stroke-width="4"/>
+              <rect x="161" y="130" width="38" height="37" rx="8" fill="#22c55e"/>
+              <path d="M168 130v-8c0-9 5-16 12-16s12 7 12 16v8" stroke="#22c55e" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="180" cy="148" r="4" fill="#061e35"/>
+              <path d="m87 125-18 14 18 14M273 125l18 14-18 14" stroke="rgba(34,197,94,.55)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+
+          <p class="promise">Your property data stays private and protected.</p>
+        </div>
+
+        <div class="content">
+          <p class="eyebrow">Private workspace</p>
+          <h1 id="page-title">This door needs a different key.</h1>
+          <p class="lead">
+            You’re signed in, but this account doesn’t have access to this Property Peace workspace.
+            Nothing is broken—and no property information was exposed.
+          </p>
+
+          <div class="note">
+            <div class="note-icon" aria-hidden="true">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 8v4m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 3.75a2 2 0 0 0-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <strong>Need access?</strong>
+              <span>Ask your Property Peace administrator to add this account, or sign in with an account that has already been invited.</span>
+            </div>
+          </div>
+
+          <div class="actions">
+            <a class="button button-primary" href="/.auth/logout?post_logout_redirect_uri=/.auth/login/aad">
+              Use another account
+              <span aria-hidden="true">→</span>
+            </a>
+            <a class="button button-secondary" href="https://www.propertypeace.io">Visit Property Peace</a>
+          </div>
+
+          <p class="help">Still stuck? <a href="mailto:support@propertypeace.io">Contact support</a> and tell us which email address you used.</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

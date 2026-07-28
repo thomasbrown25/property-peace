@@ -7,7 +7,7 @@ import { setUnit } from 'store/unit/unit.action';
 import { selectProperty } from 'store/property/property.selector';
 import { selectUnit } from 'store/unit/unit.selector';
 
-const UnitSelect = ({ width }) => {
+const UnitSelect = ({ width, label = 'Select Unit', placeholder }) => {
   const dispatch = useDispatch();
   const selectedProperty = useSelector(selectProperty);
   const selectedUnit = useSelector(selectUnit);
@@ -50,7 +50,8 @@ const UnitSelect = ({ width }) => {
       <Autocomplete
         options={unitOptions}
         width={width}
-        label="Select Unit"
+        label={label}
+        placeholder={placeholder}
         value={selectedOption}
         onChange={(_, value) => onSelect(value)}
         isOptionEqualToValue={(opt, val) => String(opt.id) === String(val.id)}

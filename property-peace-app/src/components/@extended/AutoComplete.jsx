@@ -1,7 +1,7 @@
 import { TextField } from '@mui/material';
 import { Autocomplete as MuiAutocomplete } from '@mui/material';
 
-export default function Autocomplete({ options, width = '100%', label, isOptionEqualToValue, getOptionLabel, disablePortal = false, ...props }) {
+export default function Autocomplete({ options, width = '100%', label, placeholder, isOptionEqualToValue, getOptionLabel, disablePortal = false, ...props }) {
   return (
     <MuiAutocomplete
       size="small"
@@ -22,7 +22,7 @@ export default function Autocomplete({ options, width = '100%', label, isOptionE
           }
         }
       }}
-      renderInput={(params) => <TextField {...params} label={label} />}
+      renderInput={(params) => <TextField {...params} label={label} placeholder={placeholder} />}
       {...props}
     />
   );

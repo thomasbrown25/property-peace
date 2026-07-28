@@ -1,21 +1,16 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 
-import { useMediaQuery, IconButton, Tooltip } from '@mui/material';
+import { Divider, useMediaQuery } from '@mui/material';
 import { Box } from '@mui/material';
-import { SettingOutlined } from '@ant-design/icons';
 
 // project imports
 import Search from './Search';
 import Message from './Message';
 import Profile from './Profile';
-import Localization from './Localization';
 import Notification from './Notification';
-import Support from './Support';
-import FullScreen from './FullScreen';
 import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
 import MobileSection from './MobileSection';
-import MegaMenuSection from './MegaMenuSection';
+import MobileSearch from './MobileSearch';
 import Logo from 'components/logo';
 
 import useConfig from 'hooks/useConfig';
@@ -29,7 +24,6 @@ import DrawerHeader from 'layout/Dashboard/Drawer/DrawerHeader';
 
 export default function HeaderContent() {
   const { menuOrientation } = useConfig();
-  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
 
@@ -50,18 +44,6 @@ export default function HeaderContent() {
   // Determine base path based on role (priority: Admin > Tenant > Landlord)
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
 
-  const handleSettingsClick = () => {
-    navigate(`${basePath}/settings`);
-  };
-
-  const handleNotificationsClick = () => {
-    navigate(`${basePath}/notifications`);
-  };
-
-  //const localization = useMemo(() => <Localization />, []);
-
-  //const megaMenu = useMemo(() => <MegaMenuSection />, []);
-
   return (
     <>
       {menuOrientation === MenuOrientation.HORIZONTAL && !downMD && <DrawerHeader open={true} />}
@@ -72,7 +54,8 @@ export default function HeaderContent() {
       {downMD && (
         <Box
           sx={{
-            width: '100%',
+            flex: 1,
+            minWidth: 0,
             height: { xs: 60, sm: 64 },
             ml: 0,
             display: 'flex',
@@ -93,7 +76,7 @@ export default function HeaderContent() {
         </Box>
       )}
 
-      {/* Azure-style navbar icons */}
+      {/* Desktop command bar */}
       {!downMD && (
         <>
           {showFinishSetup && (
@@ -108,44 +91,13 @@ export default function HeaderContent() {
             </Box>
           )}
 
-          {/* Notifications - dropdown with view all option */}
+          <Message />
           <Notification />
-
-          {/* Settings */}
-          <Tooltip title="Settings">
-            <IconButton
-              color="secondary"
-              onClick={handleSettingsClick}
-              sx={(theme) => ({
-                color: 'text.primary',
-                transition: theme.transitions.create(['background-color', 'box-shadow', 'transform'], {
-                  duration: theme.transitions.duration.shorter
-                }),
-                '&:hover': {
-                  bgcolor: 'action.hover',
-                  boxShadow: 'none',
-                  transform: 'translateY(-1px)'
-                },
-                ...theme.applyStyles('dark', { '&:hover': { bgcolor: 'action.hover' } })
-              })}
-            >
-              <SettingOutlined />
-            </IconButton>
-          </Tooltip>
-
-          {/* Support - dropdown menu with 3 options */}
-          {hasLandlordRole && !hasTenantRole && !isAdmin && <Support />}
+          <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1 }} />
+          <Profile />
         </>
       )}
-
-      {/* Messages - keep for now but can be removed if not needed */}
-      {!downMD && <Message />}
-
-      {/* FullScreen - can be removed if not needed */}
-      {!downMD && <FullScreen />}
-
-      {/* Profile */}
-      {!downMD && <Profile />}
+      {downMD && !hasTenantRole && <MobileSearch />}
       {downMD && <MobileSection />}
     </>
   );

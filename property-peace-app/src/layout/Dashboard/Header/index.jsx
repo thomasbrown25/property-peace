@@ -51,13 +51,12 @@ export default function Header() {
           sx={(theme) => ({
             color: 'text.primary',
             bgcolor: 'transparent',
-            transition: theme.transitions.create(['background-color', 'box-shadow', 'transform'], {
+            transition: theme.transitions.create(['background-color', 'box-shadow'], {
               duration: theme.transitions.duration.shorter
             }),
             '&:hover': {
               bgcolor: 'action.hover',
-              boxShadow: 'none',
-              transform: 'translateY(-1px)'
+              boxShadow: 'none'
             },
             ml: { xs: 0, lg: -2 }
           })}

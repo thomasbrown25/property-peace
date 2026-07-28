@@ -21,8 +21,11 @@ function setParentOpenedMenu(items, pathname, menuId, setSelected, setOpen) {
       setParentOpenedMenu(item.children, pathname, menuId, setSelected, setOpen);
     }
 
-    // Check if the current menu item matches the pathname
-    if ((item.link && matchPath({ path: item.link, end: false }, pathname)) || item.url === pathname) {
+    // Treat detail routes as part of their parent destination as well.
+    if (
+      (item.link && matchPath({ path: item.link, end: false }, pathname)) ||
+      (item.url && matchPath({ path: item.url, end: false }, pathname))
+    ) {
       setSelected(menuId ?? null); // Select the parent menu
       setOpen(true); // Open the menu
     }

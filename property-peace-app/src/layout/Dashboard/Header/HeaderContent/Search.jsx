@@ -59,7 +59,7 @@ export default function Search({ shrink = false }) {
     setIsOpen(value.length > 0);
   };
 
-  const handleResultClick = (type, id, propertyId = null) => {
+  const handleResultClick = (type, id) => {
     setIsOpen(false);
     setSearchQuery('');
     
@@ -68,9 +68,7 @@ export default function Search({ shrink = false }) {
         navigate(`/landlord/property/${id}`);
         break;
       case 'tenant':
-        if (propertyId) {
-          navigate(`/landlord/property/${propertyId}`);
-        }
+        navigate(`/landlord/tenants/${id}`);
         break;
       case 'lease':
         navigate(`/landlord/leases/${id}`);
@@ -137,10 +135,9 @@ export default function Search({ shrink = false }) {
             }}
           />
         </FormControl>
-      </Box>
 
-      {/* Dropdown Content */}
-      {isOpen && (
+        {/* Dropdown Content */}
+        {isOpen && (
           <Paper
             sx={{
               position: 'absolute',
@@ -196,7 +193,7 @@ export default function Search({ shrink = false }) {
                     </ListItem>
                     {searchResults.tenants.map((tenant) => (
                       <ListItem key={tenant.id} disablePadding>
-                        <ListItemButton onClick={() => handleResultClick('tenant', tenant.id, tenant.propertyId)}>
+                        <ListItemButton onClick={() => handleResultClick('tenant', tenant.id)}>
                           <ListItemIcon>
                             <UserOutlined style={{ fontSize: 18, color: '#52c41a' }} />
                           </ListItemIcon>
@@ -252,6 +249,7 @@ export default function Search({ shrink = false }) {
             ) : null}
           </Paper>
         )}
+      </Box>
     </Box>
   );
 }

@@ -8,8 +8,6 @@ import {
   Button,
   Stack,
   TextField,
-  Card,
-  CardContent,
   alpha,
   Menu,
   MenuItem,
@@ -23,13 +21,22 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  FormControl,
-  InputLabel,
-  Select,
   OutlinedInput,
   InputAdornment
 } from '@mui/material';
-import { DownloadOutlined, FileExcelOutlined, FilePdfOutlined, EditOutlined, CalculatorOutlined, TagsOutlined, ArrowRightOutlined, SearchOutlined } from '@ant-design/icons';
+import {
+  DownloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
+  EditOutlined,
+  CalculatorOutlined,
+  TagsOutlined,
+  ArrowRightOutlined,
+  SearchOutlined,
+  ReloadOutlined,
+  CheckCircleOutlined,
+  WarningOutlined
+} from '@ant-design/icons';
 import PropertySelect from 'components/PropertySelect';
 import MainCard from 'components/MainCard';
 import ExpenseEditDrawer from 'components/expense/ExpenseEditDrawer';
@@ -42,6 +49,10 @@ import { openSnackbar } from 'api/snackbar';
 import { downloadScheduleEPdf } from 'api/expense';
 
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#eb2f96', '#13c2c2', '#fa8c16', '#2f54eb'];
+const NAVY = '#061e35';
+const GREEN = '#22c55e';
+
+const currency = (value) => `$${(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function TaxReports() {
   const { user } = useAuth();
@@ -60,6 +71,7 @@ export default function TaxReports() {
 
   // Tax & Accounting state
   const [taxLoading, setTaxLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
   const [taxError, setTaxError] = useState(null);
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [taxYearReport, setTaxYearReport] = useState(null);
@@ -110,25 +122,11 @@ export default function TaxReports() {
         expenseAPI.getTaxReadiness(landlordId, taxYear)
       ]);
 
-      if (yearReportRes?.data) {
-        setTaxYearReport(yearReportRes.data);
-      }
-
-      if (categorySummaryRes?.data) {
-        setTaxCategorySummary(categorySummaryRes.data);
-      }
-
-      if (deductibleExpensesRes?.data) {
-        setDeductibleExpenses(deductibleExpensesRes.data);
-      }
-
-      if (form1099Res?.data) {
-        setForm1099Data(form1099Res.data);
-      }
-
-      if (readinessRes?.data) {
-        setTaxReadiness(readinessRes.data);
-      }
+      setTaxYearReport(yearReportRes?.data || null);
+      setTaxCategorySummary(categorySummaryRes?.data || []);
+      setDeductibleExpenses(deductibleExpensesRes?.data || []);
+      setForm1099Data(form1099Res?.data || []);
+      setTaxReadiness(readinessRes?.data || null);
 
       if (yearReportRes?.success === false || categorySummaryRes?.success === false) {
         const errorMsg = yearReportRes?.message || categorySummaryRes?.message || 'Failed to load tax reports';
@@ -142,9 +140,10 @@ export default function TaxReports() {
     }
   };
 
-  // Tax & Accounting handlers
+  // Export, PDF, and edit actions have their own loading state so the report remains visible.
   const handleTaxExport = async (format) => {
     setTaxExportMenuAnchor(null);
+    setActionLoading(`export-${format}`);
     try {
       await expenseAPI.exportToAccountingSoftware(landlordId, format, { year: taxYear });
       openSnackbar({
@@ -161,11 +160,14 @@ export default function TaxReports() {
         variant: 'alert',
         alert: { color: 'error' }
       });
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleDownloadScheduleE = async (perProperty = false) => {
-    setTaxLoading(true);
+    setTaxExportMenuAnchor(null);
+    setActionLoading(perProperty ? 'schedule-property' : 'schedule-e');
     try {
       await downloadScheduleEPdf(landlordId, taxYear, perProperty);
       openSnackbar({
@@ -183,14 +185,14 @@ export default function TaxReports() {
         alert: { color: 'error' }
       });
     } finally {
-      setTaxLoading(false);
+      setActionLoading(null);
     }
   };
 
   const handleEditExpense = async (expense) => {
+    const expenseId = expense.expenseId || expense.id || expense.Id;
+    setActionLoading(`edit-${expenseId}`);
     try {
-      setTaxLoading(true);
-      const expenseId = expense.expenseId || expense.id || expense.Id;
       const response = await expenseAPI.getExpenseById(expenseId);
       const fullExpense = response?.data || response;
       if (fullExpense?.id || fullExpense?.Id) {
@@ -213,7 +215,7 @@ export default function TaxReports() {
         alert: { color: 'error' }
       });
     } finally {
-      setTaxLoading(false);
+      setActionLoading(null);
     }
   };
 
@@ -270,6 +272,24 @@ export default function TaxReports() {
     return list;
   }, [deductibleExpenses, expenseSearch, expenseStartDate, expenseEndDate, localFilterProperty]);
 
+  const hasExpenseFilters = Boolean(expenseSearch || expenseStartDate || expenseEndDate || localFilterProperty);
+  const clearExpenseFilters = () => {
+    setExpenseSearch('');
+    setExpenseStartDate('');
+    setExpenseEndDate('');
+    setLocalFilterProperty(null);
+  };
+
+  const readinessItems = taxReadiness?.items || [];
+  const readinessReviewCount = readinessItems.reduce((total, item) => total + (item.count || 0), 0);
+  const readinessStatus = readinessItems.length > 0 && readinessItems.every((item) => item.status === 'ready') ? 'Ready' : 'Review needed';
+  const cardSx = {
+    bgcolor: 'background.paper',
+    boxShadow: `0 6px 24px ${alpha(NAVY, 0.055)}`,
+    border: `1px solid ${alpha(NAVY, 0.08)}`,
+    borderRadius: 2.5
+  };
+
   return (
     <Box>
       <PageBreadcrumbs
@@ -280,67 +300,108 @@ export default function TaxReports() {
         ]}
       />
 
-      {/* Header + controls */}
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-        <Box>
-          <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-            Tax & Accounting
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Tax-deductible expenses, Schedule E reports, and 1099 preparation
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <TextField
-            size="small"
-            type="number"
-            label="Tax Year"
-            value={taxYear}
-            onChange={(e) => setTaxYear(parseInt(e.target.value) || new Date().getFullYear())}
-            InputLabelProps={{ shrink: true, style: { backgroundColor: 'transparent' } }}
-            sx={{ width: 110, ...noLabelBg }}
-            inputProps={{ style: { height: 17, fontSize: '0.8rem' } }}
-          />
-          <Button
-            size="small"
-            variant="contained"
-            startIcon={<FilePdfOutlined />}
-            onClick={() => handleDownloadScheduleE(false)}
-            disabled={taxLoading}
-            sx={{ textTransform: 'none', borderRadius: 1.5 }}
-          >
-            Generate Schedule E
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<DownloadOutlined />}
-            onClick={(e) => setTaxExportMenuAnchor(e.currentTarget)}
-            disabled={taxLoading}
-            sx={{ textTransform: 'none', borderRadius: 1.5 }}
-          >
-            Export
-          </Button>
-          <Menu anchorEl={taxExportMenuAnchor} open={Boolean(taxExportMenuAnchor)} onClose={() => setTaxExportMenuAnchor(null)}>
-            <MenuItem onClick={() => handleTaxExport('csv')}><FileExcelOutlined style={{ marginRight: 8 }} />Export CSV</MenuItem>
-            <MenuItem onClick={() => handleTaxExport('quickbooks')}><FileExcelOutlined style={{ marginRight: 8 }} />Export QuickBooks</MenuItem>
-            <MenuItem onClick={() => handleTaxExport('xero')}><FileExcelOutlined style={{ marginRight: 8 }} />Export Xero</MenuItem>
-            <MenuItem onClick={() => handleTaxExport('accountant')}><FileExcelOutlined style={{ marginRight: 8 }} />Accountant package</MenuItem>
-            <MenuItem onClick={() => handleDownloadScheduleE(true)}><FilePdfOutlined style={{ marginRight: 8 }} />Per-property Schedule E</MenuItem>
-          </Menu>
+      {/* Operational hero */}
+      <Box
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          bgcolor: NAVY,
+          color: '#fff',
+          borderRadius: 3,
+          px: { xs: 2.25, md: 3 },
+          py: { xs: 2.5, md: 3 },
+          mb: 3,
+          boxShadow: `0 16px 40px ${alpha(NAVY, 0.18)}`,
+          '&::after': { content: '\"\"', position: 'absolute', width: 240, height: 240, borderRadius: '50%', bgcolor: alpha(GREEN, 0.13), top: -150, right: -65 }
+        }}
+      >
+        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} spacing={2.5} sx={{ position: 'relative', zIndex: 1 }}>
+          <Box sx={{ maxWidth: 670 }}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+              <Chip size="small" icon={<CalculatorOutlined />} label={`${taxYear} tax workspace`} sx={{ bgcolor: alpha('#fff', 0.12), color: '#fff', '& .MuiChip-icon': { color: GREEN } }} />
+              {taxReadiness && (
+                <Chip
+                  size="small"
+                  icon={readinessStatus === 'Ready' ? <CheckCircleOutlined /> : <WarningOutlined />}
+                  label={readinessReviewCount ? `${readinessReviewCount} items to review` : readinessStatus}
+                  sx={{ bgcolor: alpha('#fff', 0.08), color: '#fff', '& .MuiChip-icon': { color: readinessStatus === 'Ready' ? GREEN : '#fbbf24' } }}
+                />
+              )}
+            </Stack>
+            <Typography variant="h2" sx={{ color: '#fff', fontWeight: 780, letterSpacing: -0.6 }}>Tax & Accounting</Typography>
+            <Typography sx={{ mt: 0.75, color: alpha('#fff', 0.7), lineHeight: 1.6 }}>
+              Review Schedule E figures, resolve readiness issues, and prepare accountant-ready exports without leaving this workspace.
+            </Typography>
+          </Box>
+
+          <Stack spacing={1.25} sx={{ minWidth: { lg: 350 } }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TextField
+                size="small"
+                type="number"
+                label="Tax year"
+                value={taxYear}
+                onChange={(event) => setTaxYear(parseInt(event.target.value) || new Date().getFullYear())}
+                InputLabelProps={{ shrink: true }}
+                sx={{ width: { xs: '100%', sm: 120 }, bgcolor: '#fff', borderRadius: 1, ...noLabelBg }}
+              />
+              <Button
+                variant="contained"
+                startIcon={actionLoading === 'schedule-e' ? <CircularProgress size={15} color="inherit" /> : <FilePdfOutlined />}
+                onClick={() => handleDownloadScheduleE(false)}
+                disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
+                sx={{ flex: 1, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
+              >
+                Schedule E PDF
+              </Button>
+            </Stack>
+            <Stack direction="row" spacing={1}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={actionLoading && actionLoading !== 'schedule-e' ? <CircularProgress size={15} color="inherit" /> : <DownloadOutlined />}
+                onClick={(event) => setTaxExportMenuAnchor(event.currentTarget)}
+                disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
+                sx={{ color: '#fff', borderColor: alpha('#fff', 0.34), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) } }}
+              >
+                {actionLoading && actionLoading !== 'schedule-e' ? 'Preparing…' : 'Export & packages'}
+              </Button>
+              <IconButton onClick={() => fetchTaxData()} disabled={taxLoading} aria-label="Refresh tax data" sx={{ color: '#fff', border: `1px solid ${alpha('#fff', 0.34)}`, borderRadius: 1.5 }}>
+                {taxLoading ? <CircularProgress size={18} color="inherit" /> : <ReloadOutlined />}
+              </IconButton>
+            </Stack>
+          </Stack>
         </Stack>
       </Box>
 
-      {taxError && <Alert severity="error" sx={{ mb: 3 }}>{taxError}</Alert>}
+      <Menu anchorEl={taxExportMenuAnchor} open={Boolean(taxExportMenuAnchor)} onClose={() => setTaxExportMenuAnchor(null)}>
+        <MenuItem onClick={() => handleTaxExport('csv')}><FileExcelOutlined style={{ marginRight: 8 }} />Export CSV</MenuItem>
+        <MenuItem onClick={() => handleTaxExport('quickbooks')}><FileExcelOutlined style={{ marginRight: 8 }} />Export QuickBooks</MenuItem>
+        <MenuItem onClick={() => handleTaxExport('xero')}><FileExcelOutlined style={{ marginRight: 8 }} />Export Xero</MenuItem>
+        <MenuItem onClick={() => handleTaxExport('accountant')}><FileExcelOutlined style={{ marginRight: 8 }} />Accountant package</MenuItem>
+        <MenuItem onClick={() => handleDownloadScheduleE(true)}><FilePdfOutlined style={{ marginRight: 8 }} />Per-property Schedule E</MenuItem>
+      </Menu>
 
-      {taxLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
+      {taxError && (
+        <Alert
+          severity="error"
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={<Button color="inherit" size="small" startIcon={<ReloadOutlined />} onClick={() => fetchTaxData()}>Retry</Button>}
+        >
+          <Typography fontWeight={700}>We couldn't load the {taxYear} tax workspace.</Typography>
+          <Typography variant="body2">{taxError}</Typography>
+        </Alert>
+      )}
+
+      {taxLoading && !taxYearReport && (
+        <Box sx={{ ...cardSx, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, p: 5, mb: 3 }}>
+          <CircularProgress size={24} />
+          <Typography color="text.secondary">Loading {taxYear} tax records…</Typography>
         </Box>
       )}
 
       {!taxLoading && !taxError && !taxYearReport && (
-        <Box sx={{ p: 5, textAlign: 'center' }}>
+        <Box sx={{ ...cardSx, p: { xs: 3, md: 5 }, mb: 3, textAlign: 'center' }}>
           <Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: (t) => alpha(t.palette.primary.main, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
             <TagsOutlined style={{ fontSize: 28, color: theme.palette.primary.main }} />
           </Box>
@@ -354,41 +415,46 @@ export default function TaxReports() {
         </Box>
       )}
 
-      {taxYearReport && !taxLoading && taxCategoryChartData.length === 0 && (
+      {taxYearReport && taxCategoryChartData.length === 0 && (
         <Alert severity="info" sx={{ mb: 3 }} action={<Button size="small" color="inherit" onClick={() => navigate('/landlord/expenses')}>Go to Expenses</Button>}>
           <strong>Tip:</strong> You have income on record for {taxYear}, but no deductible expenses assigned yet. Assign IRS tax categories to unlock deduction charts and Schedule E data.
         </Alert>
       )}
 
       {/* KPI summary cards */}
-      {taxYearReport && !taxLoading && (
-        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+      {taxYearReport && (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
           {[
-            { label: `Total Income (${taxYear})`, value: `$${taxYearReport.totalIncome?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`, border: theme.palette.success.main, bg: alpha(theme.palette.success.main, 0.08), color: 'success.main' },
-            { label: 'Total Deductible Expenses', value: `$${taxYearReport.totalExpenses?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`, border: theme.palette.error.main, bg: alpha(theme.palette.error.main, 0.08), color: 'error.main' },
-            { label: 'Net Income (Schedule E)', value: `$${taxYearReport.netIncome?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`, border: theme.palette.info.main, bg: alpha(theme.palette.info.main, 0.08), color: 'info.main' },
-            { label: 'Est. Tax Savings (22%)', value: `$${estimatedSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, border: theme.palette.primary.main, bg: alpha(theme.palette.primary.main, 0.08), color: 'primary.main' }
+            { label: `Total income · ${taxYear}`, value: currency(taxYearReport.totalIncome), color: '#16a34a' },
+            { label: 'Deductible expenses', value: currency(taxYearReport.totalExpenses), color: '#dc2626' },
+            { label: 'Net income · Schedule E', value: currency(taxYearReport.netIncome), color: '#2563eb' },
+            { label: 'Estimated savings · 22%', value: currency(estimatedSavings), color: '#7c3aed' }
           ].map((kpi) => (
-            <Box key={kpi.label} sx={{ flex: '1 1 180px', border: `1px dashed rgba(0,0,0,0.15)`, borderRadius: 2, p: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.6, display: 'block', mb: 0.5 }}>
-                {kpi.label}
-              </Typography>
-              <Typography variant="h4" fontWeight={700} color={kpi.color}>{kpi.value}</Typography>
-            </Box>
+            <Grid key={kpi.label} size={{ xs: 12, sm: 6, lg: 3 }}>
+              <Box sx={{ ...cardSx, height: '100%', p: 2.25, borderTop: `3px solid ${kpi.color}` }}>
+                <Typography sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 750, textTransform: 'uppercase', letterSpacing: 0.65 }}>
+                  {kpi.label}
+                </Typography>
+                <Typography variant="h3" sx={{ mt: 0.75, fontWeight: 780, color: NAVY }}>{kpi.value}</Typography>
+              </Box>
+            </Grid>
           ))}
-        </Box>
+        </Grid>
       )}
 
       {/* Tax readiness */}
-      {taxReadiness && !taxLoading && (
+      {taxReadiness && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid size={{ xs: 12, lg: 6 }}>
+          <Grid size={{ xs: 12 }}>
             <MainCard
               title="Tax readiness review"
               subtitle="Deterministic checks before you send numbers to your accountant"
-              sx={{ bgcolor: 'background.paper', boxShadow: 'none', borderColor: 'divider' }}
+              sx={cardSx}
             >
               <Stack spacing={1.25}>
+                {readinessItems.length === 0 && (
+                  <Typography variant="body2" color="text.secondary">No readiness checks were returned for this tax year.</Typography>
+                )}
                 {(taxReadiness.items || []).map((item) => {
                   const color = item.status === 'ready' ? 'success' : item.status === 'warning' ? 'warning' : 'error';
                   return (
@@ -421,11 +487,11 @@ export default function TaxReports() {
       )}
 
       {/* Review queues */}
-      {taxReadiness && !taxLoading && (
+      {taxReadiness && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
           {(taxReadiness.expenseReviewQueue || []).length > 0 && (
             <Grid size={{ xs: 12, lg: 6 }}>
-              <MainCard content={false} title="Expense cleanup queue" subtitle="Uncategorized, missing receipt, loan split, and capital-improvement review items" sx={{ bgcolor: 'background.paper', boxShadow: 'none', overflow: 'hidden' }}>
+              <MainCard content={false} title="Expense cleanup queue" subtitle="Uncategorized, missing receipt, loan split, and capital-improvement review items" sx={{ ...cardSx, overflow: 'hidden' }}>
                 <TableContainer sx={{ maxHeight: 360 }}>
                   <Table size="small" stickyHeader>
                     <TableHead>
@@ -472,7 +538,7 @@ export default function TaxReports() {
 
           {(taxReadiness.depositReviewQueue || []).length > 0 && (
             <Grid size={{ xs: 12, lg: 6 }}>
-              <MainCard content={false} title="Deposit classification" subtitle="Held/refunded/applied deposits should not be blindly counted as income" sx={{ bgcolor: 'background.paper', boxShadow: 'none', overflow: 'hidden' }}>
+              <MainCard content={false} title="Deposit classification" subtitle="Held/refunded/applied deposits should not be blindly counted as income" sx={{ ...cardSx, overflow: 'hidden' }}>
                 <TableContainer sx={{ maxHeight: 360 }}>
                   <Table size="small" stickyHeader>
                     <TableHead>
@@ -503,10 +569,10 @@ export default function TaxReports() {
       )}
 
       {/* Per-property package */}
-      {taxReadiness?.propertyPackages?.length > 0 && !taxLoading && (
-        <MainCard content={false} title="Per-property tax package" subtitle="Accountant-friendly income and deduction rollups by property" sx={{ mb: 3, bgcolor: 'background.paper', boxShadow: 'none', overflow: 'hidden' }}>
+      {taxReadiness?.propertyPackages?.length > 0 && (
+        <MainCard content={false} title="Per-property tax package" subtitle="Accountant-friendly income and deduction rollups by property" sx={{ ...cardSx, mb: 3, overflow: 'hidden' }}>
           <TableContainer>
-            <Table size="small">
+            <Table size="small" sx={{ minWidth: 680 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Property</TableCell>
@@ -536,10 +602,10 @@ export default function TaxReports() {
       )}
 
       {/* Charts */}
-      {taxYearReport && !taxLoading && (
+      {taxYearReport && (
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid size={{ xs: 12, md: taxCategoryChartData.length > 0 ? 6 : 12 }}>
-            <MainCard title="Income vs. Expenses Overview" sx={{ bgcolor: (t) => alpha(t.palette.background.paper, 0.6), boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}` }}>
+            <MainCard title="Income vs. Expenses Overview" sx={cardSx}>
               <Box sx={{ pt: 2, height: 350 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={incomeExpensesData} barSize={60}>
@@ -560,7 +626,7 @@ export default function TaxReports() {
           </Grid>
           {taxCategoryChartData.length > 0 && (
             <Grid size={{ xs: 12, md: 6 }}>
-              <MainCard title="Deductions by Category" sx={{ bgcolor: (t) => alpha(t.palette.background.paper, 0.6), boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}` }}>
+              <MainCard title="Deductions by Category" sx={cardSx}>
                 <Box sx={{ pt: 2, height: 350 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -581,58 +647,65 @@ export default function TaxReports() {
       )}
 
       {/* Tax Deductible Expenses */}
-      {deductibleExpenses.length > 0 && !taxLoading && (
+      {deductibleExpenses.length > 0 && (
         <>
-          <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>Tax Deductible Expenses</Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'flex-end' }} spacing={1} sx={{ mb: 1.5 }}>
+            <Box>
+              <Typography variant="h4" fontWeight={750}>Tax-deductible expenses</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.35 }}>
+                Showing {filteredDeductibleExpenses.length} of {deductibleExpenses.length} expenses
+              </Typography>
+            </Box>
+            {hasExpenseFilters && <Button size="small" onClick={() => clearExpenseFilters()}>Clear filters</Button>}
+          </Stack>
 
           {/* Toolbar */}
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', mb: 2 }}>
+          <Box sx={{ ...cardSx, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'minmax(220px, 2fr) repeat(2, minmax(150px, 1fr)) minmax(220px, 2fr)' }, gap: 1.25, alignItems: 'center', mb: 2, p: 1.5 }}>
             <OutlinedInput
               size="small"
-              placeholder="Search expenses..."
+              placeholder="Search description, vendor, category…"
               value={expenseSearch}
-              onChange={(e) => setExpenseSearch(e.target.value)}
+              onChange={(event) => setExpenseSearch(event.target.value)}
               startAdornment={<InputAdornment position="start"><SearchOutlined style={{ fontSize: 14, opacity: 0.5 }} /></InputAdornment>}
-              sx={{ flex: 2, minWidth: 0, bgcolor: 'background.paper', height: 34, fontSize: '0.8rem' }}
+              sx={{ minWidth: 0, bgcolor: 'background.paper', height: 38, fontSize: '0.8rem' }}
             />
             <TextField
               size="small"
               type="date"
-              label="Start Date"
+              label="Start date"
               value={expenseStartDate}
-              onChange={(e) => setExpenseStartDate(e.target.value)}
-              InputLabelProps={{ shrink: true, style: { backgroundColor: 'transparent' } }}
-              sx={{ flex: 1.5, minWidth: 0, ...noLabelBg }}
-              inputProps={{ style: { height: 17, fontSize: '0.8rem' } }}
+              onChange={(event) => setExpenseStartDate(event.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ minWidth: 0, ...noLabelBg }}
             />
             <TextField
               size="small"
               type="date"
-              label="End Date"
+              label="End date"
               value={expenseEndDate}
-              onChange={(e) => setExpenseEndDate(e.target.value)}
-              InputLabelProps={{ shrink: true, style: { backgroundColor: 'transparent' } }}
-              sx={{ flex: 1.5, minWidth: 0, ...noLabelBg }}
-              inputProps={{ style: { height: 17, fontSize: '0.8rem' } }}
+              onChange={(event) => setExpenseEndDate(event.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ minWidth: 0, ...noLabelBg }}
             />
-            <Box sx={{ flex: 2, minWidth: 0, '& .MuiInputLabel-root': { backgroundColor: 'transparent !important' }, ...noLabelBg }}>
+            <Box sx={{ minWidth: 0, '& .MuiInputLabel-root': { backgroundColor: 'transparent !important' }, ...noLabelBg }}>
               <PropertySelect
                 width="100%"
-                onPropertyChange={(p) => setLocalFilterProperty(p)}
+                onPropertyChange={(property) => setLocalFilterProperty(property)}
                 localSelectedProperty={localFilterProperty}
                 disableAllOption={false}
               />
             </Box>
           </Box>
 
-          <MainCard sx={{ mb: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6), boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}` }}>
+          <MainCard content={false} sx={{ ...cardSx, mb: 3, overflow: 'hidden' }}>
             {filteredDeductibleExpenses.length === 0 ? (
               <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">No expenses match your filters.</Typography>
+                <Button size="small" sx={{ mt: 1 }} onClick={() => clearExpenseFilters()}>Clear filters</Button>
               </Box>
             ) : (
               <TableContainer>
-                <Table>
+                <Table size="small" sx={{ minWidth: 1100 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell>Date</TableCell>
@@ -670,8 +743,8 @@ export default function TaxReports() {
                           </Stack>
                         </TableCell>
                         <TableCell align="center">
-                          <IconButton size="small" onClick={() => handleEditExpense(expense)} color="primary" title="Edit tax category">
-                            <EditOutlined />
+                          <IconButton size="small" onClick={() => handleEditExpense(expense)} disabled={Boolean(actionLoading)} color="primary" title="Edit tax category">
+                            {actionLoading === `edit-${expense.expenseId || expense.id || expense.Id}` ? <CircularProgress size={16} /> : <EditOutlined />}
                           </IconButton>
                         </TableCell>
                       </TableRow>
@@ -685,14 +758,14 @@ export default function TaxReports() {
       )}
 
       {/* 1099 Preparation */}
-      {form1099Data.length > 0 && !taxLoading && (
+      {form1099Data.length > 0 && (
         <MainCard
           title="1099-MISC Preparation"
           subtitle={`Vendors requiring 1099 forms for ${taxYear} (vendors with $600+ in contract labor/services)`}
-          sx={{ bgcolor: (t) => alpha(t.palette.background.paper, 0.6), boxShadow: (t) => `0 0 20px ${alpha(t.palette.primary.main, 0.15)}` }}
+          sx={cardSx}
         >
           <TableContainer>
-            <Table>
+            <Table size="small" sx={{ minWidth: 850 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Vendor Name</TableCell>
