@@ -1,0 +1,81 @@
+name: Property Peace Release Validation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  api-unit-tests:
+    name: API unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.x"
+
+      - name: Run API unit tests
+        run: dotnet test property-peace-api.Tests/property-peace-api.Tests.csproj --configuration Release --nologo
+
+  api-build:
+    name: API release build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.x"
+
+      - name: Build API
+        run: dotnet build property-peace-api/property-peace-api.csproj --configuration Release --nologo
+
+  app-build:
+    name: Main app production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: property-peace-app/package-lock.json
+
+      - name: Install dependencies
+        working-directory: property-peace-app
+        run: npm ci --no-audit --no-fund --loglevel=error
+
+      - name: Build main app
+        working-directory: property-peace-app
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npm run build
+
+  marketing-build:
+    name: Marketing production build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: property-peace-marketing/package-lock.json
+
+      - name: Install dependencies
+        working-directory: property-peace-marketing
+        run: npm ci --no-audit --no-fund --loglevel=error
+
+      - name: Build marketing
+        working-directory: property-peace-marketing
+        run: npm run build

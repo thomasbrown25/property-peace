@@ -27,8 +27,8 @@ import SubscriptionSettings from 'sections/landlord/settings/SubscriptionSetting
 // ==============================|| SETTINGS PAGE ||============================== //
 
 const tabMap = {
-  profile: 0,
-  general: 1,
+  general: 0,
+  profile: 1,
   account: 2,
   subscription: 3,
   payments: 4,
@@ -41,8 +41,8 @@ const tabMap = {
 const tabKeys = Object.keys(tabMap);
 
 const tabConfig = [
-  { key: 'profile', label: 'Profile', description: 'Your name, contact details, and public identity.', icon: ProfileOutlined, component: ProfileSettings },
   { key: 'general', label: 'General', description: 'Default app behavior and landlord preferences.', icon: SettingOutlined, component: GeneralSettings },
+  { key: 'profile', label: 'Profile', description: 'Your name, contact details, and public identity.', icon: ProfileOutlined, component: ProfileSettings },
   { key: 'account', label: 'Account Settings', description: 'Login, security, and account-level controls.', icon: UserOutlined, component: AccountSettings },
   { key: 'subscription', label: 'Manage Subscription', description: 'Plans, portfolio usage, billing details, and invoices.', icon: CreditCardOutlined, component: SubscriptionSettings },
   { key: 'payments', label: 'Bank Settings', description: 'Payment accounts, payouts, and billing rails.', icon: DollarOutlined, component: PaymentsSettings },
