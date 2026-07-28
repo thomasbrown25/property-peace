@@ -1,22 +1,21 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  alpha, Box, Button, Chip, Divider, Drawer, FormControl, IconButton,
+  alpha, Box, Button, Chip, Drawer, FormControl, IconButton,
   MenuItem, Select, Stack, TextField, Tooltip, Typography, useTheme, useMediaQuery
 } from '@mui/material';
 import {
-  CalendarOutlined, CheckOutlined, CloseOutlined, LeftOutlined,
+  CloseOutlined, LeftOutlined,
   PlusOutlined, RightOutlined
 } from '@ant-design/icons';
 import {
   addDays, addMonths, addWeeks, eachDayOfInterval, endOfMonth,
   endOfWeek, format, getHours, getMinutes, isSameDay, isSameMonth,
   isToday, parseISO, startOfMonth, startOfWeek, subMonths, subWeeks,
-  differenceInMinutes, startOfDay, endOfDay, addMinutes
+  startOfDay, endOfDay
 } from 'date-fns';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { selectProperties } from 'store/property/property.selector';
 import { selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import { selectAllPayments } from 'store/payment/payment.selector';
 import { selectTasks } from 'store/task/task.selector';
@@ -41,11 +40,19 @@ const FILTERS = [
   { key: 'RentPayment', label: 'Rent & payments' },
   { key: 'Maintenance', label: 'Maintenance' },
   { key: 'Lease',       label: 'Leases & move dates' },
-  { key: 'Inspection',  label: 'Inspections' },
+  { key: 'Inspection',  label: 'Checklists' },
   { key: 'Task',        label: 'Tasks' },
 ];
 
 const VIEWS = ['Month', 'Week', 'Agenda'];
+const TASK_CATEGORIES = ['RentPayment', 'Maintenance', 'Lease', 'Task'];
+const STATUS_FILTERS = ['All statuses', 'Upcoming', 'Overdue', 'Paid', 'Completed', 'Scheduled'];
+
+function getEventColors(event) {
+  if (event?.category === 'RentPayment' && event.status === 'Paid') return CATEGORY_COLORS.Task;
+  if (event?.category === 'RentPayment' && event.status === 'Overdue') return CATEGORY_COLORS.Maintenance;
+  return CATEGORY_COLORS[event?.category] || CATEGORY_COLORS.Task;
+}
 
 const subtleBorder = (theme, opacity = 0.14) => theme.palette.mode === 'dark' ? alpha('#cbd5e1', opacity) : 'rgba(0,0,0,0.09)';
 const calendarLabelColor = (theme) => theme.palette.mode === 'dark' ? theme.palette.text.primary : alpha('#061e35', 0.58);
@@ -97,6 +104,40 @@ function getInspectionTypeLabel(inspection) {
   return 'Move-in';
 }
 
+const valueOf = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
+
+function isLeaseDraft(lease) {
+  return String(lease?.status || lease?.Status || '').toLowerCase() === 'draft' ||
+    lease?.isDrafted === true ||
+    lease?.IsDrafted === true ||
+    lease?.leaseAgreement?.isDrafted === true ||
+    lease?.leaseAgreement?.IsDrafted === true;
+}
+
+function isStartedActiveLease(lease, now = new Date()) {
+  const active = lease?.isActive === true || lease?.IsActive === true || lease?.isActive === 1 || lease?.IsActive === 1;
+  if (!lease || lease.hasLease === false || !active || isLeaseDraft(lease)) return false;
+  const start = valueOf(lease, 'startDate', 'StartDate');
+  const end = valueOf(lease, 'endDate', 'EndDate');
+  const startDate = start ? new Date(start) : null;
+  const endDate = end ? new Date(end) : null;
+  if (!startDate || Number.isNaN(startDate.getTime()) || startDate > now) return false;
+  return !endDate || (!Number.isNaN(endDate.getTime()) && endOfDay(endDate) >= now);
+}
+
+function paymentForCycle(payments, leaseId, cycleDate) {
+  return (payments || []).find(payment => {
+    const paymentLeaseId = valueOf(payment, 'leaseId', 'LeaseId');
+    const status = String(valueOf(payment, 'status', 'Status') || '').toLowerCase();
+    const cycleAt = valueOf(payment, 'dueDate', 'DueDate') ||
+      valueOf(payment, 'rentDueDate', 'RentDueDate') ||
+      valueOf(payment, 'paymentDate', 'PaymentDate');
+    const isRent = !valueOf(payment, 'depositId', 'DepositId') && !valueOf(payment, 'feeId', 'FeeId');
+    const isFailed = ['failed', 'canceled', 'cancelled', 'disputed', 'refunded'].includes(status);
+    return isRent && !isFailed && String(paymentLeaseId) === String(leaseId) && cycleAt && isSameMonth(new Date(cycleAt), cycleDate);
+  });
+}
+
 // ─── Event generation ─────────────────────────────────────────────────────────
 
 function expandRecurring(task, viewStart, viewEnd) {
@@ -121,31 +162,37 @@ function expandRecurring(task, viewStart, viewEnd) {
 
 function buildEvents(properties, allPayments, dashboardSummary, tasks, inspections, viewStart, viewEnd) {
   const events = [];
+  const today = startOfDay(new Date());
 
-  // Rent due events — one per lease per month in range
+  // Rent due events — only leases that are active, started, non-draft and not expired.
   (properties || []).forEach(p => {
     (p.units || []).forEach(u => {
-      const unitStatus = (u.status || u.Status || '').toLowerCase();
-      if (unitStatus === 'draft') return;
+      if (String(u.status || u.Status || '').toLowerCase() === 'draft') return;
       const lease = u.lease || u.Lease;
-      if (!lease) return;
-      const leaseStatus = (lease.status || lease.Status || '').toLowerCase();
-      if (leaseStatus === 'draft') return;
-      if (!lease?.isActive && !lease?.IsActive) return;
-      const rentDay  = lease.rentDueDay || lease.RentDueDay || 1;
-      const startD   = lease.startDate  || lease.StartDate;
-      const endD     = lease.endDate    || lease.EndDate;
-      if (!startD) return;
+      if (!isStartedActiveLease(lease)) return;
+      const leaseId = lease.id || lease.Id;
+      const rentDay = lease.rentDueDay || lease.RentDueDay || 1;
+      const startD = lease.startDate || lease.StartDate;
+      const endD = lease.endDate || lease.EndDate;
       let cursor = new Date(viewStart.getFullYear(), viewStart.getMonth(), rentDay);
       while (cursor <= viewEnd) {
         if (cursor >= viewStart && cursor >= new Date(startD) && (!endD || cursor <= new Date(endD))) {
+          const payment = paymentForCycle(allPayments, leaseId, cursor);
           events.push({
-            id: `rent-${lease.id || u.id}-${format(cursor, 'yyyy-MM')}`,
+            id: `rent-${leaseId || u.id}-${format(cursor, 'yyyy-MM')}`,
             title: `Rent due · ${p.name || p.streetAddress || 'Property'}`,
             date: cursor,
             category: 'RentPayment',
             source: 'auto',
             propertyId: p.id,
+            unitId: u.id || u.Id,
+            leaseId,
+            paymentId: valueOf(payment, 'id', 'Id') || null,
+            payment,
+            status: payment ? 'Paid' : cursor < today ? 'Overdue' : 'Upcoming',
+            amount: valueOf(lease, 'rentAmount', 'RentAmount') ?? valueOf(lease, 'monthlyRent', 'MonthlyRent') ?? null,
+            propertyName: p.name || p.streetAddress || 'Property',
+            unitName: u.name || u.Name || 'Unit'
           });
         }
         cursor = addMonths(cursor, 1);
@@ -154,78 +201,90 @@ function buildEvents(properties, allPayments, dashboardSummary, tasks, inspectio
     });
   });
 
-  // Lease events
   (properties || []).forEach(p => {
     (p.units || []).forEach(u => {
       const lease = u.lease || u.Lease;
-      if (!lease) return;
+      if (!lease || isLeaseDraft(lease)) return;
+      const leaseId = lease.id || lease.Id;
       const startD = lease.startDate || lease.StartDate;
-      const endD   = lease.endDate   || lease.EndDate;
+      const endD = lease.endDate || lease.EndDate;
       const tenants = lease.tenants || lease.Tenants || [];
       const tName = tenants[0] ? [tenants[0].firstname || tenants[0].Firstname, tenants[0].lastname || tenants[0].Lastname].filter(Boolean).join(' ') : '';
-
+      const metadata = { category: 'Lease', source: 'auto', propertyId: p.id, unitId: u.id || u.Id, leaseId };
       if (startD) {
-        const d = new Date(startD);
-        if (d >= viewStart && d <= viewEnd)
-          events.push({ id: `lease-start-${lease.id}`, title: `Lease start · ${p.name || p.streetAddress || 'Unit'}`, date: d, category: 'Lease', source: 'auto', propertyId: p.id });
+        const date = new Date(startD);
+        if (date >= viewStart && date <= viewEnd) events.push({ ...metadata, id: `lease-start-${leaseId}`, title: `Move-in · ${p.name || p.streetAddress || 'Unit'}`, date, status: date < today ? 'Completed' : 'Upcoming', milestone: 'Move-in' });
       }
       if (endD) {
-        const d = new Date(endD);
-        if (d >= viewStart && d <= viewEnd)
-          events.push({ id: `lease-end-${lease.id}`, title: `Move-out · ${u.name || 'Unit'}`, date: d, category: 'Lease', source: 'auto', propertyId: p.id });
-        const renewD = addDays(d, -90);
-        if (renewD >= viewStart && renewD <= viewEnd)
-          events.push({ id: `lease-renew-${lease.id}`, title: `Renewal window · ${tName || u.name || 'Unit'}`, date: renewD, category: 'Lease', source: 'auto', propertyId: p.id });
+        const date = new Date(endD);
+        if (date >= viewStart && date <= viewEnd) events.push({ ...metadata, id: `lease-end-${leaseId}`, title: `Move-out · ${u.name || 'Unit'}`, date, status: date < today ? 'Completed' : 'Upcoming', milestone: 'Move-out' });
+        const renewDate = addDays(date, -90);
+        if (renewDate >= viewStart && renewDate <= viewEnd) events.push({ ...metadata, id: `lease-renew-${leaseId}`, title: `Renewal window · ${tName || u.name || 'Unit'}`, date: renewDate, status: renewDate < today ? 'Completed' : 'Upcoming', milestone: 'Renewal' });
       }
     });
   });
 
-  // Maintenance events — only show when explicitly scheduled
   const allRequests = dashboardSummary?.maintenanceRequests?.maintenanceRequests || [];
-  allRequests.forEach(r => {
-    const d = r.scheduledDate || r.ScheduledDate;
-    if (!d) return;
-    const date = new Date(d);
-    if (date >= viewStart && date <= viewEnd)
-      events.push({ id: `maint-${r.id}`, title: r.title || r.Title || 'Maintenance', date, category: 'Maintenance', source: 'auto', propertyId: r.propertyId || r.PropertyId || null });
+  allRequests.forEach(request => {
+    const raw = request.scheduledDate || request.ScheduledDate;
+    if (!raw) return;
+    const date = new Date(raw);
+    if (date >= viewStart && date <= viewEnd) events.push({
+      id: `maint-${request.id || request.Id}`,
+      title: request.title || request.Title || 'Maintenance',
+      date,
+      category: 'Maintenance',
+      source: 'auto',
+      propertyId: request.propertyId || request.PropertyId || null,
+      unitId: request.unitId || request.UnitId || null,
+      maintenanceId: request.id || request.Id,
+      status: ['completed', 'cancelled'].includes(String(request.status || request.Status || '').toLowerCase()) ? 'Completed' : 'Scheduled',
+      request
+    });
   });
 
-  // Inspection events — scheduled move-in/move-out inspections
-  (inspections || []).forEach((inspection) => {
+  (inspections || []).forEach(inspection => {
     const raw = inspection.inspectionDate || inspection.InspectionDate;
     if (!raw) return;
     const date = new Date(raw);
     if (Number.isNaN(date.getTime()) || date < viewStart || date > viewEnd) return;
-
     const typeLabel = getInspectionTypeLabel(inspection);
     const propertyName = inspection.propertyName || inspection.PropertyName || 'Property';
     const unitName = inspection.unitName || inspection.UnitName;
-    const location = unitName ? `${propertyName} · ${unitName}` : propertyName;
-    const typeParam = typeLabel === 'Move-out' ? 'move-out' : 'move-in';
-
     events.push({
       id: `inspection-${inspection.id || inspection.Id}`,
-      title: `${typeLabel} inspection · ${location}`,
+      title: `${typeLabel} checklist · ${unitName ? `${propertyName} · ${unitName}` : propertyName}`,
       date,
       category: 'Inspection',
       source: 'inspection',
       propertyId: inspection.propertyId || inspection.PropertyId || null,
       unitId: inspection.unitId || inspection.UnitId || null,
-      typeParam,
+      status: date < today ? 'Completed' : 'Upcoming',
+      typeParam: typeLabel === 'Move-out' ? 'move-out' : 'move-in',
       inspection
     });
   });
 
-  // Tasks (manual + recurring expansion)
-  (tasks || []).forEach(t => {
-    const raw = t.dueDate || t.DueDate;
+  (tasks || []).forEach(task => {
+    const raw = task.dueDate || task.DueDate;
     if (!raw) return;
-    const base = { ...t, dueDate: raw };
-    const instances = expandRecurring(base, viewStart, viewEnd);
-    instances.forEach(inst => {
-      const date = typeof inst.dueDate === 'string' ? parseISO(inst.dueDate) : inst.dueDate;
-      if (date >= viewStart && date <= viewEnd)
-        events.push({ id: `task-${t.id}-${format(date, 'yyyy-MM-dd')}`, title: t.title || t.Title, date, category: 'Task', source: 'task', taskId: t.id, task: t });
+    expandRecurring({ ...task, dueDate: raw }, viewStart, viewEnd).forEach(instance => {
+      const date = typeof instance.dueDate === 'string' ? parseISO(instance.dueDate) : instance.dueDate;
+      if (date < viewStart || date > viewEnd) return;
+      const category = TASK_CATEGORIES[Number(task.category ?? task.Category ?? 3)] || 'Task';
+      const completed = Boolean(task.isCompleted ?? task.IsCompleted ?? task.completed ?? task.Completed);
+      events.push({
+        id: `task-${task.id || task.Id}-${format(date, 'yyyy-MM-dd')}`,
+        title: task.title || task.Title,
+        date,
+        category,
+        source: 'task',
+        taskId: task.id || task.Id,
+        task,
+        propertyId: task.propertyId || task.PropertyId || null,
+        unitId: task.unitId || task.UnitId || null,
+        status: completed ? 'Completed' : date < today ? 'Overdue' : 'Upcoming'
+      });
     });
   });
 
@@ -246,7 +305,7 @@ function AddTaskDrawer({ open, onClose, onSave, defaultDate, properties, editTas
     category: 3, propertyId: '', unitId: '', isRecurring: false, recurrenceType: 0, recurrenceInterval: 1, recurrenceEndDate: ''
   });
 
-  useMemo(() => {
+  useEffect(() => {
     if (editTask) {
       setForm({
         title: editTask.title || editTask.Title || '',
@@ -386,7 +445,7 @@ function AddTaskDrawer({ open, onClose, onSave, defaultDate, properties, editTas
 // ─── Event pill ───────────────────────────────────────────────────────────────
 
 function EventPill({ event, onClick }) {
-  const c = CATEGORY_COLORS[event.category] || CATEGORY_COLORS.Task;
+  const c = getEventColors(event);
   return (
     <Tooltip title={event.title} arrow placement="top">
       <Box onClick={e => { e.stopPropagation(); onClick(event); }}
@@ -428,7 +487,7 @@ function MonthView({ current, events, onDayClick, selectedDay, onEventClick }) {
   for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
 
   const eventsForDay = (day) => events.filter(e => isSameDay(e.date, day));
-  const maxVisible = isMobile ? 1 : 3;
+  const maxVisible = 3;
   const dayLabels = isMobile ? DAY_LABELS_SHORT : DAY_LABELS_FULL;
 
   return (
@@ -476,12 +535,21 @@ function MonthView({ current, events, onDayClick, selectedDay, onEventClick }) {
                 </Box>
                 {/* Events */}
                 <Stack spacing={0.25} sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
-                  {dayEvents.slice(0, maxVisible).map(ev => <EventPill key={ev.id} event={ev} onClick={onEventClick} />)}
-                  {overflow > 0 && (
-                    <Box onClick={e => { e.stopPropagation(); onDayClick(day); }}
-                      sx={{ px: 0.75, py: 0.15, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.06)', display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,0,0,0.1)' } }}>
-                      <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: 'text.secondary', lineHeight: 1.4 }}>+{overflow} more</Typography>
-                    </Box>
+                  {isMobile ? (
+                    <Stack direction="row" spacing={0.35} justifyContent="center" alignItems="center" sx={{ mt: 0.5 }}>
+                      {dayEvents.slice(0, 4).map(ev => <Box key={ev.id} sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: getEventColors(ev).dot }} />)}
+                      {dayEvents.length > 4 && <Typography sx={{ fontSize: '0.55rem', fontWeight: 700, color: 'text.secondary' }}>+{dayEvents.length - 4}</Typography>}
+                    </Stack>
+                  ) : (
+                    <>
+                      {dayEvents.slice(0, maxVisible).map(ev => <EventPill key={ev.id} event={ev} onClick={onEventClick} />)}
+                      {overflow > 0 && (
+                        <Box onClick={e => { e.stopPropagation(); onDayClick(day); }}
+                          sx={{ px: 0.75, py: 0.15, borderRadius: 1, bgcolor: 'rgba(0,0,0,0.06)', display: 'inline-flex', alignItems: 'center', alignSelf: 'flex-start', cursor: 'pointer', '&:hover': { bgcolor: 'rgba(0,0,0,0.1)' } }}>
+                          <Typography sx={{ fontSize: '0.6rem', fontWeight: 700, color: 'text.secondary', lineHeight: 1.4 }}>+{overflow} more</Typography>
+                        </Box>
+                      )}
+                    </>
                   )}
                 </Stack>
               </Box>
@@ -506,7 +574,8 @@ function WeekView({ current, events, onDayClick, selectedDay, onEventClick }) {
   const eventsForDay = (day) => events.filter(e => isSameDay(e.date, day));
 
   return (
-    <Box sx={calendarAccentPanelSx(theme.palette.info.main, { borderRadius: 2, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' })}>
+    <Box sx={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <Box sx={calendarAccentPanelSx(theme.palette.info.main, { borderRadius: 2, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column', minWidth: { xs: 760, md: 0 } })}>
       {/* Header */}
       <Box sx={{ display: 'grid', gridTemplateColumns: '48px repeat(7,minmax(0,1fr))', bgcolor: alpha(theme.palette.primary.main, 0.04), borderBottom: (t) => `1px solid ${subtleBorder(t, 0.14)}` }}>
         <Box />
@@ -539,10 +608,10 @@ function WeekView({ current, events, onDayClick, selectedDay, onEventClick }) {
                         sx={{
                           position: 'absolute', left: 1, right: 1, top: `${(getMinutes(ev.date) / 60) * HOUR_H}px`,
                           minWidth: 0, maxWidth: 'calc(100% - 2px)', minHeight: 20, px: 0.5, py: 0.1, borderRadius: 0.75,
-                          bgcolor: CATEGORY_COLORS[ev.category]?.bg, border: `1px solid ${CATEGORY_COLORS[ev.category]?.border}`,
+                          bgcolor: getEventColors(ev).bg, border: `1px solid ${getEventColors(ev).border}`,
                           cursor: 'pointer', zIndex: 1, overflow: 'hidden', '&:hover': { filter: 'brightness(0.92)' }
                         }}>
-                        <Typography noWrap sx={{ fontSize: '0.6rem', fontWeight: 600, color: CATEGORY_COLORS[ev.category]?.text, lineHeight: 1.4, minWidth: 0 }}>
+                        <Typography noWrap sx={{ fontSize: '0.6rem', fontWeight: 600, color: getEventColors(ev).text, lineHeight: 1.4, minWidth: 0 }}>
                           {format(ev.date, 'h:mm a')} {ev.title}
                         </Typography>
                       </Box>
@@ -553,6 +622,7 @@ function WeekView({ current, events, onDayClick, selectedDay, onEventClick }) {
             })}
           </Box>
         ))}
+      </Box>
       </Box>
     </Box>
   );
@@ -591,7 +661,7 @@ function AgendaView({ events, onEventClick, selectedDay }) {
             {/* Events */}
             <Stack sx={{ flex: 1, p: 1, gap: 0.5 }}>
               {dayEvents.map(ev => {
-                const c = CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.Task;
+                const c = getEventColors(ev);
                 return (
                   <Tooltip key={ev.id} title={ev.title} arrow placement="top">
                     <Stack direction="row" alignItems="center" spacing={1.5}
@@ -616,18 +686,12 @@ function AgendaView({ events, onEventClick, selectedDay }) {
 
 // ─── Right Sidebar ────────────────────────────────────────────────────────────
 
-function Sidebar({ selectedDay, events, onAddTask, onEventClick, properties, rentDueThisMonth, openMaintenance, leasesEndingSoon, needsApproval }) {
+function Sidebar({ selectedDay, events, onAddTask, onEventClick }) {
   const theme = useTheme();
   const dayEvents = events.filter(e => isSameDay(e.date, selectedDay));
-  const next7 = useMemo(() => {
-    const end = addDays(new Date(), 7);
-    return events.filter(e => e.date >= new Date() && e.date <= end).slice(0, 5);
-  }, [events]);
 
   return (
-    <Box sx={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-
-      {/* Selected day */}
+    <Box sx={{ width: 280, flexShrink: 0 }}>
       <Box sx={calendarAccentPanelSx(theme.palette.primary.main, { p: 2, borderRadius: 2 })}>
         <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: 0.8, color: (t) => calendarLabelColor(t), textTransform: 'uppercase', mb: 0.5 }}>
           {isToday(selectedDay) ? 'Selected · Today' : 'Selected'}
@@ -640,7 +704,7 @@ function Sidebar({ selectedDay, events, onAddTask, onEventClick, properties, ren
         {dayEvents.length > 0 ? (
           <Stack spacing={1} sx={{ mb: 1.5 }}>
             {dayEvents.map(ev => {
-              const c = CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.Task;
+              const c = getEventColors(ev);
               return (
                 <Tooltip key={ev.id} title={ev.title} arrow placement="top">
                   <Box onClick={() => onEventClick(ev)} sx={{ p: 1, borderRadius: 1.25, bgcolor: c.bg, border: `1px solid ${c.border}`, cursor: 'pointer', minWidth: 0, '&:hover': { filter: 'brightness(0.95)' } }}>
@@ -663,41 +727,105 @@ function Sidebar({ selectedDay, events, onAddTask, onEventClick, properties, ren
           Add task
         </Button>
       </Box>
-
-      {/* Next 7 days */}
-      <Box sx={calendarAccentPanelSx(theme.palette.info.main, { p: 2, borderRadius: 2 })}>
-        <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: 0.8, color: (t) => calendarLabelColor(t), textTransform: 'uppercase', mb: 1.25 }}>
-          Next 7 days
-        </Typography>
-        {next7.length > 0 ? (
-          <Stack spacing={0.75}>
-            {next7.map(ev => {
-              const c = CATEGORY_COLORS[ev.category] || CATEGORY_COLORS.Task;
-              return (
-                <Tooltip key={ev.id} title={ev.title} arrow placement="top">
-                  <Stack direction="row" spacing={1} alignItems="center" onClick={() => onEventClick(ev)} sx={{ cursor: 'pointer', minWidth: 0 }}>
-                    <Typography sx={{ fontSize: '0.62rem', fontWeight: 600, color: 'text.disabled', width: 40, flexShrink: 0 }}>{format(ev.date, 'EEE d').toUpperCase()}</Typography>
-                    <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: c.dot, flexShrink: 0 }} />
-                    <Typography noWrap sx={{ fontSize: '0.72rem', flex: 1, minWidth: 0 }}>{ev.title}</Typography>
-                  </Stack>
-                </Tooltip>
-              );
-            })}
-          </Stack>
-        ) : (
-          <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>Nothing coming up</Typography>
-        )}
-      </Box>
-
-      {/* Subscribe placeholder */}
-      <Box sx={calendarAccentPanelSx(theme.palette.warning.main, { p: 2, borderRadius: 2 })}>
-        <Typography sx={{ fontSize: '0.58rem', fontWeight: 700, letterSpacing: 0.8, color: (t) => calendarLabelColor(t), textTransform: 'uppercase', mb: 1 }}>
-          Subscribe
-        </Typography>
-        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mb: 0.5 }}>Sync to Google · Apple · Outlook</Typography>
-        <Typography sx={{ fontSize: '0.72rem', color: 'text.disabled' }}>iCal feed · coming soon</Typography>
-      </Box>
     </Box>
+  );
+}
+
+function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNavigate }) {
+  const c = getEventColors(event);
+  const checklistPropertyId = event?.propertyId || event?.inspection?.propertyId || event?.inspection?.PropertyId;
+  const checklistUnitId = event?.unitId || event?.inspection?.unitId || event?.inspection?.UnitId;
+  const checklistId = event?.inspection?.id || event?.inspection?.Id;
+  const checklistBase = checklistUnitId
+    ? `/landlord/checklists/property/${checklistPropertyId}/unit/${checklistUnitId}`
+    : `/landlord/checklists/property/${checklistPropertyId}`;
+  const categoryLabel = event?.category === 'RentPayment'
+    ? 'Rent & payment'
+    : event?.category === 'Inspection' ? 'Checklist' : event?.category;
+  const destination = event?.category === 'RentPayment'
+    ? (event.leaseId ? `/landlord/leases/${event.leaseId}/payment-history` : '/landlord/payments')
+    : event?.category === 'Maintenance' && event.maintenanceId ? `/landlord/maintenance/${event.maintenanceId}`
+    : event?.category === 'Lease' && event.leaseId ? `/landlord/leases/${event.leaseId}`
+    : event?.source === 'inspection' && checklistPropertyId
+      ? (checklistId ? `${checklistBase}/checklist/${checklistId}` : `${checklistBase}?type=${event.typeParam || 'move-in'}`)
+    : null;
+  return (
+    <Drawer
+      anchor="right"
+      open={Boolean(event)}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          width: { xs: '100%', sm: 400 },
+          bgcolor: '#fff',
+          color: '#061e35',
+          borderLeft: `1px solid ${c.border}`,
+          boxShadow: '-18px 0 48px rgba(6, 30, 53, 0.24)'
+        }
+      }}
+    >
+      {event && <Stack sx={{ minHeight: '100%' }}>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+          sx={{ px: 3, py: 2, bgcolor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+        >
+          <Typography variant="overline" fontWeight={800} sx={{ color: c.text, letterSpacing: 1 }}>
+            {categoryLabel}
+          </Typography>
+          <IconButton
+            onClick={onClose}
+            aria-label="Close event details"
+            sx={{ color: '#334155', bgcolor: '#fff', border: '1px solid #e2e8f0', '&:hover': { bgcolor: '#f1f5f9' } }}
+          >
+            <CloseOutlined />
+          </IconButton>
+        </Stack>
+
+        <Stack spacing={2.5} sx={{ flex: 1, px: 3, py: 3 }}>
+          <Box>
+            <Typography variant="h5" fontWeight={750} sx={{ color: '#061e35', lineHeight: 1.3 }}>
+              {event.title}
+            </Typography>
+            <Typography sx={{ mt: 0.75, color: '#475569', fontWeight: 500 }}>
+              {format(event.date, 'EEEE, MMMM d, yyyy · h:mm a')}
+            </Typography>
+          </Box>
+
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip
+              size="small"
+              label={event.status || 'Scheduled'}
+              sx={{ bgcolor: c.bg, color: c.text, border: `1px solid ${c.border}`, fontWeight: 700 }}
+            />
+            {event.unitName && <Chip size="small" label={event.unitName} sx={{ bgcolor: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1' }} />}
+          </Stack>
+
+          {event.amount != null && (
+            <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <Typography sx={{ color: '#475569', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                Rent amount
+              </Typography>
+              <Typography variant="h5" fontWeight={800} sx={{ mt: 0.25, color: '#061e35' }}>
+                ${Number(event.amount).toLocaleString()}
+              </Typography>
+            </Box>
+          )}
+
+          {event.source === 'task' ? <Stack direction="row" spacing={1}>
+            <Button variant="contained" onClick={() => onEditTask(event.task)} sx={{ fontWeight: 700 }}>Edit task</Button>
+            <Button color="error" variant="outlined" onClick={() => onDeleteTask(event.taskId)} sx={{ fontWeight: 700 }}>Delete</Button>
+          </Stack> : destination ? <Button
+            variant="contained"
+            onClick={() => onNavigate(destination)}
+            sx={{ alignSelf: 'flex-start', px: 2.5, bgcolor: '#061e35', color: '#fff', fontWeight: 800, '&:hover': { bgcolor: '#0b2f4f' } }}
+          >
+            {event.category === 'RentPayment' ? 'View payments' : event.category === 'Maintenance' ? 'View request' : event.source === 'inspection' ? 'Open checklist' : 'View lease'}
+          </Button> : null}
+        </Stack>
+      </Stack>}
+    </Drawer>
   );
 }
 
@@ -705,14 +833,17 @@ function Sidebar({ selectedDay, events, onAddTask, onEventClick, properties, ren
 
 export default function CalendarPage() {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const [current, setCurrent] = useState(new Date());
-  const [view, setView] = useState('Month');
+  const [view, setView] = useState(isMobile ? 'Agenda' : 'Month');
   const [selectedDay, setSelectedDay] = useState(new Date());
   const [activeFilters, setActiveFilters] = useState(new Set(['RentPayment', 'Maintenance', 'Lease', 'Inspection', 'Task']));
   const [selectedProperty, setSelectedProperty] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('All statuses');
+  const [dayAgendaOpen, setDayAgendaOpen] = useState(false);
   const [addTaskOpen, setAddTaskOpen] = useState(false);
   const [addTaskDate, setAddTaskDate] = useState(new Date());
   const [editTask, setEditTask] = useState(null);
@@ -722,7 +853,7 @@ export default function CalendarPage() {
   // Data
   const { properties } = useFetchProperties();
   useFetchAllPayments();
-  const { refetch: refetchTasks } = useFetchTasks();
+  useFetchTasks();
   const allPayments      = useSelector(selectAllPayments);
   const dashboardSummary = useSelector(selectDashboardSummary);
   const tasks            = useSelector(selectTasks);
@@ -778,32 +909,31 @@ export default function CalendarPage() {
     [properties, allPayments, dashboardSummary, tasks, inspections, viewStart, viewEnd]
   );
 
+  const summaryEvents = useMemo(() => {
+    const now = new Date();
+    return buildEvents(properties, allPayments, dashboardSummary, tasks, inspections, startOfDay(addDays(now, -365)), endOfDay(addDays(now, 90)));
+  }, [properties, allPayments, dashboardSummary, tasks, inspections]);
+
   // Filtered
   const filteredEvents = useMemo(() =>
     allEvents
       .filter(e => activeFilters.has(e.category))
-      .filter(e => !selectedProperty || String(e.propertyId) === String(selectedProperty)),
-    [allEvents, activeFilters, selectedProperty]
+      .filter(e => !selectedProperty || String(e.propertyId) === String(selectedProperty))
+      .filter(e => selectedStatus === 'All statuses' || e.status === selectedStatus),
+    [allEvents, activeFilters, selectedProperty, selectedStatus]
   );
 
-  // Stats
-  const rentDueThisMonth = useMemo(() => {
+  const summaryCards = useMemo(() => {
     const now = new Date();
-    return allEvents.filter(e => e.category === 'RentPayment' && isSameMonth(e.date, now)).length;
-  }, [allEvents]);
-
-  const openMaintenance = (dashboardSummary?.maintenanceRequests?.maintenanceRequests || [])
-    .filter(r => !['completed','cancelled'].includes((r.status || '').toLowerCase())).length;
-
-  const leasesEndingSoon = useMemo(() => {
-    const soon = addDays(new Date(), 90);
-    return (properties || []).flatMap(p => p.units || [])
-      .filter(u => {
-        const lease = u.lease || u.Lease;
-        const endD = lease?.endDate || lease?.EndDate;
-        return endD && new Date(endD) <= soon && (lease?.isActive || lease?.IsActive);
-      }).length;
-  }, [properties]);
+    const inSevenDays = endOfDay(addDays(now, 7));
+    const scoped = summaryEvents.filter(event => !selectedProperty || String(event.propertyId) === String(selectedProperty));
+    return [
+      { label: 'Due next 7 days', value: scoped.filter(event => event.date >= now && event.date <= inSevenDays && !['Paid', 'Completed'].includes(event.status)).length, color: CATEGORY_COLORS.Task.dot },
+      { label: 'Overdue', value: scoped.filter(event => event.status === 'Overdue').length, color: CATEGORY_COLORS.Maintenance.dot },
+      { label: 'Lease milestones', value: scoped.filter(event => event.category === 'Lease' && event.date >= now).length, color: CATEGORY_COLORS.Lease.dot },
+      { label: 'Scheduled maintenance', value: scoped.filter(event => event.category === 'Maintenance' && event.status === 'Scheduled' && event.date >= now).length, color: CATEGORY_COLORS.Maintenance.text }
+    ];
+  }, [summaryEvents, selectedProperty]);
 
   // Nav
   const goToday = () => { setCurrent(new Date()); setSelectedDay(new Date()); };
@@ -816,27 +946,13 @@ export default function CalendarPage() {
     return next;
   });
 
-  const handleDayClick = (day) => setSelectedDay(day);
+  const handleDayClick = (day) => {
+    setSelectedDay(day);
+    if (isMobile) setDayAgendaOpen(true);
+  };
 
   const handleEventClick = (event) => {
     setSelectedEvent(event);
-    if (event.source === 'inspection') {
-      const propertyId = event.propertyId || event.inspection?.propertyId || event.inspection?.PropertyId;
-      const unitId = event.unitId || event.inspection?.unitId || event.inspection?.UnitId;
-      const checklistId = event.inspection?.id || event.inspection?.Id;
-      const typeParam = event.typeParam || 'move-in';
-      if (propertyId) {
-        const overviewPath = unitId
-          ? `/landlord/checklists/property/${propertyId}/unit/${unitId}`
-          : `/landlord/checklists/property/${propertyId}`;
-        navigate(checklistId ? `${overviewPath}/checklist/${checklistId}` : `${overviewPath}?type=${typeParam}`);
-      }
-      return;
-    }
-    if (event.source === 'task' && event.task) {
-      setEditTask(event.task);
-      setAddTaskOpen(true);
-    }
   };
 
   const handleAddTask = (date) => {
@@ -847,7 +963,8 @@ export default function CalendarPage() {
 
   const handleSaveTask = async (form) => {
     if (editTask) {
-      await dispatch(updateTaskAction(editTask.id, { id: editTask.id, ...form }));
+      const taskId = editTask.id || editTask.Id;
+      await dispatch(updateTaskAction(taskId, { id: taskId, ...form }));
     } else {
       await dispatch(createTask(form));
     }
@@ -869,52 +986,22 @@ export default function CalendarPage() {
     <Box>
       <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Calendar' }]} />
 
-      {/* Page header */}
-      <Box sx={{ mb: 2 }}>
-        {/* On mobile: stacked rows. On desktop: two-column flex row. */}
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          alignItems={{ xs: 'flex-start', sm: 'flex-start' }}
-          justifyContent="space-between"
-          spacing={{ xs: 1.5, sm: 0 }}
-        >
-          {/* Left: label + title + subtext */}
+      <Box sx={{ mb: 2, p: { xs: 2, sm: 3 }, borderRadius: 2.5, bgcolor: '#061e35', color: '#fff', backgroundImage: 'linear-gradient(120deg, #061e35 45%, #0b3653)' }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
           <Box>
-            <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.8, color: (t) => calendarLabelColor(t), textTransform: 'uppercase', mb: 0.25 }}>
-              CALENDAR
-            </Typography>
-            <Typography variant="h4" fontWeight={700}>{title}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Everything happening across your units, in one place.
-            </Typography>
+            <Typography variant="h3" fontWeight={700} sx={{ color: '#fff' }}>Calendar</Typography>
+            <Typography variant="body2" sx={{ color: alpha('#fff', 0.72), mt: 0.5 }}>{title} · Keep rent, work, leases, and checklists moving.</Typography>
           </Box>
-
-          {/* Right: view toggle + nav — own row on mobile */}
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexShrink: 0 }}>
-            <Stack direction="row" sx={{ border: (t) => `1px solid ${subtleBorder(t, 0.2)}`, borderRadius: 1.5, overflow: 'hidden' }}>
-              {VIEWS.map(v => (
-                <Box key={v} onClick={() => setView(v)}
-                  sx={{ px: 1.75, py: 0.6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
-                    bgcolor: view === v ? 'success.main' : 'transparent', color: view === v ? 'success.contrastText' : 'text.secondary',
-                    transition: 'all 0.15s', borderRight: v !== 'Agenda' ? (t) => `1px solid ${subtleBorder(t, 0.2)}` : 'none',
-                    '&:hover': view === v ? { bgcolor: 'success.dark' } : { bgcolor: alpha(theme.palette.action.hover, 0.5) } }}>
-                  {v}
-                </Box>
-              ))}
-            </Stack>
-            <Stack direction="row" alignItems="center" spacing={0.5}>
-              <IconButton size="small" onClick={goPrev} sx={{ border: (t) => `1px solid ${subtleBorder(t, 0.2)}`, borderRadius: 1 }}><LeftOutlined style={{ fontSize: 11 }} /></IconButton>
-              <Button size="small" onClick={goToday} variant="outlined" sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.25, px: 1.5, borderColor: (t) => subtleBorder(t, 0.2) }}>Today</Button>
-              <IconButton size="small" onClick={goNext} sx={{ border: (t) => `1px solid ${subtleBorder(t, 0.2)}`, borderRadius: 1 }}><RightOutlined style={{ fontSize: 11 }} /></IconButton>
-            </Stack>
-          </Stack>
+          <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => handleAddTask(selectedDay)} sx={{ flexShrink: 0, textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}>
+            Add task
+          </Button>
         </Stack>
       </Box>
 
       {/* Filter bar */}
-      <Box sx={{ mb: 2 }}>
-        {/* Property filter — full width on mobile, auto-width on desktop */}
-        <Box sx={{ mb: 1 }}>
+      <Box sx={{ mb: 2, p: 1.5, border: (t) => `1px solid ${subtleBorder(t)}`, borderRadius: 2, bgcolor: 'background.paper' }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" sx={{ mb: 1.25 }}>
+          <Stack direction="row" spacing={1} sx={{ overflowX: 'auto' }}>
           <FormControl size="small" sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { sm: 160 } }}>
             <Select value={selectedProperty} onChange={e => setSelectedProperty(e.target.value)} displayEmpty
               sx={{ fontSize: '0.78rem', borderRadius: 1.5, height: 32 }}
@@ -923,7 +1010,19 @@ export default function CalendarPage() {
               {(properties || []).map(p => <MenuItem key={p.id} value={String(p.id)}>{p.name || p.streetAddress}</MenuItem>)}
             </Select>
           </FormControl>
-        </Box>
+          <FormControl size="small" sx={{ minWidth: 145 }}><Select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)} sx={{ fontSize: '0.78rem', borderRadius: 1.5, height: 32 }}>
+            {STATUS_FILTERS.map(status => <MenuItem key={status} value={status}>{status}</MenuItem>)}
+          </Select></FormControl>
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" sx={{ border: (t) => `1px solid ${subtleBorder(t, 0.2)}`, borderRadius: 1.5, overflow: 'hidden' }}>
+              {VIEWS.map(v => <Box key={v} onClick={() => setView(v)} sx={{ px: { xs: 1.2, sm: 1.75 }, py: 0.6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, bgcolor: view === v ? 'success.main' : 'transparent', color: view === v ? 'success.contrastText' : 'text.secondary' }}>{v}</Box>)}
+            </Stack>
+            <IconButton size="small" onClick={goPrev}><LeftOutlined /></IconButton>
+            <Button size="small" onClick={goToday} variant="outlined" sx={{ textTransform: 'none' }}>Today</Button>
+            <IconButton size="small" onClick={goNext}><RightOutlined /></IconButton>
+          </Stack>
+        </Stack>
 
         {/* Pills row — horizontally scrollable on mobile */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, overflowX: 'auto', pb: 0.5,
@@ -948,6 +1047,13 @@ export default function CalendarPage() {
         </Box>
       </Box>
 
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.25, mb: 2 }}>
+        {summaryCards.map(card => <Box key={card.label} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'background.paper', border: (t) => `1px solid ${subtleBorder(t)}`, borderTop: `3px solid ${card.color}` }}>
+          <Typography sx={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{card.value}</Typography>
+          <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.4 }}>{card.label}</Typography>
+        </Box>)}
+      </Box>
+
       {/* Main layout */}
       <Stack direction="row" spacing={2} sx={{ minHeight: 600 }}>
         {/* Calendar — full width on mobile */}
@@ -964,32 +1070,9 @@ export default function CalendarPage() {
             events={filteredEvents}
             onAddTask={handleAddTask}
             onEventClick={handleEventClick}
-            properties={properties}
-            rentDueThisMonth={rentDueThisMonth}
-            openMaintenance={openMaintenance}
-            leasesEndingSoon={leasesEndingSoon}
-            needsApproval={0}
           />
         </Box>
       </Stack>
-
-      {/* Bottom stats */}
-      <Box sx={calendarAccentPanelSx(theme.palette.success.main, { mt: 2, p: 2, borderRadius: 2 })}>
-        <Stack direction="row" divider={<Divider orientation="vertical" flexItem />} spacing={3}>
-          {[
-            { value: `${rentDueThisMonth}`, label: 'Rent events this month', color: CATEGORY_COLORS.RentPayment.text },
-            { value: `${openMaintenance}`,  label: 'Open maintenance',       color: CATEGORY_COLORS.Maintenance.text },
-            { value: `${leasesEndingSoon}`, label: 'Leases ending soon',     color: CATEGORY_COLORS.Lease.text },
-            { value: `${allEvents.filter(e => e.category === 'Inspection' && isSameMonth(e.date, new Date())).length}`, label: 'Inspections this month', color: CATEGORY_COLORS.Inspection.text },
-            { value: `${tasks.length}`,     label: 'Active tasks',           color: CATEGORY_COLORS.Task.text },
-          ].map(s => (
-            <Box key={s.label}>
-              <Typography sx={{ fontSize: '1.6rem', fontWeight: 800, color: s.color, lineHeight: 1.1 }}>{s.value}</Typography>
-              <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>{s.label}</Typography>
-            </Box>
-          ))}
-        </Stack>
-      </Box>
 
       {/* Add / Edit Task Drawer */}
       <AddTaskDrawer
@@ -1000,6 +1083,24 @@ export default function CalendarPage() {
         properties={properties}
         editTask={editTask}
       />
+      <EventDetailsDrawer
+        event={selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        onEditTask={(task) => { setSelectedEvent(null); setEditTask(task); setAddTaskOpen(true); }}
+        onDeleteTask={handleDeleteTask}
+        onNavigate={(path) => { setSelectedEvent(null); navigate(path); }}
+      />
+      <Drawer anchor="bottom" open={dayAgendaOpen && isMobile} onClose={() => setDayAgendaOpen(false)} PaperProps={{ sx: { maxHeight: '72vh', borderRadius: '18px 18px 0 0', p: 2 } }}>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
+          <Box><Typography variant="h6" fontWeight={750}>{format(selectedDay, 'EEEE, MMM d')}</Typography><Typography variant="caption" color="text.secondary">Day agenda</Typography></Box>
+          <IconButton onClick={() => setDayAgendaOpen(false)}><CloseOutlined /></IconButton>
+        </Stack>
+        <Stack spacing={1} sx={{ overflowY: 'auto' }}>
+          {filteredEvents.filter(event => isSameDay(event.date, selectedDay)).map(event => <EventPill key={event.id} event={event} onClick={(item) => { setDayAgendaOpen(false); handleEventClick(item); }} />)}
+          {!filteredEvents.some(event => isSameDay(event.date, selectedDay)) && <Typography color="text.secondary">No events scheduled.</Typography>}
+        </Stack>
+        <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => { setDayAgendaOpen(false); handleAddTask(selectedDay); }} sx={{ mt: 2, textTransform: 'none', fontWeight: 700 }}>Add task</Button>
+      </Drawer>
     </Box>
   );
 }

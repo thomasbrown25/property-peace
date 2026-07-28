@@ -12,10 +12,11 @@ on:
     paths:
       - "property-peace-marketing/**"
       - ".github/workflows/property-peace-marketing-deploy.yml"
+  workflow_dispatch:
 
 jobs:
   build_and_deploy_job:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
     name: Build and Deploy Job
     steps:
@@ -40,7 +41,7 @@ jobs:
         run: npm run build
 
       - name: Deploy to Azure Static Web Apps
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         working-directory: property-peace-marketing
         env:
           SWA_CLI_DEPLOYMENT_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_ICY_PLANT_03F5A1C0F }}

@@ -31,6 +31,18 @@
       ]
     },
     {
+      "route": "/access-denied.html",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
+      "route": "/property-peace-access-logo.png",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
       "route": "/_next/static/*",
       "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"
@@ -79,6 +91,10 @@
     "401": {
       "redirect": "/.auth/login/aad",
       "statusCode": 302
+    },
+    "403": {
+      "rewrite": "/access-denied.html",
+      "statusCode": 403
     }
   }
 }

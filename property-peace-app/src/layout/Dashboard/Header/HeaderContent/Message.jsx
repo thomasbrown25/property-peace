@@ -156,13 +156,12 @@ export default function Message() {
           color="secondary"
           sx={(theme) => ({
             color: 'text.primary',
-            transition: theme.transitions.create(['background-color', 'box-shadow', 'transform'], {
+            transition: theme.transitions.create(['background-color', 'box-shadow'], {
               duration: theme.transitions.duration.shorter
             }),
             '&:hover': {
               bgcolor: 'action.hover',
-              boxShadow: 'none',
-              transform: 'translateY(-1px)'
+              boxShadow: 'none'
             },
             ...theme.applyStyles('dark', { '&:hover': { bgcolor: 'action.hover' } })
           })}

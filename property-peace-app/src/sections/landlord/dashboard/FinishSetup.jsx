@@ -305,10 +305,10 @@ export default function FinishSetup({ open, onOpen, onClose, steps, compact = fa
           onClick={onOpen}
           sx={() => ({
             textTransform: 'none', borderRadius: 1.5, px: compact ? 2.25 : { xs: 1.5, sm: 2 }, py: compact ? 0.55 : 0.65,
-            minHeight: compact ? 36 : 38, minWidth: compact ? 190 : 'auto', color: '#fff', fontWeight: 800,
+            minHeight: compact ? 36 : 38, minWidth: 'auto', color: '#fff', fontWeight: 800,
             fontSize: compact ? '0.875rem' : 'inherit', whiteSpace: 'nowrap', border: 0,
             background: SETUP_NAVY,
-            boxShadow: 'none', transformOrigin: 'center', animation: 'finishSetupPulse 2.8s ease-in-out infinite',
+            boxShadow: 'none', transformOrigin: 'center', animation: compact ? 'none' : 'finishSetupPulse 2.8s ease-in-out infinite',
             '@keyframes finishSetupPulse': {
               '0%, 100%': { transform: 'scale(1)', boxShadow: `0 0 0 0 ${alpha(SETUP_NAVY, 0)}` },
               '45%': { transform: 'scale(1.025)', boxShadow: `0 0 0 7px ${alpha(SETUP_NAVY, 0.16)}` }
@@ -318,7 +318,7 @@ export default function FinishSetup({ open, onOpen, onClose, steps, compact = fa
           })}
         >
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: compact ? '0.8rem' : 'inherit' }}>Finish Setup</Box>
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' }, fontSize: compact ? '0.8rem' : 'inherit' }}>{compact ? 'Setup' : 'Finish Setup'}</Box>
             <Chip label={`${completedCount}/${totalCount}`} size="small" sx={{ height: compact ? 22 : 24, borderRadius: 999, bgcolor: alpha('#052e16', 0.28), color: '#fff', fontWeight: 800, '& .MuiChip-label': { px: 1 } }} />
           </Stack>
         </Button>

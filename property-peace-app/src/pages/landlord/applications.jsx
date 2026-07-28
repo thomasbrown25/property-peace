@@ -760,8 +760,8 @@ export default function ApplicationsPage({ hideHeader = false }) {
               }}
             >
               {hideHeader && applications.length > 0 && <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openApplicationAddDrawer()} sx={{ minWidth: 155, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>New application</Button>}
-              <Box sx={{ minWidth: 180 }}><PropertySelect width="100%" /></Box>
-              <Box sx={{ minWidth: 150 }}><UnitSelect width="100%" /></Box>
+              <Box sx={{ minWidth: 180 }}><PropertySelect width="100%" label={null} placeholder="All properties" /></Box>
+              <Box sx={{ minWidth: 150 }}><UnitSelect width="100%" label={null} placeholder="All units" /></Box>
               <Select
                 size="small"
                 value={statusFilter}

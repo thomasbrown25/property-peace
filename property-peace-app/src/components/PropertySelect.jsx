@@ -34,6 +34,7 @@ const PropertySelect = ({
   onPropertyChange,
   localSelectedProperty = null,
   label = 'Select Property',
+  placeholder,
   disabledPropertyIds,
   disabledPropertyReason = 'Unavailable'
 }) => {
@@ -125,6 +126,7 @@ const PropertySelect = ({
         options={options}
         width={width}
         label={label}
+        placeholder={placeholder}
         value={selectedOption}
         onChange={(_, value) => onSelect(value ?? ALL_OPTION)}
         isOptionEqualToValue={(opt, val) => String(opt.id) === String(val.id)}

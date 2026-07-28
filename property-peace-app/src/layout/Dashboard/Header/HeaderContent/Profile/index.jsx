@@ -14,8 +14,8 @@ import { ListItemButton } from '@mui/material';
 import { ListItemIcon } from '@mui/material';
 import { ListItemText } from '@mui/material';
 import { Divider } from '@mui/material';
-import { MailOutlined, MoreOutlined, CheckOutlined } from '@ant-design/icons';
-import { IconButton, CircularProgress } from '@mui/material';
+import { CheckOutlined, MailOutlined, QuestionCircleOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import { CircularProgress } from '@mui/material';
 
 // project imports
 import Avatar from 'components/@extended/Avatar';
@@ -97,6 +97,7 @@ export default function Profile() {
 
   // Determine base path based on role (priority: Admin > Tenant > Landlord)
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
+  const supportPath = isAdmin ? '/admin/messages?tab=support' : hasLandlordRole && !hasTenantRole ? '/landlord/support/ticket' : '/contact-us';
 
   const handleNavigate = (path) => {
     navigate(path);
@@ -142,13 +143,12 @@ export default function Profile() {
           color: 'text.primary',
           bgcolor: open ? 'action.selected' : 'transparent',
           borderRadius: 1,
-          transition: theme.transitions.create(['background-color', 'box-shadow', 'transform'], {
+          transition: theme.transitions.create(['background-color', 'box-shadow'], {
             duration: theme.transitions.duration.shorter
           }),
           '&:hover': {
             bgcolor: 'action.hover',
-            boxShadow: 'none',
-            transform: 'translateY(-1px)'
+            boxShadow: 'none'
           },
           '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
           ...theme.applyStyles('dark', {
@@ -181,7 +181,7 @@ export default function Profile() {
             </Avatar>
           )}
           <Typography variant="subtitle1" sx={{ textTransform: 'capitalize' }}>
-            {user?.name}
+            {displayName || user?.name || user?.email || user?.Email}
           </Typography>
         </Stack>
       </ButtonBase>
@@ -320,8 +320,21 @@ export default function Profile() {
                     </>
                   )}
 
-                  {/* Actions Section */}
+                  {/* Account actions */}
                   <List component="nav" sx={{ p: 0, '& .MuiListItemIcon-root': { minWidth: 32 } }}>
+                    <ListItemButton onClick={() => handleNavigate(`${basePath}/settings?tab=profile`)}>
+                      <ListItemIcon><UserOutlined /></ListItemIcon>
+                      <ListItemText primary="Profile" />
+                    </ListItemButton>
+                    <ListItemButton onClick={() => handleNavigate(`${basePath}/settings`)}>
+                      <ListItemIcon><SettingOutlined /></ListItemIcon>
+                      <ListItemText primary="Settings" />
+                    </ListItemButton>
+                    <ListItemButton onClick={() => handleNavigate(supportPath)}>
+                      <ListItemIcon><QuestionCircleOutlined /></ListItemIcon>
+                      <ListItemText primary="Support" />
+                    </ListItemButton>
+                    <Divider />
                     <ListItemButton onClick={handleLogout}>
                       <ListItemIcon>
                         <LogoutOutlined />

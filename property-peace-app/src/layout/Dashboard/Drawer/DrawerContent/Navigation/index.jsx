@@ -60,23 +60,21 @@ export default function Navigation() {
       menuData = { items: pagesArray };
     }
     
-    // If trial is expired, disable all items except subscription
-    // Note: subscription is removed from menu, so this logic may not be needed
-    // But keeping for backward compatibility
+    // If trial is expired, keep categories expandable but disable their nested destinations.
     if (isTrialExpired && menuData.items.length > 0) {
-      menuData.items = menuData.items.map(group => {
-        if (group.children) {
-          const updatedChildren = group.children.map(item => {
-            // Allow subscription page, disable all others
-            if (item.id === 'subscription' || item.url === '/landlord/subscription') {
-              return item;
-            }
-            return { ...item, disabled: true };
-          });
-          return { ...group, children: updatedChildren };
+      const applyTrialRestriction = (item) => {
+        if (item.children?.length) {
+          return { ...item, children: item.children.map(applyTrialRestriction) };
         }
-        return group;
-      });
+
+        if (item.id === 'subscription' || item.url === '/landlord/subscription') {
+          return item;
+        }
+
+        return { ...item, disabled: true };
+      };
+
+      menuData.items = menuData.items.map(applyTrialRestriction);
     }
     
     return menuData;

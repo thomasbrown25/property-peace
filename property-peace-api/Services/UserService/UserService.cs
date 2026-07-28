@@ -1438,9 +1438,18 @@ namespace brownstone_hub_api.Services.UserService
                 await _userRepository.DeleteUser(user);
 
                 // Prevent any existing browser/device refresh session from creating a new access token.
-                await _dataContext.UserRefreshTokens
+                var activeRefreshTokens = await _dataContext.UserRefreshTokens
                     .Where(token => token.UserId == userId && token.RevokedAt == null)
-                    .ExecuteUpdateAsync(update => update.SetProperty(token => token.RevokedAt, DateTime.UtcNow));
+                    .ToListAsync();
+                if (activeRefreshTokens.Count > 0)
+                {
+                    var revokedAt = DateTime.UtcNow;
+                    foreach (var token in activeRefreshTokens)
+                    {
+                        token.RevokedAt = revokedAt;
+                    }
+                    await _dataContext.SaveChangesAsync();
+                }
 
                 response.Success = true;
                 response.Data = "User account has been deactivated successfully";

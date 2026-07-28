@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#061e35" />
+    <title>Access denied | Property Peace</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --navy: #061e35;
+        --navy-hover: #0b2f4f;
+        --green: #22c55e;
+        --green-hover: #16a34a;
+        --text: #17324a;
+        --muted: #627487;
+        --border: #dce6e1;
+        --surface: #ffffff;
+        --background: #f4f8f6;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-width: 320px;
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text);
+        background: var(--background);
+      }
+
+      .page {
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .header {
+        height: 76px;
+        display: flex;
+        align-items: center;
+        padding: 0 clamp(22px, 5vw, 72px);
+        background: var(--navy);
+      }
+
+      .logo {
+        display: block;
+        width: 204px;
+        max-width: 62vw;
+        height: auto;
+      }
+
+      .main {
+        display: grid;
+        place-items: center;
+        padding: 48px 22px;
+      }
+
+      .card {
+        width: min(100%, 650px);
+        padding: clamp(34px, 7vw, 58px);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        background: var(--surface);
+        box-shadow: 0 20px 55px rgba(6, 30, 53, 0.09);
+        text-align: center;
+      }
+
+      .icon {
+        width: 76px;
+        height: 76px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 26px;
+        border: 1px solid #bde8ca;
+        border-radius: 22px;
+        color: var(--green-hover);
+        background: #effbf3;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 17px;
+        color: #167c3f;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      .status::before {
+        width: 7px;
+        height: 7px;
+        content: "";
+        border-radius: 50%;
+        background: var(--green);
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--navy);
+        font-size: clamp(34px, 7vw, 48px);
+        line-height: 1.08;
+        letter-spacing: -0.04em;
+      }
+
+      .lead {
+        max-width: 510px;
+        margin: 20px auto 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      .hint {
+        margin: 28px 0 0;
+        padding: 16px 18px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        color: var(--muted);
+        background: #f8fbf9;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .hint strong {
+        color: var(--navy);
+      }
+
+      .actions {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+
+      .button {
+        min-height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 20px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 750;
+        text-decoration: none;
+        transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+      }
+
+      .button:hover {
+        transform: translateY(-1px);
+      }
+
+      .button:focus-visible {
+        outline: 3px solid rgba(34, 197, 94, 0.3);
+        outline-offset: 3px;
+      }
+
+      .button-primary {
+        color: #ffffff;
+        background: var(--green);
+      }
+
+      .button-primary:hover {
+        background: var(--green-hover);
+      }
+
+      .button-secondary {
+        color: var(--navy);
+        border-color: #c9d7d1;
+        background: #ffffff;
+      }
+
+      .button-secondary:hover {
+        border-color: #9fb4aa;
+        background: #f8fbf9;
+      }
+
+      .support {
+        margin: 24px 0 0;
+        color: #7b8b99;
+        font-size: 13px;
+      }
+
+      .support a {
+        color: var(--navy);
+        font-weight: 700;
+        text-underline-offset: 3px;
+      }
+
+      .footer {
+        padding: 0 22px 26px;
+        color: #82918d;
+        font-size: 12px;
+        text-align: center;
+      }
+
+      @media (max-width: 520px) {
+        .header {
+          height: 68px;
+        }
+
+        .logo {
+          width: 182px;
+        }
+
+        .main {
+          padding: 28px 14px;
+        }
+
+        .card {
+          padding: 34px 22px;
+          border-radius: 18px;
+        }
+
+        .actions {
+          display: grid;
+        }
+
+        .button {
+          width: 100%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .button {
+          transition: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header class="header">
+        <img class="logo" src="/property-peace-access-logo.png" alt="Property Peace" />
+      </header>
+
+      <main class="main">
+        <section class="card" aria-labelledby="page-title">
+          <div class="icon" aria-hidden="true">
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="5" y="10" width="14" height="10" rx="2.5" stroke="currentColor" stroke-width="1.8" />
+              <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              <circle cx="12" cy="15" r="1.2" fill="currentColor" />
+            </svg>
+          </div>
+
+          <p class="status">Access restricted</p>
+          <h1 id="page-title">You don’t have access to this workspace.</h1>
+          <p class="lead">
+            You’re signed in, but this account hasn’t been granted access to this Property Peace environment.
+            No property information was exposed.
+          </p>
+
+          <p class="hint">
+            <strong>Think this is a mistake?</strong> Ask your Property Peace administrator to invite this account,
+            or sign in with a different account.
+          </p>
+
+          <div class="actions">
+            <a class="button button-primary" href="/.auth/logout?post_logout_redirect_uri=/.auth/login/aad">Use another account</a>
+            <a class="button button-secondary" href="https://www.propertypeace.io">Go to Property Peace</a>
+          </div>
+
+          <p class="support">Need help? <a href="mailto:support@propertypeace.io">Contact support</a></p>
+        </section>
+      </main>
+
+      <footer class="footer">Secure access powered by Property Peace</footer>
+    </div>
+  </body>
+</html>

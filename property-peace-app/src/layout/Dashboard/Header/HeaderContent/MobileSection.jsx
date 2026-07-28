@@ -23,13 +23,14 @@ import Transitions from 'components/@extended/Transitions';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
 import { useOrganization } from 'contexts/OrganizationContext';
+import Message from './Message';
+import Notification from './Notification';
 
 // assets
-import BellOutlined from '@ant-design/icons/BellOutlined';
 import MailOutlined from '@ant-design/icons/MailOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import QuestionCircleOutlined from '@ant-design/icons/QuestionCircleOutlined';
-import CommentOutlined from '@ant-design/icons/CommentOutlined';
+
 import LogoutOutlined from '@ant-design/icons/LogoutOutlined';
 import CheckOutlined from '@ant-design/icons/CheckOutlined';
 import avatar1 from 'assets/images/users/avatar-1.png';
@@ -74,6 +75,7 @@ export default function MobileSection() {
   
   // Determine base path based on role (priority: Admin > Tenant > Landlord)
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
+  const supportPath = isAdmin ? '/admin/messages?tab=support' : hasLandlordRole && !hasTenantRole ? '/landlord/support/ticket' : '/contact-us';
 
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -147,6 +149,8 @@ export default function MobileSection() {
 
   return (
     <>
+      <Message />
+      <Notification />
       <Box sx={{ flexShrink: 0, ml: 0.75, display: 'flex', alignItems: 'center', gap: 1 }}>
         <ButtonBase
           sx={(theme) => ({
@@ -312,22 +316,6 @@ export default function MobileSection() {
                       }
                     }}
                   >
-                    <ListItemButton onClick={() => handleMenuItemClick(`${basePath}/notifications`)}>
-                      <ListItemIcon>
-                        <BellOutlined style={{ fontSize: 20 }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Notifications" />
-                    </ListItemButton>
-                    
-                    <ListItemButton onClick={() => handleMenuItemClick(`${basePath}/messages`)}>
-                      <ListItemIcon>
-                        <MailOutlined style={{ fontSize: 20 }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Messages" />
-                    </ListItemButton>
-                    
-                    <Divider />
-                    
                     <ListItemButton onClick={() => handleMenuItemClick(`${basePath}/settings`)}>
                       <ListItemIcon>
                         <SettingOutlined style={{ fontSize: 20 }} />
@@ -335,19 +323,13 @@ export default function MobileSection() {
                       <ListItemText primary="Settings" />
                     </ListItemButton>
                     
-                    <ListItemButton onClick={() => handleMenuItemClick('/contact-us')}>
+                    <ListItemButton onClick={() => handleMenuItemClick(supportPath)}>
                       <ListItemIcon>
                         <QuestionCircleOutlined style={{ fontSize: 20 }} />
                       </ListItemIcon>
                       <ListItemText primary="Support" />
                     </ListItemButton>
-                    
-                    <ListItemButton onClick={() => handleMenuItemClick(`${basePath}/settings?tab=feedback`)}>
-                      <ListItemIcon>
-                        <CommentOutlined style={{ fontSize: 20 }} />
-                      </ListItemIcon>
-                      <ListItemText primary="Feedback" />
-                    </ListItemButton>
+
                   </List>
 
                   {/* Sign Out Section */}

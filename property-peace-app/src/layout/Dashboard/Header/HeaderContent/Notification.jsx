@@ -18,6 +18,7 @@ import { Popper } from '@mui/material';
 import { Tooltip } from '@mui/material';
 import { Typography } from '@mui/material';
 import { Box } from '@mui/material';
+import { Button } from '@mui/material';
 
 // project imports
 import MainCard from 'components/MainCard';
@@ -81,18 +82,17 @@ export default function Notification() {
 
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
-  const handleToggle = async () => {
-    const willOpen = !open;
-    setOpen(willOpen);
-    
-    // Auto-mark all notifications as read when opening the dropdown
-    if (willOpen && unreadCount > 0) {
-      try {
-        await axiosServices.post('/api/notifications/mark-all-read');
-        await refetch(); // Refresh notifications to update read status
-      } catch (error) {
-        console.error('Error marking all notifications as read:', error);
-      }
+  const handleToggle = () => {
+    setOpen((current) => !current);
+  };
+
+  const handleMarkAllRead = async () => {
+    if (unreadCount === 0) return;
+    try {
+      await axiosServices.post('/api/notifications/mark-all-read');
+      await refetch();
+    } catch (error) {
+      openSnackbar({ open: true, message: 'Unable to mark notifications as read.', variant: 'alert', alert: { color: 'error' } });
     }
   };
 
@@ -234,17 +234,16 @@ export default function Notification() {
         sx={(theme) => ({
           color: 'text.primary',
           bgcolor: open ? 'action.selected' : 'transparent',
-          transition: theme.transitions.create(['background-color', 'box-shadow', 'transform'], {
+          transition: theme.transitions.create(['background-color', 'box-shadow'], {
             duration: theme.transitions.duration.shorter
           }),
           '&:hover': {
             bgcolor: 'action.hover',
-            boxShadow: 'none',
-            transform: 'translateY(-1px)'
+            boxShadow: 'none'
           },
           ...theme.applyStyles('dark', { bgcolor: open ? 'action.selected' : 'transparent' })
         })}
-        aria-label="open profile"
+        aria-label="open notifications"
         ref={anchorRef}
         aria-controls={open ? 'profile-grow' : undefined}
         aria-haspopup="true"
@@ -268,7 +267,14 @@ export default function Notification() {
             <Paper sx={(theme) => ({ boxShadow: theme.customShadows.z1, width: '100%', minWidth: 285, maxWidth: { xs: 285, md: 420 } })}>
               <ClickAwayListener onClickAway={handleClose}>
                 <MainCard
-                  title="Notification"
+                  title="Notifications"
+                  secondary={
+                    unreadCount > 0 ? (
+                      <Button size="small" color="primary" onClick={handleMarkAllRead} sx={{ textTransform: 'none' }}>
+                        Mark all as read
+                      </Button>
+                    ) : null
+                  }
                   elevation={0}
                   border={false}
                   content={false}
