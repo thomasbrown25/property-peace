@@ -711,7 +711,7 @@ export default function TenantMessages() {
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', p: 3, bgcolor: isDarkMode ? 'background.paper' : '#f7f9fc' }}>
                 <Stack spacing={1.5} alignItems="center" sx={{ textAlign: 'center', maxWidth: 360 }}>
                   <Avatar sx={{ width: 64, height: 64, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><MessageOutlined style={{ fontSize: 28 }} /></Avatar>
-                  <Typography variant="h5" fontWeight={700}>Select a conversation</Typography>
+                  <Typography variant="h5" fontWeight={700}>Your inbox</Typography>
                   <Typography variant="body2" color="text.secondary">Review your message history or start a new conversation.</Typography>
                   <Button variant="contained" startIcon={<PlusOutlined />} onClick={handleOpenNewMessage} sx={{ mt: 0.5, textTransform: 'none' }}>New message</Button>
                 </Stack>

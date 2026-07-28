@@ -1932,7 +1932,7 @@ export default function Messages() {
                       <Avatar sx={{ width: 64, height: 64, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
                         <MessageOutlined style={{ fontSize: 28 }} />
                       </Avatar>
-                      <Typography variant="h5" fontWeight={700}>Your tenant inbox</Typography>
+                      <Typography variant="h5" fontWeight={700}>Your landlord inbox</Typography>
                       <Typography variant="body2" color="text.secondary">
                         Select a conversation to review its history and tenant context, or start a new message.
                       </Typography>
