@@ -109,6 +109,13 @@ const pages = [
         icon: icons.AuditOutlined
       },
       {
+        id: 'applications',
+        title: 'Applications',
+        type: 'item',
+        url: '/landlord/applications',
+        icon: icons.FormOutlined
+      },
+      {
         id: 'listings',
         title: 'Listings',
         type: 'item',
