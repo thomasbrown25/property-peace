@@ -16,7 +16,7 @@ import {
 import { DeleteOutlined, LockOutlined } from '@ant-design/icons';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
-import PasskeySettingsCard from 'components/security/PasskeySettingsCard';
+import AuthenticationMethodsCard from 'components/security/AuthenticationMethodsCard';
 import useAuth from 'hooks/useAuth';
 
 // ==============================|| TENANT ACCOUNT SETTINGS ||============================== //
@@ -195,7 +195,7 @@ export default function AccountSettings() {
             </Stack>
           </form>
         </Paper>
-        <PasskeySettingsCard />
+        <AuthenticationMethodsCard />
         <Paper
           variant="outlined"
           sx={{

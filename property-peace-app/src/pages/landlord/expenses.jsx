@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { CSVLink } from 'react-csv';
+import { darkHeaderOutlinedActionSx } from 'styles/darkHeaderActions.mjs';
 import {
   alpha,
   Avatar,
@@ -11,12 +12,9 @@ import {
   CircularProgress,
   Grid,
   IconButton,
-  InputAdornment,
   Menu,
   MenuItem,
-  OutlinedInput,
   Pagination,
-  Select,
   Stack,
   Tab,
   Tabs,
@@ -39,7 +37,6 @@ import {
   PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SearchOutlined,
   TagsOutlined
 } from '@ant-design/icons';
 
@@ -47,6 +44,7 @@ import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
 import ExpenseEditDrawer from 'components/expense/ExpenseEditDrawer';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
+import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
 import PropertySelect from 'components/PropertySelect';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import useAuth from 'hooks/useAuth';
@@ -85,6 +83,20 @@ const EXPENSE_CATEGORIES = [
   'Capital Improvements',
   'Supplies',
   'Other'
+];
+const PERIOD_OPTIONS = [
+  { value: 'year', label: 'This year' },
+  { value: '30', label: 'Last 30 days' },
+  { value: '90', label: 'Last 90 days' },
+  { value: 'all', label: 'All time' },
+  { value: 'custom', label: 'Custom dates' }
+];
+const EXPENSE_SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'amount-high', label: 'Amount: high' },
+  { value: 'amount-low', label: 'Amount: low' },
+  { value: 'category', label: 'Category' }
 ];
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
@@ -435,6 +447,37 @@ export default function Expenses() {
   const pageCount = Math.ceil(activeList.length / PAGE_SIZE);
   const pageItems = activeList.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const hasFilters = search || period !== 'year' || category !== 'all' || status !== 'all' || sort !== 'newest' || propertyId;
+  const expenseFilterFields = [
+    {
+      key: 'category',
+      label: 'Category',
+      value: category,
+      defaultValue: 'all',
+      onChange: setCategory,
+      options: [{ value: 'all', label: 'All categories' }, ...EXPENSE_CATEGORIES.map((item) => ({ value: item, label: item }))]
+    },
+    ...(activeTab === 0 ? [{
+      key: 'status',
+      label: 'Record status',
+      value: status,
+      defaultValue: 'all',
+      onChange: setStatus,
+      options: [
+        { value: 'all', label: 'All records' },
+        { value: 'paid', label: 'Paid' },
+        { value: 'unpaid', label: 'Unpaid' },
+        { value: 'tax', label: 'Tax deductible' },
+        { value: 'missing-receipt', label: 'Missing receipt' }
+      ]
+    }] : [])
+  ];
+  const expenseActiveChips = [
+    ...(propertyId ? [{ key: 'property', label: read(selectedProperty, 'name', 'Name') || read(selectedProperty, 'address', 'Address') || 'Selected property', onDelete: () => dispatch(setProperty(null)) }] : []),
+    ...(period !== 'year' ? [{ key: 'period', label: PERIOD_OPTIONS.find((item) => item.value === period)?.label || 'Date', onDelete: () => { setPeriod('year'); setCustomDates({ startDate: '', endDate: '' }); } }] : []),
+    ...(category !== 'all' ? [{ key: 'category', label: category, onDelete: () => setCategory('all') }] : []),
+    ...(activeTab === 0 && status !== 'all' ? [{ key: 'status', label: expenseFilterFields[1]?.options.find((item) => item.value === status)?.label || status, onDelete: () => setStatus('all') }] : []),
+    ...(activeTab === 0 && sort !== 'newest' ? [{ key: 'sort', label: EXPENSE_SORT_OPTIONS.find((item) => item.value === sort)?.label || sort, onDelete: () => setSort('newest') }] : [])
+  ];
 
   const clearFilters = () => {
     setSearch('');
@@ -549,7 +592,7 @@ export default function Expenses() {
           </Box>
           <Stack direction="row" spacing={1}>
             <CSVLink data={csvData} filename={`expenses-${toDateInput(new Date())}.csv`} style={{ textDecoration: 'none' }}>
-              <Button variant="outlined" startIcon={<DownloadOutlined />} disabled={!visibleExpenses.length} sx={{ color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none', '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) } }}>
+              <Button variant="outlined" startIcon={<DownloadOutlined />} disabled={!visibleExpenses.length} sx={darkHeaderOutlinedActionSx}>
                 Export
               </Button>
             </CSVLink>
@@ -579,29 +622,23 @@ export default function Expenses() {
             </Box>
 
             <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
-              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
-                <OutlinedInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, vendor, category, or property" size="small" startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ flex: 1, minWidth: { lg: 250 }, borderRadius: 1.75 }} />
-                <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
-                  <Box sx={{ minWidth: 210, '& .MuiOutlinedInput-root': { height: 40, borderRadius: 1.75 }, '& .MuiInputLabel-root': { display: 'none' } }}><PropertySelect width="100%" disableAllOption={false} /></Box>
-                  <Select size="small" value={period} onChange={(event) => setPeriod(event.target.value)} sx={{ minWidth: 120, borderRadius: 1.75 }}>
-                    <MenuItem value="year">This year</MenuItem><MenuItem value="30">Last 30 days</MenuItem><MenuItem value="90">Last 90 days</MenuItem><MenuItem value="all">All time</MenuItem><MenuItem value="custom">Custom dates</MenuItem>
-                  </Select>
-                  <Select size="small" value={category} onChange={(event) => setCategory(event.target.value)} sx={{ minWidth: 142, borderRadius: 1.75 }}>
-                    <MenuItem value="all">All categories</MenuItem>{EXPENSE_CATEGORIES.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
-                  </Select>
-                  {activeTab === 0 && <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} sx={{ minWidth: 130, borderRadius: 1.75 }}>
-                    <MenuItem value="all">All records</MenuItem><MenuItem value="paid">Paid</MenuItem><MenuItem value="unpaid">Unpaid</MenuItem><MenuItem value="tax">Tax deductible</MenuItem><MenuItem value="missing-receipt">Missing receipt</MenuItem>
-                  </Select>}
-                  {activeTab === 0 && <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} sx={{ minWidth: 135, borderRadius: 1.75 }}>
-                    <MenuItem value="newest">Newest first</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="amount-high">Amount: high</MenuItem><MenuItem value="amount-low">Amount: low</MenuItem><MenuItem value="category">Category</MenuItem>
-                  </Select>}
-                </Stack>
-              </Stack>
-              {period === 'custom' && <Stack direction="row" spacing={1} sx={{ mt: 1.2 }}>
-                <OutlinedInput type="date" size="small" value={customDates.startDate} onChange={(event) => setCustomDates((value) => ({ ...value, startDate: event.target.value }))} inputProps={{ 'aria-label': 'Start date' }} />
-                <OutlinedInput type="date" size="small" value={customDates.endDate} onChange={(event) => setCustomDates((value) => ({ ...value, endDate: event.target.value }))} inputProps={{ 'aria-label': 'End date' }} />
-              </Stack>}
-              {hasFilters && <Button size="small" onClick={clearFilters} sx={{ mt: 1, px: 0, textTransform: 'none' }}>Clear filters</Button>}
+              <TransactionFilterToolbar
+                search={search}
+                onSearchChange={setSearch}
+                searchPlaceholder="Search name, vendor, category, or property"
+                propertyControl={<PropertySelect width="100%" disableAllOption={false} label="" />}
+                period={period}
+                onPeriodChange={setPeriod}
+                periodOptions={PERIOD_OPTIONS}
+                sort={sort}
+                onSortChange={setSort}
+                sortOptions={activeTab === 0 ? EXPENSE_SORT_OPTIONS : []}
+                filters={expenseFilterFields}
+                activeChips={expenseActiveChips}
+                onClearAll={clearFilters}
+                customDates={customDates}
+                onCustomDatesChange={setCustomDates}
+              />
             </Box>
 
             {pageLoading ? <Box sx={{ minHeight: 280, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : pageItems.length === 0 ? (

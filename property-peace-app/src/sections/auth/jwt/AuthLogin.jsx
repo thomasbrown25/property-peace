@@ -29,13 +29,14 @@ import AnimateButton from 'components/@extended/AnimateButton';
 import { EyeOutlined, EyeInvisibleOutlined, KeyOutlined } from '@ant-design/icons';
 
 import useAuth from 'hooks/useAuth';
+import MfaLoginChallenge from './MfaLoginChallenge';
 
 const GOOGLE_OAUTH_MESSAGE_TYPE = 'GOOGLE_OAUTH_TOKEN';
 
 // ============================|| JWT - LOGIN ||============================ //
 
 /** Google sign-in button; only rendered when GoogleOAuthProvider is present. */
-function GoogleSignInButton({ inviteToken, setGoogleError, isGoogleAuthInProgress }) {
+function GoogleSignInButton({ inviteToken, setGoogleError, setMfaChallenge, isGoogleAuthInProgress }) {
   const { googleLogin } = useAuth();
   const { scriptLoadedSuccessfully: scriptReady } = useGoogleOAuth();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -58,7 +59,8 @@ function GoogleSignInButton({ inviteToken, setGoogleError, isGoogleAuthInProgres
       try {
         setGoogleError(null);
         setIsGoogleLoading(true);
-        await googleLogin(accessToken, null, inviteToken);
+        const challenge = await googleLogin(accessToken, null, inviteToken);
+        if (challenge?.requiresMfa) setMfaChallenge(challenge);
       } catch (err) {
         console.error('Google login error:', err);
         setGoogleError(err.message || 'Failed to sign in with Google');
@@ -119,6 +121,7 @@ function GoogleSignInButton({ inviteToken, setGoogleError, isGoogleAuthInProgres
 GoogleSignInButton.propTypes = {
   inviteToken: PropTypes.string,
   setGoogleError: PropTypes.func.isRequired,
+  setMfaChallenge: PropTypes.func.isRequired,
   isGoogleAuthInProgress: PropTypes.bool
 };
 
@@ -129,6 +132,7 @@ export default function AuthLogin({ isDemo = false }) {
   const [isGoogleAuthInProgress, setIsGoogleAuthInProgress] = useState(false);
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false);
   const [passkeyError, setPasskeyError] = useState(null);
+  const [mfaChallenge, setMfaChallenge] = useState(null);
 
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const isGoogleOAuthEnabled = !!googleClientId;
@@ -209,6 +213,10 @@ export default function AuthLogin({ isDemo = false }) {
     return () => window.removeEventListener('message', handler);
   }, [isGoogleOAuthEnabled, googleLogin, inviteToken, setGoogleError]);
 
+  if (mfaChallenge) {
+    return <MfaLoginChallenge challenge={mfaChallenge} onCancel={() => setMfaChallenge(null)} />;
+  }
+
   return (
     <>
       <Formik
@@ -239,8 +247,12 @@ export default function AuthLogin({ isDemo = false }) {
               setRememberedEmail('');
             }
 
-            await login(trimmedEmail, values.password);
-            setStatus({ success: true });
+            const challenge = await login(trimmedEmail, values.password);
+            if (challenge?.requiresMfa) {
+              setMfaChallenge(challenge);
+            } else {
+              setStatus({ success: true });
+            }
             setSubmitting(false);
           } catch (err) {
             console.error(err);
@@ -291,7 +303,7 @@ export default function AuthLogin({ isDemo = false }) {
                       transition={{ duration: 0.4, ease: "easeOut", delay: 0.2 }}
                       style={{ padding: '0 4px', overflow: 'visible' }}
                     >
-                      <GoogleSignInButton inviteToken={inviteToken} setGoogleError={setGoogleError} isGoogleAuthInProgress={isGoogleAuthInProgress} />
+                      <GoogleSignInButton inviteToken={inviteToken} setGoogleError={setGoogleError} setMfaChallenge={setMfaChallenge} isGoogleAuthInProgress={isGoogleAuthInProgress} />
                     </motion.div>
                   )}
 

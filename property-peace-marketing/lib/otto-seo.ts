@@ -16,7 +16,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     title: 'Property Management Software for Small Landlords | Property Peace',
     description: 'Manage rent, tenants, leases & expenses calmly with Property Peace. Built for landlords (1-50 units). AI-powered efficiency. Start free today!',
     canonical: 'https://propertypeace.io/',
-    openGraphTitle: 'Small Landlord Software: Manage 1-50 Units Free',
+    openGraphTitle: 'Private Landlord Software: Manage Your Rentals with Ease',
     twitterTitle: 'Simplify Landlord Life: Free Software for 1-50 Units!',
   },
   '/blog/': {

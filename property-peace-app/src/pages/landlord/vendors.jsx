@@ -59,6 +59,7 @@ import {
 import { formatPhoneInput } from 'utils/formatters';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { VendorCsvImportButton } from 'components/import/CsvImportButtons';
+import { darkHeaderOutlinedActionSx } from 'styles/darkHeaderActions.mjs';
 import { useDispatch, useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
 import { openSnackbar } from 'api/snackbar';
@@ -765,10 +766,7 @@ export default function Vendors() {
           <Stack direction="row" spacing={1}>
             <VendorCsvImportButton
               buttonProps={{
-                sx: {
-                  color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none',
-                  '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) }
-                }
+                sx: darkHeaderOutlinedActionSx
               }}
             />
             <Button

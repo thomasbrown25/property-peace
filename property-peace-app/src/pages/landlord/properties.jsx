@@ -38,6 +38,7 @@ import { useNavigate } from 'react-router-dom';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
+import { darkHeaderOutlinedActionSx } from 'styles/darkHeaderActions.mjs';
 import PropertiesEmptyState from 'sections/landlord/properties/PropertiesEmptyState';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -404,13 +405,7 @@ export default function Properties() {
           <Stack direction="row" spacing={1}>
             <PropertyCsvImportButton
               buttonProps={{
-                sx: {
-                  color: '#fff',
-                  borderColor: alpha('#fff', 0.35),
-                  bgcolor: alpha('#fff', 0.06),
-                  textTransform: 'none',
-                  '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) }
-                }
+                sx: darkHeaderOutlinedActionSx
               }}
             />
             <Button
