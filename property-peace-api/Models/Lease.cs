@@ -30,6 +30,9 @@ namespace brownstone_hub_api.Models
         public string? AutoRenewRentIncrementType { get; set; } // "percentage" or "amount"
         public decimal? AutoRenewRentIncrementValue { get; set; }
 
+        // Automatically create a lease-linked move-in checklist when the lease begins.
+        public bool CreateChecklistOnStartDate { get; set; } = false;
+
         public bool IsActive { get; set; } = true;
         public bool IsDeleted { get; set; } = false;
         public DateTime? DeletedAt { get; set; }
@@ -48,6 +51,9 @@ namespace brownstone_hub_api.Models
         // Rent/Deposit/Fees section (build-lease-agreement)
         public bool? ProratedRentDue { get; set; } // Prorated rent at move-in (yes/no) - legacy
         public bool? IsProratedRent { get; set; } // Prorated rent at move-in (yes/no)
+        public decimal? ProratedRentAmount { get; set; }
+        [MaxLength(20)]
+        public string? ProrationMethod { get; set; } // "calculated" or "custom"
         public decimal? PetDepositAmount { get; set; }
         public bool? RentCollectionByPlatform { get; set; } // Rent payments by platform
         public bool? RentCollectionOther { get; set; } // Other methods outside platform

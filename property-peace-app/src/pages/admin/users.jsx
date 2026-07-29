@@ -9,6 +9,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Chip,
   IconButton,
   Tooltip,
@@ -57,6 +58,7 @@ import UserEditDrawer from 'components/drawers/UserEditDrawer';
 import { organizationAPI } from 'api';
 import { FormControl, Select, InputLabel } from '@mui/material';
 import { PASSWORD_REQUIREMENTS_TEXT, validatePassword } from 'utils/password-validation';
+import { adminUserSortableColumns, getNextAdminUserSort, sortAdminUsers } from 'utils/adminUsersSort';
 
 export default function AdminUsers() {
   const theme = useTheme();
@@ -90,6 +92,7 @@ export default function AdminUsers() {
   const [showSetPassword, setShowSetPassword] = useState(false);
   const [setPasswordLoading, setSetPasswordLoading] = useState(false);
   const [setPasswordError, setSetPasswordError] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
   useEffect(() => {
     loadUsers();
@@ -440,6 +443,12 @@ export default function AdminUsers() {
 
     return filtered;
   }, [users, searchTerm, filters, selectedOrganizationId]);
+
+  const sortedUsers = useMemo(() => sortAdminUsers(filteredUsers, sortConfig), [filteredUsers, sortConfig]);
+
+  const handleSort = (key) => {
+    setSortConfig((currentSort) => getNextAdminUserSort(currentSort, key));
+  };
 
   // Calculate overview stats
   const overviewStats = useMemo(() => {
@@ -930,20 +939,25 @@ export default function AdminUsers() {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell><strong>Name</strong></TableCell>
-                  <TableCell><strong>Email</strong></TableCell>
-                  <TableCell><strong>Phone</strong></TableCell>
-                  <TableCell><strong>Roles</strong></TableCell>
-                  <TableCell><strong>Auth Provider</strong></TableCell>
-                  <TableCell><strong>Created Date</strong></TableCell>
-                  <TableCell><strong>Last Login</strong></TableCell>
-                  <TableCell><strong>Login Count</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
+                  {adminUserSortableColumns.map((column) => {
+                    const isActive = sortConfig.key === column.key;
+                    return (
+                      <TableCell key={column.key} sortDirection={isActive ? sortConfig.direction : false}>
+                        <TableSortLabel
+                          active={isActive}
+                          direction={isActive ? sortConfig.direction : 'asc'}
+                          onClick={() => handleSort(column.key)}
+                        >
+                          <strong>{column.label}</strong>
+                        </TableSortLabel>
+                      </TableCell>
+                    );
+                  })}
                   <TableCell align="right"><strong>Actions</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredUsers.map((user) => (
+                {sortedUsers.map((user) => (
                     <TableRow
                       key={user.id}
                       hover

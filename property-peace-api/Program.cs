@@ -44,6 +44,7 @@ using brownstone_hub_api.Services.LeaseGenerationService;
 using brownstone_hub_api.Repositories.LeaseInstances;
 using brownstone_hub_api.Services.LeaseDocumentService;
 using brownstone_hub_api.Services.LeaseAutoRenewService;
+using brownstone_hub_api.Services.LeaseChecklistSchedulingService;
 using brownstone_hub_api.Services.OpenAIService;
 using brownstone_hub_api.Services.PolicyAIService;
 using brownstone_hub_api.Config;
@@ -464,6 +465,7 @@ services.AddScoped<IStateRequiredDisclosureService, StateRequiredDisclosureServi
 services.AddScoped<ILeaseDocumentService, LeaseDocumentService>();
 services.AddSingleton<ILeaseFinalizationLock, SqlLeaseFinalizationLock>();
 services.AddScoped<ILeaseAutoRenewService, LeaseAutoRenewService>();
+services.AddScoped<ILeaseChecklistSchedulingService, LeaseChecklistSchedulingService>();
 services.AddScoped<IOpenAIService, OpenAIService>();
 services.AddScoped<IPolicyAIService, PolicyAIService>();
 services.AddScoped<ITenantService, TenantService>();
@@ -645,6 +647,7 @@ services.AddHostedService<SubscriptionBackgroundService>();
 services.AddHostedService<StateLateFeeLawUpdateBackgroundService>();
 services.AddHostedService<StateDepositLawUpdateBackgroundService>();
 services.AddHostedService<LeaseAutoRenewBackgroundService>();
+services.AddHostedService<LeaseChecklistSchedulingBackgroundService>();
 services.AddHostedService<DailySummaryEmailBackgroundService>();
 services.AddHostedService<brownstone_hub_api.Services.AgentFollowUpService.AgentFollowUpBackgroundService>();
 

@@ -84,6 +84,7 @@ namespace brownstone_hub_api.Repositories.Leases
                 }
             }
 
+            var isDraft = lease.IsDrafted == true;
             var newLease = _mapper.Map<Lease>(lease);
 
             // Set only the UnitId foreign key - DO NOT set the Unit navigation property
@@ -91,23 +92,10 @@ namespace brownstone_hub_api.Repositories.Leases
             // the Unit's Lease, which severs the existing relationship
             newLease.UnitId = lease.UnitId;
             
-            // Handle nullable dates - use defaults if not provided
-            if (!lease.StartDate.HasValue)
-            {
-                newLease.StartDate = DateTime.Now;
-            }
-            if (!lease.EndDate.HasValue)
-            {
-                newLease.EndDate = (newLease.StartDate ?? DateTime.Now).AddYears(1);
-            }
-            
-            // Ensure IsActive is ALWAYS true for new leases (Id = 0)
-            // IsActive should only be set to false when ending a lease via EndLease
-            // This includes leases that haven't started yet (StartDate > today) - they should still be active
+            // Drafts intentionally preserve missing details as null and remain inactive.
             if (lease.Id == 0)
             {
-                newLease.IsActive = true; // Force IsActive = true for new leases
-                // Set default values for nullable fields that database might require
+                newLease.IsActive = !isDraft;
                 newLease.CustomDateSelected = lease.CustomDateSelected ?? false;
             }
             else
@@ -144,6 +132,18 @@ namespace brownstone_hub_api.Repositories.Leases
 
             await _context.Leases.AddAsync(newLease);
             await _context.SaveChangesAsync();
+
+            if (lease.IsDrafted.HasValue)
+            {
+                var agreement = new LeaseAgreement
+                {
+                    LeaseId = newLease.Id,
+                    IsDrafted = isDraft
+                };
+                await _context.LeaseAgreements.AddAsync(agreement);
+                await _context.SaveChangesAsync();
+                newLease.LeaseAgreement = agreement;
+            }
 
             // Link only tenants already assigned to this unit (UnitId set). Imported/new tenants (UnitId null) stay org-only until the user assigns them.
             var tenantsToLink = await _context.Tenants
@@ -195,6 +195,26 @@ namespace brownstone_hub_api.Repositories.Leases
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Created {Count} LeaseFee record(s) for lease ID {LeaseId}", 
                     leaseFees.Count, newLease.Id);
+            }
+
+            // Create other move-in deposit records if provided.
+            if (lease.LeaseDeposits != null && lease.LeaseDeposits.Any())
+            {
+                var leaseDeposits = lease.LeaseDeposits.Select((deposit, index) => new LeaseDeposit
+                {
+                    LeaseId = newLease.Id,
+                    OrganizationId = newLease.OrganizationId,
+                    Name = deposit.Name,
+                    Amount = deposit.Amount,
+                    DueDate = deposit.DueDate,
+                    SortOrder = deposit.SortOrder != 0 ? deposit.SortOrder : index,
+                    CreatedAt = DateTime.UtcNow
+                }).ToList();
+
+                await _context.LeaseDeposits.AddRangeAsync(leaseDeposits);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Created {Count} LeaseDeposit record(s) for lease ID {LeaseId}",
+                    leaseDeposits.Count, newLease.Id);
             }
 
             // Utilities, Maintenance, & Keys: create default utility and maintenance rows for new lease
@@ -272,6 +292,11 @@ namespace brownstone_hub_api.Repositories.Leases
             var existingLease = await _context.Leases
                 .FirstOrDefaultAsync(l => l.Id == lease.Id) ?? throw new KeyNotFoundException("Lease not found");
 
+            var existingMonthToMonthEndDate =
+                existingLease.LeaseLength == -1 && existingLease.AutoRenewLease
+                    ? existingLease.EndDate?.Date
+                    : null;
+
             // Preserve OrganizationId so a null in the DTO doesn't overwrite it
             var existingOrganizationId = existingLease.OrganizationId;
             // Preserve rent/deposit/fees fields so partial updates from other steps don't clear them
@@ -281,6 +306,8 @@ namespace brownstone_hub_api.Repositories.Leases
                 existingLease.RentFrequency,
                 existingLease.ProratedRentDue,
                 existingLease.IsProratedRent,
+                existingLease.ProratedRentAmount,
+                existingLease.ProrationMethod,
                 existingLease.PetDepositAmount,
                 existingLease.RentCollectionByPlatform,
                 existingLease.RentCollectionOther,
@@ -305,7 +332,8 @@ namespace brownstone_hub_api.Repositories.Leases
                 existingLease.AutoRenewLeaseLength,
                 existingLease.AutoRenewRentIncrement,
                 existingLease.AutoRenewRentIncrementType,
-                existingLease.AutoRenewRentIncrementValue
+                existingLease.AutoRenewRentIncrementValue,
+                existingLease.CreateChecklistOnStartDate
             };
 
             // Verify the unit exists
@@ -321,6 +349,9 @@ namespace brownstone_hub_api.Repositories.Leases
             // Map properties from DTO to existing lease (Unit property is ignored in AutoMapper config)
             _mapper.Map(lease, existingLease);
 
+            if (lease.IsDrafted == true)
+                existingLease.IsActive = false;
+
             // Don't overwrite OrganizationId with null when the client doesn't send it (e.g. partial updates, spread from GET that didn't include it)
             if (!lease.OrganizationId.HasValue)
                 existingLease.OrganizationId = existingOrganizationId ?? unit.Property?.OrganizationId;
@@ -335,6 +366,16 @@ namespace brownstone_hub_api.Repositories.Leases
             if (string.IsNullOrEmpty(lease.RentFrequency)) existingLease.RentFrequency = existingRentDepositFees.RentFrequency;
             if (!lease.ProratedRentDue.HasValue) existingLease.ProratedRentDue = existingRentDepositFees.ProratedRentDue;
             if (!lease.IsProratedRent.HasValue) existingLease.IsProratedRent = existingRentDepositFees.IsProratedRent;
+            if (lease.IsProratedRent == false || lease.ProratedRentDue == false)
+            {
+                existingLease.ProratedRentAmount = null;
+                existingLease.ProrationMethod = null;
+            }
+            else
+            {
+                if (!lease.ProratedRentAmount.HasValue) existingLease.ProratedRentAmount = existingRentDepositFees.ProratedRentAmount;
+                if (lease.ProrationMethod == null) existingLease.ProrationMethod = existingRentDepositFees.ProrationMethod;
+            }
             if (!lease.PetDepositAmount.HasValue) existingLease.PetDepositAmount = existingRentDepositFees.PetDepositAmount;
             if (!lease.RentCollectionByPlatform.HasValue) existingLease.RentCollectionByPlatform = existingRentDepositFees.RentCollectionByPlatform;
             if (!lease.RentCollectionOther.HasValue) existingLease.RentCollectionOther = existingRentDepositFees.RentCollectionOther;
@@ -347,6 +388,18 @@ namespace brownstone_hub_api.Repositories.Leases
             if (!lease.AutoRenewRentIncrement.HasValue) existingLease.AutoRenewRentIncrement = existingAutoRenew.AutoRenewRentIncrement;
             if (lease.AutoRenewRentIncrementType == null) existingLease.AutoRenewRentIncrementType = existingAutoRenew.AutoRenewRentIncrementType;
             if (!lease.AutoRenewRentIncrementValue.HasValue) existingLease.AutoRenewRentIncrementValue = existingAutoRenew.AutoRenewRentIncrementValue;
+            if (!lease.CreateChecklistOnStartDate.HasValue) existingLease.CreateChecklistOnStartDate = existingAutoRenew.CreateChecklistOnStartDate;
+
+            // Auto-renew owns the end date for an active month-to-month lease. Never let a
+            // stale edit move it behind the latest value read from the database.
+            if (existingMonthToMonthEndDate.HasValue &&
+                lease.LeaseLength == -1 &&
+                lease.AutoRenewLease != false &&
+                (!lease.EndDate.HasValue || lease.EndDate.Value.Date < existingMonthToMonthEndDate.Value))
+            {
+                lease.EndDate = existingMonthToMonthEndDate.Value;
+                existingLease.EndDate = existingMonthToMonthEndDate.Value;
+            }
 
             // Restore Provisions & Attachments when DTO did not provide values (partial update from another step)
             if (!lease.IncludeEarlyTerminationClause.HasValue) existingLease.IncludeEarlyTerminationClause = existingProvisions.IncludeEarlyTerminationClause;
@@ -377,6 +430,22 @@ namespace brownstone_hub_api.Repositories.Leases
 
             var existingAgreement = await _context.LeaseAgreements
                 .FirstOrDefaultAsync(la => la.LeaseId == existingLease.Id);
+            if (lease.IsDrafted.HasValue)
+            {
+                if (existingAgreement == null)
+                {
+                    existingAgreement = new LeaseAgreement
+                    {
+                        LeaseId = existingLease.Id,
+                        IsDrafted = lease.IsDrafted.Value
+                    };
+                    await _context.LeaseAgreements.AddAsync(existingAgreement);
+                }
+                else
+                {
+                    existingAgreement.IsDrafted = lease.IsDrafted.Value;
+                }
+            }
             if (existingAgreement != null &&
                 (existingAgreement.LandlordSignedAt.HasValue ||
                  existingAgreement.SignatureCompletedAt.HasValue ||
@@ -721,6 +790,7 @@ namespace brownstone_hub_api.Repositories.Leases
             var agreement = await _context.LeaseAgreements.FirstOrDefaultAsync(la => la.LeaseId == leaseId);
             if (agreement != null)
                 agreement.IsDrafted = false;
+            lease.IsActive = true;
             await _context.SaveChangesAsync();
             var reloaded = await _context.Leases
                 .Include(l => l.Unit).ThenInclude(u => u.Property)
@@ -968,9 +1038,13 @@ namespace brownstone_hub_api.Repositories.Leases
         public async Task<List<LoadLeaseDto>> GetLeasesEndingOnOrBeforeForAutoRenew(DateTime date)
         {
             var cutOff = date.Date;
+            var monthToMonthCutOff = cutOff.AddDays(15);
             var leases = await _context.Leases
                 .AsNoTracking()
-                .Where(l => l.IsActive && l.EndDate.HasValue && l.EndDate.Value.Date <= cutOff && l.AutoRenewLease && l.OrganizationId != null)
+                .Where(l => l.IsActive && l.EndDate.HasValue && l.AutoRenewLease && l.OrganizationId != null &&
+                    (l.LeaseLength == -1
+                        ? l.EndDate.Value.Date <= monthToMonthCutOff
+                        : l.EndDate.Value.Date <= cutOff))
                 .Select(l => new LoadLeaseDto
                 {
                     Id = l.Id,
@@ -978,6 +1052,69 @@ namespace brownstone_hub_api.Repositories.Leases
                 })
                 .ToListAsync();
             return leases;
+        }
+
+        public async Task<List<LoadLeaseDto>> GetLeasesDueForStartDateChecklist(DateTime date)
+        {
+            var cutOff = date.Date;
+            return await _context.Leases
+                .AsNoTracking()
+                .Where(l => l.IsActive && !l.IsDeleted &&
+                    l.CreateChecklistOnStartDate &&
+                    l.StartDate.HasValue && l.StartDate.Value.Date <= cutOff &&
+                    l.OrganizationId.HasValue)
+                .Select(l => new LoadLeaseDto
+                {
+                    Id = l.Id,
+                    Name = l.Name,
+                    StartDate = l.StartDate,
+                    OrganizationId = l.OrganizationId,
+                    UnitId = l.UnitId,
+                    UnitName = l.Unit.Name,
+                    PropertyId = l.Unit.PropertyId,
+                    PropertyName = l.Unit.Property.Name,
+                    LandlordId = l.Unit.Property.LandlordId,
+                    CreateChecklistOnStartDate = l.CreateChecklistOnStartDate
+                })
+                .ToListAsync();
+        }
+
+        public async Task<bool> ExtendMonthToMonthLeaseEndDateAsync(
+            long leaseId,
+            long organizationId,
+            DateTime expectedEndDate,
+            DateTime newEndDate)
+        {
+            var expected = expectedEndDate.Date;
+            var next = newEndDate.Date;
+
+            if (_context.Database.IsRelational())
+            {
+                var updated = await _context.Leases
+                    .Where(l => l.Id == leaseId &&
+                        l.OrganizationId == organizationId &&
+                        l.IsActive &&
+                        l.AutoRenewLease &&
+                        l.LeaseLength == -1 &&
+                        l.EndDate.HasValue &&
+                        l.EndDate.Value.Date == expected)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(l => l.EndDate, next));
+                return updated == 1;
+            }
+
+            var lease = await _context.Leases.FirstOrDefaultAsync(l =>
+                l.Id == leaseId &&
+                l.OrganizationId == organizationId &&
+                l.IsActive &&
+                l.AutoRenewLease &&
+                l.LeaseLength == -1 &&
+                l.EndDate.HasValue &&
+                l.EndDate.Value.Date == expected);
+            if (lease == null) return false;
+
+            lease.EndDate = next;
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         public async Task CopyLeaseRelatedEntitiesToNewLeaseAsync(long sourceLeaseId, long newLeaseId)

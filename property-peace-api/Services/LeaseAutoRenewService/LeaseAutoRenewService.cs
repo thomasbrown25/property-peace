@@ -53,7 +53,7 @@ namespace brownstone_hub_api.Services.LeaseAutoRenewService
         {
             var date = (asOfDate ?? DateTime.UtcNow).Date;
             var candidates = await _leaseRepository.GetLeasesEndingOnOrBeforeForAutoRenew(date);
-            _logger.LogInformation("Auto-renew: found {Count} lease(s) ending on or before {Date}", candidates.Count, date);
+            _logger.LogInformation("Auto-renew: found {Count} eligible lease(s) as of {Date}", candidates.Count, date);
 
             foreach (var item in candidates)
             {
@@ -78,6 +78,31 @@ namespace brownstone_hub_api.Services.LeaseAutoRenewService
                 _logger.LogWarning("Auto-renew: lease {LeaseId} not found or has no end date", sourceLeaseId);
                 return;
             }
+
+            var isMonthToMonthLease = lease.LeaseLength == -1;
+            if (isMonthToMonthLease)
+            {
+                var renewalDate = lease.EndDate.Value.Date.AddDays(-15);
+                if (asOfDate < renewalDate)
+                    return;
+
+                var currentEndDate = lease.EndDate.Value.Date;
+                var monthToMonthNewEndDate = currentEndDate.AddMonths(1);
+                var extended = await _leaseRepository.ExtendMonthToMonthLeaseEndDateAsync(
+                    sourceLeaseId,
+                    organizationId,
+                    currentEndDate,
+                    monthToMonthNewEndDate);
+
+                if (extended)
+                    _logger.LogInformation("Auto-renew: extended month-to-month lease {LeaseId} through {EndDate}", sourceLeaseId, monthToMonthNewEndDate);
+                else
+                    _logger.LogInformation("Auto-renew: month-to-month lease {LeaseId} was already extended or no longer eligible", sourceLeaseId);
+                return;
+            }
+
+            if (asOfDate < lease.EndDate.Value.Date)
+                return;
 
             var configuredRenewalLength = lease.AutoRenewLeaseLength ?? lease.LeaseLength;
             var isMonthToMonthRenewal = configuredRenewalLength == -1;

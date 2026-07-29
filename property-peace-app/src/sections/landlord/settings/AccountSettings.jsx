@@ -7,6 +7,7 @@ import { openSnackbar } from 'api/snackbar';
 import { subscriptionAPI } from 'api';
 import useAuth from 'hooks/useAuth';
 import AuthenticationMethodsCard from 'components/security/AuthenticationMethodsCard';
+import { passwordRequirementStatuses, validatePassword } from 'utils/password-validation';
 
 // ==============================|| ACCOUNT SETTINGS ||============================== //
 
@@ -36,10 +37,11 @@ export default function AccountSettings() {
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
 
-    if (passwordData.newPassword.length < 6) {
+    const passwordValidationError = validatePassword(passwordData.newPassword);
+    if (passwordValidationError) {
       openSnackbar({
         open: true,
-        message: 'Password must be at least 6 characters',
+        message: passwordValidationError,
         variant: 'alert',
         alert: {
           color: 'error'
@@ -225,7 +227,6 @@ export default function AccountSettings() {
                 onChange={handlePasswordChange}
                 variant="outlined"
                 size="small"
-                helperText="Password must be at least 6 characters"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -240,6 +241,15 @@ export default function AccountSettings() {
                   )
                 }}
               />
+              {passwordData.newPassword && (
+                <Box sx={{ mt: -1, display: 'flex', flexWrap: 'wrap', gap: 0.6 }}>
+                  {passwordRequirementStatuses(passwordData.newPassword).map(({ label, met }) => (
+                    <Typography key={label} variant="caption" color={met ? 'success.dark' : 'text.secondary'}>
+                      • {label}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
               <Box sx={{ display: 'flex', justifyContent: 'flex-start', pt: 2 }}>
                 <Button type="submit" variant="contained" disabled={passwordLoading}>
                   {passwordLoading

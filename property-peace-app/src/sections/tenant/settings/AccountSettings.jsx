@@ -18,6 +18,7 @@ import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import AuthenticationMethodsCard from 'components/security/AuthenticationMethodsCard';
 import useAuth from 'hooks/useAuth';
+import { passwordRequirementStatuses, validatePassword } from 'utils/password-validation';
 
 // ==============================|| TENANT ACCOUNT SETTINGS ||============================== //
 
@@ -56,10 +57,11 @@ export default function AccountSettings() {
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
+    const passwordValidationError = validatePassword(passwordData.newPassword);
+    if (passwordValidationError) {
       openSnackbar({
         open: true,
-        message: 'Password must be at least 6 characters',
+        message: passwordValidationError,
         variant: 'alert',
         alert: {
           color: 'error'
@@ -175,8 +177,16 @@ export default function AccountSettings() {
                 sx={{ maxWidth: 450 }}
                 variant="outlined"
                 size="small"
-                helperText="Password must be at least 6 characters"
               />
+              {passwordData.newPassword && (
+                <Box sx={{ mt: -1, display: 'flex', flexWrap: 'wrap', gap: 0.6, maxWidth: 450 }}>
+                  {passwordRequirementStatuses(passwordData.newPassword).map(({ label, met }) => (
+                    <Typography key={label} variant="caption" color={met ? 'success.dark' : 'text.secondary'}>
+                      • {label}
+                    </Typography>
+                  ))}
+                </Box>
+              )}
               <TextField
                 label="Confirm New Password"
                 name="confirmPassword"

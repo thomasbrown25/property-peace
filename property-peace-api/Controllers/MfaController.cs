@@ -66,7 +66,9 @@ public sealed class MfaController(IMfaService mfa, IUserService users, IWebHostE
 
     private long UserId()
     {
-        var value = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        var value = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("userId")
+            ?? User.FindFirstValue("sub");
         return long.TryParse(value, out var id) ? id : throw new UnauthorizedAccessException();
     }
 

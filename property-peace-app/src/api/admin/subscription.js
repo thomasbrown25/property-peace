@@ -18,6 +18,12 @@ export const getAllUserSubscriptions = async () => {
   return response.data;
 };
 
+// Get one user's subscription (admin)
+export const getUserSubscription = async (userId) => {
+  const response = await axios.get(`/api/admin/subscription/user/${userId}`);
+  return response.data;
+};
+
 // Update subscription plan (admin)
 export const updateSubscriptionPlan = async (subscriptionId, userId, newPlanId, prorate = true, isUpgrade = true) => {
   const response = await axios.post(`/api/admin/subscription/subscription/${subscriptionId}/update-plan`, {
@@ -60,6 +66,7 @@ export const adminSubscriptionAPI = {
   getPlans: getAdminPlans,
   savePlan,
   getAllUserSubscriptions,
+  getUserSubscription,
   updateSubscriptionPlan,
   assignLifetimePlan,
   syncSubscriptionsAndCleanup,

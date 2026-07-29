@@ -33,8 +33,12 @@ namespace brownstone_hub_api.Repositories.Leases
         Task<LoadLeaseDto> SetMoveInReportTemplateCompletedAt(long leaseId, long organizationId);
         /// <summary>Resolves lease by DocuSign envelope ID for Connect webhook. Returns null if not found.</summary>
         Task<LeaseConnectInfoDto?> GetLeaseByDocuSignEnvelopeIdAsync(string envelopeId);
-        /// <summary>Gets active leases with AutoRenewLease enabled whose EndDate is on or before the given date (for auto-renew processing).</summary>
+        /// <summary>Gets auto-renew candidates: fixed terms at end date and month-to-month leases beginning 15 days before end date.</summary>
         Task<List<LoadLeaseDto>> GetLeasesEndingOnOrBeforeForAutoRenew(DateTime date);
+        /// <summary>Gets active leases configured for checklist creation whose start date has arrived.</summary>
+        Task<List<LoadLeaseDto>> GetLeasesDueForStartDateChecklist(DateTime date);
+        /// <summary>Atomically extends an active month-to-month lease when its end date still matches the expected value.</summary>
+        Task<bool> ExtendMonthToMonthLeaseEndDateAsync(long leaseId, long organizationId, DateTime expectedEndDate, DateTime newEndDate);
         /// <summary>Copies related entities (fees, deposits, landlords, co-signers, pets, parking, keys, utilities, maintenance) from source lease to the new lease.</summary>
         Task CopyLeaseRelatedEntitiesToNewLeaseAsync(long sourceLeaseId, long newLeaseId);
         /// <summary>Lightweight query returning only fields needed by RentCalculator (IsActive, RentAmount, StartDate, EndDate, RentFrequency). No navigation property loads.</summary>

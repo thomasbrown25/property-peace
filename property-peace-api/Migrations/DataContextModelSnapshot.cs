@@ -2459,6 +2459,11 @@ namespace brownstone_hub_api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<bool>("CreateChecklistOnStartDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<bool?>("AwareOfLeadPaint")
                         .HasColumnType("bit");
 
@@ -2543,8 +2548,16 @@ namespace brownstone_hub_api.Migrations
                     b.Property<bool?>("PetsAllowed")
                         .HasColumnType("bit");
 
+                    b.Property<decimal?>("ProratedRentAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<bool?>("ProratedRentDue")
                         .HasColumnType("bit");
+
+                    b.Property<string>("ProrationMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<decimal?>("RentAmount")
                         .HasPrecision(18, 2)

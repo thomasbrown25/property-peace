@@ -38,6 +38,7 @@ import { getStateDepositLaw, getStateName } from 'api/stateDepositLaw';
 import { getStateLaw as getStateLateFeeLaw } from 'api/stateLateFeeLaw';
 import { useSubscription } from 'hooks/useSubscription';
 import RentEstimateCard from 'components/RentEstimateCard';
+import { calculateProratedRent } from 'utils/leaseDraft';
 
 export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) {
   const navigate = useNavigate();
@@ -65,6 +66,15 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
   const [monthlyBaseRent, setMonthlyBaseRent] = useState('');
   const [dueDate, setDueDate] = useState(null);
   const [proratedRentDue, setProratedRentDue] = useState(null); // true = yes, false = no, null = not selected
+  const [prorationMethod, setProrationMethod] = useState('calculated');
+  const [proratedRentAmount, setProratedRentAmount] = useState('');
+
+  useEffect(() => {
+    if (proratedRentDue !== true || prorationMethod !== 'calculated') return;
+    const leaseStart = lease?.startDate ?? lease?.StartDate;
+    const calculated = calculateProratedRent(leaseStart, dueDate, monthlyBaseRent);
+    setProratedRentAmount(calculated == null ? '' : String(calculated));
+  }, [proratedRentDue, prorationMethod, lease, dueDate, monthlyBaseRent]);
 
   // Late fees state
   const [lateFeesModalOpen, setLateFeesModalOpen] = useState(false);
@@ -164,6 +174,10 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
             // Prorated rent, pet deposit, rent collection: prefer saved lease values, then draft
             const proratedFromLease = foundLease.proratedRentDue ?? foundLease.ProratedRentDue;
             if (proratedFromLease !== undefined && proratedFromLease !== null) setProratedRentDue(proratedFromLease);
+            const prorationMethodFromLease = foundLease.prorationMethod ?? foundLease.ProrationMethod;
+            if (prorationMethodFromLease) setProrationMethod(String(prorationMethodFromLease).toLowerCase());
+            const proratedAmountFromLease = foundLease.proratedRentAmount ?? foundLease.ProratedRentAmount;
+            if (proratedAmountFromLease != null && proratedAmountFromLease !== '') setProratedRentAmount(String(proratedAmountFromLease));
             const petFromLease = foundLease.petDepositAmount ?? foundLease.PetDepositAmount;
             if (petFromLease != null && petFromLease !== '') setPetDeposit(String(petFromLease));
             const rcPlatform = foundLease.rentCollectionByPlatform ?? foundLease.RentCollectionByPlatform;
@@ -187,6 +201,8 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
                 const rd = draft?.rentDepositFees;
                 if (rd) {
                   if (proratedFromLease === undefined && rd.proratedRentDue !== undefined && rd.proratedRentDue !== null) setProratedRentDue(rd.proratedRentDue);
+                  if (!prorationMethodFromLease && rd.prorationMethod) setProrationMethod(rd.prorationMethod);
+                  if ((proratedAmountFromLease == null || proratedAmountFromLease === '') && rd.proratedRentAmount != null && rd.proratedRentAmount !== '') setProratedRentAmount(String(rd.proratedRentAmount));
                   if ((petFromLease == null || petFromLease === '') && rd.petDeposit != null && rd.petDeposit !== '') setPetDeposit(rd.petDeposit);
                   if (Array.isArray(rd.otherDeposits)) setOtherDeposits(rd.otherDeposits);
                   if (rcPlatform === undefined && rd.rentCollectionByPlatform !== undefined) setRentCollectionByPlatform(rd.rentCollectionByPlatform);
@@ -349,15 +365,18 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
       return;
     }
 
-    // Determine if step is complete
-    // Requires monthlyBaseRent to be filled (non-empty, > 0)
-    const isStepComplete = monthlyBaseRent && parseFloat(monthlyBaseRent) > 0;
+    // A prorated payment also needs a positive amount before this section is complete.
+    const hasMonthlyRent = monthlyBaseRent && parseFloat(monthlyBaseRent) > 0;
+    const hasValidProration = proratedRentDue !== true || (proratedRentAmount !== '' && Number(proratedRentAmount) > 0);
+    const isStepComplete = Boolean(hasMonthlyRent && hasValidProration);
     
     const draft = {
       rentDepositFees: {
         monthlyBaseRent,
         dueDate,
         proratedRentDue,
+        prorationMethod,
+        proratedRentAmount,
         petDeposit,
         otherDeposits,
         rentCollectionByPlatform,
@@ -390,6 +409,8 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
         leaseDeposits: buildLeaseDepositsForApi(),
         proratedRentDue: proratedRentDue ?? undefined,
         isProratedRent: proratedRentDue ?? undefined,
+        proratedRentAmount: proratedRentDue === true && proratedRentAmount !== '' ? Number(proratedRentAmount) : null,
+        prorationMethod: proratedRentDue === true ? prorationMethod : null,
         petDepositAmount: petDepositNum ?? undefined,
         rentCollectionByPlatform: rentCollectionByPlatform ?? undefined,
         rentCollectionOther: rentCollectionOther ?? undefined,
@@ -485,6 +506,8 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
         leaseDeposits: buildLeaseDepositsForApi(),
         proratedRentDue: proratedRentDue ?? undefined,
         isProratedRent: proratedRentDue ?? undefined,
+        proratedRentAmount: proratedRentDue === true && proratedRentAmount !== '' ? Number(proratedRentAmount) : null,
+        prorationMethod: proratedRentDue === true ? prorationMethod : null,
         petDepositAmount: petDepositNum ?? undefined,
         rentCollectionByPlatform: rentCollectionByPlatform ?? undefined,
         rentCollectionOther: rentCollectionOther ?? undefined,
@@ -508,6 +531,8 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
             monthlyBaseRent,
             dueDate,
             proratedRentDue,
+            prorationMethod,
+            proratedRentAmount,
             petDeposit,
             otherDeposits,
             rentCollectionByPlatform,
@@ -675,6 +700,35 @@ export default function RentDepositFeesPage({ embedded = false, onSaved } = {}) 
                   <ToggleButton value={true} aria-label="yes">Yes</ToggleButton>
                   <ToggleButton value={false} aria-label="no">No</ToggleButton>
                 </ToggleButtonGroup>
+                {proratedRentDue === true && (
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mt: 2 }}>
+                    <TextField
+                      select
+                      SelectProps={{ native: true }}
+                      size="small"
+                      label="Proration method"
+                      value={prorationMethod}
+                      onChange={(event) => setProrationMethod(event.target.value)}
+                      sx={{ width: { xs: '100%', sm: 260 } }}
+                    >
+                      <option value="calculated">Calculate from monthly rent</option>
+                      <option value="custom">Enter a custom amount</option>
+                    </TextField>
+                    <NumericFormat
+                      customInput={TextField}
+                      size="small"
+                      label="Prorated rent amount"
+                      value={proratedRentAmount}
+                      onValueChange={(values) => setProratedRentAmount(values.floatValue != null ? String(values.floatValue) : '')}
+                      thousandSeparator
+                      prefix="$"
+                      decimalScale={2}
+                      fixedDecimalScale
+                      disabled={prorationMethod === 'calculated'}
+                      sx={{ width: { xs: '100%', sm: 220 } }}
+                    />
+                  </Stack>
+                )}
               </Box>
             </Box>
 

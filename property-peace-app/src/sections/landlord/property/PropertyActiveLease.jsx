@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { formatCurrency } from 'utils/formatters';
 import { useDrawer } from 'contexts/DrawerContext';
+import { isStartedActiveLease } from 'utils/leaseStatus';
 import { darkModeActionButtonSx, propertyAccentCardSx } from './propertyAccentSx';
 
 export default function PropertyActiveLease({ property }) {
@@ -15,10 +16,19 @@ export default function PropertyActiveLease({ property }) {
   const units = property?.units || property?.Units || [];
   const firstUnit = units[0];
   const lease = firstUnit?.lease || firstUnit?.Lease;
+  const isActive = isStartedActiveLease(lease);
 
-  if (!lease || (!lease.isActive && !lease.IsActive && !lease.isDrafted && !lease.IsDrafted)) {
+  if (!isActive) {
     return (
-      <MainCard title="Active Lease" contentSX={{ pt: 1 }} sx={propertyAccentCardSx(theme.palette.primary.main, { '& .MuiCardHeader-root': { pb: 1 } })}>
+      <MainCard
+        title={
+          <Typography variant="overline" fontWeight={700} sx={{ fontSize: '0.75rem', letterSpacing: 1, color: 'text.secondary' }}>
+            LEASE
+          </Typography>
+        }
+        contentSX={{ pt: 1 }}
+        sx={propertyAccentCardSx(theme.palette.primary.main, { '& .MuiCardHeader-root': { pb: 1 } })}
+      >
         <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
           No active lease on this property.
         </Typography>
@@ -43,8 +53,6 @@ export default function PropertyActiveLease({ property }) {
   const lateFee = lease.lateFee || lease.LateFee || 0;
   const autoRenew = lease.autoRenew || lease.AutoRenew || false;
   const leaseLength = lease.leaseLength || lease.LeaseLength || null;
-  const isActive = lease.isActive || lease.IsActive;
-  const isDraft = lease.isDrafted || lease.IsDrafted;
 
   // Pets from tenants
   const tenants = lease.tenants || lease.Tenants || [];
@@ -66,21 +74,15 @@ export default function PropertyActiveLease({ property }) {
     monthsRemaining = Math.max(0, totalMonths - monthsIn);
   }
 
-  const statusChipProps = isDraft
-    ? { label: 'Draft', color: 'default' }
-    : isActive
-    ? { label: 'Active', color: 'success' }
-    : { label: 'Ended', color: 'error' };
-
   return (
     <MainCard
       title={
         <Typography variant="overline" fontWeight={700} sx={{ fontSize: '0.75rem', letterSpacing: 1, color: 'text.secondary' }}>
-          ACTIVE LEASE
+          LEASE
         </Typography>
       }
       secondary={
-        <Chip label={statusChipProps.label} size="small" color={statusChipProps.color}
+        <Chip label="Active" size="small" color="success"
           sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600 }} />
       }
       contentSX={{ pt: 1 }}
