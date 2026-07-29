@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  alpha, Box, Button, Chip, Divider,
+  alpha, Box, Button, Chip,
   Stack, Typography, useTheme, useMediaQuery
 } from '@mui/material';
 import {
@@ -21,17 +21,17 @@ import useFetchDashboardSummary from 'hooks/useFetchDashboard';
 import useFetchExpenses from 'hooks/useFetchExpenses';
 import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
-function StatTile({ label, value, sub, valueColor }) {
+function StatTile({ label, value, sub, valueColor, sx }) {
   return (
-    <Box sx={{ flex: 1, minWidth: 0, px: 2, py: 1.5 }}>
-      <Typography sx={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.8, color: 'text.secondary', textTransform: 'uppercase', mb: 0.3 }}>
+    <Box sx={{ flex: 1, minWidth: 0, px: { xs: 0.75, sm: 2 }, py: { xs: 1, sm: 1.5 }, ...sx }}>
+      <Typography sx={{ display: 'block', fontSize: { xs: '0.52rem', sm: '0.62rem' }, lineHeight: 1.25, fontWeight: 700, letterSpacing: { xs: 0.45, sm: 0.8 }, color: 'text.secondary', textTransform: 'uppercase', mb: 0.3 }}>
         {label}
       </Typography>
-      <Typography sx={{ lineHeight: 1.2, color: valueColor || 'text.primary', fontSize: '1rem', mb: 0.15, fontWeight: 800 }}>
+      <Typography sx={{ lineHeight: 1.2, color: valueColor || 'text.primary', fontSize: { xs: '0.84rem', sm: '1rem' }, mb: 0.15, fontWeight: 800 }}>
         {value}
       </Typography>
       {sub && (
-        <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+        <Typography sx={{ fontSize: { xs: '0.6rem', sm: '0.7rem' }, lineHeight: 1.25, color: 'text.secondary' }}>
           {sub}
         </Typography>
       )}
@@ -162,12 +162,12 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
       <Stack direction={{ xs: 'column', md: 'row' }} sx={{ minHeight: { md: 190 } }}>
 
         {/* Image panel — chips overlaid at top */}
-        <Box sx={{ width: { xs: '100%', md: 340 }, maxHeight: { md: 190 }, flexShrink: 0, position: 'relative', overflow: 'hidden', bgcolor: alpha(theme.palette.primary.main, 0.07) }}>
+        <Box sx={{ width: { xs: '100%', md: 340 }, height: { xs: 150, sm: 180, md: 190 }, maxHeight: { md: 190 }, flexShrink: 0, position: 'relative', overflow: 'hidden', bgcolor: alpha(theme.palette.primary.main, 0.07) }}>
           {hasImage ? (
             <Box component="img" src={propertyImageUrl} alt={mainHeader} onError={() => setImageError(true)}
-              sx={{ width: '100%', height: '100%', minHeight: { xs: 180, md: 'auto' }, objectFit: 'cover', display: 'block' }} />
+              sx={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
-            <Box sx={{ width: '100%', height: '100%', minHeight: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Box sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <HomeOutlined style={{ fontSize: 52, color: alpha(theme.palette.primary.main, 0.25) }} />
             </Box>
           )}
@@ -253,31 +253,40 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
 
       {/* ── Metrics bar ── */}
       <Box sx={{ bgcolor: theme.palette.mode === 'dark' ? alpha('#ffffff', 0.025) : '#f7f8fa', borderTop: `1px solid ${softDivider}` }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }}
-          divider={<Divider orientation="vertical" flexItem sx={{ borderColor: softDivider }} />}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(6, minmax(0, 1fr))', sm: 'repeat(5, minmax(0, 1fr))' },
+            '& > :nth-of-type(-n+3)': { gridColumn: { xs: 'span 2', sm: 'span 1' } },
+            '& > :nth-of-type(n+4)': { gridColumn: { xs: 'span 3', sm: 'span 1' } }
+          }}
         >
           <StatTile
             label="Rent Collected YTD"
             value={formatCurrency(ytdRent)}
             sub={`${currentMonth} of 12 months`}
             valueColor={ytdRent > 0 ? theme.palette.success.main : undefined}
+            sx={{ borderRight: `1px solid ${softDivider}`, borderBottom: { xs: `1px solid ${softDivider}`, sm: 'none' } }}
           />
           <StatTile
             label="Expenses YTD"
             value={ytdExpenses > 0 ? formatCurrency(ytdExpenses) : '—'}
             sub={ytdExpenses > 0 ? 'year to date' : 'no expenses recorded'}
+            sx={{ borderRight: `1px solid ${softDivider}`, borderBottom: { xs: `1px solid ${softDivider}`, sm: 'none' } }}
           />
           <StatTile
             label="Net This Year"
             value={ytdRent > 0 || ytdExpenses > 0 ? formatCurrency(netThisYear) : '—'}
             sub={marginPct !== null ? `${marginPct}% margin` : undefined}
             valueColor={netThisYear >= 0 ? theme.palette.success.main : theme.palette.error.main}
+            sx={{ borderRight: { sm: `1px solid ${softDivider}` }, borderBottom: { xs: `1px solid ${softDivider}`, sm: 'none' } }}
           />
           <StatTile
             label="Open Maintenance"
             value={String(openMaint)}
             sub={openMaint > 0 ? `${highMaint} high · ${lowMaint} low` : 'All clear'}
             valueColor={highMaint > 0 ? theme.palette.error.main : undefined}
+            sx={{ borderRight: `1px solid ${softDivider}` }}
           />
           <StatTile
             label="Days Until Renewal"
@@ -287,7 +296,7 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
               : 'No active lease'}
             valueColor={daysUntilRenewal !== null && daysUntilRenewal <= 60 ? theme.palette.warning.main : undefined}
           />
-        </Stack>
+        </Box>
       </Box>
 
     </Box>

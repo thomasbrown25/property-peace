@@ -43,6 +43,7 @@ import TenantEditDrawer from 'components/drawers/TenantEditDrawer';
 import AddToLeaseDrawer from 'components/drawers/AddToLeaseDrawer';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import { TenantCsvImportButton } from 'components/import/CsvImportButtons';
+import { darkHeaderOutlinedActionSx } from 'styles/darkHeaderActions.mjs';
 import { tenantInviteAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
 import useFetchTenants from 'hooks/useFetchTenants';
@@ -505,13 +506,7 @@ export default function TenantsContent() {
           <Stack direction="row" spacing={1}>
             <TenantCsvImportButton
               buttonProps={{
-                sx: {
-                  color: '#fff',
-                  borderColor: alpha('#fff', 0.35),
-                  bgcolor: alpha('#fff', 0.06),
-                  textTransform: 'none',
-                  '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) }
-                }
+                sx: darkHeaderOutlinedActionSx
               }}
             />
             <Button

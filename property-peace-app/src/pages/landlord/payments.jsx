@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { CSVLink } from 'react-csv';
+import { darkHeaderOutlinedActionSx } from 'styles/darkHeaderActions.mjs';
 import {
   Alert,
   alpha,
@@ -16,12 +17,9 @@ import {
   DialogTitle,
   Grid,
   IconButton,
-  InputAdornment,
   Menu,
   MenuItem,
-  OutlinedInput,
   Pagination,
-  Select,
   Stack,
   Tooltip,
   Typography,
@@ -37,11 +35,11 @@ import {
   EditOutlined,
   MoreOutlined,
   PlusOutlined,
-  ReloadOutlined,
-  SearchOutlined
+  ReloadOutlined
 } from '@ant-design/icons';
 
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
 import PropertySelect from 'components/PropertySelect';
 import PaymentEditDrawer from 'components/drawers/PaymentEditDrawer';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -52,6 +50,21 @@ import { setProperty } from 'store/property/property.action';
 
 const PAGE_SIZE = 10;
 const NAVY = '#061e35';
+const PERIOD_OPTIONS = [
+  { value: 'year', label: 'This year' },
+  { value: 'month', label: 'This month' },
+  { value: '30', label: 'Last 30 days' },
+  { value: '90', label: 'Last 90 days' },
+  { value: 'all', label: 'All time' },
+  { value: 'custom', label: 'Custom dates' }
+];
+const PAYMENT_SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'amount-high', label: 'Amount: high' },
+  { value: 'amount-low', label: 'Amount: low' },
+  { value: 'property', label: 'Property' }
+];
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
 const getId = (payment) => read(payment, 'id', 'Id');
@@ -400,6 +413,26 @@ export default function Payments() {
   const pageCount = Math.ceil(visiblePayments.length / PAGE_SIZE);
   const pageItems = visiblePayments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const hasFilters = Boolean(search || period !== 'year' || type !== 'all' || status !== 'all' || source !== 'all' || sort !== 'newest' || propertyId);
+  const paymentFilterFields = [
+    {
+      key: 'type', label: 'Payment type', value: type, defaultValue: 'all', onChange: setType,
+      options: [{ value: 'all', label: 'All types' }, { value: 'rent', label: 'Rent' }, { value: 'fee', label: 'Fees' }, { value: 'deposit', label: 'Deposits' }]
+    },
+    {
+      key: 'status', label: 'Payment status', value: status, defaultValue: 'all', onChange: setStatus,
+      options: [{ value: 'all', label: 'All statuses' }, { value: 'completed', label: 'Completed' }, { value: 'processing', label: 'Processing' }, { value: 'attention', label: 'Needs attention' }, { value: 'failed', label: 'Failed' }, { value: 'disputed', label: 'Disputed' }, { value: 'canceled', label: 'Canceled' }]
+    },
+    {
+      key: 'source', label: 'Payment source', value: source, defaultValue: 'all', onChange: setSource,
+      options: [{ value: 'all', label: 'All sources' }, { value: 'online', label: 'Online' }, { value: 'manual', label: 'Manual' }]
+    }
+  ];
+  const paymentActiveChips = [
+    ...(propertyId ? [{ key: 'property', label: read(selectedProperty, 'name', 'Name') || read(selectedProperty, 'address', 'Address') || 'Selected property', onDelete: () => dispatch(setProperty(null)) }] : []),
+    ...(period !== 'year' ? [{ key: 'period', label: PERIOD_OPTIONS.find((item) => item.value === period)?.label || 'Date', onDelete: () => { setPeriod('year'); setCustomDates({ startDate: '', endDate: '' }); } }] : []),
+    ...paymentFilterFields.filter((filter) => filter.value !== filter.defaultValue).map((filter) => ({ key: filter.key, label: filter.options.find((item) => item.value === filter.value)?.label || filter.value, onDelete: () => filter.onChange(filter.defaultValue) })),
+    ...(sort !== 'newest' ? [{ key: 'sort', label: PAYMENT_SORT_OPTIONS.find((item) => item.value === sort)?.label || sort, onDelete: () => setSort('newest') }] : [])
+  ];
 
   const csvData = visiblePayments.map((payment) => ({
     Date: formatDate(read(payment, 'paymentDate', 'PaymentDate')),
@@ -484,7 +517,7 @@ export default function Payments() {
           </Box>
           <Stack direction="row" spacing={1}>
             <CSVLink data={csvData} filename={`payments-${toDateInput(new Date())}.csv`} style={{ textDecoration: 'none' }}>
-              <Button variant="outlined" startIcon={<DownloadOutlined />} disabled={!visiblePayments.length} sx={{ color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none', '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) } }}>
+              <Button variant="outlined" startIcon={<DownloadOutlined />} disabled={!visiblePayments.length} sx={darkHeaderOutlinedActionSx}>
                 Export
               </Button>
             </CSVLink>
@@ -514,32 +547,23 @@ export default function Payments() {
         <Grid size={{ xs: 12, xl: 9 }}>
           <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
             <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
-              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
-                <OutlinedInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tenant, reference, property, unit, or method" size="small" startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ flex: 1, minWidth: { lg: 260 }, borderRadius: 1.75 }} />
-                <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
-                  <Box sx={{ minWidth: 210, '& .MuiOutlinedInput-root': { height: 40, borderRadius: 1.75 }, '& .MuiInputLabel-root': { display: 'none' } }}><PropertySelect width="100%" disableAllOption={false} /></Box>
-                  <Select size="small" value={period} onChange={(event) => setPeriod(event.target.value)} sx={{ minWidth: 125, borderRadius: 1.75 }}>
-                    <MenuItem value="year">This year</MenuItem><MenuItem value="month">This month</MenuItem><MenuItem value="30">Last 30 days</MenuItem><MenuItem value="90">Last 90 days</MenuItem><MenuItem value="all">All time</MenuItem><MenuItem value="custom">Custom dates</MenuItem>
-                  </Select>
-                  <Select size="small" value={type} onChange={(event) => setType(event.target.value)} sx={{ minWidth: 122, borderRadius: 1.75 }}>
-                    <MenuItem value="all">All types</MenuItem><MenuItem value="rent">Rent</MenuItem><MenuItem value="fee">Fees</MenuItem><MenuItem value="deposit">Deposits</MenuItem>
-                  </Select>
-                  <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} sx={{ minWidth: 140, borderRadius: 1.75 }}>
-                    <MenuItem value="all">All statuses</MenuItem><MenuItem value="completed">Completed</MenuItem><MenuItem value="processing">Processing</MenuItem><MenuItem value="attention">Needs attention</MenuItem><MenuItem value="failed">Failed</MenuItem><MenuItem value="disputed">Disputed</MenuItem><MenuItem value="canceled">Canceled</MenuItem>
-                  </Select>
-                  <Select size="small" value={source} onChange={(event) => setSource(event.target.value)} sx={{ minWidth: 122, borderRadius: 1.75 }}>
-                    <MenuItem value="all">All sources</MenuItem><MenuItem value="online">Online</MenuItem><MenuItem value="manual">Manual</MenuItem>
-                  </Select>
-                  <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} sx={{ minWidth: 138, borderRadius: 1.75 }}>
-                    <MenuItem value="newest">Newest first</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="amount-high">Amount: high</MenuItem><MenuItem value="amount-low">Amount: low</MenuItem><MenuItem value="property">Property</MenuItem>
-                  </Select>
-                </Stack>
-              </Stack>
-              {period === 'custom' && <Stack direction="row" spacing={1} sx={{ mt: 1.2 }}>
-                <OutlinedInput type="date" size="small" value={customDates.startDate} onChange={(event) => setCustomDates((value) => ({ ...value, startDate: event.target.value }))} inputProps={{ 'aria-label': 'Start date' }} />
-                <OutlinedInput type="date" size="small" value={customDates.endDate} onChange={(event) => setCustomDates((value) => ({ ...value, endDate: event.target.value }))} inputProps={{ 'aria-label': 'End date' }} />
-              </Stack>}
-              {hasFilters && <Button size="small" onClick={clearFilters} sx={{ mt: 1, px: 0, textTransform: 'none' }}>Clear filters</Button>}
+              <TransactionFilterToolbar
+                search={search}
+                onSearchChange={setSearch}
+                searchPlaceholder="Search tenant, reference, property, unit, or method"
+                propertyControl={<PropertySelect width="100%" disableAllOption={false} label="" />}
+                period={period}
+                onPeriodChange={setPeriod}
+                periodOptions={PERIOD_OPTIONS}
+                sort={sort}
+                onSortChange={setSort}
+                sortOptions={PAYMENT_SORT_OPTIONS}
+                filters={paymentFilterFields}
+                activeChips={paymentActiveChips}
+                onClearAll={clearFilters}
+                customDates={customDates}
+                onCustomDatesChange={setCustomDates}
+              />
             </Box>
 
             {loading ? <Box sx={{ minHeight: 300, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : paymentError ? (

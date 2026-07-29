@@ -291,8 +291,10 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
             var otherDeposit = lease.LeaseDeposits != null && lease.LeaseDeposits.Any()
                 ? lease.LeaseDeposits.Sum(d => d.Amount).ToString("C")
                 : "N/A";
-            var moveInFee = lease.Fees?.FirstOrDefault(f => f.Name?.Contains("Move-in", StringComparison.OrdinalIgnoreCase) == true
-                || f.Name?.Contains("Application", StringComparison.OrdinalIgnoreCase) == true);
+            var oneTimeFees = lease.Fees?
+                .Where(f => !f.IsLateFee)
+                .Select(f => $"{f.Name}: {f.Amount:C}")
+                .ToList() ?? [];
             var lateFee = lease.Fees?.FirstOrDefault(f => f.Name?.Contains("Late", StringComparison.OrdinalIgnoreCase) == true);
             var monthlyPetRent = lease.Fees?.FirstOrDefault(f => f.Name?.Contains("Pet", StringComparison.OrdinalIgnoreCase) == true);
 
@@ -308,12 +310,14 @@ Respond with JSON in this exact shape: {{ ""Sections"": [ {{ ""Title"": ""Partie
                 ("Total Monthly Rent:", lease.RentAmount.HasValue ? lease.RentAmount.Value.ToString("C") : "N/A"),
                 ("Monthly Rent Amount:", lease.RentAmount.HasValue ? lease.RentAmount.Value.ToString("C") : "N/A"),
                 ("Monthly Pet Rent:", monthlyPetRent != null ? monthlyPetRent.Amount.ToString("C") : "N/A"),
-                ("Pro-Rated Rent Amount:", lease.IsProratedRent == true ? (lease.RentAmount?.ToString("C") ?? "N/A") : "N/A"),
+                ("Pro-Rated Rent Amount:", lease.IsProratedRent == true || lease.ProratedRentDue == true
+                    ? (lease.ProratedRentAmount?.ToString("C") ?? "N/A")
+                    : "N/A"),
                 ("Total Deposit(s):", totalDeposit > 0 ? totalDeposit.ToString("C") : "N/A"),
                 ("Security Deposit:", lease.DepositAmount.HasValue ? lease.DepositAmount.Value.ToString("C") : "N/A"),
                 ("Pet Deposit:", lease.PetDepositAmount.HasValue ? lease.PetDepositAmount.Value.ToString("C") : "N/A"),
                 ("Other Deposit:", otherDeposit),
-                ("Move-in Fee Amount:", moveInFee != null ? moveInFee.Amount.ToString("C") : "N/A"),
+                ("One-Time Fee(s):", oneTimeFees.Count > 0 ? string.Join("; ", oneTimeFees) : "N/A"),
                 ("Late Fee:", lateFee != null ? lateFee.Amount.ToString("C") : (lease.OverdueAmount.HasValue ? lease.OverdueAmount.Value.ToString("C") : "N/A"))
             };
 

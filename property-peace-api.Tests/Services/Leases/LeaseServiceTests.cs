@@ -70,6 +70,13 @@ namespace brownstone_hub_api.Tests.Services.Leases
         {
             PropertyId = propertyId,
             UnitId = unitId,
+            StartDate = new DateTime(2026, 8, 1),
+            EndDate = new DateTime(2027, 8, 1),
+            RentAmount = 1500m,
+            LeaseLength = 12,
+            RentFrequency = "Monthly",
+            RentDueDay = 1,
+            IsDrafted = false,
         };
 
         // ── AddOrUpdateLease ──────────────────────────────────────────────────────
@@ -113,6 +120,111 @@ namespace brownstone_hub_api.Tests.Services.Leases
             result.Success.Should().BeTrue();
             result.Data!.Id.Should().Be(1);
             _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L), Times.Once);
+        }
+
+        [Fact]
+        public async Task AddOrUpdateLease_NormalizesMonthToMonthEndDateFromStartDate()
+        {
+            SetOrgContext(10);
+            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _leaseRepo.Setup(r => r.GetLease(1, 10L)).ReturnsAsync((LoadLeaseDto)null!);
+            _leaseRepo.Setup(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L))
+                      .ReturnsAsync(MakeLeaseDto(1));
+            _propertyRepo.Setup(r => r.UpdateProperty(It.IsAny<UpdatePropertyDto>()))
+                         .ReturnsAsync(new LoadPropertyDto { Id = 1 });
+            var lease = MakeUpdateLeaseDto();
+            lease.StartDate = new DateTime(2026, 1, 31);
+            lease.EndDate = new DateTime(2026, 12, 31);
+            lease.LeaseLength = -1;
+
+            var result = await _sut.AddOrUpdateLease(lease);
+
+            result.Success.Should().BeTrue();
+            _leaseRepo.Verify(r => r.AddLease(
+                It.Is<UpdateLeaseDto>(candidate => candidate.EndDate == new DateTime(2026, 2, 28)),
+                10L), Times.Once);
+        }
+
+        [Fact]
+        public async Task AddOrUpdateLease_DoesNotRewindRenewedMonthToMonthEndDateDuringUpdate()
+        {
+            SetOrgContext(10);
+            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _leaseRepo.Setup(r => r.GetLeaseById(5, 10L)).ReturnsAsync(new LoadLeaseDto
+            {
+                Id = 5,
+                UnitId = 1,
+                LeaseLength = -1,
+                EndDate = new DateTime(2026, 9, 28),
+                AutoRenewLease = true
+            });
+            _leaseRepo.Setup(r => r.UpdateLease(It.IsAny<UpdateLeaseDto>())).ReturnsAsync(MakeLeaseDto(5));
+            var lease = MakeUpdateLeaseDto();
+            lease.Id = 5;
+            lease.StartDate = new DateTime(2026, 1, 31);
+            lease.EndDate = new DateTime(2026, 2, 28);
+            lease.LeaseLength = -1;
+            lease.AutoRenewLease = true;
+
+            var result = await _sut.AddOrUpdateLease(lease);
+
+            result.Success.Should().BeTrue();
+            _leaseRepo.Verify(r => r.UpdateLease(
+                It.Is<UpdateLeaseDto>(candidate => candidate.EndDate == new DateTime(2026, 9, 28))),
+                Times.Once);
+        }
+
+        [Fact]
+        public async Task AddOrUpdateLease_AllowsDraftWithMissingLeaseDetails()
+        {
+            SetOrgContext(10);
+            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _leaseRepo.Setup(r => r.GetLease(1, 10L)).ReturnsAsync((LoadLeaseDto)null!);
+            _leaseRepo.Setup(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L))
+                      .ReturnsAsync(new LoadLeaseDto { Id = 42, IsActive = false });
+            _propertyRepo.Setup(r => r.UpdateProperty(It.IsAny<UpdatePropertyDto>()))
+                         .ReturnsAsync(new LoadPropertyDto { Id = 1 });
+            var draft = new UpdateLeaseDto
+            {
+                PropertyId = 1,
+                UnitId = 1,
+                IsDrafted = true,
+                IsActive = false
+            };
+
+            var result = await _sut.AddOrUpdateLease(draft);
+
+            result.Success.Should().BeTrue();
+            _leaseRepo.Verify(r => r.AddLease(
+                It.Is<UpdateLeaseDto>(lease =>
+                    lease.IsDrafted == true &&
+                    lease.StartDate == null &&
+                    lease.EndDate == null &&
+                    lease.RentAmount == null &&
+                    lease.LeaseLength == null &&
+                    lease.RentFrequency == null &&
+                    lease.RentDueDay == null),
+                10L), Times.Once);
+        }
+
+        [Fact]
+        public async Task AddOrUpdateLease_RejectsNonDraftWithMissingLeaseDetails()
+        {
+            SetOrgContext(10);
+            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            var incomplete = new UpdateLeaseDto
+            {
+                PropertyId = 1,
+                UnitId = 1,
+                IsDrafted = false
+            };
+
+            var result = await _sut.AddOrUpdateLease(incomplete);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(400);
+            result.Message.Should().Be("Missing required lease details");
+            _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
         }
 
         [Fact]

@@ -548,6 +548,12 @@ namespace brownstone_hub_api.Services.LeaseGenerationService
                 variables.Add(new LeaseVariable { VariableKey = "Lease.AutoRenewIncrement", VariableValue = incStr, VariableType = "String" });
             }
             variables.Add(new LeaseVariable { VariableKey = "Lease.ProratedRent", VariableValue = lease.IsProratedRent == true ? "Yes" : "No", VariableType = "String" });
+            if ((lease.IsProratedRent == true || lease.ProratedRentDue == true) && lease.ProratedRentAmount.HasValue)
+            {
+                variables.Add(new LeaseVariable { VariableKey = "Lease.ProratedRentAmount", VariableValue = lease.ProratedRentAmount.Value.ToString("C"), VariableType = "Currency" });
+                if (!string.IsNullOrWhiteSpace(lease.ProrationMethod))
+                    variables.Add(new LeaseVariable { VariableKey = "Lease.ProrationMethod", VariableValue = lease.ProrationMethod, VariableType = "String" });
+            }
             if (lease.PetDepositAmount.HasValue && lease.PetDepositAmount > 0)
                 variables.Add(new LeaseVariable { VariableKey = "Lease.PetDeposit", VariableValue = lease.PetDepositAmount.Value.ToString("C"), VariableType = "Currency" });
             if (!string.IsNullOrWhiteSpace(lease.RentCollectionOtherOptions))

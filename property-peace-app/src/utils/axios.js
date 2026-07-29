@@ -109,7 +109,8 @@ const isAuthEndpoint = (url = '') =>
   url.includes('/api/user/forgot-password') || url.includes('/api/user/reset-password') ||
   url.includes('/api/user/google-login') || url.includes('/api/user/google-user-info') ||
   url.includes('/api/user/check-email') || url.includes('/api/user/refresh') ||
-  url.includes('/api/user/logout') || url.includes('/api/passkey/authentication/') ||
+  url.includes('/api/user/logout') || url.includes('/api/passkey/authentication/') || url.includes('/api/mfa/challenges/') ||
+  url.includes('/api/mfa/login/verify') ||
   url.includes('/api/demo-requests') || url.includes('/api/admin/impersonation/refresh');
 
 axiosServices.interceptors.request.use(async (config) => {

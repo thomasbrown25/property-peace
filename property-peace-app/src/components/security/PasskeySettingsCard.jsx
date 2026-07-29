@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import { startRegistration } from '@simplewebauthn/browser';
 import {
   Alert,
@@ -20,7 +21,7 @@ import { DeleteOutlined, KeyOutlined, PlusOutlined } from '@ant-design/icons';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 
-export default function PasskeySettingsCard() {
+export default function PasskeySettingsCard({ embedded = false }) {
   const [passkeys, setPasskeys] = useState([]);
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -113,7 +114,11 @@ export default function PasskeySettingsCard() {
   };
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, bgcolor: (theme) => alpha(theme.palette.background.paper, 0.6) }}>
+    <Box
+      component={embedded ? 'div' : Paper}
+      variant={embedded ? undefined : 'outlined'}
+      sx={{ p: embedded ? 0 : 3, bgcolor: embedded ? 'transparent' : (theme) => alpha(theme.palette.background.paper, 0.6) }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
         <KeyOutlined style={{ fontSize: 20, color: '#16a34a' }} />
         <Typography variant="h6" fontWeight="bold">
@@ -195,6 +200,8 @@ export default function PasskeySettingsCard() {
           </Stack>
         </>
       )}
-    </Paper>
+    </Box>
   );
 }
+
+PasskeySettingsCard.propTypes = { embedded: PropTypes.bool };

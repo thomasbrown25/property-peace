@@ -17,6 +17,8 @@ import store from 'store';
 import { USER_ACTION_TYPES } from 'store/user/user.types';
 import { getBrowserTimezone } from 'utils/browserTimezone';
 import { getPostLoginRedirectPath } from 'utils/authRedirect';
+import { normalizeLoginResult } from 'utils/mfaChallenge';
+import { verifyMfaChallenge } from 'api/security';
 import {
   clearImpersonationSession,
   getActiveAccessToken,
@@ -225,8 +227,19 @@ export const JWTProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await axios.post('/api/user/login', { email, password });
-    const user = response.data?.data;
-    await completeLogin(user);
+    const result = normalizeLoginResult(response.data);
+    if (result.kind === 'challenge') return result.challenge;
+    await completeLogin(result.user);
+    return null;
+  };
+
+  const verifyMfaLogin = async (challengeId, code) => {
+    const response = await verifyMfaChallenge(challengeId, code);
+    const result = normalizeLoginResult(response);
+    if (result.kind !== 'authenticated' || !result.user?.jwtToken) {
+      throw new Error('Multi-factor verification did not return a valid sign-in session.');
+    }
+    await completeLogin(result.user);
   };
 
   const passkeyLogin = async () => {
@@ -300,6 +313,9 @@ export const JWTProvider = ({ children }) => {
           const errorMsg = loginResponse.data?.message || 'Failed to login with Google';
           throw new Error(errorMsg);
         }
+
+        const normalizedResult = normalizeLoginResult(loginResponse.data);
+        if (normalizedResult.kind === 'challenge') return normalizedResult.challenge;
 
         const user = loginResponse.data?.data;
         const isNewUser = loginResponse.data?.isNewUser || false;
@@ -739,6 +755,7 @@ export const JWTProvider = ({ children }) => {
       value={{
         ...state,
         login,
+        verifyMfaLogin,
         passkeyLogin,
         googleLogin,
         logout,

@@ -36,6 +36,7 @@ namespace brownstone_hub_api.Dtos.Lease
         public bool? AutoRenewRentIncrement { get; set; }
         public string? AutoRenewRentIncrementType { get; set; } // "percentage" or "amount"
         public decimal? AutoRenewRentIncrementValue { get; set; }
+        public bool CreateChecklistOnStartDate { get; set; }
 
         public long? LeaseTemplateId { get; set; }
 
@@ -73,6 +74,8 @@ namespace brownstone_hub_api.Dtos.Lease
         // Rent/Deposit/Fees section (build-lease-agreement)
         public bool? ProratedRentDue { get; set; }
         public bool? IsProratedRent { get; set; }
+        public decimal? ProratedRentAmount { get; set; }
+        public string? ProrationMethod { get; set; }
         public decimal? PetDepositAmount { get; set; }
         public bool? RentCollectionByPlatform { get; set; }
         public bool? RentCollectionOther { get; set; }

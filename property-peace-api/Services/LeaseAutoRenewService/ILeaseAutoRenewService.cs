@@ -1,7 +1,7 @@
 namespace brownstone_hub_api.Services.LeaseAutoRenewService
 {
     /// <summary>
-    /// Processes auto-renewal for leases that have reached their end date and have AutoRenewLease enabled.
+    /// Processes fixed-term leases at their end date and month-to-month leases 15 days before their current end date.
     /// </summary>
     public interface ILeaseAutoRenewService
     {

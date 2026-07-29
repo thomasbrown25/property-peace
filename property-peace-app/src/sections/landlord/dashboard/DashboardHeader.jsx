@@ -1,6 +1,6 @@
-import { Box, Typography, Stack, Button, IconButton, Tooltip, useMediaQuery, useTheme, Fade } from '@mui/material';
+import { Box, Typography, Stack, Button, useMediaQuery, useTheme, Fade } from '@mui/material';
 import { alpha } from '@mui/material/styles';
-import { CalendarOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CalendarOutlined, PlusOutlined } from '@ant-design/icons';
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
 
@@ -11,7 +11,7 @@ const getGreeting = () => {
   return 'Good evening';
 };
 
-export default function DashboardHeader({ userName, onCreateNew, onRefresh, refreshing = false, summaryText = null, stats = [] }) {
+export default function DashboardHeader({ userName, onCreateNew, summaryText = null, stats = [] }) {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const greeting = getGreeting();
@@ -72,28 +72,16 @@ export default function DashboardHeader({ userName, onCreateNew, onRefresh, refr
               </Typography>
             </Box>
 
-            <Stack direction="row" spacing={1} sx={{ position: 'relative', zIndex: 1, width: { xs: '100%', sm: 'auto' } }}>
-              {onRefresh && (
-                <Tooltip title="Refresh dashboard">
-                  <span>
-                    <IconButton
-                      onClick={onRefresh}
-                      disabled={refreshing}
-                      aria-label="Refresh dashboard"
-                      sx={{
-                        width: 42,
-                        height: 42,
-                        color: '#fff',
-                        border: `1px solid ${alpha('#ffffff', 0.2)}`,
-                        bgcolor: alpha('#ffffff', 0.08),
-                        '&:hover': { bgcolor: alpha('#ffffff', 0.15) }
-                      }}
-                    >
-                      <ReloadOutlined style={{ fontSize: 17, animation: refreshing ? 'dashboard-spin 0.8s linear infinite' : 'none' }} />
-                    </IconButton>
-                  </span>
-                </Tooltip>
-              )}
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                position: 'relative',
+                zIndex: 1,
+                width: { sm: 'auto' },
+                display: { xs: 'none', sm: 'flex' }
+              }}
+            >
               {onCreateNew && (
                 <Button
                   variant="contained"
@@ -149,8 +137,6 @@ export default function DashboardHeader({ userName, onCreateNew, onRefresh, refr
               ))}
             </Box>
           )}
-
-          <Box sx={{ '@keyframes dashboard-spin': { to: { transform: 'rotate(360deg)' } } }} />
         </Box>
       </Fade>
     </>

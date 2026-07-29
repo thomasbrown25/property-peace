@@ -14,12 +14,20 @@ namespace brownstone_hub_api.Configurations
             b.ToTable("Leases", "lease");
             b.HasIndex(l => new { l.UnitId, l.IsDeleted });
 
-            b.Property(l => l.RentAmount).HasPrecision(18, 2);
+            b.Property(l => l.StartDate).IsRequired(false);
+            b.Property(l => l.EndDate).IsRequired(false);
+            b.Property(l => l.RentAmount).HasPrecision(18, 2).IsRequired(false);
+            b.Property(l => l.LeaseLength).IsRequired(false);
+            b.Property(l => l.RentFrequency).IsRequired(false);
+            b.Property(l => l.RentDueDay).IsRequired(false);
             b.Property(l => l.DepositAmount).HasPrecision(18, 2);
             b.Property(l => l.OverdueAmount).HasPrecision(18, 2);
             b.Property(l => l.PetDepositAmount).HasPrecision(18, 2);
+            b.Property(l => l.ProratedRentAmount).HasPrecision(18, 2);
+            b.Property(l => l.ProrationMethod).HasMaxLength(20);
             b.Property(l => l.RentIncreaseValue).HasPrecision(18, 2);
             b.Property(l => l.AutoRenewRentIncrementValue).HasPrecision(18, 2);
+            b.Property(l => l.CreateChecklistOnStartDate).HasDefaultValue(false);
 
             b.Property(l => l.RentCollectionOtherOptions)
                 .HasColumnType("nvarchar(max)");

@@ -26,6 +26,8 @@ using brownstone_hub_api.Dtos.Conversation;
 using brownstone_hub_api.Dtos.Message;
 using brownstone_hub_api.Services.SubscriptionService;
 using brownstone_hub_api.Repositories.NotificationSettings;
+using brownstone_hub_api.Services.MfaService;
+using brownstone_hub_api.Dtos.Mfa;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -45,6 +47,7 @@ namespace brownstone_hub_api.Controllers
         IEmailService emailService,
         ISubscriptionService subscriptionService,
         INotificationSettingRepository notificationSettingRepository,
+        IMfaService mfaService,
         ILogger<UserController> logger
         ) : ControllerBase
     {
@@ -61,6 +64,7 @@ namespace brownstone_hub_api.Controllers
         private readonly IEmailService _emailService = emailService;
         private readonly ISubscriptionService _subscriptionService = subscriptionService;
         private readonly INotificationSettingRepository _notificationSettingRepository = notificationSettingRepository;
+        private readonly IMfaService _mfaService = mfaService;
         private readonly ILogger<UserController> _logger = logger;
 
         [HttpPost("register")]
@@ -82,25 +86,40 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<ServiceResponse<LoadUserDto>>> Login(UserLoginDto request)
+        public async Task<ActionResult<PasswordLoginResponseDto>> Login(UserLoginDto request, CancellationToken ct)
         {
             var response = await _userService.Login(request.Email, request.Password);
 
             if (!response.Success)
             {
-                return BadRequest(response);
+                return BadRequest(new PasswordLoginResponseDto { Success = false, Message = response.Message });
             }
             if (response.Data != null)
             {
+                if (await _mfaService.HasEnabledMfaAsync(response.Data.Id, ct))
+                {
+                    // Password validation is not authorization to issue credentials when MFA is enabled.
+                    response.Data.JWTToken = string.Empty;
+                    try
+                    {
+                        var challenge = await _mfaService.BeginLoginAsync(response.Data.Id, ct, request.MfaMethod);
+                        return Ok(new PasswordLoginResponseDto { Success = true, MfaRequired = true, Mfa = challenge });
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return StatusCode(503, new PasswordLoginResponseDto { Success = false, Message = "MFA delivery is unavailable." });
+                    }
+                }
+
                 var session = await _userService.CreateRefreshSession(response.Data.Id);
                 SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
                 response.Data.JWTToken = session.User.JWTToken;
             }
-            return Ok(response);
+            return Ok(new PasswordLoginResponseDto { Success = true, Data = response.Data, Message = response.Message });
         }
 
         [HttpPost("google-login")]
-        public async Task<ActionResult> GoogleLogin(GoogleLoginDto request)
+        public async Task<ActionResult> GoogleLogin(GoogleLoginDto request, CancellationToken ct)
         {
             // Log the incoming request for debugging
             _logger.LogInformation("Google login request received: HasIdToken={HasIdToken}, HasAccessToken={HasAccessToken}, HasRegistrationCode={HasRegistrationCode}",
@@ -118,6 +137,20 @@ namespace brownstone_hub_api.Controllers
 
             if (response.Data != null)
             {
+                if (!isNewUser && await _mfaService.HasEnabledMfaAsync(response.Data.Id, ct))
+                {
+                    response.Data.JWTToken = string.Empty;
+                    try
+                    {
+                        var challenge = await _mfaService.BeginLoginAsync(response.Data.Id, ct);
+                        return Ok(new { success = true, mfaRequired = true, mfa = challenge, isNewUser = false });
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return StatusCode(503, new { success = false, message = "MFA delivery is unavailable." });
+                    }
+                }
+
                 var session = await _userService.CreateRefreshSession(response.Data.Id);
                 SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
                 response.Data.JWTToken = session.User.JWTToken;

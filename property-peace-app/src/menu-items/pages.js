@@ -186,7 +186,7 @@ const pages = [
         children: [
           {
             id: 'admin-users',
-            title: 'Team & Staff',
+            title: 'Team',
             type: 'item',
             url: '/landlord/admin-members',
             icon: icons.UserOutlined

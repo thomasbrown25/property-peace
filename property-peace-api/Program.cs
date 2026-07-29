@@ -44,6 +44,7 @@ using brownstone_hub_api.Services.LeaseGenerationService;
 using brownstone_hub_api.Repositories.LeaseInstances;
 using brownstone_hub_api.Services.LeaseDocumentService;
 using brownstone_hub_api.Services.LeaseAutoRenewService;
+using brownstone_hub_api.Services.LeaseChecklistSchedulingService;
 using brownstone_hub_api.Services.OpenAIService;
 using brownstone_hub_api.Services.PolicyAIService;
 using brownstone_hub_api.Config;
@@ -150,6 +151,8 @@ using brownstone_hub_api.Repositories.Amenities;
 using brownstone_hub_api.Repositories.AdminDashboard;
 using brownstone_hub_api.Services.AdminDashboardService;
 using Fido2NetLib;
+using brownstone_hub_api.Services.MfaService;
+using brownstone_hub_api.Dtos.Mfa;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -307,6 +310,18 @@ services.Configure<IpRateLimitOptions>(options =>
         },
         new RateLimitRule
         {
+            Endpoint = "POST:/api/mfa/login/verify",
+            Period = "1m",
+            Limit = 10
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/mfa/enrollment/*",
+            Period = "1m",
+            Limit = 5
+        },
+        new RateLimitRule
+        {
             Endpoint = "POST:/api/passkey/authentication/options",
             Period = "1m",
             Limit = 10
@@ -426,6 +441,9 @@ services.AddAutoMapper(typeof(Program).Assembly);
 // Services
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
 services.AddScoped<IUserService, UserService>();
+services.AddDataProtection();
+services.Configure<MfaOptions>(builder.Configuration.GetSection("Mfa"));
+services.AddScoped<IMfaService, MfaService>();
 services.AddSingleton<ImpersonationConnectionRegistry>();
 services.AddSingleton<ImpersonationHubFilter>();
 services.AddScoped<IImpersonationService, ImpersonationService>();
@@ -447,6 +465,7 @@ services.AddScoped<IStateRequiredDisclosureService, StateRequiredDisclosureServi
 services.AddScoped<ILeaseDocumentService, LeaseDocumentService>();
 services.AddSingleton<ILeaseFinalizationLock, SqlLeaseFinalizationLock>();
 services.AddScoped<ILeaseAutoRenewService, LeaseAutoRenewService>();
+services.AddScoped<ILeaseChecklistSchedulingService, LeaseChecklistSchedulingService>();
 services.AddScoped<IOpenAIService, OpenAIService>();
 services.AddScoped<IPolicyAIService, PolicyAIService>();
 services.AddScoped<ITenantService, TenantService>();
@@ -628,6 +647,7 @@ services.AddHostedService<SubscriptionBackgroundService>();
 services.AddHostedService<StateLateFeeLawUpdateBackgroundService>();
 services.AddHostedService<StateDepositLawUpdateBackgroundService>();
 services.AddHostedService<LeaseAutoRenewBackgroundService>();
+services.AddHostedService<LeaseChecklistSchedulingBackgroundService>();
 services.AddHostedService<DailySummaryEmailBackgroundService>();
 services.AddHostedService<brownstone_hub_api.Services.AgentFollowUpService.AgentFollowUpBackgroundService>();
 

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { CSVLink } from 'react-csv';
+import { darkHeaderSuccessActionSx } from 'styles/darkHeaderActions.mjs';
 import {
   alpha,
   Avatar,
@@ -10,11 +11,7 @@ import {
   Chip,
   CircularProgress,
   Grid,
-  InputAdornment,
-  MenuItem,
-  OutlinedInput,
   Pagination,
-  Select,
   Stack,
   Typography,
   useMediaQuery,
@@ -28,11 +25,11 @@ import {
   DollarOutlined,
   DownloadOutlined,
   FileTextOutlined,
-  SearchOutlined,
   WalletOutlined
 } from '@ant-design/icons';
 
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
 import PropertySelect from 'components/PropertySelect';
 import useFetchExpenses from 'hooks/useFetchExpenses';
 import axiosServices from 'utils/axios';
@@ -42,6 +39,20 @@ import { setProperty } from 'store/property/property.action';
 
 const PAGE_SIZE = 12;
 const NAVY = '#061e35';
+const PERIOD_OPTIONS = [
+  { value: 'year', label: 'This year' },
+  { value: 'month', label: 'This month' },
+  { value: '30', label: 'Last 30 days' },
+  { value: '90', label: 'Last 90 days' },
+  { value: 'all', label: 'All time' },
+  { value: 'custom', label: 'Custom dates' }
+];
+const LEDGER_SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'amount-high', label: 'Amount: high' },
+  { value: 'amount-low', label: 'Amount: low' }
+];
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
 
@@ -311,6 +322,22 @@ export default function Ledger() {
   const pageItems = visibleEntries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const loading = paymentsLoading || expensesLoading;
   const hasFilters = search || period !== 'year' || type !== 'all' || account !== 'all' || sort !== 'newest' || propertyId;
+  const ledgerFilterFields = [
+    {
+      key: 'type', label: 'Transaction type', value: type, defaultValue: 'all', onChange: setType,
+      options: [{ value: 'all', label: 'All entries' }, { value: 'payment', label: 'Payments' }, { value: 'expense', label: 'Expenses' }]
+    },
+    {
+      key: 'account', label: 'Account', value: account, defaultValue: 'all', onChange: setAccount,
+      options: [{ value: 'all', label: 'All accounts' }, ...accountOptions.map((item) => ({ value: item, label: item }))]
+    }
+  ];
+  const ledgerActiveChips = [
+    ...(propertyId ? [{ key: 'property', label: read(selectedProperty, 'name', 'Name') || read(selectedProperty, 'address', 'Address') || 'Selected property', onDelete: () => dispatch(setProperty(null)) }] : []),
+    ...(period !== 'year' ? [{ key: 'period', label: PERIOD_OPTIONS.find((item) => item.value === period)?.label || 'Date', onDelete: () => { setPeriod('year'); setCustomDates({ startDate: '', endDate: '' }); } }] : []),
+    ...ledgerFilterFields.filter((filter) => filter.value !== filter.defaultValue).map((filter) => ({ key: filter.key, label: filter.options.find((item) => item.value === filter.value)?.label || filter.value, onDelete: () => filter.onChange(filter.defaultValue) })),
+    ...(sort !== 'newest' ? [{ key: 'sort', label: LEDGER_SORT_OPTIONS.find((item) => item.value === sort)?.label || sort, onDelete: () => setSort('newest') }] : [])
+  ];
 
   useEffect(() => { setPage(1); }, [account, period, customDates.startDate, customDates.endDate, propertyId, search, sort, type]);
 
@@ -358,7 +385,7 @@ export default function Ledger() {
               Manage expenses
             </Button>
             <CSVLink data={csvData} filename={`ledger-${toDateInput(new Date())}.csv`} style={{ textDecoration: 'none' }}>
-              <Button variant="contained" color="success" startIcon={<DownloadOutlined />} disabled={!visibleEntries.length} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>
+              <Button variant="contained" color="success" startIcon={<DownloadOutlined />} disabled={!visibleEntries.length} sx={darkHeaderSuccessActionSx}>
                 Export
               </Button>
             </CSVLink>
@@ -377,32 +404,24 @@ export default function Ledger() {
         <Grid size={{ xs: 12, xl: 9 }}>
           <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
             <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
-              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
-                <OutlinedInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search description, reference, account, or property" size="small" startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ flex: 1, minWidth: { lg: 270 }, borderRadius: 1.75 }} />
-                <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
-                  <Box sx={{ minWidth: 210, '& .MuiOutlinedInput-root': { height: 40, borderRadius: 1.75 }, '& .MuiInputLabel-root': { display: 'none' } }}><PropertySelect width="100%" disableAllOption={false} /></Box>
-                  <Select size="small" value={period} onChange={(event) => setPeriod(event.target.value)} sx={{ minWidth: 125, borderRadius: 1.75 }}>
-                    <MenuItem value="year">This year</MenuItem><MenuItem value="month">This month</MenuItem><MenuItem value="30">Last 30 days</MenuItem><MenuItem value="90">Last 90 days</MenuItem><MenuItem value="all">All time</MenuItem><MenuItem value="custom">Custom dates</MenuItem>
-                  </Select>
-                  <Select size="small" value={type} onChange={(event) => setType(event.target.value)} sx={{ minWidth: 125, borderRadius: 1.75 }}>
-                    <MenuItem value="all">All entries</MenuItem><MenuItem value="payment">Payments</MenuItem><MenuItem value="expense">Expenses</MenuItem>
-                  </Select>
-                  <Select size="small" value={account} onChange={(event) => setAccount(event.target.value)} sx={{ minWidth: 145, borderRadius: 1.75 }}>
-                    <MenuItem value="all">All accounts</MenuItem>{accountOptions.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
-                  </Select>
-                  <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} sx={{ minWidth: 135, borderRadius: 1.75 }}>
-                    <MenuItem value="newest">Newest first</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="amount-high">Amount: high</MenuItem><MenuItem value="amount-low">Amount: low</MenuItem>
-                  </Select>
-                </Stack>
-              </Stack>
-              {period === 'custom' && <Stack direction="row" spacing={1} sx={{ mt: 1.2 }}>
-                <OutlinedInput type="date" size="small" value={customDates.startDate} onChange={(event) => setCustomDates((value) => ({ ...value, startDate: event.target.value }))} inputProps={{ 'aria-label': 'Start date' }} />
-                <OutlinedInput type="date" size="small" value={customDates.endDate} onChange={(event) => setCustomDates((value) => ({ ...value, endDate: event.target.value }))} inputProps={{ 'aria-label': 'End date' }} />
-              </Stack>}
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
-                <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>{visibleEntries.length} of {entries.length} entries shown</Typography>
-                {hasFilters && <Button size="small" onClick={clearFilters} sx={{ px: 0, textTransform: 'none' }}>Clear filters</Button>}
-              </Stack>
+              <TransactionFilterToolbar
+                search={search}
+                onSearchChange={setSearch}
+                searchPlaceholder="Search description, reference, account, or property"
+                propertyControl={<PropertySelect width="100%" disableAllOption={false} label="" />}
+                period={period}
+                onPeriodChange={setPeriod}
+                periodOptions={PERIOD_OPTIONS}
+                sort={sort}
+                onSortChange={setSort}
+                sortOptions={LEDGER_SORT_OPTIONS}
+                filters={ledgerFilterFields}
+                activeChips={ledgerActiveChips}
+                onClearAll={clearFilters}
+                customDates={customDates}
+                onCustomDatesChange={setCustomDates}
+                resultSummary={`${visibleEntries.length} of ${entries.length} entries shown`}
+              />
             </Box>
 
             {loading ? <Box sx={{ minHeight: 300, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : pageItems.length === 0 ? (

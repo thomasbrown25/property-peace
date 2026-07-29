@@ -26,6 +26,7 @@ namespace brownstone_hub_api.Controllers
         private readonly IBankAccountRepository _bankAccountRepository;
         private readonly IUserRepository _userRepository;
         private readonly ILogger<StripeController> _logger;
+        private readonly IConfiguration _configuration;
 
         public StripeController(
             IStripeService stripeService,
@@ -34,7 +35,8 @@ namespace brownstone_hub_api.Controllers
             IBankAccountService bankAccountService,
             IBankAccountRepository bankAccountRepository,
             IUserRepository userRepository,
-            ILogger<StripeController> logger)
+            ILogger<StripeController> logger,
+            IConfiguration? configuration = null)
         {
             _stripeService = stripeService;
             _userService = userService;
@@ -43,6 +45,7 @@ namespace brownstone_hub_api.Controllers
             _bankAccountRepository = bankAccountRepository;
             _userRepository = userRepository;
             _logger = logger;
+            _configuration = configuration ?? new ConfigurationBuilder().Build();
         }
 
         /// <summary>
@@ -718,11 +721,21 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Create a payment intent for tenant payment
         /// </summary>
+        [Authorize(Roles = "Tenant")]
         [HttpPost("create-payment-intent")]
         public async Task<IActionResult> CreatePaymentIntent([FromBody] CreatePaymentIntentDto request)
         {
             try
             {
+                if (!_configuration.GetValue<bool>("Stripe:RentPaymentsEnabled"))
+                {
+                    _logger.LogWarning("Blocked rent PaymentIntent creation because the emergency payment gate is closed");
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                    {
+                        Message = "Online rent payments are temporarily unavailable. Please try again later."
+                    });
+                }
+
                 if (request.LeaseId <= 0 || request.Amount <= 0)
                 {
                     return BadRequest(new { Message = "Invalid lease ID or amount" });
@@ -747,11 +760,21 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Update an existing tenant payment intent amount without recreating the Stripe Payment Element
         /// </summary>
+        [Authorize(Roles = "Tenant")]
         [HttpPost("update-payment-intent")]
         public async Task<IActionResult> UpdatePaymentIntent([FromBody] UpdatePaymentIntentDto request)
         {
             try
             {
+                if (!_configuration.GetValue<bool>("Stripe:RentPaymentsEnabled"))
+                {
+                    _logger.LogWarning("Blocked rent PaymentIntent update because the emergency payment gate is closed");
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                    {
+                        Message = "Online rent payments are temporarily unavailable. Please try again later."
+                    });
+                }
+
                 if (string.IsNullOrWhiteSpace(request.PaymentIntentId) || request.LeaseId <= 0 || request.Amount <= 0)
                 {
                     return BadRequest(new { Message = "Invalid payment intent, lease ID, or amount" });
@@ -776,6 +799,7 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Confirm a payment after successful Stripe payment
         /// </summary>
+        [Authorize(Roles = "Tenant")]
         [HttpPost("confirm-payment")]
         public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto request)
         {
@@ -810,6 +834,7 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Confirm a payment and allocate it across rent, fees, and deposit
         /// </summary>
+        [Authorize(Roles = "Tenant")]
         [HttpPost("confirm-payment-allocated")]
         public async Task<IActionResult> ConfirmPaymentAllocated([FromBody] ConfirmPaymentDto request)
         {
@@ -844,8 +869,8 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Link an existing Stripe account to the current user
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
-        [HttpPost("link-account")]
+        [NonAction]
+        [ApiExplorerSettings(IgnoreApi = true)]
         public async Task<IActionResult> LinkExistingAccount([FromBody] LinkAccountRequest request)
         {
             try

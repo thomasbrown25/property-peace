@@ -69,6 +69,20 @@ namespace brownstone_hub_api.Services.LeaseService
             return null;
         }
 
+        private static void PreserveRenewedMonthToMonthEndDate(UpdateLeaseDto update, LoadLeaseDto existing)
+        {
+            var keepsAutoRenewEnabled = update.AutoRenewLease != false;
+            if (update.LeaseLength == -1 &&
+                existing.LeaseLength == -1 &&
+                existing.AutoRenewLease &&
+                keepsAutoRenewEnabled &&
+                existing.EndDate.HasValue &&
+                (!update.EndDate.HasValue || update.EndDate.Value.Date < existing.EndDate.Value.Date))
+            {
+                update.EndDate = existing.EndDate.Value.Date;
+            }
+        }
+
         public async Task<ServiceResponse<LoadLeaseDto>> AddOrUpdateLease(UpdateLeaseDto lease)
         {
             try
@@ -80,6 +94,22 @@ namespace brownstone_hub_api.Services.LeaseService
                 var unit = property.Units.FirstOrDefault(u => u.Id == lease.UnitId);
                 if (unit == null)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Invalid Unit ID", "The specified unit does not exist.");
+
+                var hasRequiredLeaseDetails =
+                    lease.StartDate.HasValue &&
+                    lease.EndDate.HasValue &&
+                    lease.RentAmount.HasValue &&
+                    lease.LeaseLength.HasValue &&
+                    !string.IsNullOrWhiteSpace(lease.RentFrequency) &&
+                    lease.RentDueDay.HasValue;
+
+                if (lease.IsDrafted != true && !hasRequiredLeaseDetails)
+                {
+                    return ServiceResponse<LoadLeaseDto>.CreateError(
+                        "Missing required lease details",
+                        "Start date, end date, rent amount, lease length, rent frequency, and rent due day are required before creating a lease.",
+                        statusCode: 400);
+                }
 
                 // Get organizationId from context
                 var organizationId = GetOrganizationIdFromContext();
@@ -97,6 +127,7 @@ namespace brownstone_hub_api.Services.LeaseService
                         {
                             return ServiceResponse<LoadLeaseDto>.CreateError("Invalid Unit", "The lease does not belong to the specified unit.");
                         }
+                        PreserveRenewedMonthToMonthEndDate(lease, existingLeaseById);
                         newLease = await _leaseRepository.UpdateLease(lease);
                     }
                     else
@@ -112,18 +143,30 @@ namespace brownstone_hub_api.Services.LeaseService
                     if (existingLease != null)
                     {
                         lease.Id = existingLease.Id;
+                        PreserveRenewedMonthToMonthEndDate(lease, existingLease);
                         newLease = await _leaseRepository.UpdateLease(lease);
                     }
                     else
                     {
-                        newLease = await _leaseRepository.AddLease(lease, organizationId);
+                        // A new month-to-month lease always starts with a one-calendar-month
+                        // end date. Existing leases keep their server-managed renewed end date.
+                        if (lease.IsDrafted != true && lease.LeaseLength == -1 && lease.StartDate.HasValue)
+                        {
+                            lease.EndDate = lease.StartDate.Value.Date.AddMonths(1);
+                        }
 
-                        var leaseHasStarted = lease.StartDate.HasValue && lease.StartDate.Value.Date <= DateTime.Today;
-                        property.IsOccupied = leaseHasStarted;
-                        unit.IsOccupied = leaseHasStarted;
-                        await _propertyRepository.UpdateProperty(_mapper.Map<UpdatePropertyDto>(property));
+                        newLease = await _leaseRepository.AddLease(lease, organizationId);
                     }
                 }
+
+                // Keep occupancy aligned when a draft is saved or later finalized through
+                // the update path, not only when the lease row is first inserted.
+                var leaseHasStarted = lease.IsDrafted != true &&
+                    lease.StartDate.HasValue &&
+                    lease.StartDate.Value.Date <= DateTime.Today;
+                property.IsOccupied = leaseHasStarted;
+                unit.IsOccupied = leaseHasStarted;
+                await _propertyRepository.UpdateProperty(_mapper.Map<UpdatePropertyDto>(property));
 
                 // Generate past payments if requested (only if start date is in the past and dates are provided)
                 if (lease.MarkPastPaymentsAsPaid && newLease != null && lease.StartDate.HasValue && lease.EndDate.HasValue)

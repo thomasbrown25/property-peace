@@ -72,7 +72,18 @@ export default defineConfig(({ mode }) => {
       // target: 'baseline-widely-available', // This is now the default
     },
     optimizeDeps: {
-      include: ['@mui/material/Tooltip', '@ant-design/icons', 'react', 'react-dom', 'react-router-dom', 'ua-parser-js', 'react-device-detect']
+      include: [
+        '@mui/material/Tooltip',
+        '@mui/x-date-pickers',
+        '@mui/x-date-pickers/DatePicker',
+        '@mui/x-date-pickers/AdapterDateFns',
+        '@ant-design/icons',
+        'react',
+        'react-dom',
+        'react-router-dom',
+        'ua-parser-js',
+        'react-device-detect'
+      ]
     },
     commonjsOptions: {
       include: [/ua-parser-js/, /react-device-detect/],

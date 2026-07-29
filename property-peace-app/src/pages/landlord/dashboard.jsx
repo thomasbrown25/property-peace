@@ -53,7 +53,6 @@ import { getRentCollection } from 'store/rent-collection/rent-collection.action'
 import useFetchExpenses from 'hooks/useFetchExpenses';
 import useFetchNotifications from 'hooks/useFetchNotifications';
 import useLandlordSetupSteps from 'hooks/useLandlordSetupSteps';
-import ReloadOutlined from '@ant-design/icons/ReloadOutlined';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { expenseAPI } from 'api';
 import { useSubscription, useSubscriptionPlans, useSubscriptionStatus } from 'hooks/useSubscription';
@@ -62,7 +61,7 @@ import { openSnackbar } from 'api/snackbar';
 import axiosServices from 'utils/axios';
 import { alpha, useTheme, Button, useMediaQuery } from '@mui/material';
 import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
-import { WarningOutlined, DollarCircleOutlined, RocketOutlined, ThunderboltOutlined, SettingOutlined, HomeOutlined, WalletOutlined, UnorderedListOutlined, ToolOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, DollarOutlined } from '@ant-design/icons';
+import { WarningOutlined, DollarCircleOutlined, RocketOutlined, ThunderboltOutlined, SettingOutlined, HomeOutlined, WalletOutlined, UnorderedListOutlined, ToolOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, DollarOutlined, DownOutlined } from '@ant-design/icons';
 
 // ==============================|| LANDLORD - DASHBOARD ||============================== //
 
@@ -96,7 +95,7 @@ export default function Dashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProperty?.id]);
   const { refetch: refetchExpenses, loading: expensesLoading } = useFetchExpenses(expenseFilters);
-  const { refetch: refetchNotifications, notificationsLoading } = useFetchNotifications();
+  const { notificationsLoading } = useFetchNotifications();
   const { isLoading: tenantsLoading } = useFetchAllTenants();
   const tenants = useSelector(selectTenants);
   useFetchAllPayments();
@@ -105,6 +104,7 @@ export default function Dashboard() {
   const { plans } = useSubscriptionPlans();
   const { status: subscriptionStatus } = useSubscriptionStatus();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { registerGenerateSummary } = useTriggerSummary();
 
   // Compute dashboard summary sentence for the header
@@ -243,6 +243,7 @@ export default function Dashboard() {
   
   // Create New menu state
   const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
+  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [addExpenseDrawerOpen, setAddExpenseDrawerOpen] = useState(false);
   const [rentReminderOpen, setRentReminderOpen] = useState(false);
   
@@ -352,26 +353,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, dispatch]);
 
-  const [refreshing, setRefreshing] = useState(false);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([
-        propertiesRefetch(),
-        refetchDashboardSummary(),
-        dispatch(getRentCollection(null, false)),
-        dispatch(getRentCollection(null, true)),
-        refetchExpenses(),
-        refetchNotifications(),
-        fetchProfitabilityData(null, null)
-      ]);
-    } catch (error) {
-      console.error('Error refreshing dashboard:', error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   const handleAddLease = () => {
     navigate('/landlord/leases');
@@ -487,6 +468,42 @@ export default function Dashboard() {
     }
   };
 
+  const quickActions = [
+    {
+      icon: <DollarCircleOutlined style={{ fontSize: 18 }} />,
+      label: 'Record Payment',
+      sub: 'Log rent paid',
+      color: theme.palette.success.main,
+      onClick: () => drawer.openPaymentAddDrawer()
+    },
+    {
+      icon: <WalletOutlined style={{ fontSize: 18 }} />,
+      label: 'Add Expense',
+      sub: 'Track a cost',
+      color: theme.palette.primary.main,
+      onClick: () => setAddExpenseDrawerOpen(true)
+    },
+    {
+      icon: <ToolOutlined style={{ fontSize: 18 }} />,
+      label: 'Maintenance',
+      sub: 'Create ticket',
+      color: theme.palette.warning.main,
+      onClick: () => drawer.openMaintenanceAddDrawer()
+    },
+    {
+      icon: <MessageOutlined style={{ fontSize: 18 }} />,
+      label: 'Rent Reminder',
+      sub: 'Send a nudge',
+      color: theme.palette.info.main,
+      onClick: () => setRentReminderOpen(true)
+    }
+  ];
+
+  const handleQuickActionClick = (action) => {
+    setQuickActionsOpen(false);
+    action.onClick();
+  };
+
 
   return (
     <>
@@ -519,8 +536,6 @@ export default function Dashboard() {
                 userName={user?.firstname || user?.Firstname}
                 summaryText={headerSummaryText}
                 stats={dashboardStats}
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
                 onCreateNew={handleCreateMenuOpen}
               />
             </Box>
@@ -532,6 +547,125 @@ export default function Dashboard() {
           <Grid container spacing={2.5} alignItems="stretch">
             <Grid size={{ xs: 12, md: 4 }} sx={{ display: 'flex', flexDirection: 'column' }}>
               <Stack spacing={2.5} sx={{ width: '100%' }}>
+                {isMobile ? (
+                  <Box>
+                    <Button
+                      id="mobile-dashboard-quick-actions-button"
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<ThunderboltOutlined />}
+                      endIcon={<DownOutlined />}
+                      onClick={() => setQuickActionsOpen((open) => !open)}
+                      aria-controls={quickActionsOpen ? 'mobile-dashboard-quick-actions-menu' : undefined}
+                      aria-haspopup="true"
+                      aria-expanded={quickActionsOpen}
+                      sx={{
+                        minHeight: 52,
+                        justifyContent: 'flex-start',
+                        px: 2,
+                        borderRadius: 1.75,
+                        borderColor: alpha('#061e35', 0.14),
+                        bgcolor: '#ffffff',
+                        color: '#061e35',
+                        fontWeight: 800,
+                        textTransform: 'none',
+                        boxShadow: `0 10px 26px ${alpha('#061e35', 0.09)}`,
+                        transition: 'border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease',
+                        '& .MuiButton-endIcon': {
+                          ml: 'auto',
+                          transform: quickActionsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transition: 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1)'
+                        },
+                        '&:hover': {
+                          borderColor: alpha('#061e35', 0.24),
+                          bgcolor: '#ffffff',
+                          boxShadow: `0 12px 30px ${alpha('#061e35', 0.12)}`
+                        }
+                      }}
+                    >
+                      Quick actions
+                    </Button>
+
+                    <Collapse
+                      in={quickActionsOpen}
+                      timeout={320}
+                      easing={{ enter: 'cubic-bezier(0.22, 1, 0.36, 1)', exit: 'cubic-bezier(0.4, 0, 0.2, 1)' }}
+                      unmountOnExit
+                    >
+                      <Box
+                        id="mobile-dashboard-quick-actions-menu"
+                        role="menu"
+                        aria-labelledby="mobile-dashboard-quick-actions-button"
+                        sx={{
+                          mt: 1,
+                          p: 0.75,
+                          borderRadius: 2,
+                          bgcolor: '#f8fafc',
+                          border: `1px solid ${alpha('#061e35', 0.1)}`,
+                          boxShadow: `0 14px 34px ${alpha('#061e35', 0.1)}`
+                        }}
+                      >
+                        <Stack spacing={0.75}>
+                          {quickActions.map((action) => (
+                            <Box
+                              key={action.label}
+                              component="button"
+                              type="button"
+                              role="menuitem"
+                              onClick={() => handleQuickActionClick(action)}
+                              sx={{
+                                width: '100%',
+                                minHeight: 54,
+                                px: 1.25,
+                                py: 0.85,
+                                display: 'flex',
+                                alignItems: 'center',
+                                borderRadius: 1.5,
+                                border: `1px solid ${alpha('#061e35', 0.1)}`,
+                                bgcolor: '#ffffff',
+                                color: '#061e35',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                boxShadow: `0 4px 12px ${alpha('#061e35', 0.045)}`,
+                                transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
+                                '&:active': { transform: 'scale(0.985)' },
+                                '&:focus-visible': {
+                                  outline: `2px solid ${alpha('#061e35', 0.42)}`,
+                                  outlineOffset: 2
+                                }
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  width: 34,
+                                  height: 34,
+                                  mr: 1.25,
+                                  flexShrink: 0,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: 1.15,
+                                  color: action.color,
+                                  bgcolor: alpha(action.color, 0.12)
+                                }}
+                              >
+                                {action.icon}
+                              </Box>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={800} sx={{ color: '#061e35', lineHeight: 1.2 }}>
+                                  {action.label}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: alpha('#061e35', 0.68) }}>
+                                  {action.sub}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          ))}
+                        </Stack>
+                      </Box>
+                    </Collapse>
+                  </Box>
+                ) : (
                 <Box
                   sx={{
                     display: 'flex',
@@ -547,12 +681,7 @@ export default function Dashboard() {
                       Quick actions
                     </Typography>
                     <Stack spacing={1}>
-                      {[
-                        { icon: <DollarCircleOutlined style={{ fontSize: 18 }} />, label: 'Record Payment', sub: 'Log rent paid', color: theme.palette.success.main, onClick: () => drawer.openPaymentAddDrawer() },
-                        { icon: <WalletOutlined style={{ fontSize: 18 }} />, label: 'Add Expense', sub: 'Track a cost', color: theme.palette.primary.main, onClick: () => setAddExpenseDrawerOpen(true) },
-                        { icon: <ToolOutlined style={{ fontSize: 18 }} />, label: 'Maintenance', sub: 'Create ticket', color: theme.palette.warning.main, onClick: () => drawer.openMaintenanceAddDrawer() },
-                        { icon: <MessageOutlined style={{ fontSize: 18 }} />, label: 'Rent Reminder', sub: 'Send a nudge', color: theme.palette.info.main, onClick: () => setRentReminderOpen(true) }
-                      ].map((action) => (
+                      {quickActions.map((action) => (
                         <Box
                           key={action.label}
                           component="button"
@@ -612,7 +741,8 @@ export default function Dashboard() {
                       ))}
                     </Stack>
                 </Box>
-                <PaymentsCard />
+                )}
+                {!isMobile && <PaymentsCard />}
               </Stack>
             </Grid>
 
@@ -629,13 +759,21 @@ export default function Dashboard() {
                 </AnimateIn>
               </Stack>
             </Grid>
+
+            {isMobile && (
+              <Grid size={12}>
+                <AnimateIn direction="bottom" delay={500} distance={120}>
+                  <PaymentsCard />
+                </AnimateIn>
+              </Grid>
+            )}
           </Grid>
         </Grid>
           </Grid>
         </Box>
       </Fade>
 
-      {/* Quick Actions dropdown */}
+      {/* Create New dropdown */}
       <Menu
         anchorEl={createMenuAnchor}
         open={Boolean(createMenuAnchor)}

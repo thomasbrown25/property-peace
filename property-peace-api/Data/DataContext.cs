@@ -94,6 +94,8 @@ namespace brownstone_hub_api.Data
         public DbSet<ImpersonationAuditRecord> ImpersonationAuditRecords => Set<ImpersonationAuditRecord>();
         public DbSet<PasskeyCredential> PasskeyCredentials => Set<PasskeyCredential>();
         public DbSet<PasskeyCeremony> PasskeyCeremonies => Set<PasskeyCeremony>();
+        public DbSet<MfaEnrollment> MfaEnrollments => Set<MfaEnrollment>();
+        public DbSet<MfaChallenge> MfaChallenges => Set<MfaChallenge>();
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<UserRole> UserRoles => Set<UserRole>();
         public DbSet<UserSettings> UserSettings => Set<UserSettings>();
