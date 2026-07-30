@@ -38,13 +38,6 @@ namespace brownstone_hub_api.Controllers
         [IgnoreAntiforgeryToken] // Webhooks don't use CSRF tokens
         public async Task<IActionResult> HandleWebhook()
         {
-            // Log immediately when webhook endpoint is hit
-            _logger.LogWarning("🔔🔔🔔 WEBHOOK ENDPOINT HIT! 🔔🔔🔔 Method: {Method}, ContentType: {ContentType}, Path: {Path}, Headers: {Headers}",
-                Request.Method,
-                Request.ContentType,
-                Request.Path,
-                string.Join(", ", Request.Headers.Select(h => $"{h.Key}={string.Join(";", h.Value.ToArray())}")));
-
             _logger.LogInformation("Webhook endpoint called. Method: {Method}, ContentType: {ContentType}",
                 Request.Method, Request.ContentType);
 
@@ -191,6 +184,13 @@ namespace brownstone_hub_api.Controllers
                     case "charge.dispute.created":
                         _logger.LogInformation("Processing charge.dispute.created event");
                         await _webhookService.HandleChargeDisputeCreatedAsync(stripeEvent);
+                        break;
+                    case "charge.refunded":
+                        await _webhookService.HandleChargeRefundedAsync(stripeEvent);
+                        break;
+                    case "refund.created":
+                    case "refund.updated":
+                        await _webhookService.HandleRefundCreatedAsync(stripeEvent);
                         break;
                     default:
                         _logger.LogInformation("Unhandled event type: {EventType}", stripeEvent.Type);

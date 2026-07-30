@@ -741,7 +741,12 @@ namespace brownstone_hub_api.Controllers
                     return BadRequest(new { Message = "Invalid lease ID or amount" });
                 }
 
-                var response = await _stripeService.CreatePaymentIntentAsync(request.LeaseId, request.Amount, request.Description);
+                if (!Guid.TryParse(request.OperationId, out _))
+                {
+                    return BadRequest(new { success = false, message = "A valid payment operation ID is required" });
+                }
+
+                var response = await _stripeService.CreatePaymentIntentAsync(request.LeaseId, request.Amount, request.OperationId, request.Description);
 
                 if (!response.Success)
                 {
@@ -801,69 +806,34 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Tenant")]
         [HttpPost("confirm-payment")]
-        public async Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto request)
+        public Task<IActionResult> ConfirmPayment([FromBody] ConfirmPaymentDto request)
         {
-            try
+            // Browser confirmation is deliberately non-authoritative. Stripe's signed webhook
+            // validates the durable rent-payment aggregate and performs accounting finalization.
+            IActionResult result = StatusCode(StatusCodes.Status202Accepted, new
             {
-                if (string.IsNullOrEmpty(request.PaymentIntentId) || request.LeaseId <= 0 || request.Amount <= 0)
-                {
-                    return BadRequest(new { Message = "Invalid payment confirmation data" });
-                }
-
-                var response = await _stripeService.ConfirmPaymentAsync(
-                    request.PaymentIntentId,
-                    request.LeaseId,
-                    request.Amount,
-                    request.PaymentDate
-                );
-
-                if (!response.Success)
-                {
-                    return BadRequest(response);
-                }
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error confirming payment");
-                return StatusCode(500, new { Message = "An error occurred while confirming payment" });
-            }
+                Success = true,
+                Message = "Payment submitted. Final status will be recorded from Stripe."
+            });
+            return Task.FromResult(result);
         }
 
         /// <summary>
-        /// Confirm a payment and allocate it across rent, fees, and deposit
+        /// Acknowledge browser-side confirmation; signed Stripe webhooks own accounting.
+        /// This compatibility endpoint never allocates rent, fees, or deposits.
         /// </summary>
         [Authorize(Roles = "Tenant")]
         [HttpPost("confirm-payment-allocated")]
-        public async Task<IActionResult> ConfirmPaymentAllocated([FromBody] ConfirmPaymentDto request)
+        public Task<IActionResult> ConfirmPaymentAllocated([FromBody] ConfirmPaymentDto request)
         {
-            try
+            // Retained as a compatibility acknowledgement only. It must never write payment
+            // or allocation records from browser-supplied lease, amount, or date values.
+            IActionResult result = StatusCode(StatusCodes.Status202Accepted, new
             {
-                if (string.IsNullOrEmpty(request.PaymentIntentId) || request.LeaseId <= 0 || request.Amount <= 0)
-                {
-                    return BadRequest(new { Message = "Invalid payment confirmation data" });
-                }
-
-                var response = await _stripeService.ConfirmPaymentAllocatedAsync(
-                    request.PaymentIntentId,
-                    request.LeaseId,
-                    request.Amount,
-                    request.PaymentDate
-                );
-
-                if (!response.Success)
-                {
-                    return BadRequest(response);
-                }
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error confirming allocated payment");
-                return StatusCode(500, new { Message = "An error occurred while confirming payment" });
-            }
+                Success = true,
+                Message = "Payment submitted. Final status will be recorded from Stripe."
+            });
+            return Task.FromResult(result);
         }
 
         /// <summary>

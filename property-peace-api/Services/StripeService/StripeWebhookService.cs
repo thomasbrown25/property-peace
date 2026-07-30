@@ -11,6 +11,7 @@ using brownstone_hub_api.Services.NotificationService;
 using brownstone_hub_api.Repositories.NotificationSettings;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Services.StripeService;
+using brownstone_hub_api.Services.StripeRentPayments;
 
 namespace brownstone_hub_api.Services.StripeService
 {
@@ -26,6 +27,9 @@ namespace brownstone_hub_api.Services.StripeService
         private readonly IUserRepository _userRepository;
         private readonly INotificationSettingRepository _notificationSettingRepository;
         private readonly IStripeService _stripeService;
+        private readonly IStripeRentPaymentService _stripeRentPaymentService;
+        private readonly IStripeRentAllocationService _stripeRentAllocationService;
+        private readonly IStripeRentLossAccountingService _stripeRentLossAccountingService;
 
         public StripeWebhookService(
             ISubscriptionRepository subscriptionRepository,
@@ -37,7 +41,10 @@ namespace brownstone_hub_api.Services.StripeService
             INotificationService notificationService,
             IUserRepository userRepository,
             INotificationSettingRepository notificationSettingRepository,
-            IStripeService stripeService)
+            IStripeService stripeService,
+            IStripeRentPaymentService stripeRentPaymentService,
+            IStripeRentAllocationService stripeRentAllocationService,
+            IStripeRentLossAccountingService stripeRentLossAccountingService)
         {
             _subscriptionRepository = subscriptionRepository;
             _planRepository = planRepository;
@@ -49,6 +56,9 @@ namespace brownstone_hub_api.Services.StripeService
             _userRepository = userRepository;
             _notificationSettingRepository = notificationSettingRepository;
             _stripeService = stripeService;
+            _stripeRentPaymentService = stripeRentPaymentService;
+            _stripeRentAllocationService = stripeRentAllocationService;
+            _stripeRentLossAccountingService = stripeRentLossAccountingService;
         }
 
         public async Task HandleSubscriptionCreatedAsync(Event stripeEvent)
@@ -905,55 +915,52 @@ namespace brownstone_hub_api.Services.StripeService
                 return;
             }
 
-            // Only process intents that have a leaseId — subscription payment intents won't have one
-            if (!paymentIntent.Metadata.TryGetValue("leaseId", out var leaseIdStr) ||
-                !long.TryParse(leaseIdStr, out var leaseId))
+            // A signed Stripe event is necessary but not sufficient: every rent settlement must
+            // match the immutable durable aggregate and all server-issued metadata before accounting.
+            if (!paymentIntent.Metadata.TryGetValue("paymentFlow", out var paymentFlow)
+                || paymentFlow != "separate_charges_and_transfers"
+                || !paymentIntent.Metadata.TryGetValue("leaseId", out var leaseIdStr)
+                || !long.TryParse(leaseIdStr, out var leaseId)
+                || !paymentIntent.Metadata.TryGetValue("organizationId", out var organizationIdStr)
+                || !long.TryParse(organizationIdStr, out var organizationId)
+                || !paymentIntent.Metadata.TryGetValue("tenantUserId", out var tenantUserIdStr)
+                || !long.TryParse(tenantUserIdStr, out var tenantUserId)
+                || !paymentIntent.Metadata.TryGetValue("operationId", out var operationId)
+                || string.IsNullOrWhiteSpace(operationId))
             {
-                _logger.LogInformation("payment_intent.succeeded: No leaseId in metadata for {PaymentIntentId}, skipping rent allocation", paymentIntent.Id);
+                _logger.LogWarning("payment_intent.succeeded: Rent authority metadata is missing for {PaymentIntentId}; no accounting mutation will occur", paymentIntent.Id);
                 return;
             }
 
-            _logger.LogInformation("payment_intent.succeeded: Processing rent payment {PaymentIntentId} for lease {LeaseId}", paymentIntent.Id, leaseId);
+            var settledAt = new DateTimeOffset(stripeEvent.Created);
+            var authority = new StripeRentPaymentSettlementAuthority(
+                paymentIntent.Id, paymentIntent.LatestChargeId, paymentIntent.Amount,
+                paymentIntent.Currency, leaseId, organizationId, tenantUserId, operationId, settledAt.UtcDateTime);
+            await _stripeRentPaymentService.ValidateSucceededAsync(authority);
 
-            // Idempotency: a Completed record means the webhook already finalized this intent.
-            // Processing records are intentionally finalized below by removing/replacing them with Completed records.
-            var alreadyCompleted = await _context.Payments
-                .AnyAsync(p => p.Reference == paymentIntent.Id && p.LeaseId == leaseId && p.Status == "Completed");
+            _logger.LogInformation("payment_intent.succeeded: Validated rent payment {PaymentIntentId} for lease {LeaseId}", paymentIntent.Id, leaseId);
 
-            if (alreadyCompleted)
+            // Allocate the verified charge as one rent-only accounting row. The allocation service
+            // serializes by intent and commits the row plus durable completion marker atomically.
+            await _stripeRentAllocationService.AllocateAsync(new StripeRentAllocationCommand(
+                authority, paymentIntent.PaymentMethodId, "resolved-from-charge", settledAt));
+
+            var completedPayments = await _context.Payments
+                .Where(p => p.LeaseId == leaseId && (p.StripePaymentIntentId == paymentIntent.Id || p.Reference == paymentIntent.Id))
+                .ToListAsync();
+            foreach (var payment in completedPayments)
             {
-                _logger.LogInformation("payment_intent.succeeded: Payment {PaymentIntentId} already completed for lease {LeaseId}, skipping", paymentIntent.Id, leaseId);
-                return;
+                payment.StripePaymentIntentId ??= paymentIntent.Id;
+                payment.StripePaymentMethodId ??= paymentIntent.PaymentMethodId;
+                payment.StripeChargeId ??= paymentIntent.LatestChargeId;
+                payment.CompletedAt ??= DateTime.UtcNow;
+                payment.StripeStatusChangedAt = DateTime.UtcNow;
+                payment.UpdatedAt = DateTime.UtcNow;
             }
-
-            var amount = paymentIntent.Amount / 100m; // Stripe amounts are in cents
-            var paymentDate = paymentIntent.Created;
-
-            var result = await _stripeService.ConfirmPaymentAllocatedAsync(paymentIntent.Id, leaseId, amount, paymentDate, recordAsProcessing: false);
-
-            if (!result.Success)
-            {
-                _logger.LogError("payment_intent.succeeded: Allocation failed for {PaymentIntentId}: {Message}", paymentIntent.Id, result.Message);
-            }
-            else
-            {
-                var completedPayments = await _context.Payments
-                    .Where(p => p.LeaseId == leaseId && (p.StripePaymentIntentId == paymentIntent.Id || p.Reference == paymentIntent.Id))
-                    .ToListAsync();
-
-                foreach (var payment in completedPayments)
-                {
-                    payment.StripePaymentIntentId ??= paymentIntent.Id;
-                    payment.StripePaymentMethodId ??= paymentIntent.PaymentMethodId;
-                    payment.StripeChargeId ??= paymentIntent.LatestChargeId;
-                    payment.CompletedAt ??= DateTime.UtcNow;
-                    payment.StripeStatusChangedAt = DateTime.UtcNow;
-                    payment.UpdatedAt = DateTime.UtcNow;
-                }
-
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("payment_intent.succeeded: Successfully allocated {Amount} for lease {LeaseId}", amount, leaseId);
-            }
+            await _context.SaveChangesAsync();
+            await _stripeRentPaymentService.MarkSucceededAsync(new StripeRentPaymentSucceeded(
+                paymentIntent.Id, paymentIntent.LatestChargeId, "resolved-from-charge", settledAt));
+            _logger.LogInformation("payment_intent.succeeded: Successfully allocated {Amount} cents as rent for lease {LeaseId}", paymentIntent.Amount, leaseId);
         }
 
 
@@ -991,6 +998,7 @@ namespace brownstone_hub_api.Services.StripeService
             }
 
             var failureMessage = paymentIntent.LastPaymentError?.Message;
+            await _stripeRentPaymentService.MarkFailedAsync(paymentIntent.Id, failureMessage ?? "Stripe reported this payment as failed.");
             await UpdateTenantPaymentIntentStatusAsync(paymentIntent.Id, leaseId, "Failed", failureMessage ?? "Stripe reported this payment as failed.");
         }
 
@@ -1009,6 +1017,7 @@ namespace brownstone_hub_api.Services.StripeService
                 return;
             }
 
+            await _stripeRentPaymentService.MarkCanceledAsync(paymentIntent.Id, "Stripe canceled this payment before it completed.");
             await UpdateTenantPaymentIntentStatusAsync(paymentIntent.Id, leaseId, "Canceled", "Stripe canceled this payment before it completed.");
         }
 
@@ -1027,40 +1036,54 @@ namespace brownstone_hub_api.Services.StripeService
                 return;
             }
 
+            var occurredAt = new DateTimeOffset(stripeEvent.Created);
+            await _stripeRentPaymentService.MarkBlockedAsync(dispute.PaymentIntentId, dispute.ChargeId,
+                StripeRentPaymentBlockKind.Dispute, dispute.Id,
+                "Stripe reported a dispute or bank return for this charge.", dispute.Amount);
+            await _stripeRentLossAccountingService.ApplyAsync(new StripeRentLossAccountingCommand(
+                dispute.PaymentIntentId, StripeRentPaymentBlockKind.Dispute, occurredAt));
+
             var payments = await _context.Payments
-                .Where(p => p.StripePaymentIntentId == dispute.PaymentIntentId || p.Reference == dispute.PaymentIntentId)
+                .Where(p => p.Amount > 0 && (p.StripePaymentIntentId == dispute.PaymentIntentId || p.Reference == dispute.PaymentIntentId))
                 .ToListAsync();
-
-            if (payments.Count == 0)
-            {
-                _logger.LogInformation("charge.dispute.created: No Brownstone payment records found for PaymentIntent {PaymentIntentId}", dispute.PaymentIntentId);
-                return;
-            }
-
             foreach (var payment in payments)
             {
-                var wasCompleted = string.Equals(payment.Status, "Completed", StringComparison.OrdinalIgnoreCase);
-                payment.Status = "Disputed";
                 payment.StripeDisputeId = dispute.Id;
                 payment.StripeChargeId ??= dispute.ChargeId;
-                payment.DisputedAt ??= DateTime.UtcNow;
-                payment.StripeStatusChangedAt = DateTime.UtcNow;
-                payment.UpdatedAt = DateTime.UtcNow;
-
-                if (wasCompleted)
-                {
-                    await CreatePaymentDisputeReversalLedgerEntryAsync(payment, dispute.Id);
-                }
+                payment.DisputedAt ??= occurredAt.UtcDateTime;
+                payment.StripeStatusChangedAt = occurredAt.UtcDateTime;
+                payment.UpdatedAt = occurredAt.UtcDateTime;
             }
-
             await _context.SaveChangesAsync();
-
             foreach (var payment in payments)
-            {
-                await NotifyTenantPaymentStatusChangedAsync(payment, "Disputed", "A previously completed bank payment was returned or disputed. The amount has been added back to the balance.");
-            }
+                await NotifyTenantPaymentStatusChangedAsync(payment, "Disputed",
+                    "A previously completed bank payment was returned or disputed. The amount has been added back to the balance.");
 
-            _logger.LogWarning("charge.dispute.created: Marked {Count} payment record(s) as Disputed for PaymentIntent {PaymentIntentId}, Dispute {DisputeId}", payments.Count, dispute.PaymentIntentId, dispute.Id);
+            _logger.LogWarning("charge.dispute.created: Applied exact loss accounting to {Count} payment record(s) for PaymentIntent {PaymentIntentId}, Dispute {DisputeId}",
+                payments.Count, dispute.PaymentIntentId, dispute.Id);
+        }
+
+        public async Task HandleChargeRefundedAsync(Event stripeEvent)
+        {
+            if (stripeEvent.Data.Object is not Stripe.Charge charge || string.IsNullOrWhiteSpace(charge.PaymentIntentId)) return;
+            var occurredAt = new DateTimeOffset(stripeEvent.Created);
+            // charge.refunded carries the authoritative cumulative refunded amount. Its ID is a
+            // charge ID, not a refund ID, so do not persist it in StripeRefundId.
+            await _stripeRentPaymentService.MarkBlockedAsync(charge.PaymentIntentId, charge.Id,
+                StripeRentPaymentBlockKind.Refund, string.Empty,
+                "Stripe reported that the source charge was refunded.", charge.AmountRefunded);
+            await _stripeRentLossAccountingService.ApplyAsync(new StripeRentLossAccountingCommand(
+                charge.PaymentIntentId, StripeRentPaymentBlockKind.Refund, occurredAt));
+        }
+
+        public async Task HandleRefundCreatedAsync(Event stripeEvent)
+        {
+            if (stripeEvent.Data.Object is not Stripe.Refund refund) return;
+            // The refund object amount is per-refund, not cumulative. Block transfer immediately
+            // and persist its identity; charge.refunded supplies the authoritative cumulative total.
+            await _stripeRentPaymentService.MarkBlockedAsync(refund.PaymentIntentId, refund.ChargeId,
+                StripeRentPaymentBlockKind.Refund, refund.Id,
+                "Stripe reported that the source charge was refunded.");
         }
 
         private static bool TryGetLeaseId(Stripe.PaymentIntent paymentIntent, out long leaseId)
@@ -1118,62 +1141,6 @@ namespace brownstone_hub_api.Services.StripeService
             _logger.LogInformation("Marked {Count} local payment record(s) for PaymentIntent {PaymentIntentId}, lease {LeaseId} as {Status}. Reason: {Reason}", payments.Count, paymentIntentId, leaseId, status, reason);
         }
 
-        private async Task CreatePaymentDisputeReversalLedgerEntryAsync(Payment payment, string disputeId)
-        {
-            try
-            {
-                if (!payment.OrganizationId.HasValue)
-                {
-                    _logger.LogInformation("Skipping dispute ledger reversal for payment {PaymentId}; no organization id", payment.Id);
-                    return;
-                }
-
-                var originalEntry = await _context.GeneralLedgerEntries
-                    .AsNoTracking()
-                    .Where(e => e.OrganizationId == payment.OrganizationId.Value
-                        && e.TransactionId == payment.Id
-                        && e.TransactionType == "Payment")
-                    .OrderByDescending(e => e.CreatedAt)
-                    .FirstOrDefaultAsync();
-
-                if (originalEntry == null)
-                {
-                    _logger.LogInformation("No completed payment ledger entry found to reverse for disputed payment {PaymentId}", payment.Id);
-                    return;
-                }
-
-                var reversalReference = $"Dispute:{disputeId}";
-                var reversalExists = await _context.GeneralLedgerEntries.AnyAsync(e =>
-                    e.OrganizationId == payment.OrganizationId.Value
-                    && e.TransactionId == payment.Id
-                    && e.TransactionType == "PaymentDisputeReversal"
-                    && e.Reference == reversalReference);
-
-                if (reversalExists)
-                {
-                    _logger.LogInformation("Dispute ledger reversal already exists for payment {PaymentId}, dispute {DisputeId}", payment.Id, disputeId);
-                    return;
-                }
-
-                await _context.GeneralLedgerEntries.AddAsync(new GeneralLedgerEntry
-                {
-                    OrganizationId = payment.OrganizationId.Value,
-                    AccountId = originalEntry.AccountId,
-                    TransactionId = payment.Id,
-                    TransactionType = "PaymentDisputeReversal",
-                    Amount = -Math.Abs(originalEntry.Amount),
-                    TransactionDate = DateTime.UtcNow,
-                    Description = "Reversal for returned/disputed rent payment",
-                    Reference = reversalReference
-                });
-
-                _logger.LogInformation("Created dispute ledger reversal for payment {PaymentId}, dispute {DisputeId}", payment.Id, disputeId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating dispute ledger reversal for payment {PaymentId}, dispute {DisputeId}", payment.Id, disputeId);
-            }
-        }
 
         private async Task NotifyTenantPaymentStatusChangedAsync(Payment payment, string status, string reason)
         {

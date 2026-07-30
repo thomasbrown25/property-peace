@@ -67,6 +67,7 @@ using brownstone_hub_api.Repositories.Payments;
 using brownstone_hub_api.Services.HouseholdService;
 using brownstone_hub_api.Services.PaymentService;
 using brownstone_hub_api.Services.StripeService;
+using brownstone_hub_api.Services.StripeRentPayments;
 using brownstone_hub_api.Services.StorageService;
 using brownstone_hub_api.Repositories.Images;
 using brownstone_hub_api.Services.ImageService;
@@ -520,6 +521,11 @@ services.AddSingleton(TimeProvider.System);
 services.AddScoped<IStripeService, StripeService>();
 services.AddScoped<IStripeSyncService, StripeSyncService>();
 services.AddScoped<IStripeWebhookService, StripeWebhookService>();
+services.AddScoped<IStripeRentGateway, StripeRentGateway>();
+services.AddScoped<IStripeRentRiskService, StripeRentRiskService>();
+services.AddScoped<IStripeRentPaymentService, StripeRentPaymentService>();
+services.AddScoped<IStripeRentAllocationService, StripeRentAllocationService>();
+services.AddScoped<IStripeRentLossAccountingService, StripeRentLossAccountingService>();
 services.AddScoped<IStorageService, StorageService>();
 
 // State Late Fee Law Service
@@ -650,6 +656,7 @@ services.AddHostedService<LeaseAutoRenewBackgroundService>();
 services.AddHostedService<LeaseChecklistSchedulingBackgroundService>();
 services.AddHostedService<DailySummaryEmailBackgroundService>();
 services.AddHostedService<brownstone_hub_api.Services.AgentFollowUpService.AgentFollowUpBackgroundService>();
+services.AddHostedService<StripeRentTransferBackgroundService>();
 
 // Repositories
 services.AddScoped<IAdminDashboardRepository, AdminDashboardRepository>();

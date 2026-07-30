@@ -528,27 +528,13 @@ function TenantPaymentElementCheckout({
       }
 
       if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
-        try {
-          const confirmResponse = await axiosServices.post('/api/stripe/confirm-payment-allocated', {
-            paymentIntentId: paymentIntent.id,
-            leaseId: rent.leaseId,
-            amount: parseFloat(amount),
-            paymentDate: formatLocalDateTime(paymentDate)
-          });
-
-          if (confirmResponse.data && confirmResponse.data.success) {
-            onSuccess({
-              amount: parseFloat(amount),
-              status: paymentIntent.status,
-              propertyDisplay
-            });
-          } else {
-            setError(confirmResponse.data?.message || 'Payment submitted but failed to mark as processing. Please contact support.');
-          }
-        } catch (confirmErr) {
-          console.error('Error recording processing payment:', confirmErr);
-          setError('Payment submitted but failed to mark as processing. Please contact support with payment ID: ' + paymentIntent.id);
-        }
+        // Browser confirmation is not authoritative. Stripe's signed webhook records and
+        // allocates the payment using the durable server-side rent-payment aggregate.
+        onSuccess({
+          amount: parseFloat(amount),
+          status: paymentIntent.status,
+          propertyDisplay
+        });
       } else {
         setError(`Payment status: ${paymentIntent?.status || 'unknown'}`);
       }
@@ -913,6 +899,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
   const [error, setError] = useState(null);
   const [submittedPayment, setSubmittedPayment] = useState(null);
   const paymentIntentRequestRef = useRef(0);
+  const paymentOperationIdRef = useRef(crypto.randomUUID());
 
   const isTotalPayment = rent?.isTotalPayment === true;
   const overdue = rent?.isFee ? 0 : rent?.overdueAmount || rent?.OverdueAmount || 0;
@@ -944,6 +931,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
       setPaymentIntentId(null);
       setIntentAmount(0);
       setSubmittedPayment(null);
+      paymentOperationIdRef.current = crypto.randomUUID();
     }
   }, [rent, totalDue]);
 
@@ -975,6 +963,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
         const payload = {
           leaseId: rent.leaseId,
           amount: requestedAmount,
+          operationId: paymentOperationIdRef.current,
           description: `Payment for ${propertyDisplay}`
         };
 

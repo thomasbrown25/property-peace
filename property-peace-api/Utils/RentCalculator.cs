@@ -499,7 +499,11 @@ namespace brownstone_hub_api.Utils
             // Load payments for this lease
             var payments = await context.Payments
                 .AsNoTracking()
-                .Where(p => p.LeaseId == leaseId.Value)
+                .Where(p => p.LeaseId == leaseId.Value
+                    && (p.Status == "Completed" || p.Status == "PartiallyRefunded"
+                        || p.Status == "Refunded" || p.Status == "Disputed")
+                    && p.FeeId == null
+                    && p.DepositId == null)
                 .Select(p => new LoadPaymentDto
                 {
                     Id = p.Id,

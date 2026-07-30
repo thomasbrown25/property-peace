@@ -24,7 +24,7 @@ public sealed class StripeControllerSecurityTests
     {
         var stripeService = new Mock<IStripeService>();
         stripeService
-            .Setup(service => service.CreatePaymentIntentAsync(123, 500m, "Rent"))
+            .Setup(service => service.CreatePaymentIntentAsync(123, 500m, It.IsAny<string>(), "Rent"))
             .ReturnsAsync(new ServiceResponse<CreatePaymentIntentResponseDto>
             {
                 Data = new CreatePaymentIntentResponseDto
@@ -48,6 +48,7 @@ public sealed class StripeControllerSecurityTests
             service => service.CreatePaymentIntentAsync(
                 It.IsAny<long>(),
                 It.IsAny<decimal>(),
+                It.IsAny<string>(),
                 It.IsAny<string?>()),
             Times.Never);
     }
@@ -65,6 +66,30 @@ public sealed class StripeControllerSecurityTests
         var authorize = action!.GetCustomAttributes<AuthorizeAttribute>().SingleOrDefault();
         authorize.Should().NotBeNull();
         authorize!.Roles.Should().Be("Tenant");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BrowserConfirmation_IsAcknowledgementOnly_AndNeverFinalizesAccounting(bool allocated)
+    {
+        var stripeService = new Mock<IStripeService>(MockBehavior.Strict);
+        var controller = CreateController(stripeService.Object);
+        var request = new ConfirmPaymentDto
+        {
+            PaymentIntentId = "pi_browser",
+            LeaseId = 999,
+            Amount = 123.45m,
+            PaymentDate = DateTime.UtcNow
+        };
+
+        var result = allocated
+            ? await controller.ConfirmPaymentAllocated(request)
+            : await controller.ConfirmPayment(request);
+
+        result.Should().BeOfType<ObjectResult>()
+            .Which.StatusCode.Should().Be(202);
+        stripeService.VerifyNoOtherCalls();
     }
 
     [Fact]

@@ -4,6 +4,7 @@ namespace brownstone_hub_api.Dtos.Stripe
     {
         public long LeaseId { get; set; }
         public decimal Amount { get; set; }
+        public string OperationId { get; set; } = string.Empty;
         public string? Description { get; set; }
     }
 
