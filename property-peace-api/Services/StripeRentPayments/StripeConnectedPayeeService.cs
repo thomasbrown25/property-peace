@@ -163,15 +163,48 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         public async Task<StripeConnectedPayeeReview> BeginReviewAsync(string stripeAccountId, CancellationToken cancellationToken = default)
         {
             var review = await GetRequiredAsync(stripeAccountId, cancellationToken);
+            var now = timeProvider.GetUtcNow();
             if (review.Status == StripePayeeReviewStatus.Suspended)
-                throw new InvalidOperationException("A suspended payee must be remediated before review can resume.");
+            {
+                if (!HasFreshHealthySnapshot(review, now))
+                    throw new InvalidOperationException("A fresh healthy Stripe snapshot is required before a suspended payee can resume review.");
+
+                // Remediation never restores trust. An administrator may explicitly restart
+                // review only after a fresh healthy Stripe snapshot, and every prior approval
+                // and authority assertion must be collected again.
+                review.ApprovedAt = null;
+                review.ApprovedByUserId = null;
+                review.ApprovalEvidence = null;
+                review.ApprovalNotes = null;
+                review.PropertyAuthorityAttested = false;
+                review.ApprovedOrganizationId = null;
+                review.SuspendedAt = null;
+                review.SuspendedByUserId = null;
+                review.SuspensionReason = null;
+            }
             if (!review.StripeDetailsSubmitted)
                 throw new InvalidOperationException("Stripe onboarding must be completed before internal review.");
             review.Status = StripePayeeReviewStatus.UnderReview;
-            review.UpdatedAt = timeProvider.GetUtcNow();
+            review.UpdatedAt = now;
+            await DisableLinkedUserForReviewAsync(review.UserId, stripeAccountId, review.Status, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
             return review;
         }
+
+        private static bool HasFreshHealthySnapshot(StripeConnectedPayeeReview review, DateTimeOffset now) =>
+            review.LastStripeSnapshotAt is { } capturedAt
+            && capturedAt <= now.AddMinutes(1)
+            && capturedAt >= now.AddMinutes(-5)
+            && review.StripeDetailsSubmitted
+            && review.StripePayoutsEnabled
+            && review.StripeTransfersActive
+            && string.Equals(review.StripeTransferCapabilityStatus, "active", StringComparison.OrdinalIgnoreCase)
+            && review.CurrentlyDueRequirementCount == 0
+            && review.PastDueRequirementCount == 0
+            && string.IsNullOrWhiteSpace(review.StripeDisabledReason)
+            && !string.IsNullOrWhiteSpace(review.ExternalAccountFingerprint)
+            && string.Equals(review.PayoutSchedulePolicy, "manual", StringComparison.OrdinalIgnoreCase)
+            && !review.InstantPayoutsAllowed;
 
         public async Task<StripeConnectedPayeeReview> ApproveAsync(string stripeAccountId, long adminUserId, long organizationId, string evidence, string notes,
             bool propertyAuthorityAttested, CancellationToken cancellationToken = default)
@@ -192,14 +225,9 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     && x.OrganizationId == organizationId && x.IsActive
                     && (x.Role == "Owner" || x.Role == "Manager"), cancellationToken))
                 throw new InvalidOperationException("The payee is not an active owner or manager in the approved organization.");
-            if (review.LastStripeSnapshotAt == null || !review.StripeDetailsSubmitted || !review.StripePayoutsEnabled
-                || !review.StripeTransfersActive || review.CurrentlyDueRequirementCount != 0 || review.PastDueRequirementCount != 0
-                || !string.IsNullOrWhiteSpace(review.StripeDisabledReason)
-                || string.IsNullOrWhiteSpace(review.ExternalAccountFingerprint)
-                || review.InstantPayoutsAllowed
-                || !string.Equals(review.PayoutSchedulePolicy, "manual", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("A fresh, healthy Stripe snapshot with manual-only payouts is required before approval.");
             var now = timeProvider.GetUtcNow();
+            if (!HasFreshHealthySnapshot(review, now))
+                throw new InvalidOperationException("A fresh, healthy Stripe snapshot with manual-only payouts is required before approval.");
             review.Status = StripePayeeReviewStatus.PayoutApproved;
             review.ApprovedAt = now;
             review.ApprovedByUserId = adminUserId;
@@ -260,8 +288,11 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             review.PayoutSchedulePolicy = snapshot.PayoutSchedulePolicy?.Trim() ?? "unknown";
             review.InstantPayoutsAllowed = snapshot.InstantPayoutMethodsAvailable;
             review.LastStripeEventId = eventId;
-            if (!string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint))
-                review.ExternalAccountFingerprint = snapshot.ExternalAccountFingerprint;
+            // The snapshot is authoritative. Clear stale destination trust when Stripe no
+            // longer reports an eligible external account instead of retaining the old value.
+            review.ExternalAccountFingerprint = string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint)
+                ? null
+                : snapshot.ExternalAccountFingerprint.Trim();
             review.UpdatedAt = timeProvider.GetUtcNow();
 
             var restriction = RestrictionReason(snapshot);
@@ -290,6 +321,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             if (snapshot.CurrentlyDue.Count > 0) return "Stripe has currently-due requirements.";
             if (snapshot.PastDue.Count > 0) return "Stripe has past-due requirements.";
             if (!string.IsNullOrWhiteSpace(snapshot.DisabledReason)) return $"Stripe disabled the account: {snapshot.DisabledReason}.";
+            if (string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint))
+                return "Stripe has no eligible payout destination.";
             if (!string.Equals(snapshot.PayoutSchedulePolicy, "manual", StringComparison.OrdinalIgnoreCase))
                 return "Stripe payout schedule is not manual.";
             if (snapshot.InstantPayoutMethodsAvailable)
@@ -320,7 +353,6 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             review.SuspendedAt = now;
             review.SuspendedByUserId = adminUserId;
             review.SuspensionReason = reason.Trim().Length <= 1000 ? reason.Trim() : reason.Trim()[..1000];
-            review.InstantPayoutsAllowed = false;
             review.UpdatedAt = now;
         }
 

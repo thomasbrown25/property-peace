@@ -53,6 +53,7 @@ public sealed class StripeConnectedPayeeRiskTests
             StripeAccountId = "acct_review", UserId = 42, Status = StripePayeeReviewStatus.UnderReview,
             CreatedAt = Now.AddDays(-1), UpdatedAt = Now.AddDays(-1), LastStripeSnapshotAt = Now,
             StripeDetailsSubmitted = true, StripePayoutsEnabled = true, StripeTransfersActive = true,
+            StripeTransferCapabilityStatus = "active",
             ExternalAccountFingerprint = "fp", PayoutSchedulePolicy = "manual"
         });
         context.OrganizationMembers.Add(new OrganizationMember
@@ -115,6 +116,7 @@ public sealed class StripeConnectedPayeeRiskTests
             StripeAccountId = "acct_safe", UserId = 42, Status = StripePayeeReviewStatus.UnderReview,
             CreatedAt = Now.AddDays(-1), UpdatedAt = Now.AddDays(-1), LastStripeSnapshotAt = Now,
             StripeDetailsSubmitted = true, StripePayoutsEnabled = true, StripeTransfersActive = true,
+            StripeTransferCapabilityStatus = "active",
             ExternalAccountFingerprint = "fp", PayoutSchedulePolicy = "manual"
         });
         context.OrganizationMembers.Add(new OrganizationMember
@@ -454,6 +456,141 @@ public sealed class StripeConnectedPayeeRiskTests
         var review = context.StripeConnectedPayeeReviews.Single();
         review.Status.Should().Be(StripePayeeReviewStatus.Suspended);
         review.SuspensionReason.Should().Contain("bank account changed");
+    }
+
+    [Fact]
+    public async Task RemediatedSuspension_FreshHealthySnapshot_AllowsInternalReReviewWithoutRestoringApproval()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.Users.Add(new User
+        {
+            Id = 42, StripeAccountId = "acct_remediated", StripeAccountEnabled = false,
+            StripeAccountStatus = "suspended"
+        });
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            UserId = 42, StripeAccountId = "acct_remediated", Status = StripePayeeReviewStatus.Suspended,
+            SuspendedAt = Now.AddMinutes(-2), SuspensionReason = "Stripe payout schedule is not manual.",
+            CreatedAt = Now.AddDays(-10), UpdatedAt = Now,
+            LastStripeSnapshotAt = Now, StripeDetailsSubmitted = true, StripePayoutsEnabled = true,
+            StripeTransfersActive = true, StripeTransferCapabilityStatus = "active",
+            CurrentlyDueRequirementCount = 0, PastDueRequirementCount = 0,
+            ExternalAccountFingerprint = "fp", PayoutSchedulePolicy = "manual", InstantPayoutsAllowed = false,
+            PropertyAuthorityAttested = true, ApprovedOrganizationId = 2, ApprovedAt = Now.AddDays(-1),
+            ApprovedByUserId = 7, ApprovalEvidence = "old-case", ApprovalNotes = "old approval"
+        });
+        await context.SaveChangesAsync();
+        var service = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        var review = await service.BeginReviewAsync("acct_remediated");
+
+        review.Status.Should().Be(StripePayeeReviewStatus.UnderReview);
+        review.SuspendedAt.Should().BeNull();
+        review.SuspensionReason.Should().BeNull();
+        review.ApprovedAt.Should().BeNull();
+        review.ApprovedByUserId.Should().BeNull();
+        review.ApprovalEvidence.Should().BeNull();
+        review.PropertyAuthorityAttested.Should().BeFalse();
+        review.ApprovedOrganizationId.Should().BeNull();
+        context.Users.Single().StripeAccountEnabled.Should().BeFalse();
+        context.Users.Single().StripeAccountStatus.Should().Be("stripe_verified_pending_review");
+    }
+
+    [Fact]
+    public async Task RemediatedSuspension_StaleSnapshot_RemainsSuspended()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            StripeAccountId = "acct_stale", Status = StripePayeeReviewStatus.Suspended,
+            SuspendedAt = Now.AddHours(-1), SuspensionReason = "Stripe payouts are disabled.",
+            CreatedAt = Now.AddDays(-10), UpdatedAt = Now.AddHours(-1),
+            LastStripeSnapshotAt = Now.AddMinutes(-6), StripeDetailsSubmitted = true,
+            StripePayoutsEnabled = true, StripeTransfersActive = true,
+            StripeTransferCapabilityStatus = "active", ExternalAccountFingerprint = "fp",
+            PayoutSchedulePolicy = "manual"
+        });
+        await context.SaveChangesAsync();
+        var service = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        var act = () => service.BeginReviewAsync("acct_stale");
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*fresh healthy Stripe snapshot*");
+        context.StripeConnectedPayeeReviews.Single().Status.Should().Be(StripePayeeReviewStatus.Suspended);
+    }
+
+    [Fact]
+    public async Task RemediatedSuspension_FreshInstantPayoutSnapshot_RemainsSuspended()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            StripeAccountId = "acct_instant", Status = StripePayeeReviewStatus.Suspended,
+            CreatedAt = Now.AddDays(-10), UpdatedAt = Now.AddMinutes(-1),
+            ExternalAccountFingerprint = "fp", PayoutSchedulePolicy = "manual"
+        });
+        await context.SaveChangesAsync();
+        var service = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        await service.SyncStripeSnapshotAsync(new StripeConnectedAccountSnapshot(
+            "acct_instant", Now, true, true, true, "active", [], [], null, "fp", "manual", true), null);
+        var act = () => service.BeginReviewAsync("acct_instant");
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*fresh healthy Stripe snapshot*");
+        var persisted = context.StripeConnectedPayeeReviews.Single();
+        persisted.Status.Should().Be(StripePayeeReviewStatus.Suspended);
+        persisted.InstantPayoutsAllowed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RemediatedSuspension_FreshSnapshotWithoutDestinationFingerprint_ClearsStaleTrustAndRemainsSuspended()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            StripeAccountId = "acct_missing_destination", Status = StripePayeeReviewStatus.Suspended,
+            CreatedAt = Now.AddDays(-10), UpdatedAt = Now.AddMinutes(-1),
+            ExternalAccountFingerprint = "stale-fingerprint", PayoutSchedulePolicy = "manual"
+        });
+        await context.SaveChangesAsync();
+        var service = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        await service.SyncStripeSnapshotAsync(new StripeConnectedAccountSnapshot(
+            "acct_missing_destination", Now, true, true, true, "active", [], [], null, null, "manual", false), null);
+        var act = () => service.BeginReviewAsync("acct_missing_destination");
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*fresh healthy Stripe snapshot*");
+        var persisted = context.StripeConnectedPayeeReviews.Single();
+        persisted.Status.Should().Be(StripePayeeReviewStatus.Suspended);
+        persisted.ExternalAccountFingerprint.Should().BeNull();
+        persisted.SuspensionReason.Should().Contain("payout destination");
+    }
+
+    [Fact]
+    public async Task ApproveAsync_StaleOtherwiseHealthySnapshot_FailsClosed()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            StripeAccountId = "acct_stale_approval", UserId = 42, Status = StripePayeeReviewStatus.UnderReview,
+            CreatedAt = Now.AddDays(-1), UpdatedAt = Now.AddMinutes(-6), LastStripeSnapshotAt = Now.AddMinutes(-6),
+            StripeDetailsSubmitted = true, StripePayoutsEnabled = true, StripeTransfersActive = true,
+            StripeTransferCapabilityStatus = "active", ExternalAccountFingerprint = "fp",
+            PayoutSchedulePolicy = "manual", InstantPayoutsAllowed = false
+        });
+        context.OrganizationMembers.Add(new OrganizationMember
+        {
+            OrganizationId = 2, UserId = 42, Role = "Owner", IsActive = true
+        });
+        await context.SaveChangesAsync();
+        var sut = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        Func<Task> act = () => sut.ApproveAsync("acct_stale_approval", 7, 2, "authority records", "reviewed", true);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*fresh, healthy Stripe snapshot*");
+        var review = context.StripeConnectedPayeeReviews.Single();
+        review.Status.Should().Be(StripePayeeReviewStatus.UnderReview);
     }
 
     private static IConfiguration Configuration(Dictionary<string, string?>? values = null) =>
