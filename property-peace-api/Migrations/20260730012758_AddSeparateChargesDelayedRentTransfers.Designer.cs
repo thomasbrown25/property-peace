@@ -6795,7 +6795,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.ToTable("StripeRentPayments", "financial", t =>
                         {
-                            t.HasCheckConstraint("CK_StripeRentPayments_LossWithinAmount", "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents] AND [RefundedAmountCents] + [DisputedAmountCents] <= [AmountCents]");
+                            t.HasCheckConstraint("CK_StripeRentPayments_LossWithinAmount", "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents]");
 
                             t.HasCheckConstraint("CK_StripeRentPayments_NonnegativeCounters", "[RefundedAmountCents] >= 0 AND [DisputedAmountCents] >= 0 AND [ReversedAmountCents] >= 0 AND [ReversalTargetAmountCents] >= 0 AND [ReversalIncrementAmountCents] >= 0");
 

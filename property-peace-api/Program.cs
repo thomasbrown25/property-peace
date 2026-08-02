@@ -10,6 +10,7 @@ using Microsoft.OpenApi.Models;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Swashbuckle.AspNetCore.Filters;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Controllers;
 using Newtonsoft.Json;
 using brownstone_hub_api.Services.HealthService;
 using brownstone_hub_api.Services.UserService;
@@ -278,6 +279,8 @@ services.AddDbContext<DataContext>(
         options.UseSqlServer(builder.Configuration.GetConnectionString("AzureSQLDatabase"));
     }
 );
+services.AddSingleton<TimeProvider>(TimeProvider.System);
+services.AddSingleton(new StripeWebhookLeaseOptions());
 
 // Honor proxy scheme/client information only from explicitly trusted proxies (loopback remains trusted
 // by framework default). Configure additional production proxy addresses under ForwardedHeaders:KnownProxies.
@@ -522,6 +525,8 @@ services.AddScoped<IStripeService, StripeService>();
 services.AddScoped<IStripeSyncService, StripeSyncService>();
 services.AddScoped<IStripeWebhookService, StripeWebhookService>();
 services.AddScoped<IStripeRentGateway, StripeRentGateway>();
+services.AddScoped<IStripeConnectedAccountGateway, StripeConnectedAccountGateway>();
+services.AddScoped<IStripeConnectedPayeeService, StripeConnectedPayeeService>();
 services.AddScoped<IStripeRentRiskService, StripeRentRiskService>();
 services.AddScoped<IStripeRentPaymentService, StripeRentPaymentService>();
 services.AddScoped<IStripeRentAllocationService, StripeRentAllocationService>();

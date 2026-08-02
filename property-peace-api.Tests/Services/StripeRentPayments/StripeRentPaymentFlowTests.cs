@@ -63,11 +63,17 @@ public sealed class StripeRentPaymentFlowTests
         gateway.Setup(x => x.UpdatePaymentIntentAsync("pi_own", It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new StripeRentIntentResult("pi_own", "secret"));
         var service = CreateService(context, gateway.Object, true);
+        var outstandingCents = checked((long)decimal.Round(
+            (await brownstone_hub_api.Utils.RentCalculator.GetOutstandingForTenantAsync(context, 1)) * 100m,
+            0,
+            MidpointRounding.AwayFromZero));
+        var availableAfterOtherReservation = outstandingCents - other.AmountCents;
 
-        await service.UpdateAsync(new("pi_own", 1, 3, 7_000, null));
-        var tooMuch = () => service.UpdateAsync(new UpdateStripeRentPaymentCommand("pi_own", 1, 3, 7_001, null));
+        await service.UpdateAsync(new("pi_own", 1, 3, availableAfterOtherReservation, null));
+        var tooMuch = () => service.UpdateAsync(new UpdateStripeRentPaymentCommand(
+            "pi_own", 1, 3, availableAfterOtherReservation + 1, null));
 
-        (await context.StripeRentPayments.SingleAsync(x => x.PaymentIntentId == "pi_own")).AmountCents.Should().Be(7_000);
+        (await context.StripeRentPayments.SingleAsync(x => x.PaymentIntentId == "pi_own")).AmountCents.Should().Be(availableAfterOtherReservation);
         await tooMuch.Should().ThrowAsync<InvalidOperationException>();
     }
 

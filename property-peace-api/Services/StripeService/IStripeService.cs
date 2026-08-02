@@ -6,6 +6,7 @@ namespace brownstone_hub_api.Services.StripeService
     {
         Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountAsync(long userId, string email, string returnUrl);
         Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(string accountId);
+        Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(string accountId, long userId, long organizationId);
         Task<ServiceResponse<string>> CreateAccountLinkAsync(string accountId, string returnUrl, string refreshUrl, string type = "account_onboarding");
         Task<ServiceResponse<string>> CreateLoginLinkAsync(string accountId);
         Task<ServiceResponse<AccountSessionDto>> CreateAccountSessionAsync(string accountId);

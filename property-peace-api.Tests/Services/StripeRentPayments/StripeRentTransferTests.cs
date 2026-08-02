@@ -429,6 +429,74 @@ public sealed class StripeRentTransferTests
     }
 
     [Fact]
+    public async Task ProcessEligibleAsync_WhenTransfersDisabled_DoesNotReplayAmbiguousTransfer()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+        payment.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+        payment.NextTransferAttemptAt = null;
+        context.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+        var risk = new Mock<IStripeRentRiskService>();
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: false);
+
+        await service.ProcessEligibleTransfersAsync();
+
+        gateway.Verify(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        risk.Verify(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_WhenFreshRiskDeniesReconciliation_DoesNotReplayAmbiguousTransfer()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+        payment.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+        payment.NextTransferAttemptAt = null;
+        context.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Deny("payee suspended"));
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        await service.ProcessEligibleTransfersAsync();
+
+        gateway.Verify(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.TransferReconciliationPending);
+        stored.RiskReason.Should().Contain("operator review").And.Contain("payee suspended");
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_RevalidatesAuthorityImmediatelyBeforeReconciliationReplay()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+        payment.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+        payment.NextTransferAttemptAt = null;
+        context.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.SetupSequence(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow())
+            .ReturnsAsync(RentTransferRiskDecision.Deny("Current organization payout authority was revoked."));
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        await service.ProcessEligibleTransfersAsync();
+
+        risk.Verify(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        gateway.Verify(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.TransferReconciliationPending);
+        stored.RiskReason.Should().Contain("operator review").And.Contain("authority was revoked");
+    }
+
+    [Fact]
     public async Task RiskService_WhenAuthoritativeCompletedAllocationIsMissing_DeniesTransfer()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
@@ -517,6 +585,31 @@ public sealed class StripeRentTransferTests
         stored.TransferAttemptCount.Should().Be(3);
         stored.NextTransferAttemptAt.Should().Be(now.AddMinutes(15));
         stored.RiskReason.Should().Contain("reconciliation is still required");
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_RevalidatesAuthorityImmediatelyBeforeTransferSideEffect()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.Add(HeldPayment(DateTimeOffset.UtcNow.AddDays(-1)));
+        await context.SaveChangesAsync();
+
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.SetupSequence(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow())
+            .ReturnsAsync(RentTransferRiskDecision.Deny("Current organization payout authority was revoked."));
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        var transferred = await service.ProcessEligibleTransfersAsync();
+
+        transferred.Should().Be(0);
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.Blocked);
+        stored.RiskReason.Should().Contain("authority was revoked");
+        risk.Verify(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        gateway.Verify(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

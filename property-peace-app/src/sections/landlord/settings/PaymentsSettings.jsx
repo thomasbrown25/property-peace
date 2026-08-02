@@ -260,7 +260,11 @@ export default function PaymentsSettings() {
           IsEnabled: data.isEnabled || false,
           ChargesEnabled: data.chargesEnabled || false,
           PayoutsEnabled: data.payoutsEnabled || false,
-          DetailsSubmitted: data.detailsSubmitted || false
+          DetailsSubmitted: data.detailsSubmitted || false,
+          InternalReviewStatus: data.internalReviewStatus || 'Onboarding',
+          IsInternallyPayoutApproved: data.isInternallyPayoutApproved || false,
+          IsAccountReadyForRentTransfers: data.isAccountReadyForRentTransfers || false,
+          AccountReadinessReason: data.accountReadinessReason || null
         });
       } else {
         setAccountStatus({
@@ -542,10 +546,14 @@ export default function PaymentsSettings() {
   const getStatusChip = () => {
     if (!accountStatus) return null;
 
-    if (accountStatus.IsEnabled && accountStatus.ChargesEnabled && accountStatus.PayoutsEnabled) {
-      return <Chip icon={<CheckCircleOutlined />} label="Connected" color="success" size="small" sx={{ fontWeight: 600 }} />;
+    if (accountStatus.IsAccountReadyForRentTransfers) {
+      return <Chip icon={<CheckCircleOutlined />} label="Account Transfer Eligible" color="success" size="small" sx={{ fontWeight: 600 }} />;
+    } else if (accountStatus.InternalReviewStatus === 'Suspended') {
+      return <Chip icon={<ExclamationCircleOutlined />} label="Payouts Suspended" color="error" size="small" sx={{ fontWeight: 600 }} />;
     } else if (accountStatus.AccountId && !accountStatus.DetailsSubmitted) {
       return <Chip icon={<ExclamationCircleOutlined />} label="Pending Setup" color="warning" size="small" sx={{ fontWeight: 600 }} />;
+    } else if (accountStatus.AccountId) {
+      return <Chip icon={<ExclamationCircleOutlined />} label="Under Review" color="warning" size="small" sx={{ fontWeight: 600 }} />;
     } else {
       return <Chip icon={<ExclamationCircleOutlined />} label="Not Connected" color="default" size="small" sx={{ fontWeight: 600 }} />;
     }
@@ -563,8 +571,9 @@ export default function PaymentsSettings() {
     );
   }
 
-  const isConnected = accountStatus?.IsEnabled && accountStatus?.ChargesEnabled && accountStatus?.PayoutsEnabled;
+  const isConnected = accountStatus?.IsAccountReadyForRentTransfers === true;
   const needsOnboarding = accountStatus?.AccountId && !accountStatus?.DetailsSubmitted;
+  const isAwaitingReview = accountStatus?.AccountId && accountStatus?.DetailsSubmitted && !accountStatus?.IsAccountReadyForRentTransfers;
   const hasNoAccount = !accountStatus?.AccountId || accountStatus?.AccountId === '' || accountStatus?.AccountId === null;
 
   return (
@@ -643,7 +652,7 @@ export default function PaymentsSettings() {
             {isConnected && (
               <>
                 <Alert severity="success" sx={{ mb: 2 }}>
-                  Your Stripe account is connected and ready to receive payments. You can now accept online payments from tenants.
+                  Your Stripe account currently passes account-level rent-transfer controls. Each payment remains subject to payment-specific holds, amount limits, and rolling-volume checks before transfer.
                 </Alert>
                 {accountStatus?.AccountId && (
                   <Box sx={{ mb: 2 }}>
@@ -660,8 +669,13 @@ export default function PaymentsSettings() {
 
             {needsOnboarding && (
               <Alert severity="warning" sx={{ mb: 2 }}>
-                Your Stripe account has been created but needs additional information to be completed. Please complete the onboarding
-                process.
+                Your Stripe account has been created but needs additional information. Complete Stripe’s secure hosted onboarding; Property Peace does not store your identity documents or full bank details.
+              </Alert>
+            )}
+
+            {isAwaitingReview && (
+              <Alert severity={accountStatus?.InternalReviewStatus === 'Suspended' ? 'error' : 'info'} sx={{ mb: 2 }}>
+                {accountStatus?.AccountReadinessReason || 'Current account-level transfer requirements have not been met.'}
               </Alert>
             )}
 

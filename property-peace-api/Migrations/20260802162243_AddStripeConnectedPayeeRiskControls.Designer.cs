@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using brownstone_hub_api.Data;
 
@@ -11,9 +12,11 @@ using brownstone_hub_api.Data;
 namespace brownstone_hub_api.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260802162243_AddStripeConnectedPayeeRiskControls")]
+    partial class AddStripeConnectedPayeeRiskControls
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -6953,12 +6956,6 @@ namespace brownstone_hub_api.Migrations
                     b.Property<int>("ProcessingAttempts")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("ProcessingLeaseExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ProcessingLeaseId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("ReceivedAt")
                         .HasColumnType("datetime2");
 
@@ -9977,7 +9974,7 @@ namespace brownstone_hub_api.Migrations
                     b.HasOne("brownstone_hub_api.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
                 });

@@ -9,6 +9,14 @@ namespace brownstone_hub_api.Dtos.Stripe
         public bool PayoutsEnabled { get; set; }
         public bool DetailsSubmitted { get; set; }
         public string? OnboardingUrl { get; set; }
+        public string InternalReviewStatus { get; set; } = "Onboarding";
+        public bool IsInternallyPayoutApproved { get; set; }
+        /// <summary>
+        /// True only when the connected account currently passes account-level transfer controls.
+        /// A specific rent payment can still be held by payment-specific pre-transfer controls.
+        /// </summary>
+        public bool IsAccountReadyForRentTransfers { get; set; }
+        public string? AccountReadinessReason { get; set; }
     }
 }
 

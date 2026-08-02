@@ -30,6 +30,9 @@ namespace brownstone_hub_api.Services.StripeService
         private readonly IStripeRentPaymentService _stripeRentPaymentService;
         private readonly IStripeRentAllocationService _stripeRentAllocationService;
         private readonly IStripeRentLossAccountingService _stripeRentLossAccountingService;
+        private readonly IStripeConnectedPayeeService _stripeConnectedPayeeService;
+        private readonly IStripeConnectedAccountGateway _stripeConnectedAccountGateway;
+        private readonly IStripeRentGateway _stripeRentGateway;
 
         public StripeWebhookService(
             ISubscriptionRepository subscriptionRepository,
@@ -44,7 +47,10 @@ namespace brownstone_hub_api.Services.StripeService
             IStripeService stripeService,
             IStripeRentPaymentService stripeRentPaymentService,
             IStripeRentAllocationService stripeRentAllocationService,
-            IStripeRentLossAccountingService stripeRentLossAccountingService)
+            IStripeRentLossAccountingService stripeRentLossAccountingService,
+            IStripeConnectedPayeeService stripeConnectedPayeeService,
+            IStripeConnectedAccountGateway stripeConnectedAccountGateway,
+            IStripeRentGateway stripeRentGateway)
         {
             _subscriptionRepository = subscriptionRepository;
             _planRepository = planRepository;
@@ -59,6 +65,40 @@ namespace brownstone_hub_api.Services.StripeService
             _stripeRentPaymentService = stripeRentPaymentService;
             _stripeRentAllocationService = stripeRentAllocationService;
             _stripeRentLossAccountingService = stripeRentLossAccountingService;
+            _stripeConnectedPayeeService = stripeConnectedPayeeService;
+            _stripeConnectedAccountGateway = stripeConnectedAccountGateway;
+            _stripeRentGateway = stripeRentGateway;
+        }
+
+        public async Task HandleAccountUpdatedAsync(Event stripeEvent)
+        {
+            if (stripeEvent.Data.Object is not Stripe.Account account)
+            {
+                _logger.LogWarning("account.updated event {EventId} did not contain an account", stripeEvent.Id);
+                return;
+            }
+
+            var snapshot = await _stripeConnectedAccountGateway.GetSnapshotAsync(account.Id);
+            var review = await _stripeConnectedPayeeService.SyncStripeSnapshotAsync(snapshot, stripeEvent.Id);
+            if (review?.Status == StripePayeeReviewStatus.Suspended)
+                _logger.LogCritical("Stripe connected payee {AccountId} was automatically suspended: {Reason}", account.Id, review.SuspensionReason);
+        }
+
+        public async Task HandleExternalAccountChangedAsync(Event stripeEvent)
+        {
+            var accountId = stripeEvent.Account;
+            if (string.IsNullOrWhiteSpace(accountId) && stripeEvent.Data.Object is Stripe.BankAccount bankAccount)
+                accountId = bankAccount.AccountId;
+            if (string.IsNullOrWhiteSpace(accountId))
+            {
+                _logger.LogWarning("External-account event {EventId} did not identify its connected account", stripeEvent.Id);
+                return;
+            }
+
+            var snapshot = await _stripeConnectedAccountGateway.GetSnapshotAsync(accountId);
+            var review = await _stripeConnectedPayeeService.SyncStripeSnapshotAsync(snapshot, stripeEvent.Id);
+            if (review?.Status == StripePayeeReviewStatus.Suspended)
+                _logger.LogCritical("Stripe connected payee {AccountId} was automatically suspended after external-account change: {Reason}", accountId, review.SuspensionReason);
         }
 
         public async Task HandleSubscriptionCreatedAsync(Event stripeEvent)
@@ -1079,11 +1119,30 @@ namespace brownstone_hub_api.Services.StripeService
         public async Task HandleRefundCreatedAsync(Event stripeEvent)
         {
             if (stripeEvent.Data.Object is not Stripe.Refund refund) return;
-            // The refund object amount is per-refund, not cumulative. Block transfer immediately
-            // and persist its identity; charge.refunded supplies the authoritative cumulative total.
-            await _stripeRentPaymentService.MarkBlockedAsync(refund.PaymentIntentId, refund.ChargeId,
+
+            // A Refund's Amount is only this individual refund. Re-read the charge so this event is
+            // independently sufficient and carries the same authoritative cumulative target as
+            // charge.refunded. Passing that target through MarkBlockedAsync makes either event order
+            // replay-safe and queues only exposure above the amount already reversed.
+            if (string.IsNullOrWhiteSpace(refund.ChargeId))
+                throw new InvalidOperationException($"Refund {refund.Id} did not identify its source charge.");
+
+            var source = await _stripeRentGateway.GetSourceStateAsync(refund.ChargeId);
+            if (!source.Exists || source.RefundedAmountCents == null)
+                throw new InvalidOperationException($"Could not reconcile cumulative refund exposure for charge {refund.ChargeId}.");
+
+            var paymentIntentId = !string.IsNullOrWhiteSpace(refund.PaymentIntentId)
+                ? refund.PaymentIntentId
+                : source.PaymentIntentId;
+            if (string.IsNullOrWhiteSpace(paymentIntentId))
+                throw new InvalidOperationException($"Could not identify the PaymentIntent for refund {refund.Id}.");
+
+            var occurredAt = new DateTimeOffset(stripeEvent.Created);
+            await _stripeRentPaymentService.MarkBlockedAsync(paymentIntentId, refund.ChargeId,
                 StripeRentPaymentBlockKind.Refund, refund.Id,
-                "Stripe reported that the source charge was refunded.");
+                "Stripe reported that the source charge was refunded.", source.RefundedAmountCents.Value);
+            await _stripeRentLossAccountingService.ApplyAsync(new StripeRentLossAccountingCommand(
+                paymentIntentId, StripeRentPaymentBlockKind.Refund, occurredAt));
         }
 
         private static bool TryGetLeaseId(Stripe.PaymentIntent paymentIntent, out long leaseId)

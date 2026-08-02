@@ -33,6 +33,9 @@ namespace brownstone_hub_api.Services.StripeService
         private readonly ILogger<StripeService> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IStripeRentPaymentService _stripeRentPaymentService;
+        private readonly IStripeConnectedPayeeService _stripeConnectedPayeeService;
+        private readonly IStripeConnectedAccountGateway _stripeConnectedAccountGateway;
+        private readonly TimeProvider _timeProvider;
         private readonly string? _stripeSecretKey;
         private readonly string? _stripePublishableKey;
 
@@ -46,7 +49,10 @@ namespace brownstone_hub_api.Services.StripeService
             IConfiguration configuration,
             ILogger<StripeService> logger,
             IHttpContextAccessor httpContextAccessor,
-            IStripeRentPaymentService stripeRentPaymentService)
+            IStripeRentPaymentService stripeRentPaymentService,
+            IStripeConnectedPayeeService stripeConnectedPayeeService,
+            IStripeConnectedAccountGateway stripeConnectedAccountGateway,
+            TimeProvider timeProvider)
         {
             _userRepository = userRepository;
             _leaseRepository = leaseRepository;
@@ -58,6 +64,9 @@ namespace brownstone_hub_api.Services.StripeService
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
             _stripeRentPaymentService = stripeRentPaymentService;
+            _stripeConnectedPayeeService = stripeConnectedPayeeService;
+            _stripeConnectedAccountGateway = stripeConnectedAccountGateway;
+            _timeProvider = timeProvider;
 
             _stripeSecretKey = _configuration["Stripe:SecretKey"];
             _stripePublishableKey = _configuration["Stripe:PublishableKey"];
@@ -131,6 +140,8 @@ namespace brownstone_hub_api.Services.StripeService
                     var accountStatus = await GetAccountStatusAsync(user.StripeAccountId);
                     if (accountStatus.Success && accountStatus.Data != null)
                     {
+                        await _stripeConnectedPayeeService.RegisterAsync(
+                            userId, user.StripeAccountId, accountStatus.Data.DetailsSubmitted);
                         response.Data = new CreateStripeAccountResponseDto
                         {
                             AccountId = user.StripeAccountId,
@@ -166,6 +177,13 @@ namespace brownstone_hub_api.Services.StripeService
                         {
                             Requested = true
                         }
+                    },
+                    Settings = new AccountSettingsOptions
+                    {
+                        Payouts = new AccountSettingsPayoutsOptions
+                        {
+                            Schedule = new AccountSettingsPayoutsScheduleOptions { Interval = "manual" }
+                        }
                     }
                 };
 
@@ -175,8 +193,8 @@ namespace brownstone_hub_api.Services.StripeService
                 // Request stripe_balance.stripe_transfers so destination charges/transfers work (required for tenant payments to landlord)
                 await EnsureStripeTransfersCapabilityRequestedAsync(account.Id);
 
-                // Update user with Stripe account ID
-                await UpdateUserStripeAccountAsync(userId, account.Id, account.DetailsSubmitted ? "active" : "pending");
+                // DetailsSubmitted is Stripe verification input only; internal payout approval is a separate durable decision.
+                await _stripeConnectedPayeeService.RegisterAsync(userId, account.Id, account.DetailsSubmitted);
 
                 // Create account link for onboarding
                 var accountLinkResponse = await CreateAccountLinkAsync(account.Id, returnUrl, returnUrl);
@@ -184,7 +202,7 @@ namespace brownstone_hub_api.Services.StripeService
                 response.Data = new CreateStripeAccountResponseDto
                 {
                     AccountId = account.Id,
-                    Status = account.DetailsSubmitted ? "active" : "pending",
+                    Status = account.DetailsSubmitted ? "under_review" : "onboarding",
                     OnboardingUrl = accountLinkResponse.Success ? accountLinkResponse.Data : string.Empty
                 };
                 response.Message = "Stripe account created successfully";
@@ -216,24 +234,103 @@ namespace brownstone_hub_api.Services.StripeService
         }
 
         public async Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(string accountId)
+            => await GetAccountStatusCoreAsync(accountId, null, null);
+
+        public async Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(
+            string accountId, long userId, long organizationId)
+            => await GetAccountStatusCoreAsync(accountId, userId, organizationId);
+
+        private async Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusCoreAsync(
+            string accountId, long? userId, long? organizationId)
         {
             var response = new ServiceResponse<StripeAccountStatusDto>();
 
             try
             {
-                var accountService = new Stripe.AccountService();
-                var account = await accountService.GetAsync(accountId);
+                var review = userId.HasValue
+                    ? await _context.StripeConnectedPayeeReviews.AsNoTracking()
+                        .SingleOrDefaultAsync(x => x.StripeAccountId == accountId && x.UserId == userId.Value)
+                    : null;
+                var internallyApproved = userId.HasValue && organizationId.HasValue
+                    && await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
+                        userId.Value, organizationId.Value, accountId);
 
+                StripeConnectedAccountSnapshot? snapshot = null;
+                string? snapshotFailureReason = null;
+                try
+                {
+                    snapshot = await _stripeConnectedAccountGateway.GetSnapshotAsync(accountId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Could not retrieve a fresh complete Stripe connected-account snapshot for {AccountId}", accountId);
+                    snapshotFailureReason = "A fresh Stripe connected-account snapshot could not be retrieved.";
+                }
+
+                var maxAgeMinutes = Math.Max(1,
+                    _configuration.GetValue<int?>("Stripe:ConnectedPayeeRisk:SnapshotMaxAgeMinutes") ?? 5);
+                var now = _timeProvider.GetUtcNow();
+                var snapshotIsFresh = snapshot != null
+                    && snapshot.RetrievedAt <= now.AddMinutes(1)
+                    && snapshot.RetrievedAt >= now.AddMinutes(-maxAgeMinutes);
+                var snapshotMatchesAccount = snapshot != null
+                    && string.Equals(snapshot.StripeAccountId, accountId, StringComparison.Ordinal);
+                var restrictionReason = snapshot == null
+                    ? snapshotFailureReason
+                    : !snapshotMatchesAccount
+                        ? "The Stripe connected-account snapshot did not match this account."
+                        : !snapshotIsFresh
+                            ? "The Stripe connected-account snapshot is stale."
+                            : StripeConnectedPayeeService.RestrictionReason(snapshot);
+                var fingerprintReason = snapshot != null && snapshotMatchesAccount && snapshotIsFresh
+                    ? string.IsNullOrWhiteSpace(review?.ExternalAccountFingerprint)
+                        || string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint)
+                            ? "A complete external-account fingerprint and approval baseline are required."
+                            : !string.Equals(review.ExternalAccountFingerprint, snapshot.ExternalAccountFingerprint,
+                                StringComparison.Ordinal)
+                                ? "The Stripe external bank account changed; internal re-review is required."
+                                : null
+                    : null;
+
+                // Sync only a fresh snapshot for the exact account. This retains the same fail-closed
+                // suspension behavior used by the pre-transfer gate without accepting stale data.
+                if (snapshot != null && snapshotMatchesAccount && snapshotIsFresh)
+                {
+                    var syncedReview = await _stripeConnectedPayeeService.SyncStripeSnapshotAsync(snapshot, null);
+                    if (syncedReview != null)
+                    {
+                        review = syncedReview;
+                        if (syncedReview.Status != StripePayeeReviewStatus.PayoutApproved)
+                            internallyApproved = false;
+                    }
+                }
+
+                var reviewStatus = review?.Status ?? StripePayeeReviewStatus.Onboarding;
+                if (reviewStatus == StripePayeeReviewStatus.PayoutApproved && !internallyApproved)
+                    reviewStatus = StripePayeeReviewStatus.UnderReview;
+                var accountReadinessReason = restrictionReason ?? fingerprintReason
+                    ?? (!internallyApproved
+                        ? "Current scoped internal approval and current organization authority are required."
+                        : null);
+                var isAccountReady = accountReadinessReason == null;
                 response.Data = new StripeAccountStatusDto
                 {
-                    AccountId = account.Id,
-                    Status = account.DetailsSubmitted ? "active" : "pending",
-                    IsEnabled = account.ChargesEnabled && account.PayoutsEnabled,
-                    ChargesEnabled = account.ChargesEnabled,
-                    PayoutsEnabled = account.PayoutsEnabled,
-                    DetailsSubmitted = account.DetailsSubmitted
+                    AccountId = accountId,
+                    Status = snapshot != null && !snapshot.DetailsSubmitted ? "onboarding"
+                        : isAccountReady ? "account_transfer_ready"
+                        : reviewStatus == StripePayeeReviewStatus.Suspended ? "suspended"
+                        : "under_review",
+                    IsEnabled = isAccountReady,
+                    ChargesEnabled = snapshot?.ChargesEnabled ?? false,
+                    PayoutsEnabled = snapshot?.PayoutsEnabled ?? false,
+                    DetailsSubmitted = snapshot?.DetailsSubmitted ?? false,
+                    InternalReviewStatus = reviewStatus.ToString(),
+                    IsInternallyPayoutApproved = internallyApproved,
+                    IsAccountReadyForRentTransfers = isAccountReady,
+                    AccountReadinessReason = accountReadinessReason
                 };
-                response.Message = "Account status retrieved successfully";
+                response.Message = "Account-level transfer readiness retrieved. Individual rent payments remain subject to payment-specific pre-transfer controls.";
             }
             catch (StripeException ex)
             {
@@ -407,20 +504,10 @@ namespace brownstone_hub_api.Services.StripeService
                     return response;
                 }
 
-                // Update user with the Stripe account ID
-                var status = account.DetailsSubmitted ? "active" : "pending";
-                var updateResult = await UpdateUserStripeAccountAsync(userId, accountId, status);
-
-                if (updateResult.Success)
-                {
-                    response.Data = true;
-                    response.Message = "Account linked successfully";
-                }
-                else
-                {
-                    response.Success = false;
-                    response.Message = updateResult.Message;
-                }
+                // Linking an existing account never bypasses internal payout review.
+                await _stripeConnectedPayeeService.RegisterAsync(userId, accountId, account.DetailsSubmitted);
+                response.Data = true;
+                response.Message = "Account linked successfully";
             }
             catch (StripeException ex)
             {

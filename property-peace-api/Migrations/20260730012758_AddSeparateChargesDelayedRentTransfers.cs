@@ -59,7 +59,7 @@ namespace brownstone_hub_api.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_StripeRentPayments", x => x.Id);
-                    table.CheckConstraint("CK_StripeRentPayments_LossWithinAmount", "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents] AND [RefundedAmountCents] + [DisputedAmountCents] <= [AmountCents]");
+                    table.CheckConstraint("CK_StripeRentPayments_LossWithinAmount", "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents]");
                     table.CheckConstraint("CK_StripeRentPayments_NonnegativeCounters", "[RefundedAmountCents] >= 0 AND [DisputedAmountCents] >= 0 AND [ReversedAmountCents] >= 0 AND [ReversalTargetAmountCents] >= 0 AND [ReversalIncrementAmountCents] >= 0");
                     table.CheckConstraint("CK_StripeRentPayments_PositiveAmount", "[AmountCents] > 0");
                     table.CheckConstraint("CK_StripeRentPayments_ReversalWithinAmount", "[ReversedAmountCents] <= [AmountCents] AND [ReversalTargetAmountCents] <= [AmountCents] AND [ReversalIncrementAmountCents] <= [AmountCents] AND (([ReversalTargetAmountCents] = 0 AND [ReversalIncrementAmountCents] = 0) OR ([ReversalTargetAmountCents] > [ReversedAmountCents] AND [ReversalIncrementAmountCents] = [ReversalTargetAmountCents] - [ReversedAmountCents]))");

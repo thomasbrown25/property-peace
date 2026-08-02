@@ -4,6 +4,7 @@ using brownstone_hub_api.Services.StripeService;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Services.OrganizationService;
 using brownstone_hub_api.Services.BankAccountService;
+using brownstone_hub_api.Services.StripeRentPayments;
 using brownstone_hub_api.Repositories.BankAccounts;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Models;
@@ -27,6 +28,7 @@ namespace brownstone_hub_api.Controllers
         private readonly IUserRepository _userRepository;
         private readonly ILogger<StripeController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IStripeConnectedPayeeService? _stripeConnectedPayeeService;
 
         public StripeController(
             IStripeService stripeService,
@@ -36,7 +38,8 @@ namespace brownstone_hub_api.Controllers
             IBankAccountRepository bankAccountRepository,
             IUserRepository userRepository,
             ILogger<StripeController> logger,
-            IConfiguration? configuration = null)
+            IConfiguration? configuration = null,
+            IStripeConnectedPayeeService? stripeConnectedPayeeService = null)
         {
             _stripeService = stripeService;
             _userService = userService;
@@ -46,6 +49,7 @@ namespace brownstone_hub_api.Controllers
             _userRepository = userRepository;
             _logger = logger;
             _configuration = configuration ?? new ConfigurationBuilder().Build();
+            _stripeConnectedPayeeService = stripeConnectedPayeeService;
         }
 
         /// <summary>
@@ -202,7 +206,14 @@ namespace brownstone_hub_api.Controllers
                     });
                 }
 
-                var response = await _stripeService.GetAccountStatusAsync(dbUser.StripeAccountId);
+                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId.Value);
+                if (!userOrgResponse.Success || userOrgResponse.Data == null)
+                {
+                    return NotFound(new { Message = "Organization not found" });
+                }
+
+                var response = await _stripeService.GetAccountStatusAsync(
+                    dbUser.StripeAccountId, userId.Value, userOrgResponse.Data.Id);
 
                 if (!response.Success)
                 {
@@ -474,6 +485,11 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
+                if (User?.Identity?.IsAuthenticated != true)
+                {
+                    return Unauthorized(new { Message = "Authentication is required" });
+                }
+
                 // Get current user ID
                 var userIdResponse = await _userService.GetCurrentUserIdAsync();
                 if (!userIdResponse.Success || !userIdResponse.Data.HasValue)
@@ -482,6 +498,13 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 var userId = userIdResponse.Data.Value;
+                var authenticatedUserIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? User.FindFirst("userId")?.Value;
+                if (long.TryParse(authenticatedUserIdClaim, out var authenticatedUserId)
+                    && authenticatedUserId != userId)
+                {
+                    return Unauthorized(new { Message = "Authenticated user does not match the requested user" });
+                }
 
                 // Get user with Stripe account info
                 var dbUserResponse = await _userService.GetUserByIdAsync(userId);
@@ -509,6 +532,33 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 var organizationId = userOrgResponse.Data.Id;
+
+                // Fail closed: neither an existing alternate account nor a newly synced one may be
+                // exposed until the exact user/account/organization destination has payout approval.
+                if (_stripeConnectedPayeeService == null
+                    || !await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
+                        userId, organizationId, dbUser.StripeAccountId, HttpContext.RequestAborted))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new
+                    {
+                        Message = "This Stripe destination is not payout-approved for the current organization"
+                    });
+                }
+
+                // Refresh Stripe and internal readiness for this exact authenticated user,
+                // organization and destination before returning or creating any bank record.
+                // The refresh may suspend a formerly approved payee, so fail closed on either
+                // an unavailable snapshot or a denied readiness decision.
+                var accountStatusResponse = await _stripeService.GetAccountStatusAsync(
+                    dbUser.StripeAccountId, userId, organizationId);
+                if (!accountStatusResponse.Success || accountStatusResponse.Data == null
+                    || !accountStatusResponse.Data.IsAccountReadyForRentTransfers)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new
+                    {
+                        Message = "This Stripe destination is not currently eligible for rent payouts"
+                    });
+                }
 
                 // Check if bank account already exists for this organization
                 // Allow the same Stripe account to be used across multiple organizations
@@ -539,13 +589,6 @@ namespace brownstone_hub_api.Controllers
                     _logger.LogInformation("Bank account {BankAccountId} already exists for organization {OrganizationId} with Stripe account {StripeAccountId}",
                         existingBankAccount.Id, organizationId, dbUser.StripeAccountId);
                     return Ok(existingResponse);
-                }
-
-                // Fetch account details from Stripe
-                var accountStatusResponse = await _stripeService.GetAccountStatusAsync(dbUser.StripeAccountId);
-                if (!accountStatusResponse.Success || accountStatusResponse.Data == null)
-                {
-                    return BadRequest(new { Message = "Failed to fetch Stripe account details" });
                 }
 
                 // Try to get external account (bank account) details from Stripe

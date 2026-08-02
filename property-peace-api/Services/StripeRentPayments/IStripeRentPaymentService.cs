@@ -71,10 +71,39 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task<RentTransferRiskDecision> EvaluateAsync(StripeRentPayment payment, CancellationToken cancellationToken = default);
     }
 
-    public sealed class StripeRentRiskService(DataContext context) : IStripeRentRiskService
+    public sealed class StripeRentRiskService : IStripeRentRiskService
     {
+        private readonly DataContext context;
+        private readonly IStripeConnectedAccountGateway? _connectedAccountGateway;
+        private readonly IConfiguration? _configuration;
+        private readonly TimeProvider _timeProvider;
+        private readonly bool _enforceConnectedPayeeGate;
+
+        // Retained for focused legacy accounting tests. Production DI resolves the fully injected
+        // constructor below and always enforces the connected-payee gate.
+        public StripeRentRiskService(DataContext context)
+        {
+            this.context = context;
+            _timeProvider = TimeProvider.System;
+        }
+
+        public StripeRentRiskService(DataContext context, IStripeConnectedAccountGateway connectedAccountGateway,
+            IConfiguration configuration, TimeProvider timeProvider)
+        {
+            this.context = context;
+            _connectedAccountGateway = connectedAccountGateway;
+            _configuration = configuration;
+            _timeProvider = timeProvider;
+            _enforceConnectedPayeeGate = true;
+        }
+
         public async Task<RentTransferRiskDecision> EvaluateAsync(StripeRentPayment payment, CancellationToken cancellationToken = default)
         {
+            if (_enforceConnectedPayeeGate)
+            {
+                var payeeDecision = await EvaluatePayeeAsync(payment, cancellationToken);
+                if (!payeeDecision.Approved) return payeeDecision;
+            }
             if (string.IsNullOrWhiteSpace(payment.DestinationStripeAccountId))
                 return RentTransferRiskDecision.Deny("Destination account snapshot is missing.");
             if (string.IsNullOrWhiteSpace(payment.StripeChargeId))
@@ -118,6 +147,104 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             if (string.IsNullOrWhiteSpace(leaseDestination)
                 || !string.Equals(leaseDestination, payment.DestinationStripeAccountId, StringComparison.Ordinal))
                 return RentTransferRiskDecision.Deny("The destination account is no longer owned by or eligible for this lease.");
+
+            return RentTransferRiskDecision.Allow();
+        }
+
+        public async Task<RentTransferRiskDecision> EvaluatePayeeAsync(StripeRentPayment payment, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(payment.DestinationStripeAccountId))
+                return RentTransferRiskDecision.Deny("Destination account snapshot is missing.");
+
+            var review = await context.StripeConnectedPayeeReviews.SingleOrDefaultAsync(
+                x => x.StripeAccountId == payment.DestinationStripeAccountId, cancellationToken);
+            if (review == null)
+                return RentTransferRiskDecision.Deny("Connected payee has no internal review record.");
+            if (review.Status != StripePayeeReviewStatus.PayoutApproved || review.ApprovedAt == null
+                || !review.PropertyAuthorityAttested)
+                return RentTransferRiskDecision.Deny("Connected payee is not internally payout-approved.");
+            if (review.ApprovedOrganizationId != payment.OrganizationId)
+                return RentTransferRiskDecision.Deny("Connected payee approval does not cover this organization.");
+            if (review.InstantPayoutsAllowed || !string.Equals(review.PayoutSchedulePolicy, "manual", StringComparison.OrdinalIgnoreCase))
+                return RentTransferRiskDecision.Deny("Connected payee payout policy is not fail-closed manual payout.");
+
+            var hasInitialAuthority = review.UserId.HasValue && review.ApprovedOrganizationId.HasValue &&
+                await context.OrganizationMembers.AsNoTracking().AnyAsync(m =>
+                    m.UserId == review.UserId.Value &&
+                    m.OrganizationId == review.ApprovedOrganizationId.Value &&
+                    m.IsActive &&
+                    (m.Role == "Owner" || m.Role == "Manager"), cancellationToken);
+            if (!hasInitialAuthority)
+            {
+                await new StripeConnectedPayeeService(context, _timeProvider).SuspendAsync(
+                    payment.DestinationStripeAccountId,
+                    null,
+                    "The approved payee no longer has active owner or manager authority for the approved organization.",
+                    cancellationToken);
+                return RentTransferRiskDecision.Deny("The approved payee must retain active owner or manager authority for the approved organization.");
+            }
+
+            if (_connectedAccountGateway == null)
+                return RentTransferRiskDecision.Deny("A fresh Stripe connected-account snapshot is unavailable.");
+            StripeConnectedAccountSnapshot snapshot;
+            try
+            {
+                snapshot = await _connectedAccountGateway.GetSnapshotAsync(payment.DestinationStripeAccountId, cancellationToken);
+            }
+            catch
+            {
+                return RentTransferRiskDecision.Deny("A fresh Stripe connected-account snapshot could not be retrieved.");
+            }
+            var maxAgeMinutes = Math.Max(1, _configuration?.GetValue<int?>("Stripe:ConnectedPayeeRisk:SnapshotMaxAgeMinutes") ?? 5);
+            var now = _timeProvider.GetUtcNow();
+            if (snapshot.RetrievedAt > now.AddMinutes(1) || snapshot.RetrievedAt < now.AddMinutes(-maxAgeMinutes))
+                return RentTransferRiskDecision.Deny("Stripe connected-account snapshot is stale.");
+
+            await new StripeConnectedPayeeService(context, _timeProvider).SyncStripeSnapshotAsync(snapshot, null, cancellationToken);
+            var restriction = StripeConnectedPayeeService.RestrictionReason(snapshot);
+            if (restriction != null) return RentTransferRiskDecision.Deny(restriction);
+            if (review.Status != StripePayeeReviewStatus.PayoutApproved)
+                return RentTransferRiskDecision.Deny(review.SuspensionReason ?? "Connected payee was suspended during pre-transfer verification.");
+
+            var first90Days = review.CreatedAt.AddDays(90) > now;
+            if (first90Days)
+            {
+                var perPaymentLimit = Math.Max(1L,
+                    _configuration?.GetValue<long?>("Stripe:ConnectedPayeeRisk:First90DaysPerPaymentLimitCents") ?? 500_000L);
+                if (payment.AmountCents > perPaymentLimit)
+                    return RentTransferRiskDecision.Deny("First-90-day connected-payee per-payment limit exceeded.");
+
+                var rollingLimit = Math.Max(1L,
+                    _configuration?.GetValue<long?>("Stripe:ConnectedPayeeRisk:First90DaysRollingVolumeLimitCents") ?? 2_000_000L);
+                var rollingDays = Math.Max(1,
+                    _configuration?.GetValue<int?>("Stripe:ConnectedPayeeRisk:RollingWindowDays") ?? 30);
+                var windowStart = now.AddDays(-rollingDays);
+                var transferredOrReservedVolume = await context.StripeRentPayments
+                    .Where(x => x.Id != payment.Id
+                        && x.DestinationStripeAccountId == payment.DestinationStripeAccountId
+                        && ((x.StripeTransferId != null && x.TransferredAt != null && x.TransferredAt >= windowStart)
+                            || x.Status == StripeRentPaymentStatus.TransferPending
+                            || x.Status == StripeRentPaymentStatus.TransferReconciliationPending))
+                    .SumAsync(x => x.AmountCents, cancellationToken);
+                if (checked(transferredOrReservedVolume + payment.AmountCents) > rollingLimit)
+                    return RentTransferRiskDecision.Deny("First-90-day connected-payee rolling-volume limit exceeded.");
+            }
+
+            // Keep current organization authority as the final database decision in the risk gate.
+            // The transfer worker invokes this gate again directly before the Stripe side effect,
+            // minimizing the revocation TOCTOU window after all remote snapshot/source work.
+            var hasCurrentAuthority = review.UserId.HasValue && await context.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == review.UserId.Value
+                && member.OrganizationId == payment.OrganizationId
+                && member.IsActive
+                && (member.Role == "Owner" || member.Role == "Manager"), cancellationToken);
+            if (!hasCurrentAuthority)
+            {
+                const string reason = "Connected payee is no longer an active owner or manager in the approved organization.";
+                await new StripeConnectedPayeeService(context, _timeProvider)
+                    .SuspendAsync(review.StripeAccountId, null, reason, cancellationToken);
+                return RentTransferRiskDecision.Deny(reason);
+            }
 
             return RentTransferRiskDecision.Allow();
         }

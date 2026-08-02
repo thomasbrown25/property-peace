@@ -154,6 +154,7 @@ const AdminUsers = Loadable(lazy(() => import('pages/admin/users')));
 const AdminUserDetail = Loadable(lazy(() => import('pages/admin/user-detail')));
 const AdminStorage = Loadable(lazy(() => import('pages/admin/storage')));
 const AdminSettings = Loadable(lazy(() => import('pages/admin/settings')));
+const AdminStripePayees = Loadable(lazy(() => import('pages/admin/stripe-payees')));
 const AdminMessages = Loadable(lazy(() => import('pages/admin/messages')));
 const AdminUpcomingFeatures = Loadable(lazy(() => import('pages/admin/upcoming-features')));
 const AdminJobs = Loadable(lazy(() => import('pages/admin/jobs')));
@@ -1281,6 +1282,14 @@ const MainRoutes = {
           element: (
             <AdminRoute>
               <AdminStorage />
+            </AdminRoute>
+          )
+        },
+        {
+          path: 'admin/stripe-payees',
+          element: (
+            <AdminRoute>
+              <AdminStripePayees />
             </AdminRoute>
           )
         },

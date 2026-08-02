@@ -262,9 +262,12 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         public async Task<int> ProcessEligibleTransfersAsync(CancellationToken cancellationToken = default)
         {
-            await ProcessPendingTransferReconciliationsAsync(cancellationToken);
             await ProcessPendingReversalsAsync(cancellationToken);
             if (_configuration.GetValue<bool?>("Stripe:TransfersEnabled") != true) return 0;
+            await ProcessPendingTransferReconciliationsAsync(cancellationToken);
+            // A successful ambiguous-transfer reconciliation can reveal an already-created transfer
+            // that must be reversed immediately because a refund/dispute arrived while its result was unknown.
+            await ProcessPendingReversalsAsync(cancellationToken);
             var now = _timeProvider.GetUtcNow();
             var maxAttempts = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferMaxAttempts") ?? 5);
             var candidates = await _context.StripeRentPayments
@@ -277,8 +280,26 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             {
                 var gate = PaymentLocks.GetOrAdd($"transfer:{candidate.PaymentIntentId}", _ => new SemaphoreSlim(1, 1));
                 await gate.WaitAsync(cancellationToken);
+                var payeeGate = PaymentLocks.GetOrAdd($"transfer-payee:{candidate.DestinationStripeAccountId}", _ => new SemaphoreSlim(1, 1));
+                var payeeGateHeld = false;
+                var sqlPayeeLockHeld = false;
+                var relationalConnectionOpened = false;
                 try
                 {
+                    await payeeGate.WaitAsync(cancellationToken);
+                    payeeGateHeld = true;
+                    if (_context.Database.IsRelational())
+                    {
+                        await _context.Database.OpenConnectionAsync(cancellationToken);
+                        relationalConnectionOpened = true;
+                        var lockResource = $"stripe-transfer-payee:{candidate.DestinationStripeAccountId}";
+                        await _context.Database.ExecuteSqlInterpolatedAsync($@"
+DECLARE @result int;
+EXEC @result = sys.sp_getapplock @Resource={lockResource}, @LockMode='Exclusive', @LockOwner='Session', @LockTimeout=30000;
+IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 1;", cancellationToken);
+                        sqlPayeeLockHeld = true;
+                    }
+
                     await _context.Entry(candidate).ReloadAsync(cancellationToken);
                     now = _timeProvider.GetUtcNow();
                     if (candidate.Status == StripeRentPaymentStatus.Transferred || candidate.TransferAttemptCount >= maxAttempts
@@ -322,6 +343,20 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     try { await _context.SaveChangesAsync(cancellationToken); }
                     catch (DbUpdateConcurrencyException) { _context.Entry(candidate).State = EntityState.Detached; continue; }
 
+                    // Re-run the complete fail-closed gate after source validation and reservation.
+                    // EvaluatePayeeAsync deliberately makes current active Owner/Manager authority
+                    // its final database query, so revocation is checked immediately before Stripe.
+                    var finalDecision = await _risk.EvaluateAsync(candidate, cancellationToken);
+                    if (!finalDecision.Approved)
+                    {
+                        candidate.Status = StripeRentPaymentStatus.Blocked;
+                        candidate.RiskReason = finalDecision.Reason ?? "Final pre-transfer risk check denied transfer.";
+                        candidate.NextTransferAttemptAt = null;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        await _context.SaveChangesAsync(cancellationToken);
+                        continue;
+                    }
+
                     try
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(
@@ -364,7 +399,40 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                         _logger.LogCritical(ex, "Stripe transfer outcome is ambiguous for rent PaymentIntent {PaymentIntentId}; deterministic reconciliation is required", candidate.PaymentIntentId);
                     }
                 }
-                finally { gate.Release(); }
+                finally
+                {
+                    try
+                    {
+                        if (sqlPayeeLockHeld)
+                        {
+                            var lockResource = $"stripe-transfer-payee:{candidate.DestinationStripeAccountId}";
+                            try
+                            {
+                                await _context.Database.ExecuteSqlInterpolatedAsync(
+                                    $"EXEC sys.sp_releaseapplock @Resource={lockResource}, @LockOwner='Session';", CancellationToken.None);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogCritical(ex,
+                                    "Failed to explicitly release the SQL connected-payee transfer lock for {StripeAccountId}; closing the dedicated connection",
+                                    candidate.DestinationStripeAccountId);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (relationalConnectionOpened)
+                                await _context.Database.CloseConnectionAsync();
+                        }
+                        finally
+                        {
+                            if (payeeGateHeld) payeeGate.Release();
+                            gate.Release();
+                        }
+                    }
+                }
             }
             return transferred;
         }
@@ -385,10 +453,57 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 {
                     await _context.Entry(candidate).ReloadAsync(cancellationToken);
                     if (candidate.Status != StripeRentPaymentStatus.TransferReconciliationPending) continue;
+
+                    // Replaying an idempotent create can be the first request Stripe receives after an
+                    // ambiguous network failure. Treat it as transfer creation, not a read-only lookup:
+                    // every live risk, authority, hold, source-charge and destination check must pass again.
+                    var decision = await _risk.EvaluateAsync(candidate, cancellationToken);
+                    if (!decision.Approved)
+                    {
+                        candidate.RiskReason = $"Transfer reconciliation requires operator review: {decision.Reason ?? "fresh risk check denied replay."}";
+                        candidate.NextTransferAttemptAt = null;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogCritical("Blocked replay of ambiguous Stripe transfer {PaymentIntentId}: {Reason}",
+                            candidate.PaymentIntentId, candidate.RiskReason);
+                        continue;
+                    }
+
+                    var source = await _gateway.GetSourceStateAsync(candidate.StripeChargeId!, cancellationToken);
+                    if (!source.Exists || !source.Paid || source.Refunded || source.Disputed
+                        || source.PaymentIntentId != candidate.PaymentIntentId
+                        || source.AmountCents != candidate.AmountCents
+                        || !string.Equals(source.Currency, candidate.Currency, StringComparison.OrdinalIgnoreCase))
+                    {
+                        candidate.RiskReason = "Transfer reconciliation requires operator review: Stripe source charge is no longer eligible or its provenance changed.";
+                        candidate.NextTransferAttemptAt = null;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogCritical("Blocked replay of ambiguous Stripe transfer {PaymentIntentId}: source charge failed fresh validation",
+                            candidate.PaymentIntentId);
+                        continue;
+                    }
+
                     candidate.TransferAttemptCount++;
                     candidate.LastTransferAttemptAt = _timeProvider.GetUtcNow();
                     candidate.NextTransferAttemptAt = null;
                     await _context.SaveChangesAsync(cancellationToken);
+
+                    // The idempotent replay can still be the request that creates the transfer.
+                    // Re-check authority and all live destination controls after source validation
+                    // and immediately before invoking Stripe.
+                    var finalDecision = await _risk.EvaluateAsync(candidate, cancellationToken);
+                    if (!finalDecision.Approved)
+                    {
+                        candidate.RiskReason = $"Transfer reconciliation requires operator review: {finalDecision.Reason ?? "final pre-transfer risk check denied replay."}";
+                        candidate.NextTransferAttemptAt = null;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogCritical("Blocked replay of ambiguous Stripe transfer {PaymentIntentId}: {Reason}",
+                            candidate.PaymentIntentId, candidate.RiskReason);
+                        continue;
+                    }
+
                     try
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(

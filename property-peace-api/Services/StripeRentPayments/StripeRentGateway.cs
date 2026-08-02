@@ -22,7 +22,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         IReadOnlyDictionary<string, string> Metadata);
 
     public sealed record StripeRentSourceState(bool Exists, bool Paid, bool Refunded, bool Disputed,
-        string? FailureReason, string? PaymentIntentId, long? AmountCents, string? Currency);
+        string? FailureReason, string? PaymentIntentId, long? AmountCents, string? Currency,
+        long? RefundedAmountCents = null);
 
     public interface IStripeRentGateway
     {
@@ -75,7 +76,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             {
                 var charge = await new ChargeService().GetAsync(chargeId, cancellationToken: cancellationToken);
                 return new StripeRentSourceState(true, charge.Paid, charge.Refunded, charge.Disputed,
-                    charge.FailureMessage, charge.PaymentIntentId, charge.Amount, charge.Currency);
+                    charge.FailureMessage, charge.PaymentIntentId, charge.Amount, charge.Currency,
+                    charge.AmountRefunded);
             }
             catch (StripeException ex) when (ex.StripeError?.Code == "resource_missing")
             {
