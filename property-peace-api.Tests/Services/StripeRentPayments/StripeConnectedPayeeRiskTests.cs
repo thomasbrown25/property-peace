@@ -520,7 +520,7 @@ public sealed class StripeConnectedPayeeRiskTests
     }
 
     [Fact]
-    public async Task RemediatedSuspension_FreshInstantPayoutSnapshot_RemainsSuspended()
+    public async Task RemediatedSuspension_InstantEligibleBank_CanResumeWhileInstantPayoutAuthorizationRemainsOff()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
         context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
@@ -534,12 +534,11 @@ public sealed class StripeConnectedPayeeRiskTests
 
         await service.SyncStripeSnapshotAsync(new StripeConnectedAccountSnapshot(
             "acct_instant", Now, true, true, true, "active", [], [], null, "fp", "manual", true), null);
-        var act = () => service.BeginReviewAsync("acct_instant");
+        var result = await service.BeginReviewAsync("acct_instant");
 
-        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*fresh healthy Stripe snapshot*");
-        var persisted = context.StripeConnectedPayeeReviews.Single();
-        persisted.Status.Should().Be(StripePayeeReviewStatus.Suspended);
-        persisted.InstantPayoutsAllowed.Should().BeTrue();
+        result.Status.Should().Be(StripePayeeReviewStatus.UnderReview);
+        result.InstantPayoutsAllowed.Should().BeFalse();
+        result.PayoutSchedulePolicy.Should().Be("manual");
     }
 
     [Fact]
@@ -632,7 +631,6 @@ public sealed class StripeConnectedPayeeRiskTests
 
     [Theory]
     [InlineData("daily", false, "manual")]
-    [InlineData("manual", true, "Instant")]
     public async Task PreTransferVerification_LivePayoutControlRegression_SuspendsAndDenies(
         string payoutSchedule, bool instantPayoutsAvailable, string expectedReason)
     {

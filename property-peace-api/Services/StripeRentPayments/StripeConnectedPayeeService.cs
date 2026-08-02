@@ -286,7 +286,11 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             review.PastDueRequirementCount = snapshot.PastDue.Count;
             review.StripeDisabledReason = snapshot.DisabledReason;
             review.PayoutSchedulePolicy = snapshot.PayoutSchedulePolicy?.Trim() ?? "unknown";
-            review.InstantPayoutsAllowed = snapshot.InstantPayoutMethodsAvailable;
+            // Stripe's available_payout_methods reports technical eligibility, not
+            // Property Peace authorization. Property Peace never authorizes instant
+            // payouts; the only money movement implemented here is a platform transfer,
+            // and connected-account payout scheduling must remain manual.
+            review.InstantPayoutsAllowed = false;
             review.LastStripeEventId = eventId;
             // The snapshot is authoritative. Clear stale destination trust when Stripe no
             // longer reports an eligible external account instead of retaining the old value.
@@ -325,8 +329,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 return "Stripe has no eligible payout destination.";
             if (!string.Equals(snapshot.PayoutSchedulePolicy, "manual", StringComparison.OrdinalIgnoreCase))
                 return "Stripe payout schedule is not manual.";
-            if (snapshot.InstantPayoutMethodsAvailable)
-                return "Stripe reports an Instant Payout method; controlled-launch accounts must not be Instant-Payout eligible.";
+            // InstantPayoutMethodsAvailable is Stripe eligibility, not authorization.
+            // Internal authorization remains false and there is no Payout API path.
             return null;
         }
 

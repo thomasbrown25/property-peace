@@ -22,14 +22,14 @@ public sealed class StripeAccountReadinessTests
     private static readonly DateTimeOffset Now = new(2026, 8, 2, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task AccountStatus_FreshCompleteApprovedSnapshot_ReportsOnlyAccountLevelReadiness()
+    public async Task AccountStatus_FreshCompleteApprovedInstantEligibleSnapshot_ReportsOnlyAccountLevelReadiness()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
         AddApprovedReviewAndAuthority(context, "acct_ready", "approved-fingerprint");
         await context.SaveChangesAsync();
         var gateway = new StubGateway(new StripeConnectedAccountSnapshot(
             "acct_ready", Now, true, true, true, "active", [], [], null,
-            "approved-fingerprint", "manual", false, ChargesEnabled: true));
+            "approved-fingerprint", "manual", true, ChargesEnabled: true));
         var service = CreateService(context, gateway);
 
         var response = await service.GetAccountStatusAsync("acct_ready", 42, 2);
@@ -50,7 +50,6 @@ public sealed class StripeAccountReadinessTests
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], null, "changed-fingerprint", "manual", false), "changed"];
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], null, null, "manual", false), "payout destination"];
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], null, "approved-fingerprint", "daily", false), "not manual"];
-        yield return [new StripeConnectedAccountSnapshot("acct_control", Now, true, true, true, "active", [], [], null, "approved-fingerprint", "manual", true), "Instant Payout"];
         yield return [new StripeConnectedAccountSnapshot("acct_control", Now.AddMinutes(-6), true, true, true, "active", [], [], null, "approved-fingerprint", "manual", false), "stale"];
     }
 
