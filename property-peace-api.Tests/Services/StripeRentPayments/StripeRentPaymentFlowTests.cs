@@ -34,6 +34,115 @@ public sealed class StripeRentPaymentFlowTests
     }
 
     [Fact]
+    public async Task CreateAsync_RejectsPayeeWithoutInternalApprovalBeforeStripe()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 44, 9);
+        var gateway = IntentGateway("pi_unapproved");
+        var connectedGateway = new Mock<IStripeConnectedAccountGateway>();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Stripe:RentPaymentsEnabled"] = "true"
+        }).Build();
+        var risk = new StripeRentRiskService(context, connectedGateway.Object, configuration, TimeProvider.System);
+
+        var act = () => CreateService(context, gateway.Object, true, risk).CreateAsync(
+            new(44, 9, 7, "op_unapproved", 125_00, "usd", "acct_unapproved", "July rent"));
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not eligible for rent collection*");
+        gateway.VerifyNoOtherCalls();
+        connectedGateway.VerifyNoOtherCalls();
+        (await context.StripeRentPayments.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ReplayRechecksPayeeEligibilityBeforeStripe()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 44, 9);
+        var gateway = IntentGateway("pi_replay");
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.SetupSequence(x => x.EvaluateCollectionPayeeAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow())
+            .ReturnsAsync(RentTransferRiskDecision.Deny("approval revoked"));
+        var service = CreateService(context, gateway.Object, true, risk.Object);
+        var command = new CreateStripeRentPaymentCommand(
+            44, 9, 7, "op_replay", 125_00, "usd", "acct_replay", "July rent");
+        await service.CreateAsync(command);
+
+        var replay = () => service.CreateAsync(command);
+
+        await replay.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not eligible for rent collection*");
+        gateway.Verify(x => x.CreatePaymentIntentAsync(It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_RechecksPayeeEligibilityBeforeStripe()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 1, 2);
+        var payment = NewPayment("pi_update_denied");
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+        gateway.Setup(x => x.UpdatePaymentIntentAsync(payment.PaymentIntentId, It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeRentIntentResult(payment.PaymentIntentId, "secret"));
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateCollectionPayeeAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Deny("approval revoked"));
+
+        var act = () => CreateService(context, gateway.Object, true, risk.Object)
+            .UpdateAsync(new(payment.PaymentIntentId, payment.LeaseId, payment.TenantUserId, 5_000, null));
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not eligible for rent collection*");
+        gateway.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task CreateAsync_RejectsDestinationThatIsNoLongerAssignedToLease()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 44, 9);
+        await SeedLeaseDestinationAsync(context, 44, 9, "acct_current");
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            UserId = 42,
+            StripeAccountId = "acct_stale",
+            Status = StripePayeeReviewStatus.PayoutApproved,
+            PropertyAuthorityAttested = true,
+            ApprovedOrganizationId = 9,
+            ApprovedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-2),
+            UpdatedAt = DateTimeOffset.UtcNow,
+            ExternalAccountFingerprint = "fp_stale",
+            PayoutSchedulePolicy = "manual"
+        });
+        context.OrganizationMembers.Add(new OrganizationMember
+        {
+            UserId = 42, OrganizationId = 9, Role = "Owner", IsActive = true
+        });
+        await context.SaveChangesAsync();
+        var connectedGateway = new Mock<IStripeConnectedAccountGateway>();
+        connectedGateway.Setup(x => x.GetSnapshotAsync("acct_stale", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeConnectedAccountSnapshot("acct_stale", DateTimeOffset.UtcNow,
+                true, true, true, "active", [], [], null, "fp_stale", "manual", false));
+        var risk = new StripeRentRiskService(context, connectedGateway.Object,
+            new ConfigurationBuilder().Build(), TimeProvider.System);
+        var gateway = IntentGateway("pi_stale_destination");
+
+        var act = () => CreateService(context, gateway.Object, true, risk).CreateAsync(
+            new(44, 9, 7, "op_stale_destination", 125_00, "usd", "acct_stale", "July rent"));
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*not eligible for rent collection*");
+        gateway.VerifyNoOtherCalls();
+        (await context.StripeRentPayments.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task CreateAsync_RejectsAmountAboveOutstandingAndExistingReservationsBeforeStripe()
     {
         await using var context = CreateContext();
@@ -138,6 +247,47 @@ public sealed class StripeRentPaymentFlowTests
         (await verify.StripeRentPayments.CountAsync()).Should().Be(1);
         gateway.Verify(x => x.CreatePaymentIntentAsync(It.Is<StripeRentIntentRequest>(r => r.IdempotencyKey == "rent-payment:op_race"),
             It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task CreateAsync_SerializesCollectionEligibilityAcrossLeasesForSamePayee()
+    {
+        var database = Guid.NewGuid().ToString();
+        await using (var setup = CreateContext(database))
+        {
+            await SeedLeaseAsync(setup, 44, 9);
+            await SeedLeaseDestinationAsync(setup, 44, 9, "acct_shared");
+            await SeedLeaseAsync(setup, 45, 9);
+            await SeedLeaseDestinationAsync(setup, 45, 9, "acct_shared");
+        }
+        var gateway = new Mock<IStripeRentGateway>();
+        gateway.Setup(x => x.CreatePaymentIntentAsync(It.IsAny<StripeRentIntentRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((StripeRentIntentRequest request, CancellationToken _) =>
+                new StripeRentIntentResult($"pi_{request.IdempotencyKey}", "secret"));
+        var risk = new Mock<IStripeRentRiskService>();
+        var inFlight = 0;
+        var maxInFlight = 0;
+        risk.Setup(x => x.EvaluateCollectionPayeeAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                var current = Interlocked.Increment(ref inFlight);
+                int observed;
+                while (current > (observed = Volatile.Read(ref maxInFlight)))
+                    Interlocked.CompareExchange(ref maxInFlight, current, observed);
+                await Task.Delay(75);
+                Interlocked.Decrement(ref inFlight);
+                return RentTransferRiskDecision.Allow();
+            });
+        await using var firstContext = CreateContext(database);
+        await using var secondContext = CreateContext(database);
+
+        await Task.WhenAll(
+            CreateService(firstContext, gateway.Object, true, risk.Object).CreateAsync(
+                new(44, 9, 7, "op_shared_44", 10_000, "usd", "acct_shared", null)),
+            CreateService(secondContext, gateway.Object, true, risk.Object).CreateAsync(
+                new(45, 9, 7, "op_shared_45", 10_000, "usd", "acct_shared", null)));
+
+        maxInFlight.Should().Be(1);
     }
 
     [Fact]
@@ -276,13 +426,46 @@ public sealed class StripeRentPaymentFlowTests
         await context.SaveChangesAsync();
     }
 
+    internal static async Task SeedLeaseDestinationAsync(DataContext context, long leaseId, long organizationId, string stripeAccountId)
+    {
+        var landlord = new User
+        {
+            Id = 10_000 + leaseId,
+            Email = $"landlord-{leaseId}@example.test",
+            StripeAccountEnabled = true,
+            StripeAccountId = stripeAccountId
+        };
+        var property = new Property
+        {
+            Id = 20_000 + leaseId,
+            LandlordId = landlord.Id,
+            Landlord = landlord,
+            OrganizationId = organizationId
+        };
+        context.Units.Add(new Unit
+        {
+            Id = leaseId,
+            PropertyId = property.Id,
+            Property = property,
+            OrganizationId = organizationId
+        });
+        await context.SaveChangesAsync();
+    }
+
     internal static StripeRentPaymentService CreateService(DataContext context, IStripeRentGateway gateway, bool? paymentsEnabled,
         IStripeRentRiskService? risk = null, bool? transfersEnabled = null, TimeProvider? time = null, Dictionary<string, string?>? extras = null)
     {
         var values = extras ?? new Dictionary<string, string?>();
         if (paymentsEnabled.HasValue) values["Stripe:RentPaymentsEnabled"] = paymentsEnabled.Value.ToString();
         if (transfersEnabled.HasValue) values["Stripe:TransfersEnabled"] = transfersEnabled.Value.ToString();
-        return new(context, gateway, risk ?? Mock.Of<IStripeRentRiskService>(), new ConfigurationBuilder().AddInMemoryCollection(values).Build(),
+        if (risk == null)
+        {
+            var permissiveRisk = new Mock<IStripeRentRiskService>();
+            permissiveRisk.Setup(x => x.EvaluateCollectionPayeeAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(RentTransferRiskDecision.Allow());
+            risk = permissiveRisk.Object;
+        }
+        return new(context, gateway, risk, new ConfigurationBuilder().AddInMemoryCollection(values).Build(),
             time ?? TimeProvider.System, Mock.Of<ILogger<StripeRentPaymentService>>());
     }
 

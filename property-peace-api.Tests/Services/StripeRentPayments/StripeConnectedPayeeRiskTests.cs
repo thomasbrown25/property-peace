@@ -347,6 +347,40 @@ public sealed class StripeConnectedPayeeRiskTests
     }
 
     [Fact]
+    public async Task RiskGate_First90Days_CountsCreatedCollectionReservations()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var reserved = StripeRentPaymentFlowTests.NewPayment("pi_created_reservation");
+        reserved.AmountCents = 50_000;
+        reserved.DestinationStripeAccountId = "acct_created_limit";
+        reserved.Status = StripeRentPaymentStatus.Created;
+        context.StripeRentPayments.Add(reserved);
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            UserId = 42, StripeAccountId = "acct_created_limit", Status = StripePayeeReviewStatus.PayoutApproved,
+            PropertyAuthorityAttested = true, ApprovedOrganizationId = 2, ApprovedAt = Now.AddDays(-1),
+            CreatedAt = Now.AddDays(-30), UpdatedAt = Now, ExternalAccountFingerprint = "fp"
+        });
+        AddActiveAuthority(context);
+        await context.SaveChangesAsync();
+        var candidate = StripeRentPaymentFlowTests.NewPayment("pi_created_candidate");
+        candidate.AmountCents = 60_000;
+        candidate.DestinationStripeAccountId = "acct_created_limit";
+        var gateway = new StubSnapshotGateway(new StripeConnectedAccountSnapshot(
+            "acct_created_limit", Now, true, true, true, "active", [], [], null, "fp", "manual", false));
+        var risk = new StripeRentRiskService(context, gateway, Configuration(new Dictionary<string, string?>
+        {
+            ["Stripe:ConnectedPayeeRisk:First90DaysPerPaymentLimitCents"] = "100000",
+            ["Stripe:ConnectedPayeeRisk:First90DaysRollingVolumeLimitCents"] = "100000"
+        }), new FixedTimeProvider(Now));
+
+        var decision = await risk.EvaluatePayeeAsync(candidate);
+
+        decision.Approved.Should().BeFalse();
+        decision.Reason.Should().Contain("rolling-volume");
+    }
+
+    [Fact]
     public async Task Registration_ChangingDestinationAccount_ResetsAllPriorApprovalAndTrust()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
