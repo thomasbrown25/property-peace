@@ -1,4 +1,5 @@
 using AutoMapper;
+using AutoMapper.Internal;
 using brownstone_hub_api.Dtos.Amenity;
 using brownstone_hub_api.Dtos.Client;
 using brownstone_hub_api.Dtos.Image;
@@ -631,6 +632,10 @@ public class AutoMapperProfile : Profile
         CreateMap<DefaultFeature, Dtos.Feature.LoadDefaultFeatureDto>();
         CreateMap<CustomFeature, Dtos.Feature.LoadCustomFeatureDto>();
         CreateMap<Dtos.Feature.CreateCustomFeatureDto, CustomFeature>();
+
+        // Bound recursive mapping depth to prevent attacker-controlled object graphs from
+        // exhausting the process stack (CVE-2026-32933 / GHSA-rvv3-g6hj-g44x).
+        this.Internal().ForAllMaps((_, expression) => expression.MaxDepth(64));
     }
 }
 
