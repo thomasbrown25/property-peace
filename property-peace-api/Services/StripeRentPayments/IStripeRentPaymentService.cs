@@ -52,6 +52,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task<StripeRentPaymentClientResult> CreateAsync(CreateStripeRentPaymentCommand command, CancellationToken cancellationToken = default);
         Task<StripeRentPaymentClientResult> UpdateAsync(UpdateStripeRentPaymentCommand command, CancellationToken cancellationToken = default);
         Task ValidateSucceededAsync(StripeRentPaymentSettlementAuthority authority, CancellationToken cancellationToken = default);
+        Task<string> ResolveSucceededPaymentMethodTypeAsync(string paymentIntentId, CancellationToken cancellationToken = default);
         Task MarkSucceededAsync(StripeRentPaymentSucceeded succeeded, CancellationToken cancellationToken = default);
         Task MarkFailedAsync(string paymentIntentId, string reason, CancellationToken cancellationToken = default);
         Task MarkCanceledAsync(string paymentIntentId, string reason, CancellationToken cancellationToken = default);

@@ -977,13 +977,15 @@ namespace brownstone_hub_api.Services.StripeService
                 paymentIntent.Id, paymentIntent.LatestChargeId, paymentIntent.Amount,
                 paymentIntent.Currency, leaseId, organizationId, tenantUserId, operationId, settledAt.UtcDateTime);
             await _stripeRentPaymentService.ValidateSucceededAsync(authority);
+            var authoritativePaymentMethodType = await _stripeRentPaymentService
+                .ResolveSucceededPaymentMethodTypeAsync(paymentIntent.Id);
 
             _logger.LogInformation("payment_intent.succeeded: Validated rent payment {PaymentIntentId} for lease {LeaseId}", paymentIntent.Id, leaseId);
 
             // Allocate the verified charge as one rent-only accounting row. The allocation service
             // serializes by intent and commits the row plus durable completion marker atomically.
             await _stripeRentAllocationService.AllocateAsync(new StripeRentAllocationCommand(
-                authority, paymentIntent.PaymentMethodId, "resolved-from-charge", settledAt));
+                authority, paymentIntent.PaymentMethodId, authoritativePaymentMethodType, settledAt));
 
             var completedPayments = await _context.Payments
                 .Where(p => p.LeaseId == leaseId && (p.StripePaymentIntentId == paymentIntent.Id || p.Reference == paymentIntent.Id))
@@ -999,7 +1001,7 @@ namespace brownstone_hub_api.Services.StripeService
             }
             await _context.SaveChangesAsync();
             await _stripeRentPaymentService.MarkSucceededAsync(new StripeRentPaymentSucceeded(
-                paymentIntent.Id, paymentIntent.LatestChargeId, "resolved-from-charge", settledAt));
+                paymentIntent.Id, paymentIntent.LatestChargeId, authoritativePaymentMethodType, settledAt));
             _logger.LogInformation("payment_intent.succeeded: Successfully allocated {Amount} cents as rent for lease {LeaseId}", paymentIntent.Amount, leaseId);
         }
 
@@ -1076,6 +1078,19 @@ namespace brownstone_hub_api.Services.StripeService
                 return;
             }
 
+            var aggregate = await _context.StripeRentPayments.AsNoTracking()
+                .SingleOrDefaultAsync(p => p.PaymentIntentId == dispute.PaymentIntentId);
+            if (aggregate == null)
+            {
+                _logger.LogInformation("charge.dispute.created: PaymentIntent {PaymentIntentId} is not a durable rent payment; skipping rent mutation", dispute.PaymentIntentId);
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(dispute.ChargeId)
+                || string.IsNullOrWhiteSpace(aggregate.StripeChargeId)
+                || !string.Equals(dispute.ChargeId, aggregate.StripeChargeId, StringComparison.Ordinal))
+                throw new InvalidOperationException($"Dispute {dispute.Id} charge provenance does not match the durable rent payment.");
+
+            var priorDisputeId = aggregate.StripeDisputeId;
             var occurredAt = new DateTimeOffset(stripeEvent.Created);
             await _stripeRentPaymentService.MarkBlockedAsync(dispute.PaymentIntentId, dispute.ChargeId,
                 StripeRentPaymentBlockKind.Dispute, dispute.Id,
@@ -1095,9 +1110,12 @@ namespace brownstone_hub_api.Services.StripeService
                 payment.UpdatedAt = occurredAt.UtcDateTime;
             }
             await _context.SaveChangesAsync();
-            foreach (var payment in payments)
-                await NotifyTenantPaymentStatusChangedAsync(payment, "Disputed",
-                    "A previously completed bank payment was returned or disputed. The amount has been added back to the balance.");
+            if (!string.Equals(priorDisputeId, dispute.Id, StringComparison.Ordinal))
+            {
+                foreach (var payment in payments)
+                    await NotifyTenantPaymentStatusChangedAsync(payment, "Disputed",
+                        "A previously completed bank payment was returned or disputed. The amount has been added back to the balance.");
+            }
 
             _logger.LogWarning("charge.dispute.created: Applied exact loss accounting to {Count} payment record(s) for PaymentIntent {PaymentIntentId}, Dispute {DisputeId}",
                 payments.Count, dispute.PaymentIntentId, dispute.Id);

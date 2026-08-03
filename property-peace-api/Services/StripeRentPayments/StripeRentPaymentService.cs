@@ -152,6 +152,33 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 throw new InvalidOperationException("Succeeded rent PaymentIntent does not match its durable server authority.");
         }
 
+        public async Task<string> ResolveSucceededPaymentMethodTypeAsync(string paymentIntentId,
+            CancellationToken cancellationToken = default)
+        {
+            var payment = await _context.StripeRentPayments.SingleOrDefaultAsync(
+                x => x.PaymentIntentId == paymentIntentId, cancellationToken)
+                ?? throw new InvalidOperationException("Succeeded rent PaymentIntent has no durable aggregate.");
+            if (!string.IsNullOrWhiteSpace(payment.PaymentMethodType))
+                return payment.PaymentMethodType;
+
+            var paymentMethodType = await _gateway.GetPaymentMethodTypeAsync(paymentIntentId, cancellationToken);
+            if (paymentMethodType is not ("card" or "us_bank_account"))
+            {
+                payment.Status = StripeRentPaymentStatus.Blocked;
+                payment.RiskReason = $"Unsupported or unknown authoritative payment method '{paymentMethodType ?? "unknown"}'.";
+                payment.TransferEligibleAt = null;
+                payment.NextTransferAttemptAt = null;
+                payment.UpdatedAt = _timeProvider.GetUtcNow();
+                await _context.SaveChangesAsync(cancellationToken);
+                throw new InvalidOperationException("Succeeded rent PaymentIntent has an unsupported or unknown authoritative payment method.");
+            }
+
+            payment.PaymentMethodType = paymentMethodType;
+            payment.UpdatedAt = _timeProvider.GetUtcNow();
+            await _context.SaveChangesAsync(cancellationToken);
+            return paymentMethodType;
+        }
+
         public async Task MarkSucceededAsync(StripeRentPaymentSucceeded succeeded, CancellationToken cancellationToken = default)
         {
             var payment = await _context.StripeRentPayments.SingleOrDefaultAsync(x => x.PaymentIntentId == succeeded.PaymentIntentId, cancellationToken);
@@ -167,7 +194,9 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             if (allocated != payment.AmountCents / 100m)
                 throw new InvalidOperationException("Succeeded rent payment cannot be held until its authoritative allocation is complete.");
 
-            var actualPaymentMethodType = await _gateway.GetPaymentMethodTypeAsync(payment.PaymentIntentId, cancellationToken) ?? "unknown";
+            var actualPaymentMethodType = payment.PaymentMethodType
+                ?? await _gateway.GetPaymentMethodTypeAsync(payment.PaymentIntentId, cancellationToken)
+                ?? "unknown";
             payment.StripeChargeId = succeeded.StripeChargeId;
             payment.PaymentMethodType = actualPaymentMethodType;
             payment.HeldAt = succeeded.SucceededAt;

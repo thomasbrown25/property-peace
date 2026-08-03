@@ -1,8 +1,10 @@
 using System.Security.Claims;
+using System.Reflection;
 using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.StripeRentPayments;
 using FluentAssertions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +15,23 @@ namespace brownstone_hub_api.Tests.Controllers;
 
 public sealed class StripePayeeReviewControllerTests
 {
+    [Fact]
+    public void Approve_RequiresExistingAdminAuthorizationMetadata()
+    {
+        var controllerType = typeof(StripePayeeReviewController);
+        var action = controllerType.GetMethod(nameof(StripePayeeReviewController.Approve));
+
+        action.Should().NotBeNull();
+        var approveAction = action!;
+        var authorization = controllerType.GetCustomAttributes<AuthorizeAttribute>(inherit: true)
+            .Concat(approveAction.GetCustomAttributes<AuthorizeAttribute>(inherit: true))
+            .ToList();
+
+        authorization.Should().ContainSingle(attribute => attribute.Roles == "Admin");
+        controllerType.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true).Should().BeEmpty();
+        approveAction.GetCustomAttributes<AllowAnonymousAttribute>(inherit: true).Should().BeEmpty();
+    }
+
     [Fact]
     public async Task BeginReview_RefreshesAndPersistsAuthoritativeStripeSnapshotBeforeReviewing()
     {
