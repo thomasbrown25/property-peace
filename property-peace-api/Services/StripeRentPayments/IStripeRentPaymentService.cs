@@ -70,6 +70,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
     public interface IStripeRentRiskService
     {
         Task<RentTransferRiskDecision> EvaluateAsync(StripeRentPayment payment, CancellationToken cancellationToken = default);
+        Task<RentTransferRiskDecision> EvaluatePayeeAsync(StripeRentPayment payment, CancellationToken cancellationToken = default);
+        Task<RentTransferRiskDecision> EvaluateCollectionPayeeAsync(StripeRentPayment payment, CancellationToken cancellationToken = default);
     }
 
     public sealed class StripeRentRiskService : IStripeRentRiskService
@@ -152,6 +154,29 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             return RentTransferRiskDecision.Allow();
         }
 
+        public async Task<RentTransferRiskDecision> EvaluateCollectionPayeeAsync(StripeRentPayment payment,
+            CancellationToken cancellationToken = default)
+        {
+            var payeeDecision = await EvaluatePayeeAsync(payment, cancellationToken);
+            if (!payeeDecision.Approved) return payeeDecision;
+
+            var currentLeaseDestination = await context.Leases
+                .Where(l => l.Id == payment.LeaseId && l.OrganizationId == payment.OrganizationId && !l.IsDeleted && l.IsActive)
+                .Select(l => l.OperatingAccount != null && l.OperatingAccount.IsActive
+                    ? l.OperatingAccount.StripeAccountId
+                    : l.Unit.Property.OperatingAccount != null && l.Unit.Property.OperatingAccount.IsActive
+                        ? l.Unit.Property.OperatingAccount.StripeAccountId
+                        : l.Unit.Property.Landlord.StripeAccountEnabled && !l.Unit.Property.Landlord.IsDeleted
+                            ? l.Unit.Property.Landlord.StripeAccountId
+                            : null)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(currentLeaseDestination)
+                || !string.Equals(currentLeaseDestination, payment.DestinationStripeAccountId, StringComparison.Ordinal))
+                return RentTransferRiskDecision.Deny("The connected payee is no longer the active destination for this lease.");
+
+            return RentTransferRiskDecision.Allow();
+        }
+
         public async Task<RentTransferRiskDecision> EvaluatePayeeAsync(StripeRentPayment payment, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(payment.DestinationStripeAccountId))
@@ -223,7 +248,9 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 var transferredOrReservedVolume = await context.StripeRentPayments
                     .Where(x => x.Id != payment.Id
                         && x.DestinationStripeAccountId == payment.DestinationStripeAccountId
-                        && ((x.StripeTransferId != null && x.TransferredAt != null && x.TransferredAt >= windowStart)
+                        && (x.Status == StripeRentPaymentStatus.Created
+                            || (x.StripeChargeId != null && x.HeldAt != null && x.HeldAt >= windowStart)
+                            || (x.StripeTransferId != null && x.TransferredAt != null && x.TransferredAt >= windowStart)
                             || x.Status == StripeRentPaymentStatus.TransferPending
                             || x.Status == StripeRentPaymentStatus.TransferReconciliationPending))
                     .SumAsync(x => x.AmountCents, cancellationToken);

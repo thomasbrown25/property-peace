@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Utils;
@@ -40,18 +42,26 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             if (string.IsNullOrWhiteSpace(command.DestinationStripeAccountId))
                 throw new ArgumentException("A destination account is required.");
 
-            var gate = PaymentLocks.GetOrAdd($"lease:{command.LeaseId}", _ => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync(cancellationToken);
+            var leaseGate = PaymentLocks.GetOrAdd($"lease:{command.LeaseId}", _ => new SemaphoreSlim(1, 1));
+            var payeeGate = PaymentLocks.GetOrAdd($"payee:{command.DestinationStripeAccountId}", _ => new SemaphoreSlim(1, 1));
+            await leaseGate.WaitAsync(cancellationToken);
+            var payeeGateAcquired = false;
             IDbContextTransaction? transaction = null;
             try
             {
-                transaction = await BeginLeaseReservationTransactionAsync(command.LeaseId, cancellationToken);
+                await payeeGate.WaitAsync(cancellationToken);
+                payeeGateAcquired = true;
+                transaction = await BeginCollectionReservationTransactionAsync(command.LeaseId,
+                    command.DestinationStripeAccountId, cancellationToken);
                 var existing = await _context.StripeRentPayments.SingleOrDefaultAsync(x => x.OperationId == command.OperationId, cancellationToken);
                 var request = BuildIntentRequest(command.OperationId, command.LeaseId, command.OrganizationId, command.TenantUserId,
                     command.AmountCents, command.Currency, command.Description);
                 if (existing != null)
                 {
                     EnsureReplayMatches(existing, command);
+                    await EnsureCollectionPayeeEligibleAsync(existing.Id, existing.LeaseId, existing.OrganizationId,
+                        existing.TenantUserId, existing.AmountCents, existing.Currency,
+                        existing.DestinationStripeAccountId, cancellationToken);
                     var replay = await _gateway.CreatePaymentIntentAsync(request, cancellationToken);
                     if (replay.PaymentIntentId != existing.PaymentIntentId)
                         throw new InvalidOperationException("Stripe idempotency response does not match the registered payment intent.");
@@ -61,6 +71,9 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
                 await EnsureAmountAvailableAsync(command.LeaseId, command.OrganizationId, command.TenantUserId,
                     command.AmountCents, null, cancellationToken);
+                await EnsureCollectionPayeeEligibleAsync(0, command.LeaseId, command.OrganizationId,
+                    command.TenantUserId, command.AmountCents, command.Currency,
+                    command.DestinationStripeAccountId, cancellationToken);
                 var result = await _gateway.CreatePaymentIntentAsync(request, cancellationToken);
                 var now = _timeProvider.GetUtcNow();
                 _context.StripeRentPayments.Add(new StripeRentPayment
@@ -84,7 +97,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             finally
             {
                 if (transaction != null) await transaction.DisposeAsync();
-                gate.Release();
+                if (payeeGateAcquired) payeeGate.Release();
+                leaseGate.Release();
             }
         }
 
@@ -98,12 +112,17 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             if (registered.LeaseId != command.LeaseId || registered.TenantUserId != command.TenantUserId)
                 throw new UnauthorizedAccessException("Rent PaymentIntent does not belong to this tenant and lease.");
 
-            var gate = PaymentLocks.GetOrAdd($"lease:{registered.LeaseId}", _ => new SemaphoreSlim(1, 1));
-            await gate.WaitAsync(cancellationToken);
+            var leaseGate = PaymentLocks.GetOrAdd($"lease:{registered.LeaseId}", _ => new SemaphoreSlim(1, 1));
+            var payeeGate = PaymentLocks.GetOrAdd($"payee:{registered.DestinationStripeAccountId}", _ => new SemaphoreSlim(1, 1));
+            await leaseGate.WaitAsync(cancellationToken);
+            var payeeGateAcquired = false;
             IDbContextTransaction? transaction = null;
             try
             {
-                transaction = await BeginLeaseReservationTransactionAsync(registered.LeaseId, cancellationToken);
+                await payeeGate.WaitAsync(cancellationToken);
+                payeeGateAcquired = true;
+                transaction = await BeginCollectionReservationTransactionAsync(registered.LeaseId,
+                    registered.DestinationStripeAccountId, cancellationToken);
                 var payment = await _context.StripeRentPayments.SingleOrDefaultAsync(x => x.PaymentIntentId == command.PaymentIntentId, cancellationToken)
                     ?? throw new InvalidOperationException("Rent PaymentIntent is not registered.");
                 if (payment.LeaseId != command.LeaseId || payment.TenantUserId != command.TenantUserId)
@@ -113,6 +132,9 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
                 await EnsureAmountAvailableAsync(payment.LeaseId, payment.OrganizationId, payment.TenantUserId,
                     command.AmountCents, payment.Id, cancellationToken);
+                await EnsureCollectionPayeeEligibleAsync(payment.Id, payment.LeaseId, payment.OrganizationId,
+                    payment.TenantUserId, command.AmountCents, payment.Currency,
+                    payment.DestinationStripeAccountId, cancellationToken);
                 var request = BuildIntentRequest(payment.OperationId, payment.LeaseId, payment.OrganizationId, payment.TenantUserId,
                     command.AmountCents, payment.Currency, command.Description);
                 var result = await _gateway.UpdatePaymentIntentAsync(payment.PaymentIntentId, request, cancellationToken);
@@ -127,7 +149,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             finally
             {
                 if (transaction != null) await transaction.DisposeAsync();
-                gate.Release();
+                if (payeeGateAcquired) payeeGate.Release();
+                leaseGate.Release();
             }
         }
 
@@ -889,15 +912,22 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
             }
         }
 
-        private async Task<IDbContextTransaction?> BeginLeaseReservationTransactionAsync(long leaseId, CancellationToken cancellationToken)
+        private async Task<IDbContextTransaction?> BeginCollectionReservationTransactionAsync(long leaseId,
+            string destinationStripeAccountId, CancellationToken cancellationToken)
         {
             if (!_context.Database.IsRelational()) return null;
 
             var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
             try
             {
-                var resource = $"stripe-rent-reservation:lease:{leaseId}";
-                await _context.Database.ExecuteSqlInterpolatedAsync($@"
+                var resources = new[]
+                {
+                    $"stripe-rent-reservation:lease:{leaseId}",
+                    $"stripe-rent-reservation:payee:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(destinationStripeAccountId)))}"
+                };
+                foreach (var resource in resources)
+                {
+                    await _context.Database.ExecuteSqlInterpolatedAsync($@"
 DECLARE @lockResult int;
 EXEC @lockResult = sys.sp_getapplock
     @Resource = {resource},
@@ -906,6 +936,7 @@ EXEC @lockResult = sys.sp_getapplock
     @LockTimeout = 15000;
 IF @lockResult < 0
     THROW 51000, 'Could not acquire the rent-payment reservation lock.', 1;", cancellationToken);
+                }
                 return transaction;
             }
             catch
@@ -958,6 +989,28 @@ IF @lockResult < 0
         private void EnsurePaymentsEnabled()
         {
             if (_configuration.GetValue<bool?>("Stripe:RentPaymentsEnabled") != true) throw new RentPaymentsDisabledException();
+        }
+
+        private async Task EnsureCollectionPayeeEligibleAsync(long paymentId, long leaseId, long organizationId,
+            long tenantUserId, long amountCents, string currency, string destinationStripeAccountId,
+            CancellationToken cancellationToken)
+        {
+            var decision = await _risk.EvaluateCollectionPayeeAsync(new StripeRentPayment
+            {
+                Id = paymentId,
+                LeaseId = leaseId,
+                OrganizationId = organizationId,
+                TenantUserId = tenantUserId,
+                AmountCents = amountCents,
+                Currency = currency,
+                DestinationStripeAccountId = destinationStripeAccountId
+            }, cancellationToken);
+            if (decision.Approved) return;
+
+            _logger.LogWarning(
+                "Blocked rent collection for lease {LeaseId}, organization {OrganizationId}, destination {DestinationStripeAccountId}: {Reason}",
+                leaseId, organizationId, destinationStripeAccountId, decision.Reason ?? "Connected payee eligibility was denied.");
+            throw new InvalidOperationException("The lease's connected payee is not eligible for rent collection.");
         }
 
         private static void ValidateMoney(long amountCents, string currency)
