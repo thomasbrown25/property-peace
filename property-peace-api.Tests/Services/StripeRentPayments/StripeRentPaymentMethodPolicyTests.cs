@@ -61,6 +61,26 @@ public sealed class StripeRentPaymentMethodPolicyTests
     }
 
     [Fact]
+    public void TransferFailureClassification_PausesCachedParameterMismatchAndKeepsInFlightKeyUseAmbiguous()
+    {
+        var definitiveMethod = typeof(StripeRentGateway).GetMethod(
+            "IsDefinitiveTransferFailure", BindingFlags.NonPublic | BindingFlags.Static);
+        var reviewMethod = typeof(StripeRentGateway).GetMethod(
+            "RequiresTransferOperatorReview", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(definitiveMethod);
+        Assert.NotNull(reviewMethod);
+        bool Definitive(StripeError error) => Assert.IsType<bool>(definitiveMethod.Invoke(null, new object?[] { error }));
+        bool Review(StripeError error) => Assert.IsType<bool>(reviewMethod.Invoke(null, new object?[] { error }));
+
+        Assert.True(Review(new StripeError { Type = "idempotency_error" }));
+        Assert.False(Definitive(new StripeError { Type = "idempotency_error" }));
+        Assert.True(Definitive(new StripeError { Code = "balance_insufficient", Type = "invalid_request_error" }));
+        Assert.False(Review(new StripeError { Code = "idempotency_key_in_use", Type = "idempotency_error" }));
+        Assert.False(Definitive(new StripeError { Code = "idempotency_key_in_use", Type = "idempotency_error" }));
+        Assert.False(Review(new StripeError { Type = "api_error" }));
+    }
+
+    [Fact]
     public void TransferOptions_WithSourceTransaction_DoNotRepeatTransferGroup()
     {
         var method = typeof(StripeRentGateway).GetMethod(

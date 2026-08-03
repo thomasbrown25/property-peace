@@ -429,6 +429,24 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                         await _context.SaveChangesAsync(cancellationToken);
                         transferred++;
                     }
+                    catch (StripeRentTransferOperatorReviewException ex)
+                    {
+                        await _context.Entry(candidate).ReloadAsync(cancellationToken);
+                        candidate.LastTransferError = ex.Message;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        if (string.IsNullOrWhiteSpace(candidate.StripeTransferId)
+                            && !IsTerminalTransferRecoveryState(candidate.Status))
+                        {
+                            candidate.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+                            candidate.TransferReconciliationPaused = true;
+                            candidate.NextTransferAttemptAt = null;
+                            candidate.RiskReason = "Stripe rejected the durable idempotency key because request parameters differ; the original outcome is unknown and requires operator reconciliation.";
+                        }
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogCritical(ex,
+                            "Paused Stripe transfer {PaymentIntentId} because its durable idempotency key requires operator reconciliation",
+                            candidate.PaymentIntentId);
+                    }
                     catch (StripeRentTransferDefinitiveException ex)
                     {
                         await _context.Entry(candidate).ReloadAsync(cancellationToken);
@@ -653,6 +671,24 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
                         }
                         candidate.UpdatedAt = _timeProvider.GetUtcNow();
                         await _context.SaveChangesAsync(cancellationToken);
+                    }
+                    catch (StripeRentTransferOperatorReviewException ex)
+                    {
+                        await _context.Entry(candidate).ReloadAsync(cancellationToken);
+                        candidate.LastTransferError = ex.Message;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        if (string.IsNullOrWhiteSpace(candidate.StripeTransferId)
+                            && !IsTerminalTransferRecoveryState(candidate.Status))
+                        {
+                            candidate.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+                            candidate.TransferReconciliationPaused = true;
+                            candidate.NextTransferAttemptAt = null;
+                            candidate.RiskReason = "Stripe rejected the durable idempotency key because request parameters differ; the original outcome is unknown and requires operator reconciliation.";
+                        }
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogCritical(ex,
+                            "Paused Stripe transfer reconciliation {PaymentIntentId} because its durable idempotency key has an unknown original outcome",
+                            candidate.PaymentIntentId);
                     }
                     catch (StripeRentTransferDefinitiveException ex)
                     {

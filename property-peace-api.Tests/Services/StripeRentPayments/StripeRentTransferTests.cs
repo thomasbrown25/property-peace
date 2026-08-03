@@ -513,6 +513,34 @@ public sealed class StripeRentTransferTests
     }
 
     [Fact]
+    public async Task ProcessEligibleAsync_WhenStripeReportsIdempotencyParameterMismatch_PausesWithoutRotatingKey()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeRentPayments.Add(HeldPayment(DateTimeOffset.UtcNow.AddDays(-1)));
+        await context.SaveChangesAsync();
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        gateway.Setup(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new StripeRentTransferOperatorReviewException("idempotency_error", "parameters differ"));
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        await service.ProcessEligibleTransfersAsync();
+        await service.ProcessEligibleTransfersAsync();
+
+        context.ChangeTracker.Clear();
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.TransferReconciliationPending);
+        stored.TransferReconciliationPaused.Should().BeTrue();
+        stored.TransferAttemptCount.Should().Be(1);
+        stored.TransferIdempotencyKey.Should().Be("rent-transfer:pi_transfer:attempt:1");
+        stored.NextTransferAttemptAt.Should().BeNull();
+        gateway.Verify(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ProcessEligibleAsync_WhenBlockArrivesDuringTransfer_PersistsTransferAndQueuesReversal()
     {
         var database = Guid.NewGuid().ToString();

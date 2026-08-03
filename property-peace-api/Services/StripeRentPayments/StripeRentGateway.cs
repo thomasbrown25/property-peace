@@ -33,6 +33,12 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         public string Code { get; } = code;
     }
 
+    public sealed class StripeRentTransferOperatorReviewException(string code, string message, Exception? innerException = null)
+        : Exception(message, innerException)
+    {
+        public string Code { get; } = code;
+    }
+
     public interface IStripeRentGateway
     {
         Task<StripeRentIntentResult> CreatePaymentIntentAsync(StripeRentIntentRequest request, CancellationToken cancellationToken = default);
@@ -133,13 +139,27 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
                 return transfer.Id;
             }
-            catch (StripeException ex) when (string.Equals(ex.StripeError?.Code, "balance_insufficient", StringComparison.Ordinal))
+            catch (StripeException ex) when (RequiresTransferOperatorReview(ex.StripeError))
             {
-                // Stripe executed and definitively rejected this request. Its idempotency response is
-                // cached, so replaying the same key can never succeed after the balance is replenished.
-                throw new StripeRentTransferDefinitiveException(ex.StripeError?.Code ?? "balance_insufficient", ex.Message, ex);
+                // A parameter mismatch proves only that this replay was rejected; the original request
+                // under the key may still have succeeded. Never rotate automatically or risk a duplicate.
+                var code = ex.StripeError?.Code ?? ex.StripeError?.Type ?? "idempotency_reconciliation_required";
+                throw new StripeRentTransferOperatorReviewException(code, ex.Message, ex);
+            }
+            catch (StripeException ex) when (IsDefinitiveTransferFailure(ex.StripeError))
+            {
+                // Stripe definitively rejected this request and cached the no-transfer response.
+                var code = ex.StripeError?.Code ?? "definitive_transfer_rejection";
+                throw new StripeRentTransferDefinitiveException(code, ex.Message, ex);
             }
         }
+
+        internal static bool IsDefinitiveTransferFailure(StripeError? error) =>
+            string.Equals(error?.Code, "balance_insufficient", StringComparison.Ordinal);
+
+        internal static bool RequiresTransferOperatorReview(StripeError? error) =>
+            !string.Equals(error?.Code, "idempotency_key_in_use", StringComparison.Ordinal)
+            && string.Equals(error?.Type, "idempotency_error", StringComparison.Ordinal);
 
         private static TransferCreateOptions BuildTransferCreateOptions(StripeRentTransferRequest request) => new()
         {
