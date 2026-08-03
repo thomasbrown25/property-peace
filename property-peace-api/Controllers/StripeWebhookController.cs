@@ -76,13 +76,15 @@ namespace brownstone_hub_api.Controllers
                 Request.Method, Request.ContentType);
 
             var webhookSecret = _configuration["Stripe:WebhookSecret"];
+            var connectWebhookSecret = _configuration["Stripe:ConnectWebhookSecret"];
             if (string.IsNullOrWhiteSpace(webhookSecret))
             {
                 _logger.LogError("Webhook secret is not configured");
                 return BadRequest(new { Message = "Webhook secret not configured" });
             }
 
-            _logger.LogInformation("Webhook secret loaded successfully (length: {Length})", webhookSecret.Length);
+            _logger.LogInformation("Webhook signing configuration loaded successfully (secret count: {SecretCount})",
+                string.IsNullOrWhiteSpace(connectWebhookSecret) || connectWebhookSecret == webhookSecret ? 1 : 2);
 
             var signatureHeader = Request.Headers["Stripe-Signature"].ToString();
             if (string.IsNullOrEmpty(signatureHeader))
@@ -118,8 +120,18 @@ namespace brownstone_hub_api.Controllers
 
             try
             {
-                var stripeEvent = EventUtility.ConstructEvent(
-                    json, signatureHeader, webhookSecret, throwOnApiVersionMismatch: false);
+                Event stripeEvent;
+                try
+                {
+                    stripeEvent = EventUtility.ConstructEvent(
+                        json, signatureHeader, webhookSecret, throwOnApiVersionMismatch: false);
+                }
+                catch (StripeException) when (!string.IsNullOrWhiteSpace(connectWebhookSecret)
+                                              && connectWebhookSecret != webhookSecret)
+                {
+                    stripeEvent = EventUtility.ConstructEvent(
+                        json, signatureHeader, connectWebhookSecret, throwOnApiVersionMismatch: false);
+                }
 
                 _logger.LogInformation("Successfully received Stripe webhook event: {EventType}, ID: {EventId}, Created: {Created}",
                     stripeEvent.Type, stripeEvent.Id, stripeEvent.Created);

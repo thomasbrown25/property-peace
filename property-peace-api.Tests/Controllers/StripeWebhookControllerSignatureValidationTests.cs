@@ -27,6 +27,7 @@ public sealed class StripeWebhookControllerSignatureValidationTests
     }
 
     private const string WebhookSecret = "whsec_signature_validation_test_secret";
+    private const string ConnectWebhookSecret = "whsec_connect_signature_validation_test_secret";
     private const string WrongWebhookSecret = "whsec_wrong_signature_validation_secret";
 
     [Fact]
@@ -75,6 +76,25 @@ public sealed class StripeWebhookControllerSignatureValidationTests
     }
 
     [Fact]
+    public async Task HandleWebhook_SignatureFromConnectSecret_DispatchesRequest()
+    {
+        await using var context = CreateContext();
+        var service = new Mock<IStripeWebhookService>(MockBehavior.Strict);
+        service.Setup(x => x.HandlePaymentIntentSucceededAsync(It.IsAny<Stripe.Event>()))
+            .Returns(Task.CompletedTask);
+        var payload = CreatePayload("evt_connect_secret");
+        var controller = CreateController(service.Object, context, payload,
+            CreateSignature(payload, ConnectWebhookSecret, DateTimeOffset.UtcNow),
+            ConnectWebhookSecret);
+
+        var result = await controller.HandleWebhook();
+
+        result.Should().BeOfType<OkObjectResult>();
+        service.Verify(x => x.HandlePaymentIntentSucceededAsync(
+            It.Is<Stripe.Event>(e => e.Id == "evt_connect_secret")), Times.Once);
+    }
+
+    [Fact]
     public async Task HandleWebhook_PayloadAlteredAfterSigning_RejectsRequestWithoutDispatching()
     {
         await using var context = CreateContext();
@@ -112,12 +132,14 @@ public sealed class StripeWebhookControllerSignatureValidationTests
         IStripeWebhookService service,
         DataContext context,
         string payload,
-        string? signature = null)
+        string? signature = null,
+        string? connectWebhookSecret = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Stripe:WebhookSecret"] = WebhookSecret
+                ["Stripe:WebhookSecret"] = WebhookSecret,
+                ["Stripe:ConnectWebhookSecret"] = connectWebhookSecret
             })
             .Build();
         var controller = new StripeWebhookController(
