@@ -36,4 +36,20 @@ public sealed class StripeRentPaymentMethodPolicyTests
         Assert.Null(options.TransferData);
         Assert.Null(options.ApplicationFeeAmount);
     }
+
+    [Fact]
+    public void TransferOptions_WithSourceTransaction_DoNotRepeatTransferGroup()
+    {
+        var method = typeof(StripeRentGateway).GetMethod(
+            "BuildTransferCreateOptions", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+        var request = new StripeRentTransferRequest(100, "usd", "acct_test", "ch_test", "rent:1", "transfer:1",
+            new Dictionary<string, string> { ["leaseId"] = "1" });
+
+        var options = Assert.IsType<TransferCreateOptions>(method.Invoke(null, new object[] { request }));
+
+        Assert.Equal("ch_test", options.SourceTransaction);
+        Assert.Null(options.TransferGroup);
+        Assert.Equal("acct_test", options.Destination);
+    }
 }

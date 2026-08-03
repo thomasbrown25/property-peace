@@ -96,17 +96,20 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         public async Task<string> CreateTransferAsync(StripeRentTransferRequest request, CancellationToken cancellationToken = default)
         {
-            var transfer = await new TransferService().CreateAsync(new TransferCreateOptions
-            {
-                Amount = request.AmountCents,
-                Currency = request.Currency,
-                Destination = request.DestinationStripeAccountId,
-                SourceTransaction = request.SourceTransaction,
-                TransferGroup = request.TransferGroup,
-                Metadata = new Dictionary<string, string>(request.Metadata)
-            }, new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
+            var transfer = await new TransferService().CreateAsync(BuildTransferCreateOptions(request),
+                new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
             return transfer.Id;
         }
+
+        private static TransferCreateOptions BuildTransferCreateOptions(StripeRentTransferRequest request) => new()
+        {
+            Amount = request.AmountCents,
+            Currency = request.Currency,
+            Destination = request.DestinationStripeAccountId,
+            SourceTransaction = request.SourceTransaction,
+            // Stripe inherits the source charge's transfer group. Sending it again is rejected.
+            Metadata = new Dictionary<string, string>(request.Metadata)
+        };
 
         public async Task<string> CreateTransferReversalAsync(string transferId, long amountCents, string idempotencyKey, CancellationToken cancellationToken = default)
         {
