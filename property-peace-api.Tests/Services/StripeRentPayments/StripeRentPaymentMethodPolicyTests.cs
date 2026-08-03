@@ -1,4 +1,6 @@
 using brownstone_hub_api.Services.StripeRentPayments;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Stripe;
 using System.Reflection;
 using Xunit;
@@ -7,6 +9,27 @@ namespace brownstone_hub_api.Tests.Services.StripeRentPayments;
 
 public sealed class StripeRentPaymentMethodPolicyTests
 {
+    [Fact]
+    public void ConfigurationConstructor_BindsExplicitStripeClientBeforeWorkerRequests()
+    {
+        const string apiKey = "sk_test_rent_gateway_constructor";
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Stripe:SecretKey"] = apiKey })
+            .Build();
+        var method = typeof(StripeRentGateway).GetMethod(
+            "BuildStripeClient", BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(method);
+        var client = Assert.IsAssignableFrom<IStripeClient>(method.Invoke(null, new object[] { configuration }));
+        Assert.Equal(apiKey, client.ApiKey);
+
+        using var provider = new ServiceCollection()
+            .AddSingleton<IConfiguration>(configuration)
+            .AddScoped<StripeRentGateway>()
+            .BuildServiceProvider();
+        Assert.NotNull(provider.GetRequiredService<StripeRentGateway>());
+    }
+
     [Fact]
     public void SupportedTypes_IncludeOnlyCardAndUsBankAccount()
     {

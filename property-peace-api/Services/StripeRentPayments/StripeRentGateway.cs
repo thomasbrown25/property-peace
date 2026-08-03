@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Stripe;
 
 namespace brownstone_hub_api.Services.StripeRentPayments
@@ -42,9 +44,32 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
     public sealed class StripeRentGateway : IStripeRentGateway
     {
+        private readonly IStripeClient _stripeClient;
+
+        [ActivatorUtilitiesConstructor]
+        public StripeRentGateway(IConfiguration configuration)
+            : this(BuildStripeClient(configuration))
+        {
+        }
+
+        public StripeRentGateway(IStripeClient stripeClient)
+        {
+            ArgumentNullException.ThrowIfNull(stripeClient);
+            _stripeClient = stripeClient;
+        }
+
+        private static IStripeClient BuildStripeClient(IConfiguration configuration)
+        {
+            ArgumentNullException.ThrowIfNull(configuration);
+            var apiKey = configuration["Stripe:SecretKey"];
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new InvalidOperationException("Stripe:SecretKey is not configured.");
+            return new StripeClient(apiKey);
+        }
+
         public async Task<StripeRentIntentResult> CreatePaymentIntentAsync(StripeRentIntentRequest request, CancellationToken cancellationToken = default)
         {
-            var intent = await new PaymentIntentService().CreateAsync(BuildPaymentIntentCreateOptions(request),
+            var intent = await new PaymentIntentService(_stripeClient).CreateAsync(BuildPaymentIntentCreateOptions(request),
                 new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
             return new StripeRentIntentResult(intent.Id, intent.ClientSecret);
         }
@@ -62,7 +87,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         public async Task<StripeRentIntentResult> UpdatePaymentIntentAsync(string paymentIntentId, StripeRentIntentRequest request, CancellationToken cancellationToken = default)
         {
-            var intent = await new PaymentIntentService().UpdateAsync(paymentIntentId, new PaymentIntentUpdateOptions
+            var intent = await new PaymentIntentService(_stripeClient).UpdateAsync(paymentIntentId, new PaymentIntentUpdateOptions
             {
                 Amount = request.AmountCents,
                 Description = request.Description,
@@ -73,7 +98,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         public async Task<string?> GetPaymentMethodTypeAsync(string paymentIntentId, CancellationToken cancellationToken = default)
         {
-            var intent = await new PaymentIntentService().GetAsync(paymentIntentId,
+            var intent = await new PaymentIntentService(_stripeClient).GetAsync(paymentIntentId,
                 new PaymentIntentGetOptions { Expand = new List<string> { "latest_charge" } }, cancellationToken: cancellationToken);
             return intent.LatestCharge?.PaymentMethodDetails?.Type;
         }
@@ -82,7 +107,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         {
             try
             {
-                var charge = await new ChargeService().GetAsync(chargeId, cancellationToken: cancellationToken);
+                var charge = await new ChargeService(_stripeClient).GetAsync(chargeId, cancellationToken: cancellationToken);
                 return new StripeRentSourceState(true, charge.Paid, charge.Refunded, charge.Disputed,
                     charge.FailureMessage, charge.PaymentIntentId, charge.Amount, charge.Currency,
                     charge.AmountRefunded);
@@ -96,7 +121,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         public async Task<string> CreateTransferAsync(StripeRentTransferRequest request, CancellationToken cancellationToken = default)
         {
-            var transfer = await new TransferService().CreateAsync(BuildTransferCreateOptions(request),
+            var transfer = await new TransferService(_stripeClient).CreateAsync(BuildTransferCreateOptions(request),
                 new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
             return transfer.Id;
         }
@@ -114,7 +139,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         public async Task<string> CreateTransferReversalAsync(string transferId, long amountCents, string idempotencyKey, CancellationToken cancellationToken = default)
         {
             if (amountCents <= 0) throw new ArgumentOutOfRangeException(nameof(amountCents));
-            var reversal = await new TransferReversalService().CreateAsync(transferId,
+            var reversal = await new TransferReversalService(_stripeClient).CreateAsync(transferId,
                 new TransferReversalCreateOptions { Amount = amountCents }, new RequestOptions { IdempotencyKey = idempotencyKey }, cancellationToken);
             return reversal.Id;
         }
