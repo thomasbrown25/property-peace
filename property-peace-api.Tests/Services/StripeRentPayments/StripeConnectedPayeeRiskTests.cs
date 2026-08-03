@@ -27,6 +27,102 @@ public sealed class StripeConnectedPayeeRiskTests
     }
 
     [Fact]
+    public async Task Suspension_ReplayPreservesOriginalIncidentProvenance()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            StripeAccountId = "acct_dispute", Status = StripePayeeReviewStatus.PayoutApproved,
+            CreatedAt = Now.AddDays(-1), UpdatedAt = Now.AddDays(-1)
+        });
+        await context.SaveChangesAsync();
+
+        await new StripeConnectedPayeeService(context, new FixedTimeProvider(Now))
+            .SuspendAsync("acct_dispute", null, "Automatic suspension for dispute dp_first.");
+        context.ChangeTracker.Clear();
+        await new StripeConnectedPayeeService(context, new FixedTimeProvider(Now.AddHours(2)))
+            .SuspendAsync("acct_dispute", 99, "Automatic suspension for dispute dp_replay.");
+
+        var review = context.StripeConnectedPayeeReviews.Single();
+        review.Status.Should().Be(StripePayeeReviewStatus.Suspended);
+        review.SuspendedAt.Should().Be(Now);
+        review.SuspendedByUserId.Should().BeNull();
+        review.SuspensionReason.Should().Be("Automatic suspension for dispute dp_first.");
+        review.UpdatedAt.Should().Be(Now);
+    }
+
+    [Fact]
+    public async Task Suspension_MissingReviewCreatesFailClosedRecordAndDisablesLinkedUser()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.Users.Add(new User
+        {
+            Id = 42,
+            Email = "payee@example.test",
+            StripeAccountId = "acct_missing_review",
+            StripeAccountEnabled = true,
+            StripeAccountStatus = "payout_approved"
+        });
+        await context.SaveChangesAsync();
+        var service = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        await service.SuspendAsync("acct_missing_review", null,
+            "Automatic suspension for dispute dp_missing.");
+
+        var review = context.StripeConnectedPayeeReviews.Single();
+        review.UserId.Should().Be(42);
+        review.Status.Should().Be(StripePayeeReviewStatus.Suspended);
+        review.SuspendedAt.Should().Be(Now);
+        review.SuspensionReason.Should().Contain("dp_missing");
+        context.Users.Single().StripeAccountEnabled.Should().BeFalse();
+        context.Users.Single().StripeAccountStatus.Should().Be("suspended");
+    }
+
+    [Fact]
+    public async Task Suspension_AmbiguousLinkedUsersStillCreatesAccountQuarantineAndDisablesAllMatches()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.Users.AddRange(
+            new User { Id = 42, Email = "payee1@example.test", StripeAccountId = "acct_shared", StripeAccountEnabled = true },
+            new User { Id = 43, Email = "payee2@example.test", StripeAccountId = "acct_shared", StripeAccountEnabled = true });
+        await context.SaveChangesAsync();
+        var service = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        await service.SuspendAsync("acct_shared", null, "Automatic suspension for dispute dp_shared.");
+
+        var review = context.StripeConnectedPayeeReviews.Single();
+        review.StripeAccountId.Should().Be("acct_shared");
+        review.UserId.Should().BeNull();
+        review.Status.Should().Be(StripePayeeReviewStatus.Suspended);
+        context.Users.Should().OnlyContain(x => !x.StripeAccountEnabled && x.StripeAccountStatus == "suspended");
+    }
+
+    [Fact]
+    public async Task Suspension_ExistingReviewDisablesEveryUserSharingDestination()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.Users.AddRange(
+            new User { Id = 42, Email = "approved@example.test", StripeAccountId = "acct_existing_shared", StripeAccountEnabled = true },
+            new User { Id = 43, Email = "duplicate@example.test", StripeAccountId = "acct_existing_shared", StripeAccountEnabled = true });
+        context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            UserId = 42,
+            StripeAccountId = "acct_existing_shared",
+            Status = StripePayeeReviewStatus.PayoutApproved,
+            CreatedAt = Now.AddDays(-1),
+            UpdatedAt = Now.AddDays(-1)
+        });
+        await context.SaveChangesAsync();
+        var service = new StripeConnectedPayeeService(context, new FixedTimeProvider(Now));
+
+        await service.SuspendAsync("acct_existing_shared", null,
+            "Automatic suspension for dispute dp_existing_shared.");
+
+        context.StripeConnectedPayeeReviews.Single().Status.Should().Be(StripePayeeReviewStatus.Suspended);
+        context.Users.Should().OnlyContain(x => !x.StripeAccountEnabled && x.StripeAccountStatus == "suspended");
+    }
+
+    [Fact]
     public async Task Approval_RequiresEvidenceNotesAndPropertyAuthorityAttestation()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();

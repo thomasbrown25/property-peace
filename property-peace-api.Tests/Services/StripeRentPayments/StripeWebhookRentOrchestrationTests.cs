@@ -156,10 +156,15 @@ public sealed class StripeWebhookRentOrchestrationTests
         var notifications = new Mock<INotificationService>();
         notifications.Setup(x => x.CreateNotification(It.IsAny<CreateNotificationDto>()))
             .ReturnsAsync(ServiceResponse<NotificationDto>.CreateSuccess(new NotificationDto()));
+        var payees = new Mock<IStripeConnectedPayeeService>(MockBehavior.Strict);
+        payees.Setup(x => x.SuspendAsync("acct_landlord", null,
+                It.Is<string>(reason => reason.Contains("dispute", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeConnectedPayeeReview { StripeAccountId = "acct_landlord", Status = StripePayeeReviewStatus.Suspended });
         var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: false);
         var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
             new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()),
-            gateway.Object, notifications.Object);
+            gateway.Object, notifications.Object, payees.Object);
         var first = DisputeCreatedEvent("evt_dp_1", 3_000);
 
         await service.HandleChargeDisputeCreatedAsync(first);
@@ -185,6 +190,50 @@ public sealed class StripeWebhookRentOrchestrationTests
             n.UserId == 10 && n.SendEmail && n.SendSMS && n.Title.Contains("Returned or Disputed"))), Times.Once);
         notifications.Verify(x => x.CreateNotification(It.Is<CreateNotificationDto>(n =>
             n.UserId == 3 && n.SendEmail && n.SendSMS && n.Title.Contains("Returned"))), Times.Once);
+        payees.Verify(x => x.SuspendAsync("acct_landlord", null,
+            It.Is<string>(reason => reason.Contains("dispute", StringComparison.OrdinalIgnoreCase)),
+            It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task ChargeDisputeCreated_WhenSuspensionFails_PersistsContainmentAndRetriesSuspension()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await SeedTransferredPaymentWithNotificationGraphAsync(context);
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        var notifications = new Mock<INotificationService>();
+        notifications.Setup(x => x.CreateNotification(It.IsAny<CreateNotificationDto>()))
+            .ReturnsAsync(ServiceResponse<NotificationDto>.CreateSuccess(new NotificationDto()));
+        var payees = new Mock<IStripeConnectedPayeeService>(MockBehavior.Strict);
+        payees.SetupSequence(x => x.SuspendAsync("acct_landlord", null,
+                It.Is<string>(reason => reason.Contains("dp_webhook")), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new KeyNotFoundException("Connected payee review was not found."))
+            .ReturnsAsync(new StripeConnectedPayeeReview
+            {
+                StripeAccountId = "acct_landlord", Status = StripePayeeReviewStatus.Suspended
+            });
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: false);
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()),
+            gateway.Object, notifications.Object, payees.Object);
+        var dispute = DisputeCreatedEvent("evt_dp_retry", 3_000);
+
+        var firstAttempt = () => service.HandleChargeDisputeCreatedAsync(dispute);
+        await firstAttempt.Should().ThrowAsync<KeyNotFoundException>();
+
+        var contained = await context.StripeRentPayments.SingleAsync();
+        contained.Status.Should().Be(StripeRentPaymentStatus.ReversalPending);
+        contained.DisputedAmountCents.Should().Be(3_000);
+        (await context.Payments.CountAsync(x => x.Reference == "pi_dispute_webhook:loss")).Should().Be(1);
+        (await context.GeneralLedgerEntries.CountAsync(x => x.TransactionType == "PaymentLossReversal")).Should().Be(1);
+
+        await service.HandleChargeDisputeCreatedAsync(dispute);
+
+        payees.Verify(x => x.SuspendAsync("acct_landlord", null,
+            It.Is<string>(reason => reason.Contains("dp_webhook")), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        notifications.Verify(x => x.CreateNotification(It.IsAny<CreateNotificationDto>()), Times.Exactly(2));
+        (await context.Payments.CountAsync(x => x.Reference == "pi_dispute_webhook:loss")).Should().Be(1);
+        (await context.GeneralLedgerEntries.CountAsync(x => x.TransactionType == "PaymentLossReversal")).Should().Be(1);
     }
 
     private static Mock<IPaymentService> AccountingBoundary(DataContext context)
@@ -215,12 +264,13 @@ public sealed class StripeWebhookRentOrchestrationTests
     private static StripeWebhookService CreateWebhookService(DataContext context,
         IStripeRentPaymentService rentPayments, IStripeRentAllocationService allocation,
         IStripeRentLossAccountingService lossAccounting, IStripeRentGateway gateway,
-        INotificationService? notifications = null) => new(
+        INotificationService? notifications = null,
+        IStripeConnectedPayeeService? payees = null) => new(
         Mock.Of<ISubscriptionRepository>(), Mock.Of<ISubscriptionPlanRepository>(),
         Mock.Of<ISubscriptionHistoryRepository>(), Mock.Of<IOrganizationRepository>(), context,
         Mock.Of<ILogger<StripeWebhookService>>(), notifications ?? Mock.Of<INotificationService>(),
         Mock.Of<IUserRepository>(), Mock.Of<INotificationSettingRepository>(), Mock.Of<IStripeService>(),
-        rentPayments, allocation, lossAccounting, Mock.Of<IStripeConnectedPayeeService>(),
+        rentPayments, allocation, lossAccounting, payees ?? Mock.Of<IStripeConnectedPayeeService>(),
         Mock.Of<IStripeConnectedAccountGateway>(), gateway);
 
     private static Event PaymentIntentSucceededEvent(DateTimeOffset occurredAt) => new()

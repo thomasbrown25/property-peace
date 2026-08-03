@@ -1110,12 +1110,21 @@ namespace brownstone_hub_api.Services.StripeService
                 payment.UpdatedAt = occurredAt.UtcDateTime;
             }
             await _context.SaveChangesAsync();
+
             if (!string.Equals(priorDisputeId, dispute.Id, StringComparison.Ordinal))
             {
                 foreach (var payment in payments)
                     await NotifyTenantPaymentStatusChangedAsync(payment, "Disputed",
                         "A previously completed bank payment was returned or disputed. The amount has been added back to the balance.");
             }
+
+            // All financial containment, payment metadata, and best-effort notifications occur before
+            // suspension. Suspension is the final DataContext mutation, so a failed save cannot
+            // contaminate the accounting writes and webhook redelivery retries it idempotently.
+            if (string.IsNullOrWhiteSpace(aggregate.DestinationStripeAccountId))
+                throw new InvalidOperationException($"Disputed rent payment {dispute.PaymentIntentId} has no durable destination account to suspend.");
+            await _stripeConnectedPayeeService.SuspendAsync(aggregate.DestinationStripeAccountId, null,
+                $"Automatic safety suspension after rent payment dispute {dispute.Id}.");
 
             _logger.LogWarning("charge.dispute.created: Applied exact loss accounting to {Count} payment record(s) for PaymentIntent {PaymentIntentId}, Dispute {DisputeId}",
                 payments.Count, dispute.PaymentIntentId, dispute.Id);

@@ -263,8 +263,54 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         public async Task<StripeConnectedPayeeReview> SuspendAsync(string stripeAccountId, long? adminUserId, string reason, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("Suspension reason is required.", nameof(reason));
-            var review = await GetRequiredAsync(stripeAccountId, cancellationToken);
-            Suspend(review, adminUserId, reason);
+            // Treat a shared destination ID as a risk signal: every current user carrying the
+            // disputed account is disabled, regardless of review linkage or review existence.
+            var linkedUsers = await context.Users
+                .Where(x => x.StripeAccountId == stripeAccountId)
+                .ToListAsync(cancellationToken);
+            foreach (var linkedUser in linkedUsers)
+            {
+                linkedUser.StripeAccountEnabled = false;
+                linkedUser.StripeAccountStatus = "suspended";
+            }
+
+            var review = await context.StripeConnectedPayeeReviews
+                .SingleOrDefaultAsync(x => x.StripeAccountId == stripeAccountId, cancellationToken);
+            if (review == null)
+            {
+                // A missing review must fail closed rather than leaving a disputed destination
+                // eligible forever. Bind it only when ownership is unique and does not conflict
+                // with another review; the matching users were already disabled above.
+                long? safeUserId = null;
+                if (linkedUsers.Count == 1)
+                {
+                    var candidateUserId = linkedUsers[0].Id;
+                    if (!await context.StripeConnectedPayeeReviews
+                        .AnyAsync(x => x.UserId == candidateUserId, cancellationToken))
+                        safeUserId = candidateUserId;
+                }
+                var now = timeProvider.GetUtcNow();
+                review = new StripeConnectedPayeeReview
+                {
+                    UserId = safeUserId,
+                    StripeAccountId = stripeAccountId,
+                    Status = StripePayeeReviewStatus.Suspended,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    SuspendedAt = now,
+                    SuspendedByUserId = adminUserId,
+                    SuspensionReason = TruncateReason(reason),
+                    InstantPayoutsAllowed = false,
+                    PayoutSchedulePolicy = "manual"
+                };
+                context.StripeConnectedPayeeReviews.Add(review);
+            }
+            // Suspension is a one-way safety transition until an explicit remediation/review flow
+            // clears it. Webhook retries must not replace the original incident provenance.
+            else if (review.Status != StripePayeeReviewStatus.Suspended)
+            {
+                Suspend(review, adminUserId, reason);
+            }
             await DisableLinkedUserAsync(review, cancellationToken);
             await context.SaveChangesAsync(cancellationToken);
             return review;
@@ -356,8 +402,14 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             review.Status = StripePayeeReviewStatus.Suspended;
             review.SuspendedAt = now;
             review.SuspendedByUserId = adminUserId;
-            review.SuspensionReason = reason.Trim().Length <= 1000 ? reason.Trim() : reason.Trim()[..1000];
+            review.SuspensionReason = TruncateReason(reason);
             review.UpdatedAt = now;
+        }
+
+        private static string TruncateReason(string reason)
+        {
+            var trimmed = reason.Trim();
+            return trimmed.Length <= 1000 ? trimmed : trimmed[..1000];
         }
 
         private async Task DisableLinkedUserAsync(StripeConnectedPayeeReview review, CancellationToken cancellationToken)
