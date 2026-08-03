@@ -39,6 +39,9 @@ namespace brownstone_hub_api.Models
         public long ReversalTargetAmountCents { get; set; }
         public long ReversalIncrementAmountCents { get; set; }
         public int TransferAttemptCount { get; set; }
+        public int TransferReplayFailureCount { get; set; }
+        public bool TransferReconciliationPaused { get; set; }
+        [MaxLength(255)] public string? TransferIdempotencyKey { get; set; }
         public int ReversalAttemptCount { get; set; }
         public DateTimeOffset? LastReversalAttemptAt { get; set; }
         [MaxLength(1000)] public string? LastReversalError { get; set; }

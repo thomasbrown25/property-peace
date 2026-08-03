@@ -326,7 +326,7 @@ public sealed class StripeRentTransferTests
         captured.Should().NotBeNull();
         captured!.DestinationStripeAccountId.Should().Be("acct_landlord");
         captured.SourceTransaction.Should().Be("ch_123");
-        captured.IdempotencyKey.Should().Be("rent-transfer:pi_transfer");
+        captured.IdempotencyKey.Should().Be("rent-transfer:pi_transfer:attempt:1");
         captured.AmountCents.Should().Be(100_00);
         var payment = await context.StripeRentPayments.SingleAsync();
         payment.Status.Should().Be(StripeRentPaymentStatus.Transferred);
@@ -358,7 +358,158 @@ public sealed class StripeRentTransferTests
         var count = await service.ProcessEligibleTransfersAsync();
 
         count.Should().Be(1);
-        (await context.StripeRentPayments.SingleAsync()).StripeTransferId.Should().Be("tr_recovered");
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.StripeTransferId.Should().Be("tr_recovered");
+        stored.TransferAttemptCount.Should().Be(1);
+        stored.TransferIdempotencyKey.Should().Be("rent-transfer:pi_transfer");
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_WhenStripeDefinitivelyRejectsForInsufficientBalance_RotatesIdempotencyKeyOnRetry()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.StripeRentPayments.Add(HeldPayment(DateTimeOffset.UtcNow.AddDays(-1)));
+        await context.SaveChangesAsync();
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        var keys = new List<string>();
+        gateway.Setup(x => x.CreateTransferAsync(
+                It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer:attempt:1"),
+                It.IsAny<CancellationToken>()))
+            .Callback<StripeRentTransferRequest, CancellationToken>((request, _) => keys.Add(request.IdempotencyKey))
+            .ThrowsAsync(new StripeRentTransferDefinitiveException("balance_insufficient", "insufficient available funds"));
+        gateway.Setup(x => x.CreateTransferAsync(
+                It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer:attempt:2"),
+                It.IsAny<CancellationToken>()))
+            .Callback<StripeRentTransferRequest, CancellationToken>((request, _) => keys.Add(request.IdempotencyKey))
+            .ReturnsAsync("tr_after_funding");
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        await service.ProcessEligibleTransfersAsync();
+        var afterFailure = await context.StripeRentPayments.SingleAsync();
+        afterFailure.Status.Should().Be(StripeRentPaymentStatus.TransferPending);
+        afterFailure.NextTransferAttemptAt.Should().NotBeNull();
+        afterFailure.TransferAttemptCount.Should().Be(1);
+        afterFailure.NextTransferAttemptAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        await context.SaveChangesAsync();
+
+        await service.ProcessEligibleTransfersAsync();
+
+        var final = await context.StripeRentPayments.SingleAsync();
+        final.Status.Should().Be(StripeRentPaymentStatus.Transferred);
+        final.StripeTransferId.Should().Be("tr_after_funding");
+        final.TransferAttemptCount.Should().Be(2);
+        keys.Should().Equal("rent-transfer:pi_transfer:attempt:1", "rent-transfer:pi_transfer:attempt:2");
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_WhenAmbiguousReplayBecomesDefinitive_SchedulesNewGenerationWithNewKey()
+    {
+        var now = new DateTimeOffset(2026, 8, 3, 8, 0, 0, TimeSpan.Zero);
+        var time = new ManualTimeProvider(now);
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        context.Add(HeldPayment(now.AddDays(-1)));
+        await context.SaveChangesAsync();
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        var keys = new List<string>();
+        var invocation = 0;
+        gateway.Setup(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()))
+            .Returns<StripeRentTransferRequest, CancellationToken>((request, _) =>
+            {
+                keys.Add(request.IdempotencyKey);
+                invocation++;
+                return invocation switch
+                {
+                    1 => Task.FromException<string>(new IOException("connection reset after dispatch")),
+                    2 => Task.FromException<string>(new StripeRentTransferDefinitiveException("balance_insufficient", "insufficient available funds")),
+                    _ => Task.FromResult("tr_after_reconciliation")
+                };
+            });
+        var config = new Dictionary<string, string?> { ["Stripe:TransferMaxAttempts"] = "5", ["Stripe:TransferRetryBaseMinutes"] = "1" };
+        var service = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, risk.Object, true, time, config);
+
+        await service.ProcessEligibleTransfersAsync();
+        time.Advance(TimeSpan.FromMinutes(1));
+        await service.ProcessEligibleTransfersAsync();
+        var afterDefinitiveReplay = await context.StripeRentPayments.SingleAsync();
+        afterDefinitiveReplay.Status.Should().Be(StripeRentPaymentStatus.TransferPending);
+        afterDefinitiveReplay.TransferIdempotencyKey.Should().Be("rent-transfer:pi_transfer:attempt:1");
+        time.Advance(TimeSpan.FromMinutes(1));
+        await service.ProcessEligibleTransfersAsync();
+
+        var final = await context.StripeRentPayments.SingleAsync();
+        final.Status.Should().Be(StripeRentPaymentStatus.Transferred);
+        final.TransferAttemptCount.Should().Be(2);
+        keys.Should().Equal(
+            "rent-transfer:pi_transfer:attempt:1",
+            "rent-transfer:pi_transfer:attempt:1",
+            "rent-transfer:pi_transfer:attempt:2");
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_InterruptedFinalGeneration_ReplaysStoredKeyAtAttemptLimit()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+        payment.Status = StripeRentPaymentStatus.TransferPending;
+        payment.TransferAttemptCount = 3;
+        payment.TransferIdempotencyKey = "rent-transfer:pi_transfer:attempt:3";
+        context.Add(payment);
+        await context.SaveChangesAsync();
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        gateway.Setup(x => x.CreateTransferAsync(
+                It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer:attempt:3"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("tr_final_generation");
+        var config = new Dictionary<string, string?> { ["Stripe:TransferMaxAttempts"] = "3" };
+        var service = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, risk.Object, true,
+            TimeProvider.System, config);
+
+        var count = await service.ProcessEligibleTransfersAsync();
+
+        count.Should().Be(1);
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.Transferred);
+        stored.TransferAttemptCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_LegacyReconciliation_ReplaysAndPersistsLegacyKey()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+        payment.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+        payment.TransferAttemptCount = 1;
+        payment.NextTransferAttemptAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+        context.Add(payment);
+        await context.SaveChangesAsync();
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        gateway.Setup(x => x.CreateTransferAsync(
+                It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync("tr_legacy_reconciled");
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        await service.ProcessEligibleTransfersAsync();
+
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.Transferred);
+        stored.TransferIdempotencyKey.Should().Be("rent-transfer:pi_transfer");
     }
 
     [Fact]
@@ -407,7 +558,7 @@ public sealed class StripeRentTransferTests
         var gateway = new Mock<IStripeRentGateway>();
         SetupHealthySource(gateway);
         gateway.SetupSequence(x => x.CreateTransferAsync(
-                It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer"),
+                It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer:attempt:1"),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TimeoutException("response lost after Stripe accepted the transfer"))
             .ReturnsAsync("tr_ambiguous");
@@ -424,8 +575,88 @@ public sealed class StripeRentTransferTests
         stored.StripeTransferId.Should().Be("tr_ambiguous");
         stored.Status.Should().Be(StripeRentPaymentStatus.Reversed);
         stored.StripeTransferReversalId.Should().Be("trr_recovered");
-        gateway.Verify(x => x.CreateTransferAsync(It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer"),
+        gateway.Verify(x => x.CreateTransferAsync(It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer:attempt:1"),
             It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_ReconciliationExceptionAfterConcurrentReversal_DoesNotRegressReversedState()
+    {
+        var database = Guid.NewGuid().ToString();
+        await using (var setup = StripeRentPaymentFlowTests.CreateContext(database))
+        {
+            var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+            payment.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+            payment.TransferAttemptCount = 1;
+            payment.TransferIdempotencyKey = "rent-transfer:pi_transfer:attempt:1";
+            setup.Add(payment);
+            await setup.SaveChangesAsync();
+        }
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        gateway.Setup(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await using var concurrent = StripeRentPaymentFlowTests.CreateContext(database);
+                var terminal = await concurrent.StripeRentPayments.SingleAsync();
+                terminal.StripeTransferId = "tr_terminal";
+                terminal.Status = StripeRentPaymentStatus.Reversed;
+                terminal.ReversedAmountCents = terminal.AmountCents;
+                await concurrent.SaveChangesAsync();
+                throw new IOException("late timeout from concurrent replay");
+            });
+        await using var context = StripeRentPaymentFlowTests.CreateContext(database);
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        await service.ProcessEligibleTransfersAsync();
+
+        context.ChangeTracker.Clear();
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.Reversed);
+        stored.StripeTransferId.Should().Be("tr_terminal");
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_ReconciliationSuccessAfterConcurrentReversal_DoesNotRegressReversedState()
+    {
+        var database = Guid.NewGuid().ToString();
+        await using (var setup = StripeRentPaymentFlowTests.CreateContext(database))
+        {
+            var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+            payment.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+            payment.TransferAttemptCount = 1;
+            payment.TransferIdempotencyKey = "rent-transfer:pi_transfer:attempt:1";
+            setup.Add(payment);
+            await setup.SaveChangesAsync();
+        }
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        gateway.Setup(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await using var concurrent = StripeRentPaymentFlowTests.CreateContext(database);
+                var terminal = await concurrent.StripeRentPayments.SingleAsync();
+                terminal.StripeTransferId = "tr_terminal";
+                terminal.Status = StripeRentPaymentStatus.Reversed;
+                terminal.ReversedAmountCents = terminal.AmountCents;
+                await concurrent.SaveChangesAsync();
+                return "tr_terminal";
+            });
+        await using var context = StripeRentPaymentFlowTests.CreateContext(database);
+        var service = CreateService(context, gateway.Object, risk.Object, transfersEnabled: true);
+
+        await service.ProcessEligibleTransfersAsync();
+
+        context.ChangeTracker.Clear();
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.Reversed);
+        stored.StripeTransferId.Should().Be("tr_terminal");
     }
 
     [Fact]
@@ -574,17 +805,31 @@ public sealed class StripeRentTransferTests
         await service.ProcessEligibleTransfersAsync();
         var stored = await context.StripeRentPayments.SingleAsync();
         stored.TransferAttemptCount.Should().Be(2);
-        stored.NextTransferAttemptAt.Should().Be(now.AddMinutes(10));
+        stored.TransferReplayFailureCount.Should().Be(1);
+        stored.NextTransferAttemptAt.Should().Be(now.AddMinutes(5));
         await service.ProcessEligibleTransfersAsync();
         gateway.Verify(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()), Times.Once,
             "a retry before NextTransferAttemptAt must be suppressed");
 
-        time.Advance(TimeSpan.FromMinutes(10));
+        time.Advance(TimeSpan.FromMinutes(5));
         await service.ProcessEligibleTransfersAsync();
         stored.Status.Should().Be(StripeRentPaymentStatus.TransferReconciliationPending);
-        stored.TransferAttemptCount.Should().Be(3);
+        stored.TransferAttemptCount.Should().Be(2,
+            "ambiguous replays must retain the creation-attempt generation and its idempotency key");
+        stored.TransferReplayFailureCount.Should().Be(2);
         stored.NextTransferAttemptAt.Should().Be(now.AddMinutes(15));
-        stored.RiskReason.Should().Contain("reconciliation is still required");
+        stored.TransferReconciliationPaused.Should().BeFalse();
+
+        time.Advance(TimeSpan.FromMinutes(10));
+        await service.ProcessEligibleTransfersAsync();
+        stored.TransferReplayFailureCount.Should().Be(3);
+        stored.NextTransferAttemptAt.Should().BeNull();
+        stored.TransferReconciliationPaused.Should().BeTrue();
+        stored.RiskReason.Should().Contain("automatic reconciliation stopped");
+        await service.ProcessEligibleTransfersAsync();
+        gateway.Verify(x => x.CreateTransferAsync(
+            It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer:attempt:2"),
+            It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     [Fact]
@@ -631,7 +876,7 @@ public sealed class StripeRentTransferTests
             StripeRentPaymentFlowTests.CreateService(c2, gateway.Object, true, risk.Object, true).ProcessEligibleTransfersAsync());
 
         counts.Sum().Should().Be(1);
-        gateway.Verify(x => x.CreateTransferAsync(It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer"),
+        gateway.Verify(x => x.CreateTransferAsync(It.Is<StripeRentTransferRequest>(r => r.IdempotencyKey == "rent-transfer:pi_transfer:attempt:1"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

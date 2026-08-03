@@ -300,9 +300,12 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             var now = _timeProvider.GetUtcNow();
             var maxAttempts = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferMaxAttempts") ?? 5);
             var candidates = await _context.StripeRentPayments
-                .Where(x => x.TransferAttemptCount < maxAttempts &&
-                    ((x.Status == StripeRentPaymentStatus.Held && x.TransferEligibleAt != null && x.TransferEligibleAt <= now)
-                    || (x.Status == StripeRentPaymentStatus.TransferPending && (x.NextTransferAttemptAt == null || x.NextTransferAttemptAt <= now))))
+                .Where(x =>
+                    (x.Status == StripeRentPaymentStatus.Held && x.TransferAttemptCount < maxAttempts
+                        && x.TransferEligibleAt != null && x.TransferEligibleAt <= now)
+                    || (x.Status == StripeRentPaymentStatus.TransferPending
+                        && (x.NextTransferAttemptAt == null
+                            || (x.TransferAttemptCount < maxAttempts && x.NextTransferAttemptAt <= now))))
                 .OrderBy(x => x.TransferEligibleAt).Take(100).ToListAsync(cancellationToken);
             var transferred = 0;
             foreach (var candidate in candidates)
@@ -331,8 +334,11 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
 
                     await _context.Entry(candidate).ReloadAsync(cancellationToken);
                     now = _timeProvider.GetUtcNow();
-                    if (candidate.Status == StripeRentPaymentStatus.Transferred || candidate.TransferAttemptCount >= maxAttempts
-                        || (candidate.Status == StripeRentPaymentStatus.TransferPending && candidate.NextTransferAttemptAt > now)) continue;
+                    if (candidate.Status == StripeRentPaymentStatus.Transferred
+                        || (candidate.Status == StripeRentPaymentStatus.Held && candidate.TransferAttemptCount >= maxAttempts)
+                        || (candidate.Status == StripeRentPaymentStatus.TransferPending
+                            && (candidate.NextTransferAttemptAt > now
+                                || (candidate.NextTransferAttemptAt != null && candidate.TransferAttemptCount >= maxAttempts)))) continue;
 
                     var decision = await _risk.EvaluateAsync(candidate, cancellationToken);
                     if (!decision.Approved)
@@ -363,8 +369,20 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                         continue;
                     }
 
+                    var startsNewTransferRequest = candidate.Status == StripeRentPaymentStatus.Held
+                        || candidate.NextTransferAttemptAt != null;
                     candidate.Status = StripeRentPaymentStatus.TransferPending;
-                    candidate.TransferAttemptCount++;
+                    if (startsNewTransferRequest)
+                    {
+                        candidate.TransferAttemptCount++;
+                        candidate.TransferReplayFailureCount = 0;
+                        candidate.TransferReconciliationPaused = false;
+                        candidate.TransferIdempotencyKey = NewTransferIdempotencyKey(candidate);
+                    }
+                    else
+                    {
+                        candidate.TransferIdempotencyKey ??= LegacyTransferIdempotencyKey(candidate);
+                    }
                     candidate.LastTransferAttemptAt = now;
                     candidate.NextTransferAttemptAt = null;
                     candidate.LastTransferError = null;
@@ -390,7 +408,7 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(
                             candidate.AmountCents, candidate.Currency, candidate.DestinationStripeAccountId, candidate.StripeChargeId!,
-                            $"rent:{candidate.PaymentIntentId}", $"rent-transfer:{candidate.PaymentIntentId}",
+                            $"rent:{candidate.PaymentIntentId}", TransferIdempotencyKey(candidate),
                             new Dictionary<string, string> { ["paymentIntentId"] = candidate.PaymentIntentId,
                                 ["leaseId"] = candidate.LeaseId.ToString(), ["organizationId"] = candidate.OrganizationId.ToString() }), cancellationToken);
 
@@ -411,19 +429,58 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                         await _context.SaveChangesAsync(cancellationToken);
                         transferred++;
                     }
+                    catch (StripeRentTransferDefinitiveException ex)
+                    {
+                        await _context.Entry(candidate).ReloadAsync(cancellationToken);
+                        candidate.LastTransferError = ex.Message;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        if (candidate.Status != StripeRentPaymentStatus.TransferPending)
+                        {
+                            await _context.SaveChangesAsync(cancellationToken);
+                            continue;
+                        }
+                        if (candidate.TransferAttemptCount >= maxAttempts)
+                        {
+                            candidate.Status = StripeRentPaymentStatus.Blocked;
+                            candidate.TransferReconciliationPaused = true;
+                            candidate.RiskReason = $"Transfer failed definitively after {maxAttempts} attempts and requires operator review: {ex.Code}.";
+                            candidate.NextTransferAttemptAt = null;
+                        }
+                        else
+                        {
+                            candidate.Status = StripeRentPaymentStatus.TransferPending;
+                            candidate.TransferReconciliationPaused = false;
+                            var baseMinutes = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferRetryBaseMinutes") ?? 5);
+                            var exponent = Math.Min(candidate.TransferAttemptCount - 1, 10);
+                            candidate.NextTransferAttemptAt = candidate.UpdatedAt.AddMinutes(baseMinutes * Math.Pow(2, exponent));
+                        }
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogWarning(ex,
+                            "Stripe definitively rejected rent transfer {PaymentIntentId}; a new idempotency key will be used after the retry delay",
+                            candidate.PaymentIntentId);
+                    }
                     catch (Exception ex)
                     {
                         // The network may have failed after Stripe accepted the idempotent request.
-                        // Never classify this as a normal failure or allow a concurrent block to hide it:
-                        // the next worker pass must replay the same key, capture the transfer ID, and reverse if blocked.
+                        // Never rotate the durable key until Stripe positively proves no transfer was created.
+                        await _context.Entry(candidate).ReloadAsync(cancellationToken);
                         candidate.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+                        candidate.TransferReconciliationPaused = false;
+                        candidate.TransferReplayFailureCount++;
                         candidate.LastTransferError = ex.Message;
                         candidate.UpdatedAt = _timeProvider.GetUtcNow();
                         var baseMinutes = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferRetryBaseMinutes") ?? 5);
-                        var exponent = Math.Min(candidate.TransferAttemptCount - 1, 10);
-                        candidate.NextTransferAttemptAt = candidate.UpdatedAt.AddMinutes(baseMinutes * Math.Pow(2, exponent));
-                        if (candidate.TransferAttemptCount >= maxAttempts)
-                            candidate.RiskReason = $"Transfer outcome remained ambiguous after {maxAttempts} attempts; reconciliation is still required.";
+                        if (candidate.TransferReplayFailureCount >= maxAttempts)
+                        {
+                            candidate.TransferReconciliationPaused = true;
+                            candidate.NextTransferAttemptAt = null;
+                            candidate.RiskReason = $"Transfer outcome remained ambiguous after {maxAttempts} replay failures; automatic reconciliation stopped for operator review.";
+                        }
+                        else
+                        {
+                            var exponent = Math.Min(candidate.TransferReplayFailureCount - 1, 10);
+                            candidate.NextTransferAttemptAt = candidate.UpdatedAt.AddMinutes(baseMinutes * Math.Pow(2, exponent));
+                        }
                         await _context.SaveChangesAsync(cancellationToken);
                         _logger.LogCritical(ex, "Stripe transfer outcome is ambiguous for rent PaymentIntent {PaymentIntentId}; deterministic reconciliation is required", candidate.PaymentIntentId);
                     }
@@ -469,8 +526,11 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
         private async Task ProcessPendingTransferReconciliationsAsync(CancellationToken cancellationToken)
         {
             var now = _timeProvider.GetUtcNow();
+            var maxReplayFailures = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferMaxAttempts") ?? 5);
             var candidates = await _context.StripeRentPayments
                 .Where(x => x.Status == StripeRentPaymentStatus.TransferReconciliationPending
+                    && x.TransferReplayFailureCount < maxReplayFailures
+                    && !x.TransferReconciliationPaused
                     && (x.NextTransferAttemptAt == null || x.NextTransferAttemptAt <= now))
                 .OrderBy(x => x.UpdatedAt).Take(100).ToListAsync(cancellationToken);
 
@@ -478,10 +538,33 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
             {
                 var gate = PaymentLocks.GetOrAdd($"transfer:{candidate.PaymentIntentId}", _ => new SemaphoreSlim(1, 1));
                 await gate.WaitAsync(cancellationToken);
+                var payeeGate = PaymentLocks.GetOrAdd($"transfer-payee:{candidate.DestinationStripeAccountId}", _ => new SemaphoreSlim(1, 1));
+                var payeeGateHeld = false;
+                var sqlPayeeLockHeld = false;
+                var relationalConnectionOpened = false;
                 try
                 {
+                    await payeeGate.WaitAsync(cancellationToken);
+                    payeeGateHeld = true;
+                    if (_context.Database.IsRelational())
+                    {
+                        await _context.Database.OpenConnectionAsync(cancellationToken);
+                        relationalConnectionOpened = true;
+                        var lockResource = $"stripe-transfer-payee:{candidate.DestinationStripeAccountId}";
+                        await _context.Database.ExecuteSqlInterpolatedAsync($@"
+DECLARE @result int;
+EXEC @result = sys.sp_getapplock @Resource={lockResource}, @LockMode='Exclusive', @LockOwner='Session', @LockTimeout=30000;
+IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconciliation lock.', 1;", cancellationToken);
+                        sqlPayeeLockHeld = true;
+                    }
+
                     await _context.Entry(candidate).ReloadAsync(cancellationToken);
-                    if (candidate.Status != StripeRentPaymentStatus.TransferReconciliationPending) continue;
+                    if (candidate.Status != StripeRentPaymentStatus.TransferReconciliationPending
+                        || candidate.TransferReplayFailureCount >= maxReplayFailures
+                        || candidate.TransferReconciliationPaused
+                        || candidate.NextTransferAttemptAt > _timeProvider.GetUtcNow()) continue;
+                    candidate.TransferIdempotencyKey ??= LegacyTransferIdempotencyKey(candidate);
+                    await _context.SaveChangesAsync(cancellationToken);
 
                     // Replaying an idempotent create can be the first request Stripe receives after an
                     // ambiguous network failure. Treat it as transfer creation, not a read-only lookup:
@@ -490,6 +573,7 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                     if (!decision.Approved)
                     {
                         candidate.RiskReason = $"Transfer reconciliation requires operator review: {decision.Reason ?? "fresh risk check denied replay."}";
+                        candidate.TransferReconciliationPaused = true;
                         candidate.NextTransferAttemptAt = null;
                         candidate.UpdatedAt = _timeProvider.GetUtcNow();
                         await _context.SaveChangesAsync(cancellationToken);
@@ -505,6 +589,7 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                         || !string.Equals(source.Currency, candidate.Currency, StringComparison.OrdinalIgnoreCase))
                     {
                         candidate.RiskReason = "Transfer reconciliation requires operator review: Stripe source charge is no longer eligible or its provenance changed.";
+                        candidate.TransferReconciliationPaused = true;
                         candidate.NextTransferAttemptAt = null;
                         candidate.UpdatedAt = _timeProvider.GetUtcNow();
                         await _context.SaveChangesAsync(cancellationToken);
@@ -513,7 +598,6 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                         continue;
                     }
 
-                    candidate.TransferAttemptCount++;
                     candidate.LastTransferAttemptAt = _timeProvider.GetUtcNow();
                     candidate.NextTransferAttemptAt = null;
                     await _context.SaveChangesAsync(cancellationToken);
@@ -525,6 +609,7 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                     if (!finalDecision.Approved)
                     {
                         candidate.RiskReason = $"Transfer reconciliation requires operator review: {finalDecision.Reason ?? "final pre-transfer risk check denied replay."}";
+                        candidate.TransferReconciliationPaused = true;
                         candidate.NextTransferAttemptAt = null;
                         candidate.UpdatedAt = _timeProvider.GetUtcNow();
                         await _context.SaveChangesAsync(cancellationToken);
@@ -537,40 +622,151 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(
                             candidate.AmountCents, candidate.Currency, candidate.DestinationStripeAccountId, candidate.StripeChargeId!,
-                            $"rent:{candidate.PaymentIntentId}", $"rent-transfer:{candidate.PaymentIntentId}",
+                            $"rent:{candidate.PaymentIntentId}", TransferIdempotencyKey(candidate),
                             new Dictionary<string, string> { ["paymentIntentId"] = candidate.PaymentIntentId,
                                 ["leaseId"] = candidate.LeaseId.ToString(), ["organizationId"] = candidate.OrganizationId.ToString() }), cancellationToken);
                         await _context.Entry(candidate).ReloadAsync(cancellationToken);
-                        candidate.StripeTransferId = transferId;
+                        if (!string.IsNullOrWhiteSpace(candidate.StripeTransferId)
+                            && !string.Equals(candidate.StripeTransferId, transferId, StringComparison.Ordinal))
+                        {
+                            candidate.Status = StripeRentPaymentStatus.RecoveryFailed;
+                            candidate.TransferReconciliationPaused = true;
+                            candidate.RiskReason = $"Stripe reconciliation returned conflicting transfer IDs ({candidate.StripeTransferId} and {transferId}); operator review is required.";
+                            candidate.NextTransferAttemptAt = null;
+                            candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                            await _context.SaveChangesAsync(cancellationToken);
+                            continue;
+                        }
+                        candidate.StripeTransferId ??= transferId;
                         candidate.TransferredAt ??= _timeProvider.GetUtcNow();
                         candidate.LastTransferError = null;
                         candidate.NextTransferAttemptAt = null;
                         var targetReversalAmount = Math.Min(candidate.AmountCents,
                             checked(candidate.RefundedAmountCents + candidate.DisputedAmountCents));
-                        candidate.Status = targetReversalAmount > candidate.ReversedAmountCents
-                            ? StripeRentPaymentStatus.ReversalPending
-                            : candidate.RefundedAt != null || candidate.DisputedAt != null
-                                ? StripeRentPaymentStatus.Blocked
-                                : StripeRentPaymentStatus.Transferred;
+                        if (!IsTerminalTransferRecoveryState(candidate.Status))
+                        {
+                            candidate.Status = targetReversalAmount > candidate.ReversedAmountCents
+                                ? StripeRentPaymentStatus.ReversalPending
+                                : candidate.RefundedAt != null || candidate.DisputedAt != null
+                                    ? StripeRentPaymentStatus.Blocked
+                                    : StripeRentPaymentStatus.Transferred;
+                        }
                         candidate.UpdatedAt = _timeProvider.GetUtcNow();
                         await _context.SaveChangesAsync(cancellationToken);
                     }
-                    catch (Exception ex)
+                    catch (StripeRentTransferDefinitiveException ex)
                     {
+                        await _context.Entry(candidate).ReloadAsync(cancellationToken);
                         candidate.LastTransferError = ex.Message;
                         candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        if (candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending)
+                        {
+                            var maxGenerations = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferMaxAttempts") ?? 5);
+                            if (candidate.TransferAttemptCount >= maxGenerations)
+                            {
+                                candidate.Status = StripeRentPaymentStatus.Blocked;
+                                candidate.TransferReconciliationPaused = true;
+                                candidate.RiskReason = $"Transfer failed definitively after {maxGenerations} generations and requires operator review: {ex.Code}.";
+                                candidate.NextTransferAttemptAt = null;
+                            }
+                            else
+                            {
+                                candidate.Status = StripeRentPaymentStatus.TransferPending;
+                                candidate.TransferReplayFailureCount = 0;
+                                candidate.TransferReconciliationPaused = false;
+                                candidate.RiskReason = null;
+                                var baseMinutes = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferRetryBaseMinutes") ?? 5);
+                                candidate.NextTransferAttemptAt = candidate.UpdatedAt.AddMinutes(baseMinutes);
+                            }
+                        }
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger.LogWarning(ex,
+                            "Stripe definitively rejected reconciliation for {PaymentIntentId}; a new transfer generation is scheduled only if still eligible",
+                            candidate.PaymentIntentId);
+                    }
+                    catch (Exception ex)
+                    {
+                        await _context.Entry(candidate).ReloadAsync(cancellationToken);
+                        candidate.LastTransferError = ex.Message;
+                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
+                        if (!string.IsNullOrWhiteSpace(candidate.StripeTransferId)
+                            || IsTerminalTransferRecoveryState(candidate.Status))
+                        {
+                            await _context.SaveChangesAsync(cancellationToken);
+                            _logger.LogWarning(ex,
+                                "Ignored late ambiguous reconciliation failure for {PaymentIntentId} because a durable transfer/recovery outcome is already known",
+                                candidate.PaymentIntentId);
+                            continue;
+                        }
+                        candidate.Status = StripeRentPaymentStatus.TransferReconciliationPending;
+                        candidate.TransferReconciliationPaused = false;
+                        candidate.TransferReplayFailureCount++;
                         var baseMinutes = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferRetryBaseMinutes") ?? 5);
-                        candidate.NextTransferAttemptAt = candidate.UpdatedAt.AddMinutes(baseMinutes);
-                        var maxAttempts = Math.Max(1, _configuration.GetValue<int?>("Stripe:TransferMaxAttempts") ?? 5);
-                        if (candidate.TransferAttemptCount >= maxAttempts)
-                            candidate.RiskReason = $"Transfer outcome remained ambiguous after {maxAttempts} attempts; reconciliation is still required.";
+                        if (candidate.TransferReplayFailureCount >= maxReplayFailures)
+                        {
+                            candidate.TransferReconciliationPaused = true;
+                            candidate.NextTransferAttemptAt = null;
+                            candidate.RiskReason = $"Transfer outcome remained ambiguous after {maxReplayFailures} replay failures; automatic reconciliation stopped for operator review.";
+                        }
+                        else
+                        {
+                            var exponent = Math.Min(candidate.TransferReplayFailureCount - 1, 10);
+                            candidate.NextTransferAttemptAt = candidate.UpdatedAt.AddMinutes(baseMinutes * Math.Pow(2, exponent));
+                        }
                         await _context.SaveChangesAsync(cancellationToken);
                         _logger.LogCritical(ex, "Stripe transfer reconciliation remains ambiguous for {PaymentIntentId}", candidate.PaymentIntentId);
                     }
                 }
-                finally { gate.Release(); }
+                finally
+                {
+                    try
+                    {
+                        if (sqlPayeeLockHeld)
+                        {
+                            var lockResource = $"stripe-transfer-payee:{candidate.DestinationStripeAccountId}";
+                            try
+                            {
+                                await _context.Database.ExecuteSqlInterpolatedAsync(
+                                    $"EXEC sys.sp_releaseapplock @Resource={lockResource}, @LockOwner='Session';", CancellationToken.None);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogCritical(ex,
+                                    "Failed to explicitly release the SQL connected-payee reconciliation lock for {StripeAccountId}; closing the dedicated connection",
+                                    candidate.DestinationStripeAccountId);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (relationalConnectionOpened)
+                                await _context.Database.CloseConnectionAsync();
+                        }
+                        finally
+                        {
+                            if (payeeGateHeld) payeeGate.Release();
+                            gate.Release();
+                        }
+                    }
+                }
             }
         }
+
+        private static string TransferIdempotencyKey(StripeRentPayment payment) =>
+            payment.TransferIdempotencyKey ?? LegacyTransferIdempotencyKey(payment);
+
+        private static string NewTransferIdempotencyKey(StripeRentPayment payment) =>
+            $"rent-transfer:{payment.PaymentIntentId}:attempt:{Math.Max(1, payment.TransferAttemptCount)}";
+
+        private static string LegacyTransferIdempotencyKey(StripeRentPayment payment) =>
+            $"rent-transfer:{payment.PaymentIntentId}";
+
+        private static bool IsTerminalTransferRecoveryState(StripeRentPaymentStatus status) =>
+            status is StripeRentPaymentStatus.ReversalPending
+                or StripeRentPaymentStatus.Reversed
+                or StripeRentPaymentStatus.RecoveryFailed;
 
         private async Task ProcessPendingReversalsAsync(CancellationToken cancellationToken)
         {

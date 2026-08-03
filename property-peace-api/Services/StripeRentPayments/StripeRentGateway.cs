@@ -27,6 +27,12 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         string? FailureReason, string? PaymentIntentId, long? AmountCents, string? Currency,
         long? RefundedAmountCents = null);
 
+    public sealed class StripeRentTransferDefinitiveException(string code, string message, Exception? innerException = null)
+        : Exception(message, innerException)
+    {
+        public string Code { get; } = code;
+    }
+
     public interface IStripeRentGateway
     {
         Task<StripeRentIntentResult> CreatePaymentIntentAsync(StripeRentIntentRequest request, CancellationToken cancellationToken = default);
@@ -121,9 +127,18 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
         public async Task<string> CreateTransferAsync(StripeRentTransferRequest request, CancellationToken cancellationToken = default)
         {
-            var transfer = await new TransferService(_stripeClient).CreateAsync(BuildTransferCreateOptions(request),
-                new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
-            return transfer.Id;
+            try
+            {
+                var transfer = await new TransferService(_stripeClient).CreateAsync(BuildTransferCreateOptions(request),
+                    new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
+                return transfer.Id;
+            }
+            catch (StripeException ex) when (string.Equals(ex.StripeError?.Code, "balance_insufficient", StringComparison.Ordinal))
+            {
+                // Stripe executed and definitively rejected this request. Its idempotency response is
+                // cached, so replaying the same key can never succeed after the balance is replenished.
+                throw new StripeRentTransferDefinitiveException(ex.StripeError?.Code ?? "balance_insufficient", ex.Message, ex);
+            }
         }
 
         private static TransferCreateOptions BuildTransferCreateOptions(StripeRentTransferRequest request) => new()
