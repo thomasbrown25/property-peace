@@ -1,6 +1,8 @@
 using System.Net;
 using brownstone_hub_api.Services.StripeRentPayments;
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Stripe;
 using Xunit;
 
@@ -9,6 +11,29 @@ namespace brownstone_hub_api.Tests.Services.StripeRentPayments;
 public sealed class StripeConnectedAccountGatewayTests
 {
     private static readonly DateTimeOffset Now = new(2026, 8, 2, 18, 30, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void ConfigurationConstructor_BindsExplicitStripeClientBeforeFirstRequest()
+    {
+        const string apiKey = "sk_test_gateway_constructor";
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Stripe:SecretKey"] = apiKey })
+            .Build();
+
+        var method = typeof(StripeConnectedAccountGateway).GetMethod(
+            "BuildStripeClient", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        method.Should().NotBeNull();
+        var client = method!.Invoke(null, new object[] { configuration }).Should().BeAssignableTo<IStripeClient>().Subject;
+
+        client.ApiKey.Should().Be(apiKey);
+
+        using var provider = new ServiceCollection()
+            .AddSingleton<TimeProvider>(new FixedTimeProvider(Now))
+            .AddSingleton<IConfiguration>(configuration)
+            .AddScoped<StripeConnectedAccountGateway>()
+            .BuildServiceProvider();
+        provider.GetRequiredService<StripeConnectedAccountGateway>().Should().NotBeNull();
+    }
 
     [Fact]
     public async Task GetSnapshotAsync_PaginatesCompleteExternalAccountSet_AndIncludesDebitCardInstantPayouts()

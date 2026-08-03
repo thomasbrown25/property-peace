@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Stripe;
 using System.Security.Cryptography;
 using System.Text;
@@ -30,15 +32,27 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         private readonly Stripe.AccountService _accountService;
         private readonly Stripe.AccountExternalAccountService _externalAccountService;
 
-        public StripeConnectedAccountGateway(TimeProvider timeProvider, IStripeClient? stripeClient = null)
+        [ActivatorUtilitiesConstructor]
+        public StripeConnectedAccountGateway(TimeProvider timeProvider, IConfiguration configuration)
+            : this(timeProvider, BuildStripeClient(configuration))
         {
+        }
+
+        private static IStripeClient BuildStripeClient(IConfiguration configuration)
+        {
+            ArgumentNullException.ThrowIfNull(configuration);
+            var apiKey = configuration["Stripe:SecretKey"];
+            if (string.IsNullOrWhiteSpace(apiKey))
+                throw new InvalidOperationException("Stripe:SecretKey is not configured.");
+            return new StripeClient(apiKey);
+        }
+
+        public StripeConnectedAccountGateway(TimeProvider timeProvider, IStripeClient stripeClient)
+        {
+            ArgumentNullException.ThrowIfNull(stripeClient);
             _timeProvider = timeProvider;
-            _accountService = stripeClient is null
-                ? new Stripe.AccountService()
-                : new Stripe.AccountService(stripeClient);
-            _externalAccountService = stripeClient is null
-                ? new Stripe.AccountExternalAccountService()
-                : new Stripe.AccountExternalAccountService(stripeClient);
+            _accountService = new Stripe.AccountService(stripeClient);
+            _externalAccountService = new Stripe.AccountExternalAccountService(stripeClient);
         }
 
         public async Task<StripeConnectedAccountSnapshot> GetSnapshotAsync(string stripeAccountId, CancellationToken cancellationToken = default)
