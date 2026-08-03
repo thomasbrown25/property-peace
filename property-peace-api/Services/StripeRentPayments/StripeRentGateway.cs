@@ -35,22 +35,30 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task<string> CreateTransferReversalAsync(string transferId, long amountCents, string idempotencyKey, CancellationToken cancellationToken = default);
     }
 
+    internal static class StripeRentPaymentMethodPolicy
+    {
+        public static IReadOnlyList<string> SupportedTypes { get; } = new[] { "card", "us_bank_account" };
+    }
+
     public sealed class StripeRentGateway : IStripeRentGateway
     {
         public async Task<StripeRentIntentResult> CreatePaymentIntentAsync(StripeRentIntentRequest request, CancellationToken cancellationToken = default)
         {
-            var intent = await new PaymentIntentService().CreateAsync(new PaymentIntentCreateOptions
-            {
-                Amount = request.AmountCents,
-                Currency = request.Currency,
-                Description = request.Description,
-                AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions { Enabled = true },
-                TransferGroup = request.TransferGroup,
-                Metadata = new Dictionary<string, string>(request.Metadata)
-                // Intentionally no TransferData or ApplicationFeeAmount. Rent is charged on the platform.
-            }, new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
+            var intent = await new PaymentIntentService().CreateAsync(BuildPaymentIntentCreateOptions(request),
+                new RequestOptions { IdempotencyKey = request.IdempotencyKey }, cancellationToken);
             return new StripeRentIntentResult(intent.Id, intent.ClientSecret);
         }
+
+        private static PaymentIntentCreateOptions BuildPaymentIntentCreateOptions(StripeRentIntentRequest request) => new()
+        {
+            Amount = request.AmountCents,
+            Currency = request.Currency,
+            Description = request.Description,
+            PaymentMethodTypes = new List<string>(StripeRentPaymentMethodPolicy.SupportedTypes),
+            TransferGroup = request.TransferGroup,
+            Metadata = new Dictionary<string, string>(request.Metadata)
+            // Intentionally no TransferData or ApplicationFeeAmount. Rent is charged on the platform.
+        };
 
         public async Task<StripeRentIntentResult> UpdatePaymentIntentAsync(string paymentIntentId, StripeRentIntentRequest request, CancellationToken cancellationToken = default)
         {
