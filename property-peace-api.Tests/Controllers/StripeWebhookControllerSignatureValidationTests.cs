@@ -16,6 +16,16 @@ namespace brownstone_hub_api.Tests.Controllers;
 
 public sealed class StripeWebhookControllerSignatureValidationTests
 {
+    [Fact]
+    public void DependencyInjection_CanSelectWebhookControllerConstructor()
+    {
+        var exception = Record.Exception(() =>
+            Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateFactory(
+                typeof(StripeWebhookController), Type.EmptyTypes));
+
+        Assert.Null(exception);
+    }
+
     private const string WebhookSecret = "whsec_signature_validation_test_secret";
     private const string WrongWebhookSecret = "whsec_wrong_signature_validation_secret";
 

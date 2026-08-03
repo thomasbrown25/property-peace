@@ -41,6 +41,7 @@ namespace brownstone_hub_api.Controllers
             _heartbeatInterval = TimeSpan.FromMinutes(5);
         }
 
+        [Microsoft.Extensions.DependencyInjection.ActivatorUtilitiesConstructor]
         public StripeWebhookController(
             IStripeWebhookService webhookService,
             ILogger<StripeWebhookController> logger,
