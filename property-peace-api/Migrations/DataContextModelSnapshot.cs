@@ -2459,16 +2459,16 @@ namespace brownstone_hub_api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<bool>("CreateChecklistOnStartDate")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
                     b.Property<bool?>("AwareOfLeadPaint")
                         .HasColumnType("bit");
 
                     b.Property<bool?>("BuiltBefore1978")
                         .HasColumnType("bit");
+
+                    b.Property<bool>("CreateChecklistOnStartDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<bool?>("CustomDateSelected")
                         .HasColumnType("bit");
@@ -4410,10 +4410,6 @@ namespace brownstone_hub_api.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
-                    b.Property<string>("PendingValueProtected")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -4433,6 +4429,10 @@ namespace brownstone_hub_api.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("PendingValueProtected")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
 
                     b.Property<string>("Purpose")
                         .IsRequired()
@@ -6562,6 +6562,127 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("StorageObjects");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectedPayeeReview", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ApprovalEvidence")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ApprovalNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("ApprovedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ApprovedOrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("CurrentlyDueRequirementCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ExternalAccountFingerprint")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("InstantPayoutsAllowed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastStripeEventId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTimeOffset?>("LastStripeSnapshotAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("PastDueRequirementCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PayoutSchedulePolicy")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<bool>("PropertyAuthorityAttested")
+                        .HasColumnType("bit");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("StripeAccountId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("StripeDetailsSubmitted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("StripeDisabledReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("StripePayoutsEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("StripeTransferCapabilityStatus")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("StripeTransfersActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("SuspendedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("SuspendedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SuspensionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StripeAccountId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
+
+                    b.HasIndex("ApprovedOrganizationId", "Status");
+
+                    b.HasIndex("Status", "UpdatedAt");
+
+                    b.ToTable("StripeConnectedPayeeReviews", "financial");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.StripePaymentMethod", b =>
                 {
                     b.Property<long>("Id")
@@ -6632,6 +6753,186 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("StripePaymentMethods");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeRentPayment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("AllocationCompletedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("AmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("DestinationStripeAccountId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long>("DisputedAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("DisputedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("HeldAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("LastReversalAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastReversalError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTimeOffset?>("LastTransferAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastTransferError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<long>("LeaseId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("NextTransferAttemptAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PaymentIntentId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("PaymentMethodType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<long>("RefundedAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("RefundedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("ReversalAttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ReversalIncrementAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ReversalTargetAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ReversedAmountCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RiskReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("StripeChargeId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("StripeDisputeId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("StripeRefundId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("StripeTransferId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("StripeTransferReversalId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long>("TenantUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("TransferAttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("TransferEligibleAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("TransferIdempotencyKey")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("TransferReconciliationPaused")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("TransferReplayFailureCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("TransferredAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeaseId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("PaymentIntentId")
+                        .IsUnique();
+
+                    b.HasIndex("StripeTransferId")
+                        .IsUnique()
+                        .HasFilter("[StripeTransferId] IS NOT NULL");
+
+                    b.HasIndex("Status", "TransferEligibleAt");
+
+                    b.ToTable("StripeRentPayments", "financial", t =>
+                        {
+                            t.HasCheckConstraint("CK_StripeRentPayments_LossWithinAmount", "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents]");
+
+                            t.HasCheckConstraint("CK_StripeRentPayments_NonnegativeCounters", "[RefundedAmountCents] >= 0 AND [DisputedAmountCents] >= 0 AND [ReversedAmountCents] >= 0 AND [ReversalTargetAmountCents] >= 0 AND [ReversalIncrementAmountCents] >= 0");
+
+                            t.HasCheckConstraint("CK_StripeRentPayments_PositiveAmount", "[AmountCents] > 0");
+
+                            t.HasCheckConstraint("CK_StripeRentPayments_ReversalWithinAmount", "[ReversedAmountCents] <= [AmountCents] AND [ReversalTargetAmountCents] <= [AmountCents] AND [ReversalIncrementAmountCents] <= [AmountCents] AND (([ReversalTargetAmountCents] = 0 AND [ReversalIncrementAmountCents] = 0) OR ([ReversalTargetAmountCents] > [ReversedAmountCents] AND [ReversalIncrementAmountCents] = [ReversalTargetAmountCents] - [ReversedAmountCents]))");
+                        });
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.StripeWebhookEvent", b =>
                 {
                     b.Property<long>("Id")
@@ -6661,6 +6962,12 @@ namespace brownstone_hub_api.Migrations
 
                     b.Property<int>("ProcessingAttempts")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ProcessingLeaseExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ProcessingLeaseId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("ReceivedAt")
                         .HasColumnType("datetime2");
@@ -9675,6 +9982,16 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("UploadedByUser");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectedPayeeReview", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.StripePaymentMethod", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
@@ -9696,6 +10013,25 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Payment");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeRentPayment", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Lease", "Lease")
+                        .WithMany()
+                        .HasForeignKey("LeaseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Lease");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Subscription", b =>

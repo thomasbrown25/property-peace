@@ -1,15 +1,20 @@
 using System.Reflection;
+using System.Security.Claims;
 using brownstone_hub_api.Controllers;
+using brownstone_hub_api.Dtos.Organization;
 using brownstone_hub_api.Dtos.Stripe;
+using brownstone_hub_api.Dtos.User;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.BankAccounts;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.BankAccountService;
 using brownstone_hub_api.Services.OrganizationService;
+using brownstone_hub_api.Services.StripeRentPayments;
 using brownstone_hub_api.Services.StripeService;
 using brownstone_hub_api.Services.UserService;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -24,7 +29,7 @@ public sealed class StripeControllerSecurityTests
     {
         var stripeService = new Mock<IStripeService>();
         stripeService
-            .Setup(service => service.CreatePaymentIntentAsync(123, 500m, "Rent"))
+            .Setup(service => service.CreatePaymentIntentAsync(123, 500m, It.IsAny<string>(), "Rent"))
             .ReturnsAsync(new ServiceResponse<CreatePaymentIntentResponseDto>
             {
                 Data = new CreatePaymentIntentResponseDto
@@ -48,6 +53,7 @@ public sealed class StripeControllerSecurityTests
             service => service.CreatePaymentIntentAsync(
                 It.IsAny<long>(),
                 It.IsAny<decimal>(),
+                It.IsAny<string>(),
                 It.IsAny<string?>()),
             Times.Never);
     }
@@ -67,6 +73,30 @@ public sealed class StripeControllerSecurityTests
         authorize!.Roles.Should().Be("Tenant");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BrowserConfirmation_IsAcknowledgementOnly_AndNeverFinalizesAccounting(bool allocated)
+    {
+        var stripeService = new Mock<IStripeService>(MockBehavior.Strict);
+        var controller = CreateController(stripeService.Object);
+        var request = new ConfirmPaymentDto
+        {
+            PaymentIntentId = "pi_browser",
+            LeaseId = 999,
+            Amount = 123.45m,
+            PaymentDate = DateTime.UtcNow
+        };
+
+        var result = allocated
+            ? await controller.ConfirmPaymentAllocated(request)
+            : await controller.ConfirmPayment(request);
+
+        result.Should().BeOfType<ObjectResult>()
+            .Which.StatusCode.Should().Be(202);
+        stripeService.VerifyNoOtherCalls();
+    }
+
     [Fact]
     public void ArbitraryExistingAccountLinking_HasNoRoutablePostAction()
     {
@@ -79,15 +109,140 @@ public sealed class StripeControllerSecurityTests
         linkAction.Should().BeNull();
     }
 
-    private static StripeController CreateController(IStripeService stripeService)
+    [Fact]
+    public async Task SyncBankAccount_WhenExactUserOrganizationDestinationIsNotApproved_DoesNotReachExistingOrCreationPath()
+    {
+        var userService = new Mock<IUserService>();
+        userService.Setup(x => x.GetCurrentUserIdAsync())
+            .ReturnsAsync(ServiceResponse<long?>.CreateSuccess(42));
+        userService.Setup(x => x.GetUserByIdAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(new LoadUserDto
+            {
+                Id = 42, StripeAccountId = "acct_exact"
+            }));
+        var organizationService = new Mock<IOrganizationService>();
+        organizationService.Setup(x => x.GetCurrentUserOrganizationAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadOrganizationDto>.CreateSuccess(new LoadOrganizationDto { Id = 77 }));
+        var bankRepository = new Mock<IBankAccountRepository>(MockBehavior.Strict);
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.IsApprovedDestinationAsync(42, 77, "acct_exact", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var controller = CreateController(
+            Mock.Of<IStripeService>(), userService.Object, organizationService.Object,
+            Mock.Of<IBankAccountService>(), bankRepository.Object, payeeService.Object);
+        Authenticate(controller, 42);
+
+        var result = await controller.SyncBankAccount();
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        bankRepository.Verify(x => x.GetBankAccountByOrganizationAndStripeAccountIdAsync(
+            It.IsAny<long>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SyncBankAccount_WhenFreshScopedReadinessSuspendsPayee_DoesNotExposeExistingDestination()
+    {
+        var userService = new Mock<IUserService>();
+        userService.Setup(x => x.GetCurrentUserIdAsync())
+            .ReturnsAsync(ServiceResponse<long?>.CreateSuccess(42));
+        userService.Setup(x => x.GetUserByIdAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(new LoadUserDto
+            {
+                Id = 42, StripeAccountId = "acct_exact"
+            }));
+        var organizationService = new Mock<IOrganizationService>();
+        organizationService.Setup(x => x.GetCurrentUserOrganizationAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadOrganizationDto>.CreateSuccess(new LoadOrganizationDto { Id = 77 }));
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.IsApprovedDestinationAsync(42, 77, "acct_exact", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var stripeService = new Mock<IStripeService>();
+        stripeService.Setup(x => x.GetAccountStatusAsync("acct_exact", 42, 77))
+            .ReturnsAsync(ServiceResponse<StripeAccountStatusDto>.CreateSuccess(new StripeAccountStatusDto
+            {
+                AccountId = "acct_exact",
+                IsInternallyPayoutApproved = false,
+                IsAccountReadyForRentTransfers = false,
+                AccountReadinessReason = "Stripe requirements became due."
+            }));
+        var bankRepository = new Mock<IBankAccountRepository>(MockBehavior.Strict);
+        var controller = CreateController(
+            stripeService.Object, userService.Object, organizationService.Object,
+            Mock.Of<IBankAccountService>(), bankRepository.Object, payeeService.Object);
+        Authenticate(controller, 42);
+
+        var result = await controller.SyncBankAccount();
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        stripeService.Verify(x => x.GetAccountStatusAsync("acct_exact", 42, 77), Times.Once);
+        stripeService.Verify(x => x.GetAccountStatusAsync(It.IsAny<string>()), Times.Never);
+        bankRepository.Verify(x => x.GetBankAccountByOrganizationAndStripeAccountIdAsync(
+            It.IsAny<long>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetAccountStatus_RequestsReadinessForExactAuthenticatedUserAndOrganization()
+    {
+        var userService = new Mock<IUserService>();
+        userService.Setup(x => x.GetUserByIdAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(new LoadUserDto
+            {
+                Id = 42, StripeAccountId = "acct_exact"
+            }));
+        var organizationService = new Mock<IOrganizationService>();
+        organizationService.Setup(x => x.GetCurrentUserOrganizationAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadOrganizationDto>.CreateSuccess(new LoadOrganizationDto { Id = 77 }));
+        var stripeService = new Mock<IStripeService>();
+        stripeService.Setup(x => x.GetAccountStatusAsync("acct_exact", 42, 77))
+            .ReturnsAsync(ServiceResponse<StripeAccountStatusDto>.CreateSuccess(new StripeAccountStatusDto
+            {
+                AccountId = "acct_exact",
+                PayoutsEnabled = true,
+                IsInternallyPayoutApproved = false,
+                IsAccountReadyForRentTransfers = false
+            }));
+        var controller = CreateController(stripeService.Object, userService.Object, organizationService.Object);
+        Authenticate(controller, 42);
+
+        var result = await controller.GetAccountStatus();
+
+        var dto = result.Should().BeOfType<OkObjectResult>().Which.Value
+            .Should().BeOfType<ServiceResponse<StripeAccountStatusDto>>().Which.Data!;
+        dto.PayoutsEnabled.Should().BeTrue();
+        dto.IsAccountReadyForRentTransfers.Should().BeFalse();
+        stripeService.Verify(x => x.GetAccountStatusAsync("acct_exact", 42, 77), Times.Once);
+        stripeService.Verify(x => x.GetAccountStatusAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    private static StripeController CreateController(
+        IStripeService stripeService,
+        IUserService? userService = null,
+        IOrganizationService? organizationService = null,
+        IBankAccountService? bankAccountService = null,
+        IBankAccountRepository? bankAccountRepository = null,
+        IStripeConnectedPayeeService? payeeService = null)
     {
         return new StripeController(
             stripeService,
-            Mock.Of<IUserService>(),
-            Mock.Of<IOrganizationService>(),
-            Mock.Of<IBankAccountService>(),
-            Mock.Of<IBankAccountRepository>(),
+            userService ?? Mock.Of<IUserService>(),
+            organizationService ?? Mock.Of<IOrganizationService>(),
+            bankAccountService ?? Mock.Of<IBankAccountService>(),
+            bankAccountRepository ?? Mock.Of<IBankAccountRepository>(),
             Mock.Of<IUserRepository>(),
-            Mock.Of<ILogger<StripeController>>());
+            Mock.Of<ILogger<StripeController>>(),
+            configuration: null,
+            stripeConnectedPayeeService: payeeService);
+    }
+
+    private static void Authenticate(ControllerBase controller, long userId)
+    {
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    [new Claim(ClaimTypes.NameIdentifier, userId.ToString())], "test"))
+            }
+        };
     }
 }

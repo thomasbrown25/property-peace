@@ -16,6 +16,8 @@ using brownstone_hub_api.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+using brownstone_hub_api.Services.StripeRentPayments;
 
 namespace brownstone_hub_api.Services.StripeService
 {
@@ -30,6 +32,10 @@ namespace brownstone_hub_api.Services.StripeService
         private readonly IConfiguration _configuration;
         private readonly ILogger<StripeService> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IStripeRentPaymentService _stripeRentPaymentService;
+        private readonly IStripeConnectedPayeeService _stripeConnectedPayeeService;
+        private readonly IStripeConnectedAccountGateway _stripeConnectedAccountGateway;
+        private readonly TimeProvider _timeProvider;
         private readonly string? _stripeSecretKey;
         private readonly string? _stripePublishableKey;
 
@@ -42,7 +48,11 @@ namespace brownstone_hub_api.Services.StripeService
             DataContext context,
             IConfiguration configuration,
             ILogger<StripeService> logger,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            IStripeRentPaymentService stripeRentPaymentService,
+            IStripeConnectedPayeeService stripeConnectedPayeeService,
+            IStripeConnectedAccountGateway stripeConnectedAccountGateway,
+            TimeProvider timeProvider)
         {
             _userRepository = userRepository;
             _leaseRepository = leaseRepository;
@@ -53,6 +63,10 @@ namespace brownstone_hub_api.Services.StripeService
             _configuration = configuration;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
+            _stripeRentPaymentService = stripeRentPaymentService;
+            _stripeConnectedPayeeService = stripeConnectedPayeeService;
+            _stripeConnectedAccountGateway = stripeConnectedAccountGateway;
+            _timeProvider = timeProvider;
 
             _stripeSecretKey = _configuration["Stripe:SecretKey"];
             _stripePublishableKey = _configuration["Stripe:PublishableKey"];
@@ -126,6 +140,8 @@ namespace brownstone_hub_api.Services.StripeService
                     var accountStatus = await GetAccountStatusAsync(user.StripeAccountId);
                     if (accountStatus.Success && accountStatus.Data != null)
                     {
+                        await _stripeConnectedPayeeService.RegisterAsync(
+                            userId, user.StripeAccountId, accountStatus.Data.DetailsSubmitted);
                         response.Data = new CreateStripeAccountResponseDto
                         {
                             AccountId = user.StripeAccountId,
@@ -161,6 +177,13 @@ namespace brownstone_hub_api.Services.StripeService
                         {
                             Requested = true
                         }
+                    },
+                    Settings = new AccountSettingsOptions
+                    {
+                        Payouts = new AccountSettingsPayoutsOptions
+                        {
+                            Schedule = new AccountSettingsPayoutsScheduleOptions { Interval = "manual" }
+                        }
                     }
                 };
 
@@ -170,8 +193,8 @@ namespace brownstone_hub_api.Services.StripeService
                 // Request stripe_balance.stripe_transfers so destination charges/transfers work (required for tenant payments to landlord)
                 await EnsureStripeTransfersCapabilityRequestedAsync(account.Id);
 
-                // Update user with Stripe account ID
-                await UpdateUserStripeAccountAsync(userId, account.Id, account.DetailsSubmitted ? "active" : "pending");
+                // DetailsSubmitted is Stripe verification input only; internal payout approval is a separate durable decision.
+                await _stripeConnectedPayeeService.RegisterAsync(userId, account.Id, account.DetailsSubmitted);
 
                 // Create account link for onboarding
                 var accountLinkResponse = await CreateAccountLinkAsync(account.Id, returnUrl, returnUrl);
@@ -179,7 +202,7 @@ namespace brownstone_hub_api.Services.StripeService
                 response.Data = new CreateStripeAccountResponseDto
                 {
                     AccountId = account.Id,
-                    Status = account.DetailsSubmitted ? "active" : "pending",
+                    Status = account.DetailsSubmitted ? "under_review" : "onboarding",
                     OnboardingUrl = accountLinkResponse.Success ? accountLinkResponse.Data : string.Empty
                 };
                 response.Message = "Stripe account created successfully";
@@ -211,24 +234,103 @@ namespace brownstone_hub_api.Services.StripeService
         }
 
         public async Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(string accountId)
+            => await GetAccountStatusCoreAsync(accountId, null, null);
+
+        public async Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(
+            string accountId, long userId, long organizationId)
+            => await GetAccountStatusCoreAsync(accountId, userId, organizationId);
+
+        private async Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusCoreAsync(
+            string accountId, long? userId, long? organizationId)
         {
             var response = new ServiceResponse<StripeAccountStatusDto>();
 
             try
             {
-                var accountService = new Stripe.AccountService();
-                var account = await accountService.GetAsync(accountId);
+                var review = userId.HasValue
+                    ? await _context.StripeConnectedPayeeReviews.AsNoTracking()
+                        .SingleOrDefaultAsync(x => x.StripeAccountId == accountId && x.UserId == userId.Value)
+                    : null;
+                var internallyApproved = userId.HasValue && organizationId.HasValue
+                    && await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
+                        userId.Value, organizationId.Value, accountId);
 
+                StripeConnectedAccountSnapshot? snapshot = null;
+                string? snapshotFailureReason = null;
+                try
+                {
+                    snapshot = await _stripeConnectedAccountGateway.GetSnapshotAsync(accountId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Could not retrieve a fresh complete Stripe connected-account snapshot for {AccountId}", accountId);
+                    snapshotFailureReason = "A fresh Stripe connected-account snapshot could not be retrieved.";
+                }
+
+                var maxAgeMinutes = Math.Max(1,
+                    _configuration.GetValue<int?>("Stripe:ConnectedPayeeRisk:SnapshotMaxAgeMinutes") ?? 5);
+                var now = _timeProvider.GetUtcNow();
+                var snapshotIsFresh = snapshot != null
+                    && snapshot.RetrievedAt <= now.AddMinutes(1)
+                    && snapshot.RetrievedAt >= now.AddMinutes(-maxAgeMinutes);
+                var snapshotMatchesAccount = snapshot != null
+                    && string.Equals(snapshot.StripeAccountId, accountId, StringComparison.Ordinal);
+                var restrictionReason = snapshot == null
+                    ? snapshotFailureReason
+                    : !snapshotMatchesAccount
+                        ? "The Stripe connected-account snapshot did not match this account."
+                        : !snapshotIsFresh
+                            ? "The Stripe connected-account snapshot is stale."
+                            : StripeConnectedPayeeService.RestrictionReason(snapshot);
+                var fingerprintReason = snapshot != null && snapshotMatchesAccount && snapshotIsFresh
+                    ? string.IsNullOrWhiteSpace(review?.ExternalAccountFingerprint)
+                        || string.IsNullOrWhiteSpace(snapshot.ExternalAccountFingerprint)
+                            ? "A complete external-account fingerprint and approval baseline are required."
+                            : !string.Equals(review.ExternalAccountFingerprint, snapshot.ExternalAccountFingerprint,
+                                StringComparison.Ordinal)
+                                ? "The Stripe external bank account changed; internal re-review is required."
+                                : null
+                    : null;
+
+                // Sync only a fresh snapshot for the exact account. This retains the same fail-closed
+                // suspension behavior used by the pre-transfer gate without accepting stale data.
+                if (snapshot != null && snapshotMatchesAccount && snapshotIsFresh)
+                {
+                    var syncedReview = await _stripeConnectedPayeeService.SyncStripeSnapshotAsync(snapshot, null);
+                    if (syncedReview != null)
+                    {
+                        review = syncedReview;
+                        if (syncedReview.Status != StripePayeeReviewStatus.PayoutApproved)
+                            internallyApproved = false;
+                    }
+                }
+
+                var reviewStatus = review?.Status ?? StripePayeeReviewStatus.Onboarding;
+                if (reviewStatus == StripePayeeReviewStatus.PayoutApproved && !internallyApproved)
+                    reviewStatus = StripePayeeReviewStatus.UnderReview;
+                var accountReadinessReason = restrictionReason ?? fingerprintReason
+                    ?? (!internallyApproved
+                        ? "Current scoped internal approval and current organization authority are required."
+                        : null);
+                var isAccountReady = accountReadinessReason == null;
                 response.Data = new StripeAccountStatusDto
                 {
-                    AccountId = account.Id,
-                    Status = account.DetailsSubmitted ? "active" : "pending",
-                    IsEnabled = account.ChargesEnabled && account.PayoutsEnabled,
-                    ChargesEnabled = account.ChargesEnabled,
-                    PayoutsEnabled = account.PayoutsEnabled,
-                    DetailsSubmitted = account.DetailsSubmitted
+                    AccountId = accountId,
+                    Status = snapshot != null && !snapshot.DetailsSubmitted ? "onboarding"
+                        : isAccountReady ? "account_transfer_ready"
+                        : reviewStatus == StripePayeeReviewStatus.Suspended ? "suspended"
+                        : "under_review",
+                    IsEnabled = isAccountReady,
+                    ChargesEnabled = snapshot?.ChargesEnabled ?? false,
+                    PayoutsEnabled = snapshot?.PayoutsEnabled ?? false,
+                    DetailsSubmitted = snapshot?.DetailsSubmitted ?? false,
+                    InternalReviewStatus = reviewStatus.ToString(),
+                    IsInternallyPayoutApproved = internallyApproved,
+                    IsAccountReadyForRentTransfers = isAccountReady,
+                    AccountReadinessReason = accountReadinessReason
                 };
-                response.Message = "Account status retrieved successfully";
+                response.Message = "Account-level transfer readiness retrieved. Individual rent payments remain subject to payment-specific pre-transfer controls.";
             }
             catch (StripeException ex)
             {
@@ -402,20 +504,10 @@ namespace brownstone_hub_api.Services.StripeService
                     return response;
                 }
 
-                // Update user with the Stripe account ID
-                var status = account.DetailsSubmitted ? "active" : "pending";
-                var updateResult = await UpdateUserStripeAccountAsync(userId, accountId, status);
-
-                if (updateResult.Success)
-                {
-                    response.Data = true;
-                    response.Message = "Account linked successfully";
-                }
-                else
-                {
-                    response.Success = false;
-                    response.Message = updateResult.Message;
-                }
+                // Linking an existing account never bypasses internal payout review.
+                await _stripeConnectedPayeeService.RegisterAsync(userId, accountId, account.DetailsSubmitted);
+                response.Data = true;
+                response.Message = "Account linked successfully";
             }
             catch (StripeException ex)
             {
@@ -433,27 +525,18 @@ namespace brownstone_hub_api.Services.StripeService
             return response;
         }
 
-        public async Task<ServiceResponse<CreatePaymentIntentResponseDto>> CreatePaymentIntentAsync(long leaseId, decimal amount, string? description)
+        public async Task<ServiceResponse<CreatePaymentIntentResponseDto>> CreatePaymentIntentAsync(long leaseId, decimal amount, string operationId, string? description)
         {
             var response = new ServiceResponse<CreatePaymentIntentResponseDto>();
-
             try
             {
-                // Get organizationId from context
-                long? organizationId = null;
-                if (_httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var orgIdObj) == true && orgIdObj is long orgId)
-                {
-                    organizationId = orgId;
-                }
-
+                var organizationId = GetCurrentOrganizationId();
                 if (!organizationId.HasValue)
                 {
                     response.Success = false;
                     response.Message = "Organization ID not found in context";
                     return response;
                 }
-
-                // Get lease to find landlord
                 var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (lease == null)
                 {
@@ -461,64 +544,38 @@ namespace brownstone_hub_api.Services.StripeService
                     response.Message = "Lease not found";
                     return response;
                 }
-
-                // Get property to find landlord
-                var property = await _propertyRepository.GetPropertyById(lease.PropertyId);
-                if (property == null)
+                var tenantUserId = GetCurrentUserId();
+                if (!tenantUserId.HasValue || !await _context.TenantLeases.AnyAsync(tl =>
+                        tl.LeaseId == leaseId && tl.Tenant.UserId == tenantUserId.Value && !tl.Tenant.IsDeleted))
                 {
                     response.Success = false;
-                    response.Message = "Property not found for lease";
+                    response.Message = "Tenant is not authorized for this lease";
                     return response;
                 }
-
-                // Get landlord ID from property
-                var landlordId = property.LandlordId;
-                if (landlordId == 0)
+                var destinationStripeAccountId = await _context.Leases
+                    .Where(l => l.Id == leaseId && l.OrganizationId == organizationId.Value && !l.IsDeleted)
+                    .Select(l => l.OperatingAccount != null && l.OperatingAccount.IsActive
+                        ? l.OperatingAccount.StripeAccountId
+                        : l.Unit.Property.OperatingAccount != null && l.Unit.Property.OperatingAccount.IsActive
+                            ? l.Unit.Property.OperatingAccount.StripeAccountId
+                            : l.Unit.Property.Landlord.StripeAccountEnabled && !l.Unit.Property.Landlord.IsDeleted
+                                ? l.Unit.Property.Landlord.StripeAccountId
+                                : null)
+                    .SingleOrDefaultAsync();
+                if (string.IsNullOrWhiteSpace(destinationStripeAccountId))
                 {
                     response.Success = false;
-                    response.Message = "Landlord not found for property";
+                    response.Message = "Lease does not have an eligible connected Stripe destination";
                     return response;
                 }
-
-                // Get landlord's Stripe account ID
-                var landlord = await _userRepository.GetUser(landlordId);
-                if (landlord == null || string.IsNullOrEmpty(landlord.StripeAccountId))
-                {
-                    response.Success = false;
-                    response.Message = "Landlord does not have a connected Stripe account";
-                    return response;
-                }
-
-                // Create payment intent connected to landlord's Stripe account
-                // For marketplace model: funds go to connected account, platform takes application fee
-                var paymentIntentOptions = new PaymentIntentCreateOptions
-                {
-                    Amount = (long)(amount * 100m), // Convert to cents
-                    Currency = "usd",
-                    Description = description ?? $"Payment for lease #{leaseId}",
-                    ApplicationFeeAmount = (long)(amount * 100m * 0.029m + 30m), // 2.9% + $0.30 platform fee (in cents)
-                    AutomaticPaymentMethods = new PaymentIntentAutomaticPaymentMethodsOptions
-                    {
-                        Enabled = true
-                    },
-                    TransferData = new PaymentIntentTransferDataOptions
-                    {
-                        Destination = landlord.StripeAccountId
-                    },
-                    Metadata = new Dictionary<string, string>
-                    {
-                        { "leaseId", leaseId.ToString() },
-                        { "landlordId", landlord.Id.ToString() }
-                    }
-                };
-
-                var paymentIntentService = new PaymentIntentService();
-                var paymentIntent = await paymentIntentService.CreateAsync(paymentIntentOptions);
-
+                var amountCents = ToRentAmountCents(amount);
+                var paymentIntent = await _stripeRentPaymentService.CreateAsync(new CreateStripeRentPaymentCommand(
+                    leaseId, organizationId.Value, tenantUserId.Value, operationId, amountCents, "usd",
+                    destinationStripeAccountId, description));
                 response.Data = new CreatePaymentIntentResponseDto
                 {
                     ClientSecret = paymentIntent.ClientSecret,
-                    PaymentIntentId = paymentIntent.Id
+                    PaymentIntentId = paymentIntent.PaymentIntentId
                 };
                 response.Message = "Payment intent created successfully";
             }
@@ -541,15 +598,9 @@ namespace brownstone_hub_api.Services.StripeService
         public async Task<ServiceResponse<CreatePaymentIntentResponseDto>> UpdatePaymentIntentAsync(string paymentIntentId, long leaseId, decimal amount, string? description)
         {
             var response = new ServiceResponse<CreatePaymentIntentResponseDto>();
-
             try
             {
-                long? organizationId = null;
-                if (_httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var orgIdObj) == true && orgIdObj is long orgId)
-                {
-                    organizationId = orgId;
-                }
-
+                var organizationId = GetCurrentOrganizationId();
                 if (!organizationId.HasValue)
                 {
                     response.Success = false;
@@ -564,46 +615,19 @@ namespace brownstone_hub_api.Services.StripeService
                     response.Message = "Lease not found";
                     return response;
                 }
-
-                var paymentIntentService = new PaymentIntentService();
-                var existingPaymentIntent = await paymentIntentService.GetAsync(paymentIntentId);
-
-                if (existingPaymentIntent == null)
+                var tenantUserId = GetCurrentUserId();
+                if (!tenantUserId.HasValue)
                 {
                     response.Success = false;
-                    response.Message = "Payment intent not found";
+                    response.Message = "Tenant user ID not found in context";
                     return response;
                 }
-
-                if (existingPaymentIntent.Metadata == null ||
-                    !existingPaymentIntent.Metadata.TryGetValue("leaseId", out var metadataLeaseId) ||
-                    metadataLeaseId != leaseId.ToString())
-                {
-                    response.Success = false;
-                    response.Message = "Payment intent does not match this lease";
-                    return response;
-                }
-
-                if (existingPaymentIntent.Status != "requires_payment_method" && existingPaymentIntent.Status != "requires_confirmation")
-                {
-                    response.Success = false;
-                    response.Message = $"Payment intent cannot be updated while status is {existingPaymentIntent.Status}";
-                    return response;
-                }
-
-                var updateOptions = new PaymentIntentUpdateOptions
-                {
-                    Amount = (long)(amount * 100m),
-                    ApplicationFeeAmount = (long)(amount * 100m * 0.029m + 30m),
-                    Description = description ?? existingPaymentIntent.Description
-                };
-
-                var paymentIntent = await paymentIntentService.UpdateAsync(paymentIntentId, updateOptions);
-
+                var paymentIntent = await _stripeRentPaymentService.UpdateAsync(new UpdateStripeRentPaymentCommand(
+                    paymentIntentId, leaseId, tenantUserId.Value, ToRentAmountCents(amount), description));
                 response.Data = new CreatePaymentIntentResponseDto
                 {
                     ClientSecret = paymentIntent.ClientSecret,
-                    PaymentIntentId = paymentIntent.Id
+                    PaymentIntentId = paymentIntent.PaymentIntentId
                 };
                 response.Message = "Payment intent updated successfully";
             }
@@ -1642,6 +1666,30 @@ namespace brownstone_hub_api.Services.StripeService
             }
 
             return response;
+        }
+
+        private long? GetCurrentOrganizationId()
+        {
+            return _httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var value) == true
+                && value is long organizationId
+                ? organizationId
+                : null;
+        }
+
+        private long? GetCurrentUserId()
+        {
+            var principal = _httpContextAccessor.HttpContext?.User;
+            var value = principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? principal?.FindFirst("userId")?.Value;
+            return long.TryParse(value, out var userId) ? userId : null;
+        }
+
+        private static long ToRentAmountCents(decimal amount)
+        {
+            var cents = amount * 100m;
+            if (cents <= 0 || cents > 10_000_000m || cents != decimal.Truncate(cents))
+                throw new ArgumentOutOfRangeException(nameof(amount), "Rent amount must use cents and be between $0.01 and $100,000.00.");
+            return (long)cents;
         }
 
         public async Task<ServiceResponse<Stripe.Subscription>> UpdateSubscriptionPlanAsync(string subscriptionId, string newPriceId, bool prorate = true)

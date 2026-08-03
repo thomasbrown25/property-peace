@@ -3,8 +3,11 @@ using brownstone_hub_api.Services.BankAccountService;
 using brownstone_hub_api.Services.OrganizationService;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Data;
+using brownstone_hub_api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace brownstone_hub_api.Controllers
@@ -17,17 +20,20 @@ namespace brownstone_hub_api.Controllers
         private readonly IBankAccountService _bankAccountService;
         private readonly IOrganizationService _organizationService;
         private readonly IUserService _userService;
+        private readonly DataContext _context;
         private readonly ILogger<BankAccountController> _logger;
 
         public BankAccountController(
             IBankAccountService bankAccountService,
             IOrganizationService organizationService,
             IUserService userService,
+            DataContext context,
             ILogger<BankAccountController> logger)
         {
             _bankAccountService = bankAccountService;
             _organizationService = organizationService;
             _userService = userService;
+            _context = context;
             _logger = logger;
         }
 
@@ -128,6 +134,31 @@ namespace brownstone_hub_api.Controllers
 
                 // Ensure the organization ID matches
                 bankAccountDto.OrganizationId = userOrgResponse.Data.Id;
+
+                var linkedAccount = await _context.Users.AsNoTracking()
+                    .Where(x => x.Id == userId && !x.IsDeleted)
+                    .Select(x => x.StripeAccountId)
+                    .SingleOrDefaultAsync();
+                if (string.IsNullOrWhiteSpace(linkedAccount)
+                    || !string.Equals(linkedAccount, bankAccountDto.StripeAccountId, StringComparison.Ordinal))
+                {
+                    return StatusCode(403, new { Message = "The Stripe account must be linked to the authenticated user." });
+                }
+
+                var approvedForOrganization = await _context.StripeConnectedPayeeReviews.AsNoTracking().AnyAsync(x =>
+                    x.UserId == userId
+                    && x.StripeAccountId == linkedAccount
+                    && x.Status == StripePayeeReviewStatus.PayoutApproved
+                    && x.PropertyAuthorityAttested
+                    && x.ApprovedOrganizationId == bankAccountDto.OrganizationId
+                    && _context.OrganizationMembers.Any(member => member.UserId == userId
+                        && member.OrganizationId == bankAccountDto.OrganizationId
+                        && member.IsActive
+                        && (member.Role == "Owner" || member.Role == "Manager")));
+                if (!approvedForOrganization)
+                {
+                    return StatusCode(403, new { Message = "The Stripe payee is not approved for this organization." });
+                }
 
                 var response = await _bankAccountService.CreateBankAccountAsync(bankAccountDto);
 

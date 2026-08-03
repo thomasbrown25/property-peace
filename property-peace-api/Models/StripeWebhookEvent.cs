@@ -26,6 +26,9 @@ namespace brownstone_hub_api.Models
 
         public int ProcessingAttempts { get; set; } = 1;
 
+        public Guid? ProcessingLeaseId { get; set; }
+        public DateTime? ProcessingLeaseExpiresAt { get; set; }
+
         [MaxLength(2000)]
         public string? LastError { get; set; }
 

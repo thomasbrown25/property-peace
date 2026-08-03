@@ -96,6 +96,13 @@ const adminPages = {
       icon: icons.RocketOutlined
     },
     {
+      id: 'admin-stripe-payees',
+      title: 'Stripe Payees',
+      type: 'item',
+      url: '/admin/stripe-payees',
+      icon: icons.SafetyCertificateOutlined
+    },
+    {
       id: 'admin-settings',
       title: 'Settings',
       type: 'item',

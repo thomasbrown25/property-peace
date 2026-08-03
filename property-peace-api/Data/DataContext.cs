@@ -143,6 +143,8 @@ namespace brownstone_hub_api.Data
         public DbSet<Payment> Payments => Set<Payment>();
         public DbSet<StripePaymentMethod> StripePaymentMethods => Set<StripePaymentMethod>();
         public DbSet<StripeWebhookEvent> StripeWebhookEvents => Set<StripeWebhookEvent>();
+        public DbSet<StripeRentPayment> StripeRentPayments => Set<StripeRentPayment>();
+        public DbSet<StripeConnectedPayeeReview> StripeConnectedPayeeReviews => Set<StripeConnectedPayeeReview>();
         public DbSet<StorageObject> StorageObjects => Set<StorageObject>();
         public DbSet<Deposit> Deposits => Set<Deposit>();
         public DbSet<Expense> Expenses => Set<Expense>();
