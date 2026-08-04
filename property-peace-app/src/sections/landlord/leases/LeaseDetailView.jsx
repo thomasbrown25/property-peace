@@ -18,6 +18,7 @@ import { openSnackbar } from 'api/snackbar';
 import axios from 'utils/axios';
 import { format } from 'date-fns';
 import { formatCurrency, formatPhoneInput } from 'utils/formatters';
+import { buildLeasePaymentSchedule } from 'utils/leasePaymentSchedule';
 
 const detailCardSx = {
   p: 2,
@@ -439,7 +440,11 @@ export default function LeaseDetailView({
   const rentAmount    = lease.rentAmount    || lease.RentAmount    || 0;
   const depositAmount = lease.depositAmount || lease.DepositAmount || 0;
   const lateFeeAmount = lease.lateFee       || lease.LateFee       || 0;
-  const totalContractVal = rentAmount * (leaseLength || 0);
+  const leasePaymentSchedule = useMemo(
+    () => buildLeasePaymentSchedule(lease),
+    [lease]
+  );
+  const totalContractVal = leasePaymentSchedule.totalContractValue;
 
   const totalCollected = useMemo(() =>
     (payments || []).reduce((s, p) => s + (parseFloat(p.amount || p.Amount) || 0), 0),
@@ -451,11 +456,9 @@ export default function LeaseDetailView({
 
   // Payment calendar
   const paymentCalendar = useMemo(() => {
-    if (isDraftLease || !startDate || !endDate) return [];
-    const rentDueDay    = lease.rentDueDay || lease.RentDueDay || 1;
-    const gracePeriod   = lease.lateFeeGracePeriod || lease.LateFeeGracePeriod || 5;
-    const nowMonth  = new Date(now.getFullYear(), now.getMonth(), 1);
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    if (isDraftLease || leasePaymentSchedule.cycles.length === 0) return [];
+    const gracePeriod = lease.lateFeeGracePeriod || lease.LateFeeGracePeriod || 5;
+    const upcomingWindowEnd = new Date(now.getFullYear(), now.getMonth() + 2, 1);
 
     // Rent payments only (exclude fees & deposits), sorted oldest-first.
     const rentPayments = (payments || [])
@@ -466,41 +469,35 @@ export default function LeaseDetailView({
       })
       .sort((a, b) => new Date(a.paymentDate || a.PaymentDate) - new Date(b.paymentDate || b.PaymentDate));
 
-    // Build a cumulative timeline so overpayments in one month carry forward to cover
-    // future cycles. For cycle N, it's paid when the running total first reaches
-    // (N+1) * rentAmount — the date that threshold was crossed is used for on-time check.
+    // Allocate payments cumulatively against each schedule amount. This keeps a
+    // prorated move-in installment from being treated as a full-rent threshold.
     let running = 0;
     const milestones = rentPayments.map(p => {
       running += parseFloat(p.amount || p.Amount) || 0;
       return { date: new Date(p.paymentDate || p.PaymentDate), cumulative: running };
     });
 
-    const months = [];
-    let cursor   = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-    const calEnd = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 1);
-    let cycleNum = 0;
+    let required = 0;
+    return leasePaymentSchedule.cycles.map(cycle => {
+      required += cycle.amount;
+      const milestone = milestones.find(m => m.cumulative >= required);
+      const isPaid = !!milestone;
+      const dueDate = new Date(`${cycle.dueDate}T00:00:00`);
+      const lateDate = new Date(dueDate);
+      lateDate.setDate(lateDate.getDate() + gracePeriod);
+      const isOverdue = !isPaid && now > lateDate;
+      const isUpcoming = !isPaid && !isOverdue && dueDate < upcomingWindowEnd;
+      const isPaidLate = isPaid && milestone.date > lateDate;
 
-    while (cursor < calEnd && months.length <= 24) {
-      const required    = (cycleNum + 1) * rentAmount;
-      const milestone   = milestones.find(m => m.cumulative >= required);
-      const isPaid      = !!milestone;
-      const isPast      = cursor < nowMonth;
-      const isCurrent   = cursor.getTime() === nowMonth.getTime();
-      const isNext      = cursor.getTime() === nextMonth.getTime();
-      const lateDate    = new Date(cursor.getFullYear(), cursor.getMonth(), rentDueDay + gracePeriod);
-      const isOverdue   = !isPaid && (isPast || (isCurrent && now > lateDate));
-      const isUpcoming  = !isPaid && !isOverdue && (isNext || (isCurrent && now <= lateDate));
-      const isPaidLate  = isPaid && milestone.date > lateDate;
-      months.push({
-        label: format(cursor, 'MMM').toUpperCase(),
-        amount: rentAmount,
-        paid: isPaid, paidLate: isPaidLate, overdue: isOverdue, upcoming: isUpcoming
-      });
-      cycleNum++;
-      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
-    }
-    return months;
-  }, [isDraftLease, startDate, endDate, payments, now, rentAmount, lease.rentDueDay, lease.RentDueDay, lease.lateFeeGracePeriod, lease.LateFeeGracePeriod]);
+      return {
+        ...cycle,
+        paid: isPaid,
+        paidLate: isPaidLate,
+        overdue: isOverdue,
+        upcoming: isUpcoming
+      };
+    });
+  }, [isDraftLease, leasePaymentSchedule, payments, now, lease.lateFeeGracePeriod, lease.LateFeeGracePeriod]);
 
   const paidCycles     = paymentCalendar.filter(m => m.paid).length;
   const paidLateCycles = paymentCalendar.filter(m => m.paidLate).length;
@@ -737,11 +734,11 @@ export default function LeaseDetailView({
               ) : (
                 <>
                   <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', mb: 1.25 }}>
-                    {leaseLength} cycles · auto-collected via Stripe ACH
+                    {paymentCalendar.length} scheduled {paymentCalendar.length === 1 ? 'payment' : 'payments'}
                   </Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(1, Math.min(paymentCalendar.length, 6))}, 1fr)`, gap: 0.75, mb: 1 }}>
-                    {paymentCalendar.map((m, i) => (
-                      <Box key={i} sx={{
+                    {paymentCalendar.map((m) => (
+                      <Box key={m.key} sx={{
                         borderRadius: 1.5, border: '1px solid',
                         borderColor: m.overdue ? theme.palette.error.main : m.paidLate ? theme.palette.warning.main : m.paid ? alpha(theme.palette.success.main, 0.3) : m.upcoming ? alpha(theme.palette.primary.main, 0.4) : subtleDivider(theme, 0.24, 0.16),
                         bgcolor: m.overdue ? alpha(theme.palette.error.main, 0.07) : m.paidLate ? alpha(theme.palette.warning.main, 0.07) : m.paid ? alpha(theme.palette.success.main, 0.07) : m.upcoming ? alpha(theme.palette.primary.main, 0.05) : alpha(theme.palette.text.primary, 0.03),
@@ -753,6 +750,11 @@ export default function LeaseDetailView({
                         <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, color: m.overdue ? 'error.main' : m.paidLate ? 'warning.main' : m.paid ? 'success.main' : m.upcoming ? 'primary.main' : 'text.disabled' }}>
                           {formatCurrency(m.amount)}
                         </Typography>
+                        {m.isProrated && (
+                          <Typography sx={{ fontSize: '0.52rem', fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.25 }}>
+                            prorated
+                          </Typography>
+                        )}
                       </Box>
                     ))}
                   </Box>
