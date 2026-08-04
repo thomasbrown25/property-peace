@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 // material-ui
 import { Box, Button, Divider, Grid, IconButton, Stack, Toolbar, Typography, FormControlLabel, Switch } from '@mui/material';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
+import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
@@ -33,6 +34,8 @@ import { useSWRConfig } from 'swr';
 import { dashboardEndpoints } from 'api/dashbord';
 import { useDispatch, useSelector } from 'react-redux';
 import { addOrUpdateLease } from 'store/lease/lease.action';
+import { calculateProratedRent } from 'utils/leaseDraft';
+import { buildLeaseEditInitialValues, buildLeaseEditPayload } from 'utils/leaseEdit';
 
 // ---------- helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
@@ -55,6 +58,14 @@ const LeaseSchema = Yup.object().shape({
   rentDueDay: Yup.number().min(1).max(31).required('Rent due day is required'),
   leaseLength: Yup.number().min(-1).required('Lease length is required'),
   rentAmount: Yup.number().typeError('Enter a valid amount').min(0).required('Rent amount is required'),
+  proratedRentAmount: Yup.number().when('proratedRentDue', {
+    is: true,
+    then: (schema) => schema.typeError('Enter a valid amount').moreThan(0, 'Prorated rent amount must be greater than zero').required('Prorated amount is required'),
+    otherwise: (schema) => schema.nullable()
+  }),
+  securityDeposit: Yup.number().typeError('Enter a valid amount').min(0, 'Must be ≥ 0').nullable(),
+  petDeposit: Yup.number().typeError('Enter a valid amount').min(0, 'Must be ≥ 0').nullable(),
+  petFee: Yup.number().typeError('Enter a valid amount').min(0, 'Must be ≥ 0').nullable(),
   autoRenewLeaseLength: Yup.number().when('autoRenewLease', {
     is: true,
     then: (schema) => schema.required('Renewal term is required'),
@@ -87,24 +98,9 @@ export default function LeaseEditDrawer({ unitsByProperty = {}, onUpdateSuccess 
 
   // ----- build initial values from existing lease -----
   const initialValues = useMemo(() => {
-    if (!lease) return {};
-    return {
-      name: lease.name ?? '',
-      propertyId: lease.propertyId || selectedProperty?.id || '',
-      unitId: lease.unitId || '',
-      leaseStartDate: toInputDate(new Date(lease.startDate)),
-      leaseEndDate: toInputDate(new Date(lease.endDate)),
-      allPaymentsOnTime: false,
-      rentFrequency: lease.rentFrequency?.toLowerCase() ?? 'monthly',
-      rentDueDay: lease.rentDueDay ?? 1,
-      leaseLength: lease.leaseLength ?? 12,
-      rentAmount: lease.rentAmount ?? '',
-      autoRenewLease: Boolean(lease.autoRenewLease ?? lease.AutoRenewLease),
-      autoRenewLeaseLength: lease.autoRenewLeaseLength ?? lease.AutoRenewLeaseLength ?? lease.leaseLength ?? 12,
-      autoRenewRentIncrement: Boolean(lease.autoRenewRentIncrement ?? lease.AutoRenewRentIncrement),
-      autoRenewRentIncrementType: lease.autoRenewRentIncrementType ?? lease.AutoRenewRentIncrementType ?? 'percentage',
-      autoRenewRentIncrementValue: lease.autoRenewRentIncrementValue ?? lease.AutoRenewRentIncrementValue ?? ''
-    };
+    const values = buildLeaseEditInitialValues(lease);
+    if (lease && !values.propertyId) values.propertyId = selectedProperty?.id || '';
+    return values;
   }, [lease, selectedProperty]);
 
   const formik = useFormik({
@@ -117,26 +113,12 @@ export default function LeaseEditDrawer({ unitsByProperty = {}, onUpdateSuccess 
         const propertyType = property?.propertyType?.toLowerCase();
         const isPropertySingleFamily = propertyType === 'singlefamily' || propertyType === 'single-family';
 
-        const organizationId = lease?.organizationId ?? lease?.OrganizationId ?? property?.organizationId;
-        const payload = {
-          Id: lease.id,
-          Name: values.name?.trim() || null,
-          PropertyId: Number(lease.propertyId),
-          UnitId: isPropertySingleFamily ? property?.units?.[0]?.id || 0 : Number(lease.unitId || 0),
-          StartDate: new Date(values.leaseStartDate),
-          EndDate: new Date(values.leaseEndDate),
-          RentAmount: Number(values.rentAmount),
-          LeaseLength: Number(values.leaseLength),
-          RentFrequency: values.rentFrequency === 'monthly' ? 'Monthly' : values.rentFrequency === 'quarterly' ? 'Quarterly' : 'Yearly',
-          RentDueDay: Number(values.rentDueDay),
-          AutoRenewLease: Boolean(values.autoRenewLease),
-          AutoRenewLeaseLength: values.autoRenewLease ? Number(values.autoRenewLeaseLength || values.leaseLength || 12) : null,
-          AutoRenewRentIncrement: values.autoRenewLease ? Boolean(values.autoRenewRentIncrement) : false,
-          AutoRenewRentIncrementType: values.autoRenewLease && values.autoRenewRentIncrement ? values.autoRenewRentIncrementType : null,
-          AutoRenewRentIncrementValue: values.autoRenewLease && values.autoRenewRentIncrement ? Number(values.autoRenewRentIncrementValue || 0) : null,
-          MarkPastPaymentsAsPaid: Boolean(values.allPaymentsOnTime),
-          ...(organizationId != null && { organizationId: Number(organizationId) })
+        const effectiveLease = {
+          ...lease,
+          unitId: isPropertySingleFamily ? property?.units?.[0]?.id || lease?.unitId : lease?.unitId,
+          organizationId: lease?.organizationId ?? lease?.OrganizationId ?? property?.organizationId
         };
+        const payload = buildLeaseEditPayload(values, effectiveLease);
 
         await dispatch(addOrUpdateLease(payload));
         await mutate(dashboardEndpoints.summary(user.id));
@@ -179,6 +161,15 @@ export default function LeaseEditDrawer({ unitsByProperty = {}, onUpdateSuccess 
     const formatted = toInputDate(addMonths(start, getTermMonths(len)));
     if (formatted !== values.leaseEndDate) setFieldValue('leaseEndDate', formatted, false);
   }, [values.leaseStartDate, values.leaseLength]);
+
+  useEffect(() => {
+    if (!values.proratedRentDue || values.prorationMethod !== 'calculated') return;
+    const amount = calculateProratedRent(values.leaseStartDate, values.rentDueDay, values.rentAmount);
+    const nextValue = amount == null ? '' : amount;
+    if (String(nextValue) !== String(values.proratedRentAmount)) {
+      setFieldValue('proratedRentAmount', nextValue, false);
+    }
+  }, [values.proratedRentDue, values.prorationMethod, values.leaseStartDate, values.rentDueDay, values.rentAmount]);
 
   // Unit options from selected property (similar to LeaseAddDrawer)
   // Use selectedProperty from Redux if available, otherwise find from properties array
@@ -394,6 +385,142 @@ export default function LeaseEditDrawer({ unitsByProperty = {}, onUpdateSuccess 
                       <FormControlLabel
                         control={
                           <Switch
+                            checked={Boolean(values.proratedRentDue)}
+                            onChange={(event) => {
+                              const checked = event.target.checked;
+                              setFieldValue('proratedRentDue', checked);
+                              if (!checked) setFieldValue('proratedRentAmount', '');
+                            }}
+                          />
+                        }
+                        label={
+                          <Stack spacing={0}>
+                            <Typography variant="body2" fontWeight={600}>Charge prorated rent at move-in</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Use a calculated partial-period amount or enter your own amount when the start and due dates differ.
+                            </Typography>
+                          </Stack>
+                        }
+                      />
+                      {values.proratedRentDue && (
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 12, md: 6 }}>
+                            <FormSelect
+                              name="prorationMethod"
+                              label="Proration Method"
+                              options={[
+                                { label: 'Calculate from monthly rent', value: 'calculated' },
+                                { label: 'Enter a custom amount', value: 'custom' }
+                              ]}
+                              value={values.prorationMethod}
+                              setFieldValue={setFieldValue}
+                              valueType="string"
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, md: 6 }}>
+                            <FormInput
+                              name="proratedRentAmount"
+                              label="Prorated Rent Amount"
+                              type="text"
+                              valueType="currency"
+                              value={values.proratedRentAmount}
+                              setFieldValue={setFieldValue}
+                              touched={Boolean(touched.proratedRentAmount)}
+                              errorText={errors.proratedRentAmount}
+                              disabled={values.prorationMethod === 'calculated'}
+                              helperText={values.prorationMethod === 'calculated' ? 'Calculated using actual calendar days until the next due date.' : ''}
+                            />
+                          </Grid>
+                        </Grid>
+                      )}
+                    </Stack>
+                  </Box>
+                </Grid>
+
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, p: 2, bgcolor: 'background.paper' }}>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>Optional move-in charges</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          These amounts will carry into the Rent, Deposits, & Fees agreement section.
+                        </Typography>
+                      </Box>
+                      <Grid container spacing={2}>
+                        {[
+                          ['securityDeposit', 'Security Deposit'],
+                          ['petDeposit', 'Pet Deposit'],
+                          ['petFee', 'Pet Fee']
+                        ].map(([name, label]) => (
+                          <Grid key={name} size={{ xs: 12, md: 4 }}>
+                            <FormInput
+                              name={name}
+                              label={label}
+                              type="text"
+                              valueType="currency"
+                              value={values[name]}
+                              setFieldValue={setFieldValue}
+                              touched={Boolean(touched[name])}
+                              errorText={errors[name]}
+                              placeholder="$0.00"
+                            />
+                          </Grid>
+                        ))}
+                      </Grid>
+                      {(values.otherMoveInCharges || []).map((charge, index) => (
+                        <Grid container spacing={2} key={`move-in-charge-${index}`} alignItems="flex-end">
+                          <Grid size={{ xs: 12, md: 7 }}>
+                            <FormInput
+                              name={`otherMoveInCharges.${index}.name`}
+                              label="Other Charge Name"
+                              value={charge.name}
+                              setFieldValue={setFieldValue}
+                              placeholder="e.g. Key fee"
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 8, md: 3 }}>
+                            <FormInput
+                              name={`otherMoveInCharges.${index}.amount`}
+                              label="Amount"
+                              type="text"
+                              valueType="currency"
+                              value={charge.amount}
+                              setFieldValue={setFieldValue}
+                              placeholder="$0.00"
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 4, md: 2 }}>
+                            <Button
+                              color="error"
+                              onClick={() => setFieldValue('otherMoveInCharges', values.otherMoveInCharges.filter((_, i) => i !== index))}
+                              sx={{ textTransform: 'none' }}
+                            >
+                              Remove
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      ))}
+                      <Box>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<PlusOutlined />}
+                          onClick={() => setFieldValue('otherMoveInCharges', [...(values.otherMoveInCharges || []), { name: '', amount: '' }])}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          Add other move-in charge
+                        </Button>
+                      </Box>
+                    </Stack>
+                  </Box>
+                </Grid>
+
+                <Grid size={{ xs: 12 }}>
+                  <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, p: 2, bgcolor: 'background.paper' }}>
+                    <Stack spacing={2}>
+                      <FormControlLabel
+                        control={
+                          <Switch
                             checked={Boolean(values.autoRenewLease)}
                             onChange={(event) => {
                               setFieldValue('autoRenewLease', event.target.checked);
@@ -457,6 +584,15 @@ export default function LeaseEditDrawer({ unitsByProperty = {}, onUpdateSuccess 
                           )}
                         </Grid>
                       )}
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={Boolean(values.createChecklistOnStartDate)}
+                            onChange={(event) => setFieldValue('createChecklistOnStartDate', event.target.checked)}
+                          />
+                        }
+                        label={<Typography variant="body2" fontWeight={600}>Create checklist on start date</Typography>}
+                      />
                     </Stack>
                   </Box>
                 </Grid>
