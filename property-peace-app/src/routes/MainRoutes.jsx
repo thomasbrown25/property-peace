@@ -20,6 +20,7 @@ const PropertyAddWorkflow = Loadable(lazy(() => import('pages/landlord/property-
 const PropertyImportPage = Loadable(lazy(() => import('pages/landlord/property-import')));
 const Leases = Loadable(lazy(() => import('pages/landlord/leases')));
 const Listings = Loadable(lazy(() => import('pages/landlord/listings')));
+const Leads = Loadable(lazy(() => import('pages/landlord/leads')));
 const ListingCreate = Loadable(lazy(() => import('pages/landlord/listing-create')));
 const ListingSetup = Loadable(lazy(() => import('pages/landlord/listing-setup')));
 const ListingSetupPhotos = Loadable(lazy(() => import('pages/landlord/listing-setup-photos')));
@@ -632,6 +633,14 @@ const MainRoutes = {
           element: (
             <SubscriptionPausedGuard>
               <Tenant />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/leads',
+          element: (
+            <SubscriptionPausedGuard>
+              <Leads />
             </SubscriptionPausedGuard>
           )
         },

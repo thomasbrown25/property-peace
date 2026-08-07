@@ -63,6 +63,9 @@ import { useGooglePlacePhotos } from 'hooks/useGooglePlacePhotos';
 import axiosServices from 'utils/axios';
 import { bankAccountAPI } from 'api';
 import { bulkCreateUnits } from 'store/unit/unit.action';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 // constant
 const getInitialValues = (property) => {
@@ -109,6 +112,7 @@ export default function PropertyAdd() {
 
   const { createProperty, createLoading } = useCreateProperty();
   const { status: subscriptionStatus } = useSubscriptionStatus();
+  const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(undefined);
@@ -160,6 +164,13 @@ export default function PropertyAdd() {
 
   // Fetch bank accounts
   useEffect(() => {
+    if (!rentCanInvoke) {
+      setBankAccounts([]);
+      setShowStripeOnboarding(false);
+      setLoadingBankAccounts(false);
+      return;
+    }
+
     const fetchBankAccounts = async () => {
       try {
         setLoadingBankAccounts(true);
@@ -187,7 +198,7 @@ export default function PropertyAdd() {
     };
 
     fetchBankAccounts();
-  }, [showStripeOnboarding]); // Refetch when onboarding dialog closes
+  }, [showStripeOnboarding, rentCanInvoke]); // Refetch when onboarding dialog closes
 
   // Handler for when address is selected
   const handleAddressSelected = async (address, place) => {
@@ -342,7 +353,7 @@ export default function PropertyAdd() {
           state: (values.state || '').trim(),
           zipCode: (values.zipCode || '').trim(),
           primaryManagerId: values.primaryManagerId || null,
-          operatingAccountId: values.operatingAccountId || null,
+          operatingAccountId: rentCanInvoke ? values.operatingAccountId || null : null,
           unitCount: null // Don't send unitCount, we'll create units separately
         };
 
@@ -434,6 +445,8 @@ export default function PropertyAdd() {
 
   // Handler for when Stripe onboarding completes
   const handleStripeOnboardingComplete = async () => {
+    if (!rentCanInvoke) return;
+
     console.log('handleStripeOnboardingComplete called - starting sync process');
     
     // First, call the sync endpoint to ensure bank account is created in database
@@ -490,6 +503,11 @@ export default function PropertyAdd() {
       console.error('Error refreshing bank accounts after onboarding:', error);
       console.error('Error details:', error?.response?.data || error?.message);
     }
+  };
+
+  const handleOpenStripeOnboarding = () => {
+    if (!rentCanInvoke) return;
+    setShowStripeOnboarding(true);
   };
 
   const handleCancel = () => {
@@ -920,33 +938,37 @@ export default function PropertyAdd() {
                 <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold', fontStyle: 'italic' }}>
                   ACCOUNT INFORMATION
                 </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  What is this property's primary bank account? 
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Select the bank account where rent payments for this property will be deposited.
-                </Typography>
+                <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
                 <Grid container spacing={3}>
-                  <Grid size={{ xs: 12, sm: 8, md: 6 }}>
-                    <FormSelect
-                      name="operatingAccountId"
-                      label="Operating Account"
-                      options={[
-                        ...bankAccounts.map(acc => ({ id: acc.id, value: acc.id, label: acc.label || acc.displayName || 'Bank Account' })),
-                        { id: 'add-new', value: 'add-new', label: 'Add new bank account' }
-                      ]}
-                      value={values.operatingAccountId || ''}
-                      setFieldValue={(name, value) => {
-                        if (value === 'add-new') {
-                          setShowStripeOnboarding(true);
-                        } else {
-                          setFieldValue(name, value);
-                        }
-                      }}
-                      placeholder="Select or add new (optional)"
-                      valueType="string"
-                    />
-                  </Grid>
+                  {rentCanInvoke && (
+                    <Grid size={{ xs: 12, sm: 8, md: 6 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                        What is this property's primary bank account?
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        Select the bank account where rent payments for this property will be deposited.
+                      </Typography>
+                      <FormSelect
+                        name="operatingAccountId"
+                        label="Operating Account"
+                        options={[
+                          ...bankAccounts.map(acc => ({ id: acc.id, value: acc.id, label: acc.label || acc.displayName || 'Bank Account' })),
+                          { id: 'add-new', value: 'add-new', label: 'Add new bank account' }
+                        ]}
+                        value={values.operatingAccountId || ''}
+                        setFieldValue={(name, value) => {
+                          if (value === 'add-new') {
+                            handleOpenStripeOnboarding();
+                          } else {
+                            setFieldValue(name, value);
+                          }
+                        }}
+                        placeholder="Select or add new (optional)"
+                        valueType="string"
+                        disabled={loadingBankAccounts}
+                      />
+                    </Grid>
+                  )}
 
                   <Grid size={{ xs: 12 }}>
                     <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 2, mt: 2 }}>
@@ -1032,11 +1054,13 @@ export default function PropertyAdd() {
       />
 
       {/* Stripe Connect Onboarding Dialog */}
-      <StripeConnectOnboardingDialog
-        open={showStripeOnboarding}
-        onClose={() => setShowStripeOnboarding(false)}
-        onComplete={handleStripeOnboardingComplete}
-      />
+      {rentCanInvoke && (
+        <StripeConnectOnboardingDialog
+          open={showStripeOnboarding}
+          onClose={() => setShowStripeOnboarding(false)}
+          onComplete={handleStripeOnboardingComplete}
+        />
+      )}
     </MainCard>
   );
 }

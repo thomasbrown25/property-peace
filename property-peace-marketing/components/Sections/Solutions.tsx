@@ -19,7 +19,7 @@ export default function Solutions() {
     },
     {
       icon: FiZap,
-      title: 'Percy AI Summaries',
+      title: 'Percy Pilot Summaries',
       description: 'Percy summarizes your entire portfolio, shows you items that need attention, and recommends actions you can trigger with a click.',
       benefit: 'Smart insights, instant actions'
     }

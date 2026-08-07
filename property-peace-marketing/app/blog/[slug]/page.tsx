@@ -47,7 +47,7 @@ function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
   const fallback: BlogCta = {
     eyebrow: 'Free landlord software',
     title: 'Put this guide into action with Property Peace',
-    body: 'Collect rent, track maintenance, store leases, and manage tenant communication from one simple dashboard.',
+    body: 'Track rent records, maintenance, leases, and tenant communication from one simple dashboard.',
     href: 'https://app.propertypeace.io/register',
     label: 'Get Started Free',
   };
@@ -78,9 +78,9 @@ function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
 
   if (text.includes('rent') || text.includes('payment')) {
     return {
-      eyebrow: 'Online rent collection',
-      title: 'Make rent collection easier this month',
-      body: 'Send reminders, accept online payments, track overdue rent, and keep payment history organized automatically.',
+      eyebrow: 'Rent tracking tools',
+      title: 'Keep rent records organized this month',
+      body: 'Record payment history, track overdue rent, and organize reminders. Online payment processing is not currently available.',
       href: '/features/rent-collection',
       label: 'See Rent Collection',
     };

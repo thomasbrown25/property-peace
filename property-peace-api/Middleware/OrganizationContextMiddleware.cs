@@ -58,31 +58,43 @@ namespace brownstone_hub_api.Middleware
 
                     if (userId.HasValue)
                     {
-                        bool organizationContextSet = false;
-                        
-                        // Get organization ID from header if provided
+                        var organizationHeaderWasProvided = context.Request.Headers.ContainsKey("X-Organization-Id");
                         var organizationIdHeader = context.Request.Headers["X-Organization-Id"].FirstOrDefault();
-                        if (!string.IsNullOrEmpty(organizationIdHeader) && long.TryParse(organizationIdHeader, out var organizationId))
+
+                        if (organizationHeaderWasProvided)
                         {
-                            // Verify user is a member of this organization
+                            if (!long.TryParse(organizationIdHeader, out var organizationId) || organizationId <= 0)
+                            {
+                                _logger.LogWarning(
+                                    "User {UserId} supplied an invalid organization ID header: {Header}",
+                                    userId.Value,
+                                    organizationIdHeader ?? "null");
+                                context.Items.Remove("OrganizationId");
+                                context.Items.Remove("UserId");
+                                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                                return;
+                            }
+
                             var isMember = await memberRepository.IsUserMemberOfOrganizationAsync(userId.Value, organizationId);
-                            if (isMember)
+                            if (!isMember)
                             {
-                                // Store in context for use in controllers/services
-                                context.Items["OrganizationId"] = organizationId;
-                                context.Items["UserId"] = userId.Value;
-                                organizationContextSet = true;
+                                _logger.LogWarning(
+                                    "User {UserId} attempted to access organization {OrganizationId} without membership.",
+                                    userId.Value,
+                                    organizationId);
+                                context.Items.Remove("OrganizationId");
+                                context.Items.Remove("UserId");
+                                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                                return;
                             }
-                            else
-                            {
-                                _logger.LogWarning("User {UserId} attempted to access organization {OrganizationId} without membership. Falling back to user's CurrentOrganizationId.", userId.Value, organizationId);
-                            }
+
+                            context.Items["OrganizationId"] = organizationId;
+                            context.Items["UserId"] = userId.Value;
                         }
-                        
-                        // If organization context not set (no header, invalid header, or membership check failed),
-                        // fall back to user's CurrentOrganizationId
-                        if (!organizationContextSet)
+                        else
                         {
+                            // With no explicit selection, preserve the product convention of using
+                            // the user's persisted current organization as the default.
                             var user = await userRepository.GetUser(userId.Value);
                             if (user?.CurrentOrganizationId != null)
                             {

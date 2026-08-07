@@ -38,6 +38,9 @@ import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import useOrganizationSummary from 'hooks/useOrganizationSummary';
 import { aiFollowUpAPI, organizationAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 const NAVY = '#061e35';
 const GREEN = '#16a34a';
@@ -313,6 +316,7 @@ export default function AICenter() {
   const progressTimerRef = useRef(null);
   const streamAbortRef = useRef(null);
   const { data: summary, loading: summaryLoading, error: summaryError } = useOrganizationSummary();
+  const { presentation: percyReadiness } = useFeatureReadiness(FEATURE_KEYS.percy);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -421,6 +425,7 @@ export default function AICenter() {
   };
 
   const handleSend = async (value = input) => {
+    if (!percyReadiness.canInvoke) return;
     const prompt = value.trim();
     if (!prompt || thinking || conversationLoading) return;
 
@@ -579,6 +584,7 @@ export default function AICenter() {
   return (
     <Box>
       <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Percy' }]} />
+      <FeatureReadinessNotice presentation={percyReadiness} featureName="Percy" />
 
       <Box
         sx={{
@@ -947,7 +953,7 @@ export default function AICenter() {
                 />
                 <IconButton
                   onClick={() => handleSend()}
-                  disabled={!input.trim() || thinking || conversationLoading}
+                  disabled={!input.trim() || thinking || conversationLoading || !percyReadiness.canInvoke}
                   sx={{
                     width: 38,
                     height: 38,

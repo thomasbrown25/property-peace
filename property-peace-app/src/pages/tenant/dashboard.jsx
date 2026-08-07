@@ -55,6 +55,9 @@ import Announcements from 'sections/tenant/dashboard/Announcements';
 import LeaseSelector from 'components/LeaseSelector';
 import { openSnackbar } from 'api/snackbar';
 import moment from 'moment';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 // ==============================|| TENANT - DASHBOARD ||============================== //
 
@@ -432,7 +435,7 @@ function SavePaymentMethodForm({ onClose, onSaved }) {
   );
 }
 
-function TenantPaymentMethodModal({ open, onClose }) {
+function TenantPaymentMethodModal({ open, onClose, canInvoke }) {
   const [stripePromise, setStripePromise] = useState(null);
   const [clientSecret, setClientSecret] = useState('');
   const [loading, setLoading] = useState(false);
@@ -442,7 +445,7 @@ function TenantPaymentMethodModal({ open, onClose }) {
     let active = true;
 
     const prepareSetupIntent = async () => {
-      if (!open) return;
+      if (!open || !canInvoke) return;
       setLoading(true);
       setError(null);
       setClientSecret('');
@@ -469,7 +472,7 @@ function TenantPaymentMethodModal({ open, onClose }) {
     return () => {
       active = false;
     };
-  }, [open]);
+  }, [open, canInvoke]);
 
   const handleClose = () => {
     setClientSecret('');
@@ -524,6 +527,7 @@ export default function TenantDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const modal = useModal();
+  const { presentation: rentReadiness, canInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const { getSelectedLease, selectedLeaseId, leases: contextLeases, setLeases: setContextLeases, selectLease } = useLease();
 
   // Track previous lease ID to prevent unnecessary re-fetches
@@ -982,6 +986,10 @@ export default function TenantDashboard() {
         </Grid>
         <Divider width="100%" sx={{ mt: -0.25, mb: 0.25 }} />
 
+        <Grid size={12}>
+          <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
+        </Grid>
+
         {/* Announcements */}
         <Grid size={{ xs: 12 }}>
           <Announcements />
@@ -1148,7 +1156,7 @@ export default function TenantDashboard() {
                               fullWidth
                               startIcon={<DollarOutlined />}
                               color="success"
-                              disabled={!paymentAllocation || totalAmountDue <= 0}
+                              disabled={!canInvoke || !paymentAllocation || totalAmountDue <= 0}
                               onClick={() => {
                                 if (paymentAllocation) {
                                   modal.openPaymentModal({
@@ -1184,6 +1192,7 @@ export default function TenantDashboard() {
                               variant="outlined"
                               fullWidth
                               startIcon={<SettingOutlined />}
+                              disabled={!canInvoke}
                               onClick={() => setPaymentMethodModalOpen(true)}
                               sx={{
                                 minHeight: 44,
@@ -1489,10 +1498,16 @@ export default function TenantDashboard() {
       )}
 
       {/* Payment Method Modal */}
-      <TenantPaymentMethodModal open={paymentMethodModalOpen} onClose={() => setPaymentMethodModalOpen(false)} />
+      {canInvoke && paymentMethodModalOpen && (
+        <TenantPaymentMethodModal
+          open={paymentMethodModalOpen}
+          onClose={() => setPaymentMethodModalOpen(false)}
+          canInvoke={canInvoke}
+        />
+      )}
 
       {/* Payment Modal */}
-      {lease && (
+      {canInvoke && lease && (
         <PaymentModal
           open={modal.openPayment}
           rent={modal.selectedRent}

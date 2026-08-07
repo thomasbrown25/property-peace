@@ -39,8 +39,8 @@ export default function Hero() {
               className="mx-auto mb-7 max-w-[21.5rem] text-[1.02rem] leading-7 text-white/90 sm:max-w-lg sm:text-base md:text-lg sm:leading-relaxed sm:mb-10 lg:mx-0"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              <span className="sm:hidden">Property Peace provides Percy-powered lease administration, maintenance operations, and portfolio analytics in a single system.</span>
-              <span className="hidden sm:inline">Property Peace provides Percy-powered lease administration, maintenance operations, and portfolio analytics in a single system for independent landlords.</span>
+              <span className="sm:hidden">Property Peace brings lease administration, maintenance operations, and portfolio analytics together, with Percy-assisted tools, currently in limited pilot.</span>
+              <span className="hidden sm:inline">Property Peace brings lease administration, maintenance operations, and portfolio analytics together for independent landlords, with Percy-assisted tools, currently in limited pilot.</span>
             </p>
 
             {/* Mobile start card - Innago-inspired, Property Peace-branded signup panel */}

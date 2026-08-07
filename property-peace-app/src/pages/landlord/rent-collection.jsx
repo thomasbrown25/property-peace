@@ -53,6 +53,9 @@ import RentCollectionEmptyState from 'sections/landlord/rent-collection/RentColl
 import RentCard from 'components/cards/RentCard';
 import MainCard from 'components/MainCard';
 import BankAccountBanner from 'components/rent-collection/BankAccountBanner';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 export default function RentCollection() {
   const modal = useModal();
@@ -64,6 +67,7 @@ export default function RentCollection() {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
+  const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const [accountStatus, setAccountStatus] = useState(null);
   const [checkingBankStatus, setCheckingBankStatus] = useState(false);
 
@@ -86,11 +90,16 @@ export default function RentCollection() {
 
   // Check bank account status
   useEffect(() => {
+    if (!rentCanInvoke) {
+      setAccountStatus(null);
+      setCheckingBankStatus(false);
+      return;
+    }
     checkBankAccountStatus();
-  }, [user]);
+  }, [user, rentCanInvoke]);
 
   const checkBankAccountStatus = async () => {
-    if (!user?.id && !user?.Id) return;
+    if (!rentCanInvoke || (!user?.id && !user?.Id)) return;
 
     try {
       setCheckingBankStatus(true);
@@ -366,9 +375,10 @@ export default function RentCollection() {
     <Box>
       {/* Enhanced Header */}
       <RentCollectionHeader />
+      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
 
       {/* Bank Account Banner - Show if bank account is not connected */}
-      {!checkingBankStatus && !isBankConnected && (
+      {rentCanInvoke && !checkingBankStatus && !isBankConnected && (
         <Box sx={{ mb: 3 }}>
           <BankAccountBanner />
         </Box>

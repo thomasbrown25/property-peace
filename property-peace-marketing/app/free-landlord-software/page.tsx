@@ -30,7 +30,7 @@ const config: NicheLandingPageConfig = {
   faq: [
     { question: 'Is Property Peace really free for landlords?', answer: 'Yes. Property Peace has a free plan for landlords managing up to 2 units, so small rental owners can start without a credit card.' },
     { question: 'Who is Property Peace best for?', answer: 'Property Peace is built for independent landlords and small rental owners managing roughly 1–50 units, especially people replacing spreadsheets and scattered messages.' },
-    { question: 'Can I upgrade later?', answer: 'Yes. Start free, then upgrade when you need unlimited units, LeaseShield, Percy AI tools, and more advanced workflows.' },
+    { question: 'Can I upgrade later?', answer: 'Yes. Start free, then upgrade when you need unlimited units, LeaseShield, Percy Pilot tools, and more advanced workflows.' },
   ],
   relatedLinks: [
     { href: '/landlord-software', label: 'Landlord software' },

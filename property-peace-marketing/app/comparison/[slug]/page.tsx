@@ -34,14 +34,14 @@ const comparisonData: Record<string, ComparisonData> = {
     competitorName: 'Buildium',
     competitorSlug: 'buildium',
     title: 'Buildium Alternative for Small Landlords',
-    description: 'Compare Property Peace with Buildium. Property Peace is built for small landlords with 1–50 units who want rent, maintenance, leases, expenses, reports, and Percy AI tools without enterprise complexity.',
+    description: 'Compare Property Peace with Buildium. Property Peace is built for small landlords with 1–50 units who want rent, maintenance, leases, expenses, reports, and Percy Pilot tools without enterprise complexity.',
     metaKeywords: 'Property Peace vs Buildium, Buildium alternative, property management software comparison, Buildium vs Property Peace, affordable property management software, solo landlord property management, growing portfolio management',
     canonical: 'https://propertypeace.io/comparison/brownstone-hub-vs-buildium',
     competitorFeatures: [
       { name: 'Real-Time Updates (SignalR)', brownstone: true, competitor: false },
       { name: 'All-in-One Dashboard', brownstone: true, competitor: true },
-      { name: 'Online Rent Collection', brownstone: true, competitor: true },
-      { name: 'Digital Lease Signing (DocuSign)', brownstone: true, competitor: true },
+      { name: 'Rent Ledger and Reminders', brownstone: true, competitor: true },
+      { name: 'Lease Document Management', brownstone: true, competitor: true },
       { name: 'Digital Rental Applications', brownstone: true, competitor: true },
       { name: 'Maintenance Request Tracking', brownstone: true, competitor: true },
       { name: 'Tenant Portal', brownstone: true, competitor: true },
@@ -52,14 +52,14 @@ const comparisonData: Record<string, ComparisonData> = {
       { name: 'Cloud Document Management', brownstone: true, competitor: true },
       { name: 'Automated Workflows', brownstone: true, competitor: true },
       { name: 'Google Maps Integration', brownstone: true, competitor: false },
-      { name: 'Stripe Payment Integration', brownstone: true, competitor: true },
+      { name: 'Online Payment Processing (not currently available)', brownstone: false, competitor: true },
       { name: 'Mobile Responsive Design', brownstone: true, competitor: true },
       { name: 'Free tier (up to 2 units)', brownstone: true, competitor: false },
       { name: 'No Hidden Fees', brownstone: true, competitor: false },
       { name: 'No Minimum Unit Requirements', brownstone: true, competitor: false },
       { name: 'Modern, Intuitive Interface', brownstone: true, competitor: false },
       { name: 'Real-Time Communication', brownstone: true, competitor: false },
-      { name: 'Percy-powered Features', brownstone: true, competitor: false }
+      { name: 'Percy Pilot Features', brownstone: true, competitor: false }
     ],
     brownstoneAdvantages: [
       {
@@ -95,8 +95,8 @@ const comparisonData: Record<string, ComparisonData> = {
         description: 'Instant messaging and real-time notifications keep you connected with tenants. Property Peace\'s communication tools are more responsive than Buildium\'s traditional approach, making it easier for solo landlords to stay on top of everything.'
       },
       {
-        title: 'Percy-powered Features with More Coming Soon',
-        description: 'Property Peace includes Percy-powered features to enhance your property management efficiency. We\'re actively developing new Percy capabilities that will be released soon, providing solo landlords and growing portfolios with innovative tools that Buildium doesn\'t offer.'
+        title: 'Percy Pilot Features with More Coming Soon',
+        description: 'Property Peace includes Percy Pilot features to enhance your property management efficiency. We\'re actively developing new Percy capabilities that will be released soon, providing solo landlords and growing portfolios with innovative tools that Buildium doesn\'t offer.'
       }
     ],
     pricingComparison: {
@@ -126,14 +126,14 @@ const comparisonData: Record<string, ComparisonData> = {
       title: 'Why Property Peace is the Better Choice Over Buildium',
       points: [
         'Free for up to 2 units — no credit card required',
-        'Premium plan at $14.99/mo — unlimited units, LeaseShield, Percy AI features, priority support',
+        'Premium plan at $14.99/mo — unlimited units, LeaseShield, Percy Pilot features, priority support',
         'Save 15% with annual billing',
         'Real-time updates without page refreshing',
         'No minimum unit requirements—perfect for solo landlords and growing portfolios',
         'Modern, intuitive interface that\'s easy to learn',
         'Faster onboarding and setup process',
         'No hidden fees',
-        'Percy-powered features with new capabilities coming soon',
+        'Percy Pilot features with new capabilities coming soon',
         'Designed specifically for solo landlords and growing portfolios'
       ]
     },
@@ -149,8 +149,8 @@ const comparisonData: Record<string, ComparisonData> = {
     competitorFeatures: [
       { name: 'Real-Time Updates (SignalR)', brownstone: true, competitor: false },
       { name: 'All-in-One Dashboard', brownstone: true, competitor: true },
-      { name: 'Online Rent Collection', brownstone: true, competitor: true },
-      { name: 'Digital Lease Signing (DocuSign)', brownstone: true, competitor: true },
+      { name: 'Rent Ledger and Reminders', brownstone: true, competitor: true },
+      { name: 'Lease Document Management', brownstone: true, competitor: true },
       { name: 'Digital Rental Applications', brownstone: true, competitor: true },
       { name: 'Maintenance Request Tracking', brownstone: true, competitor: true },
       { name: 'Tenant Portal', brownstone: true, competitor: true },
@@ -161,14 +161,14 @@ const comparisonData: Record<string, ComparisonData> = {
       { name: 'Cloud Document Management', brownstone: true, competitor: true },
       { name: 'Automated Workflows', brownstone: true, competitor: true },
       { name: 'Google Maps Integration', brownstone: true, competitor: false },
-      { name: 'Stripe Payment Integration', brownstone: true, competitor: true },
+      { name: 'Online Payment Processing (not currently available)', brownstone: false, competitor: true },
       { name: 'Mobile Responsive Design', brownstone: true, competitor: true },
       { name: 'Free tier (up to 2 units)', brownstone: true, competitor: false },
       { name: 'No Hidden Fees', brownstone: true, competitor: false },
       { name: 'No Minimum Unit Requirements', brownstone: true, competitor: false },
       { name: 'Modern, Intuitive Interface', brownstone: true, competitor: false },
       { name: 'Real-Time Communication', brownstone: true, competitor: false },
-      { name: 'Percy-powered Features', brownstone: true, competitor: false }
+      { name: 'Percy Pilot Features', brownstone: true, competitor: false }
     ],
     brownstoneAdvantages: [
       {
@@ -204,8 +204,8 @@ const comparisonData: Record<string, ComparisonData> = {
         description: 'Property Peace is built specifically for solo landlords and growing portfolios. It scales with you from one property to many, without overwhelming complexity. DoorLoop tries to be everything to everyone, which can make it less focused.'
       },
       {
-        title: 'Percy-powered Features',
-        description: 'Property Peace includes Percy-powered features to enhance your property management efficiency. We\'re actively developing new Percy capabilities that will be released soon, providing landlords with innovative tools that DoorLoop doesn\'t offer.'
+        title: 'Percy Pilot Features',
+        description: 'Property Peace includes Percy Pilot features to enhance your property management efficiency. We\'re actively developing new Percy capabilities that will be released soon, providing landlords with innovative tools that DoorLoop doesn\'t offer.'
       }
     ],
     pricingComparison: {
@@ -235,14 +235,14 @@ const comparisonData: Record<string, ComparisonData> = {
       title: 'Why Property Peace is the Better Choice Over DoorLoop',
       points: [
         'Free for up to 2 units — no credit card required',
-        'Premium plan at $14.99/mo — unlimited units, LeaseShield, Percy AI features, priority support',
+        'Premium plan at $14.99/mo — unlimited units, LeaseShield, Percy Pilot features, priority support',
         'Save 15% with annual billing',
         'Focused on essential features without unnecessary bloat',
         'Real-time updates without page refreshing',
         'No minimum unit requirements—perfect for solo landlords',
         'Simpler, more intuitive interface',
         'Faster setup and easier onboarding',
-        'Percy-powered features with new capabilities coming soon',
+        'Percy Pilot features with new capabilities coming soon',
         'Designed specifically for solo landlords and growing portfolios'
       ]
     },
@@ -258,19 +258,19 @@ const comparisonData: Record<string, ComparisonData> = {
     competitorFeatures: [
       { name: 'Real-Time Updates (SignalR)', brownstone: true, competitor: false },
       { name: 'All-in-One Dashboard', brownstone: true, competitor: true },
-      { name: 'Online Rent Collection', brownstone: true, competitor: true },
-      { name: 'Digital Lease Signing (DocuSign)', brownstone: true, competitor: true },
+      { name: 'Rent Ledger and Reminders', brownstone: true, competitor: true },
+      { name: 'Lease Document Management', brownstone: true, competitor: true },
       { name: 'Digital Rental Applications', brownstone: true, competitor: true },
       { name: 'Maintenance Request Tracking', brownstone: true, competitor: true },
       { name: 'Tenant Portal', brownstone: true, competitor: true },
       { name: 'Financial Reporting & Analytics', brownstone: true, competitor: true },
       { name: 'Expense Tracking', brownstone: true, competitor: true },
-      { name: 'Percy-powered Features', brownstone: true, competitor: true },
+      { name: 'AI Assistant Pilot', brownstone: true, competitor: false },
       { name: 'Multi-Channel Notifications', brownstone: true, competitor: true },
       { name: 'Cloud Document Management', brownstone: true, competitor: true },
       { name: 'Automated Workflows', brownstone: true, competitor: true },
       { name: 'Google Maps Integration', brownstone: true, competitor: false },
-      { name: 'Stripe Payment Integration', brownstone: true, competitor: true },
+      { name: 'Online Payment Processing (not currently available)', brownstone: false, competitor: true },
       { name: 'Mobile Responsive Design', brownstone: true, competitor: true },
       { name: 'Free tier (up to 2 units)', brownstone: true, competitor: false },
       { name: 'No Per-Unit Fees', brownstone: true, competitor: false },
@@ -281,7 +281,7 @@ const comparisonData: Record<string, ComparisonData> = {
     brownstoneAdvantages: [
       {
         title: 'Perfect for Solo Landlords and Growing Portfolios',
-        description: 'Property Peace is free for up to 2 units. Premium is $14.99/mo with no per-unit fees — rent collection, financial reports, LeaseShield, Percy AI features, and more. AppFolio is designed for larger portfolios and can cost significantly more, often requiring minimum unit counts.'
+        description: 'Property Peace is free for up to 2 units. Premium is $14.99/mo with no per-unit fees — rent collection, financial reports, LeaseShield, Percy Pilot features, and more. AppFolio is designed for larger portfolios and can cost significantly more, often requiring minimum unit counts.'
       },
       {
         title: 'Real-Time Technology',
@@ -312,8 +312,8 @@ const comparisonData: Record<string, ComparisonData> = {
         description: 'Get up and running quickly with Property Peace\'s streamlined setup. Solo landlords can start managing properties in minutes, not days. AppFolio\'s comprehensive platform requires more time to configure and learn.'
       },
       {
-        title: 'Percy AI Features with More Coming Soon',
-        description: 'Property Peace includes Percy-powered features to streamline your property management workflow. We\'re actively developing new Percy capabilities that will be released soon, ensuring solo landlords and growing portfolios stay ahead with cutting-edge technology.'
+        title: 'Percy Pilot Features with More Coming Soon',
+        description: 'Property Peace includes Percy Pilot features to streamline your property management workflow. We\'re actively developing new Percy capabilities that will be released soon, ensuring solo landlords and growing portfolios stay ahead with cutting-edge technology.'
       }
     ],
     pricingComparison: {
@@ -343,7 +343,7 @@ const comparisonData: Record<string, ComparisonData> = {
       title: 'Why Property Peace is the Better Choice Over AppFolio',
       points: [
         'Free for up to 2 units — no credit card required',
-        'Premium plan at $14.99/mo — unlimited units, LeaseShield, Percy AI features, priority support',
+        'Premium plan at $14.99/mo — unlimited units, LeaseShield, Percy Pilot features, priority support',
         'Save 15% with annual billing',
         'Real-time updates without page refreshing',
         'No minimum unit requirements—perfect for solo landlords',
@@ -351,7 +351,7 @@ const comparisonData: Record<string, ComparisonData> = {
         'Simpler, more focused feature set without overwhelming complexity',
         'Faster setup and easier onboarding',
         'More personalized customer support',
-        'Percy-powered features with new capabilities coming soon'
+        'Percy Pilot features with new capabilities coming soon'
       ]
     },
     heroDescription: 'Property Peace and AppFolio are powerful property management tools. While AppFolio offers strong features geared toward larger portfolios and enterprise operations, Property Peace shines overall with its user-friendly interface, simple flat pricing, and advanced automation to help you simplify everyday property management. Whether you\'re a solo landlord just starting out or growing your portfolio, Property Peace adapts to your needs without being too large or complex.'

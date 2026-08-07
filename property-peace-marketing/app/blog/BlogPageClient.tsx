@@ -236,7 +236,7 @@ export default function BlogPageClient() {
                           Managing rentals while reading these guides?
                         </h2>
                         <p className="max-w-2xl text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
-                          Property Peace helps independent landlords collect rent, manage leases, track maintenance, and stay organized without rebuilding another spreadsheet.
+                          Property Peace helps independent landlords track rent records, manage leases, track maintenance, and stay organized without rebuilding another spreadsheet.
                         </p>
                       </div>
                       <div className="rounded-2xl bg-white p-5 shadow-[0_14px_34px_rgba(10,45,82,0.08)]">

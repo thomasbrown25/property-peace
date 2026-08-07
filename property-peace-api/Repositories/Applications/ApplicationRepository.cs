@@ -90,6 +90,14 @@ namespace brownstone_hub_api.Repositories.Applications
             }
         }
 
+        public Task<bool?> IsApplicationOwnedByLandlordAndOrganization(long id, long landlordId, long organizationId) =>
+            _context.RentalApplications
+                .AsNoTracking()
+                .Where(application => application.Id == id)
+                .Select(application => (bool?)(application.LandlordId == landlordId &&
+                    application.OrganizationId == organizationId))
+                .SingleOrDefaultAsync();
+
         public async Task<List<LoadRentalApplicationDto>> GetApplicationsByLandlordId(long landlordId)
         {
             try

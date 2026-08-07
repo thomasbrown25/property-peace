@@ -2,6 +2,9 @@ import { Box, Typography, ToggleButton, ToggleButtonGroup, Button, Chip, Stack, 
 import { CheckOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { useTheme } from '@mui/material/styles';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 const COMPARISON_FEATURES = [
   { label: 'Units', type: 'value', getValue: (plan) => plan.maxTotalUnits == null ? 'Unlimited' : String(plan.maxTotalUnits) },
@@ -69,6 +72,7 @@ function hasFeature(plan, check) {
 export default function PlanComparisonTable({ plans = [], currentPlanId, currentBillingCycle, onSelectPlan, loading = false }) {
   const theme = useTheme();
   const [billingCycle, setBillingCycle] = useState(currentBillingCycle || 'Monthly');
+  const { presentation: rentReadiness } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const rawPlans = plans.filter((p) => !p.isTrial);
   const displayPlans = expandFeatures(rawPlans);
 
@@ -86,10 +90,13 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
     if (feature.type === 'value') {
       return <Typography variant="body2" fontWeight={600}>{feature.getValue(plan)}</Typography>;
     }
-    if (hasFeature(plan, feature.check)) {
-      return <CheckOutlined style={{ color: theme.palette.success.main, fontSize: 15 }} />;
+    if (!hasFeature(plan, feature.check)) {
+      return <Typography component="span" color="text.disabled" sx={{ fontSize: 18, lineHeight: 1 }}>—</Typography>;
     }
-    return <Typography component="span" color="text.disabled" sx={{ fontSize: 18, lineHeight: 1 }}>—</Typography>;
+    if (feature.check === 'online rent' && !rentReadiness.canInvoke) {
+      return <Chip label={rentReadiness.title} size="small" variant="outlined" color={rentReadiness.severity === 'error' ? 'error' : 'default'} />;
+    }
+    return <CheckOutlined style={{ color: theme.palette.success.main, fontSize: 15 }} />;
   };
 
   const getPlanHighlightColor = (plan) => {
@@ -134,6 +141,8 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
+
+      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection availability" />
 
       <Stack spacing={1.5} sx={{ display: { xs: 'flex', md: 'none' } }}>
         {displayPlans.map((plan) => {

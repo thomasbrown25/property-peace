@@ -14,7 +14,7 @@ const comparisonData: Record<string, {
   },
   'brownstone-hub-vs-doorloop': {
     title: 'DoorLoop Alternative for Small Landlords | Property Peace',
-    description: 'Compare Property Peace with DoorLoop. Built for independent landlords who want rent, maintenance, leases, expenses, and Percy AI tools without enterprise complexity.',
+    description: 'Compare Property Peace with DoorLoop. Built for independent landlords who want rent, maintenance, leases, expenses, and Percy Pilot tools without enterprise complexity.',
     metaKeywords: 'Property Peace vs DoorLoop, DoorLoop alternative, property management software comparison, DoorLoop vs Property Peace, affordable property management software, solo landlord property management, growing portfolio management',
     canonical: 'https://propertypeace.io/comparison/brownstone-hub-vs-doorloop'
   },

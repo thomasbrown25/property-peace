@@ -6,7 +6,7 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/pricing/', {
   title: 'Landlord Software Pricing & Plans | Property Peace',
-  description: 'Start free with landlord software for up to 2 units. Compare simple Property Peace pricing for rent, tenants, leases, maintenance, and Percy AI tools.',
+  description: 'Start free with landlord software for up to 2 units. Compare simple Property Peace pricing for rent, tenants, leases, maintenance, and Percy Pilot tools.',
   alternates: {
     canonical: '/pricing',
   },

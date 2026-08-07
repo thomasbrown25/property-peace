@@ -5,6 +5,8 @@ using brownstone_hub_api.Repositories.Subscriptions;
 using brownstone_hub_api.Repositories.Users;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using brownstone_hub_api.Config;
+using Microsoft.Extensions.Options;
 
 namespace brownstone_hub_api.Services.SubscriptionService
 {
@@ -17,6 +19,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
         private readonly DataContext _context;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<FeatureGateService> _logger;
+        private readonly IOptionsSnapshot<FeatureReadinessOptions>? _readinessOptions;
 
         public FeatureGateService(
             ISubscriptionRepository subscriptionRepository,
@@ -25,7 +28,8 @@ namespace brownstone_hub_api.Services.SubscriptionService
             IAdminSettingsRepository adminSettingsRepository,
             DataContext context,
             IHttpContextAccessor httpContextAccessor,
-            ILogger<FeatureGateService> logger)
+            ILogger<FeatureGateService> logger,
+            IOptionsSnapshot<FeatureReadinessOptions>? readinessOptions = null)
         {
             _subscriptionRepository = subscriptionRepository;
             _propertyRepository = propertyRepository;
@@ -34,6 +38,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
             _context = context;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
+            _readinessOptions = readinessOptions;
         }
 
         private async Task<long?> GetOrganizationIdForUserAsync(long userId)
@@ -134,6 +139,18 @@ namespace brownstone_hub_api.Services.SubscriptionService
 
         public async Task<bool> HasFeatureAccessAsync(long userId, string featureName)
         {
+            if (FeatureKeys.All.Contains(featureName, StringComparer.OrdinalIgnoreCase))
+            {
+                var state = _readinessOptions?.Value.GetState(featureName) ?? FeatureReadinessState.Unavailable;
+                if (state is not (FeatureReadinessState.Available or FeatureReadinessState.Pilot))
+                    return false;
+            }
+
+            return await HasPlanFeatureAccessAsync(userId, featureName);
+        }
+
+        public async Task<bool> HasPlanFeatureAccessAsync(long userId, string featureName)
+        {
             try
             {
                 // Tenant-only users gate on their own subscription, not the landlord's.
@@ -178,8 +195,12 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 if (string.Equals(featureName, "LeaseShield", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "RentEstimate", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "Reports", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(featureName, "TenantScreening", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(featureName, "ListingSyndication", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(featureName, "ESignature", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "OnlineRentCollection", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(featureName, "DedicatedSmsNumber", StringComparison.OrdinalIgnoreCase))
+                    string.Equals(featureName, "DedicatedSmsNumber", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(featureName, "Percy", StringComparison.OrdinalIgnoreCase))
                 {
                     if (isPremium) return true;
 

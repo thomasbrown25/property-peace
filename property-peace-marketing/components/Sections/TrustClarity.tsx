@@ -2,7 +2,6 @@
 
 import { motion, type Variants } from 'framer-motion';
 import { FiArrowRight, FiCheck, FiShield, FiHome, FiCreditCard } from 'react-icons/fi';
-import { SiStripe } from 'react-icons/si';
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -16,25 +15,25 @@ const fadeUp: Variants = {
 const paymentSteps = [
   {
     icon: FiHome,
-    label: 'Tenant pays online',
-    sub: 'Secure online rent payment',
-  },
-  {
-    icon: SiStripe,
-    label: 'Stripe processes the payment',
-    sub: 'Handled by your payment processor',
+    label: 'Record a rent payment',
+    sub: 'Keep the ledger current',
   },
   {
     icon: FiCreditCard,
-    label: 'Funds go to your account',
-    sub: 'Payment status stays visible in the app',
+    label: 'Property Peace updates the ledger',
+    sub: 'Track paid, partial, and overdue status',
+  },
+  {
+    icon: FiCreditCard,
+    label: 'Follow up when needed',
+    sub: 'Use reminders and late-fee workflows',
   },
 ];
 
 const paymentBullets = [
-  'Online rent payments tracked in one place',
-  'Payment status updates inside the app',
-  'Funds deposited to your connected account',
+  'Recorded payment history in one place',
+  'Overdue balances and late-fee calculations',
+  'In-app and email reminder workflows',
 ];
 
 const dataBullets = [
@@ -73,13 +72,13 @@ export default function TrustClarity() {
             className="text-3xl md:text-4xl lg:text-[2.6rem] font-bold text-primary-main mb-4"
             style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.2' }}
           >
-            How money and data are handled
+            How rent records and data are handled
           </h2>
           <p
             className="text-base md:text-lg text-[#6b7280] max-w-2xl mx-auto leading-relaxed"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Landlords should not have to guess where payments go, how records are stored, or whether
+            Landlords should not have to guess how rent records are organized, how data is stored, or whether
             a tool was built for their kind of portfolio. Here&apos;s the simple version.
           </p>
         </motion.div>
@@ -101,13 +100,13 @@ export default function TrustClarity() {
                 className="text-xl font-bold text-white mb-1"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
-                A simple payment flow
+                A simple rent-record workflow
               </h3>
               <p
                 className="text-sm text-white/70"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                From tenant to your account — no mystery.
+                Clear records without overstating payment capabilities.
               </p>
             </div>
 
@@ -154,9 +153,8 @@ export default function TrustClarity() {
               className="text-sm text-white/70 leading-relaxed mb-6"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Tenants pay rent online through a secure checkout flow. Payments are processed through
-              Stripe, and the payment status is reflected inside the app so you can see what&apos;s paid,
-              pending, or overdue without chasing it down manually.
+              Property Peace tracks payments you record, overdue balances, late fees, and reminders.
+              Online rent payment processing is planned and is not currently available.
             </p>
 
             {/* Bullets */}

@@ -21,12 +21,16 @@ import MainCard from 'components/MainCard';
 import axiosServices from 'utils/axios';
 import { useDispatch } from 'react-redux';
 import { setProperty } from 'store/property/property.action';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 export default function ESignDocumentPage() {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { propertyId } = useParams();
+  const { presentation: signatureReadiness } = useFeatureReadiness(FEATURE_KEYS.eSignature);
   const [property, setPropertyData] = useState(null);
   const [leases, setLeases] = useState([]);
   const [selectedLeaseId, setSelectedLeaseId] = useState('');
@@ -134,6 +138,7 @@ export default function ESignDocumentPage() {
   };
 
   const handleGetSignedFast = () => {
+    if (!signatureReadiness.canInvoke) return;
     if (!selectedLeaseId) {
       // Show error or prompt to select a lease
       return;
@@ -163,12 +168,14 @@ export default function ESignDocumentPage() {
         </Button>
 
         <Stack spacing={3}>
+          <FeatureReadinessNotice presentation={signatureReadiness} featureName="E-signature" />
           {/* Upgrade Panel */}
-          <Card
-            sx={{
-              bgcolor: 'background.paper',
-              borderRadius: 2,
-              boxShadow: (t) => `0 2px 8px ${alpha(t.palette.common.black, 0.1)}`
+          {signatureReadiness.canInvoke && (
+            <Card
+              sx={{
+                bgcolor: 'background.paper',
+                borderRadius: 2,
+                boxShadow: (t) => `0 2px 8px ${alpha(t.palette.common.black, 0.1)}`
             }}
           >
             <CardContent sx={{ p: 4 }}>
@@ -323,7 +330,7 @@ export default function ESignDocumentPage() {
                 variant="contained"
                 fullWidth
                 onClick={handleGetSignedFast}
-                disabled={!selectedLeaseId}
+                disabled={!signatureReadiness.canInvoke || !selectedLeaseId}
                 sx={{
                   bgcolor: 'primary.main',
                   color: 'white',
@@ -344,7 +351,8 @@ export default function ESignDocumentPage() {
                 GET IT SIGNED FAST
               </Button>
             </CardContent>
-          </Card>
+            </Card>
+          )}
         </Stack>
       </Box>
     </Box>

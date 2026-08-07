@@ -78,6 +78,13 @@ const pages = [
         icon: icons.MessageOutlined
       },
       {
+        id: 'leads',
+        title: 'Leads & Showings',
+        type: 'item',
+        url: '/landlord/leads',
+        icon: icons.FormOutlined
+      },
+      {
         id: 'portfolio',
         title: 'Portfolio',
         type: 'collapse',

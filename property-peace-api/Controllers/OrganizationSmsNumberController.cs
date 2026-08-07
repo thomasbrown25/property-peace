@@ -1,5 +1,7 @@
 using brownstone_hub_api.Dtos.OrganizationSmsNumber;
 using brownstone_hub_api.Services.OrganizationSmsNumberService;
+using brownstone_hub_api.Config;
+using brownstone_hub_api.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -39,6 +41,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("available")]
+        [RequireFeatureReady(FeatureKeys.DedicatedSmsNumber)]
         public async Task<IActionResult> SearchAvailable([FromQuery] string state, [FromQuery] string areaCode, CancellationToken cancellationToken)
         {
             try
@@ -77,6 +80,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("purchase")]
+        [RequireFeatureReady(FeatureKeys.DedicatedSmsNumber)]
         public async Task<IActionResult> Purchase([FromBody] PurchaseSmsNumberDto request, CancellationToken cancellationToken)
         {
             try
@@ -110,6 +114,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("{id:long}/purchase-status")]
+        [RequireFeatureReady(FeatureKeys.DedicatedSmsNumber)]
         public async Task<IActionResult> GetPurchaseStatus(long id, CancellationToken cancellationToken)
         {
             try

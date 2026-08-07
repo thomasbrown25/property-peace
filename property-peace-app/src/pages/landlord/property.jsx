@@ -96,6 +96,10 @@ import axiosServices from 'utils/axios';
 import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
 import AnimateIn from 'components/AnimateIn';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import PropertyLeasingPipeline from 'components/leasing-pipeline/PropertyLeasingPipeline';
 
 // Default payload for creating a draft listing (same as listing-create page)
 const DEFAULT_LISTING_CREATE_PAYLOAD = {
@@ -160,6 +164,7 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const [operatingAccount, setOperatingAccount] = useState(null);
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [bankingModalOpen, setBankingModalOpen] = useState(false);
@@ -171,7 +176,9 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
   const [showStripeOnboarding, setShowStripeOnboarding] = useState(false);
 
   // Clean street address to remove any zip code that might be included
+
   const cleanStreetAddress = useMemo(() => {
+
     if (!property?.streetAddress) return '';
     let streetOnly = property.streetAddress;
     if (property.streetAddress.includes(',')) {
@@ -215,6 +222,11 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
   // Fetch operating account details
   useEffect(() => {
     const fetchOperatingAccount = async () => {
+      if (!rentCanInvoke || !property?.operatingAccountId) {
+        setOperatingAccount(null);
+        setLoadingAccount(false);
+        return;
+      }
       if (property?.operatingAccountId) {
         setLoadingAccount(true);
         try {
@@ -233,11 +245,15 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
     };
 
     fetchOperatingAccount();
-  }, [property?.operatingAccountId]);
+  }, [property?.operatingAccountId, rentCanInvoke]);
 
   // Fetch bank accounts when modal opens
   useEffect(() => {
     const fetchBankAccounts = async () => {
+      if (!bankingModalOpen || !rentCanInvoke) {
+        setLoadingBankAccounts(false);
+        return;
+      }
       if (bankingModalOpen) {
         setLoadingBankAccounts(true);
         try {
@@ -261,11 +277,20 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
     };
 
     fetchBankAccounts();
-  }, [bankingModalOpen, property?.operatingAccountId]);
+  }, [bankingModalOpen, property?.operatingAccountId, rentCanInvoke]);
+
+  useEffect(() => {
+    if (!rentCanInvoke) {
+      setBankingModalOpen(false);
+      setShowStripeOnboarding(false);
+      setBankAccounts([]);
+      setSelectedAccountId(null);
+    }
+  }, [rentCanInvoke]);
 
   // Handle saving bank account selection
   const handleSaveBankAccount = async () => {
-    if (!property?.id) return;
+    if (!rentCanInvoke || !property?.id) return;
 
     setSavingBankAccount(true);
     try {
@@ -300,6 +325,7 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
 
   // Handler for when Stripe onboarding completes
   const handleStripeOnboardingComplete = async () => {
+    if (!rentCanInvoke) return;
     // Close the Stripe onboarding dialog
     setShowStripeOnboarding(false);
     
@@ -644,7 +670,9 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
             <Divider sx={{ mb: 3 }} />
 
             <Box sx={{ flex: 1 }}>
-              {loadingAccount ? (
+              {!rentCanInvoke ? (
+                <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
+              ) : loadingAccount ? (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <CircularProgress size={16} />
                   <Typography variant="body2" color="text.secondary">
@@ -1147,6 +1175,7 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
       )}
 
       {/* Banking Information Modal */}
+      {rentCanInvoke && bankingModalOpen && (
       <Dialog
         open={bankingModalOpen}
         onClose={() => setBankingModalOpen(false)}
@@ -1236,13 +1265,16 @@ function SummaryTab({ property, onRefresh, onImageUpload, uploading }) {
           </Button>
         </DialogActions>
       </Dialog>
+      )}
 
       {/* Stripe Connect Onboarding Dialog */}
+      {rentCanInvoke && showStripeOnboarding && (
       <StripeConnectOnboardingDialog
         open={showStripeOnboarding}
         onClose={() => setShowStripeOnboarding(false)}
         onComplete={handleStripeOnboardingComplete}
       />
+      )}
 
       <DeletePropertyModal
         open={deleteModalOpen}
@@ -2322,6 +2354,7 @@ export default function Property() {
 
   const { selectedProperty, refetch: refetchProperty } = useFetchProperty(propertyId);
   const currentUser = useSelector(selectCurrentUser);
+  const { canInvoke: screeningCanInvoke } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
   const propertyLoading = useSelector(selectPropertyLoading);
   const maintenanceLoading = useSelector(selectMaintenanceLoading);
 
@@ -2502,6 +2535,10 @@ export default function Property() {
         unitId: null,
         monthlyRent: 0,
         ...DEFAULT_LISTING_CREATE_PAYLOAD,
+        requireScreening: screeningCanInvoke,
+        screeningType: screeningCanInvoke ? 'Essential' : null,
+        requireIncomeVerification: false,
+        incomeVerificationCost: screeningCanInvoke ? 12 : 0,
         listingContactName: userContact.name || null,
         listingContactPhone: userContact.phone || null,
         listingContactEmail: userContact.email || null
@@ -2572,6 +2609,12 @@ export default function Property() {
           <AnimateIn direction="bottom" delay={200} distance={120}>
             <PropertyOverview property={selectedProperty} propertyId={propertyId} />
           </AnimateIn>
+        </Box>
+        <Box sx={{ mt: 2 }}>
+          <PropertyLeasingPipeline
+            propertyId={propertyId}
+            units={selectedProperty?.units ?? selectedProperty?.Units ?? []}
+          />
         </Box>
       {/* Confirmation Dialog */}
       <ConfirmationDialog

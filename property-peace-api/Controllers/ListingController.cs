@@ -1,4 +1,7 @@
+using System.Security.Claims;
+using brownstone_hub_api.Config;
 using brownstone_hub_api.Dtos.Listing;
+using brownstone_hub_api.Services.FeatureReadiness;
 using brownstone_hub_api.Services.ListingService;
 using brownstone_hub_api.Services.ListingAIService;
 using Microsoft.AspNetCore.Authorization;
@@ -9,10 +12,14 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
-    public class ListingController(IListingService listingService, IListingAIService listingAIService) : ControllerBase
+    public class ListingController(
+        IListingService listingService,
+        IListingAIService listingAIService,
+        IFeatureReadinessService featureReadinessService) : ControllerBase
     {
         private readonly IListingService _listingService = listingService;
         private readonly IListingAIService _listingAIService = listingAIService;
+        private readonly IFeatureReadinessService _featureReadinessService = featureReadinessService;
 
         [HttpGet]
         public async Task<IActionResult> GetListings()
@@ -26,7 +33,6 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("{id}")]
-        [AllowAnonymous]
         public async Task<IActionResult> GetListingById(long id)
         {
             var response = await _listingService.GetListingById(id);
@@ -96,6 +102,16 @@ namespace brownstone_hub_api.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateListing([FromForm] CreateListingDto listingDto, [FromForm] List<IFormFile>? files)
         {
+            if (!await CanSyndicateListingsAsync())
+            {
+                listingDto.SyndicateToListingWebsite = false;
+                listingDto.SyndicateToFreeSites = false;
+                listingDto.SyndicateToPremiumSites = false;
+            }
+
+            if (!await CanUseTenantScreeningAsync())
+                ClearTenantScreeningConfiguration(listingDto);
+
             var response = await _listingService.CreateListing(listingDto, files);
 
             if (!response.Success)
@@ -108,6 +124,16 @@ namespace brownstone_hub_api.Controllers
         public async Task<IActionResult> UpdateListing(long id, [FromBody] UpdateListingDto listingDto)
         {
             listingDto.Id = id;
+            if (!await CanSyndicateListingsAsync())
+            {
+                listingDto.SyndicateToListingWebsite = false;
+                listingDto.SyndicateToFreeSites = false;
+                listingDto.SyndicateToPremiumSites = false;
+            }
+
+            if (!await CanUseTenantScreeningAsync())
+                ClearTenantScreeningConfiguration(listingDto);
+
             var response = await _listingService.UpdateListing(listingDto);
 
             if (!response.Success)
@@ -119,6 +145,38 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("{id}/publish")]
         public async Task<IActionResult> PublishListing(long id)
         {
+            var identity = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue("userId")
+                ?? User.FindFirstValue("sub");
+            if (!long.TryParse(identity, out var userId))
+                return Unauthorized(new { Message = "A valid authenticated user identity is required to publish a listing." });
+
+            FeatureReadinessDto readiness;
+            try
+            {
+                readiness = await _featureReadinessService.GetAsync(
+                    userId, GetCanonicalOrganizationId(), FeatureKeys.ListingSyndication);
+            }
+            catch
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    Message = "Listing publication readiness could not be confirmed. Please try again later.",
+                    Feature = FeatureKeys.ListingSyndication,
+                });
+            }
+
+            if (!readiness.CanInvoke)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    Message = "Listing publication is not ready for use.",
+                    readiness.Feature,
+                    readiness.State,
+                    readiness.Blockers,
+                });
+            }
+
             var response = await _listingService.PublishListing(id);
 
             if (!response.Success)
@@ -159,6 +217,52 @@ namespace brownstone_hub_api.Controllers
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
 
             return Ok(new { success = true, data = response.Data });
+        }
+
+        private async Task<bool> CanSyndicateListingsAsync()
+            => await CanInvokeFeatureAsync(FeatureKeys.ListingSyndication);
+
+        private async Task<bool> CanUseTenantScreeningAsync()
+            => await CanInvokeFeatureAsync(FeatureKeys.TenantScreening);
+
+        private async Task<bool> CanInvokeFeatureAsync(string feature)
+        {
+            var identity = User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? User.FindFirstValue("userId")
+                ?? User.FindFirstValue("sub");
+            if (!long.TryParse(identity, out var userId))
+                return false;
+
+            try
+            {
+                var readiness = await _featureReadinessService.GetAsync(userId, GetCanonicalOrganizationId(), feature);
+                return readiness.CanInvoke;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private long? GetCanonicalOrganizationId() =>
+            HttpContext.Items.TryGetValue("OrganizationId", out var value) && value is long organizationId && organizationId > 0
+                ? organizationId
+                : null;
+
+        private static void ClearTenantScreeningConfiguration(CreateListingDto listingDto)
+        {
+            listingDto.RequireScreening = false;
+            listingDto.ScreeningType = null;
+            listingDto.RequireIncomeVerification = false;
+            listingDto.IncomeVerificationCost = 0;
+        }
+
+        private static void ClearTenantScreeningConfiguration(UpdateListingDto listingDto)
+        {
+            listingDto.RequireScreening = false;
+            listingDto.ScreeningType = null;
+            listingDto.RequireIncomeVerification = false;
+            listingDto.IncomeVerificationCost = 0;
         }
     }
 

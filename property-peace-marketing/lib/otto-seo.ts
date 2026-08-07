@@ -14,7 +14,7 @@ type OttoSeoOverride = {
 const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   '/': {
     title: 'Property Management Software for Small Landlords | Property Peace',
-    description: 'Manage rent, tenants, leases & expenses calmly with Property Peace. Built for landlords (1-50 units). AI-powered efficiency. Start free today!',
+    description: 'Manage rent, tenants, leases, and expenses calmly with Property Peace. Built for landlords with 1-50 units, with Percy-assisted tools in the limited Percy Pilot.',
     canonical: 'https://propertypeace.io/',
     openGraphTitle: 'Private Landlord Software: Manage Your Rentals with Ease',
     twitterTitle: 'Simplify Landlord Life: Free Software for 1-50 Units!',
@@ -31,21 +31,21 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/demo/': {
     title: 'Book a Property Management Demo | Property Peace',
-    description: 'Book a Property Peace demo to streamline your property management. Complete a short form to pick a time and see how AI simplifies rent, maintenance, and leases.',
+    description: 'Book a Property Peace demo to see rent, maintenance, and lease workflows, plus Percy-assisted tools currently available through the limited Percy Pilot.',
     openGraphTitle: 'Manage Properties Easily: Try Property Peace Free',
   },
   '/features/': {
     title: 'Property Management Software Features: Streamline Your Landlord Tasks | Property Peace',
-    description: 'Property Peace features: AI rent collection, maintenance, leases, and accounting for landlords. Simplify property management.',
+    description: 'Explore Property Peace tools for rent tracking, maintenance, leases, applications, and accounting, plus portfolio summaries in the limited Percy Pilot.',
     canonical: 'https://propertypeace.io/features',
     twitterTitle: 'Property Peace: Simplify Landlord Life. Free Plan! #PropTech',
     twitterDescription: 'Simplify rent, leases, maintenance & expenses. Property Peace: your calm dashboard for 1-50 units. Start free! #LandlordLife',
   },
   '/features/ai-summaries/': {
     title: 'AI Summaries: Simplify Your Property Management | Property Peace',
-    description: 'Property Peace AI Summaries: Instant, plain-English overviews of your portfolio. Simplify rent, maintenance, and tenant activity. Try Property Peace.',
-    openGraphDescription: "Property Peace's AI Summaries give landlords instant, clear overviews of their entire portfolio. Simplify management & reclaim your weekends!",
-    twitterDescription: 'Get instant AI summaries of your portfolio: rent, maintenance, leases & more. Simple tools for landlords. #PropertyManagement',
+    description: 'Try plain-English portfolio summaries through the limited Percy Pilot, with Percy-assisted views of rent, maintenance, and tenant activity.',
+    openGraphDescription: 'Explore Percy-assisted portfolio summaries, currently available through the limited Percy Pilot, alongside Property Peace management tools.',
+    twitterDescription: 'Explore Percy-assisted portfolio summaries for rent, maintenance, leases, and more through the limited Percy Pilot. #PropertyManagement',
   },
   '/features/all-in-one-dashboard/': {
     description: 'Property Peace dashboard: Real-time overview of properties, tenants, leases & finances. Simple management for independent landlords.',
@@ -80,16 +80,19 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     twitterDescription: 'Simplify tenant maintenance & track work orders. Simple property tools for landlords, no enterprise bloat. #LandlordLife',
   },
   '/features/payment-processing/': {
-    description: 'Property Peace: Accept online rent payments via Stripe with automated tracking. Simple property management for landlords. Get organized!',
+    title: 'Online Rent Payments Roadmap | Property Peace',
+    description: 'Online rent payment processing is not currently available in Property Peace. Use the live rent ledger, payment-history, late-fee, and reminder tools today.',
     canonical: 'https://propertypeace.io/features/payment-processing',
-    openGraphDescription: 'Collect rent online effortlessly with Property Peace & Stripe! Simple payment processing, automated tracking, and reminders for independent landlords.',
-    twitterDescription: 'Streamline rent collection with easy online payments & automated tracking. Simple tools for landlords. #PropertyManagement',
+    openGraphDescription: 'Online payment processing is planned, not currently available. Property Peace currently provides rent tracking, payment records, late fees, and reminder workflows.',
+    twitterDescription: 'Online payment processing is planned, not currently available. Track rent records, balances, late fees, and reminders today.',
   },
   '/features/property-management/': {
     canonical: 'https://propertypeace.io/features/property-management',
     openGraphDescription: 'Simplify property management for independent landlords. Organize leases, rent, maintenance & more with Property Peace – your calm in the chaos.',
   },
   '/features/rent-collection/': {
+    title: 'Rent Tracking and Reminder Software | Property Peace',
+    description: 'Track recorded rent payments, overdue balances, late fees, and reminders. Online payment processing is not currently available.',
     canonical: 'https://propertypeace.io/features/rent-collection',
   },
   '/features/rent-estimate/': {
@@ -105,9 +108,9 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     canonical: 'https://propertypeace.io/features/rental-applications',
   },
   '/features/tenant-communication/': {
-    description: 'Property Peace: Streamline tenant communication with in-app, email, and SMS notifications. Simple tools for independent landlords, free for up to 2 units.',
+    description: 'Keep tenant communication organized with in-app and email notifications. SMS delivery depends on account and messaging configuration.',
     canonical: 'https://propertypeace.io/features/tenant-communication',
-    openGraphDescription: 'Connect with tenants via in-app, email, & SMS. Simple property management for independent landlords.',
+    openGraphDescription: 'Connect with tenants through in-app and email notifications; SMS availability depends on messaging configuration.',
   },
   '/free-landlord-software/': {
     title: 'Free Landlord Software: Manage Rent, Leases & Maintenance | Property Peace',
@@ -140,7 +143,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     twitterDescription: 'Streamline rent, tenants, leases & expenses! Property Peace is your calm dashboard for 1-50 units. Start free. #LandlordLife',
   },
   '/maintenance/ai-maintenance/': {
-    description: 'Property Peace AI maintenance software stops lost requests & text chaos. AI categorizes, prioritizes work orders, and tracks vendors for small landlords. Try',
+    description: 'Organize maintenance requests, priorities, and vendor records, with Percy-assisted maintenance tools currently offered through the limited Percy Pilot.',
     openGraphUrl: 'https://propertypeace.io/maintenance/ai-maintenance/',
     twitterTitle: 'Manage Rentals Effortlessly: Landlord Software for 1-50',
   },

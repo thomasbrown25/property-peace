@@ -85,7 +85,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <Link href="/maintenance/ai-maintenance" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
-                  Percy AI Maintenance
+                  Percy Pilot Maintenance
                 </Link>
               </li>
               <li>
@@ -107,12 +107,12 @@ export default function Footer() {
             <ul className="space-y-3">
               <li>
                 <Link href="/lease/ai-lease-creation" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
-                  Percy AI Lease Creation
+                  Percy Pilot Lease Creation
                 </Link>
               </li>
               <li>
                 <Link href="/lease/e-sign-docusign" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
-                  E-Sign for DocuSign
+                  E-Signature Roadmap
                 </Link>
               </li>
               <li>

@@ -13,14 +13,14 @@ import StructuredData from "@/components/SEO/StructuredData";
 import AIMaintenanceFAQ from "./AIMaintenanceFAQ";
 
 export const metadata: Metadata = applyOttoSeo('/maintenance/ai-maintenance/', {
-  title: "Percy AI Maintenance Management for Landlords | Property Peace",
+  title: "Percy Pilot Maintenance Management for Landlords | Property Peace",
   description:
     "Rental property maintenance software that stops lost requests and text chaos. Percy categorizes tenant maintenance requests, prioritizes work orders, and tracks vendors. Built for small landlords. Try free.",
   keywords:
-    "Percy AI maintenance management, rental property maintenance software, landlord maintenance tracking, work order tracking, tenant maintenance requests, maintenance ticket software, work order management system, software for small landlords, landlord expense software",
+    "Percy Pilot maintenance management, rental property maintenance software, landlord maintenance tracking, work order tracking, tenant maintenance requests, maintenance ticket software, work order management system, software for small landlords, landlord expense software",
   alternates: { canonical: "/maintenance/ai-maintenance" },
   openGraph: {
-    title: "Percy AI Maintenance Management for Landlords | Property Peace",
+    title: "Percy Pilot Maintenance Management for Landlords | Property Peace",
     description:
       "Rental property maintenance software with Percy categorization, work order tracking, and vendor coordination. Never miss a repair again.",
     type: "website",
@@ -29,9 +29,9 @@ export const metadata: Metadata = applyOttoSeo('/maintenance/ai-maintenance/', {
 
 const faqSchema = [
   {
-    question: "What is Percy AI maintenance management software?",
+    question: "What is Percy Pilot maintenance management software?",
     answer:
-      "Percy AI maintenance management software uses artificial intelligence to help landlords and property managers organize, categorize, and prioritize maintenance requests from tenants. Property Peace uses Percy to tag urgency, detect emergencies versus cosmetic issues, and route work orders so you can focus on what matters. It replaces spreadsheets and text-message chaos with one system for rental property maintenance.",
+      "Percy Pilot maintenance management software uses artificial intelligence to help landlords and property managers organize, categorize, and prioritize maintenance requests from tenants. Property Peace uses Percy to tag urgency, detect emergencies versus cosmetic issues, and route work orders so you can focus on what matters. It replaces spreadsheets and text-message chaos with one system for rental property maintenance.",
   },
   {
     question: "How does Property Peace prioritize work orders?",
@@ -73,7 +73,7 @@ export default function AIMaintenancePage() {
             className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-4"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
-            Percy AI Maintenance Management for Landlords
+            Percy Pilot Maintenance Management for Landlords
           </h1>
           <p
             className="text-xl md:text-2xl font-semibold text-primary-main mb-4 max-w-2xl mx-auto"
@@ -205,7 +205,7 @@ export default function AIMaintenancePage() {
             ))}
           </div>
           <p className="text-lg mt-8 text-center max-w-2xl mx-auto" style={{ fontFamily: '"Inter", sans-serif', color: "rgba(255,255,255,0.9)" }}>
-            Whether you need software for small landlords, rental management software for 10 units, or simple landlord tools that scale, Property Peace gives you Percy AI maintenance management without enterprise bloat.
+            Whether you need software for small landlords, rental management software for 10 units, or simple landlord tools that scale, Property Peace gives you Percy Pilot maintenance management without enterprise bloat.
           </p>
         </div>
       </section>
@@ -347,7 +347,7 @@ export default function AIMaintenancePage() {
             Ready to Stop Losing Maintenance Requests?
           </h2>
           <p className="text-white/90 mb-6 max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
-            Join landlords who use Percy AI maintenance management to keep work orders under control. No spreadsheets, no text chaos.
+            Join landlords who use Percy Pilot maintenance management to keep work orders under control. No spreadsheets, no text chaos.
           </p>
           <Link
             href="https://app.propertypeace.io/register"

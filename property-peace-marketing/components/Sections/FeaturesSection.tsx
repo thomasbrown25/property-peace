@@ -9,7 +9,7 @@ export default function FeaturesSection() {
     {
       icon: FiMessageCircle,
       title: 'Tenant Portal',
-      description: 'Give your tenants a self-service portal to make payments, send messages, and access important documents—all in one place.',
+      description: 'Give tenants a self-service portal to send messages, submit requests, and access important documents—all in one place.',
       gradient: 'from-blue-50 to-blue-100',
       iconColor: 'text-green-600',
       iconBg: 'bg-blue-100',
@@ -17,8 +17,8 @@ export default function FeaturesSection() {
     },
     {
       icon: FiCreditCard,
-      title: 'Collect Rent Online',
-      description: 'Never worry about late rent again with fast and secure online rent payments made directly into your bank account.',
+      title: 'Track Rent and Reminders',
+      description: 'Record payments, see overdue balances, calculate late fees, and manage reminders. Online payment processing is not currently available.',
       gradient: 'from-orange-50 to-orange-100',
       iconColor: 'text-orange-600',
       iconBg: 'bg-orange-100',

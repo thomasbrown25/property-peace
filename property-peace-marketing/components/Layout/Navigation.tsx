@@ -97,7 +97,7 @@ export default function Navigation() {
           slug: 'tenant-communication',
           title: 'Tenant Communication',
           icon: FiMessageCircle,
-          description: 'In-app, email, and SMS notifications with customizable preferences.'
+          description: 'In-app and email notifications; SMS depends on supported messaging configuration.'
         },
         {
           slug: 'real-time-communication',
@@ -114,7 +114,7 @@ export default function Navigation() {
           slug: 'lease-management',
           title: 'Lease Management',
           icon: FiFile,
-          description: 'Create, send, and sign leases digitally with DocuSign integration.'
+          description: 'Create, organize, and track lease records. Integrated e-signature is not currently available.'
         },
         {
           slug: 'lease-shield',
@@ -135,9 +135,9 @@ export default function Navigation() {
       features: [
         {
           slug: 'payment-processing',
-          title: 'Payment Processing',
+          title: 'Online Payments Roadmap',
           icon: FiCreditCard,
-          description: 'Accept online payments with Stripe integration. Automated reminders.'
+          description: 'Not currently available. Rent tracking and reminder workflows are live.'
         },
         {
           slug: 'rent-collection',
@@ -182,7 +182,7 @@ export default function Navigation() {
       features: [
         {
           slug: 'ai-summaries',
-          title: 'Percy AI Summaries',
+          title: 'Percy Pilot Summaries',
           icon: FiActivity,
           description: 'Instant plain-English summaries of your entire portfolio — rent, maintenance, and leases.'
         },

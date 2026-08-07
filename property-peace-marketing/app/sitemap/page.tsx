@@ -30,15 +30,15 @@ const sitemapSections = [
   {
     title: "Maintenance Requests",
     links: [
-      { href: "/maintenance/ai-maintenance", label: "Percy AI Maintenance Management" },
+      { href: "/maintenance/ai-maintenance", label: "Percy Pilot Maintenance Management" },
       { href: "/maintenance/in-app-messaging", label: "In-App Messaging" },
     ],
   },
   {
     title: "Lease Agreements",
     links: [
-      { href: "/lease/ai-lease-creation", label: "Percy AI Lease Creation" },
-      { href: "/lease/e-sign-docusign", label: "E-Sign for DocuSign" },
+      { href: "/lease/ai-lease-creation", label: "Percy Pilot Lease Creation" },
+      { href: "/lease/e-sign-docusign", label: "E-Signature Roadmap" },
       { href: "/lease/online-condition-reports", label: "Online Condition Reports" },
     ],
   },

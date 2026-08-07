@@ -88,6 +88,7 @@ using brownstone_hub_api.Repositories.RecurringExpenses;
 using brownstone_hub_api.Repositories.FutureExpenses;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
 using System.Net;
 using brownstone_hub_api.Hubs;
 using brownstone_hub_api.Middleware;
@@ -118,11 +119,13 @@ using brownstone_hub_api.Repositories.Files;
 using brownstone_hub_api.Repositories.FileCategories;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Messages;
-using brownstone_hub_api.Config;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.SmsService;
 using brownstone_hub_api.Services.CommunicationService;
 using brownstone_hub_api.Services.SubscriptionService;
+using brownstone_hub_api.Services.FeatureReadiness;
+using brownstone_hub_api.Services.LeasingPipeline;
+using brownstone_hub_api.Services.Leads;
 using brownstone_hub_api.Services.OrganizationSmsNumberService;
 using brownstone_hub_api.Repositories.OrganizationSmsNumbers;
 using brownstone_hub_api.Repositories.Subscriptions;
@@ -280,6 +283,12 @@ services.AddDbContext<DataContext>(
     }
 );
 services.AddSingleton<TimeProvider>(TimeProvider.System);
+services.AddSingleton<ILeadAbuseGuard, MemoryLeadAbuseGuard>();
+services.AddScoped<ILeadTokenDelivery, ProtectedLeadTokenDelivery>();
+services.AddScoped<ILeadTokenDispatcher, LeadTokenDispatcher>();
+services.AddScoped<ILeadNotificationDispatcher, LeadNotificationDispatcher>();
+services.AddScoped<IPublicLeadSessionService, PublicLeadSessionService>();
+services.AddScoped<ILeadService, LeadService>();
 services.AddSingleton(new StripeWebhookLeaseOptions());
 
 // Honor proxy scheme/client information only from explicitly trusted proxies (loopback remains trusted
@@ -445,7 +454,13 @@ services.AddAutoMapper(typeof(Program).Assembly);
 // Services
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
 services.AddScoped<IUserService, UserService>();
-services.AddDataProtection();
+var dataProtectionKeysPath = configuration["DataProtection:KeysPath"];
+if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+    dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+services.AddDataProtection()
+    .SetApplicationName("PropertyPeace")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 services.Configure<MfaOptions>(builder.Configuration.GetSection("Mfa"));
 services.AddScoped<IMfaService, MfaService>();
 services.AddSingleton<ImpersonationConnectionRegistry>();
@@ -542,6 +557,10 @@ services.AddScoped<IUpcomingFeatureService, UpcomingFeatureService>();
 services.AddScoped<IDailySummaryEmailService, DailySummaryEmailService>();
 
 // Subscription Services
+services.AddOptions<FeatureReadinessOptions>()
+    .Bind(configuration.GetSection(FeatureReadinessOptions.SectionName));
+services.AddScoped<IFeatureReadinessService, FeatureReadinessService>();
+services.AddScoped<ILeasingPipelineService, LeasingPipelineService>();
 services.AddScoped<ISubscriptionService, SubscriptionService>();
 services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
 services.AddScoped<IFeatureGateService, FeatureGateService>();
@@ -653,6 +672,8 @@ services.AddSignalR(options =>
 
 // Background Services
 services.AddHostedService<NotificationBackgroundService>();
+services.AddHostedService<LeadTokenDeliveryBackgroundService>();
+services.AddHostedService<LeadNotificationDeliveryBackgroundService>();
 services.AddHostedService<RecurringExpenseGenerationBackgroundService>();
 services.AddHostedService<SubscriptionBackgroundService>();
 services.AddHostedService<StateLateFeeLawUpdateBackgroundService>();

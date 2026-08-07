@@ -33,6 +33,9 @@ import { useNavigate } from 'react-router-dom';
 
 import { organizationSmsNumberAPI } from 'api/organizationSmsNumber';
 import { useSubscription } from 'hooks/useSubscription';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 const US_STATES = [
   { code: 'AL', label: 'Alabama' }, { code: 'AK', label: 'Alaska' }, { code: 'AZ', label: 'Arizona' }, { code: 'AR', label: 'Arkansas' },
@@ -66,6 +69,7 @@ export default function SmsNumberSettings() {
   const theme = useTheme();
   const navigate = useNavigate();
   const { subscription } = useSubscription();
+  const { presentation: smsReadiness } = useFeatureReadiness(FEATURE_KEYS.dedicatedSmsNumber);
 
   const [status, setStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -85,7 +89,7 @@ export default function SmsNumberSettings() {
     return planName === 'premium' || planName.includes('lifetime') || billingCycle === 'lifetime' || subscription?.cancelAtPeriodEnd === true || subscription?.CancelAtPeriodEnd === true;
   }, [subscription]);
 
-  const hasPremiumAccess = Boolean(status?.hasPremiumAccess || hasPremiumSubscription);
+  const hasPremiumAccess = smsReadiness.canInvoke && Boolean(status?.hasPremiumAccess || hasPremiumSubscription);
   const hasActiveNumber = Boolean(status?.hasActiveNumber);
   const visibleNumbers = selectedNumber ? numbers.filter((number) => number.phoneNumber === selectedNumber.phoneNumber) : numbers;
 
@@ -104,8 +108,9 @@ export default function SmsNumberSettings() {
   };
 
   useEffect(() => {
-    loadStatus();
-  }, []);
+    if (smsReadiness.canInvoke) loadStatus();
+    else setLoadingStatus(false);
+  }, [smsReadiness.canInvoke]);
 
   useEffect(() => {
     if (!state?.code || !hasPremiumAccess || hasActiveNumber) return undefined;
@@ -175,6 +180,8 @@ export default function SmsNumberSettings() {
 
   return (
     <Stack spacing={2.5}>
+      <FeatureReadinessNotice presentation={smsReadiness} featureName="Dedicated SMS number" />
+      {smsReadiness.canInvoke && <>
       <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
         <CardContent>
           <Stack spacing={1.5}>
@@ -335,6 +342,7 @@ export default function SmsNumberSettings() {
           </Stack>
         </CardContent>
       </Card>
+      </>}
     </Stack>
   );
 }

@@ -53,6 +53,8 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { setProperty } from 'store/property/property.action';
 import { bulkCreateUnits, addOrUpdateUnit } from 'store/unit/unit.action';
 import axiosServices from 'utils/axios';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 const STEPS = {
   PROPERTY_TYPE_SELECTION: 1,
@@ -110,6 +112,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
   const { status: subscriptionStatus } = useSubscriptionStatus();
   const { createProperty, createLoading } = useCreateProperty();
   const { fetchPhotosFromPlace, loading: fetchingPhoto } = useGooglePlacePhotos();
+  const { canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
 
   const [currentStep, setCurrentStep] = useState(STEPS.PROPERTY_TYPE_SELECTION);
   const [slideDirection, setSlideDirection] = useState('left');
@@ -238,6 +241,13 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
   // Fetch bank accounts
   useEffect(() => {
+    if (!rentCanInvoke) {
+      setBankAccounts([]);
+      setShowStripeOnboarding(false);
+      setLoadingBankAccounts(false);
+      return;
+    }
+
     const fetchBankAccounts = async () => {
       try {
         setLoadingBankAccounts(true);
@@ -264,7 +274,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
     };
 
     fetchBankAccounts();
-  }, [showStripeOnboarding]);
+  }, [showStripeOnboarding, rentCanInvoke]);
 
   // Handler for when address is selected
   const handleAddressSelected = async (address, place) => {
@@ -285,6 +295,8 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
   // Handler for Stripe onboarding complete
   const handleStripeOnboardingComplete = async () => {
+    if (!rentCanInvoke) return;
+
     try {
       await axiosServices.post('/api/stripe/sync-bank-account');
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -545,7 +557,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
         state: (values.state || '').trim(),
         zipCode: (values.zipCode || '').trim(),
         primaryManagerId: user?.Id || user?.id, // Auto-select current user
-        operatingAccountId: values.bankAccountId || null,
+        operatingAccountId: rentCanInvoke ? values.bankAccountId || null : null,
         unitCount: null,
         yearBuilt: values.singleUnitDetails?.yearBuilt ? parseInt(values.singleUnitDetails.yearBuilt) : null,
         ...(values.propertyType === 'other' && values.otherBuildingType ? {
@@ -1459,11 +1471,13 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
       </Box>
 
       {/* Stripe Connect Onboarding Dialog */}
-      <StripeConnectOnboardingDialog
-        open={showStripeOnboarding}
-        onClose={() => setShowStripeOnboarding(false)}
-        onComplete={handleStripeOnboardingComplete}
-      />
+      {rentCanInvoke && (
+        <StripeConnectOnboardingDialog
+          open={showStripeOnboarding}
+          onClose={() => setShowStripeOnboarding(false)}
+          onComplete={handleStripeOnboardingComplete}
+        />
+      )}
     </FormikProvider>
   );
 }

@@ -23,6 +23,8 @@ import { selectSelectedListing, selectListingLoading } from 'store/listing/listi
 import { selectCurrentUser } from 'store/user/user.selector';
 import { openSnackbar } from 'api/snackbar';
 import axiosServices from 'utils/axios';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 function getUserContactDisplay(user) {
   if (!user) return { name: '', email: '', phone: '' };
@@ -44,6 +46,8 @@ export default function ListingSetupApplicationPage() {
   const listing = useSelector(selectSelectedListing);
   const loading = useSelector(selectListingLoading);
   const currentUser = useSelector(selectCurrentUser);
+  const { canInvoke: syndicationCanInvoke } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
+  const { canInvoke: screeningCanInvoke } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
   const [formData, setFormData] = useState(null);
   const [saving, setSaving] = useState(false);
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
@@ -66,19 +70,19 @@ export default function ListingSetupApplicationPage() {
         acceptOnlineApplications: listing.acceptOnlineApplications ?? true,
         applicationFeeRequired: listing.applicationFeeRequired ?? false,
         applicationFee: listing.applicationFee ?? '0',
-        requireScreening: listing.requireScreening ?? true,
-        screeningType: listing.screeningType ?? 'Essential',
-        requireIncomeVerification: listing.requireIncomeVerification ?? false,
-        incomeVerificationCost: listing.incomeVerificationCost ?? '12',
+        requireScreening: screeningCanInvoke && Boolean(listing.requireScreening ?? true),
+        screeningType: screeningCanInvoke ? listing.screeningType ?? 'Essential' : null,
+        requireIncomeVerification: screeningCanInvoke && Boolean(listing.requireIncomeVerification ?? false),
+        incomeVerificationCost: screeningCanInvoke ? listing.incomeVerificationCost ?? '12' : 0,
         listingContactName: (listing.listingContactName?.trim() || userContact.name) ?? '',
         listingContactPhone: (listing.listingContactPhone?.trim() || userContact.phone) ?? '',
         listingContactEmail: (listing.listingContactEmail?.trim() || userContact.email) ?? '',
-        syndicateToListingWebsite: listing.syndicateToListingWebsite ?? true,
-        syndicateToFreeSites: listing.syndicateToFreeSites ?? false,
-        syndicateToPremiumSites: listing.syndicateToPremiumSites ?? false
+        syndicateToListingWebsite: syndicationCanInvoke && Boolean(listing.syndicateToListingWebsite ?? true),
+        syndicateToFreeSites: syndicationCanInvoke && Boolean(listing.syndicateToFreeSites ?? false),
+        syndicateToPremiumSites: syndicationCanInvoke && Boolean(listing.syndicateToPremiumSites ?? false)
       });
     }
-  }, [listing, currentUser]);
+  }, [listing, currentUser, syndicationCanInvoke, screeningCanInvoke]);
 
   const handleBack = () => navigate(`/landlord/listings/${id}/setup`);
 
@@ -91,16 +95,17 @@ export default function ListingSetupApplicationPage() {
       acceptOnlineApplications: formData.acceptOnlineApplications,
       applicationFeeRequired: formData.applicationFeeRequired,
       applicationFee: formData.applicationFeeRequired ? parseFloat(formData.applicationFee) : 0,
-      requireScreening: formData.requireScreening,
-      screeningType: formData.screeningType,
-      requireIncomeVerification: formData.requireIncomeVerification,
-      incomeVerificationCost: formData.requireIncomeVerification ? parseFloat(formData.incomeVerificationCost) : 0,
+      requireScreening: screeningCanInvoke && Boolean(formData.requireScreening),
+      screeningType: screeningCanInvoke ? formData.screeningType : null,
+      requireIncomeVerification: screeningCanInvoke && Boolean(formData.requireIncomeVerification),
+      incomeVerificationCost:
+        screeningCanInvoke && formData.requireIncomeVerification ? parseFloat(formData.incomeVerificationCost) : 0,
       listingContactName: nameTrimmed || null,
       listingContactPhone: formData.listingContactPhone?.trim() || null,
       listingContactEmail: formData.listingContactEmail?.trim() || null,
-      syndicateToListingWebsite: formData.syndicateToListingWebsite,
-      syndicateToFreeSites: formData.syndicateToFreeSites,
-      syndicateToPremiumSites: formData.syndicateToPremiumSites
+      syndicateToListingWebsite: syndicationCanInvoke && Boolean(formData.syndicateToListingWebsite),
+      syndicateToFreeSites: syndicationCanInvoke && Boolean(formData.syndicateToFreeSites),
+      syndicateToPremiumSites: syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites)
     };
     const result = await dispatch(updateListing(parseInt(id), payload));
     if (result?.success) {

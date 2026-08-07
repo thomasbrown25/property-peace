@@ -6,6 +6,8 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Services.LeaseService;
 using brownstone_hub_api.Services.ESignatureService;
+using brownstone_hub_api.Config;
+using brownstone_hub_api.Filters;
 using brownstone_hub_api.Services.TenantDocumentService;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Services.AzureBlobService;
@@ -354,6 +356,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/sign-landlord")]
+        [RequireFeatureReady(FeatureKeys.ESignature)]
         public async Task<IActionResult> SignLandlordOnly(long leaseId, [FromBody] SendLeaseForSignatureDto request)
         {
             if (leaseId != request.LeaseId)
@@ -372,6 +375,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/send-for-signature")]
+        [RequireFeatureReady(FeatureKeys.ESignature)]
         public async Task<IActionResult> SendLeaseForSignature(long leaseId, [FromBody] SendLeaseForSignatureDto request)
         {
             if (leaseId != request.LeaseId)
@@ -406,6 +410,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{leaseId}/signature-status")]
+        [RequireFeatureReady(FeatureKeys.ESignature)]
         public async Task<IActionResult> GetLeaseSignatureStatus(long leaseId)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);
@@ -429,6 +434,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/cancel-signature")]
+        [RequireFeatureReady(FeatureKeys.ESignature)]
         public async Task<IActionResult> CancelLeaseSignature(long leaseId, [FromBody] string? reason = null)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);
@@ -452,6 +458,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/sync-signature-status")]
+        [RequireFeatureReady(FeatureKeys.ESignature)]
         public async Task<IActionResult> SyncSignatureStatus(long leaseId)
         {
             var landlordEmail = User?.FindFirst(ClaimTypes.Email)?.Value ?? 
@@ -472,6 +479,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{leaseId}/signing-url")]
+        [RequireFeatureReady(FeatureKeys.ESignature)]
         public async Task<IActionResult> GetLandlordSigningUrl(long leaseId)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);
@@ -513,6 +521,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/resend-signature")]
+        [RequireFeatureReady(FeatureKeys.ESignature)]
         public async Task<IActionResult> ResendLeaseSignature(long leaseId)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);

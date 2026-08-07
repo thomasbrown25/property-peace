@@ -1,0 +1,108 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const source = async (path) => readFile(new URL(path, import.meta.url), 'utf8');
+
+test('pipeline hook is tenant-scoped, resource-scoped, fail-closed, and uses canonical API routes', async () => {
+  const [hook, api, utility] = await Promise.all([source('../hooks/useLeasingPipeline.js'), source('../api/leasingPipeline.js'), source('./leasingPipeline.js')]);
+  assert.match(hook, /import \{ buildLeasingPipelineKey \} from 'utils\/leasingPipeline'/);
+  assert.match(hook, /const cacheKey = buildLeasingPipelineKey\(\{[\s\S]*userId: userKey,[\s\S]*organizationId: organizationKey,[\s\S]*resourceType,[\s\S]*resourceId: numericResourceId,[\s\S]*unitId: numericUnitId/);
+  assert.match(utility, /return \[LEASING_PIPELINE_CACHE_PREFIX, userId, organizationId, resourceType, numericResourceId, numericUnitId\]/);
+  assert.match(hook, /error \? undefined : data/);
+  assert.match(hook, /keepPreviousData: false/);
+  assert.match(api, /\/api\/leasing-pipeline\/properties\/\$\{propertyId\}/);
+  assert.match(api, /\/api\/leasing-pipeline\/listings\/\$\{listingId\}/);
+  assert.match(api, /\/api\/leasing-pipeline\/applications\/\$\{applicationId\}/);
+});
+
+test('all three real detail surfaces mount the reusable panel with direct resource identity', async () => {
+  const [property, listing, applications] = await Promise.all([
+    source('../pages/landlord/property.jsx'),
+    source('../pages/landlord/listing-detail.jsx'),
+    source('../pages/landlord/applications.jsx')
+  ]);
+  assert.match(property, /<PropertyLeasingPipeline[\s\S]*propertyId=[\s\S]*units=/);
+  assert.match(listing, /<LeasingPipelinePanel resourceType="listing" resourceId=\{id\}/);
+  assert.match(applications, /<LeasingPipelinePanel resourceType="application" resourceId=\{selectedApplication\?\.id \?\? selectedApplication\?\.Id\}/);
+});
+
+test('property integration requires a real unit selection for multi-unit and auto-selects only one unit', async () => {
+  const panel = await source('../components/leasing-pipeline/PropertyLeasingPipeline.jsx');
+  assert.match(panel, /units\.length === 1/);
+  assert.match(panel, /units\.length > 1/);
+  assert.match(panel, /selectedUnitId \? 'property' : null/);
+  assert.match(panel, /Select a unit to view its leasing progress/);
+  assert.match(panel, /<Select[\s\S]*labelId="leasing-pipeline-unit-label"/);
+});
+
+test('panel includes accessible states, retry, explicit semantics, and responsive overflow', async () => {
+  const [panel, utility] = await Promise.all([
+    source('../components/leasing-pipeline/LeasingPipelinePanel.jsx'),
+    source('./leasingPipeline.js')
+  ]);
+  assert.match(panel, /aria-current=\{item\.state === 'current' \? 'step' : undefined\}/);
+  assert.match(panel, /component="ol"/);
+  assert.match(panel, /overflowX: 'auto'/);
+  assert.match(panel, /role="region"/);
+  assert.match(panel, /aria-label="Leasing lifecycle stages"/);
+  assert.match(panel, /tabIndex=\{0\}/);
+  assert.match(panel, /ArrowLeft/);
+  assert.match(panel, /scrollBy/);
+  assert.match(utility, /Showing scheduled/);
+  assert.match(panel, /Retry/);
+  assert.match(panel, /PipelineSkeleton/);
+  assert.match(panel, /Leasing progress unavailable/);
+});
+
+test('application collection clears before fetch and deep links require the successful current generation', async () => {
+  const applications = await source('../pages/landlord/applications.jsx');
+  assert.match(applications, /requestGuardRef\.current\.begin\(loadScope\)/);
+  const beginIndex = applications.indexOf('requestGuardRef.current.begin(loadScope)');
+  const clearIndex = applications.indexOf('setApplications([])', beginIndex);
+  const requestIndex = applications.indexOf('await applicationAPI.', clearIndex);
+  assert.ok(beginIndex >= 0 && clearIndex > beginIndex && requestIndex > clearIndex, 'scope data must clear before transport starts');
+  assert.match(applications, /requestGuardRef\.current\.isCurrent\(request, currentLoadScopeRef\.current\)/);
+  assert.match(applications, /currentLoadScopeRef\.current = currentLoadScope/);
+  assert.match(applications, /successfulLoad\?\.scopeKey !== currentLoadScope\.scopeKey/);
+  assert.match(applications, /setSuccessfulLoad\(\{ generation: request\.generation, scopeKey: request\.scopeKey \}\)/);
+  assert.match(applications, /setLoadError/);
+});
+
+test('application deep links and all lifecycle mutations invalidate every exact-tenant projection', async () => {
+  const [applications, panel] = await Promise.all([
+    source('../pages/landlord/applications.jsx'),
+    source('../components/leasing-pipeline/LeasingPipelinePanel.jsx')
+  ]);
+  assert.match(applications, /useSearchParams/);
+  assert.match(applications, /searchParams\.get\('applicationId'\)/);
+  assert.match(applications, /getPositiveApplicationId\(requestedApplicationId\)/);
+  assert.match(applications, /scopedApplications\.find/);
+  assert.match(applications, /applicationNotFound/);
+  assert.doesNotMatch(applications, /pipelineRevalidationRef|revalidationRef|revalidateApplicationPipeline/);
+  assert.doesNotMatch(panel, /revalidationRef|useEffect/);
+  assert.match(applications, /const invalidateApplicationPipeline = useCallback\(async \(applicationId, \{ deleted = false \} = \{\}\) =>/);
+  assert.match(applications, /isLeasingPipelineKeyForTenant\(key, userId, organizationId\)/);
+  const clearIndex = applications.indexOf('await mutate(tenantKeyPredicate, undefined, { revalidate: false, populateCache: true })');
+  const revalidateIndex = applications.indexOf('await mutate(revalidationPredicate)', clearIndex);
+  assert.ok(clearIndex >= 0 && revalidateIndex > clearIndex, 'all scoped cache clears must precede scoped revalidation');
+  assert.match(applications, /handleStatusUpdate = \(application\) => \{[\s\S]*setStatusApplicationId\(applicationId\)/);
+  assert.match(applications, /handleSaveStatusUpdate = async \(\) => \{\s*const applicationId = Number\(statusApplicationId\)/);
+  assert.match(applications, /handleRequestBackgroundCheck = async \(applicationIdValue\) => \{\s*const applicationId = Number\(applicationIdValue\)/);
+  assert.match(applications, /handleApprove = async \(applicationIdValue\) => \{\s*const applicationId = Number\(applicationIdValue\)/);
+  assert.match(applications, /updateApplicationStatus\([\s\S]*applicationId,[\s\S]*if \(response\.success\) \{[\s\S]*await invalidateApplicationPipeline\(applicationId\)/);
+  assert.match(applications, /requestBackgroundCheck\(applicationId\)[\s\S]*await invalidateApplicationPipeline\(applicationId\)/);
+  assert.match(applications, /deleteApplication\(applicationId\)[\s\S]*await invalidateApplicationPipeline\(applicationId, \{ deleted: true \}\)/);
+  assert.match(applications, /resendApplicationInviteByApplicationId\(applicationId\)[\s\S]*await invalidateApplicationPipeline\(applicationId\)/);
+  assert.doesNotMatch(applications, /invalidateApplicationPipeline\(selectedApplication/);
+  assert.doesNotMatch(applications, /invalidateApplicationPipeline\(applicationToDelete/);
+  assert.doesNotMatch(applications, /\/landlord\/applications\/\$\{/);
+  assert.doesNotMatch(applications, /\/landlord\/screenings\/\$\{/);
+});
+
+test('pipeline hook exposes a stable fail-closed exact-key revalidation', async () => {
+  const hook = await source('../hooks/useLeasingPipeline.js');
+  assert.match(hook, /useCallback/);
+  assert.match(hook, /mutate\(undefined, \{ revalidate: true \}\)/);
+  assert.match(hook, /revalidate/);
+});

@@ -21,6 +21,8 @@ import { selectUnit } from 'store/unit/unit.selector';
 import { selectCurrentUser } from 'store/user/user.selector';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { openSnackbar } from 'api/snackbar';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 function getUserContactDisplay(user) {
   if (!user) return { name: '', email: '', phone: '' };
@@ -75,6 +77,7 @@ export default function ListingCreatePage() {
   const selectedProperty = useSelector(selectProperty);
   const selectedUnit = useSelector(selectUnit);
   const currentUser = useSelector(selectCurrentUser);
+  const { canInvoke: screeningCanInvoke } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
   const [creating, setCreating] = useState(false);
 
   const propertyIdFromUrl = searchParams.get('propertyId');
@@ -112,6 +115,10 @@ export default function ListingCreatePage() {
         unitId: selectedUnit?.id ?? null,
         monthlyRent: 0,
         ...DEFAULT_CREATE_PAYLOAD,
+        requireScreening: screeningCanInvoke,
+        screeningType: screeningCanInvoke ? 'Essential' : null,
+        requireIncomeVerification: false,
+        incomeVerificationCost: screeningCanInvoke ? 12 : 0,
         listingContactName: userContact.name || null,
         listingContactPhone: userContact.phone || null,
         listingContactEmail: userContact.email || null

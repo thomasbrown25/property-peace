@@ -46,6 +46,7 @@ import {
 import listingApi from 'api/listing';
 import { submitPublicApplication } from 'api/application';
 import AnimateIn from 'components/AnimateIn';
+import PublicInquiryDialog from 'components/lead-crm/PublicInquiryDialog';
 import { formatCurrency, formatDate } from 'utils/formatters';
 
 export default function PublicListingPage() {
@@ -58,6 +59,7 @@ export default function PublicListingPage() {
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [enlargedIndex, setEnlargedIndex] = useState(null);
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [inquiryDialogOpen, setInquiryDialogOpen] = useState(false);
   const [applyStep, setApplyStep] = useState(0);
   const [applySubmitting, setApplySubmitting] = useState(false);
   const [applyError, setApplyError] = useState(null);
@@ -228,6 +230,19 @@ export default function PublicListingPage() {
       <ContactBlock />
     );
 
+  const InquiryButton = ({ fullWidth = false, size = 'large' }) => (
+    <Button
+      variant="outlined"
+      fullWidth={fullWidth}
+      size={size}
+      onClick={() => setInquiryDialogOpen(true)}
+      disabled={!listing.listingId}
+      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2, py: 1.5 }}
+    >
+      Ask about this home
+    </Button>
+  );
+
   return (
     <Fade in timeout={450}>
       <Box sx={{ minHeight: '100vh', bgcolor: '#f9f9f9' }}>
@@ -382,7 +397,10 @@ export default function PublicListingPage() {
                     </Box>
                   )}
                 </Stack>
-                <ApplyButton fullWidth />
+                <Stack spacing={1}>
+                  <InquiryButton fullWidth />
+                  <ApplyButton fullWidth />
+                </Stack>
                 </Box>
               </AnimateIn>
             )}
@@ -588,7 +606,10 @@ export default function PublicListingPage() {
                     </Stack>
                   </Box>
 
-                  <ApplyButton fullWidth />
+                  <Stack spacing={1}>
+                    <InquiryButton fullWidth />
+                    <ApplyButton fullWidth />
+                  </Stack>
 
                   {listing.applicationFeeRequired && (
                     <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', display: 'block' }}>
@@ -638,7 +659,7 @@ export default function PublicListingPage() {
       </Box>
 
       {/* Mobile sticky bottom bar */}
-      {isMobile && (listing.acceptOnlineApplications || hasContact) && (
+      {isMobile && (listing.listingId || listing.acceptOnlineApplications || hasContact) && (
         <Box
           sx={{
             position: 'fixed',
@@ -653,7 +674,7 @@ export default function PublicListingPage() {
             boxShadow: '0 -4px 12px rgba(0,0,0,0.08)'
           }}
         >
-          {listing.acceptOnlineApplications ? (
+          {listing.listingId ? (
             <Stack direction="row" spacing={2} alignItems="center">
               <Box sx={{ flex: 1 }}>
                 <Typography variant="body1" fontWeight={700} color="primary.main">
@@ -665,13 +686,20 @@ export default function PublicListingPage() {
                   </Typography>
                 )}
               </Box>
-              <ApplyButton size="medium" />
+              <InquiryButton size="medium" />
             </Stack>
           ) : (
             <ContactBlock compact />
           )}
         </Box>
       )}
+
+      <PublicInquiryDialog
+        open={inquiryDialogOpen}
+        onClose={() => setInquiryDialogOpen(false)}
+        listingId={listing.listingId}
+        propertyName={[listing.propertyName, listing.unitName].filter(Boolean).join(' · ')}
+      />
 
       {/* Apply Now dialog — 3-step stepper */}
       <Dialog
@@ -1057,7 +1085,7 @@ export default function PublicListingPage() {
       </Dialog>
 
       {/* Bottom padding for mobile sticky bar */}
-      {isMobile && (listing.acceptOnlineApplications || hasContact) && <Box sx={{ height: 72 }} />}
+      {isMobile && (listing.listingId || listing.acceptOnlineApplications || hasContact) && <Box sx={{ height: 72 }} />}
       </Box>
     </Fade>
   );

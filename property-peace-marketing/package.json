@@ -8,6 +8,7 @@
     "start": "next start",
     "out": "npx serve@latest out",
     "lint": "eslint",
+    "test:marketing-claims": "node scripts/check-marketing-claims.mjs",
     "generate-sitemap": "node scripts/generate-sitemap.mjs",
     "generate-rss": "node scripts/generate-rss.mjs"
   },

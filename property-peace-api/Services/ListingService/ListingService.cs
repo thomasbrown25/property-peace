@@ -268,12 +268,55 @@ namespace brownstone_hub_api.Services.ListingService
         {
             try
             {
+                var organizationId = GetCurrentOrganizationId();
+                if (!organizationId.HasValue)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Organization context required",
+                        "Organization context is required to retrieve an internal listing.",
+                        "",
+                        403
+                    );
+                }
+
+                var userId = await _userContextService.GetCurrentUserIdAsync();
+                if (!userId.HasValue)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Access denied",
+                        "An authenticated organization member is required to retrieve an internal listing.",
+                        "",
+                        403
+                    );
+                }
+
+                var member = await _organizationMemberRepository.GetMemberAsync(organizationId.Value, userId.Value);
+                if (member == null || !member.IsActive)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Access denied",
+                        "You do not have access to listings for the current organization.",
+                        "",
+                        403
+                    );
+                }
+
                 var listing = await _listingRepository.GetListingById(listingId);
                 if (listing == null)
                 {
                     return ServiceResponse<LoadListingDto>.CreateError(
                         "Listing not found",
                         $"Listing with ID {listingId} not found."
+                    );
+                }
+
+                if (listing.OrganizationId != organizationId.Value)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Access denied",
+                        "You do not have access to this listing.",
+                        "",
+                        403
                     );
                 }
 

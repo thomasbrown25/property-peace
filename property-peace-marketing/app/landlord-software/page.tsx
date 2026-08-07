@@ -16,10 +16,10 @@ export const metadata: Metadata = applyOttoSeo('/landlord-software/', {
 });
 
 const features = [
-  'Online rent collection with automated reminders',
-  'Tenant portal for self-service payments and requests',
+  'Rent ledger, overdue balances, late fees, and reminders',
+  'Tenant portal for messages, documents, and requests',
   'Maintenance request tracking with photo uploads',
-  'Digital lease management and signing',
+  'Lease document and renewal management',
   'Financial reporting and tax-ready exports',
   'Property and unit management',
   'Real-time tenant communication',
@@ -59,7 +59,7 @@ export default function LandlordSoftwarePage() {
             className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Complete property management software designed specifically for landlords managing 1-50 units. Streamline rent collection, tenant management, and maintenance tracking—all in one platform.
+            Complete property management software designed specifically for landlords managing 1-50 units. Streamline rent tracking, tenant management, and maintenance workflows—all in one platform. Online payment processing is not currently available.
           </p>
           <Link
             href="https://app.propertypeace.io/register"
@@ -146,7 +146,7 @@ export default function LandlordSoftwarePage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                See rent payments, maintenance requests, and messages instantly—no page refreshes needed. Built with modern technology for speed and reliability.
+                See recorded rent status, maintenance requests, and messages in one place. Built with modern technology for speed and reliability.
               </p>
             </div>
           </div>

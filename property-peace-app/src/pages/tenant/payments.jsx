@@ -41,6 +41,9 @@ import { calculateNextPaymentDate } from 'utils/helper-methods';
 import moment from 'moment';
 import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 // ==============================|| TENANT - PAYMENTS ||============================== //
 
@@ -210,6 +213,7 @@ export default function TenantPayments() {
   const theme = useTheme();
   const { user } = useAuth();
   const modal = useModal();
+  const { presentation: rentReadiness, canInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
 
   const [leases, setLeases] = useState([]);
   const [selectedLeaseId, setSelectedLeaseId] = useState(null);
@@ -360,6 +364,7 @@ export default function TenantPayments() {
   const showSelectedUnitName = shouldShowLeaseUnitName(selectedLease);
 
   const openPaymentForSelectedLease = () => {
+    if (!canInvoke) return;
     if (!selectedLease) return;
 
     const rentRecords = rentCollection?.rentRecords || rentCollection?.RentRecords || [];
@@ -440,6 +445,8 @@ export default function TenantPayments() {
           View your payment history and make payments.
         </Typography>
       </Box>
+
+      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
 
       {/* Mobile lease selector */}
       <Paper
@@ -548,6 +555,7 @@ export default function TenantPayments() {
                     size="small"
                     startIcon={<DollarOutlined />}
                     onClick={openPaymentForSelectedLease}
+                    disabled={!canInvoke}
                     sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' } }}
                   >
                     Make Payment{summary.amountDue > 0 && ` · ${formatCurrency(summary.amountDue)}`}
@@ -585,7 +593,7 @@ export default function TenantPayments() {
                   <Alert
                     severity="warning"
                     action={
-                      <Button color="inherit" size="small" onClick={openPaymentForSelectedLease}>
+                      <Button color="inherit" size="small" onClick={openPaymentForSelectedLease} disabled={!canInvoke}>
                         Try another payment method
                       </Button>
                     }
@@ -801,12 +809,14 @@ export default function TenantPayments() {
       </Box>
 
       {/* Payment Modal */}
-      <PaymentModal
-        open={modal.openPayment}
-        rent={modal.selectedRent}
-        onClose={modal.closePaymentModal}
-        defaultAmount={selectedLease?.rentAmount}
-      />
+      {canInvoke && (
+        <PaymentModal
+          open={modal.openPayment}
+          rent={modal.selectedRent}
+          onClose={modal.closePaymentModal}
+          defaultAmount={selectedLease?.rentAmount}
+        />
+      )}
     </Box>
   );
 }

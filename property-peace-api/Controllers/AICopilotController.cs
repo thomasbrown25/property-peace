@@ -4,6 +4,8 @@ using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Services.AICopilotService;
 using brownstone_hub_api.Services.AgentFollowUpService;
+using brownstone_hub_api.Config;
+using brownstone_hub_api.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
@@ -13,6 +15,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/ai-copilot")]
     [Authorize(Roles = "Landlord,Admin")]
+    [RequireFeatureReady(FeatureKeys.Percy)]
     public class AICopilotController(
         IAICopilotService aiCopilotService,
         IAgentFollowUpService agentFollowUpService,

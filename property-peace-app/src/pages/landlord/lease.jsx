@@ -75,6 +75,9 @@ import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
 import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
 import AddTenantDialog from 'components/dialogs/AddTenantDialog';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 // E-Signature Status Labels
 const SIGNATURE_STATUS_LABELS = {
@@ -99,8 +102,10 @@ export default function LeasePage() {
   const { propertiesRefetch, isLoading: propertiesLoading } = useFetchProperties();
   const { user } = useAuth();
   const { onLeaseSignatureUpdated } = useSignalRNotifications();
+  const { presentation: signatureReadiness } = useFeatureReadiness(FEATURE_KEYS.eSignature);
+  const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   
-  // Get context to update lease page loading state
+  // Get context
   const { setLeaseLoading } = useDashboardLoading();
   const theme = useTheme();
   const fetchedTenants = useSelector(selectLeaseTenants);
@@ -939,6 +944,7 @@ export default function LeasePage() {
 
   // Handler for when Stripe onboarding completes
   const handleStripeOnboardingComplete = async () => {
+    if (!rentCanInvoke) return;
     // Close the Stripe onboarding dialog
     setShowStripeOnboarding(false);
     
@@ -968,6 +974,11 @@ export default function LeasePage() {
     } catch (error) {
       console.error('Error refreshing bank accounts after onboarding:', error);
     }
+  };
+
+  const handleOpenStripeOnboarding = () => {
+    if (!rentCanInvoke) return;
+    setShowStripeOnboarding(true);
   };
 
   // Calculate rent record and deposit status - MUST be called before any early returns (Rules of Hooks)
@@ -1223,6 +1234,7 @@ export default function LeasePage() {
   };
 
   const handleSignLandlord = async () => {
+    if (!signatureReadiness.canInvoke) return;
     if (!lease?.id) return;
     
     if (!signatureForm.landlordEmail) {
@@ -2031,9 +2043,8 @@ export default function LeasePage() {
             <Button
               variant="outlined"
               startIcon={<PlusOutlined />}
-              onClick={() => {
-                setShowStripeOnboarding(true);
-              }}
+              onClick={handleOpenStripeOnboarding}
+              disabled={!rentCanInvoke}
               sx={{
                 alignSelf: 'flex-start',
                 textTransform: 'none'
@@ -2041,6 +2052,7 @@ export default function LeasePage() {
             >
               Add New Bank Account
             </Button>
+            <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" compact />
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -2059,11 +2071,13 @@ export default function LeasePage() {
       </Dialog>
 
       {/* Stripe Connect Onboarding Dialog */}
-      <StripeConnectOnboardingDialog
-        open={showStripeOnboarding}
-        onClose={() => setShowStripeOnboarding(false)}
-        onComplete={handleStripeOnboardingComplete}
-      />
+      {rentCanInvoke && (
+        <StripeConnectOnboardingDialog
+          open={showStripeOnboarding}
+          onClose={() => setShowStripeOnboarding(false)}
+          onComplete={handleStripeOnboardingComplete}
+        />
+      )}
 
       {/* Payment Modal */}
       <PaymentModal 

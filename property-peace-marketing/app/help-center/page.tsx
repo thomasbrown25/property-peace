@@ -19,17 +19,17 @@ const faqs = [
   {
     question: "What is Property Peace?",
     answer:
-      "Property Peace is property management software designed for independent landlords. It helps you manage rentals, collect rent, track maintenance, create leases, and handle tenant communication—all in one place.",
+      "Property Peace is property management software designed for independent landlords. It helps you track rent records, manage maintenance, organize leases, and handle tenant communication—all in one place.",
   },
   {
     question: "Is Property Peace free?",
     answer:
-      "Yes! Core features are free: add properties, collect rent, track expenses, manage leases, and use the tenant portal. No credit card required to get started. Some premium features, such as LeaseShield, are available on paid plans.",
+      "Property Peace has a free plan for up to 2 units, with no credit card required to get started. Paid plans add features and capacity; check the pricing page for the current plan details.",
   },
   {
-    question: "How does online rent collection work?",
+    question: "Can tenants pay rent online through Property Peace?",
     answer:
-      "Property Peace integrates with Stripe for secure online payments. Tenants pay through the tenant portal using credit cards or bank transfers. You get automatic reminders, payment tracking, and real-time updates.",
+      "Not currently. Online payment processing is on the roadmap. Today, landlords can record payments, track overdue balances and late fees, and organize rent reminders in Property Peace.",
   },
   {
     question: "Can I manage multiple properties?",

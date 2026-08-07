@@ -53,6 +53,9 @@ import useFetchProperties from 'hooks/useFetchProperties';
 import { updateLease } from 'store/lease/lease.action';
 import { getBankAccounts, getBankAccount } from 'api/bankAccount';
 import axiosServices from 'utils/axios';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 // Helper to format due date for display (1st, 2nd, Last day, etc.)
 const formatDueDateDisplay = (value) => {
@@ -71,6 +74,7 @@ export default function LeaseCharges() {
   const theme = useTheme();
   const properties = useSelector(selectProperties);
   const { propertiesRefetch } = useFetchProperties();
+  const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   
   // Find the lease from properties (include property and unit for updateLease)
   const lease = useMemo(() => {
@@ -84,7 +88,9 @@ export default function LeaseCharges() {
   }, [properties, leaseId]);
 
   const property = lease?.property;
+
   const unit = lease?.unit;
+
   const currentLeaseId = lease?.id ?? lease?.Id ?? leaseId;
 
   // Rent state
@@ -128,6 +134,11 @@ export default function LeaseCharges() {
   // Fetch operating account details for the lease
   useEffect(() => {
     const fetchOperatingAccount = async () => {
+      if (!rentCanInvoke || !leaseOperatingAccountId) {
+        setOperatingAccount(null);
+        setLoadingAccount(false);
+        return;
+      }
       if (leaseOperatingAccountId) {
         setLoadingAccount(true);
         try {
@@ -148,11 +159,15 @@ export default function LeaseCharges() {
       }
     };
     fetchOperatingAccount();
-  }, [leaseOperatingAccountId]);
+  }, [leaseOperatingAccountId, rentCanInvoke]);
 
   // Fetch bank accounts when modal opens
   useEffect(() => {
     const fetchBankAccounts = async () => {
+      if (!bankingModalOpen || !rentCanInvoke) {
+        setLoadingBankAccounts(false);
+        return;
+      }
       if (bankingModalOpen) {
         setLoadingBankAccounts(true);
         try {
@@ -175,10 +190,19 @@ export default function LeaseCharges() {
       }
     };
     fetchBankAccounts();
-  }, [bankingModalOpen, leaseOperatingAccountId]);
+  }, [bankingModalOpen, leaseOperatingAccountId, rentCanInvoke]);
+
+  useEffect(() => {
+    if (!rentCanInvoke) {
+      setBankingModalOpen(false);
+      setShowStripeOnboarding(false);
+      setBankAccounts([]);
+      setSelectedAccountId(null);
+    }
+  }, [rentCanInvoke]);
 
   const handleSaveBankAccount = async () => {
-    if (!currentLeaseId) return;
+    if (!rentCanInvoke || !currentLeaseId) return;
     setSavingBankAccount(true);
     try {
       const updatePayload = {
@@ -224,6 +248,7 @@ export default function LeaseCharges() {
   };
 
   const handleStripeOnboardingComplete = async () => {
+    if (!rentCanInvoke) return;
     setShowStripeOnboarding(false);
     await new Promise(resolve => setTimeout(resolve, 1000));
     try {
@@ -487,7 +512,7 @@ export default function LeaseCharges() {
       });
       return false;
     }
-    if (hasRentDefined && collectThroughPlatform && !hasBankAccount) {
+    if (hasRentDefined && rentCanInvoke && collectThroughPlatform && !hasBankAccount) {
       openSnackbar({
         open: true,
         message: 'Please add or select a bank account to complete Set up Rent Payments.',
@@ -509,8 +534,8 @@ export default function LeaseCharges() {
         leaseLength: lease?.leaseLength ?? lease?.LeaseLength,
         rentFrequency: lease?.rentFrequency ?? lease?.RentFrequency ?? 'Monthly',
         rentDueDay: lease?.rentDueDay ?? lease?.RentDueDay ?? 1,
-        rentCollectionByPlatform: collectThroughPlatform,
-        operatingAccountId: collectThroughPlatform ? (selectedAccountId ?? leaseOperatingAccountId ?? null) : null,
+        rentCollectionByPlatform: rentCanInvoke && collectThroughPlatform,
+        operatingAccountId: rentCanInvoke && collectThroughPlatform ? (selectedAccountId ?? leaseOperatingAccountId ?? null) : null,
         fees: lease?.fees ?? lease?.Fees ?? [],
         ...payloadExtra
       }));
@@ -938,11 +963,16 @@ export default function LeaseCharges() {
             How will you collect rent?
           </Typography>
           <Stack spacing={2} sx={{ mb: 3 }}>
+            <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
             <Card
-              onClick={() => setCollectThroughPlatform((prev) => !prev)}
+              onClick={() => {
+                if (rentCanInvoke) setCollectThroughPlatform((prev) => !prev);
+              }}
+              aria-disabled={!rentCanInvoke}
               sx={{
-                cursor: 'pointer',
-                border: `2px solid ${collectThroughPlatform ? theme.palette.primary.main : alpha(theme.palette.divider, 0.3)}`,
+                cursor: rentCanInvoke ? 'pointer' : 'not-allowed',
+                opacity: rentCanInvoke ? 1 : 0.6,
+                border: `2px solid ${rentCanInvoke && collectThroughPlatform ? theme.palette.primary.main : alpha(theme.palette.divider, 0.3)}`,
                 bgcolor: 'background.paper',
                 borderRadius: 2,
                 transition: 'all 0.2s ease',
@@ -952,10 +982,11 @@ export default function LeaseCharges() {
               <CardContent>
                 <Stack direction="row" spacing={2} alignItems="flex-start">
                   <Checkbox
-                    checked={collectThroughPlatform}
+                    checked={rentCanInvoke && collectThroughPlatform}
+                    disabled={!rentCanInvoke}
                     onChange={(e) => {
                       e.stopPropagation();
-                      setCollectThroughPlatform((prev) => !prev);
+                      if (rentCanInvoke) setCollectThroughPlatform((prev) => !prev);
                     }}
                     onClick={(e) => e.stopPropagation()}
                     sx={{ mt: -1 }}
@@ -990,7 +1021,7 @@ export default function LeaseCharges() {
               </CardContent>
             </Card>
 
-            <Collapse in={collectThroughPlatform} timeout={300}>
+            <Collapse in={rentCanInvoke && collectThroughPlatform} timeout={300}>
             <Box sx={{ pt: 1, px: 4 }}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Select or add a bank account to receive rent payments for this lease. You can change it later.
@@ -1158,6 +1189,7 @@ export default function LeaseCharges() {
       />
 
       {/* Payment account selection dialog */}
+      {rentCanInvoke && bankingModalOpen && (
       <Dialog open={bankingModalOpen} onClose={() => setBankingModalOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
@@ -1227,12 +1259,15 @@ export default function LeaseCharges() {
           </Button>
         </DialogActions>
       </Dialog>
+      )}
 
+      {rentCanInvoke && showStripeOnboarding && (
       <StripeConnectOnboardingDialog
         open={showStripeOnboarding}
         onClose={() => setShowStripeOnboarding(false)}
         onComplete={handleStripeOnboardingComplete}
       />
+      )}
     </Box>
   );
 }

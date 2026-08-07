@@ -11,7 +11,8 @@ export default function PlanCard({
   disabled = false,
   hasActiveSubscription = false,
   isTenant = false,
-  tenantFeatures = null
+  tenantFeatures = null,
+  rentReadiness = null
 }) {
   const theme = useTheme();
   const price = billingCycle === 'Annual' ? plan.annualPrice : plan.monthlyPrice;
@@ -155,12 +156,26 @@ export default function PlanCard({
 
           {features.length > 0 && (
             <Box sx={{ flexGrow: 1 }}>
-              {features.map((feature, index) => (
-                <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main', mr: 1, flexShrink: 0 }} />
-                  <Typography variant="body2">{feature}</Typography>
-                </Box>
-              ))}
+              {features.map((feature, index) => {
+                const isOnlineRentCollectionFeature = /online rent/i.test(feature);
+                const operationallyReady = !isOnlineRentCollectionFeature || rentReadiness?.canInvoke === true;
+                return (
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+                    {operationallyReady ? (
+                      <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main', mr: 1, mt: 0.15, flexShrink: 0 }} />
+                    ) : (
+                      <Chip
+                        label={`Operational status: ${rentReadiness?.title || 'Unavailable'}`}
+                        size="small"
+                        variant="outlined"
+                        color={rentReadiness?.severity === 'error' ? 'error' : 'warning'}
+                        sx={{ mr: 1, height: 22, flexShrink: 0 }}
+                      />
+                    )}
+                    <Typography variant="body2">{feature}</Typography>
+                  </Box>
+                );
+              })}
             </Box>
           )}
         </Box>
