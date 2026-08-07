@@ -29,19 +29,21 @@ test('all three real detail surfaces mount the reusable panel with direct resour
   assert.match(applications, /<LeasingPipelinePanel resourceType="application" resourceId=\{selectedApplication\?\.id \?\? selectedApplication\?\.Id\}/);
 });
 
-test('property page places leasing progress under the overview on desktop and directly after the tenant summary on mobile', async () => {
+test('property page places leasing progress directly under the header overview on desktop and after the tenant summary on mobile', async () => {
   const [property, overview] = await Promise.all([
     source('../pages/landlord/property.jsx'),
     source('../sections/landlord/property/PropertyOverview.jsx')
   ]);
-  const overviewIndex = property.indexOf('<PropertyOverview');
-  const desktopPipelineIndex = property.indexOf('<PropertyLeasingPipeline', overviewIndex);
+  const headerIndex = property.indexOf('<PropertyHeader');
+  const desktopPipelineIndex = property.indexOf('<PropertyLeasingPipeline', headerIndex);
+  const overviewColumnsIndex = property.indexOf('<PropertyOverview', headerIndex);
   const tenantIndex = overview.indexOf('<PropertyCurrentTenant');
   const mobilePipelineIndex = overview.indexOf('{isMobile && (', tenantIndex);
   const activeLeaseIndex = overview.indexOf('<PropertyActiveLease', tenantIndex);
 
-  assert.ok(overviewIndex >= 0 && desktopPipelineIndex > overviewIndex, 'desktop leasing progress should follow the overview section');
-  assert.match(property.slice(overviewIndex, desktopPipelineIndex), /<\/Box>/);
+  assert.ok(headerIndex >= 0, 'property header overview should be mounted');
+  assert.ok(desktopPipelineIndex > headerIndex, 'desktop leasing progress should follow the header overview');
+  assert.ok(overviewColumnsIndex > desktopPipelineIndex, 'overview columns should follow desktop leasing progress');
   assert.match(property.slice(desktopPipelineIndex - 100, desktopPipelineIndex), /display: \{ xs: 'none', sm: 'block' \}/);
   assert.ok(tenantIndex >= 0 && mobilePipelineIndex > tenantIndex, 'mobile leasing progress should follow the tenant summary');
   assert.match(overview.slice(mobilePipelineIndex, activeLeaseIndex), /<PropertyLeasingPipeline/);

@@ -2605,7 +2605,16 @@ export default function Property() {
           />
         </AnimateIn>
 
-        {/* Property Overview */}
+        {/* Desktop/tablet leasing progress — directly below the header overview */}
+        <Box sx={{ mt: 2, display: { xs: 'none', sm: 'block' } }}>
+          <PropertyLeasingPipeline
+            propertyId={propertyId}
+            units={selectedProperty?.units ?? selectedProperty?.Units ?? []}
+            onCreateListing={drawer.openListingAddDrawer}
+          />
+        </Box>
+
+        {/* Property Overview Columns */}
         <Box sx={{ mt: 3 }}>
           <AnimateIn direction="bottom" delay={200} distance={120}>
             <PropertyOverview
@@ -2614,13 +2623,6 @@ export default function Property() {
               onCreateListing={drawer.openListingAddDrawer}
             />
           </AnimateIn>
-        </Box>
-        <Box sx={{ mt: 2, display: { xs: 'none', sm: 'block' } }}>
-          <PropertyLeasingPipeline
-            propertyId={propertyId}
-            units={selectedProperty?.units ?? selectedProperty?.Units ?? []}
-            onCreateListing={drawer.openListingAddDrawer}
-          />
         </Box>
       {/* Confirmation Dialog */}
       <ConfirmationDialog
