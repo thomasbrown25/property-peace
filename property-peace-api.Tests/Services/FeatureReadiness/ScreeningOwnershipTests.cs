@@ -83,7 +83,7 @@ public class ScreeningOwnershipTests
     }
 
     [Fact]
-    public async Task RequestBackgroundCheck_AllowsSameLandlordSameOrganization()
+    public async Task RequestBackgroundCheck_AuthorizedLegacyPathReturnsGoneWithoutProviderCall()
     {
         var (controller, backgroundChecks, _) = CreateController(applicationLandlordId: 42, currentUserId: 42);
 
@@ -93,19 +93,19 @@ public class ScreeningOwnershipTests
             ScreeningPackage = "full"
         });
 
-        result.Should().BeOfType<OkObjectResult>();
-        backgroundChecks.Verify(service => service.RequestBackgroundCheckAsync(7, "full"), Times.Once);
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status410Gone);
+        backgroundChecks.Verify(service => service.RequestBackgroundCheckAsync(It.IsAny<long>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task GetBackgroundCheckStatus_AllowsSameLandlordSameOrganization()
+    public async Task GetBackgroundCheckStatus_AuthorizedLegacyPathReturnsGoneWithoutProviderCall()
     {
         var (controller, backgroundChecks, _) = CreateController(applicationLandlordId: 42, currentUserId: 42);
 
         var result = await controller.GetBackgroundCheckStatus(7);
 
-        result.Should().BeOfType<OkObjectResult>();
-        backgroundChecks.Verify(service => service.GetBackgroundCheckStatusAsync(7), Times.Once);
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status410Gone);
+        backgroundChecks.Verify(service => service.GetBackgroundCheckStatusAsync(It.IsAny<long>()), Times.Never);
     }
 
     [Fact]

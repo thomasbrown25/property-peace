@@ -6492,41 +6492,6 @@ namespace brownstone_hub_api.Migrations
                     b.Property<string>("AdditionalNotes")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime?>("BackgroundCheckCompletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool?>("BackgroundCheckOverallPass")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("BackgroundCheckProvider")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("BackgroundCheckRejectionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("BackgroundCheckReportUrl")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("BackgroundCheckRequestId")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<bool?>("BackgroundCheckRequested")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("BackgroundCheckRequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("BackgroundCheckStatus")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("BackgroundCheckSummary")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<long?>("ConvertedToLeaseId")
                         .HasColumnType("bigint");
 
@@ -6538,9 +6503,6 @@ namespace brownstone_hub_api.Migrations
 
                     b.Property<long?>("CreatedBy")
                         .HasColumnType("bigint");
-
-                    b.Property<int?>("CreditScore")
-                        .HasColumnType("int");
 
                     b.Property<string>("CurrentAddress")
                         .HasMaxLength(500)
@@ -6618,18 +6580,6 @@ namespace brownstone_hub_api.Migrations
                     b.Property<long?>("OrganizationId")
                         .HasColumnType("bigint");
 
-                    b.Property<bool?>("PassedCreditCheck")
-                        .HasColumnType("bit");
-
-                    b.Property<bool?>("PassedCriminalCheck")
-                        .HasColumnType("bit");
-
-                    b.Property<bool?>("PassedEvictionCheck")
-                        .HasColumnType("bit");
-
-                    b.Property<bool?>("PassedIncomeVerification")
-                        .HasColumnType("bit");
-
                     b.Property<string>("PdfBlobName")
                         .HasColumnType("nvarchar(max)");
 
@@ -6665,10 +6615,6 @@ namespace brownstone_hub_api.Migrations
 
                     b.Property<long?>("ReviewedBy")
                         .HasColumnType("bigint");
-
-                    b.Property<string>("Ssn")
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -6729,6 +6675,1558 @@ namespace brownstone_hub_api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningAdverseAction", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("CraContactAddress")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("CraContactName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CraContactPhone")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("DecisionActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ImmutableNoticeContent")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("JurisdictionCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("NoticeContentSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("NoticeVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OriginalScreeningRentalDecisionRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("OriginalScreeningReportRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReasonCodesJson")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("ReconsiderationLinkReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("RentalApplicationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RentalCriteriaVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("StateLocalDisclosureSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("StateLocalDisclosureVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("StatutoryDisclosureSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("StatutoryDisclosureVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecisionActorUserId");
+
+                    b.HasIndex("OriginalScreeningRentalDecisionRevisionId");
+
+                    b.HasIndex("OriginalScreeningReportRevisionId");
+
+                    b.HasIndex("RentalApplicationId");
+
+                    b.HasIndex("TenantScreeningOrderId");
+
+                    b.HasIndex("OrganizationId", "CreatedAt");
+
+                    b.HasIndex("OrganizationId", "OriginalScreeningRentalDecisionRevisionId", "ActionType")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "RentalApplicationId", "CreatedAt");
+
+                    b.ToTable("ScreeningAdverseActions", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningAdverseActions_ReasonCodesJson", "ISJSON([ReasonCodesJson]) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningAdverseActionDeliveryAttempt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AttemptNumber")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("AttemptedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NoticeContentSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderDeliveryReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderIdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<Guid?>("ProcessingLeaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ProcessingLeaseUntil")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<long>("ScreeningAdverseActionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ProviderIdempotencyKey");
+
+                    b.HasIndex("ScreeningAdverseActionId", "AttemptNumber")
+                        .IsUnique();
+
+                    b.HasIndex("ScreeningAdverseActionId", "Channel");
+
+                    b.HasIndex("Status", "NextAttemptAt", "ProcessingLeaseUntil", "AttemptedAt");
+
+                    b.ToTable("ScreeningAdverseActionDeliveryAttempts", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningAdverseActionDeliveryAttempts_Attempt", "[AttemptNumber] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningCancellationIntent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("ExpectedOrderRevision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid?>("ProcessingLeaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ProcessingLeaseUntil")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("ProviderAcceptedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProviderOrderId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ReasonCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("RentalApplicationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.HasIndex("RentalApplicationId");
+
+                    b.HasIndex("TenantScreeningOrderId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "NextAttemptAt", "ProcessingLeaseUntil", "CreatedAt");
+
+                    b.ToTable("ScreeningCancellationIntents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningCancellationIntents_Attempts", "[Attempts] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningConsentEvidence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("AuthorizationVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("ConsentedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("DisclosureVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IpAddressHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderAuthorizationReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("QuoteReferenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UserAgentHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantScreeningOrderId")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "ConsentedAt");
+
+                    b.ToTable("ScreeningConsentEvidence", "screening");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningDispute", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("CorrectedScreeningReportRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("IssueCodesJson")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("LocalDisputeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("NotesSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTimeOffset>("OpenedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("OpenedByActorType")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("OpenedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OriginalScreeningReportRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderDisputeReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset>("RetentionExpiresAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CorrectedScreeningReportRevisionId");
+
+                    b.HasIndex("LocalDisputeId")
+                        .IsUnique();
+
+                    b.HasIndex("OpenedByUserId");
+
+                    b.HasIndex("OriginalScreeningReportRevisionId");
+
+                    b.HasIndex("OrganizationId", "RetentionExpiresAt");
+
+                    b.HasIndex("ProviderKey", "ProviderDisputeReference")
+                        .IsUnique();
+
+                    b.HasIndex("TenantScreeningOrderId", "OpenedAt");
+
+                    b.HasIndex("OrganizationId", "Status", "ResolvedAt");
+
+                    b.ToTable("ScreeningDisputes", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningDisputes_IssueCodesJson", "ISJSON([IssueCodesJson]) = 1");
+
+                            t.HasCheckConstraint("CK_ScreeningDisputes_ResolvedAt", "[ResolvedAt] IS NULL OR [ResolvedAt] >= [OpenedAt]");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningDisputeIntent", b =>
+                {
+                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    b.Property<long?>("ActorUserId").HasColumnType("bigint");
+                    b.Property<string>("ActorType").IsRequired().HasMaxLength(32).HasColumnType("nvarchar(32)");
+                    b.Property<int>("Attempts").HasColumnType("int");
+                    b.Property<DateTimeOffset?>("CompletedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<DateTimeOffset>("CreatedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<string>("FailureCode").HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("IssueCodesJson").IsRequired().HasMaxLength(2000).HasColumnType("nvarchar(2000)");
+                    b.Property<string>("NotesSha256Hash").IsRequired().HasMaxLength(64).IsUnicode(false).HasColumnType("char(64)");
+                    b.Property<Guid>("OperationId").HasColumnType("uniqueidentifier");
+                    b.Property<long>("OrganizationId").HasColumnType("bigint");
+                    b.Property<Guid?>("ProcessingLeaseId").HasColumnType("uniqueidentifier");
+                    b.Property<DateTimeOffset?>("ProcessingLeaseUntil").HasColumnType("datetimeoffset(7)");
+                    b.Property<DateTimeOffset?>("NextAttemptAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<DateTimeOffset?>("ProviderAcceptedAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<string>("ProviderKey").IsRequired().HasMaxLength(100).HasColumnType("nvarchar(100)");
+                    b.Property<string>("ProviderOrderId").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                    b.Property<string>("ProviderReference").HasMaxLength(200).HasColumnType("nvarchar(200)");
+                    b.Property<string>("ProviderReportReference").IsRequired().HasMaxLength(200).HasColumnType("nvarchar(200)");
+                    b.Property<long>("RentalApplicationId").HasColumnType("bigint");
+                    b.Property<DateTimeOffset>("RetentionExpiresAt").HasColumnType("datetimeoffset(7)");
+                    b.Property<byte[]>("RowVersion").IsConcurrencyToken().IsRequired().ValueGeneratedOnAddOrUpdate().HasColumnType("rowversion");
+                    b.Property<long>("ScreeningReportRevisionId").HasColumnType("bigint");
+                    b.Property<string>("Status").IsRequired().HasMaxLength(32).HasColumnType("nvarchar(32)");
+                    b.Property<long>("TenantScreeningOrderId").HasColumnType("bigint");
+                    b.HasKey("Id");
+                    b.HasIndex("ActorUserId");
+                    b.HasIndex("OperationId").IsUnique();
+                    b.HasIndex("OrganizationId");
+                    b.HasIndex("RentalApplicationId");
+                    b.HasIndex("ScreeningReportRevisionId");
+                    b.HasIndex("TenantScreeningOrderId", "ScreeningReportRevisionId").IsUnique();
+                    b.HasIndex("Status", "NextAttemptAt", "ProcessingLeaseUntil", "CreatedAt");
+                    b.ToTable("ScreeningDisputeIntents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningDisputeIntents_Attempts", "[Attempts] >= 0");
+                            t.HasCheckConstraint("CK_ScreeningDisputeIntents_IssueCodesJson", "ISJSON([IssueCodesJson]) = 1");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningDisputeEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorType")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderEventReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderEventType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ScreeningDisputeId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("OrganizationId", "RecordedAt");
+
+                    b.HasIndex("ScreeningDisputeId", "ProviderEventReference")
+                        .IsUnique()
+                        .HasFilter("[ProviderEventReference] IS NOT NULL");
+
+                    b.HasIndex("ScreeningDisputeId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("TenantScreeningOrderId", "OccurredAt");
+
+                    b.ToTable("ScreeningDisputeEvents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningDisputeEvents_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningIncident", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AffectedResourceSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTimeOffset?>("ContainedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset>("DetectedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("DetectionSource")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FailureEvidenceReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IncidentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("NotificationEvidenceReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long?>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderEventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RemediationEvidenceReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("TenantScreeningOrderId", "DetectedAt");
+
+                    b.HasIndex("OrganizationId", "Status", "DetectedAt");
+
+                    b.HasIndex("ProviderKey", "ProviderEventId", "IncidentType")
+                        .HasFilter("[ProviderEventId] IS NOT NULL");
+
+                    b.ToTable("ScreeningIncidents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningIncidents_Resolution", "[ResolvedAt] IS NULL OR [ContainedAt] IS NOT NULL");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningIncidentEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EvidenceReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ScreeningIncidentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("ScreeningIncidentId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "OccurredAt");
+
+                    b.ToTable("ScreeningIncidentEvents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningIncidentEvents_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningPaymentEvidence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ApplicantAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("LandlordAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Payer")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("PaymentOperationReferenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long>("PlatformFeeMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProviderAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ProviderOccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("QuoteReferenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("TaxAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("OrganizationId", "RecordedAt");
+
+                    b.HasIndex("TenantScreeningOrderId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("TenantScreeningOrderId", "PaymentOperationReferenceHash", "Status")
+                        .IsUnique();
+
+                    b.ToTable("ScreeningPaymentEvidence", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningPaymentEvidence_Amounts", "[LandlordAmountMinor] >= 0 AND [ApplicantAmountMinor] >= 0 AND [ProviderAmountMinor] >= 0 AND [PlatformFeeMinor] >= 0 AND [TaxAmountMinor] >= 0 AND [TotalAmountMinor] = [LandlordAmountMinor] + [ApplicantAmountMinor] AND [TotalAmountMinor] = [ProviderAmountMinor] + [PlatformFeeMinor] + [TaxAmountMinor]");
+
+                            t.HasCheckConstraint("CK_ScreeningPaymentEvidence_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReconsiderationEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("NewScreeningRentalDecisionRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReasonSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ScreeningAdverseActionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("NewScreeningRentalDecisionRevisionId");
+
+                    b.HasIndex("OrganizationId", "RecordedAt");
+
+                    b.HasIndex("ScreeningAdverseActionId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("TenantScreeningOrderId", "OccurredAt");
+
+                    b.ToTable("ScreeningReconsiderationEvents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningReconsiderationEvents_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningRentalDecisionRevision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("CriteriaSnapshotSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("CriteriaVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("DecisionActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DisputeStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<bool>("IsFrozenByDispute")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReasonCodesJson")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<long?>("ReliedUponScreeningReportRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RentalApplicationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("SupersedesScreeningRentalDecisionRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecisionActorUserId");
+
+                    b.HasIndex("ReliedUponScreeningReportRevisionId");
+
+                    b.HasIndex("RentalApplicationId");
+
+                    b.HasIndex("SupersedesScreeningRentalDecisionRevisionId");
+
+                    b.HasIndex("TenantScreeningOrderId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "RentalApplicationId", "CreatedAt");
+
+                    b.ToTable("ScreeningRentalDecisionRevisions", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningRentalDecisionRevisions_ReasonCodesJson", "ISJSON([ReasonCodesJson]) = 1");
+
+                            t.HasCheckConstraint("CK_ScreeningRentalDecisionRevisions_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReportAccessAudit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("AttemptSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("GrantExpiresAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("GrantReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("ScreeningReportRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ScreeningSupportElevationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("ScreeningReportRevisionId");
+
+                    b.HasIndex("ScreeningSupportElevationId");
+
+                    b.HasIndex("OrganizationId", "RequestedAt");
+
+                    b.HasIndex("Status", "RequestedAt");
+
+                    b.HasIndex("TenantScreeningOrderId", "AttemptSequence")
+                        .IsUnique();
+
+                    b.ToTable("ScreeningReportAccessAudits", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningReportAccessAudits_Grant", "([Status] = 'Granted' AND [GrantReference] IS NOT NULL AND [GrantExpiresAt] IS NOT NULL) OR ([Status] <> 'Granted' AND [GrantReference] IS NULL AND [GrantExpiresAt] IS NULL)");
+
+                            t.HasCheckConstraint("CK_ScreeningReportAccessAudits_Sequence", "[AttemptSequence] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReportDeletionEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ScreeningReportRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantScreeningOrderId");
+
+                    b.HasIndex("OrganizationId", "OccurredAt");
+
+                    b.HasIndex("ScreeningReportRevisionId", "Revision")
+                        .IsUnique();
+
+                    b.ToTable("ScreeningReportDeletionEvents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningReportDeletionEvents_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReportRevision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset?>("CorrectedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("DeleteRequestedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("DeletionClaimExpiresAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<Guid?>("DeletionClaimToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("DeletionClaimedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("DeletionProviderCallStartedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<Guid?>("PendingDisputeOperationId")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsUnderLegalHold")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LegalHoldPlacedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("LegalHoldReasonCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("LegalHoldReleasedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("NormalizedFactsJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("NormalizedFactsSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("ProviderOccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("ProviderReportReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("ReportVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("RetentionExpiresAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("RetentionSignal")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("SupersedesScreeningReportRevisionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupersedesScreeningReportRevisionId");
+
+                    b.HasIndex("ProviderKey", "ProviderReportReference")
+                        .IsUnique();
+
+                    b.HasIndex("TenantScreeningOrderId", "Revision")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "IsUnderLegalHold", "DeleteRequestedAt");
+
+                    b.HasIndex("OrganizationId", "RetentionExpiresAt", "DeletedAt");
+
+                    b.ToTable("ScreeningReportRevisions", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningReportRevisions_Deletion", "[DeletedAt] IS NULL OR [DeleteRequestedAt] IS NOT NULL");
+
+                            t.HasCheckConstraint("CK_ScreeningReportRevisions_NormalizedFactsJson", "ISJSON([NormalizedFactsJson]) = 1");
+
+                            t.HasCheckConstraint("CK_ScreeningReportRevisions_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningSupportElevation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AccessCount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ApprovedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("CaseReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<int>("MaximumAccessCount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long?>("RevokedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<long>("SubjectUserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.HasIndex("SubjectUserId");
+
+                    b.HasIndex("OrganizationId", "SubjectUserId", "Purpose", "ExpiresAt", "RevokedAt");
+
+                    b.ToTable("ScreeningSupportElevations", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningSupportElevations_Approver", "[ApprovedByUserId] <> [SubjectUserId]");
+
+                            t.HasCheckConstraint("CK_ScreeningSupportElevations_Count", "[MaximumAccessCount] > 0 AND [AccessCount] >= 0 AND [AccessCount] <= [MaximumAccessCount]");
+
+                            t.HasCheckConstraint("CK_ScreeningSupportElevations_Lifetime", "[ExpiresAt] > [IssuedAt]");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningTransitionEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FromStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderEventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("RecordedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("Revision")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("OrganizationId", "RecordedAt");
+
+                    b.HasIndex("ProviderKey", "ProviderEventId")
+                        .IsUnique()
+                        .HasFilter("[ProviderEventId] IS NOT NULL");
+
+                    b.HasIndex("TenantScreeningOrderId", "Revision")
+                        .IsUnique();
+
+                    b.ToTable("ScreeningTransitionEvents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningTransitionEvents_Revision", "[Revision] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningWebhookInboxEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AuthenticationKeyVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("AuthenticationScheme")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("CanonicalStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("DuplicateCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FailureDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("LastDuplicateReceivedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("LastSecurityIncidentAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset?>("NextAttemptAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("NormalizedReasonCode")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("PayloadSha256Hash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long?>("PaymentApplicantAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PaymentCurrency")
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)");
+
+                    b.Property<string>("PaymentFailureCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long?>("PaymentLandlordAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("PaymentOccurredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("PaymentOperationReferenceHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("PaymentPayer")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("PaymentPlatformFeeMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PaymentProviderAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PaymentQuoteReferenceHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("PaymentStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long?>("PaymentTaxAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PaymentTotalAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ProcessedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<int>("ProcessingAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ProcessingLeaseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ProcessingLeaseUntil")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("ProcessingStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ProviderEventId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProviderOrderId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long?>("ProviderSequence")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("SecurityIncidentCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("SecurityIncidentCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("SignedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long?>("TenantScreeningOrderId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAt");
+
+                    b.HasIndex("TenantScreeningOrderId");
+
+                    b.HasIndex("ProviderKey", "ProviderEventId")
+                        .IsUnique();
+
+                    b.HasIndex("ProcessingStatus", "NextAttemptAt", "ProcessingLeaseUntil");
+
+                    b.ToTable("ScreeningWebhookInboxEvents", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_ScreeningWebhookInboxEvents_Attempts", "[ProcessingAttempts] >= 0");
+
+                            t.HasCheckConstraint("CK_ScreeningWebhookInboxEvents_Duplicates", "[DuplicateCount] >= 0");
+                        });
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Showing", b =>
@@ -8238,6 +9736,250 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("TenantLeases", "lease");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.TenantScreeningOrder", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AllowedChecksJson")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset?>("ApplicantAccessExpiresAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("ApplicantAccessTokenHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<long>("ApplicantAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("ApplicantTotalExpresslyUnrestricted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("AuthorizationStatement")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("AuthorizationVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .IsUnicode(false)
+                        .HasColumnType("char(3)");
+
+                    b.Property<long>("CurrentRevision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DisclosureStatement")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("DisclosureVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset?>("ExpiredAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("InvitationIdempotencyKeyHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)");
+
+                    b.Property<string>("JurisdictionCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .IsUnicode(false)
+                        .HasColumnType("char(2)");
+
+                    b.Property<long>("LandlordAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ListingId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("MarkupPermitted")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("MaximumApplicantTotalMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("MaximumPlatformFeeMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("MaximumQuoteLifetimeSeconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("MinimumQuoteLifetimeSeconds")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PackageCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Payer")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("PermissiblePurposeStatement")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("PermissiblePurposeVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("PlatformFeeMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PricingPolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("PropertyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ProviderAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProviderOrderId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("QuoteExpiresAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<string>("QuotePolicyVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("QuoteReference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("RentalApplicationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RentalCriteriaStatement")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("RentalCriteriaVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("RequesterAuthorityVerifiedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.Property<long>("RequesterMemberId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RequesterMemberRole")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("RequesterPermissionSnapshot")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long>("RequesterUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("TaxAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalAmountMinor")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset(7)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PropertyId");
+
+                    b.HasIndex("RentalApplicationId");
+
+                    b.HasIndex("RequesterUserId");
+
+                    b.HasIndex("OrganizationId", "CompletedAt");
+
+                    b.HasIndex("OrganizationId", "ExpiredAt");
+
+                    b.HasIndex("OrganizationId", "InvitationIdempotencyKeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId", "RentalApplicationId");
+
+                    b.HasIndex("ProviderKey", "ProviderOrderId")
+                        .IsUnique()
+                        .HasFilter("[ProviderOrderId] IS NOT NULL");
+
+                    b.HasIndex("OrganizationId", "Status", "CreatedAt");
+
+                    b.ToTable("TenantScreeningOrders", "screening", t =>
+                        {
+                            t.HasCheckConstraint("CK_TenantScreeningOrders_QuoteAmounts", "[LandlordAmountMinor] >= 0 AND [ApplicantAmountMinor] >= 0 AND [ProviderAmountMinor] >= 0 AND [PlatformFeeMinor] >= 0 AND [TaxAmountMinor] >= 0 AND [TotalAmountMinor] = [LandlordAmountMinor] + [ApplicantAmountMinor] AND [TotalAmountMinor] = [ProviderAmountMinor] + [PlatformFeeMinor] + [TaxAmountMinor]");
+
+                            t.HasCheckConstraint("CK_TenantScreeningOrders_Revision", "[CurrentRevision] >= 0");
+                        });
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.TimeBreak", b =>
                 {
                     b.Property<long>("Id")
@@ -8599,6 +10341,10 @@ namespace brownstone_hub_api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("AppleId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("AuthProvider")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -8704,6 +10450,10 @@ namespace brownstone_hub_api.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AppleId")
+                        .IsUnique()
+                        .HasFilter("[AppleId] IS NOT NULL");
 
                     b.HasIndex("CurrentOrganizationId");
 
@@ -10839,6 +12589,416 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Unit");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningAdverseAction", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("DecisionActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningRentalDecisionRevision", null)
+                        .WithMany()
+                        .HasForeignKey("OriginalScreeningRentalDecisionRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null)
+                        .WithMany()
+                        .HasForeignKey("OriginalScreeningReportRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.RentalApplication", null)
+                        .WithMany()
+                        .HasForeignKey("RentalApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningAdverseActionDeliveryAttempt", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningAdverseAction", null)
+                        .WithMany()
+                        .HasForeignKey("ScreeningAdverseActionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningCancellationIntent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.RentalApplication", null)
+                        .WithMany()
+                        .HasForeignKey("RentalApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningConsentEvidence", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningDispute", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null)
+                        .WithMany()
+                        .HasForeignKey("CorrectedScreeningReportRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("OpenedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null)
+                        .WithMany()
+                        .HasForeignKey("OriginalScreeningReportRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningDisputeIntent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null).WithMany().HasForeignKey("ActorUserId").OnDelete(DeleteBehavior.Restrict);
+                    b.HasOne("brownstone_hub_api.Models.Organization", null).WithMany().HasForeignKey("OrganizationId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("brownstone_hub_api.Models.RentalApplication", null).WithMany().HasForeignKey("RentalApplicationId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null).WithMany().HasForeignKey("ScreeningReportRevisionId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null).WithMany().HasForeignKey("TenantScreeningOrderId").OnDelete(DeleteBehavior.Restrict).IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningDisputeEvent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningDispute", null)
+                        .WithMany()
+                        .HasForeignKey("ScreeningDisputeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningIncident", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningIncidentEvent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningIncident", "Incident")
+                        .WithMany()
+                        .HasForeignKey("ScreeningIncidentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Incident");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningPaymentEvidence", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReconsiderationEvent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningRentalDecisionRevision", null)
+                        .WithMany()
+                        .HasForeignKey("NewScreeningRentalDecisionRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningAdverseAction", null)
+                        .WithMany()
+                        .HasForeignKey("ScreeningAdverseActionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningRentalDecisionRevision", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("DecisionActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null)
+                        .WithMany()
+                        .HasForeignKey("ReliedUponScreeningReportRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.RentalApplication", null)
+                        .WithMany()
+                        .HasForeignKey("RentalApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningRentalDecisionRevision", null)
+                        .WithMany()
+                        .HasForeignKey("SupersedesScreeningRentalDecisionRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReportAccessAudit", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null)
+                        .WithMany()
+                        .HasForeignKey("ScreeningReportRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningSupportElevation", null)
+                        .WithMany()
+                        .HasForeignKey("ScreeningSupportElevationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReportDeletionEvent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null)
+                        .WithMany()
+                        .HasForeignKey("ScreeningReportRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningReportRevision", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ScreeningReportRevision", null)
+                        .WithMany()
+                        .HasForeignKey("SupersedesScreeningReportRevisionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningSupportElevation", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("SubjectUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningTransitionEvent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ScreeningWebhookInboxEvent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.TenantScreeningOrder", null)
+                        .WithMany()
+                        .HasForeignKey("TenantScreeningOrderId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Showing", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.ShowingAvailability", null)
@@ -11171,6 +13331,33 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Lease");
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.TenantScreeningOrder", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.RentalApplication", null)
+                        .WithMany()
+                        .HasForeignKey("RentalApplicationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("RequesterUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.TimeBreak", b =>

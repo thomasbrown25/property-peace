@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const root = resolve(import.meta.dirname, '..');
+const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const json = (path) => JSON.parse(read(path));
+
+const app = json('app.json').expo;
+const pkg = json('package.json');
+const config = read('src/config/index.ts');
+const login = read('src/screens/auth/LoginScreen.tsx');
+const register = read('src/screens/auth/RegisterScreen.tsx');
+const settings = read('src/screens/landlord/SettingsScreen.tsx');
+const storage = read('src/services/storageService.ts');
+const userApi = read('src/api/userAPI.ts');
+const authService = read('src/services/authService.ts');
+const apiClient = read('src/services/apiClient.ts');
+const eas = json('eas.json');
+
+assert.equal(app.ios.supportsTablet, false, 'first release must be intentionally iPhone-only');
+assert.match(app.ios.buildNumber, /^\d+$/, 'iOS build number is required');
+assert.equal(app.ios.config.usesNonExemptEncryption, false, 'export compliance must be declared');
+assert.equal(app.ios.usesAppleSignIn, true, 'Sign in with Apple entitlement is required');
+assert.ok(app.plugins.includes('expo-apple-authentication'), 'Sign in with Apple plugin is required');
+assert.ok(app.plugins.some((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-local-authentication'), 'Face ID plugin is required');
+assert.ok(app.plugins.includes('expo-secure-store'), 'SecureStore plugin is required');
+assert.ok(pkg.dependencies['expo-apple-authentication'], 'Sign in with Apple dependency is required');
+assert.ok(pkg.dependencies['expo-local-authentication'], 'local authentication dependency is required');
+assert.ok(pkg.dependencies['expo-secure-store'], 'secure storage dependency is required');
+assert.ok(eas.build?.production?.autoIncrement, 'production EAS profile must auto-increment');
+assert.match(config, /https:\/\/api\.propertypeace\.io\//, 'production API must use the live Property Peace host');
+assert.doesNotMatch(config, /api\.brownstonehub\.com/, 'dead legacy API hosts must not ship');
+assert.match(storage, /expo-secure-store/, 'JWT must be stored in iOS Keychain-backed storage');
+assert.match(userApi, /delete\('\/api\/user'\)/, 'account deletion must call DELETE /api/user');
+assert.match(login, /AppleSignInButton/, 'iOS login must offer Sign in with Apple');
+assert.match(register, /AppleSignInButton/, 'iOS registration must offer Sign in with Apple');
+assert.match(authService, /\/api\/user\/apple-login/, 'mobile auth service must use the Apple login endpoint');
+assert.match(login, /Platform\.OS !== 'ios'/, 'Google login must remain hidden on iOS');
+assert.match(register, /Platform\.OS !== 'ios'/, 'Google registration must remain hidden on iOS');
+for (const source of [login, register, settings]) {
+  assert.match(source, /https:\/\/www\.propertypeace\.io\/privacy/, 'privacy link must be reachable in app');
+  assert.match(source, /https:\/\/www\.propertypeace\.io\/terms/, 'terms link must be reachable in app');
+}
+assert.match(settings, /Delete account/i, 'Settings must expose in-app account deletion');
+assert.match(settings, /Face ID/, 'Settings must expose Face ID unlock');
+assert.doesNotMatch(authService, /requestBody:\s*JSON\.stringify/, 'auth tokens must never be logged');
+assert.doesNotMatch(apiClient, /requestData:|data:\s*axiosConfig\.data|data:\s*response\.data/, 'API logs must not expose credentials or response data');
+
+console.log('iOS compliance source checks passed');

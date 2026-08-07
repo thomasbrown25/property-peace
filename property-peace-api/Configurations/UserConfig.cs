@@ -24,6 +24,10 @@ namespace brownstone_hub_api.Configurations
             // Other indexes
             b.HasIndex(u => u.Email).IsUnique();
             b.HasIndex(u => u.GoogleId);
+            b.Property(u => u.AppleId).HasMaxLength(255);
+            b.HasIndex(u => u.AppleId)
+                .IsUnique()
+                .HasFilter("[AppleId] IS NOT NULL");
             b.HasIndex(u => u.IsDeleted);
             b.HasIndex(u => u.IsSuspended);
         }

@@ -7,25 +7,27 @@ export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
+  MfaVerification: {
+    challenge: import('../services/mfaChallenge').MfaChallenge;
+  };
 };
 
 export type MainTabParamList = {
   Dashboard: undefined;
+  Properties: undefined;
+  Maintenance: undefined;
   Messages: undefined;
   Notifications: undefined;
-  Maintenance: undefined;
   Tenants: undefined;
-  Properties: undefined;
   Leases: undefined;
   Settings: undefined;
-  QuickAdd: undefined;
-  More: undefined;
 };
 
 export type PropertiesStackParamList = {
   PropertiesList: undefined;
   PropertyDetail: { propertyId: string };
   AddProperty: undefined;
+  Checklists: { propertyId: string; propertyName?: string };
 };
 
 export type TenantsStackParamList = {
@@ -35,7 +37,7 @@ export type TenantsStackParamList = {
 
 export type MaintenanceStackParamList = {
   MaintenanceList: undefined;
-  AddMaintenance: undefined;
+  AddMaintenance: { propertyId?: string; unitId?: string; propertyName?: string } | undefined;
 };
 
 export type LeasesStackParamList = {

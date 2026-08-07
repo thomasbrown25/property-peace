@@ -22,9 +22,6 @@ namespace brownstone_hub_api.Dtos.BackgroundCheck
         [JsonPropertyName("date_of_birth")]
         public string? DateOfBirth { get; set; } // Format: YYYY-MM-DD
 
-        [JsonPropertyName("ssn")]
-        public string? Ssn { get; set; } // Last 4 digits or full SSN
-
         [JsonPropertyName("current_address")]
         public RentSpreeAddressDto? CurrentAddress { get; set; }
 

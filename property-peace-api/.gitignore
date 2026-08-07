@@ -236,6 +236,7 @@ _pkginfo.txt
 
 # Others
 ClientBin/
+App_Data/DataProtectionKeys/
 ~$*
 *~
 *.dbmdl

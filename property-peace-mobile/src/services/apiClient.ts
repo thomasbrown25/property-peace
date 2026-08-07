@@ -31,6 +31,8 @@ class ApiClient {
       url.includes('/api/user/forgot-password') ||
       url.includes('/api/user/reset-password') ||
       url.includes('/api/user/google-login') ||
+      url.includes('/api/user/apple-login') ||
+      url.includes('/api/mfa/login/verify') ||
       url.includes('/api/user/google-user-info') ||
       url.includes('/api/user/check-email') ||
       url.includes('/api/demo-requests')
@@ -70,20 +72,6 @@ class ApiClient {
           axiosConfig.headers['X-Organization-Id'] = organizationId;
         }
 
-        // Log request details for debugging (especially for Google login)
-        if (axiosConfig.url?.includes('google-login')) {
-          console.log('📤 API Request:', {
-            method: axiosConfig.method?.toUpperCase(),
-            url: axiosConfig.url,
-            baseURL: axiosConfig.baseURL,
-            data: axiosConfig.data,
-            headers: {
-              'Content-Type': axiosConfig.headers['Content-Type'],
-              'Authorization': axiosConfig.headers.Authorization ? 'Bearer ***' : undefined,
-            },
-          });
-        }
-
         return axiosConfig;
       },
       (error) => Promise.reject(error)
@@ -91,30 +79,10 @@ class ApiClient {
 
     // Response interceptor
     this.httpClient.interceptors.response.use(
-      (response) => {
-        // Log successful responses for Google login
-        if (response.config.url?.includes('google-login')) {
-          console.log('✅ API Response:', {
-            status: response.status,
-            data: response.data,
-          });
-        }
-        return response;
-      },
+      (response) => response,
       async (error) => {
         const isAuthEndpoint = this.isAuthEndpoint(error.config?.url);
         const isSubscriptionEndpoint = error.config?.url?.includes('/api/subscription');
-
-        // Log errors for Google login
-        if (error.config?.url?.includes('google-login')) {
-          console.error('❌ API Error:', {
-            status: error.response?.status,
-            statusText: error.response?.statusText,
-            data: error.response?.data,
-            message: error.message,
-            requestData: error.config?.data,
-          });
-        }
 
         // Handle 401 errors
         if (error.response?.status === 401 && !isAuthEndpoint && !isSubscriptionEndpoint) {

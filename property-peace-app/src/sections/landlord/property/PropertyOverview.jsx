@@ -6,8 +6,9 @@ import PropertyQuickActionsPanel from './PropertyQuickActionsPanel';
 import PropertyMarketRent from './PropertyMarketRent';
 import PropertyMonthlyRent from './PropertyMonthlyRent';
 import PropertyUnitsAtAGlance from './PropertyUnitsAtAGlance';
+import PropertyLeasingPipeline from 'components/leasing-pipeline/PropertyLeasingPipeline';
 
-export default function PropertyOverview({ property, propertyId }) {
+export default function PropertyOverview({ property, propertyId, onCreateListing }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const units = property?.units || property?.Units || [];
@@ -38,6 +39,9 @@ export default function PropertyOverview({ property, propertyId }) {
             <PropertyMonthlyRent property={property} />
           ) : (
             <PropertyCurrentTenant property={property} />
+          )}
+          {isMobile && (
+            <PropertyLeasingPipeline propertyId={propertyId} units={units} onCreateListing={onCreateListing} />
           )}
           <PropertyActiveLease property={property} />
           {!isMobile && <PropertyQuickActionsPanel property={property} propertyId={propertyId} />}

@@ -343,35 +343,29 @@ namespace brownstone_hub_api.Controllers
 
         [HttpPost("{id}/background-check")]
         [Authorize(Roles = "Landlord,Admin")]
-        [RequireFeatureReady(FeatureKeys.TenantScreening)]
         public async Task<IActionResult> RequestBackgroundCheck(long id, [FromBody] RequestBackgroundCheckDto request)
         {
-            if (id != request.ApplicationId)
-                return BadRequest(new { Message = "Application ID mismatch" });
-
             var ownershipFailure = await EnsureApplicationOwnedByCurrentUser(id);
             if (ownershipFailure != null)
                 return ownershipFailure;
 
-            var response = await _backgroundCheckService.RequestBackgroundCheckAsync(id, request.ScreeningPackage);
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new { response.Message, response.Errors });
-            return Ok(response);
+            if (id != request.ApplicationId)
+                return BadRequest(new { Message = "Application ID mismatch" });
+
+            return StatusCode(StatusCodes.Status410Gone,
+                new { Message = "This endpoint has been retired. Use /api/screenings." });
         }
 
         [HttpGet("{id}/background-check")]
         [Authorize(Roles = "Landlord,Admin")]
-        [RequireFeatureReady(FeatureKeys.TenantScreening)]
         public async Task<IActionResult> GetBackgroundCheckStatus(long id)
         {
             var ownershipFailure = await EnsureApplicationOwnedByCurrentUser(id);
             if (ownershipFailure != null)
                 return ownershipFailure;
 
-            var response = await _backgroundCheckService.GetBackgroundCheckStatusAsync(id);
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new { response.Message, response.Errors });
-            return Ok(response);
+            return StatusCode(StatusCodes.Status410Gone,
+                new { Message = "This endpoint has been retired. Use /api/screenings." });
         }
 
         private async Task<IActionResult?> EnsureApplicationOwnedByCurrentUser(long applicationId)

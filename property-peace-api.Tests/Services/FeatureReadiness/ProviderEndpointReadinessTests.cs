@@ -12,9 +12,6 @@ public class ProviderEndpointReadinessTests
 {
     public static TheoryData<Type, string, string> ProviderEndpoints => new()
     {
-        { typeof(ApplicationController), nameof(ApplicationController.RequestBackgroundCheck), FeatureKeys.TenantScreening },
-        { typeof(ApplicationController), nameof(ApplicationController.GetBackgroundCheckStatus), FeatureKeys.TenantScreening },
-
         { typeof(LeaseController), nameof(LeaseController.SignLandlordOnly), FeatureKeys.ESignature },
         { typeof(LeaseController), nameof(LeaseController.SendLeaseForSignature), FeatureKeys.ESignature },
         { typeof(LeaseController), nameof(LeaseController.GetLeaseSignatureStatus), FeatureKeys.ESignature },

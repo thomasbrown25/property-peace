@@ -305,9 +305,7 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
                 (latestEvent?.EventType is UnitLifecycleEventType.ShowingScheduled or UnitLifecycleEventType.ShowingRescheduled) &&
                 latestEvent.ScheduledAtUtc > now,
             HasSubmittedApplication = application?.Status is EApplicationStatus.Draft or EApplicationStatus.Submitted,
-            HasScreeningInProgress = application?.Status is EApplicationStatus.UnderReview or EApplicationStatus.OnHold ||
-                application is { BackgroundCheckRequested: true } &&
-                !string.Equals(application.BackgroundCheckStatus, "completed", StringComparison.OrdinalIgnoreCase),
+            HasScreeningInProgress = application?.Status is EApplicationStatus.UnderReview or EApplicationStatus.OnHold,
             HasApprovedApplication = application?.Status == EApplicationStatus.Approved,
             HasLeaseDraft = lease is not null,
             HasSignaturePending = signature is ESignatureStatus.Sent or ESignatureStatus.InProgress or
@@ -359,7 +357,7 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
         if (application is not null)
             records.Add(new("application", application.Id, Wire(application.Status), application.CreatedAt,
                 application.UpdatedAt, application.SubmittedAt, null, null,
-                application.BackgroundCheckCompletedAt ?? application.ReviewedAt, null, null,
+                application.ReviewedAt, null, null,
                 application.DesiredMoveInDate));
         if (lease is not null)
         {
@@ -396,9 +394,8 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
                 ? x.ReviewedAt ?? x.UpdatedAt ?? x.SubmittedAt ?? x.CreatedAt
                 : x.SubmittedAt ?? x.UpdatedAt ?? x.CreatedAt)
             .ThenByDescending(x => x.Id)
-            .Select(x => new ApplicationFact(x.Id, x.Status, x.BackgroundCheckRequested,
-                x.BackgroundCheckStatus, x.CreatedAt, x.UpdatedAt, x.SubmittedAt, x.ReviewedAt,
-                x.BackgroundCheckCompletedAt, x.DesiredMoveInDate, x.ConvertedToLeaseId));
+            .Select(x => new ApplicationFact(x.Id, x.Status, x.CreatedAt, x.UpdatedAt, x.SubmittedAt,
+                x.ReviewedAt, x.DesiredMoveInDate, x.ConvertedToLeaseId));
 
     private async Task AuthorizeAsync(long organizationId, long actorUserId, CancellationToken ct)
     {
@@ -527,9 +524,9 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
         DateTime? ExpiresAt, DateTime? DateAvailable);
     private sealed record InviteFact(long Id, bool IsUsed, DateTime CreatedAt, DateTime? UsedAt,
         DateTime ExpiresAt, long? ApplicationId);
-    private sealed record ApplicationFact(long Id, EApplicationStatus Status, bool? BackgroundCheckRequested,
-        string? BackgroundCheckStatus, DateTime CreatedAt, DateTime? UpdatedAt, DateTime? SubmittedAt,
-        DateTime? ReviewedAt, DateTime? BackgroundCheckCompletedAt, DateTime? DesiredMoveInDate,
+    private sealed record ApplicationFact(long Id, EApplicationStatus Status,
+        DateTime CreatedAt, DateTime? UpdatedAt, DateTime? SubmittedAt,
+        DateTime? ReviewedAt, DateTime? DesiredMoveInDate,
         long? ConvertedToLeaseId);
     private sealed record LeaseFact(long Id, bool IsActive, DateTime? StartDate, DateTime? EndDate,
         DateTime? UpdatedAt, long? AgreementId, ESignatureStatus? SignatureStatus, DateTime? SignatureSentAt,

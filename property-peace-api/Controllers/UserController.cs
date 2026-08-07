@@ -166,6 +166,58 @@ namespace brownstone_hub_api.Controllers
             });
         }
 
+        [HttpPost("apple-login")]
+        public async Task<ActionResult> AppleLogin(AppleLoginDto request, CancellationToken ct)
+        {
+            var (response, isNewUser) = await _userService.AppleLogin(
+                request.IdentityToken,
+                request.Nonce,
+                request.FirstName,
+                request.LastName,
+                request.Timezone,
+                ct);
+
+            if (!response.Success)
+            {
+                return response.StatusCode switch
+                {
+                    401 => Unauthorized(response),
+                    403 => StatusCode(403, response),
+                    409 => Conflict(response),
+                    _ => BadRequest(response)
+                };
+            }
+
+            if (response.Data != null)
+            {
+                if (!isNewUser && await _mfaService.HasEnabledMfaAsync(response.Data.Id, ct))
+                {
+                    response.Data.JWTToken = string.Empty;
+                    try
+                    {
+                        var challenge = await _mfaService.BeginLoginAsync(response.Data.Id, ct);
+                        return Ok(new { success = true, mfaRequired = true, mfa = challenge, isNewUser = false });
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        return StatusCode(503, new { success = false, message = "MFA delivery is unavailable." });
+                    }
+                }
+
+                var session = await _userService.CreateRefreshSession(response.Data.Id);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                response.Data.JWTToken = session.User.JWTToken;
+            }
+
+            return Ok(new
+            {
+                success = response.Success,
+                message = response.Message,
+                data = response.Data,
+                isNewUser
+            });
+        }
+
         [AllowAnonymous]
         [HttpPost("refresh")]
         public async Task<ActionResult<ServiceResponse<LoadUserDto>>> Refresh()

@@ -18,7 +18,7 @@ export function PipelineSkeleton() {
   );
 }
 
-export default function LeasingPipelinePanel({ resourceType, resourceId, unitId, title = 'Leasing progress' }) {
+export default function LeasingPipelinePanel({ resourceType, resourceId, unitId, title = 'Leasing progress', onCreateListing }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const { pipeline, error, isLoading, retry, canLoad } = useLeasingPipeline(resourceType, resourceId, unitId);
@@ -59,6 +59,13 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
     event.preventDefault();
     event.currentTarget.scrollBy({ left: event.key === 'ArrowLeft' ? -240 : 240, behavior: 'smooth' });
   };
+  const handlePrimaryAction = () => {
+    if (pipeline.primaryAction?.code === 'createListing' && typeof onCreateListing === 'function') {
+      onCreateListing();
+      return;
+    }
+    navigate(action.route);
+  };
 
   return (
     <Card variant="outlined" sx={{ borderColor: alpha(theme.palette.primary.main, 0.18), borderRadius: 2, boxShadow: `0 5px 18px ${alpha(theme.palette.grey[900], 0.045)}` }}>
@@ -73,7 +80,7 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
               variant="contained"
               size="small"
               endIcon={<RightOutlined />}
-              onClick={() => navigate(action.route)}
+              onClick={handlePrimaryAction}
               sx={{ alignSelf: { xs: 'stretch', sm: 'center' }, '&:focus-visible': { outline: `3px solid ${alpha(theme.palette.primary.main, 0.35)}`, outlineOffset: 2 } }}
             >
               {action.label}

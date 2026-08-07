@@ -19,6 +19,7 @@ namespace brownstone_hub_api.Models
         public byte[]? PasswordHash { get; set; } // Nullable for OAuth users
         public byte[]? PasswordSalt { get; set; } // Nullable for OAuth users
         public string? GoogleId { get; set; } // Google OAuth ID
+        public string? AppleId { get; set; } // Sign in with Apple subject identifier
         public string AuthProvider { get; set; } = "Email"; // Email, Google, Apple, or "Email,Google" when both are linked
         public DateTime CreateDate { get; set; } = DateTime.Now;
         public DateTime UpdatedDate { get; set; } = DateTime.Now;

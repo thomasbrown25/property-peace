@@ -800,7 +800,7 @@ Property Peace Team
                         Email = application.Email,
                         PhoneNumber = application.PhoneNumber,
                         DateOfBirth = application.DateOfBirth,
-                        Ssn = application.Ssn,
+
                         CurrentAddress = application.CurrentAddress,
                         CurrentCity = application.CurrentCity,
                         CurrentState = application.CurrentState,

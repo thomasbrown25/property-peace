@@ -295,7 +295,7 @@ public sealed class MilestoneOneBlockerRegressionTests
         await SeedScope(db);
         var submitted = DateTime.UtcNow.AddHours(-1);
         db.RentalApplications.Add(new RentalApplication { Id = 70, PropertyId = 30, UnitId = 40, OrganizationId = 10, LandlordId = 20,
-            Status = EApplicationStatus.Submitted, SubmittedAt = submitted, Email = "private@example.com", Ssn = "secret" });
+            Status = EApplicationStatus.Submitted, SubmittedAt = submitted, Email = "private@example.com" });
         await db.SaveChangesAsync();
 
         var result = await sut.GetForPropertyAsync(10, 20, 30, 40, default);
@@ -303,7 +303,7 @@ public sealed class MilestoneOneBlockerRegressionTests
         record.Id.Should().Be(70);
         record.Status.Should().Be("submitted");
         record.SubmittedAt.Should().Be(submitted);
-        JsonSerializer.Serialize(result, LeasingPipelineJson.Options).Should().NotContain("private@example.com").And.NotContain("secret");
+        JsonSerializer.Serialize(result, LeasingPipelineJson.Options).Should().NotContain("private@example.com");
     }
 
     private static UnitLifecycleEvent Event(long id, UnitLifecycleEventType type, DateTime occurred, DateTime? scheduled) => new()

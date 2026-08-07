@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform, ScrollView } from 'react-native';
 import { useAppDispatch } from '../../store/hooks';
 import { register, googleLogin } from '../../store/user/user.slice';
 import { useNavigation } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import config from '../../config';
 import GoogleLogo from '../../components/GoogleLogo';
 import AuthMarketingBackground from '../../components/AuthMarketingBackground';
+import AppleSignInButton from '../../components/AppleSignInButton';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
@@ -22,6 +23,7 @@ export default function RegisterScreen() {
   const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
+  const showGoogleSignIn = Platform.OS !== 'ios' && Boolean(config.GOOGLE_CLIENT_ID);
 
   const handleRegister = async () => {
     if (!email || !password || !confirmPassword) {
@@ -171,26 +173,32 @@ export default function RegisterScreen() {
             <Text style={styles.buttonText}>{loading ? 'Creating Account...' : 'Create Account'}</Text>
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {Platform.OS === 'ios' && <AppleSignInButton mode="sign-up" />}
 
-          <TouchableOpacity
-            style={[styles.googleButton, (loading || googleLoading) && styles.buttonDisabled]}
-            onPress={handleGoogleSignUp}
-            disabled={loading || googleLoading}
-          >
-            <View style={styles.googleButtonContent}>
-              <View style={{ marginRight: 12 }}>
-                <GoogleLogo size={20} />
+          {showGoogleSignIn && (
+            <>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
               </View>
-              <Text style={styles.googleButtonText}>
-                {googleLoading ? 'Signing up...' : 'Sign up with Google'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.googleButton, (loading || googleLoading) && styles.buttonDisabled]}
+                onPress={handleGoogleSignUp}
+                disabled={loading || googleLoading}
+              >
+                <View style={styles.googleButtonContent}>
+                  <View style={{ marginRight: 12 }}>
+                    <GoogleLogo size={20} />
+                  </View>
+                  <Text style={styles.googleButtonText}>
+                    {googleLoading ? 'Signing up...' : 'Sign up with Google'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.linkButton}
@@ -198,6 +206,18 @@ export default function RegisterScreen() {
           >
             <Text style={styles.linkText}>Already have an account? Sign In</Text>
           </TouchableOpacity>
+
+          <View style={styles.legalLinks}>
+            <Text style={styles.legalText}>Creating an account means you accept our </Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.propertypeace.io/terms')}>
+              <Text style={styles.legalLink}>Terms</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalText}> and </Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.propertypeace.io/privacy')}>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalText}>.</Text>
+          </View>
         </ScrollView>
       </AuthMarketingBackground>
     </KeyboardAvoidingView>
@@ -285,6 +305,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  legalLinks: {
+    marginTop: 22,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  legalText: {
+    color: 'rgba(255, 255, 255, 0.60)',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  legalLink: {
+    color: '#bfdbfe',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   divider: {
     flexDirection: 'row',

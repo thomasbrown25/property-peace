@@ -5,6 +5,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 import AdminRoute from 'components/auth/AdminRoute';
+import ScreeningStaffRoute from 'components/auth/ScreeningStaffRoute';
 import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
 import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
 
@@ -719,9 +720,11 @@ const MainRoutes = {
         {
           path: 'landlord/screenings',
           element: (
-            <SubscriptionPausedGuard>
-              <Screenings />
-            </SubscriptionPausedGuard>
+            <ScreeningStaffRoute>
+              <SubscriptionPausedGuard>
+                <Screenings />
+              </SubscriptionPausedGuard>
+            </ScreeningStaffRoute>
           )
         },
         {

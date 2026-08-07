@@ -13,7 +13,7 @@ namespace brownstone_hub_api.Dtos.Application
         public string Email { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public DateTime? DateOfBirth { get; set; }
-        public string? Ssn { get; set; }
+
         public string? CurrentAddress { get; set; }
         public string? CurrentCity { get; set; }
         public string? CurrentState { get; set; }

@@ -157,15 +157,11 @@ export default function PropertiesScreen() {
 
             <View style={styles.kpiGrid}>
               <KpiBlock label="Occupancy" value={`${metrics.occupancyRate}%`} subtitle={`${metrics.occupiedUnits} / ${metrics.totalUnits} units`} />
-              <KpiBlock label="Monthly Rent Roll" value={currency(metrics.monthlyRent)} subtitle="collected this month" success />
+              <KpiBlock label="Monthly Rent Roll" value={currency(metrics.monthlyRent)} subtitle="scheduled across units" success />
               <KpiBlock label="Need Attention" value={String(metrics.attention)} subtitle="tickets · lease · turnover" danger={metrics.attention > 0} />
             </View>
 
             <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.secondaryButton} activeOpacity={0.8}>
-                <Ionicons name="cloud-upload-outline" size={18} color="#20394d" />
-                <Text style={styles.secondaryButtonText}>Import CSV</Text>
-              </TouchableOpacity>
               <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85}>
                 <Ionicons name="add" size={20} color="#fff" />
                 <Text style={styles.primaryButtonText}>Add property</Text>

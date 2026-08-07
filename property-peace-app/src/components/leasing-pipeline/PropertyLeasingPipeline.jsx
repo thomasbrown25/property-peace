@@ -13,7 +13,7 @@ const positiveUnitIdOf = (unit) => {
 };
 const unitLabelOf = (unit, index) => unit?.name ?? unit?.Name ?? `Unit ${index + 1}`;
 
-export default function PropertyLeasingPipeline({ propertyId, units: loadedUnits }) {
+export default function PropertyLeasingPipeline({ propertyId, units: loadedUnits, onCreateListing }) {
   const units = useMemo(
     () => (Array.isArray(loadedUnits) ? loadedUnits : []).filter((unit) => positiveUnitIdOf(unit) !== null),
     [loadedUnits]
@@ -59,6 +59,7 @@ export default function PropertyLeasingPipeline({ propertyId, units: loadedUnits
         resourceType={selectedUnitId ? 'property' : null}
         resourceId={propertyId}
         unitId={selectedUnitId || null}
+        onCreateListing={onCreateListing}
       />
     </Stack>
   );

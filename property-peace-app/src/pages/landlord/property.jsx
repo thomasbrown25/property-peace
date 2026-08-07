@@ -53,6 +53,7 @@ import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
 import LeaseOverviewCard from 'components/cards/LeaseOverviewCard';
 import PropertyEditDrawer from 'components/drawers/PropertyEditDrawer';
+import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
 import { useDrawer } from 'contexts/DrawerContext';
 import { DeleteOutline } from '@mui/icons-material';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
@@ -2607,13 +2608,18 @@ export default function Property() {
         {/* Property Overview */}
         <Box sx={{ mt: 3 }}>
           <AnimateIn direction="bottom" delay={200} distance={120}>
-            <PropertyOverview property={selectedProperty} propertyId={propertyId} />
+            <PropertyOverview
+              property={selectedProperty}
+              propertyId={propertyId}
+              onCreateListing={drawer.openListingAddDrawer}
+            />
           </AnimateIn>
         </Box>
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 2, display: { xs: 'none', sm: 'block' } }}>
           <PropertyLeasingPipeline
             propertyId={propertyId}
             units={selectedProperty?.units ?? selectedProperty?.Units ?? []}
+            onCreateListing={drawer.openListingAddDrawer}
           />
         </Box>
       {/* Confirmation Dialog */}
@@ -2627,6 +2633,7 @@ export default function Property() {
       />
 
       <PropertyEditDrawer property={selectedProperty} onUpdateSuccess={handlePropertyRefresh} />
+      <ListingAddWorkflowDrawer />
       
       {/* Bulk Unit Create Drawer */}
       <BulkUnitCreateDrawer

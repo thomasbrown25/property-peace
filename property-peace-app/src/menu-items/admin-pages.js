@@ -54,6 +54,13 @@ const adminPages = {
       icon: icons.SafetyCertificateOutlined
     },
     {
+      id: 'admin-screenings',
+      title: 'Screenings',
+      type: 'item',
+      url: '/landlord/screenings',
+      icon: icons.SafetyCertificateOutlined
+    },
+    {
       id: 'admin-subscriptions',
       title: 'Subscriptions',
       type: 'item',

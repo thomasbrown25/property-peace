@@ -9,16 +9,16 @@ try {
 
 const ENV = {
   dev: {
-    API_URL: process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.245:5001/',
-    SIGNALR_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'http://192.168.1.245:5001/notificationHub',
+    API_URL: process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:5001/',
+    SIGNALR_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'http://127.0.0.1:5001/notificationHub',
   },
   staging: {
-    API_URL: 'https://api-staging.brownstonehub.com/',
-    SIGNALR_URL: 'https://api-staging.brownstonehub.com/notificationHub',
+    API_URL: process.env.EXPO_PUBLIC_API_URL || 'https://api-dev.propertypeace.io/',
+    SIGNALR_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'https://api-dev.propertypeace.io/notificationHub',
   },
   prod: {
-    API_URL: 'https://api.brownstonehub.com/',
-    SIGNALR_URL: 'https://api.brownstonehub.com/notificationHub',
+    API_URL: process.env.EXPO_PUBLIC_API_URL || 'https://api.propertypeace.io/',
+    SIGNALR_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || 'https://api.propertypeace.io/notificationHub',
   },
 };
 

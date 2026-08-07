@@ -20,8 +20,18 @@ namespace brownstone_hub_api.Data
         }
 
         public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
-        public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
+            RejectScreeningDeletionEvidenceMutation();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken ct = default) =>
+            SaveChangesAsync(acceptAllChangesOnSuccess: true, ct);
+
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
+        {
+            RejectScreeningDeletionEvidenceMutation();
             var now = DateTime.Now;
 
             foreach (var entry in ChangeTracker.Entries<MaintenanceRequest>())
@@ -80,10 +90,84 @@ namespace brownstone_hub_api.Data
                     });
                 }
             }
-            return await base.SaveChangesAsync(ct);
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
 
             static string ToCamel(string s) =>
                 string.IsNullOrEmpty(s) ? s : char.ToLowerInvariant(s[0]) + s[1..];
+        }
+
+        private void RejectScreeningDeletionEvidenceMutation()
+        {
+            // Compliance evidence is append-only at the context boundary. Aggregates which carry an
+            // explicitly mutable lifecycle are handled separately so their immutable facts cannot be rewritten.
+            RejectAppendOnly<ScreeningPaymentEvidence>();
+            RejectAppendOnly<ScreeningTransitionEvent>();
+            RejectAppendOnly<ScreeningConsentEvidence>();
+            RejectAppendOnly<ScreeningReportDeletionEvent>();
+            RejectAppendOnly<ScreeningDisputeEvent>();
+            RejectAppendOnly<ScreeningReconsiderationEvent>();
+            RejectAppendOnly<ScreeningIncidentEvent>();
+            RejectAppendOnly<ScreeningAdverseAction>();
+            RejectImmutableChanges<ScreeningWebhookInboxEvent>(nameof(ScreeningWebhookInboxEvent.ProcessedAt),
+                nameof(ScreeningWebhookInboxEvent.ProcessingLeaseId), nameof(ScreeningWebhookInboxEvent.ProcessingLeaseUntil),
+                nameof(ScreeningWebhookInboxEvent.ProcessingStatus), nameof(ScreeningWebhookInboxEvent.ProcessingAttempts),
+                nameof(ScreeningWebhookInboxEvent.NextAttemptAt), nameof(ScreeningWebhookInboxEvent.FailureCode),
+                nameof(ScreeningWebhookInboxEvent.FailureDetail), nameof(ScreeningWebhookInboxEvent.DuplicateCount),
+                nameof(ScreeningWebhookInboxEvent.LastDuplicateReceivedAt), nameof(ScreeningWebhookInboxEvent.SecurityIncidentCode),
+                nameof(ScreeningWebhookInboxEvent.SecurityIncidentCount), nameof(ScreeningWebhookInboxEvent.LastSecurityIncidentAt),
+                nameof(ScreeningWebhookInboxEvent.TenantScreeningOrderId), nameof(ScreeningWebhookInboxEvent.RowVersion));
+            RejectImmutableChanges<ScreeningCancellationIntent>(nameof(ScreeningCancellationIntent.Status),
+                nameof(ScreeningCancellationIntent.Attempts), nameof(ScreeningCancellationIntent.ProcessingLeaseId),
+                nameof(ScreeningCancellationIntent.ProcessingLeaseUntil), nameof(ScreeningCancellationIntent.NextAttemptAt), nameof(ScreeningCancellationIntent.ProviderAcceptedAt),
+                nameof(ScreeningCancellationIntent.CompletedAt), nameof(ScreeningCancellationIntent.ProviderReference),
+                nameof(ScreeningCancellationIntent.FailureCode), nameof(ScreeningCancellationIntent.RowVersion));
+            RejectImmutableChanges<ScreeningDisputeIntent>(nameof(ScreeningDisputeIntent.Status),
+                nameof(ScreeningDisputeIntent.Attempts), nameof(ScreeningDisputeIntent.ProcessingLeaseId),
+                nameof(ScreeningDisputeIntent.ProcessingLeaseUntil), nameof(ScreeningDisputeIntent.NextAttemptAt), nameof(ScreeningDisputeIntent.ProviderAcceptedAt),
+                nameof(ScreeningDisputeIntent.CompletedAt), nameof(ScreeningDisputeIntent.ProviderReference),
+                nameof(ScreeningDisputeIntent.FailureCode), nameof(ScreeningDisputeIntent.RowVersion));
+            RejectImmutableChanges<ScreeningReportAccessAudit>(nameof(ScreeningReportAccessAudit.Status),
+                nameof(ScreeningReportAccessAudit.CompletedAt), nameof(ScreeningReportAccessAudit.GrantExpiresAt),
+                nameof(ScreeningReportAccessAudit.GrantReference), nameof(ScreeningReportAccessAudit.FailureCode));
+            RejectImmutableChanges<ScreeningAdverseActionDeliveryAttempt>(nameof(ScreeningAdverseActionDeliveryAttempt.Status),
+                nameof(ScreeningAdverseActionDeliveryAttempt.AttemptedAt), nameof(ScreeningAdverseActionDeliveryAttempt.DeliveredAt),
+                nameof(ScreeningAdverseActionDeliveryAttempt.ProviderDeliveryReference), nameof(ScreeningAdverseActionDeliveryAttempt.FailureCode),
+                nameof(ScreeningAdverseActionDeliveryAttempt.ProcessingLeaseId), nameof(ScreeningAdverseActionDeliveryAttempt.ProcessingLeaseUntil),
+                nameof(ScreeningAdverseActionDeliveryAttempt.NextAttemptAt), nameof(ScreeningAdverseActionDeliveryAttempt.RowVersion));
+            RejectImmutableChanges<ScreeningSupportElevation>(nameof(ScreeningSupportElevation.RevokedAt),
+                nameof(ScreeningSupportElevation.RevokedByUserId), nameof(ScreeningSupportElevation.AccessCount),
+                nameof(ScreeningSupportElevation.RowVersion));
+            RejectImmutableChanges<ScreeningDispute>(nameof(ScreeningDispute.Status), nameof(ScreeningDispute.ResolvedAt),
+                nameof(ScreeningDispute.CorrectedScreeningReportRevisionId));
+            RejectImmutableChanges<ScreeningIncident>(nameof(ScreeningIncident.Status), nameof(ScreeningIncident.ContainedAt),
+                nameof(ScreeningIncident.ResolvedAt), nameof(ScreeningIncident.ActorUserId),
+                nameof(ScreeningIncident.RemediationEvidenceReference), nameof(ScreeningIncident.NotificationEvidenceReference));
+            RejectImmutableChanges<ScreeningRentalDecisionRevision>(nameof(ScreeningRentalDecisionRevision.IsFrozenByDispute),
+                nameof(ScreeningRentalDecisionRevision.DisputeStatus));
+            RejectImmutableChanges<ScreeningReportRevision>(nameof(ScreeningReportRevision.DeleteRequestedAt),
+                nameof(ScreeningReportRevision.DeletedAt), nameof(ScreeningReportRevision.NormalizedFactsJson),
+                nameof(ScreeningReportRevision.IsUnderLegalHold), nameof(ScreeningReportRevision.LegalHoldPlacedAt),
+                nameof(ScreeningReportRevision.LegalHoldReleasedAt), nameof(ScreeningReportRevision.LegalHoldReasonCode),
+                nameof(ScreeningReportRevision.DeletionClaimToken), nameof(ScreeningReportRevision.DeletionClaimedAt),
+                nameof(ScreeningReportRevision.DeletionClaimExpiresAt), nameof(ScreeningReportRevision.DeletionProviderCallStartedAt),
+                nameof(ScreeningReportRevision.PendingDisputeOperationId));
+        }
+
+        private void RejectAppendOnly<TEntity>() where TEntity : class
+        {
+            if (ChangeTracker.Entries<TEntity>().Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+                throw new InvalidOperationException($"{typeof(TEntity).Name} evidence is append-only.");
+        }
+
+        private void RejectImmutableChanges<TEntity>(params string[] mutableLifecycleProperties) where TEntity : class
+        {
+            var allowed = mutableLifecycleProperties.ToHashSet(StringComparer.Ordinal);
+            foreach (var entry in ChangeTracker.Entries<TEntity>())
+            {
+                if (entry.State == EntityState.Deleted ||
+                    entry.State == EntityState.Modified && entry.Properties.Any(p => p.IsModified && !allowed.Contains(p.Metadata.Name)))
+                    throw new InvalidOperationException($"{typeof(TEntity).Name} immutable evidence is append-only.");
+            }
         }
 
 
@@ -168,6 +252,25 @@ namespace brownstone_hub_api.Data
         public DbSet<TenantDocument> TenantDocuments => Set<TenantDocument>();
         public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
         public DbSet<RentalApplication> RentalApplications => Set<RentalApplication>();
+        public DbSet<TenantScreeningOrder> TenantScreeningOrders => Set<TenantScreeningOrder>();
+        public DbSet<ScreeningTransitionEvent> ScreeningTransitionEvents => Set<ScreeningTransitionEvent>();
+        public DbSet<ScreeningConsentEvidence> ScreeningConsentEvidence => Set<ScreeningConsentEvidence>();
+        public DbSet<ScreeningPaymentEvidence> ScreeningPaymentEvidence => Set<ScreeningPaymentEvidence>();
+        public DbSet<ScreeningWebhookInboxEvent> ScreeningWebhookInboxEvents => Set<ScreeningWebhookInboxEvent>();
+        public DbSet<ScreeningCancellationIntent> ScreeningCancellationIntents => Set<ScreeningCancellationIntent>();
+        public DbSet<ScreeningReportAccessAudit> ScreeningReportAccessAudits => Set<ScreeningReportAccessAudit>();
+        public DbSet<ScreeningSupportElevation> ScreeningSupportElevations => Set<ScreeningSupportElevation>();
+        public DbSet<ScreeningReportRevision> ScreeningReportRevisions => Set<ScreeningReportRevision>();
+        public DbSet<ScreeningReportDeletionEvent> ScreeningReportDeletionEvents => Set<ScreeningReportDeletionEvent>();
+        public DbSet<ScreeningRentalDecisionRevision> ScreeningRentalDecisionRevisions => Set<ScreeningRentalDecisionRevision>();
+        public DbSet<ScreeningDispute> ScreeningDisputes => Set<ScreeningDispute>();
+        public DbSet<ScreeningDisputeIntent> ScreeningDisputeIntents => Set<ScreeningDisputeIntent>();
+        public DbSet<ScreeningDisputeEvent> ScreeningDisputeEvents => Set<ScreeningDisputeEvent>();
+        public DbSet<ScreeningAdverseAction> ScreeningAdverseActions => Set<ScreeningAdverseAction>();
+        public DbSet<ScreeningAdverseActionDeliveryAttempt> ScreeningAdverseActionDeliveryAttempts => Set<ScreeningAdverseActionDeliveryAttempt>();
+        public DbSet<ScreeningReconsiderationEvent> ScreeningReconsiderationEvents => Set<ScreeningReconsiderationEvent>();
+        public DbSet<ScreeningIncident> ScreeningIncidents => Set<ScreeningIncident>();
+        public DbSet<ScreeningIncidentEvent> ScreeningIncidentEvents => Set<ScreeningIncidentEvent>();
         public DbSet<Checklist> Checklists => Set<Checklist>();
         public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
         public DbSet<OrganizationChecklistItem> OrganizationChecklistItems => Set<OrganizationChecklistItem>();

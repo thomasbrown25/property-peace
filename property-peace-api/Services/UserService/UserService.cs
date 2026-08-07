@@ -13,6 +13,7 @@ using System.Security.Cryptography;
 using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Services.TenantInviteService;
 using brownstone_hub_api.Services.GoogleAuthService;
+using brownstone_hub_api.Services.AppleAuthService;
 using brownstone_hub_api.Services.OrganizationInviteService;
 using brownstone_hub_api.Services.OrganizationService;
 using brownstone_hub_api.Data;
@@ -37,6 +38,7 @@ namespace brownstone_hub_api.Services.UserService
         IConfiguration configuration,
         ILogger<UserService> logger,
         IGoogleAuthService googleAuthService,
+        IAppleAuthService appleAuthService,
         DataContext dataContext,
         BlobServiceClient? blobServiceClient = null,
         IAzureBlobService? azureBlobService = null,
@@ -57,6 +59,7 @@ namespace brownstone_hub_api.Services.UserService
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger _logger = logger;
         private readonly IGoogleAuthService _googleAuthService = googleAuthService;
+        private readonly IAppleAuthService _appleAuthService = appleAuthService;
         private readonly DataContext _dataContext = dataContext;
         private readonly BlobServiceClient? _blobServiceClient = blobServiceClient;
         private readonly IAzureBlobService? _azureBlobService = azureBlobService;
@@ -1289,6 +1292,113 @@ namespace brownstone_hub_api.Services.UserService
             }
 
             return (response, isNewUser);
+        }
+
+        public async Task<(ServiceResponse<LoadUserDto> Response, bool IsNewUser)> AppleLogin(
+            string identityToken,
+            string nonce,
+            string? firstName = null,
+            string? lastName = null,
+            string? timezone = null,
+            CancellationToken cancellationToken = default)
+        {
+            var response = new ServiceResponse<LoadUserDto>();
+            var appleUser = await _appleAuthService.VerifyIdentityTokenAsync(identityToken, nonce, cancellationToken);
+            if (appleUser == null)
+            {
+                response.Success = false;
+                response.Message = "Invalid Apple identity token.";
+                response.StatusCode = 401;
+                return (response, false);
+            }
+
+            var existingByAppleId = await _userRepository.GetUserByAppleIdAsync(appleUser.Subject);
+            if (existingByAppleId != null)
+            {
+                var dbUser = await _userRepository.GetUser(existingByAppleId.Id);
+                if (dbUser.IsSuspended)
+                {
+                    response.Success = false;
+                    response.Message = "Your account has been suspended. Please contact support for assistance.";
+                    response.StatusCode = 403;
+                    return (response, false);
+                }
+
+                dbUser.AuthProvider = MergeAuthProvider(dbUser.AuthProvider, "Apple", dbUser.PasswordHash != null);
+                dbUser.LastLogin = DateTime.Now;
+                dbUser.LoginCount++;
+                dbUser.UpdatedDate = DateTime.Now;
+                await _dataContext.SaveChangesAsync(cancellationToken);
+                response.Data = existingByAppleId;
+                response.Success = true;
+                return (response, false);
+            }
+
+            var existingByEmail = await _userRepository.GetUserByEmailAsync(appleUser.Email);
+            if (existingByEmail != null)
+            {
+                var dbUser = await _userRepository.GetUser(existingByEmail.Id);
+                if (dbUser.IsSuspended)
+                {
+                    response.Success = false;
+                    response.Message = "Your account has been suspended. Please contact support for assistance.";
+                    response.StatusCode = 403;
+                    return (response, false);
+                }
+                if (!string.IsNullOrEmpty(dbUser.AppleId) && dbUser.AppleId != appleUser.Subject)
+                {
+                    response.Success = false;
+                    response.Message = "This account is already linked to another Apple ID.";
+                    response.StatusCode = 409;
+                    return (response, false);
+                }
+
+                dbUser.AppleId = appleUser.Subject;
+                dbUser.AuthProvider = MergeAuthProvider(dbUser.AuthProvider, "Apple", dbUser.PasswordHash != null);
+                dbUser.LastLogin = DateTime.Now;
+                dbUser.LoginCount++;
+                dbUser.UpdatedDate = DateTime.Now;
+                await _dataContext.SaveChangesAsync(cancellationToken);
+                response.Data = await _userRepository.GetUserByAppleIdAsync(appleUser.Subject);
+                response.Success = response.Data != null;
+                return (response, false);
+            }
+
+            var registration = await Register(new AddUserDto
+            {
+                Email = appleUser.Email,
+                Firstname = firstName?.Trim() ?? string.Empty,
+                Lastname = lastName?.Trim() ?? string.Empty,
+                Password = string.Empty,
+                Roles = [],
+                Timezone = timezone
+            });
+            if (!registration.Success || registration.Data == null)
+            {
+                return (registration, false);
+            }
+
+            var newDbUser = await _userRepository.GetUser(registration.Data.Id);
+            newDbUser.AppleId = appleUser.Subject;
+            newDbUser.AuthProvider = "Apple";
+            newDbUser.UpdatedDate = DateTime.Now;
+            await _dataContext.SaveChangesAsync(cancellationToken);
+
+            response.Data = await _userRepository.GetUserByAppleIdAsync(appleUser.Subject);
+            response.Success = response.Data != null;
+            response.Message = response.Success ? "Apple account created." : "Unable to load the new Apple account.";
+            return (response, true);
+        }
+
+        private static string MergeAuthProvider(string? current, string provider, bool hasPassword)
+        {
+            var providers = (current ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(value => !string.Equals(value, "Email", StringComparison.OrdinalIgnoreCase) || hasPassword)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (hasPassword) providers.Add("Email");
+            providers.Add(provider);
+            return string.Join(',', providers.OrderBy(value => value == "Email" ? 0 : 1).ThenBy(value => value));
         }
 
         public async Task<ServiceResponse<LoadUserDto>> LoadUser()

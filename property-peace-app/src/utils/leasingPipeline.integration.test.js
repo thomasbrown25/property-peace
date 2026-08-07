@@ -17,14 +17,51 @@ test('pipeline hook is tenant-scoped, resource-scoped, fail-closed, and uses can
 });
 
 test('all three real detail surfaces mount the reusable panel with direct resource identity', async () => {
-  const [property, listing, applications] = await Promise.all([
+  const [property, overview, listing, applications] = await Promise.all([
     source('../pages/landlord/property.jsx'),
+    source('../sections/landlord/property/PropertyOverview.jsx'),
     source('../pages/landlord/listing-detail.jsx'),
     source('../pages/landlord/applications.jsx')
   ]);
   assert.match(property, /<PropertyLeasingPipeline[\s\S]*propertyId=[\s\S]*units=/);
+  assert.match(overview, /<PropertyLeasingPipeline[\s\S]*propertyId=[\s\S]*units=/);
   assert.match(listing, /<LeasingPipelinePanel resourceType="listing" resourceId=\{id\}/);
   assert.match(applications, /<LeasingPipelinePanel resourceType="application" resourceId=\{selectedApplication\?\.id \?\? selectedApplication\?\.Id\}/);
+});
+
+test('property page places leasing progress under the overview on desktop and directly after the tenant summary on mobile', async () => {
+  const [property, overview] = await Promise.all([
+    source('../pages/landlord/property.jsx'),
+    source('../sections/landlord/property/PropertyOverview.jsx')
+  ]);
+  const overviewIndex = property.indexOf('<PropertyOverview');
+  const desktopPipelineIndex = property.indexOf('<PropertyLeasingPipeline', overviewIndex);
+  const tenantIndex = overview.indexOf('<PropertyCurrentTenant');
+  const mobilePipelineIndex = overview.indexOf('{isMobile && (', tenantIndex);
+  const activeLeaseIndex = overview.indexOf('<PropertyActiveLease', tenantIndex);
+
+  assert.ok(overviewIndex >= 0 && desktopPipelineIndex > overviewIndex, 'desktop leasing progress should follow the overview section');
+  assert.match(property.slice(overviewIndex, desktopPipelineIndex), /<\/Box>/);
+  assert.match(property.slice(desktopPipelineIndex - 100, desktopPipelineIndex), /display: \{ xs: 'none', sm: 'block' \}/);
+  assert.ok(tenantIndex >= 0 && mobilePipelineIndex > tenantIndex, 'mobile leasing progress should follow the tenant summary');
+  assert.match(overview.slice(mobilePipelineIndex, activeLeaseIndex), /<PropertyLeasingPipeline/);
+  assert.ok(activeLeaseIndex > mobilePipelineIndex, 'active lease should follow mobile leasing progress');
+});
+
+test('property create-listing action opens the existing listing workflow drawer instead of navigating away', async () => {
+  const [property, overview, propertyPipeline, panel] = await Promise.all([
+    source('../pages/landlord/property.jsx'),
+    source('../sections/landlord/property/PropertyOverview.jsx'),
+    source('../components/leasing-pipeline/PropertyLeasingPipeline.jsx'),
+    source('../components/leasing-pipeline/LeasingPipelinePanel.jsx')
+  ]);
+
+  assert.match(property, /import ListingAddWorkflowDrawer from 'components\/drawers\/ListingAddWorkflowDrawer'/);
+  assert.match(property, /<PropertyOverview[\s\S]*onCreateListing=\{drawer\.openListingAddDrawer\}/);
+  assert.match(property, /<ListingAddWorkflowDrawer \/>/);
+  assert.match(overview, /<PropertyLeasingPipeline[\s\S]*onCreateListing=\{onCreateListing\}/);
+  assert.match(propertyPipeline, /<LeasingPipelinePanel[\s\S]*onCreateListing=\{onCreateListing\}/);
+  assert.match(panel, /pipeline\.primaryAction\?\.code === 'createListing'[\s\S]*onCreateListing\(\)/);
 });
 
 test('property integration requires a real unit selection for multi-unit and auto-selects only one unit', async () => {

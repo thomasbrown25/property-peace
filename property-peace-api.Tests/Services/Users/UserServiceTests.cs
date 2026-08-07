@@ -6,6 +6,7 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Roles;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.GoogleAuthService;
+using brownstone_hub_api.Services.AppleAuthService;
 using brownstone_hub_api.Services.OrganizationInviteService;
 using brownstone_hub_api.Services.TenantInviteService;
 using brownstone_hub_api.Dtos.Tenant;
@@ -27,6 +28,7 @@ namespace brownstone_hub_api.Tests.Services.Users
         private readonly Mock<IUserRepository> _userRepo = new();
         private readonly Mock<IRoleRepository> _roleRepo = new();
         private readonly Mock<IGoogleAuthService> _googleAuth = new();
+        private readonly Mock<IAppleAuthService> _appleAuth = new();
         private readonly Mock<IOrganizationInviteService> _orgInviteService = new();
         private readonly Mock<ITenantInviteService> _tenantInviteService = new();
         private readonly Mock<ITenantRepository> _tenantRepo = new();
@@ -57,6 +59,7 @@ namespace brownstone_hub_api.Tests.Services.Users
                 _configuration,
                 Mock.Of<ILogger<UserService>>(),
                 _googleAuth.Object,
+                _appleAuth.Object,
                 _context,
                 organizationInviteService: _orgInviteService.Object,
                 tenantInviteService: _tenantInviteService.Object,
@@ -344,6 +347,92 @@ namespace brownstone_hub_api.Tests.Services.Users
 
             result.Success.Should().BeTrue();
             result.Data.Should().Contain("successfully");
+        }
+
+        // ── AppleLogin ─────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task AppleLogin_ReturnsUnauthorized_WhenIdentityTokenIsInvalid()
+        {
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("bad-token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync((AppleUserInfo?)null);
+
+            var (response, isNewUser) = await _sut.AppleLogin("bad-token", "nonce");
+
+            response.Success.Should().BeFalse();
+            response.StatusCode.Should().Be(401);
+            isNewUser.Should().BeFalse();
+            _userRepo.Verify(repository => repository.GetUserByAppleIdAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task AppleLogin_ReturnsExistingAccount_WithoutRequiringNameAgain()
+        {
+            var user = MakeUser();
+            user.AppleId = "apple-user-123";
+            user.AuthProvider = "Apple";
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AppleUserInfo("apple-user-123", "john@test.com"));
+            _userRepo.Setup(repository => repository.GetUserByAppleIdAsync("apple-user-123")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.AppleLogin("token", "nonce");
+
+            response.Success.Should().BeTrue();
+            response.Data.Should().BeSameAs(loaded);
+            isNewUser.Should().BeFalse();
+            user.LoginCount.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task AppleLogin_LinksVerifiedEmail_WhenAccountHasNoAppleIdentity()
+        {
+            var user = MakeUser();
+            user.PasswordHash = [1, 2, 3];
+            user.AuthProvider = "Email";
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AppleUserInfo("apple-user-123", "john@test.com"));
+            _userRepo.SetupSequence(repository => repository.GetUserByAppleIdAsync("apple-user-123"))
+                .ReturnsAsync((LoadUserDto?)null)
+                .ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUserByEmailAsync("john@test.com")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.AppleLogin("token", "nonce");
+
+            response.Success.Should().BeTrue();
+            isNewUser.Should().BeFalse();
+            user.AppleId.Should().Be("apple-user-123");
+            user.AuthProvider.Should().Be("Email,Apple");
+        }
+
+        [Fact]
+        public async Task AppleLogin_RejectsVerifiedEmail_WhenAccountHasDifferentAppleIdentity()
+        {
+            var user = MakeUser();
+            user.AppleId = "different-apple-user";
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AppleUserInfo("apple-user-123", "john@test.com"));
+            _userRepo.Setup(repository => repository.GetUserByAppleIdAsync("apple-user-123"))
+                .ReturnsAsync((LoadUserDto?)null);
+            _userRepo.Setup(repository => repository.GetUserByEmailAsync("john@test.com")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.AppleLogin("token", "nonce");
+
+            response.Success.Should().BeFalse();
+            response.StatusCode.Should().Be(409);
+            isNewUser.Should().BeFalse();
+            user.AppleId.Should().Be("different-apple-user");
         }
 
         // ── DeleteUser ────────────────────────────────────────────────────────────

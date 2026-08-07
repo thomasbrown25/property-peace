@@ -7922,6 +7922,10 @@ namespace brownstone_hub_api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("AppleId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<string>("AuthProvider")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -8027,6 +8031,10 @@ namespace brownstone_hub_api.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AppleId")
+                        .IsUnique()
+                        .HasFilter("[AppleId] IS NOT NULL");
 
                     b.HasIndex("CurrentOrganizationId");
 

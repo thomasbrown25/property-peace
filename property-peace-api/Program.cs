@@ -34,6 +34,7 @@ using brownstone_hub_api.Repositories.MaintenanceImages;
 using brownstone_hub_api.Services.MaintenanceImageService;
 using brownstone_hub_api.Services.ExpenseReceiptService;
 using brownstone_hub_api.Services.GoogleAuthService;
+using brownstone_hub_api.Services.AppleAuthService;
 using brownstone_hub_api.Services.AzureBlobService;
 using brownstone_hub_api.Services.LeaseService;
 using brownstone_hub_api.Repositories.Leases;
@@ -147,6 +148,7 @@ using brownstone_hub_api.Services.AdminSettingsService;
 using brownstone_hub_api.Repositories.AdminSettings;
 using brownstone_hub_api.Repositories.Vendors;
 using brownstone_hub_api.Services.BackgroundCheckService;
+using brownstone_hub_api.Services.Screening;
 using brownstone_hub_api.Services.UpcomingFeatureService;
 using brownstone_hub_api.Repositories.UpcomingFeatures;
 using brownstone_hub_api.Services.DemoRequestService;
@@ -449,10 +451,18 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 //     c.OperationFilter<SecurityRequirementsOperationFilter>();
 // });
 // services.AddSwaggerGenNewtonsoftSupport();
-services.AddAutoMapper(typeof(Program).Assembly);
+services.AddAutoMapper(cfg =>
+{
+    var autoMapperLicenseKey = configuration["AutoMapper:LicenseKey"];
+    if (!string.IsNullOrWhiteSpace(autoMapperLicenseKey))
+    {
+        cfg.LicenseKey = autoMapperLicenseKey;
+    }
+}, typeof(Program).Assembly);
 
 // Services
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
+services.AddHttpClient<IAppleAuthService, AppleAuthService>();
 services.AddScoped<IUserService, UserService>();
 var dataProtectionKeysPath = configuration["DataProtection:KeysPath"];
 if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
@@ -520,12 +530,9 @@ services.AddScoped<IFileCategoryService, FileCategoryService>();
 services.AddScoped<IApplicationService, ApplicationService>();
 services.AddScoped<IApplicationPdfService, ApplicationPdfService>();
 
-// RentSpree Background Check Configuration
-var rentSpreeSection = configuration.GetSection("RentSpree");
-services.Configure<RentSpreeSettings>(rentSpreeSection);
-services.AddHttpClient<IRentSpreeService, RentSpreeService>();
-services.AddScoped<IRentSpreeService, RentSpreeService>();
+// The legacy application screening path is retained only as a fail-closed compatibility service.
 services.AddScoped<IBackgroundCheckService, BackgroundCheckService>();
+services.AddFailClosedTenantScreening(configuration);
 services.AddScoped<IChecklistService, ChecklistService>();
 services.AddScoped<IOrganizationChecklistItemService, OrganizationChecklistItemService>();
 services.AddScoped<IMoveInReportTemplateService, MoveInReportTemplateService>();
@@ -1259,26 +1266,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Validate RentSpree configuration on startup (log warnings, don't fail startup)
-var rentSpreeSettings = app.Configuration.GetSection("RentSpree").Get<RentSpreeSettings>();
-if (rentSpreeSettings != null)
-{
-    var rentSpreeLogger = app.Services.GetRequiredService<ILogger<Program>>();
-    var validationErrors = rentSpreeSettings.GetValidationErrors();
-    if (validationErrors.Any())
-    {
-        rentSpreeLogger.LogWarning("RentSpree configuration issues: {Errors}. Background checks will not work until configured.",
-            string.Join("; ", validationErrors));
-    }
-    else if (rentSpreeSettings.EnableBackgroundChecks)
-    {
-        rentSpreeLogger.LogInformation("RentSpree background checks are enabled and configured");
-    }
-    else
-    {
-        rentSpreeLogger.LogInformation("RentSpree background checks are disabled");
-    }
-}
+
 
 app.Run();
 

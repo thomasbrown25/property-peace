@@ -134,6 +134,13 @@ const pages = [
             icon: icons.FormOutlined
           },
           {
+            id: 'screenings',
+            title: 'Screenings',
+            type: 'item',
+            url: '/landlord/screenings',
+            icon: icons.SafetyCertificateOutlined
+          },
+          {
             id: 'listings',
             title: 'Listings',
             type: 'item',
