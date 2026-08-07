@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { format, differenceInDays, differenceInMonths } from 'date-fns';
 import { formatCurrency, formatPhone } from 'utils/formatters';
+import { getLeasePagePath, getUnitStatusPresentation } from 'utils/unitPresentation';
 import { useDrawer } from 'contexts/DrawerContext';
 import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
 
@@ -27,13 +28,14 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
   if (!unit) return null;
 
   const unitName = unit.name || unit.Name || 'Unit';
-  const status = (unit.status || unit.Status || '').toLowerCase();
-  const isPaid = status === 'occupied';
-  const isLate = status === 'overdue';
-  const isVacant = !isPaid && !isLate;
-
-  const statusLabel = isLate ? 'Overdue' : isPaid ? 'Occupied' : 'Vacant';
-  const statusColor = isLate ? 'error' : isPaid ? 'success' : 'warning';
+  const statusPresentation = getUnitStatusPresentation(unit.status || unit.Status);
+  const statusColor = {
+    success: theme.palette.success.main,
+    error: theme.palette.error.main,
+    warning: theme.palette.warning.dark,
+    info: theme.palette.info.main,
+    neutral: theme.palette.text.secondary
+  }[statusPresentation.tone];
 
   const beds = unit.bedrooms || unit.Bedrooms;
   const baths = unit.baths || unit.Baths;
@@ -75,6 +77,13 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
   const openTickets = maintenanceRequests.filter(isOpenMaintenanceRequest);
 
   const propertyId = property?.id || property?.Id;
+  const leasePagePath = getLeasePagePath(leaseId);
+
+  const handleOpenLease = () => {
+    if (!leasePagePath) return;
+    onClose();
+    navigate(leasePagePath);
+  };
 
   return (
     <ThemeAdaptiveDrawer
@@ -86,15 +95,20 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
       {/* Header */}
       <Box sx={{ px: 2.5, py: 2, bgcolor: 'background.paper', borderBottom: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box>
-          <Stack direction="row" alignItems="center" spacing={1}>
+          <Stack direction="row" alignItems="center" spacing={1.25}>
             <Typography variant="h6" fontWeight={700}>{unitName}</Typography>
-            <Chip label={statusLabel} size="small" color={statusColor} sx={{ height: 20, fontSize: '0.65rem', fontWeight: 700, '& .MuiChip-label': { px: 0.75 } }} />
+            <Stack direction="row" alignItems="center" spacing={0.6}>
+              <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusColor }} />
+              <Typography sx={{ fontSize: '0.7rem', color: statusColor, fontWeight: 700 }}>
+                {statusPresentation.label}
+              </Typography>
+            </Stack>
           </Stack>
           {property?.name && (
             <Typography sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 0.25 }}>{property.name}</Typography>
           )}
         </Box>
-        <IconButton size="small" onClick={onClose}>
+        <IconButton aria-label="Close unit details" size="small" onClick={onClose}>
           <CloseOutlined style={{ fontSize: 16 }} />
         </IconButton>
       </Box>
@@ -207,15 +221,25 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
               {timeLeftStr && <InfoRow label="Time remaining" value={timeLeftStr} />}
               {rentAmount > 0 && <InfoRow label="Monthly rent" value={formatCurrency(rentAmount)} />}
               {securityDeposit > 0 && <InfoRow label="Security deposit" value={formatCurrency(securityDeposit)} />}
-              {leaseId && (
+              {leasePagePath && (
                 <Button
-                  variant="text"
+                  variant="contained"
                   size="small"
+                  fullWidth
+                  startIcon={<FileTextOutlined />}
                   endIcon={<ArrowRightOutlined />}
-                  onClick={() => navigate(`/landlord/leases/${leaseId}`)}
-                  sx={{ textTransform: 'none', fontWeight: 600, fontSize: '0.78rem', mt: 0.5, p: 0, color: 'primary.main' }}
+                  onClick={handleOpenLease}
+                  sx={{
+                    textTransform: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    mt: 1.25,
+                    borderRadius: 1.5,
+                    justifyContent: 'space-between',
+                    px: 1.5
+                  }}
                 >
-                  View lease document
+                  Open lease page
                 </Button>
               )}
             </Box>
@@ -245,18 +269,6 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
                   sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, fontSize: '0.8rem', borderColor: 'rgba(0,0,0,0.18)', justifyContent: 'flex-start' }}
                 >
                   Add lease / move in tenant
-                </Button>
-              )}
-              {leaseId && (
-                <Button
-                  variant="outlined"
-                  size="small"
-                  fullWidth
-                  startIcon={<FileTextOutlined />}
-                  onClick={() => navigate(`/landlord/leases/${leaseId}`)}
-                  sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 1.5, fontSize: '0.8rem', borderColor: 'rgba(0,0,0,0.18)', justifyContent: 'flex-start' }}
-                >
-                  View lease
                 </Button>
               )}
             </Stack>
