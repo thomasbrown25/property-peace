@@ -20,6 +20,8 @@ namespace brownstone_hub_api.Repositories.Conversations
         {
             try
             {
+                await ValidateConversationCreationAsync(conversation, landlordId, organizationId);
+
                 // One-on-one tenant messages should be one thread per person, not one thread
                 // per lease/property/new-message click. Reuse an existing active direct
                 // conversation when the same tenant user/participant is already connected
@@ -163,6 +165,11 @@ namespace brownstone_hub_api.Repositories.Conversations
                 query = query.Where(c => c.Participants.Any(p => participantUserIds.Contains(p.UserId) && !p.IsDeleted));
             }
 
+            var desiredDirectUserIds = participantUserIds.Append(landlordId).Distinct().ToArray();
+            query = query.Where(c =>
+                c.Participants.Count(p => !p.IsDeleted) == desiredDirectUserIds.Length &&
+                c.Participants.Where(p => !p.IsDeleted).All(p => desiredDirectUserIds.Contains(p.UserId)));
+
             return await query
                 .OrderBy(c => c.IsArchived)
                 .ThenByDescending(c => c.LastMessageAt ?? c.CreatedAt)
@@ -277,6 +284,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
+                    .WhereActiveParticipant(_context.OrganizationMembers, userId)
                     .FirstOrDefaultAsync(c => c.Id == conversationId);
 
                 if (conversation == null)
@@ -363,6 +371,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
+                    .WhereActiveParticipant(_context.OrganizationMembers, landlordId)
                     .Where(c => c.LandlordId == landlordId &&
                         !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
@@ -474,6 +483,9 @@ namespace brownstone_hub_api.Repositories.Conversations
                         .ThenInclude(p => p.User)
                     .Where(c => c.OrganizationId == organizationId &&
                         !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
+
+                if (landlordId.HasValue)
+                    query = query.WhereActiveParticipant(_context.OrganizationMembers, landlordId.Value);
 
                 if (!includeArchived)
                 {
@@ -590,7 +602,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
-                    .Where(c => c.Participants.Any(p => p.UserId == userId && !p.IsDeleted) &&
+                    .WhereActiveParticipant(_context.OrganizationMembers, userId)
+                    .Where(c =>
                         !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
                 if (!includeArchived)
@@ -688,13 +701,11 @@ namespace brownstone_hub_api.Repositories.Conversations
             }
         }
 
-        public async Task<LoadConversationDto> UpdateConversation(long conversationId, AddConversationDto conversation)
+        public async Task<LoadConversationDto> UpdateConversation(long conversationId, AddConversationDto conversation, long actorUserId)
         {
             try
             {
-                var existing = await _context.Conversations.FindAsync(conversationId);
-                if (existing == null)
-                    throw new KeyNotFoundException("Conversation not found");
+                var existing = await FindAuthorizedMutationAsync(conversationId, actorUserId);
 
                 existing.Title = conversation.Title;
                 existing.Description = conversation.Description;
@@ -704,7 +715,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                 _context.Conversations.Update(existing);
                 await _context.SaveChangesAsync();
 
-                return await GetConversationById(conversationId, existing.LandlordId);
+                return await GetConversationById(conversationId, actorUserId);
             }
             catch (Exception ex)
             {
@@ -713,15 +724,18 @@ namespace brownstone_hub_api.Repositories.Conversations
             }
         }
 
-        public async Task<bool> DeleteConversation(long conversationId)
+        public async Task<bool> DeleteConversation(long conversationId, long actorUserId)
         {
             try
             {
-                var conversation = await _context.Conversations.FindAsync(conversationId);
-                if (conversation == null)
-                    return false;
+                var conversation = await FindAuthorizedMutationAsync(conversationId, actorUserId);
 
-                _context.Conversations.Remove(conversation);
+                // A user-facing delete archives the thread. The conversation is the durable root for
+                // append-only timeline and delivery evidence and must never be physically removed.
+                conversation.IsArchived = true;
+                conversation.IsPinned = false;
+                conversation.UpdatedAt = DateTime.UtcNow;
+                _context.Conversations.Update(conversation);
                 await _context.SaveChangesAsync();
                 return true;
             }
@@ -732,13 +746,11 @@ namespace brownstone_hub_api.Repositories.Conversations
             }
         }
 
-        public async Task<LoadConversationDto> ArchiveConversation(long conversationId, bool archive)
+        public async Task<LoadConversationDto> ArchiveConversation(long conversationId, bool archive, long actorUserId)
         {
             try
             {
-                var conversation = await _context.Conversations.FindAsync(conversationId);
-                if (conversation == null)
-                    throw new KeyNotFoundException("Conversation not found");
+                var conversation = await FindAuthorizedMutationAsync(conversationId, actorUserId);
 
                 conversation.IsArchived = archive;
                 conversation.UpdatedAt = DateTime.UtcNow;
@@ -746,7 +758,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                 _context.Conversations.Update(conversation);
                 await _context.SaveChangesAsync();
 
-                return await GetConversationById(conversationId, conversation.LandlordId);
+                return await GetConversationById(conversationId, actorUserId);
             }
             catch (Exception ex)
             {
@@ -755,13 +767,11 @@ namespace brownstone_hub_api.Repositories.Conversations
             }
         }
 
-        public async Task<LoadConversationDto> PinConversation(long conversationId, bool pin)
+        public async Task<LoadConversationDto> PinConversation(long conversationId, bool pin, long actorUserId)
         {
             try
             {
-                var conversation = await _context.Conversations.FindAsync(conversationId);
-                if (conversation == null)
-                    throw new KeyNotFoundException("Conversation not found");
+                var conversation = await FindAuthorizedMutationAsync(conversationId, actorUserId);
 
                 conversation.IsPinned = pin;
                 conversation.UpdatedAt = DateTime.UtcNow;
@@ -769,13 +779,104 @@ namespace brownstone_hub_api.Repositories.Conversations
                 _context.Conversations.Update(conversation);
                 await _context.SaveChangesAsync();
 
-                return await GetConversationById(conversationId, conversation.LandlordId);
+                return await GetConversationById(conversationId, actorUserId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error pinning conversation {ConversationId}", conversationId);
                 throw;
             }
+        }
+
+        private async Task<Conversation> FindAuthorizedMutationAsync(long conversationId, long actorUserId)
+        {
+            var conversation = await _context.Conversations
+                .Where(c => c.Id == conversationId && c.Participants.Any(p => p.UserId == actorUserId && !p.IsDeleted))
+                .SingleOrDefaultAsync();
+            if (conversation == null)
+                throw new KeyNotFoundException("Conversation not found");
+
+            // Legacy rows without an organization cannot be safely attributed to the actor's current
+            // tenant. A participant edge alone is not sufficient ownership evidence for mutation.
+            if (!conversation.OrganizationId.HasValue)
+                throw new KeyNotFoundException("Conversation not found");
+
+            // Organization staff may mutate only while their membership is active. Tenant participants
+            // remain authorized through their organization-owned tenant workflow.
+            var organizationId = conversation.OrganizationId.Value;
+            var belongsToOrganization = await _context.OrganizationMembers.AnyAsync(m =>
+                    m.OrganizationId == organizationId && m.UserId == actorUserId && m.IsActive) ||
+                await _context.Tenants.AnyAsync(t =>
+                    t.OrganizationId == organizationId && t.UserId == actorUserId && !t.IsDeleted);
+            if (!belongsToOrganization)
+                throw new KeyNotFoundException("Conversation not found");
+
+            return conversation;
+        }
+
+        private async Task ValidateConversationCreationAsync(AddConversationDto request, long actorUserId, long? organizationId)
+        {
+            if (!organizationId.HasValue || organizationId <= 0)
+                throw new KeyNotFoundException("Conversation context not found");
+            var orgId = organizationId.Value;
+
+            var actorAuthorized = await _context.OrganizationMembers.AnyAsync(m =>
+                m.OrganizationId == orgId && m.UserId == actorUserId && m.IsActive);
+            if (!actorAuthorized)
+                throw new KeyNotFoundException("Conversation context not found");
+
+            var participantIds = request.ParticipantUserIds
+                .Where(id => id > 0)
+                .Append(actorUserId)
+                .Distinct()
+                .ToList();
+            if (request.ParticipantUserIds.Any(id => id <= 0))
+                throw new KeyNotFoundException("Conversation context not found");
+
+            long? tenantUserId = null;
+            if (request.TenantId.HasValue)
+            {
+                tenantUserId = await _context.Tenants
+                    .Where(t => t.Id == request.TenantId && t.OrganizationId == orgId && !t.IsDeleted)
+                    .Select(t => t.UserId)
+                    .SingleOrDefaultAsync();
+                if (!tenantUserId.HasValue || tenantUserId <= 0)
+                    throw new KeyNotFoundException("Conversation context not found");
+                participantIds.Add(tenantUserId.Value);
+                participantIds = participantIds.Distinct().ToList();
+            }
+
+            var intendedRecipientIds = participantIds.Where(id => id != actorUserId).ToArray();
+            if (!request.IsGroupChat && intendedRecipientIds.Length != 1)
+                throw new KeyNotFoundException("Conversation context not found");
+
+            var authorizedParticipantIds = await _context.OrganizationMembers
+                .Where(m => m.OrganizationId == orgId && m.UserId.HasValue && m.IsActive && participantIds.Contains(m.UserId.Value))
+                .Select(m => m.UserId!.Value)
+                .Concat(_context.Tenants.Where(t =>
+                        t.OrganizationId == orgId && t.UserId.HasValue && !t.IsDeleted && participantIds.Contains(t.UserId.Value))
+                    .Select(t => t.UserId!.Value))
+                .Distinct()
+                .ToListAsync();
+            if (authorizedParticipantIds.Count != participantIds.Count)
+                throw new KeyNotFoundException("Conversation context not found");
+
+            if (request.PropertyId.HasValue && !await _context.Properties.AnyAsync(p =>
+                    p.Id == request.PropertyId && p.OrganizationId == orgId && !p.IsDeleted))
+                throw new KeyNotFoundException("Conversation context not found");
+
+            if (request.LeaseId.HasValue && !await _context.Leases.AnyAsync(l =>
+                    l.Id == request.LeaseId && l.OrganizationId == orgId && !l.IsDeleted &&
+                    (!request.PropertyId.HasValue || l.Unit.PropertyId == request.PropertyId)))
+                throw new KeyNotFoundException("Conversation context not found");
+
+            if (request.TenantId.HasValue && !await _context.Tenants.AnyAsync(t =>
+                    t.Id == request.TenantId && t.OrganizationId == orgId && !t.IsDeleted &&
+                    (!request.LeaseId.HasValue || t.TenantLeases.Any(tl => tl.LeaseId == request.LeaseId)) &&
+                    (!request.PropertyId.HasValue || t.TenantLeases.Any(tl =>
+                        tl.Lease.OrganizationId == orgId && !tl.Lease.IsDeleted &&
+                        tl.Lease.Unit.PropertyId == request.PropertyId))))
+                throw new KeyNotFoundException("Conversation context not found");
         }
 
         private async Task AttachLandlordSmsNumberAsync(LoadConversationDto dto, long? organizationId)
@@ -795,17 +896,41 @@ namespace brownstone_hub_api.Repositories.Conversations
         {
             try
             {
-                // Count messages in this conversation that haven't been read by this user
-                // Exclude messages sent by the current user (they don't count as unread for themselves)
-                var totalMessages = await _context.Messages
-                    .Where(m => m.ConversationId == conversationId && !m.IsDeleted && m.SenderId != userId)
-                    .CountAsync();
+                var access = await _context.Conversations
+                    .WhereActiveParticipant(_context.OrganizationMembers, userId)
+                    .Where(c => c.Id == conversationId)
+                    .Select(c => new
+                    {
+                        OrganizationId = c.OrganizationId!.Value,
+                        StaffVisibilityFromSequence = c.Participants
+                            .Where(p => p.UserId == userId && !p.IsDeleted)
+                            .Select(p => p.StaffVisibilityFromSequence)
+                            .FirstOrDefault()
+                    })
+                    .SingleOrDefaultAsync();
+                if (access == null) return 0;
 
-                var readMessages = await _context.MessageReads
-                    .Where(mr => mr.Message.ConversationId == conversationId && mr.UserId == userId && mr.Message.SenderId != userId)
-                    .CountAsync();
+                var isStaff = await _context.OrganizationMembers.AnyAsync(m =>
+                    m.OrganizationId == access.OrganizationId && m.UserId == userId && m.IsActive);
+                var lastRead = await _context.ConversationReadWatermarks
+                    .Where(x => x.ConversationId == conversationId && x.UserId == userId)
+                    .Select(x => (long?)x.LastReadSequence)
+                    .SingleOrDefaultAsync() ?? 0;
 
-                return Math.Max(0, totalMessages - readMessages);
+                var visible = _context.ConversationTimelineEntries.AsNoTracking()
+                    .Where(x => x.ConversationId == conversationId && x.Sequence > lastRead &&
+                        (!x.ActorUserId.HasValue || x.ActorUserId.Value != userId));
+                if (!isStaff)
+                {
+                    visible = visible.Where(x => x.Visibility != TimelineVisibility.StaffOnly);
+                }
+                else if (access.StaffVisibilityFromSequence.HasValue)
+                {
+                    visible = visible.Where(x => x.Visibility != TimelineVisibility.StaffOnly ||
+                        x.Sequence >= access.StaffVisibilityFromSequence.Value);
+                }
+
+                return await visible.CountAsync();
             }
             catch (Exception ex)
             {

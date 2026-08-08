@@ -1,4 +1,6 @@
 using brownstone_hub_api.Services.EmailSyncService;
+using brownstone_hub_api.Services.MessageDeliveries;
+using brownstone_hub_api.Repositories.Timelines;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,10 +11,12 @@ namespace brownstone_hub_api.Controllers
     [AllowAnonymous]
     public class EmailWebhookController(
         IInboundEmailService inboundEmailService,
+        IMessageDeliveryService messageDeliveryService,
         IConfiguration configuration,
         ILogger<EmailWebhookController> logger) : ControllerBase
     {
         private readonly IInboundEmailService _inboundEmailService = inboundEmailService;
+        private readonly IMessageDeliveryService _messageDeliveryService = messageDeliveryService;
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<EmailWebhookController> _logger = logger;
 
@@ -26,21 +30,37 @@ namespace brownstone_hub_api.Controllers
             }
 
             var payload = await ReadPayloadAsync(cancellationToken);
-            if (string.IsNullOrWhiteSpace(payload.From) || string.IsNullOrWhiteSpace(payload.To))
+            if (string.IsNullOrWhiteSpace(payload.From) || string.IsNullOrWhiteSpace(payload.To) ||
+                string.IsNullOrWhiteSpace(payload.EventId) || payload.EventId.Length > 160)
             {
-                _logger.LogWarning("Inbound email webhook received without From or To");
-                return BadRequest(new { success = false, message = "from and to are required" });
+                _logger.LogWarning("Inbound email webhook received without required routing fields or provider event ID");
+                return BadRequest(new { success = false, message = "from, to, and a bounded provider event ID are required" });
             }
 
-            var handled = await _inboundEmailService.HandleInboundAsync(
-                payload.From,
-                payload.To,
-                payload.Subject,
-                payload.Text,
-                payload.Html,
-                cancellationToken);
+            try
+            {
+                var handled = await _inboundEmailService.HandleInboundAsync(
+                    payload.From, payload.To, payload.Subject, payload.Text, payload.Html,
+                    payload.EventId.Trim(), cancellationToken);
 
-            return Ok(new { success = handled });
+                return Ok(new { success = handled });
+            }
+            catch (TimelineIdempotencyConflictException)
+            {
+                return Conflict(new { success = false, message = "provider event ID conflicts with a prior payload" });
+            }
+        }
+
+        [HttpPost("delivery-status")]
+        public async Task<IActionResult> DeliveryStatus([FromBody] EmailDeliveryStatusPayload payload, CancellationToken cancellationToken)
+        {
+            if (!ValidateSharedSecret()) return Forbid();
+            if (string.IsNullOrWhiteSpace(payload.ProviderMessageId) || string.IsNullOrWhiteSpace(payload.Status))
+                return BadRequest(new { success = false });
+            var handled = await _messageDeliveryService.RecordProviderStatusAsync(
+                string.IsNullOrWhiteSpace(payload.Provider) ? "azure-email" : payload.Provider,
+                payload.ProviderMessageId, payload.Status, payload.ErrorCode, payload.ErrorDetail, cancellationToken);
+            return Ok(new { success = true, handled });
         }
 
         private bool ValidateSharedSecret()
@@ -53,9 +73,6 @@ namespace brownstone_hub_api.Controllers
             }
 
             var provided = Request.Headers["X-PropertyPeace-Webhook-Secret"].ToString();
-            if (string.IsNullOrWhiteSpace(provided))
-                provided = Request.Query["secret"].ToString();
-
             return string.Equals(provided, expected, StringComparison.Ordinal);
         }
 
@@ -70,7 +87,9 @@ namespace brownstone_hub_api.Controllers
                     To = First(form["to"], form["To"], form["recipient"], form["Recipient"], form["envelope"], form["Envelope"]),
                     Subject = First(form["subject"], form["Subject"]),
                     Text = First(form["text"], form["Text"], form["body-plain"], form["Body"], form["stripped-text"]),
-                    Html = First(form["html"], form["Html"], form["body-html"], form["stripped-html"])
+                    Html = First(form["html"], form["Html"], form["body-html"], form["stripped-html"]),
+                    EventId = First(form["eventId"], form["EventId"], form["messageId"], form["MessageId"],
+                        form["message-id"], form["Message-Id"])
                 };
             }
 
@@ -96,6 +115,16 @@ namespace brownstone_hub_api.Controllers
             public string? Subject { get; set; }
             public string? Text { get; set; }
             public string? Html { get; set; }
+            public string? EventId { get; set; }
+        }
+
+        public sealed class EmailDeliveryStatusPayload
+        {
+            public string? Provider { get; set; }
+            public string? ProviderMessageId { get; set; }
+            public string? Status { get; set; }
+            public string? ErrorCode { get; set; }
+            public string? ErrorDetail { get; set; }
         }
     }
 }

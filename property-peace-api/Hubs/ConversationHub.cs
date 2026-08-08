@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using brownstone_hub_api.Repositories.Users;
+using brownstone_hub_api.Repositories.Conversations;
 using Microsoft.AspNetCore.Authorization;
 
 namespace brownstone_hub_api.Hubs
@@ -13,11 +14,16 @@ namespace brownstone_hub_api.Hubs
     public class ConversationHub : Hub
     {
         private readonly IUserRepository _userRepository;
+        private readonly IConversationRepository _conversationRepository;
         private readonly ILogger<ConversationHub> _logger;
 
-        public ConversationHub(IUserRepository userRepository, ILogger<ConversationHub> logger)
+        public ConversationHub(
+            IUserRepository userRepository,
+            IConversationRepository conversationRepository,
+            ILogger<ConversationHub> logger)
         {
             _userRepository = userRepository;
+            _conversationRepository = conversationRepository;
             _logger = logger;
         }
 
@@ -57,21 +63,44 @@ namespace brownstone_hub_api.Hubs
         /// </summary>
         public async Task JoinConversation(long conversationId)
         {
-            try
+            var userId = await GetNumericUserIdAsync();
+            if (!userId.HasValue)
             {
-                var userId = await GetUserIdAsync();
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    var groupName = $"conversation_{conversationId}";
-                    await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                    _logger.LogInformation("User {UserId} joined conversation {ConversationId} group {GroupName}",
-                        userId, conversationId, groupName);
-                }
+                _logger.LogWarning("Unable to resolve a numeric user for conversation join on connection {ConnectionId}", Context.ConnectionId);
+                throw new HubException("Conversation not found");
             }
-            catch (Exception ex)
+
+            var conversation = await _conversationRepository.GetConversationById(conversationId, userId.Value);
+            if (conversation == null)
             {
-                _logger.LogError(ex, "Error joining conversation {ConversationId}", conversationId);
+                _logger.LogWarning("User {UserId} refused access to conversation {ConversationId}", userId.Value, conversationId);
+                throw new HubException("Conversation not found");
             }
+
+            var groupName = $"conversation_{conversationId}";
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            _logger.LogInformation("User {UserId} joined conversation {ConversationId} group {GroupName}",
+                userId.Value, conversationId, groupName);
+        }
+
+        private async Task<long?> GetNumericUserIdAsync()
+        {
+            var nameIdentifier = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = Context.User?.FindFirst("userId")?.Value;
+            var subject = Context.User?.FindFirst("sub")?.Value;
+            if (long.TryParse(nameIdentifier, out var nameId) && nameId > 0) return nameId;
+            if (long.TryParse(userIdClaim, out var explicitId) && explicitId > 0) return explicitId;
+            if (long.TryParse(subject, out var subjectId) && subjectId > 0) return subjectId;
+
+            var email = subject;
+            if (string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(nameIdentifier))
+                email = nameIdentifier;
+            if (string.IsNullOrWhiteSpace(email))
+                email = Context.User?.FindFirst(ClaimTypes.Name)?.Value;
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            var user = await _userRepository.GetUser(email);
+            return user?.Id > 0 ? user.Id : null;
         }
 
         /// <summary>
@@ -128,41 +157,8 @@ namespace brownstone_hub_api.Hubs
         {
             try
             {
-                // First, try to get user ID directly from claims
-                var userIdClaim = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrEmpty(userIdClaim))
-                {
-                    return userIdClaim;
-                }
-
-                // Try alternative claim name for user ID
-                userIdClaim = Context.User?.FindFirst("userId")?.Value;
-                if (!string.IsNullOrEmpty(userIdClaim))
-                {
-                    return userIdClaim;
-                }
-
-                // If user ID not in claims, try to look up by email (sub claim)
-                var email = Context.User?.FindFirst("sub")?.Value;
-                if (string.IsNullOrEmpty(email))
-                {
-                    email = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                    if (string.IsNullOrEmpty(email))
-                    {
-                        email = Context.User?.FindFirst(ClaimTypes.Name)?.Value;
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(email))
-                {
-                    var user = await _userRepository.GetUser(email);
-                    if (user != null)
-                    {
-                        return user.Id.ToString();
-                    }
-                }
-
-                return null;
+                var userId = await GetNumericUserIdAsync();
+                return userId?.ToString();
             }
             catch (Exception ex)
             {

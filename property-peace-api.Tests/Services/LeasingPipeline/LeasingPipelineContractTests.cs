@@ -76,8 +76,12 @@ public sealed class LeasingPipelineContractTests
     {
         typeof(LeasingPipelineDto).GetProperties().Select(x => x.Name).Should().BeEquivalentTo(
             "PropertyId", "UnitId", "CurrentStage", "Stages", "Blocker", "PrimaryAction",
-            "References", "RelevantRecords", "Revision", "EvaluatedAt");
-        var forbidden = new[] { "Email", "Name", "Ssn", "CreditScore", "ReportUrl", "Signature", "Url", "Token", "Provider" };
+            "References", "RelevantRecords", "LeaseDocument", "ESignature", "Revision", "EvaluatedAt");
+        typeof(ESignatureSummaryDto).GetProperties().Select(x => x.Name).Should().BeEquivalentTo(
+            "Provider", "Status", "SignedSignerCount", "RequiredSignerCount", "SentAt", "CompletedAt", "ExpiresAt");
+        typeof(LeaseDocumentSummaryDto).GetProperties().Select(x => x.Name).Should().BeEquivalentTo(
+            "Name", "Type", "GeneratedAt", "IsSignedCopy");
+        var forbidden = new[] { "Email", "Ssn", "CreditScore", "ReportUrl", "Envelope", "Blob", "Url", "Token", "SigningUrl" };
         typeof(LeasingPipelineDto).Assembly.GetTypes()
             .Where(t => t.Namespace == typeof(LeasingPipelineDto).Namespace)
             .SelectMany(t => t.GetProperties())

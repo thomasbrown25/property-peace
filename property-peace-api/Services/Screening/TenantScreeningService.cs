@@ -5,6 +5,7 @@ using brownstone_hub_api.Data;
 using brownstone_hub_api.Domain.Screening;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Services.Timelines;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -22,12 +23,14 @@ public sealed class TenantScreeningService : ITenantScreeningService
     private readonly TimeProvider _timeProvider;
     private readonly ScreeningWebhookProcessingOptions _webhookOptions;
     private readonly IScreeningIncidentRecorder _incidentRecorder;
+    private readonly IWorkflowTimelineIntegration? _workflowTimeline;
 
     public TenantScreeningService(DataContext db, IScreeningProviderGateway gateway, IScreeningPolicyResolver policyResolver,
         IScreeningApplicantInvitationDelivery delivery, IScreeningApplicantLinkFactory linkFactory,
         IScreeningCallbackVerifier callbackVerifier, TimeProvider timeProvider,
         ScreeningWebhookProcessingOptions? webhookOptions = null, IScreeningIncidentRecorder? incidentRecorder = null,
-        IScreeningQuoteOptionsResolver? quoteOptionsResolver = null)
+        IScreeningQuoteOptionsResolver? quoteOptionsResolver = null,
+        IWorkflowTimelineIntegration? workflowTimeline = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
@@ -39,6 +42,7 @@ public sealed class TenantScreeningService : ITenantScreeningService
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _webhookOptions = webhookOptions ?? new ScreeningWebhookProcessingOptions();
         _incidentRecorder = incidentRecorder ?? new ScreeningIncidentRecorder(db, timeProvider);
+        _workflowTimeline = workflowTimeline;
     }
 
     public async Task<StaffScreeningOrderResult> CreateInvitationAsync(CreateTenantScreeningInvitationCommand command,
@@ -128,6 +132,11 @@ public sealed class TenantScreeningService : ITenantScreeningService
             _db.ScreeningTransitionEvents.Add(initial);
             await _db.SaveChangesAsync(cancellationToken);
         }, cancellationToken);
+
+        if (_workflowTimeline is not null)
+            await _workflowTimeline.RecordScreeningTransitionAsync(order.OrganizationId, order.RentalApplicationId,
+                order.Id, command.RequesterUserId, "invited", "Screening invitation created",
+                $"screening:{order.Id}:invited", cancellationToken);
 
         try
         {
@@ -297,6 +306,7 @@ public sealed class TenantScreeningService : ITenantScreeningService
         _db.ScreeningTransitionEvents.Add(Transition(order, from, to, now, now, ScreeningTransitionSource.System,
             "ApplicantConsentedAndProviderStarted", null, null));
         await InTransactionAsync(() => _db.SaveChangesAsync(cancellationToken), cancellationToken);
+        await RecordStatusTimelineAsync(order, to, null, cancellationToken);
         return new ApplicantScreeningConsentResult(order.Id, order.Status, ScreeningConsentOutcome.Started,
             hosted.ContinuationUri, hosted.ExpiresAt);
     }
@@ -618,6 +628,7 @@ public sealed class TenantScreeningService : ITenantScreeningService
             ScreeningTransitionSource.ProviderPolling, update.ReasonCode,
             update.ProviderSequence.HasValue ? $"poll:{order.Id}:{update.ProviderSequence.Value}" : null, null));
         await InTransactionAsync(() => _db.SaveChangesAsync(cancellationToken), cancellationToken);
+        await RecordStatusTimelineAsync(order, update.Status, null, cancellationToken);
         return new ScreeningCallbackApplyResult(ScreeningCallbackOutcome.Applied, order.Id, order.CurrentRevision);
     }
 
@@ -730,6 +741,7 @@ public sealed class TenantScreeningService : ITenantScreeningService
             ScreeningTransitionSource.ProviderWebhook, inbox.NormalizedReasonCode, inbox.ProviderEventId, null));
         inbox.MarkProcessed(now);
         await InTransactionAsync(() => _db.SaveChangesAsync(cancellationToken), cancellationToken);
+        await RecordStatusTimelineAsync(order, inbox.CanonicalStatus, null, cancellationToken);
         return new ScreeningCallbackApplyResult(ScreeningCallbackOutcome.Applied, order.Id, order.CurrentRevision);
     }
 
@@ -1206,6 +1218,15 @@ public sealed class TenantScreeningService : ITenantScreeningService
         catch { if (transaction is not null) await transaction.RollbackAsync(CancellationToken.None); throw; }
         finally { if (transaction is not null) await transaction.DisposeAsync(); }
     }
+    private async Task RecordStatusTimelineAsync(TenantScreeningOrder order, ScreeningStatus status, long? actorUserId,
+        CancellationToken cancellationToken)
+    {
+        if (_workflowTimeline is null) return;
+        await _workflowTimeline.RecordScreeningTransitionAsync(order.OrganizationId, order.RentalApplicationId,
+            order.Id, actorUserId, status.ToString().ToLowerInvariant(), $"Screening status changed to {status}",
+            $"screening:{order.Id}:status:{order.CurrentRevision}", cancellationToken);
+    }
+
     private static void ValidateIds(params long[] ids) { if (ids.Any(x => x <= 0)) throw new ArgumentOutOfRangeException(nameof(ids)); }
     private sealed record AuthoritySnapshot(long MemberId, string Role, string Permission);
     private sealed record ApplicantProjection(long Id, long? OrganizationId, long PropertyId, long? UnitId, EApplicationStatus Status,

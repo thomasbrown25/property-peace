@@ -115,6 +115,21 @@ test('panel includes accessible states, retry, explicit semantics, and responsiv
   assert.match(panel, /Leasing progress unavailable/);
 });
 
+test('panel renders bounded lease document, DocuSign provider, signer progress, and timing details', async () => {
+  const [panel, utility] = await Promise.all([
+    source('../components/leasing-pipeline/LeasingPipelinePanel.jsx'),
+    source('./leasingPipeline.js')
+  ]);
+  assert.match(panel, /getSafeESignatureDetails\(pipeline\)/);
+  assert.match(panel, /Document/);
+  assert.match(panel, /Provider/);
+  assert.match(panel, /Signatures/);
+  assert.match(panel, /Sent/);
+  assert.match(panel, /Expires/);
+  assert.match(utility, /DocuSign/);
+  assert.doesNotMatch(panel, /docuSignEnvelopeId|envelopeId|blobUrl|signingUrl/i);
+});
+
 test('application collection clears before fetch and deep links require the successful current generation', async () => {
   const applications = await source('../pages/landlord/applications.jsx');
   assert.match(applications, /requestGuardRef\.current\.begin\(loadScope\)/);

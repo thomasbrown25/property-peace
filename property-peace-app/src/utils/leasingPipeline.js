@@ -168,6 +168,58 @@ export function buildApprovedApplicationLeaseContext(application, properties) {
   return { property, applicationContext };
 }
 
+const E_SIGNATURE_STATUSES = new Set([
+  'notSent', 'sent', 'inProgress', 'partiallySigned', 'completed', 'declined', 'expired', 'cancelled'
+]);
+const E_SIGNATURE_DOCUMENT_TYPES = Object.freeze({ pdf: 'PDF', docx: 'DOCX', document: 'Document' });
+
+const safeIsoDateTime = (value, { nullable = false } = {}) => {
+  if (value == null && nullable) return null;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) return undefined;
+  return Number.isNaN(Date.parse(value)) ? undefined : value;
+};
+
+export function getSafeESignatureDetails(pipeline) {
+  const document = pipeline?.leaseDocument;
+  const signature = pipeline?.eSignature;
+  if (!document && !signature) return null;
+
+  let documentDetails = {
+    documentName: null, documentType: null, documentGeneratedAt: null, isSignedCopy: false
+  };
+  if (document) {
+    const documentName = safeTrimmedText(document.name, 120);
+    const documentType = E_SIGNATURE_DOCUMENT_TYPES[document.type];
+    const documentGeneratedAt = safeIsoDateTime(document.generatedAt);
+    if (!documentName || !documentType || !documentGeneratedAt || typeof document.isSignedCopy !== 'boolean') return null;
+    documentDetails = { documentName, documentType, documentGeneratedAt, isSignedCopy: document.isSignedCopy };
+  }
+
+  let signatureDetails = {
+    providerLabel: null, status: null, signedSignerCount: null, requiredSignerCount: null,
+    sentAt: null, completedAt: null, expiresAt: null
+  };
+  if (signature) {
+    const validCounts = Number.isSafeInteger(signature.signedSignerCount)
+      && Number.isSafeInteger(signature.requiredSignerCount)
+      && signature.signedSignerCount >= 0
+      && signature.requiredSignerCount >= 1
+      && signature.signedSignerCount <= signature.requiredSignerCount;
+    const sentAt = safeIsoDateTime(signature.sentAt, { nullable: true });
+    const completedAt = safeIsoDateTime(signature.completedAt, { nullable: true });
+    const expiresAt = safeIsoDateTime(signature.expiresAt, { nullable: true });
+    if (signature.provider !== 'docusign' || !E_SIGNATURE_STATUSES.has(signature.status) || !validCounts
+      || sentAt === undefined || completedAt === undefined || expiresAt === undefined) return null;
+    signatureDetails = {
+      providerLabel: 'DocuSign', status: signature.status,
+      signedSignerCount: signature.signedSignerCount, requiredSignerCount: signature.requiredSignerCount,
+      sentAt, completedAt, expiresAt
+    };
+  }
+
+  return { ...documentDetails, ...signatureDetails };
+}
+
 export function runLeasingPrimaryAction(actionCode, { onCreateListing, onCreateLease, navigate } = {}, route) {
   if (actionCode === 'createListing' && typeof onCreateListing === 'function') {
     onCreateListing();

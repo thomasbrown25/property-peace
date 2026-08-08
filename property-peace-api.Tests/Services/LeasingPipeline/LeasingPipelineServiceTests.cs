@@ -1,3 +1,4 @@
+using System.Text.Json;
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.LeasingPipeline;
@@ -155,6 +156,95 @@ public sealed class LeasingPipelineServiceTests
 
         result.CurrentStage.Should().Be(LeasingLifecycleStage.LeaseDraft);
         result.Blocker!.Code.Should().Be("signatureTerminal");
+    }
+
+    [Fact]
+    public async Task Signature_pipeline_returns_bounded_document_provider_and_signer_progress()
+    {
+        var (db, sut) = Create();
+        await SeedScope(db);
+        var generatedAt = DateTime.UtcNow.AddHours(-2);
+        var sentAt = DateTime.UtcNow.AddHours(-1);
+        db.Tenants.AddRange(
+            new Tenant { Id = 71, OrganizationId = 10, UnitId = 40, Firstname = "Ada", Lastname = "Lovelace" },
+            new Tenant { Id = 72, OrganizationId = 10, UnitId = 40, Firstname = "Grace", Lastname = "Hopper" });
+        db.LeaseTemplates.Add(new LeaseTemplate
+        {
+            Id = 73, OrganizationId = 10, Name = "Residential Lease Agreement", Version = "2.1"
+        });
+        db.Leases.Add(new Lease
+        {
+            Id = 60, UnitId = 40, OrganizationId = 10, IsActive = false,
+            StartDate = DateTime.UtcNow.AddDays(30), EndDate = DateTime.UtcNow.AddYears(1),
+            LeaseAgreement = new LeaseAgreement
+            {
+                Id = 61, SignatureStatus = ESignatureStatus.PartiallySigned,
+                DocuSignEnvelopeId = "provider-envelope-secret", SignatureSentAt = sentAt,
+                SignatureExpiresAt = sentAt.AddDays(30), LandlordSignedAt = sentAt.AddMinutes(10)
+            },
+            TenantLeases =
+            [
+                new TenantLease { TenantId = 71, TenantSignedAt = sentAt.AddMinutes(20) },
+                new TenantLease { TenantId = 72 }
+            ]
+        });
+        db.LeaseInstances.Add(new LeaseInstance
+        {
+            Id = 74, LeaseId = 60, LeaseTemplateId = 73, TemplateVersion = "2.1", IsDraft = false,
+            IsFinalized = true, FinalizedAt = generatedAt, GeneratedAt = generatedAt, GeneratedBy = 20,
+            Documents =
+            [
+                new LeaseDocument
+                {
+                    Id = 75, DocumentType = "PDF", BlobName = "private/internal/path.pdf",
+                    BlobUrl = "https://secret.invalid/document", GeneratedAt = generatedAt, GeneratedBy = 20
+                }
+            ]
+        });
+        await db.SaveChangesAsync();
+
+        var result = await sut.GetForPropertyAsync(10, 20, 30, 40, default);
+
+        result.LeaseDocument.Should().Be(new LeaseDocumentSummaryDto(
+            "Residential Lease Agreement", "pdf", generatedAt, false));
+        result.ESignature.Should().Be(new ESignatureSummaryDto(
+            "docusign", "partiallySigned", 2, 3, sentAt, null, sentAt.AddDays(30)));
+        JsonSerializer.Serialize(result, LeasingPipelineJson.Options).Should()
+            .NotContain("provider-envelope-secret").And.NotContain("secret.invalid").And.NotContain("internal/path");
+    }
+
+    [Fact]
+    public async Task Signature_progress_and_document_changes_participate_in_revision()
+    {
+        var (db, sut) = Create();
+        await SeedScope(db);
+        db.Tenants.Add(new Tenant { Id = 81, OrganizationId = 10, UnitId = 40, Firstname = "A", Lastname = "Tenant" });
+        db.LeaseTemplates.Add(new LeaseTemplate { Id = 82, OrganizationId = 10, Name = "Lease", Version = "1.0" });
+        db.Leases.Add(new Lease
+        {
+            Id = 83, UnitId = 40, OrganizationId = 10, StartDate = DateTime.UtcNow.AddDays(5),
+            EndDate = DateTime.UtcNow.AddYears(1), LeaseAgreement = new LeaseAgreement
+            {
+                Id = 84, SignatureStatus = ESignatureStatus.Sent, DocuSignEnvelopeId = "envelope",
+                SignatureSentAt = DateTime.UtcNow
+            },
+            TenantLeases = [new TenantLease { TenantId = 81 }]
+        });
+        db.LeaseInstances.Add(new LeaseInstance
+        {
+            Id = 85, LeaseId = 83, LeaseTemplateId = 82, TemplateVersion = "1.0", IsFinalized = true,
+            GeneratedAt = DateTime.UtcNow, GeneratedBy = 20,
+            Documents = [new LeaseDocument { Id = 86, DocumentType = "PDF", BlobName = "lease.pdf", BlobUrl = "private", GeneratedBy = 20 }]
+        });
+        await db.SaveChangesAsync();
+        var before = await sut.GetForPropertyAsync(10, 20, 30, 40, default);
+
+        (await db.TenantLeases.SingleAsync()).TenantSignedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        var after = await sut.GetForPropertyAsync(10, 20, 30, 40, default);
+
+        after.ESignature!.SignedSignerCount.Should().Be(1);
+        after.Revision.Should().NotBe(before.Revision);
     }
 
     [Fact]

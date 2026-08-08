@@ -8,6 +8,6 @@ namespace brownstone_hub_api.Services.SmsService
         /// saves the message, and broadcasts via SignalR.
         /// Returns a TwiML response string.
         /// </summary>
-        Task<string> HandleInboundAsync(string fromPhone, string toPhone, string body);
+        Task<string> HandleInboundAsync(string fromPhone, string toPhone, string body, string providerMessageId);
     }
 }

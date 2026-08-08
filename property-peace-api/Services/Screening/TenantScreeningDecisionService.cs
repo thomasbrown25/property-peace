@@ -4,6 +4,7 @@ using System.Text.Json;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Domain.Screening;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Services.Timelines;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -31,11 +32,13 @@ public sealed class TenantScreeningDecisionService : ITenantScreeningDecisionSer
     private readonly IScreeningPropertyAuthority _propertyAuthority;
     private readonly ScreeningHostedWorkerOptions _retry;
     private readonly IScreeningIncidentRecorder _incidentRecorder;
+    private readonly IWorkflowTimelineIntegration? _workflowTimeline;
     public TenantScreeningDecisionService(DataContext db, IScreeningProviderGateway gateway, TimeProvider clock,
         IScreeningSupportAuthorization? supportAuthorization = null,
         IScreeningPropertyAuthority? propertyAuthority = null,
         IOptions<ScreeningHostedWorkerOptions>? retryOptions = null,
-        IScreeningIncidentRecorder? incidentRecorder = null)
+        IScreeningIncidentRecorder? incidentRecorder = null,
+        IWorkflowTimelineIntegration? workflowTimeline = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
@@ -44,6 +47,7 @@ public sealed class TenantScreeningDecisionService : ITenantScreeningDecisionSer
         _propertyAuthority = propertyAuthority ?? new ScreeningPropertyAuthority(db);
         _retry = retryOptions?.Value ?? new ScreeningHostedWorkerOptions();
         _incidentRecorder = incidentRecorder ?? new ScreeningIncidentRecorder(db, clock);
+        _workflowTimeline = workflowTimeline;
     }
 
     public async Task<ScreeningReportRevision> RecordReportRevisionAsync(RecordScreeningReportRevisionCommand command, CancellationToken cancellationToken = default)
@@ -100,6 +104,10 @@ public sealed class TenantScreeningDecisionService : ITenantScreeningDecisionSer
                 ApplyTransition(order, ScreeningStatus.Complete, command.ProviderOccurredAt, ScreeningTransitionSource.ProviderWebhook, "ReportReceived", null);
             await _db.SaveChangesAsync(cancellationToken);
         }, cancellationToken);
+        if (_workflowTimeline is not null)
+            await _workflowTimeline.RecordScreeningTransitionAsync(order.OrganizationId, order.RentalApplicationId,
+                order.Id, null, order.Status.ToString().ToLowerInvariant(),
+                $"Screening report {command.Status}", $"screening:{order.Id}:report:{revision.Revision}", cancellationToken);
         return revision;
     }
 
@@ -349,7 +357,12 @@ public sealed class TenantScreeningDecisionService : ITenantScreeningDecisionSer
             CreatedAt = _clock.GetUtcNow(), SupersedesScreeningRentalDecisionRevisionId = prior?.Id,
             IsFrozenByDispute = false, DisputeStatus = ScreeningDecisionDisputeStatus.None
         };
-        _db.ScreeningRentalDecisionRevisions.Add(decision); await _db.SaveChangesAsync(cancellationToken); return decision;
+        _db.ScreeningRentalDecisionRevisions.Add(decision); await _db.SaveChangesAsync(cancellationToken);
+        if (_workflowTimeline is not null)
+            await _workflowTimeline.RecordScreeningTransitionAsync(order.OrganizationId, order.RentalApplicationId,
+                order.Id, command.ActorUserId, $"decision-{command.Decision.ToString().ToLowerInvariant()}",
+                $"Screening decision recorded: {command.Decision}", $"screening:{order.Id}:decision:{decision.Revision}", cancellationToken);
+        return decision;
     }
 
     public async Task<ScreeningDispute> OpenDisputeAsync(ScreeningDisputeOpenCommand command, CancellationToken cancellationToken = default)

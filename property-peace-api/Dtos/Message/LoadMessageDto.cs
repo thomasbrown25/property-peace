@@ -30,6 +30,9 @@ namespace brownstone_hub_api.Dtos.Message
         public DateTime? ReadAt { get; set; }
         
         public DateTime CreatedAt { get; set; }
+
+        // Used by the request pipeline to suppress duplicate external side effects.
+        public bool WasReplayed { get; set; }
     }
 }
 

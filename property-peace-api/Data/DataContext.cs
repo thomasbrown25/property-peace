@@ -23,6 +23,8 @@ namespace brownstone_hub_api.Data
         public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
             RejectScreeningDeletionEvidenceMutation();
+            RejectAppendOnly<ConversationTimelineEntry>();
+            RejectInvalidMessageDeliveryEvidenceMutation();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
 
@@ -32,6 +34,8 @@ namespace brownstone_hub_api.Data
         public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
         {
             RejectScreeningDeletionEvidenceMutation();
+            RejectAppendOnly<ConversationTimelineEntry>();
+            RejectInvalidMessageDeliveryEvidenceMutation();
             var now = DateTime.Now;
 
             foreach (var entry in ChangeTracker.Entries<MaintenanceRequest>())
@@ -159,6 +163,19 @@ namespace brownstone_hub_api.Data
                 throw new InvalidOperationException($"{typeof(TEntity).Name} evidence is append-only.");
         }
 
+        private void RejectInvalidMessageDeliveryEvidenceMutation()
+        {
+            if (ChangeTracker.Entries<MessageDelivery>().Any(entry => entry.State == EntityState.Deleted))
+                throw new InvalidOperationException("Message delivery evidence cannot be deleted.");
+            RejectImmutableChanges<MessageDelivery>(
+                nameof(MessageDelivery.Status), nameof(MessageDelivery.Provider), nameof(MessageDelivery.ProviderMessageId),
+                nameof(MessageDelivery.AttemptCount), nameof(MessageDelivery.NextAttemptAtUtc),
+                nameof(MessageDelivery.ProcessingLeaseId), nameof(MessageDelivery.ProcessingLeaseUntilUtc),
+                nameof(MessageDelivery.ErrorCode), nameof(MessageDelivery.ErrorDetail),
+                nameof(MessageDelivery.SubmittedAtUtc), nameof(MessageDelivery.DeliveredAtUtc),
+                nameof(MessageDelivery.FailedAtUtc), nameof(MessageDelivery.UpdatedAtUtc), nameof(MessageDelivery.RowVersion));
+        }
+
         private void RejectImmutableChanges<TEntity>(params string[] mutableLifecycleProperties) where TEntity : class
         {
             var allowed = mutableLifecycleProperties.ToHashSet(StringComparer.Ordinal);
@@ -281,6 +298,13 @@ namespace brownstone_hub_api.Data
         public DbSet<Message> Messages => Set<Message>();
         public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
         public DbSet<MessageRead> MessageReads => Set<MessageRead>();
+        public DbSet<ConversationContextLink> ConversationContextLinks => Set<ConversationContextLink>();
+        public DbSet<ConversationTimelineEntry> ConversationTimelineEntries => Set<ConversationTimelineEntry>();
+        public DbSet<ConversationTimelineSequence> ConversationTimelineSequences => Set<ConversationTimelineSequence>();
+        public DbSet<MessageDelivery> MessageDeliveries => Set<MessageDelivery>();
+        public DbSet<ConversationReadWatermark> ConversationReadWatermarks => Set<ConversationReadWatermark>();
+        public DbSet<QuickReply> QuickReplies => Set<QuickReply>();
+        public DbSet<ConversationFollowUpTask> ConversationFollowUpTasks => Set<ConversationFollowUpTask>();
         public DbSet<OrganizationSmsNumber> OrganizationSmsNumbers => Set<OrganizationSmsNumber>();
 
         // Subscriptions

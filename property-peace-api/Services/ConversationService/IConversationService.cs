@@ -8,10 +8,10 @@ namespace brownstone_hub_api.Services.ConversationService
         Task<ServiceResponse<LoadConversationDto>> GetConversationById(long conversationId, long userId);
         Task<ServiceResponse<List<LoadConversationDto>>> GetConversationsByLandlordId(long landlordId, bool includeArchived = false);
         Task<ServiceResponse<List<LoadConversationDto>>> GetConversationsByParticipantUserId(long userId, bool includeArchived = false);
-        Task<ServiceResponse<LoadConversationDto>> UpdateConversation(long conversationId, AddConversationDto conversation);
-        Task<ServiceResponse<bool>> DeleteConversation(long conversationId);
-        Task<ServiceResponse<LoadConversationDto>> ArchiveConversation(long conversationId, bool archive);
-        Task<ServiceResponse<LoadConversationDto>> PinConversation(long conversationId, bool pin);
+        Task<ServiceResponse<LoadConversationDto>> UpdateConversation(long conversationId, AddConversationDto conversation, long actorUserId);
+        Task<ServiceResponse<bool>> DeleteConversation(long conversationId, long actorUserId);
+        Task<ServiceResponse<LoadConversationDto>> ArchiveConversation(long conversationId, bool archive, long actorUserId);
+        Task<ServiceResponse<LoadConversationDto>> PinConversation(long conversationId, bool pin, long actorUserId);
         Task<ServiceResponse<LoadConversationDto>> GetOrCreateTenantLandlordConversation(long tenantUserId);
         Task<ServiceResponse<List<LoadConversationDto>>> GetTenantConversations(long tenantUserId, bool includeArchived = false);
         Task<ServiceResponse<LoadConversationDto>> StartTenantConversation(long tenantUserId, long landlordUserId);

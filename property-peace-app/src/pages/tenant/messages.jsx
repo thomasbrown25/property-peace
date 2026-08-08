@@ -49,10 +49,14 @@ import axiosServices from 'utils/axios';
 import { formatMessageTime } from 'utils/formatters';
 import { addMessage, getMessages, markConversationAsRead } from 'store/message/message.action';
 import { selectMessageError, selectMessageLoading, selectMessages } from 'store/message/message.selector';
+import ConversationTimelinePanel from 'components/conversation/ConversationTimelinePanel';
+import ConversationQuickReplies from 'components/conversation/ConversationQuickReplies';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { getSendAttempt } from 'utils/clientRequestId';
 
 const FALLBACK_SMS_NUMBER = import.meta.env.VITE_TWILIO_SMS_NUMBER || '+198****0067';
 const MAX_MESSAGE_LENGTH = 2000;
-const QUICK_REPLIES = ['Thanks for the update.', 'I’ll take a look and get back to you.', 'Could you share a little more detail?'];
+
 const AVATAR_COLORS = ['#0f766e', '#2563eb', '#7c3aed', '#c2410c', '#0369a1', '#4f46e5'];
 
 function formatPhone(raw = '') {
@@ -111,6 +115,7 @@ function getConversationPropertyLine(conversation) {
 export default function TenantMessages() {
   const dispatch = useDispatch();
   const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isDarkMode = theme.palette.mode === 'dark';
@@ -137,10 +142,13 @@ export default function TenantMessages() {
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const sendAttemptRef = useRef(null);
 
   const selectedConversationId = selectedConversation?.id;
   const messageInput = selectedConversationId ? messageDrafts[String(selectedConversationId)] || '' : '';
   const userId = user?.Id || user?.id;
+  const quickReplyOrganizationId = selectedConversation?.organizationId ?? selectedConversation?.OrganizationId
+    ?? currentOrganization?.id ?? currentOrganization?.Id ?? null;
   const messagesDivider = isDarkMode ? alpha(theme.palette.primary.main, 0.2) : alpha(theme.palette.divider, 0.9);
   const messagesCardBorder = isDarkMode ? alpha(theme.palette.primary.main, 0.26) : alpha(theme.palette.divider, 0.92);
   const panelShadow = isDarkMode ? `0 16px 40px ${alpha('#020617', 0.3)}` : '0 18px 46px rgba(15, 23, 42, 0.07)';
@@ -220,8 +228,10 @@ export default function TenantMessages() {
     const conversationId = selectedConversation?.id;
     const messageContent = messageInput.trim();
     if (!messageContent || !conversationId || sendingMessage) return;
+    const attempt = getSendAttempt(sendAttemptRef.current, conversationId, messageContent);
+    sendAttemptRef.current = attempt;
 
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const tempId = `temp-${attempt.clientRequestId}`;
     const optimisticMessage = {
       id: tempId,
       conversationId,
@@ -238,8 +248,9 @@ export default function TenantMessages() {
 
     try {
       setSendingMessage(true);
-      const result = await dispatch(addMessage({ conversationId, content: messageContent }));
+      const result = await dispatch(addMessage({ conversationId, content: messageContent, clientRequestId: attempt.clientRequestId }));
       if (!result?.success) throw new Error(result?.error || 'Message could not be sent');
+      sendAttemptRef.current = null;
       await dispatch(getMessages(conversationId));
       await refreshConversations();
     } catch (_) {
@@ -549,6 +560,8 @@ export default function TenantMessages() {
                   </Stack>
                 </Box>
 
+                <ConversationTimelinePanel conversationId={selectedConversation.id} />
+
                 <Box
                   ref={messagesContainerRef}
                   sx={{
@@ -643,13 +656,13 @@ export default function TenantMessages() {
 
                 <Box sx={{ px: { xs: 1.25, sm: 2 }, pt: 1.25, pb: { xs: 'max(12px, env(safe-area-inset-bottom))', sm: 1.5 }, borderTop: `1px solid ${messagesDivider}`, bgcolor: 'background.paper', flexShrink: 0 }}>
                   {sendError && <Alert severity="error" sx={{ mb: 1 }} onClose={() => setSendError('')}>{sendError}</Alert>}
-                  {!messageInput && (
-                    <Box sx={{ display: 'flex', gap: 0.75, overflowX: 'auto', pb: 1, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
-                      {QUICK_REPLIES.map((reply) => (
-                        <Chip key={reply} label={reply} variant="outlined" onClick={() => setConversationDraft(selectedConversationId, reply)} sx={{ flexShrink: 0, maxWidth: { xs: 240, sm: 'none' }, borderRadius: 2, bgcolor: 'background.paper', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }} />
-                      ))}
-                    </Box>
-                  )}
+                  <ConversationQuickReplies
+                    conversation={selectedConversation}
+                    organizationId={quickReplyOrganizationId}
+                    userId={userId}
+                    hidden={Boolean(messageInput)}
+                    onSelect={(reply) => setConversationDraft(selectedConversationId, reply)}
+                  />
                   <Paper
                     elevation={0}
                     sx={{

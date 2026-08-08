@@ -278,8 +278,29 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
                 x.LeaseAgreement == null ? null : x.LeaseAgreement.SignatureStatus,
                 x.LeaseAgreement == null ? null : x.LeaseAgreement.SignatureSentAt,
                 x.LeaseAgreement == null ? null : x.LeaseAgreement.SignatureCompletedAt,
-                x.LeaseAgreement == null ? null : x.LeaseAgreement.SignatureExpiresAt))
+                x.LeaseAgreement == null ? null : x.LeaseAgreement.SignatureExpiresAt,
+                x.LeaseAgreement != null && x.LeaseAgreement.DocuSignEnvelopeId != null &&
+                    x.LeaseAgreement.DocuSignEnvelopeId != "",
+                x.LeaseAgreement == null ? null : x.LeaseAgreement.LandlordSignedAt,
+                x.LeaseAgreement != null && x.LeaseAgreement.SignedDocumentBlobName != null &&
+                    x.LeaseAgreement.SignedDocumentBlobName != ""))
             .FirstOrDefaultAsync(ct);
+
+        var documentFact = lease is null
+            ? null
+            : await (from instance in db.LeaseInstances.AsNoTracking()
+                     from document in instance.Documents
+                     where instance.LeaseId == lease.Id && instance.IsFinalized
+                     orderby document.GeneratedAt descending, document.Id descending
+                     select new DocumentFact(instance.LeaseTemplate.Name, document.DocumentType, document.GeneratedAt))
+                .FirstOrDefaultAsync(ct);
+        var signerFact = lease is null
+            ? null
+            : await db.TenantLeases.AsNoTracking()
+                .Where(x => x.LeaseId == lease.Id)
+                .GroupBy(_ => 1)
+                .Select(group => new SignerFact(group.Count(), group.Count(x => x.TenantSignedAt != null)))
+                .FirstOrDefaultAsync(ct) ?? new SignerFact(0, 0);
 
         var persistedEvent = await db.UnitLifecycleEvents.AsNoTracking()
             .Where(x => x.OrganizationId == org && x.PropertyId == propertyId && x.UnitId == unitId)
@@ -325,6 +346,20 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
         var outputEvent = proposedEvent is null ? latestEvent : null;
         var refs = new LifecycleReferencesDto(listing?.Id, application?.Id, lease?.Id, invite?.Id, outputEvent?.Id);
         var records = RelevantRecords(listing, application, lease, invite, outputEvent, now);
+        var leaseDocument = documentFact is null
+            ? null
+            : new LeaseDocumentSummaryDto(SafeDocumentName(documentFact.Name), SafeDocumentType(documentFact.Type),
+                lease is { HasSignedDocument: true } && lease.SignatureCompletedAt is DateTime completedAt
+                    ? completedAt
+                    : documentFact.GeneratedAt,
+                lease is { HasSignedDocument: true });
+        var eSignature = lease is not { HasDocuSignEnvelope: true }
+            ? null
+            : new ESignatureSummaryDto("docusign",
+                lease.SignatureStatus is null ? "notSent" : Wire(lease.SignatureStatus.Value),
+                (signerFact?.SignedTenantCount ?? 0) + (lease.LandlordSignedAt is null ? 0 : 1),
+                (signerFact?.TenantCount ?? 0) + 1,
+                lease.SignatureSentAt, lease.SignatureCompletedAt, lease.SignatureExpiresAt);
         var action = projection.Action is null
             ? null
             : projection.Action with { Data = ActionData(projection.Action.Code, propertyId, unitId, refs) };
@@ -337,11 +372,11 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
         var canonicalRecords = records.Where(x => x.Type != "event").ToArray();
         var canonicalEvent = latestEvent is null ? null : EventRevisionFact.From(latestEvent, projection.Stage);
         var canonical = new RevisionCanonical(propertyId, unitId, projection.Stage, projection.Stages,
-            projection.Blocker, action, canonicalRefs, canonicalRecords, facts, listing, invite, application, lease,
-            canonicalEvent, unitOccupied, terminalApp);
+            projection.Blocker, action, canonicalRefs, canonicalRecords, leaseDocument, eSignature, facts, listing, invite,
+            application, lease, canonicalEvent, unitOccupied, terminalApp);
         var revision = Hash(JsonSerializer.Serialize(canonical, LeasingPipelineJson.Options));
         return new LeasingPipelineDto(propertyId, unitId, projection.Stage, projection.Stages, projection.Blocker,
-            action, refs, records, revision, now);
+            action, refs, records, leaseDocument, eSignature, revision, now);
     }
 
     private static IReadOnlyList<LifecycleRecordDto> RelevantRecords(ListingFact? listing,
@@ -504,6 +539,20 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
         return data;
     }
 
+    private static string SafeDocumentName(string? value)
+    {
+        var normalized = string.Concat((value ?? string.Empty).Where(character => !char.IsControl(character))).Trim();
+        if (normalized.Length == 0) return "Lease Agreement";
+        return normalized.Length <= 120 ? normalized : normalized[..120];
+    }
+
+    private static string SafeDocumentType(string? value) => value?.Trim().ToLowerInvariant() switch
+    {
+        "pdf" => "pdf",
+        "docx" => "docx",
+        _ => "document"
+    };
+
     private static string Wire<T>(T value) where T : struct, Enum
     {
         var text = value.ToString();
@@ -530,7 +579,10 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
         long? ConvertedToLeaseId);
     private sealed record LeaseFact(long Id, bool IsActive, DateTime? StartDate, DateTime? EndDate,
         DateTime? UpdatedAt, long? AgreementId, ESignatureStatus? SignatureStatus, DateTime? SignatureSentAt,
-        DateTime? SignatureCompletedAt, DateTime? SignatureExpiresAt);
+        DateTime? SignatureCompletedAt, DateTime? SignatureExpiresAt, bool HasDocuSignEnvelope,
+        DateTime? LandlordSignedAt, bool HasSignedDocument);
+    private sealed record DocumentFact(string? Name, string? Type, DateTime GeneratedAt);
+    private sealed record SignerFact(int TenantCount, int SignedTenantCount);
     private sealed record EventFact(long Id, UnitLifecycleEventType EventType, DateTime? ScheduledAtUtc,
         DateTime OccurredAtUtc, string RequestHash, string? Reason, string PreviousRevision,
         LeasingLifecycleStage PreviousStage, LeasingLifecycleStage ResultingStage)
@@ -554,7 +606,8 @@ public sealed class LeasingPipelineService : ILeasingPipelineService
     private sealed record RevisionCanonical(long PropertyId, long UnitId, LeasingLifecycleStage CurrentStage,
         IReadOnlyList<LifecycleStageDescriptorDto> Stages, LifecycleBlockerDto? Blocker,
         LifecycleActionDto? PrimaryAction, LifecycleReferencesDto References,
-        IReadOnlyList<LifecycleRecordDto> RelevantRecords, LeasingPipelineFacts DecisionFacts,
+        IReadOnlyList<LifecycleRecordDto> RelevantRecords, LeaseDocumentSummaryDto? LeaseDocument,
+        ESignatureSummaryDto? ESignature, LeasingPipelineFacts DecisionFacts,
         ListingFact? Listing, InviteFact? Invite, ApplicationFact? Application, LeaseFact? Lease,
         EventRevisionFact? Event, bool UnitOccupied, bool HasTerminalApplication);
 }

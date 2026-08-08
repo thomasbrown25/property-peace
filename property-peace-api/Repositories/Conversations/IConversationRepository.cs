@@ -9,10 +9,10 @@ namespace brownstone_hub_api.Repositories.Conversations
         Task<List<LoadConversationDto>> GetConversationsByLandlordId(long landlordId, bool includeArchived = false);
         Task<List<LoadConversationDto>> GetConversationsByOrganizationId(long organizationId, bool includeArchived = false, long? landlordId = null);
         Task<List<LoadConversationDto>> GetConversationsByParticipantUserId(long userId, bool includeArchived = false);
-        Task<LoadConversationDto> UpdateConversation(long conversationId, AddConversationDto conversation);
-        Task<bool> DeleteConversation(long conversationId);
-        Task<LoadConversationDto> ArchiveConversation(long conversationId, bool archive);
-        Task<LoadConversationDto> PinConversation(long conversationId, bool pin);
+        Task<LoadConversationDto> UpdateConversation(long conversationId, AddConversationDto conversation, long actorUserId);
+        Task<bool> DeleteConversation(long conversationId, long actorUserId);
+        Task<LoadConversationDto> ArchiveConversation(long conversationId, bool archive, long actorUserId);
+        Task<LoadConversationDto> PinConversation(long conversationId, bool pin, long actorUserId);
         Task<int> GetUnreadCount(long conversationId, long userId);
         Task<LoadConversationDto> GetOrCreateTenantLandlordConversation(long tenantUserId);
         Task<List<LoadConversationDto>> GetConversationsByTenantUserId(long tenantUserId, bool includeArchived = false);

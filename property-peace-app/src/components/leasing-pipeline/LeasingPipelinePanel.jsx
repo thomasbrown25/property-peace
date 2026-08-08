@@ -3,7 +3,13 @@ import { CheckOutlined, ClockCircleOutlined, RightOutlined } from '@ant-design/i
 import { useNavigate } from 'react-router-dom';
 
 import useLeasingPipeline from 'hooks/useLeasingPipeline';
-import { getPipelineStages, getSafeBlockerMessage, getSafePrimaryAction, runLeasingPrimaryAction } from 'utils/leasingPipeline';
+import {
+  getPipelineStages,
+  getSafeBlockerMessage,
+  getSafeESignatureDetails,
+  getSafePrimaryAction,
+  runLeasingPrimaryAction
+} from 'utils/leasingPipeline';
 
 export function PipelineSkeleton() {
   return (
@@ -17,6 +23,10 @@ export function PipelineSkeleton() {
     </Card>
   );
 }
+
+const formatDetailDate = (value) => value
+  ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value))
+  : null;
 
 export default function LeasingPipelinePanel({ resourceType, resourceId, unitId, title = 'Leasing progress', onCreateListing, onCreateLease }) {
   const theme = useTheme();
@@ -54,6 +64,7 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
 
   const blocker = getSafeBlockerMessage(pipeline.blocker);
   const action = getSafePrimaryAction(pipeline.primaryAction, pipeline.currentStage, pipeline.references);
+  const eSignatureDetails = getSafeESignatureDetails(pipeline);
   const handleStageScrollKeys = (event) => {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
@@ -123,6 +134,53 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
             })}
           </Box>
         </Box>
+
+        {eSignatureDetails && (
+          <Box
+            role="group"
+            aria-label="Electronic signature details"
+            sx={{
+              mt: 1.25, p: 1.25, borderRadius: 1.25, border: '1px solid', borderColor: 'divider',
+              bgcolor: alpha(theme.palette.primary.main, 0.035),
+              display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(180px, 2fr) repeat(2, minmax(110px, 1fr))' },
+              gap: { xs: 1, sm: 1.5 }
+            }}
+          >
+            {eSignatureDetails.documentName && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>Document</Typography>
+                <Typography variant="body2" fontWeight={700}>
+                  {eSignatureDetails.documentName} ({eSignatureDetails.documentType})
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {eSignatureDetails.isSignedCopy ? 'Signed copy' : 'Generated'} {formatDetailDate(eSignatureDetails.documentGeneratedAt)}
+                </Typography>
+              </Box>
+            )}
+            {eSignatureDetails.providerLabel && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>Provider</Typography>
+                <Typography variant="body2" fontWeight={700}>{eSignatureDetails.providerLabel}</Typography>
+                {eSignatureDetails.sentAt && (
+                  <Typography variant="caption" color="text.secondary">Sent {formatDetailDate(eSignatureDetails.sentAt)}</Typography>
+                )}
+              </Box>
+            )}
+            {eSignatureDetails.requiredSignerCount != null && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>Signatures</Typography>
+                <Typography variant="body2" fontWeight={700}>
+                  {eSignatureDetails.signedSignerCount} of {eSignatureDetails.requiredSignerCount} signed
+                </Typography>
+                {eSignatureDetails.completedAt ? (
+                  <Typography variant="caption" color="text.secondary">Completed {formatDetailDate(eSignatureDetails.completedAt)}</Typography>
+                ) : eSignatureDetails.expiresAt ? (
+                  <Typography variant="caption" color="text.secondary">Expires {formatDetailDate(eSignatureDetails.expiresAt)}</Typography>
+                ) : null}
+              </Box>
+            )}
+          </Box>
+        )}
 
         {blocker && <Alert severity="warning" sx={{ mt: 1.25, py: 0, '& .MuiAlert-message': { fontSize: '0.78rem' } }}><strong>Next step blocked:</strong> {blocker}</Alert>}
       </CardContent>

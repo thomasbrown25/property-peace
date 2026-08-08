@@ -11,7 +11,8 @@ import {
   buildLeasingPipelineKey,
   isLeasingPipelineKeyForTenant,
   buildApprovedApplicationLeaseContext,
-  runLeasingPrimaryAction
+  runLeasingPrimaryAction,
+  getSafeESignatureDetails
 } from './leasingPipeline.js';
 
 const descriptors = LEASING_STAGE_ORDER.map((stage, order) => ({
@@ -199,4 +200,36 @@ test('routes create actions through provided callbacks while preserving navigati
   assert.equal(runLeasingPrimaryAction('createLease', { navigate: callbacks.navigate }, '/landlord/leases/selection'), true);
   assert.equal(calls.at(-1), '/landlord/leases/selection');
   assert.equal(runLeasingPrimaryAction('reviewLease', callbacks, 'javascript:alert(1)'), false);
+});
+
+test('returns only verified bounded e-sign document and provider details', () => {
+  const pipeline = {
+    currentStage: 'signaturePending',
+    leaseDocument: {
+      name: 'Residential Lease Agreement', type: 'pdf', generatedAt: '2026-08-08T10:00:00Z', isSignedCopy: false
+    },
+    eSignature: {
+      provider: 'docusign', status: 'partiallySigned', signedSignerCount: 2, requiredSignerCount: 3,
+      sentAt: '2026-08-08T11:00:00Z', completedAt: null, expiresAt: '2026-09-07T11:00:00Z'
+    }
+  };
+
+  assert.deepEqual(getSafeESignatureDetails(pipeline), {
+    documentName: 'Residential Lease Agreement', documentType: 'PDF', documentGeneratedAt: '2026-08-08T10:00:00Z',
+    isSignedCopy: false, providerLabel: 'DocuSign', status: 'partiallySigned', signedSignerCount: 2,
+    requiredSignerCount: 3, sentAt: '2026-08-08T11:00:00Z', completedAt: null,
+    expiresAt: '2026-09-07T11:00:00Z'
+  });
+});
+
+test('e-sign detail fails closed for unknown providers, invalid counts, unsafe names, and malformed dates', () => {
+  const validDocument = { name: 'Lease Agreement', type: 'pdf', generatedAt: '2026-08-08T10:00:00Z', isSignedCopy: false };
+  const validSignature = {
+    provider: 'docusign', status: 'sent', signedSignerCount: 0, requiredSignerCount: 2,
+    sentAt: '2026-08-08T11:00:00Z', completedAt: null, expiresAt: null
+  };
+  assert.equal(getSafeESignatureDetails({ leaseDocument: validDocument, eSignature: { ...validSignature, provider: 'other' } }), null);
+  assert.equal(getSafeESignatureDetails({ leaseDocument: validDocument, eSignature: { ...validSignature, signedSignerCount: 3 } }), null);
+  assert.equal(getSafeESignatureDetails({ leaseDocument: { ...validDocument, name: 'x'.repeat(121) }, eSignature: validSignature }), null);
+  assert.equal(getSafeESignatureDetails({ leaseDocument: validDocument, eSignature: { ...validSignature, sentAt: 'yesterday' } }), null);
 });

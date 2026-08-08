@@ -70,6 +70,7 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import LeasingPipelinePanel from 'components/leasing-pipeline/LeasingPipelinePanel';
+import ConversationTimelinePanel from 'components/conversation/ConversationTimelinePanel';
 import { buildApprovedApplicationLeaseContext, isLeasingPipelineKeyForTenant } from 'utils/leasingPipeline';
 import { createApplicationRequestGuard, getPositiveApplicationId, makeApplicationLoadScope } from 'utils/applicationCollection';
 
@@ -1007,6 +1008,10 @@ export default function ApplicationsPage({ hideHeader = false }) {
           {selectedApplication && (
             <Box sx={{ mt: 1, mb: 2 }}>
               <LeasingPipelinePanel resourceType="application" resourceId={selectedApplication?.id ?? selectedApplication?.Id} onCreateLease={handleCreateLease} />
+              <ConversationTimelinePanel
+                contextKind="rentalApplication"
+                contextId={selectedApplication?.id ?? selectedApplication?.Id}
+              />
             </Box>
           )}
           {selectedApplication && (

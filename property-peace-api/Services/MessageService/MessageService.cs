@@ -4,6 +4,8 @@ using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.MessageAnalysisService;
 using brownstone_hub_api.Services.ActionSuppressionService;
+using brownstone_hub_api.Models;
+using brownstone_hub_api.Repositories.Timelines;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 
@@ -44,9 +46,9 @@ namespace brownstone_hub_api.Services.MessageService
 
                 var result = await _messageRepository.AddMessage(message, senderId.Value);
                 
-                // Trigger AI analysis in background (fire-and-forget)
+                // Trigger AI analysis only for a newly persisted message.
                 // Use a new scope to avoid DbContext disposal issues
-                if (_messageAnalysisService != null)
+                if (_messageAnalysisService != null && !result.WasReplayed)
                 {
                     var conversationId = message.ConversationId; // Capture for closure
                     _ = Task.Run(async () =>
@@ -120,6 +122,20 @@ namespace brownstone_hub_api.Services.MessageService
                 
                 return ServiceResponse<LoadMessageDto>.CreateSuccess(result, "Message sent successfully");
             }
+            catch (TimelineIdempotencyConflictException ex)
+            {
+                return ServiceResponse<LoadMessageDto>.CreateError(
+                    "Message request conflicts with a prior request",
+                    ex.Message,
+                    statusCode: 409);
+            }
+            catch (KeyNotFoundException)
+            {
+                return ServiceResponse<LoadMessageDto>.CreateError(
+                    "Conversation not found",
+                    "The conversation is unavailable",
+                    statusCode: 404);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding message");
@@ -131,7 +147,11 @@ namespace brownstone_hub_api.Services.MessageService
         {
             try
             {
-                var result = await _messageRepository.GetMessageById(messageId);
+                var actorUserId = await GetCurrentUserIdAsync();
+                if (!actorUserId.HasValue)
+                    return ServiceResponse<LoadMessageDto>.CreateError("User not found", "User not authenticated", statusCode: 401);
+
+                var result = await _messageRepository.GetMessageById(messageId, actorUserId.Value);
                 if (result == null)
                     return ServiceResponse<LoadMessageDto>.CreateError("Message not found", $"No message found with ID {messageId}", statusCode: 404);
 
@@ -157,6 +177,13 @@ namespace brownstone_hub_api.Services.MessageService
                 var result = await _messageRepository.GetMessagesByConversationId(conversationId, user.Id, skip, take);
                 return ServiceResponse<List<LoadMessageDto>>.CreateSuccess(result);
             }
+            catch (KeyNotFoundException)
+            {
+                return ServiceResponse<List<LoadMessageDto>>.CreateError(
+                    "Conversation not found",
+                    "The conversation is unavailable",
+                    statusCode: 404);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving messages for conversation {ConversationId}", conversationId);
@@ -168,7 +195,11 @@ namespace brownstone_hub_api.Services.MessageService
         {
             try
             {
-                var result = await _messageRepository.UpdateMessage(messageId, content);
+                var actorUserId = await GetCurrentUserIdAsync();
+                if (!actorUserId.HasValue)
+                    return ServiceResponse<LoadMessageDto>.CreateError("User not found", "User not authenticated", statusCode: 401);
+
+                var result = await _messageRepository.UpdateMessage(messageId, content, actorUserId.Value);
                 return ServiceResponse<LoadMessageDto>.CreateSuccess(result, "Message updated successfully");
             }
             catch (KeyNotFoundException)
@@ -186,11 +217,17 @@ namespace brownstone_hub_api.Services.MessageService
         {
             try
             {
-                // Get message to find conversationId before deleting
-                var message = await _messageRepository.GetMessageById(messageId);
+                var actorUserId = await GetCurrentUserIdAsync();
+                if (!actorUserId.HasValue)
+                    return ServiceResponse<bool>.CreateError("User not found", "User not authenticated", statusCode: 401);
+
+                // Get the authorized message to find conversationId before deleting.
+                var message = await _messageRepository.GetMessageById(messageId, actorUserId.Value);
                 var conversationId = message?.ConversationId;
 
-                var result = await _messageRepository.DeleteMessage(messageId);
+                var result = await _messageRepository.DeleteMessage(messageId, actorUserId.Value);
+                if (!result)
+                    return ServiceResponse<bool>.CreateError("Message not found", $"No message found with ID {messageId}", statusCode: 404);
                 
                 // If message deletion succeeded and we have a conversationId, delete related suppressions
                 if (result && conversationId.HasValue && _actionSuppressionService != null)
@@ -228,6 +265,13 @@ namespace brownstone_hub_api.Services.MessageService
                 await _messageRepository.MarkMessageAsRead(messageId, user.Id);
                 return ServiceResponse<bool>.CreateSuccess(true, "Message marked as read");
             }
+            catch (KeyNotFoundException)
+            {
+                return ServiceResponse<bool>.CreateError(
+                    "Message not found",
+                    "The message is unavailable",
+                    statusCode: 404);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error marking message {MessageId} as read", messageId);
@@ -247,6 +291,13 @@ namespace brownstone_hub_api.Services.MessageService
 
                 await _messageRepository.MarkConversationAsRead(conversationId, user.Id);
                 return ServiceResponse<bool>.CreateSuccess(true, "Conversation marked as read");
+            }
+            catch (KeyNotFoundException)
+            {
+                return ServiceResponse<bool>.CreateError(
+                    "Conversation not found",
+                    "The conversation is unavailable",
+                    statusCode: 404);
             }
             catch (Exception ex)
             {

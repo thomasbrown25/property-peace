@@ -8,6 +8,7 @@
     "android": "npx expo start --android --tunnel",
     "ios": "npx expo start --ios --tunnel",
     "web": "npx expo start --web",
+    "test:messages": "node --experimental-strip-types --test scripts/messages-parity.test.mjs",
     "test:ios-compliance": "node scripts/verify-ios-compliance.mjs"
   },
   "dependencies": {

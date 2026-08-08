@@ -1,10 +1,13 @@
 using brownstone_hub_api.Dtos.Conversation;
+using brownstone_hub_api.Dtos.Timeline;
 using brownstone_hub_api.Dtos.ActionSuppression;
 using brownstone_hub_api.Services.ConversationService;
 using brownstone_hub_api.Services.MessageAnalysisService;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Services.ActionSuppressionService;
 using brownstone_hub_api.Repositories.Messages;
+using brownstone_hub_api.Repositories.Timelines;
+using brownstone_hub_api.Services.Timelines;
 using brownstone_hub_api.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,6 +25,7 @@ namespace brownstone_hub_api.Controllers
         IMessageAnalysisService? messageAnalysisService,
         IActionSuppressionService actionSuppressionService,
         IMessageRepository messageRepository,
+        IMilestone7ConversationService milestone7Service,
         ILogger<ConversationController> logger) : ControllerBase
     {
         private readonly IConversationService _conversationService = conversationService;
@@ -29,23 +33,25 @@ namespace brownstone_hub_api.Controllers
         private readonly IMessageAnalysisService? _messageAnalysisService = messageAnalysisService;
         private readonly IActionSuppressionService _actionSuppressionService = actionSuppressionService;
         private readonly IMessageRepository _messageRepository = messageRepository;
+        private readonly IMilestone7ConversationService _milestone7Service = milestone7Service;
         private readonly ILogger<ConversationController> _logger = logger;
 
         private async Task<long> GetLandlordIdAsync()
         {
             // Try to get user ID directly from claims first
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(userIdClaim) && long.TryParse(userIdClaim, out var userId))
-            {
-                return userId;
-            }
+            var nameIdentifier = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (long.TryParse(nameIdentifier, out var userId) && userId > 0) return userId;
+            if (long.TryParse(userIdClaim, out userId) && userId > 0) return userId;
 
-            // If user ID not in claims, get email from "sub" claim (JWT standard)
-            var email = User.FindFirst("sub")?.Value;
+            // Numeric actor resolution is consistent with SignalR: NameIdentifier, userId, then sub.
+            var subject = User.FindFirst("sub")?.Value;
+            if (long.TryParse(subject, out userId) && userId > 0) return userId;
+            var email = subject;
             if (string.IsNullOrEmpty(email))
             {
                 // Fallback to NameIdentifier (might be email in some cases)
-                email = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                email = nameIdentifier;
             }
             if (string.IsNullOrEmpty(email))
             {
@@ -201,7 +207,9 @@ namespace brownstone_hub_api.Controllers
         [HttpPut("{conversationId}")]
         public async Task<IActionResult> UpdateConversation(long conversationId, [FromBody] AddConversationDto conversation)
         {
-            var response = await _conversationService.UpdateConversation(conversationId, conversation);
+            var actorUserId = await GetLandlordIdAsync();
+            if (actorUserId == 0) return Unauthorized();
+            var response = await _conversationService.UpdateConversation(conversationId, conversation, actorUserId);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -213,7 +221,9 @@ namespace brownstone_hub_api.Controllers
         [HttpDelete("{conversationId}")]
         public async Task<IActionResult> DeleteConversation(long conversationId)
         {
-            var response = await _conversationService.DeleteConversation(conversationId);
+            var actorUserId = await GetLandlordIdAsync();
+            if (actorUserId == 0) return Unauthorized();
+            var response = await _conversationService.DeleteConversation(conversationId, actorUserId);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -225,7 +235,9 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("{conversationId}/archive")]
         public async Task<IActionResult> ArchiveConversation(long conversationId, [FromBody] bool archive)
         {
-            var response = await _conversationService.ArchiveConversation(conversationId, archive);
+            var actorUserId = await GetLandlordIdAsync();
+            if (actorUserId == 0) return Unauthorized();
+            var response = await _conversationService.ArchiveConversation(conversationId, archive, actorUserId);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -237,7 +249,9 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("{conversationId}/pin")]
         public async Task<IActionResult> PinConversation(long conversationId, [FromBody] bool pin)
         {
-            var response = await _conversationService.PinConversation(conversationId, pin);
+            var actorUserId = await GetLandlordIdAsync();
+            if (actorUserId == 0) return Unauthorized();
+            var response = await _conversationService.PinConversation(conversationId, pin, actorUserId);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -340,8 +354,16 @@ namespace brownstone_hub_api.Controllers
             // If we have a messageId, we can clear by matching message content even if urgentItemId is empty
             if (!string.IsNullOrEmpty(urgentItemId) || messageId.HasValue)
             {
+                // Reject a message ID unless it belongs to this authorized conversation and organization
+                // before mutating conversation analysis or creating suppression evidence.
+                if (messageId.HasValue && !await _messageRepository.SetMessageUrgent(
+                        messageId.Value, false, conversationId, organizationId.Value, userId))
+                {
+                    return NotFound(new { message = "Message not found" });
+                }
+
                 // Clear only the specific urgent item
-                _logger.LogInformation("Clearing urgent item {UrgentItemId} for conversation {ConversationId}, message {MessageId}", 
+                _logger.LogInformation("Clearing urgent item {UrgentItemId} for conversation {ConversationId}, message {MessageId}",
                     urgentItemId, conversationId, request?.MessageId);
                 
                 var updateResponse = await _conversationService.ClearSpecificUrgentItemAsync(conversationId, urgentItemId, request?.MessageId);
@@ -358,17 +380,8 @@ namespace brownstone_hub_api.Controllers
                     _logger.LogInformation("Creating suppression for message {MessageId} in conversation {ConversationId}, organization {OrganizationId}, user {UserId}", 
                         messageId.Value, conversationId, organizationId.Value, userId);
                     
-                    // Set IsUrgent = false on the message
-                    try
-                    {
-                        await _messageRepository.SetMessageUrgent(messageId.Value, false);
-                        _logger.LogInformation("Set message {MessageId} IsUrgent to false", messageId.Value);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to set message {MessageId} IsUrgent to false", messageId.Value);
-                    }
-                    
+                    _logger.LogInformation("Message {MessageId} urgency was cleared within authorized scope", messageId.Value);
+
                     var suppressionDto = new AddActionSuppressionDto
                     {
                         ActionType = "urgentMessage",
@@ -421,22 +434,14 @@ namespace brownstone_hub_api.Controllers
             }
             else
             {
-                // Clear all urgent items (original behavior)
-                // Set IsUrgent = false on all messages in the conversation
-                try
+                // Clear only within the actor's authorized conversation and request organization.
+                if (!await _messageRepository.SetConversationUrgent(
+                        conversationId, false, organizationId.Value, userId))
                 {
-                    var messages = await _messageRepository.GetMessagesByConversationId(conversationId, userId, 0, 1000);
-                    foreach (var message in messages.Where(m => m.IsUrgent))
-                    {
-                        await _messageRepository.SetMessageUrgent(message.Id, false);
-                    }
-                    _logger.LogInformation("Set all urgent messages in conversation {ConversationId} to not urgent", conversationId);
+                    return NotFound(new { message = "Conversation not found" });
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to set messages to not urgent for conversation {ConversationId}", conversationId);
-                }
-                
+                _logger.LogInformation("Set all urgent messages in conversation {ConversationId} to not urgent", conversationId);
+
                 // Create a permanent suppression (null SuppressedUntil) for this conversation's urgent messages
                 var suppressionDto = new AddActionSuppressionDto
                 {
@@ -537,7 +542,119 @@ namespace brownstone_hub_api.Controllers
                 return StatusCode(500, new { message = "Error getting urgent message details", error = ex.Message });
             }
         }
+        [HttpGet("{conversationId:long}/timeline")]
+        public async Task<IActionResult> GetTimeline(long conversationId, [FromQuery] long? afterSequence = null, [FromQuery] int take = 50) =>
+            await M7(async userId => await _milestone7Service.ReadTimelineAsync(conversationId, userId, afterSequence, take));
+
+        [HttpGet("timeline/search")]
+        public async Task<IActionResult> SearchTimeline([FromQuery] TimelineSearchRequest request) =>
+            await M7(async userId => await _milestone7Service.SearchAsync(userId, request));
+
+        [HttpGet("{conversationId:long}/unread")]
+        public async Task<IActionResult> GetUnread(long conversationId) =>
+            await M7(async userId => await _milestone7Service.GetUnreadAsync(conversationId, userId));
+
+        [HttpPost("{conversationId:long}/read")]
+        public async Task<IActionResult> MarkRead(long conversationId, [FromBody] MarkTimelineReadRequest request) =>
+            await M7(async userId => await _milestone7Service.MarkReadAsync(conversationId, userId, request.ThroughSequence));
+
+        [HttpGet("quick-replies")]
+        public async Task<IActionResult> ListQuickReplies([FromQuery] long organizationId, [FromQuery] string? contextKind = null) =>
+            await M7(async userId => await _milestone7Service.ListQuickRepliesAsync(userId, organizationId, contextKind));
+
+        [HttpPost("quick-replies")]
+        public async Task<IActionResult> CreateQuickReply([FromBody] SaveQuickReplyRequest request) =>
+            await M7(async userId => await _milestone7Service.CreateQuickReplyAsync(userId, request));
+
+        [HttpPut("quick-replies/{id:long}")]
+        public async Task<IActionResult> UpdateQuickReply(long id, [FromBody] SaveQuickReplyRequest request) =>
+            await M7(async userId => await _milestone7Service.UpdateQuickReplyAsync(userId, id, request));
+
+        [HttpDelete("quick-replies/{id:long}")]
+        public async Task<IActionResult> DeleteQuickReply(long id) => await M7(async userId =>
+        {
+            await _milestone7Service.DeleteQuickReplyAsync(userId, id);
+            return new { deleted = true };
+        });
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("groups/participants")]
+        public async Task<IActionResult> DiscoverGroupParticipants([FromQuery] long organizationId) =>
+            await M7(async userId => await _milestone7Service.DiscoverParticipantsAsync(userId, organizationId));
+
+        [HttpPost("groups")]
+        public async Task<IActionResult> CreateGroup([FromBody] CreateGroupRequest request) =>
+            await M7(async userId => await _milestone7Service.CreateGroupAsync(userId, request));
+
+        [HttpPost("groups/{conversationId:long}/participants/{participantUserId:long}")]
+        public async Task<IActionResult> AddGroupParticipant(long conversationId, long participantUserId) => await M7(async userId =>
+        {
+            await _milestone7Service.AddGroupParticipantAsync(userId, conversationId, participantUserId);
+            return new { added = true };
+        });
+
+        [HttpDelete("groups/{conversationId:long}/participants/{participantUserId:long}")]
+        public async Task<IActionResult> RemoveGroupParticipant(long conversationId, long participantUserId) => await M7(async userId =>
+        {
+            await _milestone7Service.RemoveGroupParticipantAsync(userId, conversationId, participantUserId);
+            return new { removed = true };
+        });
+
+        [HttpPost("groups/{conversationId:long}/leave")]
+        public async Task<IActionResult> LeaveGroup(long conversationId) => await M7(async userId =>
+        {
+            await _milestone7Service.LeaveGroupAsync(userId, conversationId);
+            return new { left = true };
+        });
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("follow-ups")]
+        public async Task<IActionResult> ListFollowUps([FromQuery] long organizationId, [FromQuery] long? conversationId = null) =>
+            await M7(async userId => await _milestone7Service.ListFollowUpsAsync(userId, organizationId, conversationId));
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("follow-ups/{id:long}")]
+        public async Task<IActionResult> GetFollowUp(long id) => await M7(async userId => await _milestone7Service.GetFollowUpAsync(userId, id));
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpPost("follow-ups")]
+        public async Task<IActionResult> CreateFollowUp([FromBody] SaveFollowUpTaskRequest request) =>
+            await M7(async userId => await _milestone7Service.CreateFollowUpAsync(userId, request));
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpPut("follow-ups/{id:long}")]
+        public async Task<IActionResult> UpdateFollowUp(long id, [FromBody] FollowUpMutationRequest request) =>
+            await M7(async userId => await _milestone7Service.UpdateFollowUpAsync(userId, id, request.Task, request.RowVersion));
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpPost("follow-ups/{id:long}/complete")]
+        public async Task<IActionResult> CompleteFollowUp(long id, [FromBody] RowVersionRequest request) =>
+            await M7(async userId => await _milestone7Service.CompleteFollowUpAsync(userId, id, request.RowVersion));
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpDelete("follow-ups/{id:long}")]
+        public async Task<IActionResult> DeleteFollowUp(long id, [FromBody] RowVersionRequest request) => await M7(async userId =>
+        {
+            await _milestone7Service.DeleteFollowUpAsync(userId, id, request.RowVersion);
+            return new { deleted = true };
+        });
+
+        private async Task<IActionResult> M7<T>(Func<long, Task<T>> action)
+        {
+            var userId = await GetLandlordIdAsync();
+            if (userId == 0) return Unauthorized();
+            try { return Ok(new { success = true, data = await action(userId) }); }
+            catch (KeyNotFoundException) { return NotFound(new { message = "Resource not found" }); }
+            catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+            catch (Microsoft.EntityFrameworkCore.DbUpdateConcurrencyException) { return Conflict(new { message = "Resource was changed by another request" }); }
+            catch (TimelineIdempotencyConflictException ex) { return Conflict(new { message = ex.Message }); }
+            catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
+        }
     }
+
+    public sealed record MarkTimelineReadRequest(long? ThroughSequence);
+    public sealed record RowVersionRequest(byte[] RowVersion);
+    public sealed record FollowUpMutationRequest(SaveFollowUpTaskRequest Task, byte[] RowVersion);
 
     public class ClearUrgentItemRequest
     {

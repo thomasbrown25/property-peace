@@ -77,6 +77,7 @@ using brownstone_hub_api.Dtos.Image;
 using brownstone_hub_api.Services.NotificationSettingService;
 using brownstone_hub_api.Repositories.NotificationSettings;
 using brownstone_hub_api.Services.NotificationService;
+using brownstone_hub_api.Services.MessageDeliveries;
 using brownstone_hub_api.Repositories.Notifications;
 using brownstone_hub_api.Services.ScheduledNotificationService;
 using brownstone_hub_api.Services.ActivityService;
@@ -120,6 +121,8 @@ using brownstone_hub_api.Repositories.Files;
 using brownstone_hub_api.Repositories.FileCategories;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Messages;
+using brownstone_hub_api.Repositories.Timelines;
+using brownstone_hub_api.Services.Timelines;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.SmsService;
 using brownstone_hub_api.Services.CommunicationService;
@@ -285,6 +288,10 @@ services.AddDbContext<DataContext>(
     }
 );
 services.AddSingleton<TimeProvider>(TimeProvider.System);
+services.AddScoped<ICommunicationDestinationProtector, DataProtectionCommunicationDestinationProtector>();
+services.AddScoped<IMessageDeliveryService, MessageDeliveryService>();
+services.AddScoped<IOutboundMessageDeliveryEnqueuer, OutboundMessageDeliveryEnqueuer>();
+services.AddScoped<IMessageDeliveryProcessor, MessageDeliveryProcessor>();
 services.AddSingleton<ILeadAbuseGuard, MemoryLeadAbuseGuard>();
 services.AddScoped<ILeadTokenDelivery, ProtectedLeadTokenDelivery>();
 services.AddScoped<ILeadTokenDispatcher, LeadTokenDispatcher>();
@@ -679,6 +686,7 @@ services.AddSignalR(options =>
 
 // Background Services
 services.AddHostedService<NotificationBackgroundService>();
+services.AddHostedService<MessageDeliveryBackgroundService>();
 services.AddHostedService<LeadTokenDeliveryBackgroundService>();
 services.AddHostedService<LeadNotificationDeliveryBackgroundService>();
 services.AddHostedService<RecurringExpenseGenerationBackgroundService>();
@@ -728,6 +736,11 @@ services.AddScoped<IMoveInReportTemplateRepository, MoveInReportTemplateReposito
 services.AddScoped<IAdminSettingsRepository, AdminSettingsRepository>();
 services.AddScoped<IConversationRepository, ConversationRepository>();
 services.AddScoped<IMessageRepository, MessageRepository>();
+services.AddScoped<IConversationTimelineSequenceAllocator, ConversationTimelineSequenceAllocator>();
+services.AddScoped<IConversationTimelineRepository, ConversationTimelineRepository>();
+services.AddScoped<IMilestone7ConversationService, Milestone7ConversationService>();
+services.AddScoped<IWorkflowTimelineIntegration, WorkflowTimelineIntegration>();
+services.AddScoped<ConversationContextService>();
 services.AddScoped<IUpcomingFeatureRepository, UpcomingFeatureRepository>();
 services.AddScoped(typeof(IImageRepository<,,>), typeof(ImageRepository<,,>));
 // Note: ImageRepository is generic and will work for ListingImage automatically
