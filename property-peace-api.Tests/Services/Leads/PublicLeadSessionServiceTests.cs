@@ -16,7 +16,7 @@ public sealed class PublicLeadSessionServiceTests
         var decoy = service.Issue(10, null);
 
         valid.Should().HaveLength(decoy.Length);
-        valid.Should().NotContain("42");
+        valid.Should().NotBe("42", "the browser session must not expose the plaintext lead ID");
         service.Resolve(valid, 10).Should().Be(42);
         service.Resolve(valid, 11).Should().BeNull();
         service.Resolve("not-a-session", 10).Should().BeNull();
