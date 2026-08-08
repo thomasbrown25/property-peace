@@ -77,7 +77,7 @@ export default function ListingSetupApplicationPage() {
         listingContactName: (listing.listingContactName?.trim() || userContact.name) ?? '',
         listingContactPhone: (listing.listingContactPhone?.trim() || userContact.phone) ?? '',
         listingContactEmail: (listing.listingContactEmail?.trim() || userContact.email) ?? '',
-        syndicateToListingWebsite: syndicationCanInvoke && Boolean(listing.syndicateToListingWebsite ?? true),
+        syndicateToListingWebsite: Boolean(listing.syndicateToListingWebsite ?? true),
         syndicateToFreeSites: syndicationCanInvoke && Boolean(listing.syndicateToFreeSites ?? false),
         syndicateToPremiumSites: syndicationCanInvoke && Boolean(listing.syndicateToPremiumSites ?? false)
       });
@@ -103,7 +103,7 @@ export default function ListingSetupApplicationPage() {
       listingContactName: nameTrimmed || null,
       listingContactPhone: formData.listingContactPhone?.trim() || null,
       listingContactEmail: formData.listingContactEmail?.trim() || null,
-      syndicateToListingWebsite: syndicationCanInvoke && Boolean(formData.syndicateToListingWebsite),
+      syndicateToListingWebsite: Boolean(formData.syndicateToListingWebsite),
       syndicateToFreeSites: syndicationCanInvoke && Boolean(formData.syndicateToFreeSites),
       syndicateToPremiumSites: syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites)
     };

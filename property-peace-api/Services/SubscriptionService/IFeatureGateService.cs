@@ -7,6 +7,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
         Task<bool> CanAddTenantAsync(long userId);
         Task<bool> HasFeatureAccessAsync(long userId, string featureName);
         Task<bool> HasPlanFeatureAccessAsync(long userId, string featureName);
+        Task<ListingSyndicationEntitlement> GetListingSyndicationEntitlementAsync(long userId);
         Task<bool> HasLeaseShieldAccessAsync(long userId);
         Task<int?> GetRemainingPropertySlotsAsync(long userId);
         Task<int?> GetRemainingUnitSlotsAsync(long userId);
@@ -14,4 +15,3 @@ namespace brownstone_hub_api.Services.SubscriptionService
         Task<int> GetCurrentTotalUnitsAsync(long userId);
     }
 }
-

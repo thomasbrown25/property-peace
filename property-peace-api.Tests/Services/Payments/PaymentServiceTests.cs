@@ -77,6 +77,24 @@ namespace brownstone_hub_api.Tests.Services.Payments
             result.Message.Should().NotBeNullOrEmpty();
         }
 
+        [Fact]
+        public async Task AddManualPayment_Returns403_WhenLeaseBelongsToDifferentOrganization()
+        {
+            _context.Properties.Add(new Models.Property { Id = 70, Name = "Other Org", OrganizationId = 99 });
+            _context.Units.Add(new Models.Unit { Id = 71, PropertyId = 70, Name = "Main" });
+            _context.Leases.Add(new Models.Lease { Id = 72, UnitId = 71 });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.AddManualPayment(new AddPaymentDto
+            {
+                LeaseId = 72, Amount = 100m, PaymentDate = DateTime.UtcNow
+            }, organizationId: 10);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _repo.Verify(repository => repository.AddPayment(It.IsAny<AddPaymentDto>()), Times.Never);
+        }
+
         // ── UpdatePayment ─────────────────────────────────────────────────────────
 
         [Fact]
@@ -115,6 +133,28 @@ namespace brownstone_hub_api.Tests.Services.Payments
 
             result.Success.Should().BeFalse();
             result.Message.Should().Contain("not found");
+        }
+
+        [Fact]
+        public async Task UpdatePayment_RejectsStripeRecordedPayment()
+        {
+            _context.Properties.Add(new Models.Property { Id = 5, Name = "Provider Payment Property", OrganizationId = 10 });
+            _context.Units.Add(new Models.Unit { Id = 5, PropertyId = 5, Name = "Unit 5" });
+            _context.Leases.Add(new Models.Lease { Id = 5, UnitId = 5 });
+            _context.Payments.Add(new Models.Payment
+            {
+                Id = 5, LeaseId = 5, OrganizationId = 10, Amount = 100,
+                PaymentDate = DateTime.UtcNow, Status = "Completed",
+                StripePaymentIntentId = "pi_authoritative", Method = "Online Payment"
+            });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.UpdatePayment(5, new UpdatePaymentDto { Amount = 50 }, 10);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(409);
+            result.Message.Should().ContainEquivalentOf("provider-recorded");
+            _repo.Verify(r => r.UpdatePayment(It.IsAny<long>(), It.IsAny<UpdatePaymentDto>(), It.IsAny<long>()), Times.Never);
         }
 
         [Fact]
@@ -161,6 +201,25 @@ namespace brownstone_hub_api.Tests.Services.Payments
         }
 
         [Fact]
+        public async Task DeletePayment_RejectsStripeRecordedPayment()
+        {
+            _context.Payments.Add(new Models.Payment
+            {
+                Id = 6, LeaseId = 1, OrganizationId = 10, Amount = 100,
+                PaymentDate = DateTime.UtcNow, Status = "Completed",
+                StripePaymentIntentId = "pi_authoritative", Method = "Online Payment"
+            });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.DeletePayment(6, 99L);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(409);
+            result.Message.Should().ContainEquivalentOf("provider-recorded");
+            _repo.Verify(r => r.DeletePayment(It.IsAny<long>(), It.IsAny<long?>()), Times.Never);
+        }
+
+        [Fact]
         public async Task DeletePayment_Returns403_WhenUnauthorized()
         {
             _repo.Setup(r => r.DeletePayment(1, 99L))
@@ -204,6 +263,53 @@ namespace brownstone_hub_api.Tests.Services.Payments
             var result = await _sut.GetPaymentsByLeaseId(1);
 
             result.Success.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task GetPaymentsByLeaseId_Returns403_WhenLeaseBelongsToDifferentOrganization()
+        {
+            _context.Properties.Add(new Models.Property { Id = 73, Name = "Other Org", OrganizationId = 99 });
+            _context.Units.Add(new Models.Unit { Id = 74, PropertyId = 73, Name = "Main" });
+            _context.Leases.Add(new Models.Lease { Id = 75, UnitId = 74 });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.GetPaymentsByLeaseId(75, organizationId: 10);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _repo.Verify(repository => repository.GetPaymentsByLeaseId(It.IsAny<long>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetTenantLeasePaymentHistory_Returns403_WhenUserIsNotTenantOnLease()
+        {
+            var result = await _sut.GetTenantLeasePaymentHistory(leaseId: 88, tenantUserId: 99);
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _repo.Verify(r => r.GetTenantLeasePaymentHistory(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetTenantLeasePaymentHistory_UsesServerAuthorizedTenantLeaseOrganization()
+        {
+            _context.Properties.Add(new Models.Property { Id = 81, Name = "Authorized", OrganizationId = 10 });
+            _context.Units.Add(new Models.Unit { Id = 82, PropertyId = 81, Name = "Main" });
+            _context.Leases.Add(new Models.Lease { Id = 83, UnitId = 82 });
+            _context.Tenants.Add(new Models.Tenant
+            {
+                Id = 84, UserId = 85, OrganizationId = 10, Firstname = "Safe", Lastname = "Tenant"
+            });
+            _context.TenantLeases.Add(new Models.TenantLease { TenantId = 84, LeaseId = 83 });
+            await _context.SaveChangesAsync();
+            _repo.Setup(r => r.GetTenantLeasePaymentHistory(83, 85, 10))
+                .ReturnsAsync([new TenantLeasePaymentHistoryItemDto { Id = "payment:1", LeaseId = 83, Amount = 25, Status = "Processing" }]);
+
+            var result = await _sut.GetTenantLeasePaymentHistory(leaseId: 83, tenantUserId: 85);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().ContainSingle();
+            _repo.Verify(r => r.GetTenantLeasePaymentHistory(83, 85, 10), Times.Once);
         }
 
         // ── GetAllPayments ────────────────────────────────────────────────────────

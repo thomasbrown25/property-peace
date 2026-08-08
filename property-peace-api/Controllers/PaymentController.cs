@@ -40,27 +40,67 @@ namespace brownstone_hub_api.Controllers
             return null;
         }
 
-        [Authorize]
+        [Authorize(Roles = "Landlord,Admin")]
         [HttpPost]
         public async Task<IActionResult> AddPayment(AddPaymentDto newPayment)
         {
-            var response = await paymentService.AddPayment(newPayment);
+            var userId = await GetCurrentUserIdAsync();
+            if (!userId.HasValue)
+                return Unauthorized(new { Message = "Authenticated user context is required" });
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+
+            // This is a manual-entry endpoint. Provider provenance and lifecycle state are
+            // written only by the Stripe orchestration/webhook path.
+            newPayment.CreatedByUserId = userId.Value;
+            newPayment.Method = "Manual Entry";
+            newPayment.Status = "Completed";
+            newPayment.StripePaymentIntentId = null;
+            newPayment.StripePaymentMethodId = null;
+            var response = await paymentService.AddManualPayment(newPayment, organizationId.Value);
             if (!response.Success)
             {
+                if (response.StatusCode == 403)
+                    return StatusCode(403, new { Message = response.Message });
                 return BadRequest(response.Message);
             }
             return Ok(response.Data);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{leaseId}")]
         public async Task<IActionResult> GetPaymentsByLeaseId(long leaseId)
         {
-            var response = await paymentService.GetPaymentsByLeaseId(leaseId);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(403, new { Message = "Organization context is required" });
+            var response = await paymentService.GetPaymentsByLeaseId(leaseId, organizationId.Value);
             if (!response.Success)
             {
+                if (response.StatusCode == 403)
+                    return StatusCode(403, new { Message = response.Message });
                 return BadRequest(response.Message);
             }
+            return Ok(response.Data);
+        }
+
+        [Authorize(Roles = "Tenant")]
+        [HttpGet("{leaseId}/tenant-history")]
+        public async Task<IActionResult> GetTenantLeasePaymentHistory(long leaseId)
+        {
+            var userId = await GetCurrentUserIdAsync();
+            if (!userId.HasValue)
+                return Unauthorized(new { Message = "Authenticated user context is required" });
+
+            var response = await paymentService.GetTenantLeasePaymentHistory(leaseId, userId.Value);
+            if (!response.Success)
+            {
+                if (response.StatusCode == 403)
+                    return StatusCode(403, new { Message = response.Message });
+                return BadRequest(new { Message = response.Message });
+            }
+
             return Ok(response.Data);
         }
 

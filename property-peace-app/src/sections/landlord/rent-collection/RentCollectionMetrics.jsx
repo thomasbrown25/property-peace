@@ -192,10 +192,10 @@ export default function RentCollectionMetrics({ summary }) {
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>
         <MetricCard
           icon={CheckCircleOutlined}
-          label="Collected (Lifetime)"
+          label="Tenant Payments Collected"
           value={formatCurrency(summary?.collectedLifetime || 0)}
           color={theme.palette.success.main}
-          subtitle="All-time total"
+          subtitle="Recorded tenant payments (lifetime)"
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 3 }}>

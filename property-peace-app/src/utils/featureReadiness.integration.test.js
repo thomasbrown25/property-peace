@@ -41,17 +41,18 @@ test('tenant dashboard gates payment, payment-method setup, Stripe initializatio
   assert.match(text, /FeatureReadinessNotice[\s\S]*Online rent collection/);
 });
 
-test('listing syndication controls and publication consume readiness and fail closed while blocked', async () => {
+test('external syndication fails closed while hosted publication remains available', async () => {
   const text = await source(listingSetupPath);
   assert.match(text, /useFeatureReadiness\(FEATURE_KEYS\.listingSyndication\)/);
-  assert.match(text, /FeatureReadinessNotice[\s\S]*Listing syndication/);
-  assert.match(text, /syndicateToListingWebsite: syndicationCanInvoke && Boolean/);
+  assert.match(text, /FeatureReadinessNotice[\s\S]*External listing syndication/);
+  assert.match(text, /syndicateToListingWebsite: Boolean/);
   assert.match(text, /syndicateToFreeSites: syndicationCanInvoke && Boolean/);
   assert.match(text, /syndicateToPremiumSites: syndicationCanInvoke && Boolean/);
-  assert.match(text, /if \(!syndicationCanInvoke\) return;[\s\S]*listingApi\.publishListing/);
-  assert.match(text, /disabled=\{saving \|\| publishing \|\| !syndicationCanInvoke\}/);
-  assert.ok((text.match(/disabled=\{!syndicationCanInvoke\}/g) || []).length >= 3);
-  assert.ok((text.match(/checked=\{syndicationCanInvoke && Boolean/g) || []).length >= 3);
+  assert.doesNotMatch(text, /if \(!syndicationCanInvoke\) return;[\s\S]*listingApi\.publishListing/);
+  assert.match(text, /disabled=\{saving \|\| publishing\}/);
+  assert.ok((text.match(/disabled=\{!syndicationCanInvoke\}/g) || []).length >= 2);
+  assert.ok((text.match(/checked=\{syndicationCanInvoke && Boolean/g) || []).length >= 2);
+  assert.match(text, /checked=\{Boolean\(formData\.syndicateToListingWebsite\)\}/);
 });
 
 test('landlord rent collection fails closed before checking Stripe or offering bank setup', async () => {
@@ -74,26 +75,26 @@ test('lease gates Stripe account onboarding with online rent readiness independe
   assert.match(text, /\{rentCanInvoke && \(\s*<StripeConnectOnboardingDialog/s);
 });
 
-test('contact-details save cannot preserve hidden listing syndication defaults while readiness is blocked', async () => {
+test('contact-details save preserves hosted publication but clears blocked external defaults', async () => {
   const text = await source(listingSetupApplicationPath);
   assert.match(text, /canInvoke: syndicationCanInvoke[\s\S]*useFeatureReadiness\(FEATURE_KEYS\.listingSyndication\)/);
-  assert.match(text, /syndicateToListingWebsite: syndicationCanInvoke && Boolean\(listing\.syndicateToListingWebsite \?\? true\)/);
+  assert.match(text, /syndicateToListingWebsite: Boolean\(listing\.syndicateToListingWebsite \?\? true\)/);
   assert.match(text, /syndicateToFreeSites: syndicationCanInvoke && Boolean\(listing\.syndicateToFreeSites \?\? false\)/);
   assert.match(text, /syndicateToPremiumSites: syndicationCanInvoke && Boolean\(listing\.syndicateToPremiumSites \?\? false\)/);
-  assert.match(text, /syndicateToListingWebsite: syndicationCanInvoke && Boolean\(formData\.syndicateToListingWebsite\)/);
+  assert.match(text, /syndicateToListingWebsite: Boolean\(formData\.syndicateToListingWebsite\)/);
   assert.match(text, /syndicateToFreeSites: syndicationCanInvoke && Boolean\(formData\.syndicateToFreeSites\)/);
   assert.match(text, /syndicateToPremiumSites: syndicationCanInvoke && Boolean\(formData\.syndicateToPremiumSites\)/);
 });
 
-test('active listing drawer fails closed for syndication writes and publication', async () => {
+test('active listing drawer fails closed for external writes without blocking hosted publication', async () => {
   const text = await source(listingAddWorkflowPath);
   assert.match(text, /canInvoke: syndicationCanInvoke[\s\S]*useFeatureReadiness\(FEATURE_KEYS\.listingSyndication\)/);
-  assert.match(text, /syndicateToListingWebsite: syndicationCanInvoke && Boolean\(formData\.syndicateToListingWebsite\)/);
+  assert.match(text, /syndicateToListingWebsite: Boolean\(formData\.syndicateToListingWebsite\)/);
   assert.match(text, /syndicateToFreeSites: syndicationCanInvoke && Boolean\(formData\.syndicateToFreeSites\)/);
   assert.match(text, /syndicateToPremiumSites: syndicationCanInvoke && Boolean\(formData\.syndicateToPremiumSites\)/);
-  assert.match(text, /if \(!draftListingId \|\| !syndicationCanInvoke\) return;[\s\S]*dispatch\(publishListing/);
-  assert.match(text, /disabled=\{isSavingStep \|\| !syndicationCanInvoke\}/);
-  assert.match(text, /FeatureReadinessNotice[\s\S]*Listing syndication/);
+  assert.match(text, /if \(!draftListingId\) return;[\s\S]*dispatch\(publishListing/);
+  assert.match(text, /disabled=\{isSavingStep\}/);
+  assert.match(text, /FeatureReadinessNotice[\s\S]*External listing syndication/);
 });
 
 test('e-signature promotional workflow is hidden when e-signature cannot be invoked', async () => {
@@ -198,6 +199,8 @@ test('pricing preserves plan entitlement and qualifies operational readiness', a
   assert.match(card, /Operational status:/);
   assert.match(comparison, /if \(!hasFeature\(plan, feature\.check\)\)/);
   assert.match(comparison, /if \(feature\.check === 'online rent' && !rentReadiness\.canInvoke\)/);
+  assert.match(comparison, /if \(feature\.check === 'external listing' && !syndicationReadiness\.canInvoke\)/);
+  assert.match(comparison, /-15%/);
 });
 
 test('readiness SWR cache key is stable and scoped by authenticated user and organization', async () => {

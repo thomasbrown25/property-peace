@@ -38,7 +38,7 @@ public sealed class StripeRentPaymentModelTests
             .Single(x => x.Name == "CK_StripeRentPayments_LossWithinAmount");
 
         constraint.Sql.Should().Be(
-            "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents]");
+            "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents] AND [DisputeRecoveredAmountCents] <= [AmountCents]");
     }
 
     [Fact]
@@ -68,6 +68,25 @@ public sealed class StripeRentPaymentModelTests
                 && x.Sql == "[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents]");
     }
 
+    [Fact]
+    public void DisputeRecoveryMigration_AddsDurableRecoveryCountersAndTightensConstraints()
+    {
+        var operations = new TestableDisputeRecoveryMigration().BuildUpOperations();
+        var columns = operations.OfType<AddColumnOperation>()
+            .Where(x => x.Table == "StripeRentPayments" && x.Schema == "financial")
+            .ToDictionary(x => x.Name);
+
+        columns.Keys.Should().BeEquivalentTo(
+            "DisputeRecoveredAmountCents", "DisputeClosedAt", "StripeDisputeStatus");
+        columns["DisputeRecoveredAmountCents"].DefaultValue.Should().Be(0L);
+
+        operations.OfType<DropCheckConstraintOperation>().Select(x => x.Name)
+            .Should().Contain(["CK_StripeRentPayments_NonnegativeCounters", "CK_StripeRentPayments_LossWithinAmount"]);
+        operations.OfType<AddCheckConstraintOperation>()
+            .Single(x => x.Name == "CK_StripeRentPayments_LossWithinAmount").Sql
+            .Should().Be("[RefundedAmountCents] <= [AmountCents] AND [DisputedAmountCents] <= [AmountCents] AND [DisputeRecoveredAmountCents] <= [AmountCents]");
+    }
+
     private sealed class TestableCreationMigration : AddSeparateChargesDelayedRentTransfers
     {
         public IReadOnlyList<MigrationOperation> BuildUpOperations()
@@ -79,6 +98,16 @@ public sealed class StripeRentPaymentModelTests
     }
 
     private sealed class TestableRiskControlsMigration : AddStripeConnectedPayeeRiskControls
+    {
+        public IReadOnlyList<MigrationOperation> BuildUpOperations()
+        {
+            var builder = new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer");
+            base.Up(builder);
+            return builder.Operations;
+        }
+    }
+
+    private sealed class TestableDisputeRecoveryMigration : HardenStripeRentDisputeRecovery
     {
         public IReadOnlyList<MigrationOperation> BuildUpOperations()
         {

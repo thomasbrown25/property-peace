@@ -64,6 +64,34 @@ namespace brownstone_hub_api.Services.RentCollectionService
                 leases = leases.Where(l => l.LeaseAgreement?.IsDrafted != true).ToList();
                 var activeLeaseIds = leases.Select(l => l.Id).ToHashSet();
 
+                // Settlement state is separate from rent collection. A completed tenant payment can still
+                // be held, blocked, reversing, or awaiting reconciliation before money reaches a landlord.
+                var settlementPayments = await _context.StripeRentPayments
+                    .AsNoTracking()
+                    .Where(p => p.OrganizationId == organizationId && activeLeaseIds.Contains(p.LeaseId))
+                    .ToListAsync();
+                var settlementNow = DateTimeOffset.UtcNow;
+                var processingSettlements = settlementPayments.Where(p => p.Status is
+                    Models.StripeRentPaymentStatus.Created or Models.StripeRentPaymentStatus.Processing).ToList();
+                var heldSettlements = settlementPayments.Where(p => p.Status == Models.StripeRentPaymentStatus.Held
+                    && (p.TransferEligibleAt == null || p.TransferEligibleAt > settlementNow)).ToList();
+                var availableSettlements = settlementPayments.Where(p =>
+                    (p.Status == Models.StripeRentPaymentStatus.Held && p.TransferEligibleAt != null && p.TransferEligibleAt <= settlementNow)
+                    || p.Status == Models.StripeRentPaymentStatus.TransferPending).ToList();
+                var transferredSettlements = settlementPayments.Where(p => p.Status == Models.StripeRentPaymentStatus.Transferred).ToList();
+                var blockedSettlements = settlementPayments.Where(p => p.Status == Models.StripeRentPaymentStatus.Blocked
+                    && p.RefundedAmountCents == 0 && p.DisputedAmountCents == 0).ToList();
+                var returnedSettlements = settlementPayments.Where(p => p.Status is
+                    Models.StripeRentPaymentStatus.ReversalPending or Models.StripeRentPaymentStatus.Reversed
+                    || (p.Status == Models.StripeRentPaymentStatus.Blocked
+                        && (p.RefundedAmountCents > 0 || p.DisputedAmountCents > 0))).ToList();
+                var reconciliationSettlements = settlementPayments.Where(p =>
+                    p.Status == Models.StripeRentPaymentStatus.TransferReconciliationPending).ToList();
+                var recoveryFailedSettlements = settlementPayments.Where(p =>
+                    p.Status == Models.StripeRentPaymentStatus.RecoveryFailed).ToList();
+                var reviewSettlements = blockedSettlements.Concat(returnedSettlements)
+                    .Concat(reconciliationSettlements).Concat(recoveryFailedSettlements).ToList();
+
                 var startOfMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
                 var endOfMonth = startOfMonth.AddMonths(1);
 
@@ -196,6 +224,27 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         Outstanding = outstanding,
                         Overdue = overdue,
                         CollectedLifetime = collectedLifetime,
+                        SettlementProcessing = processingSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementProcessingCount = processingSettlements.Count,
+                        SettlementHeld = heldSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementHeldCount = heldSettlements.Count,
+                        SettlementAvailable = availableSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementAvailableCount = availableSettlements.Count,
+                        SettlementTransferred = transferredSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementTransferredCount = transferredSettlements.Count,
+                        SettlementBlocked = blockedSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementBlockedCount = blockedSettlements.Count,
+                        SettlementReturned = returnedSettlements.Sum(p => Math.Min(p.AmountCents,
+                            Math.Max(p.ReversedAmountCents,
+                                Math.Max(p.ReversalTargetAmountCents,
+                                    Math.Min(p.AmountCents, checked(p.RefundedAmountCents + p.DisputedAmountCents)))))) / 100m,
+                        SettlementReturnedCount = returnedSettlements.Count,
+                        SettlementReconciliationPending = reconciliationSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementReconciliationPendingCount = reconciliationSettlements.Count,
+                        SettlementRecoveryFailed = recoveryFailedSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementRecoveryFailedCount = recoveryFailedSettlements.Count,
+                        SettlementNeedsReview = reviewSettlements.Sum(p => p.AmountCents) / 100m,
+                        SettlementNeedsReviewCount = reviewSettlements.Count,
                         LastUpdated = DateTime.UtcNow
                     },
                     RentRecords = rentRecords
@@ -206,7 +255,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving rent collection");
-                return ServiceResponse<RentCollectionResponseDto>.CreateError("Error retrieving rent collection", ex.Message);
+                return ServiceResponse<RentCollectionResponseDto>.CreateError("Unable to retrieve rent collection right now.");
             }
         }
 
@@ -308,7 +357,9 @@ namespace brownstone_hub_api.Services.RentCollectionService
 
                 // Return updated rent record (rent-only payments for balance/overdue)
                 var payments = await _paymentRepository.GetRentPaymentsByLeaseId(newPayment.LeaseId);
-                var rentPayments = payments.Sum(p => p.Amount); // All payments are rent payments
+                var rentPayments = payments
+                    .Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty))
+                    .Sum(p => p.Amount);
 
                 var rentRecord = new RentRecordDto
                 {

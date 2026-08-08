@@ -61,19 +61,30 @@ namespace brownstone_hub_api.Services.SubscriptionService
         }
 
         /// <summary>
-        /// Returns the landlord's subscription by owner user ID (covers all their orgs).
-        /// Falls back to org-based lookup for members who are not the owner.
+        /// Returns the subscription for the current organization.
+        /// Falls back to owner lookup only when no organization context is available.
         /// </summary>
         private async Task<Subscription?> GetLandlordSubscriptionAsync(long userId)
         {
-            // Primary: subscription owned by this user (works across all their orgs)
-            var ownerSub = await _subscriptionRepository.GetSubscriptionByOwnerUserIdAsync(userId);
-            if (ownerSub != null) return ownerSub;
-
-            // Fallback: org-based (for managers who are not the subscription owner)
             var organizationId = await GetOrganizationIdForUserAsync(userId);
-            if (!organizationId.HasValue) return null;
-            return await _subscriptionRepository.GetSubscriptionByOrganizationIdAsync(organizationId.Value);
+            if (organizationId.HasValue)
+            {
+                var organizationSubscription =
+                    await _subscriptionRepository.GetSubscriptionByOrganizationIdAsync(organizationId.Value);
+                if (organizationSubscription != null)
+                    return organizationSubscription;
+
+                var organizationOwnerId = await _context.Organizations
+                    .AsNoTracking()
+                    .Where(organization => organization.Id == organizationId.Value)
+                    .Select(organization => organization.OwnerId)
+                    .SingleOrDefaultAsync();
+
+                if (organizationOwnerId != userId)
+                    return null;
+            }
+
+            return await _subscriptionRepository.GetSubscriptionByOwnerUserIdAsync(userId);
         }
 
         public async Task<bool> CanAddPropertyAsync(long userId)
@@ -149,6 +160,36 @@ namespace brownstone_hub_api.Services.SubscriptionService
             return await HasPlanFeatureAccessAsync(userId, featureName);
         }
 
+        public async Task<ListingSyndicationEntitlement> GetListingSyndicationEntitlementAsync(long userId)
+        {
+            try
+            {
+                var currentUser = await _userRepository.GetCurrentUser();
+                var roles = currentUser?.Roles ?? [];
+                var isTenantOnly = roles.Any(r => string.Equals(r?.Trim(), "Tenant", StringComparison.OrdinalIgnoreCase))
+                    && !roles.Any(r => string.Equals(r?.Trim(), "Landlord", StringComparison.OrdinalIgnoreCase))
+                    && !roles.Any(r => string.Equals(r?.Trim(), "Admin", StringComparison.OrdinalIgnoreCase));
+
+                var subscription = isTenantOnly
+                    ? await _subscriptionRepository.GetSubscriptionByUserIdAsync(userId)
+                    : await GetLandlordSubscriptionAsync(userId)
+                        ?? await _subscriptionRepository.GetSubscriptionByUserIdAsync(userId);
+
+                if (subscription == null)
+                    return ListingSyndicationEntitlement.None;
+
+                return ListingSyndicationPlanPolicy.Resolve(
+                    subscription.SubscriptionPlan?.Name,
+                    subscription.BillingCycle,
+                    subscription.Status is "Active" or "Trial");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resolving listing syndication entitlement for user {UserId}", userId);
+                return ListingSyndicationEntitlement.None;
+            }
+        }
+
         public async Task<bool> HasPlanFeatureAccessAsync(long userId, string featureName)
         {
             try
@@ -185,18 +226,22 @@ namespace brownstone_hub_api.Services.SubscriptionService
 
                 var planName = subscription.SubscriptionPlan?.Name?.Trim() ?? string.Empty;
                 var billingCycle = subscription.BillingCycle?.Trim() ?? string.Empty;
-                var isPremium = string.Equals(planName, "Premium", StringComparison.OrdinalIgnoreCase) ||
-                    planName.Contains("premium", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(planName, "Lifetime Plan", StringComparison.OrdinalIgnoreCase) ||
-                    planName.Contains("lifetime", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(billingCycle, "Lifetime", StringComparison.OrdinalIgnoreCase);
+                var syndicationEntitlement = ListingSyndicationPlanPolicy.Resolve(
+                    planName,
+                    billingCycle,
+                    isActive: true);
+                var isPremium = syndicationEntitlement.CanUseExtendedDestinations;
 
-                // These features are Premium-only
+                if (string.Equals(featureName, "ListingSyndication", StringComparison.OrdinalIgnoreCase))
+                    return syndicationEntitlement.CanUseCoreDestinations;
+
+                // These features are Premium-only. Base external listing syndication has its own
+                // Free/Premium/Lifetime allowance policy and is intentionally not part of this list.
                 if (string.Equals(featureName, "LeaseShield", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "RentEstimate", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "Reports", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "TenantScreening", StringComparison.OrdinalIgnoreCase) ||
-                    string.Equals(featureName, "ListingSyndication", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(featureName, "ListingSyndicationExtended", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "ESignature", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "OnlineRentCollection", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(featureName, "DedicatedSmsNumber", StringComparison.OrdinalIgnoreCase) ||

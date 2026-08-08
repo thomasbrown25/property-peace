@@ -18,8 +18,8 @@ import SeoPathways from '@/components/Sections/SeoPathways';
 import Pricing from '@/components/Sections/Pricing';
 
 export const metadata: Metadata = applyOttoSeo('/', {
-  title: 'Landlord Software for 1–50 Units — Start Free | Property Peace',
-  description: 'Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. Built for small landlords with 1–50 units. Start free — no credit card required.',
+  title: '#1 Free Rental Management Software | Property Peace',
+  description: 'The #1 free rental management software for independent landlords. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
 });
 
 export default function Home() {

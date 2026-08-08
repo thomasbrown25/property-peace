@@ -144,7 +144,7 @@ Choose the platform that feels most natural and solves your biggest pain points.
 ## Why Property Peace?
 
 Property Peace is designed specifically for landlords managing 1-50 units. We offer:
-- Simple, flat pricing starting at $4.99/month
+- Simple, flat pricing with Premium at $14.99/month
 - No per-unit fees
 - Real-time updates across all features
 - Comprehensive features without the complexity
@@ -5482,7 +5482,7 @@ We prioritized:
 - Real-time updates
 - Mobile-friendly
 
-**Pricing**: Starting at $4.99/mo, no per-unit fees
+**Pricing**: Free for up to 5 units; Premium is $14.99/mo with no per-unit fees
 
 **Pros**:
 - Designed specifically for small landlords
@@ -5812,7 +5812,7 @@ We prioritized:
 ### Budget
 
 **Free/Low cost**:
-- Property Peace ($4.99/mo)
+- Property Peace (free for up to 5 units; Premium $14.99/mo)
 - TenantCloud (free tier)
 - Cozy (free basic)
 

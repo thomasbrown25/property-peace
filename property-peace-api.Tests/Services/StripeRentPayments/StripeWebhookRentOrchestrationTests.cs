@@ -116,6 +116,171 @@ public sealed class StripeWebhookRentOrchestrationTests
         (await context.Payments.CountAsync()).Should().Be(0);
     }
 
+    [Fact]
+    public async Task PaymentIntentFailed_AfterAllocatedBankPayment_ReopensBalanceExactlyOnceAndBlocksTransfer()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_bank_return");
+        aggregate.Status = StripeRentPaymentStatus.Held;
+        aggregate.PaymentMethodType = "us_bank_account";
+        aggregate.StripeChargeId = "ch_bank_return";
+        aggregate.AllocationCompletedAt = DateTimeOffset.UtcNow.AddDays(-2);
+        aggregate.HeldAt = DateTimeOffset.UtcNow.AddDays(-2);
+        aggregate.TransferEligibleAt = DateTimeOffset.UtcNow.AddDays(12);
+        context.StripeRentPayments.Add(aggregate);
+        var original = new Payment
+        {
+            LeaseId = 1, PropertyId = 1, OrganizationId = 2, Amount = 100m,
+            PaymentDate = DateTime.UtcNow.AddDays(-2), Reference = "pi_bank_return", Status = "Completed",
+            StripePaymentIntentId = "pi_bank_return", StripeChargeId = "ch_bank_return",
+            Method = "us_bank_account", CreatedByUserId = 3
+        };
+        context.Payments.Add(original);
+        await context.SaveChangesAsync();
+        context.GeneralLedgerEntries.Add(new GeneralLedgerEntry
+        {
+            OrganizationId = 2, AccountId = 1, TransactionId = original.Id, TransactionType = "Payment",
+            Amount = 100m, TransactionDate = original.PaymentDate, Reference = original.Reference
+        });
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetPaymentIntentStateAsync("pi_bank_return", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeRentPaymentIntentState(true, "requires_payment_method"));
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: false);
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()),
+            gateway.Object);
+        var failed = BankPaymentFailedEvent();
+
+        await service.HandlePaymentIntentPaymentFailedAsync(failed);
+        await service.HandlePaymentIntentPaymentFailedAsync(failed);
+
+        context.ChangeTracker.Clear();
+        aggregate = await context.StripeRentPayments.SingleAsync();
+        aggregate.Status.Should().Be(StripeRentPaymentStatus.Blocked);
+        aggregate.DisputedAmountCents.Should().Be(10_000);
+        aggregate.TransferEligibleAt.Should().BeNull();
+        (await context.Payments.Where(x => x.Reference == "pi_bank_return:loss").ToListAsync())
+            .Should().ContainSingle().Which.Amount.Should().Be(-100m);
+        (await context.GeneralLedgerEntries.Where(x => x.TransactionType == "PaymentLossReversal").ToListAsync())
+            .Should().ContainSingle().Which.Amount.Should().Be(-100m);
+        (await context.Payments.SingleAsync(x => x.Amount > 0)).Status.Should().Be("Disputed");
+        gateway.Verify(x => x.GetPaymentIntentStateAsync("pi_bank_return", It.IsAny<CancellationToken>()), Times.Exactly(2));
+        gateway.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData("succeeded")]
+    [InlineData("processing")]
+    public async Task PaymentIntentFailed_StaleEventForReusableIntent_DoesNotOverwriteAuthoritativeProgress(string currentStatus)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_stale_failure");
+        aggregate.Status = StripeRentPaymentStatus.Processing;
+        context.StripeRentPayments.Add(aggregate);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetPaymentIntentStateAsync("pi_stale_failure", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeRentPaymentIntentState(true, currentStatus));
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true);
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()), gateway.Object);
+
+        await service.HandlePaymentIntentPaymentFailedAsync(PaymentIntentFailedEvent("pi_stale_failure"));
+
+        (await context.StripeRentPayments.SingleAsync()).Status.Should().Be(StripeRentPaymentStatus.Processing);
+        gateway.VerifyAll();
+    }
+
+    [Theory]
+    [InlineData("succeeded")]
+    [InlineData("processing")]
+    public async Task PaymentIntentFailed_StaleEventForAllocatedBankPayment_DoesNotReopenAccounting(string currentStatus)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_bank_return");
+        aggregate.Status = StripeRentPaymentStatus.Held;
+        aggregate.PaymentMethodType = "us_bank_account";
+        aggregate.StripeChargeId = "ch_bank_return";
+        aggregate.AllocationCompletedAt = DateTimeOffset.UtcNow.AddDays(-2);
+        aggregate.TransferEligibleAt = DateTimeOffset.UtcNow.AddDays(12);
+        context.StripeRentPayments.Add(aggregate);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetPaymentIntentStateAsync("pi_bank_return", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeRentPaymentIntentState(true, currentStatus));
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: false);
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()), gateway.Object);
+
+        await service.HandlePaymentIntentPaymentFailedAsync(BankPaymentFailedEvent());
+
+        context.ChangeTracker.Clear();
+        aggregate = await context.StripeRentPayments.SingleAsync();
+        aggregate.Status.Should().Be(StripeRentPaymentStatus.Held);
+        aggregate.DisputedAmountCents.Should().Be(0);
+        aggregate.TransferEligibleAt.Should().NotBeNull();
+        (await context.Payments.CountAsync()).Should().Be(0);
+        (await context.GeneralLedgerEntries.CountAsync()).Should().Be(0);
+        gateway.VerifyAll();
+    }
+
+    [Fact]
+    public async Task PaymentIntentFailed_WhenProviderAuthorityUnavailable_ContainsAllocatedPaymentAndThrowsForRetry()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_bank_return");
+        aggregate.Status = StripeRentPaymentStatus.Held;
+        aggregate.PaymentMethodType = "us_bank_account";
+        aggregate.StripeChargeId = "ch_bank_return";
+        aggregate.AllocationCompletedAt = DateTimeOffset.UtcNow.AddDays(-2);
+        aggregate.TransferEligibleAt = DateTimeOffset.UtcNow.AddDays(12);
+        context.StripeRentPayments.Add(aggregate);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetPaymentIntentStateAsync("pi_bank_return", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("provider unavailable"));
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: false);
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()), gateway.Object);
+
+        var act = () => service.HandlePaymentIntentPaymentFailedAsync(BankPaymentFailedEvent());
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*must retry*");
+        context.ChangeTracker.Clear();
+        aggregate = await context.StripeRentPayments.SingleAsync();
+        aggregate.Status.Should().Be(StripeRentPaymentStatus.Blocked);
+        aggregate.RiskReason.Should().Contain("operator review");
+        aggregate.TransferEligibleAt.Should().BeNull();
+        aggregate.DisputedAmountCents.Should().Be(0);
+        (await context.Payments.CountAsync()).Should().Be(0);
+        (await context.GeneralLedgerEntries.CountAsync()).Should().Be(0);
+        gateway.VerifyAll();
+    }
+
+    [Fact]
+    public async Task PaymentIntentFailed_CurrentProviderFailure_MarksReusableIntentFailed()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        context.StripeRentPayments.Add(StripeRentPaymentFlowTests.NewPayment("pi_current_failure"));
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetPaymentIntentStateAsync("pi_current_failure", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeRentPaymentIntentState(true, "requires_payment_method"));
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true);
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()), gateway.Object);
+
+        await service.HandlePaymentIntentPaymentFailedAsync(PaymentIntentFailedEvent("pi_current_failure"));
+
+        (await context.StripeRentPayments.SingleAsync()).Status.Should().Be(StripeRentPaymentStatus.Failed);
+        gateway.VerifyAll();
+    }
 
     [Fact]
     public async Task ChargeDisputeCreated_WithMismatchedCharge_RejectsProvenanceBeforeMutation()
@@ -179,8 +344,10 @@ public sealed class StripeWebhookRentOrchestrationTests
         aggregate.ReversedAmountCents.Should().Be(5_000);
         (await context.Payments.Where(x => x.Reference == "pi_dispute_webhook:loss").ToListAsync())
             .Should().ContainSingle().Which.Amount.Should().Be(-50m);
-        (await context.GeneralLedgerEntries.Where(x => x.TransactionType == "PaymentLossReversal").ToListAsync())
-            .Should().ContainSingle().Which.Amount.Should().Be(-50m);
+        var immutableLossHistory = await context.GeneralLedgerEntries
+            .Where(x => x.TransactionType == "PaymentLossReversal").OrderBy(x => x.Id).ToListAsync();
+        immutableLossHistory.Select(x => x.Amount).Should().Equal(-30m, -20m);
+        immutableLossHistory.Sum(x => x.Amount).Should().Be(-50m);
         gateway.Verify(x => x.CreateTransferReversalAsync("tr_original", 3_000,
             "rent-transfer-reversal:pi_dispute_webhook:3000", It.IsAny<CancellationToken>()), Times.Once);
         gateway.Verify(x => x.CreateTransferReversalAsync("tr_original", 2_000,
@@ -236,6 +403,65 @@ public sealed class StripeWebhookRentOrchestrationTests
         (await context.GeneralLedgerEntries.CountAsync(x => x.TransactionType == "PaymentLossReversal")).Should().Be(1);
     }
 
+    [Fact]
+    public async Task ChargeDisputeClosed_Won_RestoresAccountingExactlyOnceWithoutDeletingHistoryOrCreatingTransfer()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await SeedTransferredPaymentWithNotificationGraphAsync(context);
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        var payees = new Mock<IStripeConnectedPayeeService>();
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: false);
+        var lossAccounting = new StripeRentLossAccountingService(context,
+            Mock.Of<ILogger<StripeRentLossAccountingService>>());
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            lossAccounting, gateway.Object, payees: payees.Object);
+        await service.HandleChargeDisputeCreatedAsync(DisputeCreatedEvent("evt_created", 3_000));
+
+        await service.HandleChargeDisputeClosedAsync(DisputeClosedEvent("evt_won_1", "won", 3_000));
+        await service.HandleChargeDisputeClosedAsync(DisputeClosedEvent("evt_won_1", "won", 3_000));
+        await service.HandleChargeDisputeClosedAsync(DisputeClosedEvent("evt_won_duplicate", "won", 3_000));
+        await service.HandleChargeDisputeCreatedAsync(DisputeCreatedEvent("evt_created_stale", 3_000));
+
+        context.ChangeTracker.Clear();
+        var aggregate = await context.StripeRentPayments.SingleAsync();
+        aggregate.DisputedAmountCents.Should().Be(0);
+        aggregate.DisputeRecoveredAmountCents.Should().Be(3_000);
+        aggregate.DisputeClosedAt.Should().NotBeNull();
+        aggregate.StripeDisputeStatus.Should().Be("won");
+        aggregate.Status.Should().Be(StripeRentPaymentStatus.Blocked);
+        (await context.Payments.CountAsync(x => x.Reference == "pi_dispute_webhook:loss")).Should().Be(1);
+        (await context.Payments.CountAsync(x => x.Reference == "pi_dispute_webhook:dispute-recovery")).Should().Be(0);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_dispute_webhook:loss")).Amount.Should().Be(0m);
+        (await context.GeneralLedgerEntries.Where(x => x.TransactionType == "PaymentLossRecovery").ToListAsync())
+            .Should().ContainSingle().Which.Amount.Should().Be(30m);
+        (await context.Payments.SingleAsync(x => x.Amount > 0 && x.Reference == "pi_dispute_webhook")).Status
+            .Should().Be("Completed");
+        gateway.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ChargeDisputeClosed_Lost_LeavesLossStateIntact()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await SeedTransferredPaymentWithNotificationGraphAsync(context);
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        var payees = new Mock<IStripeConnectedPayeeService>();
+        var rentPayments = StripeRentPaymentFlowTests.CreateService(context, gateway.Object, true, transfersEnabled: false);
+        var service = CreateWebhookService(context, rentPayments, Mock.Of<IStripeRentAllocationService>(),
+            new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>()),
+            gateway.Object, payees: payees.Object);
+        await service.HandleChargeDisputeCreatedAsync(DisputeCreatedEvent("evt_created_lost", 3_000));
+
+        await service.HandleChargeDisputeClosedAsync(DisputeClosedEvent("evt_lost", "lost", 3_000));
+
+        var aggregate = await context.StripeRentPayments.SingleAsync();
+        aggregate.DisputedAmountCents.Should().Be(3_000);
+        aggregate.StripeDisputeStatus.Should().Be("lost");
+        (await context.Payments.CountAsync(x => x.Reference == "pi_dispute_webhook:dispute-recovery")).Should().Be(0);
+        (await context.Payments.SingleAsync(x => x.Amount > 0)).Status.Should().Be("Disputed");
+        gateway.VerifyNoOtherCalls();
+    }
+
     private static Mock<IPaymentService> AccountingBoundary(DataContext context)
     {
         var accounting = new Mock<IPaymentService>(MockBehavior.Strict);
@@ -288,6 +514,30 @@ public sealed class StripeWebhookRentOrchestrationTests
         }}
     };
 
+    private static Event BankPaymentFailedEvent() => new()
+    {
+        Id = "evt_bank_return",
+        Type = "payment_intent.payment_failed",
+        Created = new DateTime(2026, 8, 4, 14, 0, 0, DateTimeKind.Utc),
+        Data = new EventData { Object = new PaymentIntent
+        {
+            Id = "pi_bank_return", LatestChargeId = "ch_bank_return", Amount = 10_000,
+            Currency = "usd", Status = "requires_payment_method",
+            Metadata = new Dictionary<string, string>()
+        }}
+    };
+
+    private static Event PaymentIntentFailedEvent(string paymentIntentId) => new()
+    {
+        Id = $"evt_{paymentIntentId}_failed", Type = "payment_intent.payment_failed",
+        Created = new DateTime(2026, 8, 4, 14, 0, 0, DateTimeKind.Utc),
+        Data = new EventData { Object = new PaymentIntent
+        {
+            Id = paymentIntentId, Amount = 10_000, Currency = "usd", Status = "requires_payment_method",
+            Metadata = new Dictionary<string, string> { ["leaseId"] = "1" }
+        }}
+    };
+
     private static Event DisputeCreatedEvent(string eventId, long amount) => new()
     {
         Id = eventId, Type = "charge.dispute.created", Created = new DateTime(2026, 8, 2, 14, 0, 0, DateTimeKind.Utc),
@@ -295,6 +545,16 @@ public sealed class StripeWebhookRentOrchestrationTests
         {
             Id = "dp_webhook", PaymentIntentId = "pi_dispute_webhook", ChargeId = "ch_dispute_webhook",
             Amount = amount, Currency = "usd", Status = "needs_response"
+        }}
+    };
+
+    private static Event DisputeClosedEvent(string eventId, string status, long amount) => new()
+    {
+        Id = eventId, Type = "charge.dispute.closed", Created = new DateTime(2026, 8, 5, 14, 0, 0, DateTimeKind.Utc),
+        Data = new EventData { Object = new Dispute
+        {
+            Id = "dp_webhook", PaymentIntentId = "pi_dispute_webhook", ChargeId = "ch_dispute_webhook",
+            Amount = amount, Currency = "usd", Status = status
         }}
     };
 

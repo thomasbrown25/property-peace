@@ -29,7 +29,7 @@ const config: NicheLandingPageConfig = {
   workflowSteps: ['Create your free account.', 'Add properties, units, tenants, rent terms, leases, and documents.', 'Use Property Peace as the daily source of truth instead of a spreadsheet.', 'Review reports and Percy Pilot summaries when you need the big picture.'],
   faq: [
     { question: 'Why replace a rental spreadsheet?', answer: 'Spreadsheets are easy to start, but they do not naturally connect tenants, leases, rent, maintenance requests, photos, documents, and reminders. Property Peace gives those records a structured home.' },
-    { question: 'Can I start with just one property?', answer: 'Yes. Property Peace is free for up to 2 units and works well for landlords starting with one or two rentals.' },
+    { question: 'Can I start with just one property?', answer: 'Yes. Property Peace is free for up to 5 units and works well for landlords starting with one or two rentals.' },
     { question: 'Will this still work as I add units?', answer: 'Yes. Property Peace is designed for the 1–50 unit range, so it can support a small portfolio as it grows.' },
   ],
   relatedLinks: [

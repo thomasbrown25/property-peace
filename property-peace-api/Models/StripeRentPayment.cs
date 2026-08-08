@@ -14,7 +14,9 @@ namespace brownstone_hub_api.Models
         RecoveryFailed,
         Blocked,
         Failed,
-        Canceled
+        Canceled,
+        // Appended to preserve the persisted numeric values of existing lifecycle states.
+        Processing
     }
 
     public class StripeRentPayment
@@ -52,6 +54,9 @@ namespace brownstone_hub_api.Models
         public long RefundedAmountCents { get; set; }
         public DateTimeOffset? DisputedAt { get; set; }
         public long DisputedAmountCents { get; set; }
+        public long DisputeRecoveredAmountCents { get; set; }
+        public DateTimeOffset? DisputeClosedAt { get; set; }
+        [MaxLength(32)] public string? StripeDisputeStatus { get; set; }
         public DateTimeOffset? NextTransferAttemptAt { get; set; }
         [MaxLength(255)] public string? StripeRefundId { get; set; }
         [MaxLength(255)] public string? StripeDisputeId { get; set; }

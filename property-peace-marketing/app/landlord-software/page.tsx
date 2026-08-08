@@ -132,7 +132,7 @@ export default function LandlordSoftwarePage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Free for up to 2 units. No per-unit fees, no setup costs. Premium features like LeaseShield available on higher plans.
+                Free for up to 5 units. No per-unit fees, no setup costs. Premium features like LeaseShield available on higher plans.
               </p>
             </div>
             <div>
@@ -166,7 +166,7 @@ export default function LandlordSoftwarePage() {
             className="text-xl text-[#E5E5E5] mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Free for up to 2 units. Simple, flat pricing — no per-unit fees. Cancel anytime.
+            Free for up to 5 units. Simple, flat pricing — no per-unit fees. Cancel anytime.
           </p>
           <Link
             href="https://app.propertypeace.io/register"

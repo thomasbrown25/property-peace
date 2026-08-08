@@ -189,7 +189,17 @@ public sealed class ListingTenantScreeningWriteProtectionTests
         var claims = userId.HasValue
             ? new[] { new Claim(identityClaimType, userId.Value.ToString()) }
             : [];
-        var controller = new ListingController(listings.Object, Mock.Of<IListingAIService>(), readiness.Object)
+        var featureGate = new Mock<brownstone_hub_api.Services.SubscriptionService.IFeatureGateService>();
+        featureGate.Setup(service => service.GetListingSyndicationEntitlementAsync(42))
+            .ReturnsAsync(new brownstone_hub_api.Services.SubscriptionService.ListingSyndicationEntitlement(
+                CanUseCoreDestinations: true,
+                CanUseExtendedDestinations: true,
+                MaxActiveExternalListings: null));
+        var controller = new ListingController(
+            listings.Object,
+            Mock.Of<IListingAIService>(),
+            readiness.Object,
+            featureGate.Object)
         {
             ControllerContext = new ControllerContext
             {

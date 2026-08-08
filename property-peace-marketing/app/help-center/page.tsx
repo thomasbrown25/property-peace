@@ -24,7 +24,7 @@ const faqs = [
   {
     question: "Is Property Peace free?",
     answer:
-      "Property Peace has a free plan for up to 2 units, with no credit card required to get started. Paid plans add features and capacity; check the pricing page for the current plan details.",
+      "Property Peace has a free plan for up to 5 units, with no credit card required to get started. Paid plans add features and capacity; check the pricing page for the current plan details.",
   },
   {
     question: "Can tenants pay rent online through Property Peace?",

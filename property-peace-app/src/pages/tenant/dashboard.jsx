@@ -58,10 +58,9 @@ import moment from 'moment';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 
 // ==============================|| TENANT - DASHBOARD ||============================== //
-
-const BALANCE_CREDITING_STATUSES = new Set(['completed', 'paid']);
 
 let tenantDashboardStripePromise;
 const getTenantDashboardStripe = async () => {
@@ -100,11 +99,7 @@ function getLandlordPhoneFromLease(lease) {
 }
 
 function getPaymentStatus(payment) {
-  return (payment?.status || payment?.Status || 'Completed').toString();
-}
-
-function isBalanceCreditingPayment(payment) {
-  return BALANCE_CREDITING_STATUSES.has(getPaymentStatus(payment).toLowerCase());
+  return classifyPaymentStatus(payment).status;
 }
 
 function getPaymentStatusMeta(payment) {
@@ -159,11 +154,11 @@ function getPaymentStatusMeta(payment) {
       };
     default:
       return {
-        label: getPaymentStatus(payment),
-        color: 'default',
-        icon: null,
-        iconColor: '#8c8c8c',
-        accent: 'default',
+        label: 'Needs review',
+        color: 'warning',
+        icon: <WarningOutlined />,
+        iconColor: '#faad14',
+        accent: 'warning',
         datePrefix: 'Submitted on'
       };
   }
@@ -651,7 +646,7 @@ export default function TenantDashboard() {
         // Fetch payments for this lease
         if (leaseData.id) {
           try {
-            const paymentsResponse = await axiosServices.get(`/api/payment/${leaseData.id}`);
+            const paymentsResponse = await axiosServices.get(`/api/payment/${leaseData.id}/tenant-history`);
             if (paymentsResponse.data) {
               // Handle both response formats
               const paymentsData = paymentsResponse.data.data || paymentsResponse.data || [];
@@ -1521,7 +1516,7 @@ export default function TenantDashboard() {
               try {
                 if (!lease?.id) return;
 
-                const paymentsResponse = await axiosServices.get(`/api/payment/${lease.id}`);
+                const paymentsResponse = await axiosServices.get(`/api/payment/${lease.id}/tenant-history`);
                 if (paymentsResponse.data) {
                   const paymentsData = paymentsResponse.data.data || paymentsResponse.data || [];
                   setPayments(Array.isArray(paymentsData) ? paymentsData : []);

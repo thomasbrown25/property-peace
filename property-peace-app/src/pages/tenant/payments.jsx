@@ -44,22 +44,16 @@ import PaymentModal from 'components/drawers/PaymentModal';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 
 // ==============================|| TENANT - PAYMENTS ||============================== //
 
-const BALANCE_CREDITING_STATUSES = new Set(['completed', 'paid']);
-
 function getPaymentStatus(payment) {
-  return (payment?.status || payment?.Status || 'Completed').toString();
-}
-
-function isBalanceCreditingPayment(payment) {
-  return BALANCE_CREDITING_STATUSES.has(getPaymentStatus(payment).toLowerCase());
+  return classifyPaymentStatus(payment).status;
 }
 
 function canRetryPayment(payment) {
-  const status = getPaymentStatus(payment).toLowerCase();
-  return payment?.canRetry || payment?.CanRetry || ['failed', 'canceled', 'cancelled', 'disputed'].includes(status);
+  return classifyPaymentStatus(payment).retryable;
 }
 
 function getPaymentStatusMeta(payment) {
@@ -78,7 +72,7 @@ function getPaymentStatusMeta(payment) {
     case 'disputed':
       return { label: 'Disputed', color: 'error', icon: <WarningOutlined /> };
     default:
-      return { label: getPaymentStatus(payment), color: 'default', icon: null };
+      return { label: 'Needs review', color: 'warning', icon: <WarningOutlined /> };
   }
 }
 
@@ -254,7 +248,7 @@ export default function TenantPayments() {
       if (!leaseId) return;
       setLoadingPayments(true);
       try {
-        const [paymentsRes] = await Promise.allSettled([axiosServices.get(`/api/payment/${leaseId}`)]);
+        const [paymentsRes] = await Promise.allSettled([axiosServices.get(`/api/payment/${leaseId}/tenant-history`)]);
         if (paymentsRes.status === 'fulfilled') {
           const data = paymentsRes.value.data?.data || paymentsRes.value.data || [];
           setPayments(Array.isArray(data) ? data : []);

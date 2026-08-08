@@ -89,6 +89,12 @@ namespace brownstone_hub_api.Repositories.Payments
                     throw new KeyNotFoundException($"Payment with ID {paymentId} not found");
                 }
 
+                if (!string.IsNullOrWhiteSpace(payment.StripePaymentIntentId)
+                    || !string.IsNullOrWhiteSpace(payment.StripeChargeId))
+                {
+                    throw new InvalidOperationException("Provider-recorded online payments cannot be manually edited.");
+                }
+
                 if (updatePayment.Amount.HasValue)
                 {
                     payment.Amount = updatePayment.Amount.Value;
@@ -158,6 +164,12 @@ namespace brownstone_hub_api.Repositories.Payments
                 if (!isCreatedByUser && !isPropertyOwner)
                 {
                     throw new UnauthorizedAccessException("You can only delete payments that you manually recorded or payments for properties you own");
+                }
+
+                if (!string.IsNullOrWhiteSpace(payment.StripePaymentIntentId)
+                    || !string.IsNullOrWhiteSpace(payment.StripeChargeId))
+                {
+                    throw new InvalidOperationException("Provider-recorded online payments cannot be manually deleted.");
                 }
 
                 var leaseId = payment.LeaseId;
@@ -659,6 +671,125 @@ namespace brownstone_hub_api.Repositories.Payments
                 throw new Exception("Error retrieving payment history for tenant", ex);
             }
         }
+
+        public async Task<List<TenantLeasePaymentHistoryItemDto>> GetTenantLeasePaymentHistory(
+            long leaseId,
+            long tenantUserId,
+            long organizationId)
+        {
+            var authorized = await _context.TenantLeases
+                .AsNoTracking()
+                .AnyAsync(tl => tl.LeaseId == leaseId
+                    && tl.Tenant.UserId == tenantUserId
+                    && !tl.Tenant.IsDeleted
+                    && tl.Tenant.OrganizationId == organizationId
+                    && !tl.Lease.IsDeleted
+                    && tl.Lease.Unit.Property.OrganizationId == organizationId);
+
+            if (!authorized)
+                return [];
+
+            var payments = await _context.Payments
+                .AsNoTracking()
+                .Where(p => p.LeaseId == leaseId
+                    && (p.OrganizationId == organizationId
+                        || p.Lease.Unit.Property.OrganizationId == organizationId))
+                .ToListAsync();
+
+            // Prefer the allocated Payment row and suppress its aggregate twin by the
+            // provider correlation key, without exposing that key to the tenant.
+            var allocatedIntentIds = payments
+                .Where(p => !string.IsNullOrWhiteSpace(p.StripePaymentIntentId))
+                .Select(p => p.StripePaymentIntentId!)
+                .ToHashSet(StringComparer.Ordinal);
+
+            var attempts = await _context.StripeRentPayments
+                .AsNoTracking()
+                .Where(p => p.LeaseId == leaseId
+                    && p.TenantUserId == tenantUserId
+                    && p.OrganizationId == organizationId)
+                .ToListAsync();
+
+            var paymentRows = payments
+                .GroupBy(p => string.IsNullOrWhiteSpace(p.StripePaymentIntentId)
+                    ? $"payment:{p.Id}"
+                    : $"intent:{p.StripePaymentIntentId}", StringComparer.Ordinal)
+                .Select(group => group
+                    .OrderByDescending(p => IsCreditingStatus(p.Status))
+                    .ThenByDescending(p => p.PaymentDate)
+                    .First())
+                .Select(p =>
+                {
+                    var status = NormalizePaymentStatus(p.Status);
+                    return new TenantLeasePaymentHistoryItemDto
+                    {
+                        Id = $"payment:{p.Id}",
+                        LeaseId = p.LeaseId,
+                        Amount = p.Amount,
+                        Currency = "USD",
+                        PaymentDate = p.PaymentDate,
+                        Status = status,
+                        CreditsRent = IsCreditingStatus(status),
+                        CanRetry = IsRetryableStatus(status),
+                        PaymentType = p.FeeId.HasValue ? "Fee" : p.DepositId.HasValue ? "Deposit" : "Rent",
+                        Method = p.Method
+                    };
+                });
+
+            var attemptRows = attempts
+                .Where(p => !allocatedIntentIds.Contains(p.PaymentIntentId))
+                .Select(p =>
+                {
+                    var status = NormalizeAttemptStatus(p.Status);
+                    return new TenantLeasePaymentHistoryItemDto
+                    {
+                        Id = $"attempt:{p.Id}",
+                        LeaseId = p.LeaseId,
+                        Amount = p.AmountCents / 100m,
+                        Currency = p.Currency.ToUpperInvariant(),
+                        PaymentDate = p.UpdatedAt.UtcDateTime,
+                        Status = status,
+                        CreditsRent = false,
+                        CanRetry = IsRetryableStatus(status),
+                        PaymentType = "Rent",
+                        Method = string.IsNullOrWhiteSpace(p.PaymentMethodType) ? "Online Payment" : p.PaymentMethodType
+                    };
+                });
+
+            return paymentRows.Concat(attemptRows)
+                .OrderByDescending(item => item.PaymentDate)
+                .ToList();
+        }
+
+        private static bool IsCreditingStatus(string? status) =>
+            string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase);
+
+        private static bool IsRetryableStatus(string? status) =>
+            string.Equals(status, "Failed", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(status, "Canceled", StringComparison.OrdinalIgnoreCase);
+
+        private static string NormalizePaymentStatus(string? status)
+        {
+            if (string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase)) return "Completed";
+            if (string.Equals(status, "Paid", StringComparison.OrdinalIgnoreCase)) return "Paid";
+            if (string.Equals(status, "Created", StringComparison.OrdinalIgnoreCase)) return "Created";
+            if (string.Equals(status, "Processing", StringComparison.OrdinalIgnoreCase)) return "Processing";
+            if (string.Equals(status, "Failed", StringComparison.OrdinalIgnoreCase)) return "Failed";
+            if (string.Equals(status, "Canceled", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(status, "Cancelled", StringComparison.OrdinalIgnoreCase)) return "Canceled";
+            if (string.Equals(status, "Disputed", StringComparison.OrdinalIgnoreCase)) return "Disputed";
+            return "NeedsReview";
+        }
+
+        private static string NormalizeAttemptStatus(Models.StripeRentPaymentStatus status) => status switch
+        {
+            Models.StripeRentPaymentStatus.Created => "Created",
+            Models.StripeRentPaymentStatus.Processing => "Processing",
+            Models.StripeRentPaymentStatus.Failed => "Failed",
+            Models.StripeRentPaymentStatus.Canceled => "Canceled",
+            _ => "Processing"
+        };
 
         /// <summary>
         /// Updates the lease's OverdueAmount field based on current payments

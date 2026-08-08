@@ -25,6 +25,13 @@ export default function Hero() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
           >
+            <p
+              className="mx-auto mb-4 inline-flex border border-emerald-300/35 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-emerald-200 lg:mx-0"
+              style={{ fontFamily: '"Inter", sans-serif' }}
+            >
+              The #1 Free Rental Management Software
+            </p>
+
             {/* Headline */}
             <h1
               className="mx-auto mb-5 max-w-[22rem] text-[2.9rem] font-semibold tracking-[-0.055em] text-white sm:max-w-none sm:text-[2.45rem] sm:font-bold sm:tracking-[-0.045em] md:text-4xl xl:text-5xl lg:mx-0"

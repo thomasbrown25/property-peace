@@ -672,8 +672,8 @@ export default function ListingDetailPage() {
                   <Divider />
                   {[
                     ['Listing website', listing.syndicateToListingWebsite],
-                    ['Free sites', listing.syndicateToFreeSites],
-                    ['Premium sites', listing.syndicateToPremiumSites]
+                    ['Core external distribution', listing.syndicateToFreeSites],
+                    ['Extended external distribution', listing.syndicateToPremiumSites]
                   ].map(([label, enabled]) => (
                     <Stack key={label} direction="row" justifyContent="space-between" alignItems="center">
                       <Typography variant="body2" color="text.secondary">

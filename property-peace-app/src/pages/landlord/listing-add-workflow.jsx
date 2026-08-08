@@ -470,7 +470,7 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
           listingContactName: formData.listingContactName || null,
           listingContactPhone: formData.listingContactPhone || null,
           listingContactEmail: formData.listingContactEmail || null,
-          syndicateToListingWebsite: syndicationCanInvoke && Boolean(formData.syndicateToListingWebsite),
+          syndicateToListingWebsite: Boolean(formData.syndicateToListingWebsite),
           syndicateToFreeSites: syndicationCanInvoke && Boolean(formData.syndicateToFreeSites),
           syndicateToPremiumSites: syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites),
         };
@@ -545,7 +545,7 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
 
   // ── Submit (publish) ──────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!draftListingId || !syndicationCanInvoke) return;
+    if (!draftListingId) return;
     setIsSavingStep(true);
     try {
       const result = await dispatch(publishListing(draftListingId));
@@ -1245,41 +1245,45 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
 
               <Divider />
 
-              <FeatureReadinessNotice
-                title="Listing syndication"
-                presentation={syndicationPresentation}
-                isLoading={syndicationReadinessLoading}
-                error={syndicationReadinessError}
-              />
-
               <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ letterSpacing: '0.08em' }}>
-                Syndication
+                Publishing
               </Typography>
               {/* Listing Website */}
-              <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, opacity: syndicationCanInvoke ? 1 : 0.6 }}>
+              <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography variant="subtitle1" fontWeight={600}>Listing Website</Typography>
                     <Typography variant="body2" color="text.secondary">Your custom listing website</Typography>
                   </Box>
                   <Chip
-                    label={syndicationCanInvoke ? 'Enabled' : 'Unavailable'}
-                    color={syndicationCanInvoke ? 'success' : 'default'}
+                    label="Available"
+                    color="success"
                     size="small"
                   />
                 </Stack>
               </Box>
 
-              {/* Free syndication — coming soon */}
+              <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ letterSpacing: '0.08em' }}>
+                External distribution
+              </Typography>
+
+              <FeatureReadinessNotice
+                title="External listing syndication"
+                presentation={syndicationPresentation}
+                isLoading={syndicationReadinessLoading}
+                error={syndicationReadinessError}
+              />
+
+              {/* Core external distribution — provider network pending */}
               <Tooltip title="Coming soon" placement="top">
                 <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, opacity: 0.5, cursor: 'not-allowed' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="subtitle1" fontWeight={600}>Free Syndication</Typography>
+                        <Typography variant="subtitle1" fontWeight={600}>Core External Distribution</Typography>
                         <Chip label="Coming Soon" size="small" icon={<ClockCircleOutlined style={{ fontSize: 11 }} />} sx={{ height: 20, fontSize: '0.65rem' }} />
                       </Stack>
-                      <Typography variant="body2" color="text.secondary">TenantCloud, Rentler, Realtor.com, Apartments.com</Typography>
+                      <Typography variant="body2" color="text.secondary">Free includes one active external vacancy when syndication launches.</Typography>
                     </Box>
                     <Button variant="outlined" disabled sx={{ textTransform: 'none', pointerEvents: 'none' }}>
                       Disabled
@@ -1288,17 +1292,17 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
                 </Box>
               </Tooltip>
 
-              {/* Premium syndication — coming soon */}
+              {/* Extended external distribution — provider network pending */}
               <Tooltip title="Coming soon" placement="top">
                 <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, opacity: 0.5, cursor: 'not-allowed' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="subtitle1" fontWeight={600}>Premium Syndication</Typography>
+                        <Typography variant="subtitle1" fontWeight={600}>Extended External Distribution</Typography>
                         <Chip label="Coming Soon" size="small" icon={<ClockCircleOutlined style={{ fontSize: 11 }} />} sx={{ height: 20, fontSize: '0.65rem' }} />
                       </Stack>
-                      <Typography variant="body2" color="text.secondary">Zillow, Rent.com, Redfin, Apartment Guide, Zumper, Trulia, HotPads</Typography>
-                      <Typography variant="body2" color="text.disabled" sx={{ mt: 0.5 }}>$30.00</Typography>
+                      <Typography variant="body2" color="text.secondary">Premium and Lifetime include multiple active external vacancies when syndication launches.</Typography>
+                      <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>Supported destinations will be confirmed before launch.</Typography>
                     </Box>
                     <Button variant="outlined" disabled sx={{ textTransform: 'none', pointerEvents: 'none' }}>
                       Disabled
@@ -1354,7 +1358,7 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={isSavingStep || !syndicationCanInvoke}
+                disabled={isSavingStep}
                 startIcon={isSavingStep ? <CircularProgress size={20} /> : <CheckCircleOutlined />}
                 sx={{ textTransform: 'none', minWidth: 160 }}
               >

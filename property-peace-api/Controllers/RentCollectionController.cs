@@ -138,7 +138,7 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
-        [Authorize]
+        [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("payment")]
         public async Task<IActionResult> AddPayment([FromBody] AddPaymentDto newPayment)
         {
@@ -177,15 +177,16 @@ namespace brownstone_hub_api.Controllers
                 }
             }
 
-            // Only set CreatedByUserId for landlords/admins (manual entries)
-            if (userId.HasValue)
-            {
-                var userRoles = User?.FindAll(ClaimTypes.Role)?.Select(c => c.Value).ToList();
-                if (userRoles != null && (userRoles.Contains("Landlord") || userRoles.Contains("Admin")))
-                {
-                    newPayment.CreatedByUserId = userId.Value;
-                }
-            }
+            if (!userId.HasValue)
+                return Unauthorized(new { Message = "Authenticated user context is required" });
+
+            // This is a manual-entry endpoint. Never accept provider identity or status
+            // from the browser; Stripe orchestration owns those fields.
+            newPayment.CreatedByUserId = userId.Value;
+            newPayment.Method = "Manual Entry";
+            newPayment.Status = "Completed";
+            newPayment.StripePaymentIntentId = null;
+            newPayment.StripePaymentMethodId = null;
 
             var response = await _rentCollectionService.AddPayment(newPayment);
 

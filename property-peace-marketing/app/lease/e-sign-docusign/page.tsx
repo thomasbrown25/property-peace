@@ -34,7 +34,7 @@ const page = {
   title: 'E-Signature Integration Is Not Currently Available',
   subtitle: 'Property Peace can organize lease records and completed documents today. Integrated DocuSign and in-product e-signature workflows remain on the roadmap.',
   primaryCta: 'Manage Lease Records',
-  trustItems: ['Availability stated clearly', 'Free for up to 2 units', 'Built for 1–50 units'],
+  trustItems: ['Availability stated clearly', 'Free for up to 5 units', 'Built for 1–50 units'],
   problemTitle: 'Signing and recordkeeping are separate today',
   problemPoints: [
     'Property Peace does not currently send documents to DocuSign.',

@@ -869,7 +869,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-primary-main sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
-              {['Track paid & overdue rent', 'Send reminders fast', 'Update the ledger automatically', 'Free for up to 2 units'].map((item) => (
+              {['Track paid & overdue rent', 'Send reminders fast', 'Update the ledger automatically', 'Free for up to 5 units'].map((item) => (
                 <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#E5E5E5] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
                   <FiCheck className="h-4 w-4 flex-shrink-0 text-green-600" />{item}
                 </span>

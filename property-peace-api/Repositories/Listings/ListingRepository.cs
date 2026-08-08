@@ -374,6 +374,7 @@ namespace brownstone_hub_api.Repositories.Listings
             {
                 var listing = await _context.Listings
                     .Where(l => l.Status == EListingStatus.Active &&
+                        l.SyndicateToListingWebsite != false &&
                         (l.CustomListingUrl == normalized || l.CustomListingUrl == "/" + normalized))
                     .Include(l => l.Property)
                     .Include(l => l.Unit)
@@ -467,7 +468,7 @@ namespace brownstone_hub_api.Repositories.Listings
             try
             {
                 var listings = await _context.Listings
-                    .Where(l => l.Status == EListingStatus.Active)
+                    .Where(l => l.Status == EListingStatus.Active && l.SyndicateToListingWebsite != false)
                     .Include(l => l.Property)
                     .Include(l => l.Unit)
                     .Include(l => l.Images)

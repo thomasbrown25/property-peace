@@ -1033,15 +1033,75 @@ namespace brownstone_hub_api.Services.StripeService
                 return;
             }
 
-            if (!TryGetLeaseId(paymentIntent, out var leaseId))
+            var failureMessage = paymentIntent.LastPaymentError?.Message
+                ?? "Stripe reported this payment as failed.";
+            var aggregate = await _context.StripeRentPayments.AsNoTracking()
+                .SingleOrDefaultAsync(p => p.PaymentIntentId == paymentIntent.Id);
+            var leaseId = aggregate?.LeaseId;
+            if (!leaseId.HasValue && TryGetLeaseId(paymentIntent, out var metadataLeaseId))
+                leaseId = metadataLeaseId;
+            if (!leaseId.HasValue)
             {
-                _logger.LogInformation("payment_intent.payment_failed: No leaseId in metadata for {PaymentIntentId}, skipping rent status update", paymentIntent.Id);
+                _logger.LogInformation("payment_intent.payment_failed: No durable aggregate or leaseId metadata for {PaymentIntentId}, skipping legacy rent status update", paymentIntent.Id);
                 return;
             }
 
-            var failureMessage = paymentIntent.LastPaymentError?.Message;
-            await _stripeRentPaymentService.MarkFailedAsync(paymentIntent.Id, failureMessage ?? "Stripe reported this payment as failed.");
-            await UpdateTenantPaymentIntentStatusAsync(paymentIntent.Id, leaseId, "Failed", failureMessage ?? "Stripe reported this payment as failed.");
+            StripeRentPaymentIntentState currentState;
+            try
+            {
+                currentState = await _stripeRentGateway.GetPaymentIntentStateAsync(paymentIntent.Id);
+            }
+            catch (Exception ex)
+            {
+                await ContainAllocatedPaymentForProviderReconciliationAsync(aggregate);
+                throw new InvalidOperationException(
+                    "Current Stripe PaymentIntent state could not be verified; webhook processing must retry.", ex);
+            }
+            if (!currentState.Exists || string.IsNullOrWhiteSpace(currentState.Status))
+            {
+                await ContainAllocatedPaymentForProviderReconciliationAsync(aggregate);
+                throw new InvalidOperationException(
+                    "Current Stripe PaymentIntent state is ambiguous; webhook processing must retry.");
+            }
+            if (string.Equals(currentState.Status, "succeeded", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(currentState.Status, "processing", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "payment_intent.payment_failed: Ignoring stale failure because {PaymentIntentId} is currently {CurrentStatus}",
+                    paymentIntent.Id, currentState.Status);
+                return;
+            }
+            if (!string.Equals(currentState.Status, "requires_payment_method", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "payment_intent.payment_failed: Ignoring stale failure because {PaymentIntentId} is currently {CurrentStatus}",
+                    paymentIntent.Id, currentState.Status);
+                return;
+            }
+
+            // A delayed bank debit can fail after Stripe previously reported success and local rent
+            // accounting was completed. Only the provider's current requires_payment_method state is
+            // authoritative enough to reopen the obligation and block/reverse settlement.
+            if (aggregate?.AllocationCompletedAt != null
+                && string.Equals(aggregate.PaymentMethodType, "us_bank_account", StringComparison.Ordinal))
+            {
+                if (paymentIntent.Amount != aggregate.AmountCents
+                    || !string.Equals(paymentIntent.Currency, aggregate.Currency, StringComparison.OrdinalIgnoreCase)
+                    || string.IsNullOrWhiteSpace(paymentIntent.LatestChargeId)
+                    || !string.Equals(paymentIntent.LatestChargeId, aggregate.StripeChargeId, StringComparison.Ordinal))
+                    throw new InvalidOperationException("Failed bank PaymentIntent does not match its durable settled authority.");
+
+                await _stripeRentPaymentService.MarkBlockedAsync(paymentIntent.Id, paymentIntent.LatestChargeId,
+                    StripeRentPaymentBlockKind.Dispute, string.Empty,
+                    "Stripe reported that a previously allocated bank payment was returned or failed.",
+                    aggregate.AmountCents);
+                await _stripeRentLossAccountingService.ApplyAsync(new StripeRentLossAccountingCommand(
+                    paymentIntent.Id, StripeRentPaymentBlockKind.Dispute, new DateTimeOffset(stripeEvent.Created)));
+                return;
+            }
+
+            await _stripeRentPaymentService.MarkFailedAsync(paymentIntent.Id, failureMessage);
+            await UpdateTenantPaymentIntentStatusAsync(paymentIntent.Id, leaseId.Value, "Failed", failureMessage);
         }
 
         public async Task HandlePaymentIntentCanceledAsync(Event stripeEvent)
@@ -1078,40 +1138,31 @@ namespace brownstone_hub_api.Services.StripeService
                 return;
             }
 
-            var aggregate = await _context.StripeRentPayments.AsNoTracking()
-                .SingleOrDefaultAsync(p => p.PaymentIntentId == dispute.PaymentIntentId);
-            if (aggregate == null)
+            var exists = await _context.StripeRentPayments.AsNoTracking()
+                .AnyAsync(p => p.PaymentIntentId == dispute.PaymentIntentId);
+            if (!exists)
             {
                 _logger.LogInformation("charge.dispute.created: PaymentIntent {PaymentIntentId} is not a durable rent payment; skipping rent mutation", dispute.PaymentIntentId);
                 return;
             }
-            if (string.IsNullOrWhiteSpace(dispute.ChargeId)
-                || string.IsNullOrWhiteSpace(aggregate.StripeChargeId)
-                || !string.Equals(dispute.ChargeId, aggregate.StripeChargeId, StringComparison.Ordinal))
-                throw new InvalidOperationException($"Dispute {dispute.Id} charge provenance does not match the durable rent payment.");
 
-            var priorDisputeId = aggregate.StripeDisputeId;
             var occurredAt = new DateTimeOffset(stripeEvent.Created);
-            await _stripeRentPaymentService.MarkBlockedAsync(dispute.PaymentIntentId, dispute.ChargeId,
-                StripeRentPaymentBlockKind.Dispute, dispute.Id,
-                "Stripe reported a dispute or bank return for this charge.", dispute.Amount);
-            await _stripeRentLossAccountingService.ApplyAsync(new StripeRentLossAccountingCommand(
-                dispute.PaymentIntentId, StripeRentPaymentBlockKind.Dispute, occurredAt));
+            var result = await _stripeRentLossAccountingService.ApplyDisputeCreatedAsync(
+                new StripeRentDisputeCreatedCommand(dispute.PaymentIntentId, dispute.ChargeId, dispute.Id,
+                    dispute.Amount, occurredAt, "Stripe reported a dispute or bank return for this charge."));
+            if (!result.Applied)
+            {
+                _logger.LogInformation(
+                    "charge.dispute.created: Ignoring stale replay for already-won dispute {DisputeId} on PaymentIntent {PaymentIntentId}",
+                    dispute.Id, dispute.PaymentIntentId);
+                return;
+            }
 
-            var payments = await _context.Payments
+            var payments = await _context.Payments.AsNoTracking()
                 .Where(p => p.Amount > 0 && (p.StripePaymentIntentId == dispute.PaymentIntentId || p.Reference == dispute.PaymentIntentId))
                 .ToListAsync();
-            foreach (var payment in payments)
-            {
-                payment.StripeDisputeId = dispute.Id;
-                payment.StripeChargeId ??= dispute.ChargeId;
-                payment.DisputedAt ??= occurredAt.UtcDateTime;
-                payment.StripeStatusChangedAt = occurredAt.UtcDateTime;
-                payment.UpdatedAt = occurredAt.UtcDateTime;
-            }
-            await _context.SaveChangesAsync();
 
-            if (!string.Equals(priorDisputeId, dispute.Id, StringComparison.Ordinal))
+            if (result.IsNewDispute)
             {
                 foreach (var payment in payments)
                     await NotifyTenantPaymentStatusChangedAsync(payment, "Disputed",
@@ -1121,55 +1172,119 @@ namespace brownstone_hub_api.Services.StripeService
             // All financial containment, payment metadata, and best-effort notifications occur before
             // suspension. Suspension is the final DataContext mutation, so a failed save cannot
             // contaminate the accounting writes and webhook redelivery retries it idempotently.
-            if (string.IsNullOrWhiteSpace(aggregate.DestinationStripeAccountId))
+            if (string.IsNullOrWhiteSpace(result.DestinationStripeAccountId))
                 throw new InvalidOperationException($"Disputed rent payment {dispute.PaymentIntentId} has no durable destination account to suspend.");
-            await _stripeConnectedPayeeService.SuspendAsync(aggregate.DestinationStripeAccountId, null,
+            await _stripeConnectedPayeeService.SuspendAsync(result.DestinationStripeAccountId, null,
                 $"Automatic safety suspension after rent payment dispute {dispute.Id}.");
 
             _logger.LogWarning("charge.dispute.created: Applied exact loss accounting to {Count} payment record(s) for PaymentIntent {PaymentIntentId}, Dispute {DisputeId}",
                 payments.Count, dispute.PaymentIntentId, dispute.Id);
         }
 
+        public async Task HandleChargeDisputeClosedAsync(Event stripeEvent)
+        {
+            if (stripeEvent.Data.Object is not Stripe.Dispute dispute)
+                throw new InvalidOperationException($"charge.dispute.closed event {stripeEvent.Id} did not contain a dispute.");
+            if (string.IsNullOrWhiteSpace(dispute.PaymentIntentId) || string.IsNullOrWhiteSpace(dispute.ChargeId))
+                throw new InvalidOperationException($"Closed dispute {dispute.Id} is missing payment provenance.");
+
+            var occurredAt = new DateTimeOffset(stripeEvent.Created);
+            if (string.Equals(dispute.Status, "won", StringComparison.OrdinalIgnoreCase))
+            {
+                await _stripeRentLossAccountingService.RecoverWonDisputeAsync(
+                    dispute.PaymentIntentId, dispute.ChargeId, dispute.Id, dispute.Amount,
+                    dispute.Currency, occurredAt);
+                return;
+            }
+            if (!string.Equals(dispute.Status, "lost", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Closed dispute {dispute.Id} has unsupported status {dispute.Status}.");
+
+            var aggregate = await _context.StripeRentPayments.SingleOrDefaultAsync(
+                x => x.PaymentIntentId == dispute.PaymentIntentId)
+                ?? throw new InvalidOperationException($"Closed dispute {dispute.Id} is not for a durable rent payment.");
+            if (!string.Equals(aggregate.StripeChargeId, dispute.ChargeId, StringComparison.Ordinal)
+                || !string.Equals(aggregate.StripeDisputeId, dispute.Id, StringComparison.Ordinal)
+                || !string.Equals(aggregate.Currency, dispute.Currency, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException($"Closed dispute {dispute.Id} provenance does not match the durable rent payment.");
+            var durableDisputeAmount = checked(aggregate.DisputedAmountCents + aggregate.DisputeRecoveredAmountCents);
+            if (dispute.Amount <= 0 || dispute.Amount != durableDisputeAmount)
+                throw new InvalidOperationException($"Closed dispute {dispute.Id} amount does not match durable dispute authority.");
+
+            aggregate.StripeDisputeStatus = "lost";
+            aggregate.DisputeClosedAt ??= occurredAt;
+            aggregate.UpdatedAt = occurredAt;
+            await _context.SaveChangesAsync();
+        }
+
         public async Task HandleChargeRefundedAsync(Event stripeEvent)
         {
-            if (stripeEvent.Data.Object is not Stripe.Charge charge || string.IsNullOrWhiteSpace(charge.PaymentIntentId)) return;
+            if (stripeEvent.Data.Object is not Stripe.Charge charge || string.IsNullOrWhiteSpace(charge.PaymentIntentId))
+                throw new InvalidOperationException($"charge.refunded event {stripeEvent.Id} is missing charge provenance.");
+            var authority = await ValidateRefundAuthorityAsync(charge.Id, charge.PaymentIntentId,
+                charge.Amount, charge.Currency);
             var occurredAt = new DateTimeOffset(stripeEvent.Created);
-            // charge.refunded carries the authoritative cumulative refunded amount. Its ID is a
-            // charge ID, not a refund ID, so do not persist it in StripeRefundId.
-            await _stripeRentPaymentService.MarkBlockedAsync(charge.PaymentIntentId, charge.Id,
-                StripeRentPaymentBlockKind.Refund, string.Empty,
-                "Stripe reported that the source charge was refunded.", charge.AmountRefunded);
+            await _stripeRentPaymentService.ReconcileRefundExposureAsync(authority.PaymentIntentId, charge.Id,
+                string.Empty, "Stripe reported authoritative successful refund exposure for the source charge.",
+                authority.RefundedAmountCents);
             await _stripeRentLossAccountingService.ApplyAsync(new StripeRentLossAccountingCommand(
-                charge.PaymentIntentId, StripeRentPaymentBlockKind.Refund, occurredAt));
+                authority.PaymentIntentId, StripeRentPaymentBlockKind.Refund, occurredAt));
         }
 
         public async Task HandleRefundCreatedAsync(Event stripeEvent)
         {
-            if (stripeEvent.Data.Object is not Stripe.Refund refund) return;
-
-            // A Refund's Amount is only this individual refund. Re-read the charge so this event is
-            // independently sufficient and carries the same authoritative cumulative target as
-            // charge.refunded. Passing that target through MarkBlockedAsync makes either event order
-            // replay-safe and queues only exposure above the amount already reversed.
+            if (stripeEvent.Data.Object is not Stripe.Refund refund)
+                throw new InvalidOperationException($"Refund event {stripeEvent.Id} did not contain a refund.");
             if (string.IsNullOrWhiteSpace(refund.ChargeId))
                 throw new InvalidOperationException($"Refund {refund.Id} did not identify its source charge.");
 
-            var source = await _stripeRentGateway.GetSourceStateAsync(refund.ChargeId);
-            if (!source.Exists || source.RefundedAmountCents == null)
-                throw new InvalidOperationException($"Could not reconcile cumulative refund exposure for charge {refund.ChargeId}.");
-
-            var paymentIntentId = !string.IsNullOrWhiteSpace(refund.PaymentIntentId)
-                ? refund.PaymentIntentId
-                : source.PaymentIntentId;
-            if (string.IsNullOrWhiteSpace(paymentIntentId))
-                throw new InvalidOperationException($"Could not identify the PaymentIntent for refund {refund.Id}.");
-
+            var authority = await ValidateRefundAuthorityAsync(refund.ChargeId, refund.PaymentIntentId, null, null);
             var occurredAt = new DateTimeOffset(stripeEvent.Created);
-            await _stripeRentPaymentService.MarkBlockedAsync(paymentIntentId, refund.ChargeId,
-                StripeRentPaymentBlockKind.Refund, refund.Id,
-                "Stripe reported that the source charge was refunded.", source.RefundedAmountCents.Value);
+            await _stripeRentPaymentService.ReconcileRefundExposureAsync(authority.PaymentIntentId, refund.ChargeId,
+                refund.Id, "Stripe reported authoritative successful refund exposure for the source charge.",
+                authority.RefundedAmountCents);
             await _stripeRentLossAccountingService.ApplyAsync(new StripeRentLossAccountingCommand(
-                paymentIntentId, StripeRentPaymentBlockKind.Refund, occurredAt));
+                authority.PaymentIntentId, StripeRentPaymentBlockKind.Refund, occurredAt));
+        }
+
+        private async Task<(string PaymentIntentId, long RefundedAmountCents)> ValidateRefundAuthorityAsync(
+            string chargeId, string? eventPaymentIntentId, long? eventChargeAmount, string? eventCurrency)
+        {
+            var source = await _stripeRentGateway.GetSourceStateAsync(chargeId);
+            if (!source.Exists || !source.Paid || source.RefundedAmountCents == null
+                || string.IsNullOrWhiteSpace(source.PaymentIntentId))
+                throw new InvalidOperationException($"Could not reconcile authoritative successful refund exposure for charge {chargeId}.");
+            if (!string.IsNullOrWhiteSpace(eventPaymentIntentId)
+                && !string.Equals(eventPaymentIntentId, source.PaymentIntentId, StringComparison.Ordinal))
+                throw new InvalidOperationException("Refund PaymentIntent provenance does not match its authoritative source charge.");
+
+            var aggregate = await _context.StripeRentPayments.AsNoTracking().SingleOrDefaultAsync(
+                x => x.PaymentIntentId == source.PaymentIntentId)
+                ?? throw new InvalidOperationException("Refund source is not a durable rent payment.");
+            if (string.IsNullOrWhiteSpace(aggregate.StripeChargeId)
+                || !string.Equals(aggregate.StripeChargeId, chargeId, StringComparison.Ordinal)
+                || source.AmountCents != aggregate.AmountCents
+                || !string.Equals(source.Currency, aggregate.Currency, StringComparison.OrdinalIgnoreCase)
+                || (eventChargeAmount.HasValue && eventChargeAmount.Value != aggregate.AmountCents)
+                || (!string.IsNullOrWhiteSpace(eventCurrency)
+                    && !string.Equals(eventCurrency, aggregate.Currency, StringComparison.OrdinalIgnoreCase))
+                || source.RefundedAmountCents < 0 || source.RefundedAmountCents > aggregate.AmountCents)
+                throw new InvalidOperationException("Refund charge provenance does not match the durable rent payment.");
+            return (aggregate.PaymentIntentId, source.RefundedAmountCents.Value);
+        }
+
+        private async Task ContainAllocatedPaymentForProviderReconciliationAsync(StripeRentPayment? aggregate)
+        {
+            if (aggregate?.AllocationCompletedAt == null) return;
+            var tracked = await _context.StripeRentPayments.SingleAsync(
+                x => x.PaymentIntentId == aggregate.PaymentIntentId);
+            tracked.Status = string.IsNullOrWhiteSpace(tracked.StripeTransferId)
+                ? StripeRentPaymentStatus.Blocked
+                : StripeRentPaymentStatus.RecoveryFailed;
+            tracked.RiskReason = "Stripe failure authority could not be reconciled; operator review is required before settlement.";
+            tracked.TransferEligibleAt = null;
+            tracked.NextTransferAttemptAt = null;
+            tracked.UpdatedAt = DateTimeOffset.UtcNow;
+            await _context.SaveChangesAsync();
         }
 
         private static bool TryGetLeaseId(Stripe.PaymentIntent paymentIntent, out long leaseId)

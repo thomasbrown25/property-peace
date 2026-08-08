@@ -6,6 +6,7 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.FeatureReadiness;
 using brownstone_hub_api.Services.ListingAIService;
 using brownstone_hub_api.Services.ListingService;
+using brownstone_hub_api.Services.SubscriptionService;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -16,72 +17,66 @@ namespace brownstone_hub_api.Tests.Services.FeatureReadiness;
 
 public sealed class ListingPublicationReadinessTests
 {
-    [Fact]
-    public async Task PublishListing_UsesCanonicalRequestOrganizationForReadiness()
-    {
-        var (controller, listings, readiness) = CreateController(canInvoke: false, organizationId: 99);
-
-        var result = await controller.PublishListing(17);
-
-        result.Should().BeOfType<ObjectResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        readiness.Verify(service => service.GetAsync(42, 99, FeatureKeys.ListingSyndication), Times.Once);
-        listings.Verify(service => service.PublishListing(It.IsAny<long>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task PublishListing_ReturnsForbiddenWithoutPublishing_WhenSyndicationIsNotReady()
-    {
-        var (controller, listings, readiness) = CreateController(canInvoke: false);
-
-        var result = await controller.PublishListing(17);
-
-        result.Should().BeOfType<ObjectResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        readiness.Verify(service => service.GetAsync(42, 17, FeatureKeys.ListingSyndication), Times.Once);
-        listings.Verify(service => service.PublishListing(It.IsAny<long>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task PublishListing_ReturnsUnauthorizedWithoutReadinessOrPublishing_WhenIdentityIsMissing()
-    {
-        var (controller, listings, readiness) = CreateController(canInvoke: true, userId: null);
-
-        var result = await controller.PublishListing(17);
-
-        result.Should().BeOfType<UnauthorizedObjectResult>();
-        readiness.Verify(service => service.GetAsync(It.IsAny<long>(), It.IsAny<long?>(), It.IsAny<string>()), Times.Never);
-        listings.Verify(service => service.PublishListing(It.IsAny<long>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task PublishListing_ReturnsServiceUnavailableWithoutPublishing_WhenReadinessEvaluationErrors()
-    {
-        var (controller, listings, readiness) = CreateController(canInvoke: true, readinessThrows: true);
-
-        var action = async () => await controller.PublishListing(17);
-
-        var result = await action.Should().NotThrowAsync();
-        result.Which.Should().BeOfType<ObjectResult>()
-            .Which.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
-        readiness.Verify(service => service.GetAsync(42, 17, FeatureKeys.ListingSyndication), Times.Once);
-        listings.Verify(service => service.PublishListing(It.IsAny<long>()), Times.Never);
-    }
-
     [Theory]
-    [InlineData(ClaimTypes.NameIdentifier)]
-    [InlineData("userId")]
-    [InlineData("sub")]
-    public async Task PublishListing_ChecksAuthenticatedOwnersReadinessBeforePublishing_WhenConfirmed(string claimType)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PublishListing_PublishesHostedPage_WithoutExternalSyndicationReadiness(bool canInvoke)
     {
-        var calls = new List<string>();
-        var (controller, listings, readiness) = CreateController(canInvoke: true, claimType: claimType, calls: calls);
+        var (controller, listings, readiness) = CreateController(canInvoke);
+        listings.Setup(service => service.PublishListing(17))
+            .ReturnsAsync(ServiceResponse<LoadListingDto>.CreateSuccess(new LoadListingDto()));
 
         var result = await controller.PublishListing(17);
 
         result.Should().BeOfType<OkObjectResult>();
-        calls.Should().Equal("readiness", "publish");
-        readiness.Verify(service => service.GetAsync(42, 17, FeatureKeys.ListingSyndication), Times.Once);
+        listings.Verify(service => service.PublishListing(17), Times.Once);
+        readiness.Verify(
+            service => service.GetAsync(42, 17, FeatureKeys.ListingSyndication),
+            Times.Once);
+
+        listings.Verify(
+            service => service.UpdateListing(It.Is<UpdateListingDto>(dto =>
+                dto.Id == 17 &&
+                dto.SyndicateToFreeSites == false &&
+                dto.SyndicateToPremiumSites == false)),
+            canInvoke ? Times.Never : Times.Once);
+    }
+
+    [Fact]
+    public async Task PublishListing_PropagatesHostedPublicationFailure()
+    {
+        var (controller, listings, _) = CreateController(canInvoke: false);
+        listings.Setup(service => service.PublishListing(17))
+            .ReturnsAsync(ServiceResponse<LoadListingDto>.CreateError("Unable to publish", "Validation failed", "", 422));
+
+        var result = await controller.PublishListing(17);
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(422);
+        listings.Verify(service => service.PublishListing(17), Times.Once);
+    }
+
+    [Fact]
+    public async Task PublishListing_ClearsFreeExternalFlag_WhenAnotherActiveExternalListingUsesAllowance()
+    {
+        var (controller, listings, _) = CreateController(
+            canInvoke: true,
+            existingListings:
+            [
+                new LoadListingDto
+                {
+                    Id = 99,
+                    Status = brownstone_hub_api.Enums.EListingStatus.Active,
+                    SyndicateToFreeSites = true,
+                },
+            ]);
+        listings.Setup(service => service.PublishListing(17))
+            .ReturnsAsync(ServiceResponse<LoadListingDto>.CreateSuccess(new LoadListingDto()));
+
+        var result = await controller.PublishListing(17);
+
+        result.Should().BeOfType<OkObjectResult>();
+        listings.Verify(service => service.UpdateListing(It.Is<UpdateListingDto>(dto =>
+            dto.Id == 17 && dto.SyndicateToFreeSites == false)), Times.Once);
         listings.Verify(service => service.PublishListing(17), Times.Once);
     }
 
@@ -89,44 +84,54 @@ public sealed class ListingPublicationReadinessTests
         ListingController Controller,
         Mock<IListingService> Listings,
         Mock<IFeatureReadinessService> Readiness) CreateController(
-            bool canInvoke,
-            long? userId = 42,
-            bool readinessThrows = false,
-            string claimType = ClaimTypes.NameIdentifier,
-            List<string>? calls = null,
-            long? organizationId = 17)
+        bool canInvoke,
+        List<LoadListingDto>? existingListings = null)
     {
         var listings = new Mock<IListingService>();
-        listings.Setup(service => service.PublishListing(17))
-            .Callback(() => calls?.Add("publish"))
+        listings.Setup(service => service.GetListingById(17))
+            .ReturnsAsync(ServiceResponse<LoadListingDto>.CreateSuccess(new LoadListingDto
+            {
+                Id = 17,
+                SyndicateToListingWebsite = true,
+                SyndicateToFreeSites = true,
+                SyndicateToPremiumSites = false,
+            }));
+        listings.Setup(service => service.GetListingsByOrganization())
+            .ReturnsAsync(ServiceResponse<List<LoadListingDto>>.CreateSuccess(existingListings ?? []));
+        listings.Setup(service => service.UpdateListing(It.IsAny<UpdateListingDto>()))
             .ReturnsAsync(ServiceResponse<LoadListingDto>.CreateSuccess(new LoadListingDto()));
 
         var readiness = new Mock<IFeatureReadinessService>();
-        var setup = readiness.Setup(service => service.GetAsync(42, organizationId, FeatureKeys.ListingSyndication))
-            .Callback(() => calls?.Add("readiness"));
-        if (readinessThrows)
-            setup.ThrowsAsync(new InvalidOperationException("readiness unavailable"));
-        else
-            setup.ReturnsAsync(Readiness(canInvoke));
+        readiness.Setup(service => service.GetAsync(42, 17, FeatureKeys.ListingSyndication))
+            .ReturnsAsync(ReadinessResult(canInvoke));
 
-        var claims = userId.HasValue ? new[] { new Claim(claimType, userId.Value.ToString()) } : [];
-        var controller = new ListingController(listings.Object, Mock.Of<IListingAIService>(), readiness.Object)
+        var featureGate = new Mock<IFeatureGateService>();
+        featureGate.Setup(service => service.GetListingSyndicationEntitlementAsync(42))
+            .ReturnsAsync(new ListingSyndicationEntitlement(
+                CanUseCoreDestinations: true,
+                CanUseExtendedDestinations: false,
+                MaxActiveExternalListings: 1));
+
+        var controller = new ListingController(
+            listings.Object,
+            Mock.Of<IListingAIService>(),
+            readiness.Object,
+            featureGate.Object)
         {
             ControllerContext = new ControllerContext
             {
                 HttpContext = new DefaultHttpContext
                 {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(claims, "test")),
+                    User = new ClaimsPrincipal(new ClaimsIdentity(
+                        [new Claim(ClaimTypes.NameIdentifier, "42")], "test")),
                 },
             },
         };
-        if (organizationId.HasValue)
-            controller.HttpContext.Items["OrganizationId"] = organizationId.Value;
-
+        controller.HttpContext.Items["OrganizationId"] = 17L;
         return (controller, listings, readiness);
     }
 
-    private static FeatureReadinessDto Readiness(bool canInvoke) => new(
+    private static FeatureReadinessDto ReadinessResult(bool canInvoke) => new(
         FeatureKeys.ListingSyndication,
         canInvoke ? FeatureReadinessState.Available : FeatureReadinessState.ComingSoon,
         canInvoke,

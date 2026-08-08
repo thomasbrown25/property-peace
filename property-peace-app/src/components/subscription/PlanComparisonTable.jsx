@@ -13,6 +13,8 @@ const COMPARISON_FEATURES = [
   { label: 'Lease management', type: 'check', check: 'lease' },
   { label: 'Expense tracking', type: 'check', check: 'expense' },
   { label: 'Document storage', type: 'check', check: 'document storage' },
+  { label: 'Hosted listing page', type: 'check', check: 'hosted property peace listing' },
+  { label: 'External listing syndication', type: 'check', check: 'external listing' },
   { label: 'Online rent collection', type: 'check', check: 'online rent' },
   { label: 'Automated rent reminders', type: 'check', check: 'automated rent' },
   { label: 'Financial reports', type: 'check', check: 'financial report' },
@@ -73,6 +75,7 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
   const theme = useTheme();
   const [billingCycle, setBillingCycle] = useState(currentBillingCycle || 'Monthly');
   const { presentation: rentReadiness } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
+  const { presentation: syndicationReadiness } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
   const rawPlans = plans.filter((p) => !p.isTrial);
   const displayPlans = expandFeatures(rawPlans);
 
@@ -95,6 +98,9 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
     }
     if (feature.check === 'online rent' && !rentReadiness.canInvoke) {
       return <Chip label={rentReadiness.title} size="small" variant="outlined" color={rentReadiness.severity === 'error' ? 'error' : 'default'} />;
+    }
+    if (feature.check === 'external listing' && !syndicationReadiness.canInvoke) {
+      return <Chip label={syndicationReadiness.title} size="small" variant="outlined" color={syndicationReadiness.severity === 'error' ? 'error' : 'default'} />;
     }
     return <CheckOutlined style={{ color: theme.palette.success.main, fontSize: 15 }} />;
   };
@@ -136,7 +142,7 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
                 px: 0.6, py: 0.15, borderRadius: 0.5, lineHeight: 1.6
               }}
             >
-              -20%
+              -15%
             </Typography>
           </ToggleButton>
         </ToggleButtonGroup>

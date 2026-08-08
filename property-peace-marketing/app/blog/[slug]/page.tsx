@@ -454,7 +454,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                   className="text-white/65 mb-7 max-w-md mx-auto leading-relaxed"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
-                  Free for up to 2 units. No credit card required.
+                  Free for up to 5 units. No credit card required.
                 </p>
                 <Link
                   href="https://app.propertypeace.io/register"

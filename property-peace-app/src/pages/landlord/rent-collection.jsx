@@ -48,6 +48,7 @@ import axiosServices from 'utils/axios';
 // Enhanced components
 import RentCollectionHeader from 'sections/landlord/rent-collection/RentCollectionHeader';
 import RentCollectionMetrics from 'sections/landlord/rent-collection/RentCollectionMetrics';
+import SettlementSummary from 'sections/landlord/rent-collection/SettlementSummary';
 import RentCollectionTable from 'sections/landlord/rent-collection/RentCollectionTable';
 import RentCollectionEmptyState from 'sections/landlord/rent-collection/RentCollectionEmptyState';
 import RentCard from 'components/cards/RentCard';
@@ -384,8 +385,9 @@ export default function RentCollection() {
         </Box>
       )}
 
-      {/* Enhanced Metrics */}
+      {/* Tenant payment metrics and landlord settlement are intentionally presented separately. */}
       <RentCollectionMetrics summary={summary} />
+      <SettlementSummary summary={summary} />
 
       {paymentIssueRents.length > 0 && (
         <Alert

@@ -180,7 +180,7 @@ export default function SmallLandlordToolsPage() {
             className="text-lg text-[#737373] mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Unlike enterprise solutions that cost hundreds per month, Property Peace is designed for small landlords. Free for up to 2 units — no credit card required. Premium features like LeaseShield are available on higher plans.
+            Unlike enterprise solutions that cost hundreds per month, Property Peace is designed for small landlords. Free for up to 5 units — no credit card required. Premium features like LeaseShield are available on higher plans.
           </p>
           <div className="bg-[#F5F5F5] rounded-lg p-8 border border-[#E5E5E5]">
             <p
@@ -193,7 +193,7 @@ export default function SmallLandlordToolsPage() {
               className="text-[#737373] mb-6"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Free for up to 2 units. No credit card required. See how these tools can transform your property management.
+              Free for up to 5 units. No credit card required. See how these tools can transform your property management.
             </p>
             <Link
               href="https://app.propertypeace.io/register"

@@ -239,7 +239,7 @@ export default function ListingSetupPage() {
       listingContactName: formData.listingContactName?.trim() || null,
       listingContactPhone: formData.listingContactPhone?.trim() || null,
       listingContactEmail: formData.listingContactEmail?.trim() || null,
-      syndicateToListingWebsite: syndicationCanInvoke && Boolean(formData.syndicateToListingWebsite),
+      syndicateToListingWebsite: Boolean(formData.syndicateToListingWebsite),
       syndicateToFreeSites: syndicationCanInvoke && Boolean(formData.syndicateToFreeSites),
       syndicateToPremiumSites: syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites),
       basicAmenityIds: (formData.basicAmenityIds ?? []).filter((value) => Number(value) > 0),
@@ -291,7 +291,7 @@ export default function ListingSetupPage() {
 
   const handleSaveAndPublish = async () => {
     if (!id || !formData) return;
-    if (!syndicationCanInvoke) return;
+
     const incompleteTab = SETUP_TABS.find((tab) => !setupProgress.steps[tab.key]);
     if (incompleteTab) {
       setActiveTab(incompleteTab.key);
@@ -565,12 +565,13 @@ export default function ListingSetupPage() {
             </Box>
 
             <Box sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Syndication</Typography>
-              <FeatureReadinessNotice presentation={syndicationReadiness} featureName="Listing syndication" compact />
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Publishing</Typography>
               <Stack spacing={0.5}>
-                <FormControlLabel control={<Checkbox checked={syndicationCanInvoke && Boolean(formData.syndicateToListingWebsite)} disabled={!syndicationCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, syndicateToListingWebsite: e.target.checked }))} />} label="Show on Property Peace listing website" />
-                <FormControlLabel control={<Checkbox checked={syndicationCanInvoke && Boolean(formData.syndicateToFreeSites)} disabled={!syndicationCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, syndicateToFreeSites: e.target.checked }))} />} label="Syndicate to free sites" />
-                <FormControlLabel control={<Checkbox checked={syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites)} disabled={!syndicationCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, syndicateToPremiumSites: e.target.checked }))} />} label="Syndicate to premium sites" />
+                <FormControlLabel control={<Checkbox checked={Boolean(formData.syndicateToListingWebsite)} onChange={(e) => setFormData((p) => ({ ...p, syndicateToListingWebsite: e.target.checked }))} />} label="Show on Property Peace listing website" />
+                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ pt: 1 }}>EXTERNAL DISTRIBUTION</Typography>
+                <FeatureReadinessNotice presentation={syndicationReadiness} featureName="External listing syndication" compact />
+                <FormControlLabel control={<Checkbox checked={syndicationCanInvoke && Boolean(formData.syndicateToFreeSites)} disabled={!syndicationCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, syndicateToFreeSites: e.target.checked }))} />} label="Core external distribution" />
+                <FormControlLabel control={<Checkbox checked={syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites)} disabled={!syndicationCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, syndicateToPremiumSites: e.target.checked }))} />} label="Extended external distribution" />
               </Stack>
             </Box>
           </Stack>
@@ -614,7 +615,7 @@ export default function ListingSetupPage() {
             <Button variant="outlined" onClick={handleSaveDraft} disabled={saving || publishing} sx={{ textTransform: 'none', fontWeight: 700 }}>
               {saving ? 'Saving...' : 'Save draft'}
             </Button>
-            <Button variant="contained" onClick={handleSaveAndPublish} disabled={saving || publishing || !syndicationCanInvoke} sx={{ textTransform: 'none', fontWeight: 800, px: 3 }}>
+            <Button variant="contained" onClick={handleSaveAndPublish} disabled={saving || publishing} sx={{ textTransform: 'none', fontWeight: 800, px: 3 }}>
               {publishing ? 'Publishing...' : 'Save & Publish'}
             </Button>
           </Stack>

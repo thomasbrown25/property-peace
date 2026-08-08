@@ -22,5 +22,6 @@ namespace brownstone_hub_api.Repositories.Payments
         Task<List<LoadPaymentDto>> GetAllPaymentsByOrganizationId(long organizationId, long? propertyId = null, long? unitId = null);
         Task<int> DeletePaymentsByLeaseIds(List<long> leaseIds);
         Task<List<TenantPaymentHistoryItemDto>> GetPaymentHistoryByTenantId(long tenantId);
+        Task<List<TenantLeasePaymentHistoryItemDto>> GetTenantLeasePaymentHistory(long leaseId, long tenantUserId, long organizationId);
     }
 }

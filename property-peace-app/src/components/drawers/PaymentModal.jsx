@@ -33,6 +33,7 @@ import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import { useModal } from 'contexts/ModalContext';
 import { formatCurrency } from 'utils/formatters';
+import { getTenantPaymentSubmissionCopy } from 'utils/paymentSafety';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
@@ -849,6 +850,8 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
 }
 
 function TenantPaymentSubmitted({ payment, onClose }) {
+  const copy = getTenantPaymentSubmissionCopy(payment);
+
   return (
     <>
       <Box sx={{ px: 4, py: 5 }}>
@@ -858,22 +861,25 @@ function TenantPaymentSubmitted({ payment, onClose }) {
               width: 88,
               height: 88,
               borderRadius: '50%',
-              bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
-              color: 'success.main',
+              bgcolor: (theme) => alpha(theme.palette.info.main, 0.12),
+              color: 'info.main',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.success.main, 0.22)}`
+              boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.info.main, 0.18)}`
             }}
           >
-            <CheckCircleOutlined style={{ fontSize: 54 }} />
+            <DollarOutlined style={{ fontSize: 48 }} />
           </Box>
           <Box>
             <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
-              Payment submitted
+              {copy.title}
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Your payment for {formatCurrency(payment?.amount || 0)} has been submitted.
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 520, lineHeight: 1.65 }}>
+              {copy.message}
+            </Typography>
+            <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ mt: 2 }}>
+              Amount submitted: {formatCurrency(payment?.amount || 0)}
             </Typography>
           </Box>
         </Stack>
@@ -882,7 +888,7 @@ function TenantPaymentSubmitted({ payment, onClose }) {
         <Button onClick={onClose} variant="outlined" color="inherit" sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}>
           Close
         </Button>
-        <Button onClick={onClose} variant="contained" color="success" sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 700 }}>
+        <Button onClick={onClose} variant="contained" color="primary" sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 700 }}>
           Done
         </Button>
       </DialogActions>

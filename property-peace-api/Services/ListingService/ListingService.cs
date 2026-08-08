@@ -603,7 +603,9 @@ namespace brownstone_hub_api.Services.ListingService
             try
             {
                 var listing = await _listingRepository.GetListingByNumber(listingNumber);
-                if (listing == null || listing.Status != EListingStatus.Active)
+                if (listing == null ||
+                    listing.Status != EListingStatus.Active ||
+                    !listing.SyndicateToListingWebsite)
                 {
                     return ServiceResponse<PublicListingDto>.CreateError(
                         "Listing not found",

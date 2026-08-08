@@ -241,7 +241,7 @@ export default function BlogPageClient() {
                       </div>
                       <div className="rounded-2xl bg-white p-5 shadow-[0_14px_34px_rgba(10,45,82,0.08)]">
                         <ul className="mb-5 space-y-3 text-sm text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Free for up to 2 units</li>
+                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Free for up to 5 units</li>
                           <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Built for landlords with 1–50 units</li>
                           <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Rent, leases, tenants, and maintenance together</li>
                         </ul>
