@@ -22,6 +22,7 @@ export default function useDrawerControls() {
   const [isOpenLeaseAdd, setIsOpenLeaseAdd] = useState(false);
   const [leaseAddUnitId, setLeaseAddUnitId] = useState(null);
   const [leaseAddProperty, setLeaseAddProperty] = useState(null);
+  const [leaseAddApplicationContext, setLeaseAddApplicationContext] = useState(null);
   const [isOpenLeaseView, setIsOpenLeaseView] = useState(false);
   const [isOpenRenewLease, setIsOpenRenewLease] = useState(false);
   const [isOpenPaymentAdd, setIsOpenPaymentAdd] = useState(false);
@@ -61,6 +62,7 @@ export default function useDrawerControls() {
     isOpenLeaseAdd,
     leaseAddUnitId,
     leaseAddProperty,
+    leaseAddApplicationContext,
     isOpenLeaseView,
     isOpenRenewLease,
     isOpenPaymentAdd,
@@ -128,15 +130,17 @@ export default function useDrawerControls() {
     }, []),
     openLeaseEditDrawer: useCallback(() => setIsOpenLeaseEdit(true), []),
     closeLeaseEditDrawer: useCallback(() => setIsOpenLeaseEdit(false), []),
-    openLeaseAddDrawer: useCallback((unitId = null, property = null) => {
+    openLeaseAddDrawer: useCallback((unitId = null, property = null, applicationContext = null) => {
       setLeaseAddUnitId(unitId);
       setLeaseAddProperty(property);
+      setLeaseAddApplicationContext(applicationContext);
       setIsOpenLeaseAdd(true);
     }, []),
     closeLeaseAddDrawer: useCallback(() => {
       setIsOpenLeaseAdd(false);
       setLeaseAddUnitId(null);
       setLeaseAddProperty(null);
+      setLeaseAddApplicationContext(null);
     }, []),
     openLeaseViewDrawer: useCallback(() => setIsOpenLeaseView(true), []),
     closeLeaseViewDrawer: useCallback(() => setIsOpenLeaseView(false), []),

@@ -66,6 +66,27 @@ test('property create-listing action opens the existing listing workflow drawer 
   assert.match(panel, /pipeline\.primaryAction\?\.code === 'createListing'[\s\S]*onCreateListing\(\)/);
 });
 
+test('approved application create-lease action opens the real drawer with sanitized continuity', async () => {
+  const [applications, panel, controls, leaseDrawer] = await Promise.all([
+    source('../pages/landlord/applications.jsx'),
+    source('../components/leasing-pipeline/LeasingPipelinePanel.jsx'),
+    source('../hooks/useDrawerControls.js'),
+    source('../components/drawers/LeaseAddDrawer.jsx')
+  ]);
+  assert.match(panel, /onCreateLease/);
+  assert.match(panel, /runLeasingPrimaryAction/);
+  assert.match(applications, /buildApprovedApplicationLeaseContext\(currentScopedApplication, scopedProperties\)/);
+  assert.match(applications, /openLeaseAddDrawer\([\s\S]*handoff\.applicationContext\.unitId,[\s\S]*handoff\.property,[\s\S]*handoff\.applicationContext/);
+  assert.match(applications, /<LeaseAddDrawer \/>/);
+  assert.match(controls, /leaseAddApplicationContext/);
+  assert.match(controls, /openLeaseAddDrawer: useCallback\(\(unitId = null, property = null, applicationContext = null\)/);
+  assert.match(leaseDrawer, /context\.desiredMoveInDate/);
+  assert.match(leaseDrawer, /context\.rentAmount/);
+  assert.match(leaseDrawer, /no tenant is assigned automatically/);
+  assert.match(leaseDrawer, /Assign the applicant as a tenant/);
+  assert.match(leaseDrawer, /applicationId=\$\{applicationId\}/);
+});
+
 test('property integration requires a real unit selection for multi-unit and auto-selects only one unit', async () => {
   const panel = await source('../components/leasing-pipeline/PropertyLeasingPipeline.jsx');
   assert.match(panel, /units\.length === 1/);
@@ -116,7 +137,9 @@ test('application deep links and all lifecycle mutations invalidate every exact-
   assert.match(applications, /useSearchParams/);
   assert.match(applications, /searchParams\.get\('applicationId'\)/);
   assert.match(applications, /getPositiveApplicationId\(requestedApplicationId\)/);
-  assert.match(applications, /scopedApplications\.find/);
+  assert.match(applications, /handleCreateLease = useCallback\(\(\) => \{[\s\S]*hasSuccessfulCurrentScope/);
+  assert.match(applications, /scopedApplications\.find\([\s\S]*selectedApplicationId/);
+  assert.match(applications, /buildApprovedApplicationLeaseContext\(currentScopedApplication, scopedProperties\)/);
   assert.match(applications, /applicationNotFound/);
   assert.doesNotMatch(applications, /pipelineRevalidationRef|revalidationRef|revalidateApplicationPipeline/);
   assert.doesNotMatch(panel, /revalidationRef|useEffect/);
@@ -144,4 +167,21 @@ test('pipeline hook exposes a stable fail-closed exact-key revalidation', async 
   assert.match(hook, /useCallback/);
   assert.match(hook, /mutate\(undefined, \{ revalidate: true \}\)/);
   assert.match(hook, /revalidate/);
+});
+
+test('lease detail wires authoritative signer status and labels only tracked completion', async () => {
+  const [leasePage, detail] = await Promise.all([
+    source('../pages/landlord/lease.jsx'),
+    source('../sections/landlord/leases/LeaseDetailView.jsx')
+  ]);
+  assert.match(leasePage, /buildLeaseMoveInReadiness\(\{[\s\S]*signatureStatus/);
+  assert.match(leasePage, /selectCurrentSignatureStatus\([\s\S]*signatureStatusRecord,[\s\S]*signatureLeaseId,[\s\S]*signatureEnvelopeId/);
+  assert.match(leasePage, /const requestVersion = \+\+signatureStatusRequestRef\.current/);
+  assert.match(leasePage, /signatureStatusRequestRef\.current !== requestVersion/);
+  assert.match(leasePage, /setSignatureStatusRecord\(null\)/);
+  assert.match(leasePage, /moveInReadiness=\{moveInReadiness\}/);
+  assert.match(detail, /All tracked steps complete/);
+  assert.match(detail, /Tracked steps complete/);
+  assert.doesNotMatch(detail, /Move-in setup is ready/);
+  assert.match(detail, /direction=\{\{ xs: 'column', sm: 'row' \}\}/);
 });

@@ -9,6 +9,7 @@ namespace brownstone_hub_api.Repositories.Properties
         Task<LoadPropertyDto> AddProperty(UpdatePropertyDto propertyDto);
         Task<LoadPropertyDto> UpdateProperty(UpdatePropertyDto updatePropertyDto);
         Task<LoadPropertyDto?> GetPropertyById(long propertyId);
+        Task<LoadPropertyDto?> GetPropertyById(long propertyId, long organizationId);
         Task<List<LoadPropertyDto>> GetPropertiesByLandlordId(long landlordId, long? organizationId = null);
         Task<List<LoadPropertyDto>> GetPropertiesByOrganizationId(long organizationId);
         Task<int> GetOccupiedPropertiesCountAsync(long organizationId);

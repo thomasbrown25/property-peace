@@ -78,6 +78,7 @@ import AddTenantDialog from 'components/dialogs/AddTenantDialog';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { buildLeaseMoveInReadiness, deriveExactLeaseSigners, selectCurrentSignatureStatus, validateExactLeaseSigners } from 'utils/leaseMoveIn';
 
 // E-Signature Status Labels
 const SIGNATURE_STATUS_LABELS = {
@@ -102,7 +103,7 @@ export default function LeasePage() {
   const { propertiesRefetch, isLoading: propertiesLoading } = useFetchProperties();
   const { user } = useAuth();
   const { onLeaseSignatureUpdated } = useSignalRNotifications();
-  const { presentation: signatureReadiness } = useFeatureReadiness(FEATURE_KEYS.eSignature);
+  const { presentation: eSignatureReadiness } = useFeatureReadiness(FEATURE_KEYS.eSignature);
   const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   
   // Get context
@@ -117,11 +118,11 @@ export default function LeasePage() {
   const [signatureForm, setSignatureForm] = useState({
     landlordEmail: '',
     landlordName: '',
-    tenantSigners: [],
     expirationDays: 30,
     requireAllSigners: true
   });
-  const [signatureStatus, setSignatureStatus] = useState(null);
+  const [signatureStatusRecord, setSignatureStatusRecord] = useState(null);
+  const signatureStatusRequestRef = useRef(0);
   const [loadingSignatureStatus, setLoadingSignatureStatus] = useState(false);
   const [landlordSigningUrl, setLandlordSigningUrl] = useState(null);
   const [sendingInvite, setSendingInvite] = useState({});
@@ -225,6 +226,21 @@ export default function LeasePage() {
         }))
     )
     ?.find((l) => l?.id?.toString() === leaseId);
+
+  const signatureLeaseId = lease?.id ?? lease?.Id ?? null;
+  const signatureEnvelopeId =
+    lease?.leaseAgreement?.docuSignEnvelopeId ??
+    lease?.LeaseAgreement?.DocuSignEnvelopeId ??
+    lease?.docuSignEnvelopeId ??
+    lease?.DocuSignEnvelopeId ??
+    leaseAgreement?.docuSignEnvelopeId ??
+    leaseAgreement?.DocuSignEnvelopeId ??
+    null;
+  const signatureStatus = selectCurrentSignatureStatus(
+    signatureStatusRecord,
+    signatureLeaseId,
+    signatureEnvelopeId
+  );
 
   // Check if lease hasn't started (startDate is in the future)
   const isNotStarted = useMemo(() => {
@@ -332,6 +348,19 @@ export default function LeasePage() {
     return combined.filter(t => (t.unitId ?? t.UnitId) === leaseUnitId);
   }, [fetchedTenants, lease?.tenants, lease?.Tenants, lease?.id, lease?.Id, lease?.unitId, lease?.UnitId]);
 
+  // Exact signer identities are a read-only projection of current lease tenants.
+  const exactTenantSigners = useMemo(() => deriveExactLeaseSigners(tenants), [tenants]);
+  const exactTenantSignerValidation = useMemo(
+    () => validateExactLeaseSigners(exactTenantSigners),
+    [exactTenantSigners]
+  );
+  const landlordHasSigned = Boolean(
+    lease?.leaseAgreement?.landlordSignedAt ??
+    lease?.LeaseAgreement?.LandlordSignedAt ??
+    lease?.landlordSignedAt ??
+    lease?.LandlordSignedAt
+  );
+
   // Define functions using useCallback - MUST be called before any early returns (Rules of Hooks)
   const loadLeaseAgreement = useCallback(async () => {
     if (!lease?.id) return;
@@ -399,20 +428,40 @@ export default function LeasePage() {
   }, [lease?.id]);
 
   const loadSignatureStatus = useCallback(async () => {
-    if (!lease?.id) return;
-    
+    const requestedLeaseId = signatureLeaseId;
+    const requestedEnvelopeId = signatureEnvelopeId;
+    const requestVersion = ++signatureStatusRequestRef.current;
+
+    setSignatureStatusRecord(null);
+    if (!requestedLeaseId || !requestedEnvelopeId) {
+      setLoadingSignatureStatus(false);
+      return;
+    }
+
     setLoadingSignatureStatus(true);
     try {
-      const result = await dispatch(getLeaseSignatureStatus(lease.id));
+      const result = await dispatch(getLeaseSignatureStatus(requestedLeaseId));
+      if (signatureStatusRequestRef.current !== requestVersion) return;
       if (result.success) {
-        setSignatureStatus(result.data);
+        setSignatureStatusRecord({
+          leaseId: requestedLeaseId,
+          envelopeId: requestedEnvelopeId,
+          data: result.data
+        });
+      } else {
+        setSignatureStatusRecord(null);
       }
     } catch (error) {
+      if (signatureStatusRequestRef.current === requestVersion) {
+        setSignatureStatusRecord(null);
+      }
       console.error('Error loading signature status:', error);
     } finally {
-      setLoadingSignatureStatus(false);
+      if (signatureStatusRequestRef.current === requestVersion) {
+        setLoadingSignatureStatus(false);
+      }
     }
-  }, [lease?.id, dispatch]);
+  }, [dispatch, signatureEnvelopeId, signatureLeaseId]);
 
   // Calculate next payment date - MUST be called before any early returns (Rules of Hooks)
   // If lease hasn't started, use the start date as the rent due date
@@ -429,71 +478,25 @@ export default function LeasePage() {
     return calculateNextPaymentDate(lease.startDate, lease.rentDueDay, lease.endDate);
   }, [lease?.rentDueDay, lease?.startDate, lease?.endDate, isNotStarted]);
   
-  // Initialize signature form with tenant emails and auto-populate landlord info - MUST be called before any early returns (Rules of Hooks)
+  // Initialize landlord identity. Tenant signer identity is derived read-only above.
   useEffect(() => {
-    // Auto-populate landlord info from current user
     const landlordEmail = user?.email || '';
-    const landlordName = user?.firstName && user?.lastName 
+    const landlordName = user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
       : user?.email || '';
-    
-    setSignatureForm(prev => {
-      // Only update if landlord info changed or if we need to initialize tenant signers
-      const landlordInfoChanged = prev.landlordEmail !== landlordEmail || prev.landlordName !== landlordName;
-      const shouldInitTenantSigners = prev.tenantSigners.length === 0 && tenants.length > 0;
-      
-      if (!landlordInfoChanged && !shouldInitTenantSigners) {
-        return prev; // No changes needed
-      }
-      
-      return {
-        ...prev,
-        landlordEmail,
-        landlordName,
-        // Initialize tenant signers if not already set
-        tenantSigners: shouldInitTenantSigners
-          ? tenants.map((tenant) => ({
-              tenantId: tenant.id,
-              email: tenant.email || '',
-              name: `${tenant.firstname || tenant.firstName || ''} ${tenant.lastname || tenant.lastName || ''}`.trim()
-            }))
-          : prev.tenantSigners
-      };
-    });
-  }, [tenants, user?.email, user?.firstName, user?.lastName]);
-
-  // When dialog opens, populate tenant signers from lease tenants
-  useEffect(() => {
-    if (sendSignatureDialogOpen && (lease?.leaseAgreement?.landlordSignedAt ?? lease?.landlordSignedAt) && tenants.length > 0) {
-      setSignatureForm(prev => {
-        // Only populate if tenantSigners is empty or doesn't match current tenants
-        const currentTenantIds = prev.tenantSigners.map(s => s.tenantId).sort();
-        const leaseTenantIds = tenants.map(t => t.id).sort();
-        const idsMatch = currentTenantIds.length === leaseTenantIds.length && 
-                         currentTenantIds.every((id, idx) => id === leaseTenantIds[idx]);
-        
-        if (idsMatch) {
-          return prev; // No changes needed
-        }
-        
-        return {
-          ...prev,
-          tenantSigners: tenants.map((tenant) => ({
-            tenantId: tenant.id,
-            email: tenant.email || '',
-            name: `${tenant.firstname || tenant.firstName || ''} ${tenant.lastname || tenant.lastName || ''}`.trim()
-          }))
-        };
-      });
-    }
-  }, [sendSignatureDialogOpen, lease?.landlordSignedAt, tenants]);
+    setSignatureForm(prev => ({ ...prev, landlordEmail, landlordName }));
+  }, [user?.email, user?.firstName, user?.lastName]);
 
   // Load signature status - MUST be called before any early returns (Rules of Hooks)
   useEffect(() => {
-    if (lease?.leaseAgreement?.docuSignEnvelopeId ?? lease?.docuSignEnvelopeId) {
+    if (signatureLeaseId && signatureEnvelopeId) {
       loadSignatureStatus();
+    } else {
+      signatureStatusRequestRef.current += 1;
+      setSignatureStatusRecord(null);
+      setLoadingSignatureStatus(false);
     }
-  }, [lease?.docuSignEnvelopeId, loadSignatureStatus]);
+  }, [loadSignatureStatus, signatureEnvelopeId, signatureLeaseId]);
 
   // Track if we've handled the fromLeaseBuilder flag to prevent infinite loops
   const hasHandledLeaseBuilderRef = useRef(false);
@@ -572,7 +575,7 @@ export default function LeasePage() {
 
   // Watch for lease signing completion and close modal
   useEffect(() => {
-    if (embeddedSigningOpen && (lease?.leaseAgreement?.landlordSignedAt ?? lease?.landlordSignedAt)) {
+    if (embeddedSigningOpen && (lease?.leaseAgreement?.landlordSignedAt ?? landlordHasSigned)) {
       // Signing completed!
       setEmbeddedSigningOpen(false);
       openSnackbar({
@@ -582,12 +585,12 @@ export default function LeasePage() {
         alert: { color: 'success' }
       });
     }
-  }, [lease?.landlordSignedAt, embeddedSigningOpen]);
+  }, [landlordHasSigned, embeddedSigningOpen]);
 
   // Check for sign=true query parameter (auto-trigger signing flow)
   const hasHandledSignParam = useRef(false);
   useEffect(() => {
-    if (searchParams.get('sign') === 'true' && lease?.id && !hasHandledSignParam.current && !(lease?.leaseAgreement?.landlordSignedAt ?? lease?.landlordSignedAt)) {
+    if (searchParams.get('sign') === 'true' && lease?.id && !hasHandledSignParam.current && !(lease?.leaseAgreement?.landlordSignedAt ?? landlordHasSigned)) {
       hasHandledSignParam.current = true;
       
       // Remove the query parameter
@@ -665,7 +668,7 @@ export default function LeasePage() {
         triggerSigning();
       }, 500);
     }
-  }, [searchParams, lease?.id, lease?.landlordSignedAt, user, setSearchParams]);
+  }, [searchParams, lease?.id, landlordHasSigned, user, setSearchParams]);
 
   // Check for signed=true query parameter (when DocuSign redirects back)
   useEffect(() => {
@@ -1052,59 +1055,16 @@ export default function LeasePage() {
     return () => { cancelled = true; };
   }, [lease?.id, searchParams.get('tab')]);
 
-  // Calculate completed steps for "Finish Setting Up" progress
-  // MUST be called before any early returns (Rules of Hooks)
-  const setupProgress = useMemo(() => {
-    const totalSteps = 4;
-    let completedSteps = 0;
-    
-    // Step 1: Choose your Tenants - completed only if tenants assigned to this lease's unit exist (use filtered tenants)
-    if (tenants.length > 0) {
-      completedSteps++;
-    }
-    
-    // Step 2: Finalize your Lease Agreement - completed if:
-    // - Lease has been finalized/signed (signature status is completed = 4), OR
-    // - Lease agreement document exists (built via build flow + finalize, or uploaded)
-    const signatureStatus = lease?.leaseAgreement?.signatureStatus ?? lease?.signatureStatus ?? lease?.SignatureStatus;
-    const isLeaseFinalized = signatureStatus === 4;
-    const hasLeaseAgreementDocument = !!leaseAgreement;
-    if (isLeaseFinalized || hasLeaseAgreementDocument) {
-      completedSteps++;
-    }
-    
-    // Step 3: Set up Rent Payments - completed if: monthly rent is set AND
-    // (payments through platform with bank account connected OR methods outside selected)
-    // Use both rentRecord (rent collection API) and lease.rentAmount so we don't depend on rent collection having a record yet
-    const leaseRentAmount = lease?.rentAmount ?? lease?.RentAmount;
-    const hasMonthlyRent = (rentRecord && rentRecord.rentAmount > 0) || (leaseRentAmount != null && Number(leaseRentAmount) > 0);
-    const rentCollectionByPlatform = lease?.rentCollectionByPlatform ?? lease?.RentCollectionByPlatform;
-    const hasOperatingAccount = !!(lease?.operatingAccountId ?? lease?.OperatingAccountId ?? property?.operatingAccountId ?? property?.OperatingAccountId);
-    const hasRentPaymentsSetup = hasMonthlyRent && (
-      rentCollectionByPlatform === false ||
-      (rentCollectionByPlatform === true && hasOperatingAccount)
-    );
-    if (hasRentPaymentsSetup) {
-      completedSteps++;
-    }
-    
-    // Step 4: Create a Move-in Condition Report - completed only when THIS lease has had the step done (per-lease flag)
-    const moveInReportStepComplete = !!(lease?.moveInReportTemplateCompletedAt ?? lease?.MoveInReportTemplateCompletedAt);
-    if (moveInReportStepComplete) {
-      completedSteps++;
-    }
-    
-    const progressValue = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
-    
-    return {
-      completed: completedSteps,
-      total: totalSteps,
-      progress: progressValue,
-      isLeaseAgreementStepComplete: isLeaseFinalized || hasLeaseAgreementDocument,
-      hasRentPaymentsSetup,
-      hasMoveInReportTemplateStepComplete: moveInReportStepComplete
-    };
-  }, [lease, rentRecord, leaseAgreement, property, tenants]);
+  // Authoritative readiness is shared with the rendered move-in card.
+  // Checklist records are not loaded on this page, so checklist status stays unavailable.
+  const moveInReadiness = useMemo(() => buildLeaseMoveInReadiness({
+    lease,
+    tenants,
+    leaseAgreement,
+    rentRecord,
+    property,
+    signatureStatus
+  }), [lease, tenants, leaseAgreement, rentRecord, property, signatureStatus]);
 
   // A lease is a draft only when the persisted draft flag says so, or when
   // required lease terms are genuinely missing. Signature state is a separate
@@ -1126,9 +1086,22 @@ export default function LeasePage() {
     return !hasStartDate || !hasEndDate || rentAmount <= 0;
   }, [lease]);
 
-  // Only mark draft complete (IsDrafted = false) when ALL "Finish Setting Up" steps are complete (e.g. all 4 steps).
-  // Do not clear draft when only Set up rent payments (or 3 of 4) is complete.
-  const allSetupStepsComplete = setupProgress.completed === setupProgress.total;
+  // Preserve the existing draft-recovery contract. Move-in/signature readiness is
+  // displayed separately and must not strand a valid draft when e-sign is unavailable.
+  const allSetupStepsComplete = useMemo(() => {
+    const hasTenants = tenants.length > 0;
+    const signatureState = lease?.leaseAgreement?.signatureStatus ?? lease?.signatureStatus ?? lease?.SignatureStatus;
+    const hasAgreement = signatureState === 4 || Boolean(leaseAgreement);
+    const rentAmount = Number(rentRecord?.rentAmount ?? lease?.rentAmount ?? lease?.RentAmount ?? 0);
+    const collectionByPlatform = lease?.rentCollectionByPlatform ?? lease?.RentCollectionByPlatform;
+    const operatingAccountId = lease?.operatingAccountId ?? lease?.OperatingAccountId ?? property?.operatingAccountId ?? property?.OperatingAccountId;
+    const hasRentSetup = rentAmount > 0 && (
+      collectionByPlatform === false ||
+      (collectionByPlatform === true && Boolean(operatingAccountId))
+    );
+    const hasConditionReport = Boolean(lease?.moveInReportTemplateCompletedAt ?? lease?.MoveInReportTemplateCompletedAt);
+    return hasTenants && hasAgreement && hasRentSetup && hasConditionReport;
+  }, [lease, leaseAgreement, property, rentRecord, tenants]);
   const isDraftedByFlag =
     lease?.leaseAgreement?.isDrafted === true ||
     lease?.LeaseAgreement?.IsDrafted === true ||
@@ -1234,7 +1207,7 @@ export default function LeasePage() {
   };
 
   const handleSignLandlord = async () => {
-    if (!signatureReadiness.canInvoke) return;
+    if (!eSignatureReadiness.canInvoke) return;
     if (!lease?.id) return;
     
     if (!signatureForm.landlordEmail) {
@@ -1327,10 +1300,9 @@ export default function LeasePage() {
   };
 
   const handleSendForSignature = async () => {
-    if (!lease?.id) return;
-    
-    // Check if landlord has signed
-    if (!(lease?.leaseAgreement?.landlordSignedAt ?? lease?.landlordSignedAt)) {
+    if (!lease?.id || !eSignatureReadiness.canInvoke) return;
+
+    if (!(lease?.leaseAgreement?.landlordSignedAt ?? lease?.LeaseAgreement?.LandlordSignedAt ?? landlordHasSigned ?? lease?.LandlordSignedAt)) {
       openSnackbar({
         open: true,
         message: 'Please sign the lease first before sending to tenants.',
@@ -1339,31 +1311,22 @@ export default function LeasePage() {
       });
       return;
     }
-    
-    if (signatureForm.tenantSigners.length === 0) {
+
+    // Fail closed immediately before dispatch. These identities came directly
+    // from current lease tenants and cannot be changed in the dialog.
+    const validation = validateExactLeaseSigners(exactTenantSigners);
+    if (!validation.valid) {
       openSnackbar({
         open: true,
-        message: 'Please add at least one tenant signer',
+        message: validation.errors[0] || 'Current tenant signer details are incomplete.',
         variant: 'alert',
         alert: { color: 'warning' }
       });
       return;
     }
 
-    // Validate tenant signers have required fields
-    if (signatureForm.tenantSigners.some(s => !s.email || !s.name)) {
-      openSnackbar({
-        open: true,
-        message: 'Please ensure all tenant signers have both email and name',
-        variant: 'alert',
-        alert: { color: 'warning' }
-      });
-      return;
-    }
-
-    // Auto-populate landlord info from current user
     const landlordEmail = user?.email || signatureForm.landlordEmail;
-    const landlordName = user?.firstName && user?.lastName 
+    const landlordName = user?.firstName && user?.lastName
       ? `${user.firstName} ${user.lastName}`
       : user?.email || signatureForm.landlordName;
 
@@ -1371,14 +1334,11 @@ export default function LeasePage() {
     try {
       const result = await dispatch(sendLeaseForSignature(lease.id, {
         leaseId: lease.id,
-        landlordEmail: landlordEmail,
-        landlordName: landlordName,
-        tenantSigners: signatureForm.tenantSigners.map((signer, index) => ({
-          ...signer,
-          signingOrder: index + 1 // Auto-assign signing order based on array position
-        })),
-        emailSubject: null, // Auto-generated by backend
-        emailMessage: null, // Auto-generated by backend
+        landlordEmail,
+        landlordName,
+        tenantSigners: exactTenantSigners,
+        emailSubject: null,
+        emailMessage: null,
         expirationDays: signatureForm.expirationDays,
         requireAllSigners: signatureForm.requireAllSigners
       }));
@@ -1391,8 +1351,8 @@ export default function LeasePage() {
           alert: { color: 'success' }
         });
         setSendSignatureDialogOpen(false);
-        // Refresh lease data
-        window.location.reload();
+        await propertiesRefetch();
+        await Promise.allSettled([loadSignatureStatus(), loadLeaseAgreement()]);
       } else {
         openSnackbar({
           open: true,
@@ -1400,7 +1360,6 @@ export default function LeasePage() {
           variant: 'alert',
           alert: { color: 'error' }
         });
-        setSendingLeaseForSignature(false);
       }
     } catch (error) {
       console.error('Error sending lease for signature:', error);
@@ -1410,6 +1369,7 @@ export default function LeasePage() {
         variant: 'alert',
         alert: { color: 'error' }
       });
+    } finally {
       setSendingLeaseForSignature(false);
     }
   };
@@ -1587,7 +1547,7 @@ export default function LeasePage() {
 
   const getLandlordSignatureStatus = () => {
     // Check both camelCase and PascalCase field names (JSON serialization might use either)
-    const landlordSignedAtValue = lease?.leaseAgreement?.landlordSignedAt || lease?.landlordSignedAt || lease?.LandlordSignedAt;
+    const landlordSignedAtValue = lease?.leaseAgreement?.landlordSignedAt || landlordHasSigned || lease?.LandlordSignedAt;
     
     // Check if it's a valid value (not null, undefined, or empty string)
     const landlordHasSigned = landlordSignedAtValue != null && 
@@ -1706,6 +1666,8 @@ export default function LeasePage() {
         user={user}
         leaseDocuments={leaseDocuments}
         leaseAgreement={leaseAgreement}
+        moveInReadiness={moveInReadiness}
+        eSignatureReadiness={eSignatureReadiness}
         handleEndLeaseClick={handleEndLeaseClick}
         handleReopenLeaseClick={handleReopenLeaseClick}
         onRenew={() => { dispatch(setLease(lease)); drawer.openRenewLeaseDrawer(); }}
@@ -1713,6 +1675,22 @@ export default function LeasePage() {
         onViewAgreement={handleViewLeaseAgreement}
         onUploadDocument={() => navigate(`/landlord/leases/${leaseId}/upload-document`)}
         onEditTerms={() => { dispatch(setLease(lease)); drawer.openLeaseEditDrawer(); }}
+        onOpenSignature={() => setSendSignatureDialogOpen(true)}
+        onConfigureRent={() => navigate(propertyId ? `/landlord/rent-collection/${propertyId}` : '/landlord/rent-collection')}
+        onCustomizeConditionReport={() => navigate('/landlord/customize-move-in-report', {
+          state: {
+            fromLeaseId: lease?.id ?? lease?.Id,
+            propertyName: propertyDisplay,
+            unitBedrooms: lease?.unit?.bedrooms ?? lease?.unit?.Bedrooms,
+            unitBaths: lease?.unit?.bathrooms ?? lease?.unit?.Bathrooms
+          }
+        })}
+        onViewChecklists={() => {
+          const unitId = lease?.unit?.id ?? lease?.unit?.Id ?? lease?.unitId ?? lease?.UnitId;
+          navigate(propertyId
+            ? `/landlord/checklists/property/${propertyId}${unitId ? `/unit/${unitId}` : ''}`
+            : '/landlord/checklists');
+        }}
         onAddTenant={() => {
           if (property) dispatch(setProperty(property));
           if (lease?.unit) dispatch(setUnit(lease.unit));
@@ -1770,17 +1748,17 @@ export default function LeasePage() {
         fullWidth
       >
         <DialogTitle>
-          {(lease?.leaseAgreement?.landlordSignedAt ?? lease?.landlordSignedAt) ? 'Send Lease to Tenants for Signature' : 'Sign Lease Agreement'}
+          {landlordHasSigned ? 'Send Lease to Tenants for Signature' : 'Sign Lease Agreement'}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              {lease?.landlordSignedAt 
+              {landlordHasSigned
                 ? 'Review and confirm the tenant signers and expiration days. The system will automatically generate and send the email to tenants.'
                 : 'Enter your email address to receive a signing link. You must sign the lease before sending it to tenants.'}
             </Typography>
 
-            {!lease?.landlordSignedAt ? (
+            {!landlordHasSigned ? (
               <TextField
                 fullWidth
                 label="Email"
@@ -1793,7 +1771,7 @@ export default function LeasePage() {
               />
             ) : null}
 
-            {lease?.landlordSignedAt && (
+            {landlordHasSigned && (
               <>
                 <Divider />
 
@@ -1813,46 +1791,38 @@ export default function LeasePage() {
                   </Stack>
                 ) : (
                   <Stack spacing={2}>
-                    {signatureForm.tenantSigners.map((signer, index) => (
+                    {exactTenantSigners.map((signer, index) => (
                       <Card key={signer.tenantId || index} variant="outlined" sx={{ p: 2 }}>
-                        <Stack spacing={2}>
-                          <Typography variant="body2" fontWeight={500}>
-                            Signer {index + 1}: {signer.name || `Tenant ${index + 1}`}
-                          </Typography>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="Email"
-                            value={signer.email}
-                            onChange={(e) => {
-                              const newSigners = [...signatureForm.tenantSigners];
-                              newSigners[index].email = e.target.value;
-                              setSignatureForm({ ...signatureForm, tenantSigners: newSigners });
-                            }}
-                            required
-                            type="email"
-                          />
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="Name"
-                            value={signer.name}
-                            onChange={(e) => {
-                              const newSigners = [...signatureForm.tenantSigners];
-                              newSigners[index].name = e.target.value;
-                              setSignatureForm({ ...signatureForm, tenantSigners: newSigners });
-                            }}
-                            required
-                          />
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }}>
+                          <Avatar sx={{ bgcolor: 'primary.lighter', color: 'primary.main' }}>
+                            {(signer.name || 'T').charAt(0).toUpperCase()}
+                          </Avatar>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" fontWeight={600}>
+                              {signer.name || `Tenant ${index + 1}`}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {signer.email || 'Email missing'}
+                            </Typography>
+                            <Typography variant="caption" color="text.disabled">
+                              Tenant ID {signer.tenantId || 'missing'} · signing order {signer.signingOrder}
+                            </Typography>
+                          </Box>
+                          <Chip size="small" label="From lease" variant="outlined" />
                         </Stack>
                       </Card>
                     ))}
+                    {!exactTenantSignerValidation.valid && (
+                      <Typography variant="caption" color="error.main">
+                        {exactTenantSignerValidation.errors[0]} Update the tenant record before sending.
+                      </Typography>
+                    )}
                   </Stack>
                 )}
               </>
             )}
 
-            {lease?.landlordSignedAt && (
+            {landlordHasSigned && (
               <>
                 <Divider />
 
@@ -1878,14 +1848,14 @@ export default function LeasePage() {
           </Button>
           <Button
             variant="contained"
-            onClick={lease?.landlordSignedAt ? handleSendForSignature : handleSignLandlord}
+            onClick={landlordHasSigned ? handleSendForSignature : handleSignLandlord}
             disabled={
               sendingLeaseForSignature ||
-              (lease?.landlordSignedAt && (signatureForm.tenantSigners.length === 0 || signatureForm.tenantSigners.some(s => !s.email || !s.name)))
+              (landlordHasSigned && (!exactTenantSignerValidation.valid || !eSignatureReadiness.canInvoke))
             }
             startIcon={sendingLeaseForSignature ? <CircularProgress size={16} /> : null}
           >
-            {sendingLeaseForSignature ? 'Sending...' : (lease?.landlordSignedAt ? 'Send to Tenants' : 'Sign Lease')}
+            {sendingLeaseForSignature ? 'Sending...' : (landlordHasSigned ? 'Send to Tenants' : 'Sign Lease')}
           </Button>
         </DialogActions>
       </Dialog>

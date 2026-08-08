@@ -3,7 +3,7 @@ import { CheckOutlined, ClockCircleOutlined, RightOutlined } from '@ant-design/i
 import { useNavigate } from 'react-router-dom';
 
 import useLeasingPipeline from 'hooks/useLeasingPipeline';
-import { getPipelineStages, getSafeBlockerMessage, getSafePrimaryAction } from 'utils/leasingPipeline';
+import { getPipelineStages, getSafeBlockerMessage, getSafePrimaryAction, runLeasingPrimaryAction } from 'utils/leasingPipeline';
 
 export function PipelineSkeleton() {
   return (
@@ -18,7 +18,7 @@ export function PipelineSkeleton() {
   );
 }
 
-export default function LeasingPipelinePanel({ resourceType, resourceId, unitId, title = 'Leasing progress', onCreateListing }) {
+export default function LeasingPipelinePanel({ resourceType, resourceId, unitId, title = 'Leasing progress', onCreateListing, onCreateLease }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const { pipeline, error, isLoading, retry, canLoad } = useLeasingPipeline(resourceType, resourceId, unitId);
@@ -64,7 +64,7 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
       onCreateListing();
       return;
     }
-    navigate(action.route);
+    runLeasingPrimaryAction(pipeline.primaryAction?.code, { onCreateLease, navigate }, action.route);
   };
 
   return (

@@ -9,7 +9,9 @@ import {
   getSafeBlockerMessage,
   isSafeLeasingRoute,
   buildLeasingPipelineKey,
-  isLeasingPipelineKeyForTenant
+  isLeasingPipelineKeyForTenant,
+  buildApprovedApplicationLeaseContext,
+  runLeasingPrimaryAction
 } from './leasingPipeline.js';
 
 const descriptors = LEASING_STAGE_ORDER.map((stage, order) => ({
@@ -126,4 +128,75 @@ test('only permits real internal Property Peace action routes', () => {
   }
   assert.equal(isSafeLeasingRoute('/landlord/applications/42'), false);
   assert.equal(isSafeLeasingRoute('/landlord/screenings/42'), false);
+});
+
+test('builds only a scoped, approved application lease context from real safe fields', () => {
+  const property = {
+    id: 10,
+    name: 'Maple House',
+    monthlyRent: 1450,
+    units: [{ id: 11, name: 'A', advertisedRent: 1500 }]
+  };
+  const application = {
+    id: 42,
+    status: 'Approved',
+    propertyId: 10,
+    unitId: 11,
+    firstName: '  Ada ',
+    lastName: ' Lovelace  ',
+    email: ' ada@example.test ',
+    desiredMoveInDate: '2027-02-03T00:00:00Z',
+    secret: 'must not pass through'
+  };
+
+  assert.deepEqual(buildApprovedApplicationLeaseContext(application, [property]), {
+    property,
+    applicationContext: {
+      applicationId: 42,
+      propertyId: 10,
+      unitId: 11,
+      applicantName: 'Ada Lovelace',
+      applicantEmail: 'ada@example.test',
+      desiredMoveInDate: '2027-02-03',
+      rentAmount: 1500
+    }
+  });
+  assert.equal(buildApprovedApplicationLeaseContext({ ...application, status: 'Submitted' }, [property]), null);
+  assert.equal(buildApprovedApplicationLeaseContext({ ...application, id: '42' }, [property]), null);
+  assert.equal(buildApprovedApplicationLeaseContext({ ...application, unitId: 99 }, [property]), null);
+  assert.equal(buildApprovedApplicationLeaseContext(application, [{ ...property, id: 99 }]), null);
+  assert.deepEqual(
+    buildApprovedApplicationLeaseContext(application, [{ id: 10, monthlyRent: 1400 }])?.applicationContext,
+    { applicationId: 42, propertyId: 10, unitId: 11, applicantName: 'Ada Lovelace', applicantEmail: 'ada@example.test', desiredMoveInDate: '2027-02-03', rentAmount: 1400 }
+  );
+});
+
+test('application lease prefill omits invalid dates, rent, and optional applicant fields', () => {
+  const property = { id: 10, units: [{ id: 11, advertisedRent: 0 }] };
+  assert.deepEqual(buildApprovedApplicationLeaseContext({
+    id: 42, status: 3, propertyId: 10, unitId: 11, desiredMoveInDate: 'not-a-date'
+  }, [property]), {
+    property,
+    applicationContext: {
+      applicationId: 42,
+      propertyId: 10,
+      unitId: 11
+    }
+  });
+});
+
+test('routes create actions through provided callbacks while preserving navigation fallback', () => {
+  const calls = [];
+  const callbacks = {
+    onCreateListing: () => calls.push('listing'),
+    onCreateLease: () => calls.push('lease'),
+    navigate: (route) => calls.push(route)
+  };
+  assert.equal(runLeasingPrimaryAction('createLease', callbacks, '/landlord/leases/selection'), true);
+  assert.equal(runLeasingPrimaryAction('createListing', callbacks, '/landlord/listings/add'), true);
+  assert.equal(runLeasingPrimaryAction('reviewLease', callbacks, '/landlord/leases/53'), true);
+  assert.deepEqual(calls, ['lease', 'listing', '/landlord/leases/53']);
+  assert.equal(runLeasingPrimaryAction('createLease', { navigate: callbacks.navigate }, '/landlord/leases/selection'), true);
+  assert.equal(calls.at(-1), '/landlord/leases/selection');
+  assert.equal(runLeasingPrimaryAction('reviewLease', callbacks, 'javascript:alert(1)'), false);
 });

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   alpha, Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent,
-  DialogContentText, DialogTitle, Divider, Grid, IconButton,
+  DialogContentText, DialogTitle, Divider, Grid, IconButton, LinearProgress,
   Menu, MenuItem, Stack, Tooltip, Typography, useTheme
 } from '@mui/material';
 import {
@@ -150,6 +150,94 @@ function LifecycleBar({ title, stages, hint, action }) {
           );
         })}
       </Stack>
+    </Box>
+  );
+}
+
+// ─── Lease-to-move-in readiness ──────────────────────────────────────────────
+
+function LeaseMoveInCard({
+  readiness,
+  hasAgreement,
+  eSignatureReadiness,
+  onAssignTenants,
+  onBuildAgreement,
+  onViewAgreement,
+  onOpenSignature,
+  onConfigureRent,
+  onCustomizeConditionReport,
+  onViewChecklists
+}) {
+  const theme = useTheme();
+  if (!readiness) return null;
+
+  const actions = {
+    tenants: { label: 'Assign tenants', onClick: onAssignTenants },
+    agreement: { label: hasAgreement ? 'View agreement' : 'Build agreement', onClick: hasAgreement ? onViewAgreement : onBuildAgreement },
+    signatures: { label: 'Open signatures', onClick: onOpenSignature, disabled: !eSignatureReadiness?.canInvoke },
+    'rent-deposit': { label: 'Configure rent', onClick: onConfigureRent },
+    'condition-report': { label: 'Customize report', onClick: onCustomizeConditionReport },
+    checklist: { label: 'View checklists', onClick: onViewChecklists }
+  };
+
+  return (
+    <Box sx={{ ...detailCardSx, mb: 2, p: { xs: 2, md: 2.5 } }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1.5} sx={{ mb: 2 }}>
+        <Box>
+          <Typography sx={{ ...detailHeaderSx, fontSize: '0.7rem', color: 'primary.main', mb: 0.4 }}>
+            Lease to move-in
+          </Typography>
+          <Typography sx={{ fontSize: '1rem', fontWeight: 750 }}>
+            {readiness.ready ? 'All tracked steps complete' : `${readiness.completed} of ${readiness.totalTrackable} tracked steps complete`}
+          </Typography>
+          <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary', mt: 0.25 }}>
+            Based only on saved lease, signature, payment, and checklist records.
+          </Typography>
+        </Box>
+        <Chip
+          size="small"
+          label={readiness.ready ? 'Tracked steps complete' : 'Setup in progress'}
+          color={readiness.ready ? 'success' : 'warning'}
+          variant={readiness.ready ? 'filled' : 'outlined'}
+          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, fontWeight: 700 }}
+        />
+      </Stack>
+
+      <LinearProgress
+        variant="determinate"
+        value={readiness.progress}
+        color={readiness.ready ? 'success' : 'primary'}
+        sx={{ height: 7, borderRadius: 4, mb: 2.25, bgcolor: alpha(theme.palette.primary.main, 0.08) }}
+      />
+
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(3, minmax(0, 1fr))' }, gap: 1 }}>
+        {readiness.steps.map((step) => {
+          const action = actions[step.key];
+          const complete = step.status === 'complete';
+          const unavailable = step.status === 'unavailable';
+          const color = complete ? theme.palette.success.main : unavailable ? theme.palette.text.disabled : theme.palette.warning.main;
+          return (
+            <Box key={step.key} sx={{ p: 1.35, borderRadius: 1.75, border: `1px solid ${alpha(color, 0.3)}`, bgcolor: alpha(color, unavailable ? 0.025 : 0.055), minWidth: 0 }}>
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <Box sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, mt: 0.1, bgcolor: complete ? color : 'transparent', border: `1.5px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {complete ? <CheckOutlined style={{ color: '#fff', fontSize: 10 }} /> : <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: color }} />}
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontSize: '0.75rem', fontWeight: 700 }}>{step.label}</Typography>
+                  <Typography sx={{ fontSize: '0.64rem', color: unavailable ? 'text.disabled' : 'text.secondary', lineHeight: 1.4, minHeight: 18 }}>
+                    {step.detail}
+                  </Typography>
+                  {action?.onClick && (
+                    <Button size="small" disabled={action.disabled} onClick={action.onClick} sx={{ mt: 0.45, p: 0, minWidth: 0, textTransform: 'none', fontSize: '0.66rem', fontWeight: 700 }}>
+                      {action.label} →
+                    </Button>
+                  )}
+                </Box>
+              </Stack>
+            </Box>
+          );
+        })}
+      </Box>
     </Box>
   );
 }
@@ -315,10 +403,11 @@ function TenantsCard({ tenants, property, onAddTenant }) {
 export default function LeaseDetailView({
   lease, tenants, property, payments, deposits, rentRecord,
   propertyDisplay, unitDisplay, isDraftLease, isNotStarted, leaseId,
-  dashboardSummary, user, leaseDocuments, leaseAgreement,
+  dashboardSummary, user, leaseDocuments, leaseAgreement, moveInReadiness, eSignatureReadiness,
   handleEndLeaseClick, handleReopenLeaseClick,
   onRenew, onRecordPayment, onViewAgreement, onUploadDocument, onEditTerms,
-  onAddTenant, onPaymentUpdated, propertiesRefetch,
+  onAddTenant, onOpenSignature, onConfigureRent, onCustomizeConditionReport,
+  onViewChecklists, onPaymentUpdated, propertiesRefetch,
 }) {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -714,6 +803,19 @@ export default function LeaseDetailView({
           />
         </Grid>
       </Grid>
+
+      <LeaseMoveInCard
+        readiness={moveInReadiness}
+        hasAgreement={hasLeaseAgreementDocument}
+        eSignatureReadiness={eSignatureReadiness}
+        onAssignTenants={onAddTenant}
+        onBuildAgreement={() => navigate(leaseAgreementSetupUrl)}
+        onViewAgreement={onViewAgreement}
+        onOpenSignature={onOpenSignature}
+        onConfigureRent={onConfigureRent}
+        onCustomizeConditionReport={onCustomizeConditionReport}
+        onViewChecklists={onViewChecklists}
+      />
 
       {/* ── 8 / 4 grid layout ─────────────────────────────────────────────── */}
       <Grid container spacing={2}>

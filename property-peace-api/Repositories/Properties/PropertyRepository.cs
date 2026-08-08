@@ -85,7 +85,13 @@ namespace brownstone_hub_api.Repositories.Properties
             }
         }
 
-        public async Task<LoadPropertyDto?> GetPropertyById(long propertyId)
+        public Task<LoadPropertyDto?> GetPropertyById(long propertyId) =>
+            GetPropertyByIdInternal(propertyId, organizationId: null);
+
+        public Task<LoadPropertyDto?> GetPropertyById(long propertyId, long organizationId) =>
+            GetPropertyByIdInternal(propertyId, organizationId);
+
+        private async Task<LoadPropertyDto?> GetPropertyByIdInternal(long propertyId, long? organizationId)
         {
             try
             {
@@ -137,7 +143,8 @@ namespace brownstone_hub_api.Repositories.Properties
                                 .ThenInclude(m => m.Images)
                         .Include(p => p.PrimaryManager)
                         .AsSplitQuery()
-                    .FirstOrDefaultAsync(p => p.Id == propertyId);
+                    .FirstOrDefaultAsync(p => p.Id == propertyId &&
+                        (!organizationId.HasValue || p.OrganizationId == organizationId.Value));
 
                 if (property == null)
                 {

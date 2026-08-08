@@ -69,6 +69,40 @@ namespace brownstone_hub_api.Services.LeaseService
             return null;
         }
 
+        private async Task<(bool Success, string Error)> BindAuthenticatedLandlordAsync(
+            SendLeaseForSignatureDto request,
+            long? expectedUserId = null,
+            long? expectedOrganizationId = null)
+        {
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue ||
+                (expectedOrganizationId.HasValue && expectedOrganizationId.Value != organizationId.Value) ||
+                _userContextService == null)
+            {
+                return (false, "Authenticated organization context is required.");
+            }
+
+            var user = await _userContextService.GetCurrentUserAsync();
+            var belongsToOrganization = user != null &&
+                (user.CurrentOrganizationId == organizationId.Value ||
+                 user.Organizations.Any(organization => organization.Id == organizationId.Value));
+            if (user == null || user.Id <= 0 ||
+                (expectedUserId.HasValue && expectedUserId.Value != user.Id) ||
+                !belongsToOrganization)
+            {
+                return (false, "Authenticated user is not a member of the current organization.");
+            }
+
+            var email = user.Email?.Trim();
+            var name = $"{user.Firstname} {user.Lastname}".Trim();
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(name))
+                return (false, "Authenticated landlord name and email are required.");
+
+            request.LandlordEmail = email;
+            request.LandlordName = name;
+            return (true, string.Empty);
+        }
+
         private static void PreserveRenewedMonthToMonthEndDate(UpdateLeaseDto update, LoadLeaseDto existing)
         {
             var keepsAutoRenewEnabled = update.AutoRenewLease != false;
@@ -87,9 +121,17 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
-                var property = await _propertyRepository.GetPropertyById(lease.PropertyId);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadLeaseDto>.CreateError(
+                        "Organization ID is required", "No organization context found", "", 400);
+
+                var property = await _propertyRepository.GetPropertyById(lease.PropertyId, organizationId.Value);
                 if (property == null)
-                    return ServiceResponse<LoadLeaseDto>.CreateError("Invalid Property ID", "The specified property does not exist.");
+                    return ServiceResponse<LoadLeaseDto>.CreateError(
+                        "Invalid Property ID",
+                        "The specified property does not exist or does not belong to your organization.",
+                        statusCode: 404);
 
                 var unit = property.Units.FirstOrDefault(u => u.Id == lease.UnitId);
                 if (unit == null)
@@ -110,9 +152,6 @@ namespace brownstone_hub_api.Services.LeaseService
                         "Start date, end date, rent amount, lease length, rent frequency, and rent due day are required before creating a lease.",
                         statusCode: 400);
                 }
-
-                // Get organizationId from context
-                var organizationId = GetOrganizationIdFromContext();
 
                 LoadLeaseDto newLease;
 
@@ -524,6 +563,11 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
+                var landlordBinding = await BindAuthenticatedLandlordAsync(request);
+                if (!landlordBinding.Success)
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
+                        "Unauthorized landlord signer", landlordBinding.Error, "", 403);
+
                 // Get the lease
                 var leaseResponse = await GetLeaseById(leaseId);
                 if (!leaseResponse.Success || leaseResponse.Data == null)
@@ -711,6 +755,11 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
+                var landlordBinding = await BindAuthenticatedLandlordAsync(request, landlordId, organizationId);
+                if (!landlordBinding.Success)
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "Unauthorized landlord signer", landlordBinding.Error, "", 403);
+
                 // Get the lease
                 var leaseResponse = await GetLeaseById(leaseId);
                 if (!leaseResponse.Success || leaseResponse.Data == null)

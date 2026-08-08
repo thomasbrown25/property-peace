@@ -58,18 +58,19 @@ import useFetchProperties from 'hooks/useFetchProperties';
 import PropertySelect from 'components/PropertySelect';
 import UnitSelect from 'components/UnitSelect';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectProperty } from 'store/property/property.selector';
+import { selectProperty, selectProperties } from 'store/property/property.selector';
 import { setProperty } from 'store/property/property.action';
 import { selectUnit } from 'store/unit/unit.selector';
 import { setUnit } from 'store/unit/unit.action';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import { useDrawer } from 'contexts/DrawerContext';
 import ApplicationAddDrawer from 'components/drawers/ApplicationAddDrawer';
+import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import LeasingPipelinePanel from 'components/leasing-pipeline/LeasingPipelinePanel';
-import { isLeasingPipelineKeyForTenant } from 'utils/leasingPipeline';
+import { buildApprovedApplicationLeaseContext, isLeasingPipelineKeyForTenant } from 'utils/leasingPipeline';
 import { createApplicationRequestGuard, getPositiveApplicationId, makeApplicationLoadScope } from 'utils/applicationCollection';
 
 // Application Status Options
@@ -257,6 +258,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
   const deepLinkedApplicationId = getPositiveApplicationId(requestedApplicationId);
   const dispatch = useDispatch();
   const selectedProperty = useSelector(selectProperty);
+  const properties = useSelector(selectProperties);
   const selectedUnit = useSelector(selectUnit);
   useFetchProperties();
   const drawer = useDrawer();
@@ -300,6 +302,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
   currentLoadScopeRef.current = currentLoadScope;
   const hasSuccessfulCurrentScope = successfulLoad?.scopeKey === currentLoadScope.scopeKey;
   const scopedApplications = hasSuccessfulCurrentScope ? applications : [];
+  const scopedProperties = hasSuccessfulCurrentScope ? properties : [];
 
   const invalidateApplicationPipeline = useCallback(async (applicationId, { deleted = false } = {}) => {
     const canonicalProbe = ['/api/leasing-pipeline', userId, organizationId, 'application', 1, null];
@@ -486,6 +489,31 @@ export default function ApplicationsPage({ hideHeader = false }) {
     dispatch(setProperty(null));
     dispatch(setUnit(null));
   }, [dispatch]);
+
+  const handleCreateLease = useCallback(() => {
+    const selectedApplicationId = Number(selectedApplication?.id ?? selectedApplication?.Id);
+    const currentScopedApplication = hasSuccessfulCurrentScope &&
+      Number.isSafeInteger(selectedApplicationId) && selectedApplicationId > 0 &&
+      scopedApplications.find((application) => Number(application?.id ?? application?.Id) === selectedApplicationId);
+    const handoff = currentScopedApplication
+      ? buildApprovedApplicationLeaseContext(currentScopedApplication, scopedProperties)
+      : null;
+    if (!handoff) {
+      openSnackbar({
+        open: true,
+        message: 'A lease can only be created from an approved application with a valid property and unit.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+      return;
+    }
+    setViewDialogOpen(false);
+    drawer.openLeaseAddDrawer(
+      handoff.applicationContext.unitId,
+      handoff.property,
+      handoff.applicationContext
+    );
+  }, [drawer, hasSuccessfulCurrentScope, scopedApplications, scopedProperties, selectedApplication]);
 
   // Calculate overview stats
   const overviewStats = useMemo(() => {
@@ -978,7 +1006,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
         <DialogContent sx={{ pb: 4 }}>
           {selectedApplication && (
             <Box sx={{ mt: 1, mb: 2 }}>
-              <LeasingPipelinePanel resourceType="application" resourceId={selectedApplication?.id ?? selectedApplication?.Id} />
+              <LeasingPipelinePanel resourceType="application" resourceId={selectedApplication?.id ?? selectedApplication?.Id} onCreateLease={handleCreateLease} />
             </Box>
           )}
           {selectedApplication && (
@@ -1502,6 +1530,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
 
       <ApplicationAddDrawer />
+      <LeaseAddDrawer />
     </Box>
   );
 }
