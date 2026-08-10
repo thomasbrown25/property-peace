@@ -78,6 +78,13 @@ const pages = [
         icon: icons.MessageOutlined
       },
       {
+        id: 'money',
+        title: 'Money',
+        type: 'item',
+        url: '/landlord/money',
+        icon: icons.DollarCircleOutlined
+      },
+      {
         id: 'leads',
         title: 'Leads & Showings',
         type: 'item',
@@ -157,11 +164,25 @@ const pages = [
         ]
       },
       {
-        id: 'financials',
-        title: 'Financials',
+        id: 'accounting',
+        title: 'Accounting',
         type: 'collapse',
         icon: icons.FundOutlined,
         children: [
+          {
+            id: 'rent-collection',
+            title: 'Rent Collection',
+            type: 'item',
+            url: '/landlord/rent-collection',
+            icon: icons.DollarCircleOutlined
+          },
+          {
+            id: 'payments',
+            title: 'Payments & Transactions',
+            type: 'item',
+            url: '/landlord/payments',
+            icon: icons.ArrowUpOutlined
+          },
           {
             id: 'expenses',
             title: 'Expenses',
@@ -169,13 +190,7 @@ const pages = [
             url: '/landlord/expenses',
             icon: icons.FallOutlined
           },
-          {
-            id: 'payments',
-            title: 'Payments',
-            type: 'item',
-            url: '/landlord/payments',
-            icon: icons.ArrowUpOutlined
-          },
+
           {
             id: 'ledger',
             title: 'Ledger',
@@ -185,10 +200,17 @@ const pages = [
           },
           {
             id: 'reports',
-            title: 'Reports & Analytics',
+            title: 'Reports',
             type: 'item',
             url: '/landlord/reports',
             icon: icons.FundOutlined
+          },
+          {
+            id: 'tax-center',
+            title: 'Tax Center',
+            type: 'item',
+            url: '/landlord/reports/tax',
+            icon: icons.AuditOutlined
           }
         ]
       },

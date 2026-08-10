@@ -10,6 +10,7 @@ namespace brownstone_hub_api.Dtos.Tax
         public decimal DepositsNeedingReview { get; set; }
         public decimal TotalExpenses { get; set; }
         public decimal NetIncome { get; set; }
+        public string AccountingBasis { get; set; } = "cash";
         public List<TaxCategorySummaryDto> CategorySummaries { get; set; } = new();
         public List<TaxDeductibleExpenseDto> DeductibleExpenses { get; set; } = new();
         public DateTime? StartDate { get; set; }

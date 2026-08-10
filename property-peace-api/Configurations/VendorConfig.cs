@@ -46,6 +46,12 @@ namespace brownstone_hub_api.Configurations
                    .IsRequired(false)
                    .OnDelete(DeleteBehavior.SetNull);
 
+            builder.HasOne(v => v.PortalUser)
+                   .WithMany()
+                   .HasForeignKey(v => v.PortalUserId)
+                   .IsRequired(false)
+                   .OnDelete(DeleteBehavior.SetNull);
+
             // Indexes
             builder.HasIndex(v => v.LandlordId);
             builder.HasIndex(v => new { v.LandlordId, v.Name });
@@ -53,6 +59,7 @@ namespace brownstone_hub_api.Configurations
             builder.HasIndex(v => v.IsActive);
             builder.HasIndex(v => v.IsDeleted);
             builder.HasIndex(v => v.OrganizationId);
+            builder.HasIndex(v => v.PortalUserId).IsUnique().HasFilter("[PortalUserId] IS NOT NULL");
         }
     }
 }

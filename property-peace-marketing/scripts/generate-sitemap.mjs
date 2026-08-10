@@ -13,6 +13,9 @@ const staticPages = [
   { url: '', priority: '1.0', changefreq: 'weekly' },
   { url: 'features', priority: '0.9', changefreq: 'monthly' },
   { url: 'pricing', priority: '0.9', changefreq: 'monthly' },
+  { url: 'resources', priority: '0.9', changefreq: 'weekly' },
+  { url: 'resources/starter-pack', priority: '0.8', changefreq: 'monthly' },
+  { url: 'comparison/turbotenant', priority: '0.8', changefreq: 'monthly' },
   { url: 'blog', priority: '0.8', changefreq: 'weekly' },
   { url: 'landlord-software', priority: '0.9', changefreq: 'monthly' },
   { url: 'free-landlord-software', priority: '0.9', changefreq: 'monthly' },
@@ -93,6 +96,9 @@ const blogSlugs = [
   'property-management-software-whats-new-2025',
   'scale-rental-property-business-2025',
   'how-to-automate-rent-collection-never-chase-payments-again',
+  'landlord-move-in-move-out-checklist',
+  'rental-property-cash-flow-template-landlords',
+  'landlord-maintenance-checklist-prevent-costly-repairs',
 ];
 
 function generateSitemap() {

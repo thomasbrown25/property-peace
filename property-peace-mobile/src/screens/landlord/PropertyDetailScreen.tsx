@@ -111,7 +111,7 @@ export default function PropertyDetailScreen() {
       <Text style={styles.sectionTitle}>On-site actions</Text>
       <View style={styles.actionList}>
         <ActionRow icon="clipboard-outline" title="Open checklists" subtitle="Complete move-in and move-out items" color="#2f8f46" background="#edf9ef" onPress={() => navigation.navigate('Checklists', { propertyId, propertyName: details.name })} />
-        <ActionRow icon="construct-outline" title="New maintenance request" subtitle="This property will already be selected" color="#d94d63" background="#fff0f3" onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'AddMaintenance', params: { propertyId, propertyName: details.name } })} />
+        <ActionRow icon="construct-outline" title="Maintenance workflow" subtitle="Review and manage open requests" color="#d94d63" background="#fff0f3" onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} />
         <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color="#2475cf" background="#eaf3ff" onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
         <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color="#8b5bb7" background="#f5effb" onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
       </View>
@@ -139,7 +139,7 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.unitName}>{stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber, `Unit ${index + 1}`)}</Text>
                   <Text style={styles.unitMeta}>{status}{rent > 0 ? ` · ${currency(rent)}/mo` : ''}</Text>
                 </View>
-                <TouchableOpacity style={styles.unitAction} onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'AddMaintenance', params: { propertyId, unitId, propertyName: details.name } })} accessibilityLabel="Add maintenance request for unit">
+                <TouchableOpacity style={styles.unitAction} onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} accessibilityLabel="Open maintenance workflow">
                   <Ionicons name="construct-outline" size={20} color="#0b3558" />
                 </TouchableOpacity>
               </View>

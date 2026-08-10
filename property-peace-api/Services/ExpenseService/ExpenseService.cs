@@ -51,6 +51,22 @@ namespace brownstone_hub_api.Services.ExpenseService
             return null;
         }
 
+        private bool TryGetOrganizationId<T>(ServiceResponse<T> response, out long organizationId)
+        {
+            var current = GetOrganizationIdFromContext();
+            if (current.HasValue && current.Value > 0)
+            {
+                organizationId = current.Value;
+                return true;
+            }
+
+            organizationId = 0;
+            response.Success = false;
+            response.Message = "Organization context is required";
+            response.StatusCode = StatusCodes.Status403Forbidden;
+            return false;
+        }
+
         public async Task<ServiceResponse<LoadExpenseDto>> AddExpense(AddExpenseDto expense)
         {
             var response = new ServiceResponse<LoadExpenseDto>();
@@ -59,17 +75,7 @@ namespace brownstone_hub_api.Services.ExpenseService
                 _logger.LogInformation("[ExpenseService] AddExpense called: LandlordId={LandlordId}, PropertyId={PropertyId}, Name={Name}, Amount={Amount}, IsPaid={IsPaid}, PaidDate={PaidDate}, IsRecurring={IsRecurring}", 
                     expense.LandlordId, expense.PropertyId, expense.Name, expense.Amount, expense.IsPaid, expense.PaidDate, expense.IsRecurring);
                 
-                var organizationId = GetOrganizationIdFromContext();
-                _logger.LogInformation("[ExpenseService] OrganizationId from context: {OrganizationId}", organizationId);
-                
-                if (!organizationId.HasValue)
-                {
-                    _logger.LogWarning("[ExpenseService] OrganizationId is null");
-                    response.Success = false;
-                    response.Message = "Organization ID is required";
-                    response.StatusCode = 400;
-                    return response;
-                }
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
 
                 // Auto-categorize expense using AI if tax category is not already provided
                 if (!expense.TaxCategory.HasValue || expense.TaxCategory == Enums.ETaxCategory.None)
@@ -125,7 +131,7 @@ namespace brownstone_hub_api.Services.ExpenseService
                     }
                 }
 
-                var result = await _expenseRepository.AddExpense(expense, organizationId.Value);
+                var result = await _expenseRepository.AddExpense(expense, organizationId);
                 _logger.LogInformation("[ExpenseService] Expense created: Id={Id}, IsPaid={IsPaid}, PaidDate={PaidDate}, IsRecurring={IsRecurring}", 
                     result?.Id, result?.IsPaid, result?.PaidDate, result?.IsRecurring);
                 response.Data = result;
@@ -135,12 +141,12 @@ namespace brownstone_hub_api.Services.ExpenseService
                 {
                     try
                     {
-                        var expenseAccount = await _accountMappingService.GetOrCreateExpenseAccountAsync(organizationId.Value, expense.Category);
+                        var expenseAccount = await _accountMappingService.GetOrCreateExpenseAccountAsync(organizationId, expense.Category);
                         if (expenseAccount != null)
                         {
                             // Expenses are negative (reduce equity)
                             var ledgerResponse = await _generalLedgerService.CreateLedgerEntryAsync(
-                                organizationId.Value,
+                                organizationId,
                                 expenseAccount.Id,
                                 result.Id,
                                 "Expense",
@@ -181,7 +187,8 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<LoadExpenseDto>();
             try
             {
-                var result = await _expenseRepository.UpdateExpense(expense);
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                var result = await _expenseRepository.UpdateExpense(expense, organizationId);
                 response.Data = result;
             }
             catch (KeyNotFoundException ex)
@@ -205,7 +212,8 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<bool>();
             try
             {
-                var result = await _expenseRepository.DeleteExpense(expenseId);
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                var result = await _expenseRepository.DeleteExpense(expenseId, organizationId);
                 response.Data = result;
                 if (!result)
                 {
@@ -228,7 +236,8 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<LoadExpenseDto>();
             try
             {
-                var result = await _expenseRepository.GetExpenseById(expenseId);
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                var result = await _expenseRepository.GetExpenseById(expenseId, organizationId);
                 if (result == null)
                 {
                     response.Success = false;
@@ -263,7 +272,7 @@ namespace brownstone_hub_api.Services.ExpenseService
             return response;
         }
 
-        public async Task<ServiceResponse<List<LoadExpenseDto>>> GetExpenses(long organizationId, long? propertyId = null, DateTime? startDate = null, DateTime? endDate = null, string? category = null)
+        public async Task<ServiceResponse<List<LoadExpenseDto>>> GetExpenses(long organizationId, long? propertyId = null, DateTime? startDate = null, DateTime? endDate = null, string? category = null, long? unitId = null)
         {
             var response = new ServiceResponse<List<LoadExpenseDto>>();
             try
@@ -271,7 +280,10 @@ namespace brownstone_hub_api.Services.ExpenseService
                 _logger.LogInformation("[ExpenseService] GetExpenses called: OrganizationId={OrganizationId}, PropertyId={PropertyId}, StartDate={StartDate}, EndDate={EndDate}, Category={Category}", 
                     organizationId, propertyId, startDate, endDate, category);
                 
-                var result = await _expenseRepository.GetExpensesByOrganizationId(organizationId, propertyId, startDate, endDate, category);
+                if (!TryGetOrganizationId(response, out var activeOrganizationId) || activeOrganizationId != organizationId)
+                    return response;
+                var result = await _expenseRepository.GetExpensesByOrganizationId(
+                    organizationId, propertyId, startDate, endDate, category, unitId: unitId);
                 _logger.LogInformation("[ExpenseService] GetExpensesByOrganizationId returned {Count} expenses", result?.Count ?? 0);
 
                 // OPTIMIZATION: Batch fetch all receipts in one query instead of N+1 queries
@@ -362,7 +374,9 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<decimal>();
             try
             {
-                var result = await _expenseRepository.GetTotalExpensesByOrganizationId(organizationId, propertyId, startDate, endDate);
+                if (!TryGetOrganizationId(response, out var activeOrganizationId) || activeOrganizationId != organizationId)
+                    return response;
+                var result = await _expenseRepository.GetTotalExpensesByOrganizationId(activeOrganizationId, propertyId, startDate, endDate);
                 response.Data = result;
             }
             catch (Exception ex)
@@ -447,7 +461,7 @@ namespace brownstone_hub_api.Services.ExpenseService
                             MaintenanceRequestId = recurringExpense.MaintenanceRequestId
                         };
 
-                        await _expenseRepository.UpdateExpense(updateDto);
+                        await _expenseRepository.UpdateExpense(updateDto, property.OrganizationId.Value);
 
                         // Update LastGeneratedDate directly in the database
                         await _expenseRepository.UpdateRecurringExpenseDates(recurringExpense.Id, DateTime.Today, nextOccurrence);
@@ -479,7 +493,8 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<LoadExpenseDto>();
             try
             {
-                var expense = await _expenseRepository.GetExpenseById(expenseId);
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                var expense = await _expenseRepository.GetExpenseById(expenseId, organizationId);
                 if (expense == null || !expense.IsRecurring)
                 {
                     response.Success = false;
@@ -510,7 +525,7 @@ namespace brownstone_hub_api.Services.ExpenseService
                     MaintenanceRequestId = expense.MaintenanceRequestId
                 };
 
-                var result = await _expenseRepository.UpdateExpense(updateDto);
+                var result = await _expenseRepository.UpdateExpense(updateDto, organizationId);
                 response.Data = result;
                 response.Message = "Recurring expense paused successfully";
             }
@@ -528,7 +543,8 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<LoadExpenseDto>();
             try
             {
-                var expense = await _expenseRepository.GetExpenseById(expenseId);
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                var expense = await _expenseRepository.GetExpenseById(expenseId, organizationId);
                 if (expense == null || !expense.IsRecurring)
                 {
                     response.Success = false;
@@ -559,7 +575,7 @@ namespace brownstone_hub_api.Services.ExpenseService
                     MaintenanceRequestId = expense.MaintenanceRequestId
                 };
 
-                var result = await _expenseRepository.UpdateExpense(updateDto);
+                var result = await _expenseRepository.UpdateExpense(updateDto, organizationId);
                 response.Data = result;
                 response.Message = "Recurring expense resumed successfully";
             }
@@ -577,16 +593,8 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<List<LoadExpenseDto>>();
             try
             {
-                var organizationId = GetOrganizationIdFromContext();
-                if (!organizationId.HasValue)
-                {
-                    response.Success = false;
-                    response.Message = "Organization ID is required";
-                    response.StatusCode = 400;
-                    return response;
-                }
-
-                var bills = await _expenseRepository.GetUnpaidBills(organizationId.Value, filter);
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                var bills = await _expenseRepository.GetUnpaidBills(organizationId, filter);
                 response.Data = bills;
             }
             catch (Exception ex)
@@ -603,7 +611,8 @@ namespace brownstone_hub_api.Services.ExpenseService
             var response = new ServiceResponse<bool>();
             try
             {
-                var result = await _expenseRepository.MarkBillAsPaid(expenseId, paidDate);
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                var result = await _expenseRepository.MarkBillAsPaid(expenseId, organizationId, paidDate);
                 if (!result)
                 {
                     response.Success = false;

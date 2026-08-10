@@ -33,9 +33,9 @@ public interface IStripeRentLossAccountingService
 }
 
 /// <summary>
-/// Reopens rent by the exact cumulative Stripe loss. The Payment adjustment is a current-state
-/// projection, while immutable general-ledger delta rows preserve every accounting change under a
-/// cross-instance database lock, including partial refunds and refund/dispute sequences.
+/// Reopens rent by the exact cumulative Stripe loss. Immutable, event-dated Payment and general-ledger
+/// delta rows preserve every accounting change under a cross-instance database lock, including partial
+/// refunds, refund/dispute sequences, and recoveries.
 /// </summary>
 public sealed class StripeRentLossAccountingService(
     DataContext context,
@@ -84,51 +84,28 @@ public sealed class StripeRentLossAccountingService(
                 ?? throw new InvalidOperationException("The original rent-payment ledger entry is missing.");
 
             var lossReference = $"{aggregate.PaymentIntentId}:loss";
-            var adjustment = await context.Payments.SingleOrDefaultAsync(x =>
-                x.LeaseId == aggregate.LeaseId && x.Reference == lossReference, cancellationToken);
-            var previouslyAccountedLossCents = adjustment == null
-                ? 0L
-                : decimal.ToInt64(decimal.Round(-adjustment.Amount * 100m, 0, MidpointRounding.AwayFromZero));
-            if (adjustment == null && cumulativeLossCents <= 0)
+            var previouslyAccountedLossCents = await GetAccountedLossCentsAsync(
+                aggregate.LeaseId, aggregate.PaymentIntentId, cancellationToken);
+            if (previouslyAccountedLossCents == 0 && cumulativeLossCents <= 0)
             {
                 if (transaction != null) await transaction.CommitAsync(cancellationToken);
                 return;
             }
-            if (adjustment == null)
-            {
-                adjustment = new Payment
-                {
-                    LeaseId = original.LeaseId,
-                    PropertyId = original.PropertyId,
-                    OrganizationId = original.OrganizationId,
-                    Amount = -(cumulativeLossCents / 100m),
-                    PaymentDate = command.OccurredAt.UtcDateTime,
-                    Reference = lossReference,
-                    Method = "Stripe loss adjustment",
-                    Status = "Completed",
-                    StripePaymentIntentId = aggregate.PaymentIntentId,
-                    StripeChargeId = aggregate.StripeChargeId,
-                    CreatedByUserId = original.CreatedByUserId,
-                    CreatedAt = command.OccurredAt.UtcDateTime,
-                    UpdatedAt = command.OccurredAt.UtcDateTime
-                };
-                context.Payments.Add(adjustment);
-            }
-            else
-            {
-                adjustment.Amount = -(cumulativeLossCents / 100m);
-                adjustment.PaymentDate = command.OccurredAt.UtcDateTime;
-                adjustment.UpdatedAt = command.OccurredAt.UtcDateTime;
-            }
+
+            var ledgerDeltaCents = checked(cumulativeLossCents - previouslyAccountedLossCents);
+            if (ledgerDeltaCents != 0)
+                AddAdjustmentPayment(original, aggregate, -ledgerDeltaCents, command.OccurredAt,
+                    previouslyAccountedLossCents == 0 && ledgerDeltaCents > 0
+                        ? lossReference
+                        : $"{lossReference}:{previouslyAccountedLossCents}:{cumulativeLossCents}");
 
             original.Status = aggregate.DisputedAmountCents > 0 ? "Disputed"
                 : aggregate.RefundedAmountCents >= aggregate.AmountCents ? "Refunded"
                 : aggregate.RefundedAmountCents > 0 ? "PartiallyRefunded" : "Completed";
             original.UpdatedAt = command.OccurredAt.UtcDateTime;
 
-            // Payment is a current-state projection used by rent calculations. The general ledger is an
-            // append-only series of deltas so prior financial facts are never rewritten.
-            var ledgerDeltaCents = checked(cumulativeLossCents - previouslyAccountedLossCents);
+            // Operational Payment rows and general-ledger rows are both append-only dated deltas.
+            // Tax and Money Center consume Payment rows, so neither reporting source rewrites prior periods.
             if (ledgerDeltaCents != 0)
             {
                 context.GeneralLedgerEntries.Add(new GeneralLedgerEntry
@@ -221,37 +198,20 @@ public sealed class StripeRentLossAccountingService(
                 var cumulativeLossCents = Math.Min(aggregate.AmountCents,
                     checked(aggregate.RefundedAmountCents + aggregate.DisputedAmountCents));
                 var lossReference = $"{aggregate.PaymentIntentId}:loss";
-                var adjustment = await context.Payments.SingleOrDefaultAsync(x =>
-                    x.LeaseId == aggregate.LeaseId && x.Reference == lossReference, cancellationToken);
-                var previouslyAccountedLossCents = adjustment == null ? 0L
-                    : decimal.ToInt64(decimal.Round(-adjustment.Amount * 100m, 0, MidpointRounding.AwayFromZero));
-                if (adjustment == null)
-                {
-                    adjustment = new Payment
-                    {
-                        LeaseId = original.LeaseId, PropertyId = original.PropertyId,
-                        OrganizationId = original.OrganizationId, Amount = -(cumulativeLossCents / 100m),
-                        PaymentDate = command.OccurredAt.UtcDateTime, Reference = lossReference,
-                        Method = "Stripe loss adjustment", Status = "Completed",
-                        StripePaymentIntentId = aggregate.PaymentIntentId, StripeChargeId = aggregate.StripeChargeId,
-                        CreatedByUserId = original.CreatedByUserId, CreatedAt = command.OccurredAt.UtcDateTime,
-                        UpdatedAt = command.OccurredAt.UtcDateTime
-                    };
-                    context.Payments.Add(adjustment);
-                }
-                else
-                {
-                    adjustment.Amount = -(cumulativeLossCents / 100m);
-                    adjustment.PaymentDate = command.OccurredAt.UtcDateTime;
-                    adjustment.UpdatedAt = command.OccurredAt.UtcDateTime;
-                }
+                var previouslyAccountedLossCents = await GetAccountedLossCentsAsync(
+                    aggregate.LeaseId, aggregate.PaymentIntentId, cancellationToken);
+                var ledgerDeltaCents = checked(cumulativeLossCents - previouslyAccountedLossCents);
+                if (ledgerDeltaCents != 0)
+                    AddAdjustmentPayment(original, aggregate, -ledgerDeltaCents, command.OccurredAt,
+                        previouslyAccountedLossCents == 0 && ledgerDeltaCents > 0
+                            ? lossReference
+                            : $"{lossReference}:{previouslyAccountedLossCents}:{cumulativeLossCents}");
                 original.Status = "Disputed";
                 original.StripeDisputeId = command.DisputeId;
                 original.StripeChargeId ??= command.ChargeId;
                 original.DisputedAt ??= command.OccurredAt.UtcDateTime;
                 original.StripeStatusChangedAt = command.OccurredAt.UtcDateTime;
                 original.UpdatedAt = command.OccurredAt.UtcDateTime;
-                var ledgerDeltaCents = checked(cumulativeLossCents - previouslyAccountedLossCents);
                 if (ledgerDeltaCents != 0)
                 {
                     context.GeneralLedgerEntries.Add(new GeneralLedgerEntry
@@ -314,18 +274,17 @@ public sealed class StripeRentLossAccountingService(
                     && x.TransactionType == "Payment", cancellationToken)
                     ?? throw new InvalidOperationException("The original rent-payment ledger entry is missing.");
                 var lossReference = $"{aggregate.PaymentIntentId}:loss";
-                var adjustment = await context.Payments.SingleOrDefaultAsync(x =>
-                    x.LeaseId == aggregate.LeaseId && x.Reference == lossReference, cancellationToken)
-                    ?? throw new InvalidOperationException("The dispute loss adjustment is missing during recovery.");
-                var previouslyAccountedLossCents = decimal.ToInt64(decimal.Round(
-                    -adjustment.Amount * 100m, 0, MidpointRounding.AwayFromZero));
+                var previouslyAccountedLossCents = await GetAccountedLossCentsAsync(
+                    aggregate.LeaseId, aggregate.PaymentIntentId, cancellationToken);
+                if (previouslyAccountedLossCents <= 0)
+                    throw new InvalidOperationException("The dispute loss adjustment is missing during recovery.");
                 var remainingLossCents = Math.Min(aggregate.AmountCents, aggregate.RefundedAmountCents);
                 var recoveredLossCents = Math.Max(0, previouslyAccountedLossCents - remainingLossCents);
                 var recoveryReference = $"{aggregate.PaymentIntentId}:dispute-recovery";
 
-                adjustment.Amount = -(remainingLossCents / 100m);
-                adjustment.PaymentDate = occurredAt.UtcDateTime;
-                adjustment.UpdatedAt = occurredAt.UtcDateTime;
+                if (recoveredLossCents > 0)
+                    AddAdjustmentPayment(original, aggregate, recoveredLossCents, occurredAt, recoveryReference,
+                        "Stripe dispute recovery adjustment");
                 if (recoveredLossCents > 0 && !await context.GeneralLedgerEntries.AnyAsync(x =>
                     x.OrganizationId == aggregate.OrganizationId && x.TransactionId == original.Id
                     && x.TransactionType == "PaymentLossRecovery" && x.Reference == recoveryReference,
@@ -377,6 +336,38 @@ public sealed class StripeRentLossAccountingService(
             if (gate.CurrentCount == 1)
                 Gates.TryRemove(new KeyValuePair<string, SemaphoreSlim>(paymentIntentId, gate));
         }
+    }
+
+    private async Task<long> GetAccountedLossCentsAsync(long leaseId, string paymentIntentId,
+        CancellationToken cancellationToken)
+    {
+        var amounts = await context.Payments
+            .Where(x => x.LeaseId == leaseId && x.StripePaymentIntentId == paymentIntentId
+                && (x.Method == "Stripe loss adjustment" || x.Method == "Stripe dispute recovery adjustment"))
+            .Select(x => x.Amount)
+            .ToListAsync(cancellationToken);
+        return decimal.ToInt64(decimal.Round(-amounts.Sum() * 100m, 0, MidpointRounding.AwayFromZero));
+    }
+
+    private void AddAdjustmentPayment(Payment original, StripeRentPayment aggregate, long signedDeltaCents,
+        DateTimeOffset occurredAt, string reference, string method = "Stripe loss adjustment")
+    {
+        context.Payments.Add(new Payment
+        {
+            LeaseId = original.LeaseId,
+            PropertyId = original.PropertyId,
+            OrganizationId = original.OrganizationId,
+            Amount = signedDeltaCents / 100m,
+            PaymentDate = occurredAt.UtcDateTime,
+            Reference = reference,
+            Method = method,
+            Status = "Completed",
+            StripePaymentIntentId = aggregate.PaymentIntentId,
+            StripeChargeId = aggregate.StripeChargeId,
+            CreatedByUserId = original.CreatedByUserId,
+            CreatedAt = occurredAt.UtcDateTime,
+            UpdatedAt = occurredAt.UtcDateTime
+        });
     }
 
     private async Task<IDbContextTransaction?> BeginTransactionAsync(string paymentIntentId, CancellationToken cancellationToken)

@@ -45,13 +45,42 @@ public sealed class StripeRentLossAccountingTests
 
         await service.ApplyAsync(command);
 
-        (await context.Payments.Where(x => x.Amount < 0).ToListAsync()).Should().ContainSingle().Which.Amount.Should().Be(-50m);
+        (await context.Payments.Where(x => x.Amount < 0).OrderBy(x => x.Id).ToListAsync())
+            .Select(x => x.Amount).Should().Equal(-30m, -20m);
         var ledgerDeltas = await context.GeneralLedgerEntries
             .Where(x => x.TransactionType == "PaymentLossReversal")
             .OrderBy(x => x.Id)
             .ToListAsync();
         ledgerDeltas.Select(x => x.Amount).Should().Equal(-30m, -20m);
         ledgerDeltas.Select(x => x.Reference).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public async Task ApplyAsync_LaterYearLoss_AppendsDatedDeltaWithoutRewritingPriorYear()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var aggregate = await SeedCompletedPaymentAsync(context, refundedCents: 3_000, disputedCents: 0);
+        var service = new StripeRentLossAccountingService(context, Mock.Of<ILogger<StripeRentLossAccountingService>>());
+        var firstOccurredAt = new DateTimeOffset(2025, 12, 31, 23, 59, 59, TimeSpan.Zero).AddTicks(9_000_000);
+        await service.ApplyAsync(new StripeRentLossAccountingCommand(
+            "pi_loss", StripeRentPaymentBlockKind.Refund, firstOccurredAt));
+        var first = await context.Payments.SingleAsync(x => x.Reference == "pi_loss:loss");
+        var firstId = first.Id;
+
+        aggregate.RefundedAmountCents = 5_000;
+        await context.SaveChangesAsync();
+        await service.ApplyAsync(new StripeRentLossAccountingCommand(
+            "pi_loss", StripeRentPaymentBlockKind.Refund, new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)));
+
+        context.ChangeTracker.Clear();
+        var adjustments = await context.Payments.Where(x => x.StripePaymentIntentId == "pi_loss" && x.Amount < 0)
+            .OrderBy(x => x.PaymentDate).ToListAsync();
+        adjustments.Should().HaveCount(2);
+        adjustments[0].Id.Should().Be(firstId);
+        adjustments[0].Amount.Should().Be(-30m);
+        adjustments[0].PaymentDate.Should().Be(firstOccurredAt.UtcDateTime);
+        adjustments[1].Amount.Should().Be(-20m);
+        adjustments[1].PaymentDate.Should().Be(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
     }
 
     [Fact]
@@ -83,8 +112,10 @@ public sealed class StripeRentLossAccountingTests
             DateTimeOffset.UtcNow.AddMinutes(1));
 
         context.ChangeTracker.Clear();
-        (await context.Payments.SingleAsync(x => x.Reference == "pi_loss:loss")).Amount.Should().Be(-30m);
-        (await context.Payments.CountAsync(x => x.Reference == "pi_loss:dispute-recovery")).Should().Be(0);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_loss:loss")).Amount.Should().Be(-100m);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_loss:dispute-recovery")).Amount.Should().Be(70m);
+        (await context.Payments.Where(x => x.Method == "Stripe loss adjustment"
+                || x.Method == "Stripe dispute recovery adjustment").SumAsync(x => x.Amount)).Should().Be(-30m);
         var ledgerHistory = await context.GeneralLedgerEntries
             .Where(x => x.TransactionType == "PaymentLossReversal" || x.TransactionType == "PaymentLossRecovery")
             .ToListAsync();

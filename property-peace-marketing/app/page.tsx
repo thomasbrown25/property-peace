@@ -15,6 +15,7 @@ import RentEstimates from '@/components/Sections/RentEstimates';
 // import SocialProof from '@/components/Sections/SocialProof';
 import ProofBand from '@/components/Sections/ProofBand';
 import SeoPathways from '@/components/Sections/SeoPathways';
+import ResourceHighlights from '@/components/Sections/ResourceHighlights';
 import Pricing from '@/components/Sections/Pricing';
 
 export const metadata: Metadata = applyOttoSeo('/', {
@@ -40,6 +41,7 @@ export default function Home() {
         {/* Proof band replaces hidden testimonials with factual product proof */}
         <ProofBand />
         <SeoPathways />
+        <ResourceHighlights />
 
         {/* Zone 2: Feature sections — light */}
         <TrustClarity />

@@ -6,6 +6,8 @@ namespace brownstone_hub_api.Dtos.BankReconciliation
         public DateTime? StatementDate { get; set; }
         public decimal? StartingBalance { get; set; }
         public decimal? EndingBalance { get; set; }
+        public decimal? ExpectedEndingBalance { get; set; }
+        public decimal? Difference { get; set; }
         public List<LoadBankStatementTransactionDto> Transactions { get; set; } = new();
         public int TotalTransactions { get; set; }
         public int MatchedTransactions { get; set; }

@@ -4,10 +4,9 @@ namespace brownstone_hub_api.Repositories.FutureExpenses
 {
     public interface IFutureExpenseRepository
     {
-        Task<LoadFutureExpenseDto> AddFutureExpense(AddFutureExpenseDto futureExpense, long? organizationId = null);
-        Task<bool> DeleteFutureExpense(long futureExpenseId);
-        Task<LoadFutureExpenseDto?> GetFutureExpenseById(long futureExpenseId);
-        Task<List<LoadFutureExpenseDto>> GetFutureExpensesByOrganizationId(long organizationId, long? propertyId = null);
-        Task<List<LoadFutureExpenseDto>> GetFutureExpensesByLandlordId(long landlordId, long? propertyId = null);
+        Task<LoadFutureExpenseDto> AddFutureExpense(AddFutureExpenseDto futureExpense, long organizationId);
+        Task<bool> DeleteFutureExpense(long futureExpenseId, long organizationId);
+        Task<LoadFutureExpenseDto?> GetFutureExpenseById(long futureExpenseId, long organizationId);
+        Task<List<LoadFutureExpenseDto>> GetFutureExpensesByOrganizationId(long organizationId, long? propertyId = null, long? unitId = null);
     }
 }

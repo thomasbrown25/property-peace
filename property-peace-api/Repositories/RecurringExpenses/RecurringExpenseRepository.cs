@@ -1,6 +1,7 @@
 using AutoMapper;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.RecurringExpense;
+using brownstone_hub_api.Repositories.Expenses;
 using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Repositories.RecurringExpenses
@@ -11,26 +12,19 @@ namespace brownstone_hub_api.Repositories.RecurringExpenses
         private readonly ILogger<RecurringExpenseRepository> _logger = logger;
         private readonly IMapper _mapper = mapper;
 
-        public async Task<LoadRecurringExpenseDto> AddRecurringExpense(AddRecurringExpenseDto recurringExpense, long? organizationId = null)
+        public async Task<LoadRecurringExpenseDto> AddRecurringExpense(AddRecurringExpenseDto recurringExpense, long organizationId)
         {
             try
             {
                 _logger.LogInformation("[RecurringExpenseRepository] AddRecurringExpense called: LandlordId={LandlordId}, PropertyId={PropertyId}, OrganizationId={OrganizationId}, Name={Name}", 
                     recurringExpense.LandlordId, recurringExpense.PropertyId, organizationId, recurringExpense.Name);
+
+                await ExpenseOrganizationGuard.ValidateAsync(_context, organizationId, recurringExpense.LandlordId,
+                    recurringExpense.PropertyId, recurringExpense.UnitId, null, recurringExpense.MaintenanceRequestId);
                 
                 var entity = _mapper.Map<Models.RecurringExpense>(recurringExpense);
                 entity.CreatedAt = DateTime.Now;
-                
-                // Set OrganizationId if provided
-                if (organizationId.HasValue)
-                {
-                    entity.OrganizationId = organizationId.Value;
-                    _logger.LogInformation("[RecurringExpenseRepository] Set OrganizationId={OrganizationId} on entity", organizationId.Value);
-                }
-                else
-                {
-                    _logger.LogWarning("[RecurringExpenseRepository] OrganizationId is null - recurring expense may not be retrievable by organization");
-                }
+                entity.OrganizationId = organizationId;
                 
                 // Calculate next occurrence date
                 entity.NextOccurrenceDate = Utils.RecurringExpenseCalculator.CalculateNextOccurrence(
@@ -71,13 +65,17 @@ namespace brownstone_hub_api.Repositories.RecurringExpenses
             }
         }
 
-        public async Task<LoadRecurringExpenseDto> UpdateRecurringExpense(UpdateRecurringExpenseDto recurringExpense)
+        public async Task<LoadRecurringExpenseDto> UpdateRecurringExpense(UpdateRecurringExpenseDto recurringExpense, long organizationId)
         {
             try
             {
-                var entity = await _context.RecurringExpenses.FindAsync(recurringExpense.Id);
+                var entity = await _context.RecurringExpenses
+                    .FirstOrDefaultAsync(e => e.Id == recurringExpense.Id && e.OrganizationId == organizationId);
                 if (entity == null)
                     throw new KeyNotFoundException($"Recurring expense with ID {recurringExpense.Id} not found");
+
+                await ExpenseOrganizationGuard.ValidateReferencesAsync(_context, organizationId,
+                    recurringExpense.PropertyId, recurringExpense.UnitId, null, recurringExpense.MaintenanceRequestId);
 
                 entity.PropertyId = recurringExpense.PropertyId;
                 entity.UnitId = recurringExpense.UnitId;
@@ -119,11 +117,12 @@ namespace brownstone_hub_api.Repositories.RecurringExpenses
             }
         }
 
-        public async Task<bool> DeleteRecurringExpense(long recurringExpenseId)
+        public async Task<bool> DeleteRecurringExpense(long recurringExpenseId, long organizationId)
         {
             try
             {
-                var recurringExpense = await _context.RecurringExpenses.FindAsync(recurringExpenseId);
+                var recurringExpense = await _context.RecurringExpenses
+                    .FirstOrDefaultAsync(e => e.Id == recurringExpenseId && e.OrganizationId == organizationId);
                 if (recurringExpense == null)
                     return false;
 
@@ -138,14 +137,14 @@ namespace brownstone_hub_api.Repositories.RecurringExpenses
             }
         }
 
-        public async Task<LoadRecurringExpenseDto?> GetRecurringExpenseById(long recurringExpenseId)
+        public async Task<LoadRecurringExpenseDto?> GetRecurringExpenseById(long recurringExpenseId, long organizationId)
         {
             try
             {
                 var recurringExpense = await _context.RecurringExpenses
                     .Include(e => e.Property)
                     .Include(e => e.Unit)
-                    .FirstOrDefaultAsync(e => e.Id == recurringExpenseId);
+                    .FirstOrDefaultAsync(e => e.Id == recurringExpenseId && e.OrganizationId == organizationId);
 
                 return recurringExpense == null ? null : _mapper.Map<LoadRecurringExpenseDto>(recurringExpense);
             }
@@ -182,18 +181,21 @@ namespace brownstone_hub_api.Repositories.RecurringExpenses
             }
         }
 
-        public async Task<List<LoadRecurringExpenseDto>> GetRecurringExpensesByOrganizationId(long organizationId, long? propertyId = null)
+        public async Task<List<LoadRecurringExpenseDto>> GetRecurringExpensesByOrganizationId(long organizationId, long? propertyId = null, long? unitId = null)
         {
             try
             {
                 var query = _context.RecurringExpenses
                     .Include(e => e.Property)
                     .Include(e => e.Unit)
-                    .Where(e => e.OrganizationId == organizationId)
+                    .Where(e => e.OrganizationId == organizationId && !e.Property.IsDeleted)
                     .AsQueryable();
 
                 if (propertyId.HasValue)
                     query = query.Where(e => e.PropertyId == propertyId.Value);
+
+                if (unitId.HasValue)
+                    query = query.Where(e => e.UnitId == unitId.Value);
 
                 var recurringExpenses = await query
                     .OrderByDescending(e => e.CreatedAt)

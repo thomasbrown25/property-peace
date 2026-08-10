@@ -16,6 +16,8 @@ const storage = read('src/services/storageService.ts');
 const userApi = read('src/api/userAPI.ts');
 const authService = read('src/services/authService.ts');
 const apiClient = read('src/services/apiClient.ts');
+const maintenanceApi = read('src/api/maintenanceAPI.ts');
+const tenantMaintenanceDetail = read('src/screens/tenant/TenantMaintenanceDetailScreen.tsx');
 const eas = json('eas.json');
 
 assert.equal(app.ios.supportsTablet, false, 'first release must be intentionally iPhone-only');
@@ -25,9 +27,15 @@ assert.equal(app.ios.usesAppleSignIn, true, 'Sign in with Apple entitlement is r
 assert.ok(app.plugins.includes('expo-apple-authentication'), 'Sign in with Apple plugin is required');
 assert.ok(app.plugins.some((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-local-authentication'), 'Face ID plugin is required');
 assert.ok(app.plugins.includes('expo-secure-store'), 'SecureStore plugin is required');
+assert.match(app.ios.infoPlist.NSCameraUsageDescription, /maintenance/i, 'camera usage must explain maintenance evidence');
+assert.match(app.ios.infoPlist.NSPhotoLibraryUsageDescription, /maintenance/i, 'photo library usage must explain maintenance evidence');
+assert.ok(app.plugins.some((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-image-picker'), 'ImagePicker permission plugin is required');
 assert.ok(pkg.dependencies['expo-apple-authentication'], 'Sign in with Apple dependency is required');
 assert.ok(pkg.dependencies['expo-local-authentication'], 'local authentication dependency is required');
 assert.ok(pkg.dependencies['expo-secure-store'], 'secure storage dependency is required');
+assert.ok(pkg.dependencies['expo-image-picker'], 'maintenance media picker dependency is required');
+assert.ok(pkg.dependencies['expo-file-system'], 'private maintenance evidence must download to a local file');
+assert.ok(pkg.dependencies['expo-sharing'], 'private maintenance evidence must use the native share sheet');
 assert.ok(eas.build?.production?.autoIncrement, 'production EAS profile must auto-increment');
 assert.match(config, /https:\/\/api\.propertypeace\.io\//, 'production API must use the live Property Peace host');
 assert.doesNotMatch(config, /api\.brownstonehub\.com/, 'dead legacy API hosts must not ship');
@@ -46,5 +54,9 @@ assert.match(settings, /Delete account/i, 'Settings must expose in-app account d
 assert.match(settings, /Face ID/, 'Settings must expose Face ID unlock');
 assert.doesNotMatch(authService, /requestBody:\s*JSON\.stringify/, 'auth tokens must never be logged');
 assert.doesNotMatch(apiClient, /requestData:|data:\s*axiosConfig\.data|data:\s*response\.data/, 'API logs must not expose credentials or response data');
+assert.match(maintenanceApi, /downloadAsync/, 'evidence must stream to a local file instead of a JS base64 value');
+assert.match(maintenanceApi, /Authorization/, 'local evidence downloads must remain authenticated');
+assert.doesNotMatch(maintenanceApi, /arraybuffer|base64|data:/, 'large private media must not be materialized in JS memory');
+assert.match(tenantMaintenanceDetail, /Sharing\.shareAsync/, 'evidence must open through the native iOS share sheet');
 
 console.log('iOS compliance source checks passed');

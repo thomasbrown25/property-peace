@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSubscription } from 'hooks/useSubscription';
 import {
@@ -73,6 +73,9 @@ export default function TaxReports() {
   const [taxLoading, setTaxLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
   const [taxError, setTaxError] = useState(null);
+  const [taxWarning, setTaxWarning] = useState(null);
+  const [taxYearStatusKnown, setTaxYearStatusKnown] = useState(false);
+  const taxRequestSequence = useRef(0);
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [taxYearReport, setTaxYearReport] = useState(null);
   const [taxCategorySummary, setTaxCategorySummary] = useState([]);
@@ -104,23 +107,31 @@ export default function TaxReports() {
   const fetchTaxData = async () => {
     if (!landlordId) return;
 
+    const requestId = ++taxRequestSequence.current;
     setTaxLoading(true);
     setTaxError(null);
+    setTaxWarning(null);
+    setTaxYearStatusKnown(false);
 
     try {
-      const [
-        yearReportRes,
-        categorySummaryRes,
-        deductibleExpensesRes,
-        form1099Res,
-        readinessRes
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         expenseAPI.getTaxYearReport(landlordId, taxYear),
         expenseAPI.getTaxCategorySummary(landlordId, taxYear),
         expenseAPI.getTaxDeductibleExpenses(landlordId, { year: taxYear }),
         expenseAPI.getForm1099Data(landlordId, taxYear),
         expenseAPI.getTaxReadiness(landlordId, taxYear)
       ]);
+
+      if (requestId !== taxRequestSequence.current) return;
+
+      const labels = ['year summary', 'category summary', 'deductible expenses', '1099 preparation', 'preparation checklist'];
+      const failedLabels = results.flatMap((result, index) => result.status === 'rejected' ? [labels[index]] : []);
+      setTaxYearStatusKnown(results[0].status === 'fulfilled');
+      if (failedLabels.length === results.length) throw results[0].reason;
+      if (failedLabels.length) setTaxWarning(`Some tax workspace sections could not be refreshed: ${failedLabels.join(', ')}. Available records are shown.`);
+
+      const value = (index) => results[index].status === 'fulfilled' ? results[index].value : null;
+      const [yearReportRes, categorySummaryRes, deductibleExpensesRes, form1099Res, readinessRes] = results.map((_, index) => value(index));
 
       setTaxYearReport(yearReportRes?.data || null);
       setTaxCategorySummary(categorySummaryRes?.data || []);
@@ -129,14 +140,14 @@ export default function TaxReports() {
       setTaxReadiness(readinessRes?.data || null);
 
       if (yearReportRes?.success === false || categorySummaryRes?.success === false) {
-        const errorMsg = yearReportRes?.message || categorySummaryRes?.message || 'Failed to load tax reports';
-        setTaxError(errorMsg);
+        setTaxError(yearReportRes?.message || categorySummaryRes?.message || 'Failed to load tax reports');
       }
     } catch (err) {
+      if (requestId !== taxRequestSequence.current) return;
       console.error('Error fetching tax reports:', err);
-      setTaxError(err.response?.data?.message || err.message || 'Failed to load tax reports. Please check your connection and try again.');
+      setTaxError(err?.response?.data?.message || err?.message || 'Failed to load tax reports. Please check your connection and try again.');
     } finally {
-      setTaxLoading(false);
+      if (requestId === taxRequestSequence.current) setTaxLoading(false);
     }
   };
 
@@ -148,7 +159,7 @@ export default function TaxReports() {
       await expenseAPI.exportToAccountingSoftware(landlordId, format, { year: taxYear });
       openSnackbar({
         open: true,
-        message: `Successfully exported to ${format.toUpperCase()}`,
+        message: 'Download prepared. Review the file with your accountant before importing or filing.',
         variant: 'alert',
         alert: { color: 'success' }
       });
@@ -165,14 +176,14 @@ export default function TaxReports() {
     }
   };
 
-  const handleDownloadScheduleE = async (perProperty = false) => {
+  const handleDownloadScheduleE = async () => {
     setTaxExportMenuAnchor(null);
-    setActionLoading(perProperty ? 'schedule-property' : 'schedule-e');
+    setActionLoading('schedule-e');
     try {
-      await downloadScheduleEPdf(landlordId, taxYear, perProperty);
+      await downloadScheduleEPdf(landlordId, taxYear, false);
       openSnackbar({
         open: true,
-        message: `${perProperty ? 'Per-property Schedule E' : 'Schedule E PDF'} downloaded successfully`,
+        message: 'Schedule E preparation PDF downloaded for accountant review',
         variant: 'alert',
         alert: { color: 'success' }
       });
@@ -240,11 +251,6 @@ export default function TaxReports() {
       { name: 'Deductible Expenses', amount: taxYearReport.totalExpenses || 0 },
       { name: 'Net Income', amount: Math.max(0, taxYearReport.netIncome || 0) }
     ];
-  }, [taxYearReport]);
-
-  const estimatedSavings = useMemo(() => {
-    if (!taxYearReport) return 0;
-    return (taxYearReport.totalExpenses || 0) * 0.22;
   }, [taxYearReport]);
 
   const filteredDeductibleExpenses = useMemo(() => {
@@ -330,7 +336,7 @@ export default function TaxReports() {
             </Stack>
             <Typography variant="h2" sx={{ color: '#fff', fontWeight: 780, letterSpacing: -0.6 }}>Tax & Accounting</Typography>
             <Typography sx={{ mt: 0.75, color: alpha('#fff', 0.7), lineHeight: 1.6 }}>
-              Review Schedule E figures, resolve readiness issues, and prepare accountant-ready exports without leaving this workspace.
+              Review Schedule E figures, work through preparation checks, and download files for accountant review.
             </Typography>
           </Box>
 
@@ -348,11 +354,11 @@ export default function TaxReports() {
               <Button
                 variant="contained"
                 startIcon={actionLoading === 'schedule-e' ? <CircularProgress size={15} color="inherit" /> : <FilePdfOutlined />}
-                onClick={() => handleDownloadScheduleE(false)}
+                onClick={handleDownloadScheduleE}
                 disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
                 sx={{ flex: 1, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
               >
-                Schedule E PDF
+                Schedule E preparation PDF
               </Button>
             </Stack>
             <Stack direction="row" spacing={1}>
@@ -361,6 +367,9 @@ export default function TaxReports() {
                 variant="outlined"
                 startIcon={actionLoading && actionLoading !== 'schedule-e' ? <CircularProgress size={15} color="inherit" /> : <DownloadOutlined />}
                 onClick={(event) => setTaxExportMenuAnchor(event.currentTarget)}
+                aria-haspopup="menu"
+                aria-expanded={Boolean(taxExportMenuAnchor)}
+                aria-controls={taxExportMenuAnchor ? 'tax-export-menu' : undefined}
                 disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
                 sx={{ color: '#fff', borderColor: alpha('#fff', 0.34), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) } }}
               >
@@ -374,12 +383,11 @@ export default function TaxReports() {
         </Stack>
       </Box>
 
-      <Menu anchorEl={taxExportMenuAnchor} open={Boolean(taxExportMenuAnchor)} onClose={() => setTaxExportMenuAnchor(null)}>
-        <MenuItem onClick={() => handleTaxExport('csv')}><FileExcelOutlined style={{ marginRight: 8 }} />Export CSV</MenuItem>
-        <MenuItem onClick={() => handleTaxExport('quickbooks')}><FileExcelOutlined style={{ marginRight: 8 }} />Export QuickBooks</MenuItem>
-        <MenuItem onClick={() => handleTaxExport('xero')}><FileExcelOutlined style={{ marginRight: 8 }} />Export Xero</MenuItem>
-        <MenuItem onClick={() => handleTaxExport('accountant')}><FileExcelOutlined style={{ marginRight: 8 }} />Accountant package</MenuItem>
-        <MenuItem onClick={() => handleDownloadScheduleE(true)}><FilePdfOutlined style={{ marginRight: 8 }} />Per-property Schedule E</MenuItem>
+      <Menu id="tax-export-menu" anchorEl={taxExportMenuAnchor} open={Boolean(taxExportMenuAnchor)} onClose={() => setTaxExportMenuAnchor(null)}>
+        <MenuItem onClick={() => handleTaxExport('csv')}><FileExcelOutlined style={{ marginRight: 8 }} />Accounting CSV for review</MenuItem>
+        <MenuItem onClick={() => handleTaxExport('quickbooks')}><FileExcelOutlined style={{ marginRight: 8 }} />QuickBooks experimental template</MenuItem>
+        <MenuItem onClick={() => handleTaxExport('xero')}><FileExcelOutlined style={{ marginRight: 8 }} />Xero experimental template</MenuItem>
+        <MenuItem onClick={() => handleTaxExport('accountant')}><FileExcelOutlined style={{ marginRight: 8 }} />Accountant-review package</MenuItem>
       </Menu>
 
       {taxError && (
@@ -392,15 +400,16 @@ export default function TaxReports() {
           <Typography variant="body2">{taxError}</Typography>
         </Alert>
       )}
+      {taxWarning && <Alert severity="warning" sx={{ mb: 3 }}>{taxWarning}</Alert>}
 
       {taxLoading && !taxYearReport && (
-        <Box sx={{ ...cardSx, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, p: 5, mb: 3 }}>
+        <Box role="status" aria-live="polite" sx={{ ...cardSx, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, p: 5, mb: 3 }}>
           <CircularProgress size={24} />
           <Typography color="text.secondary">Loading {taxYear} tax records…</Typography>
         </Box>
       )}
 
-      {!taxLoading && !taxError && !taxYearReport && (
+      {!taxLoading && !taxError && taxYearStatusKnown && !taxYearReport && (
         <Box sx={{ ...cardSx, p: { xs: 3, md: 5 }, mb: 3, textAlign: 'center' }}>
           <Box sx={{ width: 64, height: 64, borderRadius: '50%', bgcolor: (t) => alpha(t.palette.primary.main, 0.1), display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 2 }}>
             <TagsOutlined style={{ fontSize: 28, color: theme.palette.primary.main }} />
@@ -427,10 +436,9 @@ export default function TaxReports() {
           {[
             { label: `Total income · ${taxYear}`, value: currency(taxYearReport.totalIncome), color: '#16a34a' },
             { label: 'Deductible expenses', value: currency(taxYearReport.totalExpenses), color: '#dc2626' },
-            { label: 'Net income · Schedule E', value: currency(taxYearReport.netIncome), color: '#2563eb' },
-            { label: 'Estimated savings · 22%', value: currency(estimatedSavings), color: '#7c3aed' }
+            { label: 'Net income · Schedule E', value: currency(taxYearReport.netIncome), color: '#2563eb' }
           ].map((kpi) => (
-            <Grid key={kpi.label} size={{ xs: 12, sm: 6, lg: 3 }}>
+            <Grid key={kpi.label} size={{ xs: 12, sm: 6, lg: 4 }}>
               <Box sx={{ ...cardSx, height: '100%', p: 2.25, borderTop: `3px solid ${kpi.color}` }}>
                 <Typography sx={{ color: 'text.secondary', fontSize: '0.7rem', fontWeight: 750, textTransform: 'uppercase', letterSpacing: 0.65 }}>
                   {kpi.label}
@@ -447,8 +455,8 @@ export default function TaxReports() {
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid size={{ xs: 12 }}>
             <MainCard
-              title="Tax readiness review"
-              subtitle="Deterministic checks before you send numbers to your accountant"
+              title="Tax preparation checklist"
+              subtitle="Record checks to work through before you send numbers to your accountant; not tax advice or a filing guarantee"
               sx={cardSx}
             >
               <Stack spacing={1.25}>
@@ -507,7 +515,16 @@ export default function TaxReports() {
                           key={expense.expenseId}
                           hover
                           onClick={() => handleEditExpense(expense)}
-                          sx={{ cursor: 'pointer', '&:hover .cleanup-edit-hint': { opacity: 1, transform: 'translateX(0)' } }}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              handleEditExpense(expense);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Edit ${expense.description || 'expense'} in cleanup queue`}
+                          sx={{ cursor: 'pointer', '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.main', outlineOffset: -3 }, '&:hover .cleanup-edit-hint': { opacity: 1, transform: 'translateX(0)' } }}
                         >
                           <TableCell>
                             <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
@@ -664,6 +681,7 @@ export default function TaxReports() {
             <OutlinedInput
               size="small"
               placeholder="Search description, vendor, category…"
+              inputProps={{ 'aria-label': 'Search tax-deductible expenses' }}
               value={expenseSearch}
               onChange={(event) => setExpenseSearch(event.target.value)}
               startAdornment={<InputAdornment position="start"><SearchOutlined style={{ fontSize: 14, opacity: 0.5 }} /></InputAdornment>}
@@ -743,7 +761,7 @@ export default function TaxReports() {
                           </Stack>
                         </TableCell>
                         <TableCell align="center">
-                          <IconButton size="small" onClick={() => handleEditExpense(expense)} disabled={Boolean(actionLoading)} color="primary" title="Edit tax category">
+                          <IconButton size="small" onClick={() => handleEditExpense(expense)} disabled={Boolean(actionLoading)} color="primary" aria-label={`Edit tax category for ${expense.description || 'expense'}`}>
                             {actionLoading === `edit-${expense.expenseId || expense.id || expense.Id}` ? <CircularProgress size={16} /> : <EditOutlined />}
                           </IconButton>
                         </TableCell>

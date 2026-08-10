@@ -25,7 +25,7 @@ namespace brownstone_hub_api.Configurations
                 .HasForeignKey(e => e.ReconciledByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.HasIndex(e => e.BankStatementId);
+            builder.HasIndex(e => e.BankStatementId).IsUnique();
             builder.HasIndex(e => e.ReconciledByUserId);
             builder.HasIndex(e => e.Status);
         }

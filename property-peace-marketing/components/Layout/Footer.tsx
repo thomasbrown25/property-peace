@@ -214,11 +214,26 @@ export default function Footer() {
 
           {/* Education */}
           <div className="text-center lg:text-left">
-            <h3 className="text-[#22c55e] font-bold text-sm mb-4">Education</h3>
+            <h3 className="text-[#22c55e] font-bold text-sm mb-4">Resources</h3>
             <ul className="space-y-3">
               <li>
+                <Link href="/resources" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
+                  Resource Center
+                </Link>
+              </li>
+              <li>
                 <Link href="/blog" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
-                  Blog
+                  All Articles
+                </Link>
+              </li>
+              <li>
+                <Link href="/help-center" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
+                  Help Center
+                </Link>
+              </li>
+              <li>
+                <Link href="/faq" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
+                  FAQs
                 </Link>
               </li>
             </ul>

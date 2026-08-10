@@ -4,15 +4,8 @@ namespace brownstone_hub_api.Utils
 {
     public static class RecurringExpenseCalculator
     {
-        /// <summary>
-        /// Calculates the next occurrence date for a recurring expense based on frequency and day of period.
-        /// </summary>
-        /// <param name="frequency">The frequency (Monthly, Quarterly, Yearly)</param>
-        /// <param name="dayOfPeriod">Day of period (1-31 for monthly, 1-3 for quarterly, 1-12 for yearly)</param>
-        /// <param name="startDate">The start date of the recurring expense</param>
-        /// <param name="lastGeneratedDate">The last date an expense was generated (null if none)</param>
-        /// <param name="endDate">Optional end date (null if no end)</param>
-        /// <returns>The next occurrence date, or null if past end date or invalid</returns>
+        private const int MaxOccurrenceResults = 10_000;
+
         public static DateTime? CalculateNextOccurrence(
             ERecurringFrequency frequency,
             int dayOfPeriod,
@@ -20,66 +13,38 @@ namespace brownstone_hub_api.Utils
             DateTime? lastGeneratedDate = null,
             DateTime? endDate = null)
         {
+            if (!Enum.IsDefined(frequency) || dayOfPeriod is < 1 or > 31)
+                return null;
+
             var today = DateTime.Today;
             var referenceDate = lastGeneratedDate ?? startDate.Date;
-            var nextDate = referenceDate;
+            var nextDate = Advance(frequency, dayOfPeriod, referenceDate, 1);
+            if (!nextDate.HasValue) return null;
 
-            switch (frequency)
+            // Jump directly to the current period. Recursing once per missed period lets an
+            // attacker-controlled ancient date exhaust the process stack.
+            if (nextDate.Value < today)
             {
-                case ERecurringFrequency.Monthly:
-                    // Move to next month
-                    nextDate = referenceDate.AddMonths(1);
-                    // Set day of month (handle months with fewer days)
-                    var daysInMonth = DateTime.DaysInMonth(nextDate.Year, nextDate.Month);
-                    var dayToSet = Math.Min(dayOfPeriod, daysInMonth);
-                    nextDate = new DateTime(nextDate.Year, nextDate.Month, dayToSet);
-                    break;
-
-                case ERecurringFrequency.Quarterly:
-                    // Move to next quarter (3 months)
-                    nextDate = referenceDate.AddMonths(3);
-                    
-                    // For quarterly, use the first month of the quarter (Jan, Apr, Jul, Oct)
-                    // Quarters: Q1 (Jan-Mar), Q2 (Apr-Jun), Q3 (Jul-Sep), Q4 (Oct-Dec)
-                    var quarterStartMonth = ((nextDate.Month - 1) / 3) * 3 + 1; // First month of quarter
-                    
-                    // Set the day of month (handle months with fewer days)
-                    var daysInQuarterMonth = DateTime.DaysInMonth(nextDate.Year, quarterStartMonth);
-                    var quarterDayToSet = Math.Min(dayOfPeriod, daysInQuarterMonth);
-                    nextDate = new DateTime(nextDate.Year, quarterStartMonth, quarterDayToSet);
-                    break;
-
-                case ERecurringFrequency.Yearly:
-                    // Move to next year, keep same month and day
-                    nextDate = referenceDate.AddYears(1);
-                    // Set the day of month (handle leap years)
-                    var daysInYearMonth = DateTime.DaysInMonth(nextDate.Year, nextDate.Month);
-                    var yearDayToSet = Math.Min(dayOfPeriod, daysInYearMonth);
-                    nextDate = new DateTime(nextDate.Year, nextDate.Month, yearDayToSet);
-                    break;
-
-                default:
-                    return null;
+                var periods = frequency switch
+                {
+                    ERecurringFrequency.Monthly => MonthsBetween(nextDate.Value, today),
+                    ERecurringFrequency.Quarterly => MonthsBetween(nextDate.Value, today) / 3,
+                    ERecurringFrequency.Yearly => today.Year - nextDate.Value.Year,
+                    _ => 0
+                };
+                nextDate = Advance(frequency, dayOfPeriod, nextDate.Value, Math.Max(1, periods));
+                if (!nextDate.HasValue) return null;
+                if (nextDate.Value < today)
+                    nextDate = Advance(frequency, dayOfPeriod, nextDate.Value, 1);
+                if (!nextDate.HasValue) return null;
             }
 
-            // If next date is before today, calculate further ahead
-            if (nextDate < today)
-            {
-                return CalculateNextOccurrence(frequency, dayOfPeriod, startDate, nextDate, endDate);
-            }
-
-            // Check if past end date
-            if (endDate.HasValue && nextDate > endDate.Value)
-            {
+            if (endDate.HasValue && nextDate.Value > endDate.Value)
                 return null;
-            }
 
-            return nextDate;
+            return nextDate.Value;
         }
 
-        /// <summary>
-        /// Calculates all occurrence dates between start and end date (or today if no end date).
-        /// </summary>
         public static List<DateTime> CalculateAllOccurrences(
             ERecurringFrequency frequency,
             int dayOfPeriod,
@@ -87,15 +52,18 @@ namespace brownstone_hub_api.Utils
             DateTime? endDate = null,
             DateTime? lastGeneratedDate = null)
         {
+            if (!Enum.IsDefined(frequency) || dayOfPeriod is < 1 or > 31)
+                return [];
+
             var occurrences = new List<DateTime>();
-            var currentDate = startDate.Date;
+            var currentDate = (lastGeneratedDate ?? startDate).Date;
             var maxDate = endDate ?? DateTime.Today;
 
-            while (currentDate <= maxDate)
+            while (currentDate <= maxDate && occurrences.Count < MaxOccurrenceResults)
             {
                 occurrences.Add(currentDate);
-                var next = CalculateNextOccurrence(frequency, dayOfPeriod, startDate, currentDate, endDate);
-                if (!next.HasValue || next.Value > maxDate)
+                var next = Advance(frequency, dayOfPeriod, currentDate, 1);
+                if (!next.HasValue || next.Value <= currentDate || next.Value > maxDate)
                     break;
                 currentDate = next.Value;
             }
@@ -103,9 +71,6 @@ namespace brownstone_hub_api.Utils
             return occurrences;
         }
 
-        /// <summary>
-        /// Gets the number of days until the next occurrence.
-        /// </summary>
         public static int? DaysUntilNextOccurrence(
             ERecurringFrequency frequency,
             int dayOfPeriod,
@@ -119,6 +84,39 @@ namespace brownstone_hub_api.Utils
 
             var daysUntil = (nextOccurrence.Value - DateTime.Today).Days;
             return daysUntil >= 0 ? daysUntil : null;
+        }
+
+        private static int MonthsBetween(DateTime from, DateTime to) =>
+            checked((to.Year - from.Year) * 12 + to.Month - from.Month);
+
+        private static DateTime? Advance(ERecurringFrequency frequency, int dayOfPeriod, DateTime referenceDate, int periods)
+        {
+            try
+            {
+                var months = frequency switch
+                {
+                    ERecurringFrequency.Monthly => periods,
+                    ERecurringFrequency.Quarterly => checked(periods * 3),
+                    ERecurringFrequency.Yearly => checked(periods * 12),
+                    _ => 0
+                };
+                if (months <= 0) return null;
+
+                var advanced = referenceDate.AddMonths(months);
+                var month = frequency == ERecurringFrequency.Quarterly
+                    ? ((advanced.Month - 1) / 3) * 3 + 1
+                    : advanced.Month;
+                var day = Math.Min(dayOfPeriod, DateTime.DaysInMonth(advanced.Year, month));
+                return new DateTime(advanced.Year, month, day, 0, 0, 0, referenceDate.Kind);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                return null;
+            }
+            catch (OverflowException)
+            {
+                return null;
+            }
         }
     }
 }

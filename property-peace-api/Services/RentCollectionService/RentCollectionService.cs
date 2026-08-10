@@ -114,6 +114,23 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     .GroupBy(p => p.LeaseId)
                     .ToDictionary(g => g.Key, g => g.ToList());
 
+                var feePayments = await _context.Payments
+                    .AsNoTracking()
+                    .Where(p => activeLeaseIds.Contains(p.LeaseId) && p.FeeId.HasValue)
+                    .Select(p => new LoadPaymentDto
+                    {
+                        Id = p.Id,
+                        LeaseId = p.LeaseId,
+                        Amount = p.Amount,
+                        PaymentDate = p.PaymentDate,
+                        Status = p.Status,
+                        FeeId = p.FeeId
+                    })
+                    .ToListAsync();
+                var feePaymentsByLease = feePayments
+                    .GroupBy(p => p.LeaseId)
+                    .ToDictionary(group => group.Key, group => group.ToList());
+
                 // 🔹 Collected lifetime — only finalized payments count as collected.
                 var collectedLifetime = payments
                     .Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty))
@@ -160,6 +177,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                 var rentRecords = leases.Select(l =>
                 {
                     var leasePaymentList = paymentsByLease.TryGetValue(l.Id, out var lp) ? lp : [];
+                    var leaseFeePaymentList = feePaymentsByLease.TryGetValue(l.Id, out var fp) ? fp : [];
 
                     // Use the proper CalculateOverdueForLease method which checks if lease has started
                     var overdueAmount = RentCalculator.CalculateOverdueForLease(l, leasePaymentList);
@@ -197,6 +215,9 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         DueDate = l.NextDueDate ?? DateTime.UtcNow,
                         LeaseId = l.Id,
                         OverdueAmount = overdueAmount,
+                        CurrentMonthRentDue = RentCalculator.GetCurrentMonthRentDue(l, leasePaymentList),
+                        PriorPeriodOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(l, leasePaymentList),
+                        UnpaidFees = RentCalculator.GetUnpaidFeeBalances(l, leaseFeePaymentList),
                         AmountDueNow = RentCalculator.GetAmountDueNow(l, leasePaymentList),
                         CollectedLifetime = leasePayments, // Total rent payments collected for this lease
                         Outstanding = outstanding, // Total outstanding for entire lease period
@@ -357,6 +378,19 @@ namespace brownstone_hub_api.Services.RentCollectionService
 
                 // Return updated rent record (rent-only payments for balance/overdue)
                 var payments = await _paymentRepository.GetRentPaymentsByLeaseId(newPayment.LeaseId);
+                var feePayments = await _context.Payments
+                    .AsNoTracking()
+                    .Where(p => p.LeaseId == newPayment.LeaseId && p.FeeId.HasValue)
+                    .Select(p => new LoadPaymentDto
+                    {
+                        Id = p.Id,
+                        LeaseId = p.LeaseId,
+                        Amount = p.Amount,
+                        PaymentDate = p.PaymentDate,
+                        Status = p.Status,
+                        FeeId = p.FeeId
+                    })
+                    .ToListAsync();
                 var rentPayments = payments
                     .Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty))
                     .Sum(p => p.Amount);
@@ -371,6 +405,9 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     RentAmount = lease.RentAmount ?? 0m,
                     DueDate = lease.NextDueDate ?? DateTime.UtcNow,
                     OverdueAmount = RentCalculator.CalculateOverdueForLease(lease, payments),
+                    CurrentMonthRentDue = RentCalculator.GetCurrentMonthRentDue(lease, payments),
+                    PriorPeriodOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(lease, payments),
+                    UnpaidFees = RentCalculator.GetUnpaidFeeBalances(lease, feePayments),
                     AmountDueNow = RentCalculator.GetAmountDueNow(lease, payments),
                     CollectedLifetime = rentPayments,
                     Outstanding = RentCalculator.OutstandingForLease(lease, payments),

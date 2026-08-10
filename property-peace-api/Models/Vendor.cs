@@ -16,6 +16,11 @@ namespace brownstone_hub_api.Models
         
         // Organization ownership
         public long? OrganizationId { get; set; }
+
+        // Optional authenticated portal identity. Vendor.Id is a business record key and must never
+        // be compared to an authenticated User.Id.
+        public long? PortalUserId { get; set; }
+        public User? PortalUser { get; set; }
         
         [ForeignKey(nameof(OrganizationId))]
         public Organization? Organization { get; set; }

@@ -1,3 +1,4 @@
+using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Dtos.Expense;
 using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Services.ExpenseService;
@@ -9,6 +10,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Landlord,Admin")]
+    [RequireOrganizationRole("Owner", "Manager")]
     public class ExpenseController(IExpenseService expenseService) : ControllerBase
     {
         private readonly IExpenseService _expenseService = expenseService;
@@ -60,6 +62,7 @@ namespace brownstone_hub_api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetExpenses(
             [FromQuery] long? propertyId = null,
+            [FromQuery] long? unitId = null,
             [FromQuery] DateTime? startDate = null,
             [FromQuery] DateTime? endDate = null,
             [FromQuery] string? category = null)
@@ -68,7 +71,8 @@ namespace brownstone_hub_api.Controllers
             if (!organizationId.HasValue)
                 return StatusCode(403, new { Message = "Organization context is required" });
 
-            var response = await _expenseService.GetExpenses(organizationId.Value, propertyId, startDate, endDate, category);
+            var response = await _expenseService.GetExpenses(
+                organizationId.Value, propertyId, startDate, endDate, category, unitId);
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);

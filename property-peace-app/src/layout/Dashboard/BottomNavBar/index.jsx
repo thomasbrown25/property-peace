@@ -55,6 +55,25 @@ const flattenedLandlordItems = (() => {
   return items;
 })();
 
+// Keep nested workspaces grouped in the mobile "More" sheet. They remain
+// reachable without turning every accounting destination into a bottom tab.
+const mobileLandlordSections = (() => {
+  const sections = [];
+  const groups = Array.isArray(pages) ? pages : [pages];
+  groups.forEach((group) => {
+    (group.children || []).forEach((child) => {
+      if (child.type === 'collapse' && Array.isArray(child.children)) {
+        sections.push({
+          id: child.id,
+          title: child.title,
+          children: child.children.filter((item) => item.type === 'item' && item.url)
+        });
+      }
+    });
+  });
+  return sections;
+})();
+
 const textColor = '#fff';
 const iconColor = 'rgba(255, 255, 255, 0.9)';
 const activeBg = 'rgba(255, 255, 255, 0.12)';
@@ -124,6 +143,7 @@ export default function BottomNavBar() {
           right: 0,
           height: barHeight,
           minHeight: barHeight,
+          boxSizing: 'border-box',
           paddingTop: 2,
           paddingBottom: safeBottom,
           background: bottomNavBg,
@@ -259,6 +279,9 @@ export default function BottomNavBar() {
 
         {/* More / Close */}
         <ListItemButton
+          aria-label={moreOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={moreOpen}
+          aria-controls="mobile-more-navigation"
           onClick={() => {
             setPlusMenuAnchor(null);
             setMoreOpen((open) => !open);
@@ -342,23 +365,21 @@ export default function BottomNavBar() {
         </MenuItem>
       </Menu>
 
-      {/* More overlay (bottom sheet) - positioned above the bottom navbar, no backdrop so page stays visible */}
+      {/* More navigation bottom sheet. Keep the modal backdrop and MUI focus management so keyboard and screen-reader users cannot move behind the open navigation. */}
       <Drawer
         anchor="bottom"
         open={moreOpen}
         onClose={() => setMoreOpen(false)}
-        hideBackdrop
         sx={{
-          zIndex: theme.zIndex.appBar + 1,
-          pointerEvents: 'none',
-          '& .MuiDrawer-paper': { pointerEvents: 'auto' }
+          zIndex: theme.zIndex.appBar + 1
         }}
         ModalProps={{
-          disableScrollLock: true,
-          disableEnforceFocus: true,
-          disableAutoFocus: true
+          keepMounted: true
         }}
         PaperProps={{
+          id: 'mobile-more-navigation',
+          role: 'navigation',
+          'aria-label': 'More landlord navigation',
           sx: {
             background: bottomNavBg,
             maxHeight: '80vh',
@@ -443,6 +464,57 @@ export default function BottomNavBar() {
               );
             })}
           </Grid>
+          {mobileLandlordSections.map((section) => (
+            <Box key={section.id} sx={{ mt: 2.5 }}>
+              <Typography
+                variant="overline"
+                sx={{ display: 'block', px: 0.5, mb: 0.75, color: 'rgba(255, 255, 255, 0.65)', fontWeight: 700 }}
+              >
+                {section.title}
+              </Typography>
+              <Grid container spacing={1.5}>
+                {section.children.map((item) => {
+                  const Icon = item.icon;
+                  const selected = isActive(item.url);
+                  return (
+                    <Grid size={3} key={item.id}>
+                      <ListItemButton
+                        component={Link}
+                        to={item.url}
+                        disabled={item.disabled}
+                        onClick={() => setMoreOpen(false)}
+                        sx={{
+                          flexDirection: 'column',
+                          py: 1.5,
+                          px: 0.5,
+                          borderRadius: 1,
+                          color: textColor,
+                          '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.08)' },
+                          '&.Mui-selected': { bgcolor: activeBg }
+                        }}
+                      >
+                        <Box sx={{ color: `${iconColor} !important`, mb: 0.5 }}>
+                          {Icon && <Icon style={{ fontSize: 22 }} />}
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: selected ? 600 : 400,
+                            color: textColor,
+                            fontSize: '0.75rem',
+                            textAlign: 'center',
+                            lineHeight: 1.2
+                          }}
+                        >
+                          {item.title}
+                        </Typography>
+                      </ListItemButton>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>
+          ))}
         </Box>
       </Drawer>
     </>

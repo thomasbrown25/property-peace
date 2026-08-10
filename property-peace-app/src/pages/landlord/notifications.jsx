@@ -187,7 +187,7 @@ export default function Notifications() {
         } else if (!propertyId) {
           propertyId = notification.relatedId;
         }
-        if (propertyId) navigate(`/landlord/rent-collection/${propertyId}`);
+        if (propertyId) navigate(`/landlord/rent-collection?propertyId=${propertyId}`);
         break;
       }
       case 'maintenance':

@@ -187,6 +187,15 @@ function LegacyLeaseBuilderRedirect() {
   return <Navigate to={buildLeaseBuilderRedirect(search)} replace />;
 }
 
+function LegacyMoneyRedirect() {
+  const { propertyId } = useParams();
+  const { search } = useLocation();
+  const searchParams = new URLSearchParams(search);
+  if (propertyId) searchParams.set('propertyId', propertyId);
+  const destination = searchParams.size > 0 ? `/landlord/money?${searchParams.toString()}` : '/landlord/money';
+  return <Navigate to={destination} replace />;
+}
+
 const MainRoutes = {
   path: '/',
   children: [
@@ -587,6 +596,10 @@ const MainRoutes = {
           )
         },
         {
+          path: 'vendor/maintenance/:maintenanceId',
+          element: <MaintenancePage />
+        },
+        {
           path: 'landlord/announcements',
           element: (
             <SubscriptionPausedGuard>
@@ -750,11 +763,7 @@ const MainRoutes = {
         },
         {
           path: 'landlord/admin-members',
-          element: (
-            <SubscriptionPausedGuard>
-              <Team />
-            </SubscriptionPausedGuard>
-          )
+          element: <Team />
         },
         {
           path: 'landlord/files',
@@ -1173,8 +1182,16 @@ const MainRoutes = {
           element: <RentCollectionSingle />
         },
         {
-          path: 'landlord/money-activity',
+          path: 'landlord/money',
           element: <MoneyActivity />
+        },
+        {
+          path: 'landlord/money-activity',
+          element: <LegacyMoneyRedirect />
+        },
+        {
+          path: 'money-activity/:propertyId',
+          element: <LegacyMoneyRedirect />
         },
         {
           path: 'contact-us',

@@ -10,9 +10,14 @@ namespace brownstone_hub_api.Services.BankReconciliationService
 {
     public class BankReconciliationService : IBankReconciliationService
     {
+        internal const int MaxUploadTransactions = 10_000;
+        private const int MaxDescriptionLength = 1_000;
+        private const int MaxReferenceLength = 200;
+        private const int MaxCheckNumberLength = 100;
+        private const decimal MaxSqlMoneyValue = 9_999_999_999_999_999.99m;
+
         private readonly IBankReconciliationRepository _repository;
         private readonly IGeneralLedgerService _generalLedgerService;
-        private readonly IMapper _mapper;
         private readonly ILogger<BankReconciliationService> _logger;
 
         public BankReconciliationService(
@@ -23,204 +28,168 @@ namespace brownstone_hub_api.Services.BankReconciliationService
         {
             _repository = repository;
             _generalLedgerService = generalLedgerService;
-            _mapper = mapper;
             _logger = logger;
         }
 
         public async Task<ServiceResponse<LoadBankStatementDto>> UploadBankStatementAsync(long organizationId, UploadBankStatementDto statementDto)
         {
             var response = new ServiceResponse<LoadBankStatementDto>();
-
             try
             {
-                // Calculate statement date from transactions if not provided
-                var statementDate = statementDto.StatementDate;
-                if (!statementDate.HasValue && statementDto.Transactions != null && statementDto.Transactions.Any())
-                {
-                    statementDate = statementDto.Transactions.Max(t => t.TransactionDate);
-                }
-                else if (!statementDate.HasValue)
-                {
-                    statementDate = DateTime.UtcNow;
-                }
+                if (statementDto.Transactions == null || statementDto.Transactions.Count == 0)
+                    return Fail(response, "A bank statement must contain at least one transaction.");
+
+                if (statementDto.Transactions.Count > MaxUploadTransactions)
+                    return Fail(response, $"A bank statement cannot contain more than {MaxUploadTransactions} transactions.", 413);
+
+                if (!statementDto.StartingBalance.HasValue || !statementDto.EndingBalance.HasValue)
+                    return Fail(response, "Starting and ending balances are required for truthful reconciliation.");
+
+                if (!IsSupportedMoney(statementDto.StartingBalance.Value) || !IsSupportedMoney(statementDto.EndingBalance.Value))
+                    return Fail(response, "Statement balances exceed the supported monetary range.");
+
+                var invalidTransaction = statementDto.Transactions.FirstOrDefault(t =>
+                    t.TransactionDate == default ||
+                    !IsSupportedMoney(t.Amount) ||
+                    t.Description?.Length > MaxDescriptionLength ||
+                    t.Reference?.Length > MaxReferenceLength ||
+                    t.CheckNumber?.Length > MaxCheckNumberLength);
+                if (invalidTransaction != null)
+                    return Fail(response, "A transaction contains an invalid date, amount, or overlong text field.");
+
+                var latestTransactionDate = statementDto.Transactions.Max(t => t.TransactionDate);
+                if (statementDto.StatementDate.HasValue && statementDto.StatementDate.Value < latestTransactionDate)
+                    return Fail(response, "Statement date cannot be earlier than its latest transaction date.");
+
+                if (statementDto.BankAccountId.HasValue &&
+                    !await _repository.BankAccountBelongsToOrganizationAsync(organizationId, statementDto.BankAccountId.Value))
+                    return Fail(response, "Bank account not found.", 404);
 
                 var statement = new BankStatement
                 {
                     OrganizationId = organizationId,
                     BankAccountId = statementDto.BankAccountId,
-                    StatementDate = statementDate,
-                    StartingBalance = statementDto.StartingBalance ?? 0,
-                    EndingBalance = statementDto.EndingBalance ?? 0
+                    StatementDate = statementDto.StatementDate ?? latestTransactionDate,
+                    StartingBalance = statementDto.StartingBalance,
+                    EndingBalance = statementDto.EndingBalance
                 };
-
-                var savedStatement = await _repository.AddBankStatementAsync(statement);
-
-                // Add transactions
-                foreach (var transactionDto in statementDto.Transactions)
+                var transactions = statementDto.Transactions.Select(t => new BankStatementTransaction
                 {
-                    var transaction = new BankStatementTransaction
-                    {
-                        BankStatementId = savedStatement.Id,
-                        TransactionDate = transactionDto.TransactionDate,
-                        Description = transactionDto.Description,
-                        Amount = transactionDto.Amount,
-                        Reference = transactionDto.Reference,
-                        CheckNumber = transactionDto.CheckNumber,
-                        IsMatched = false
-                    };
+                    TransactionDate = t.TransactionDate,
+                    Description = t.Description,
+                    Amount = t.Amount,
+                    Reference = t.Reference,
+                    CheckNumber = t.CheckNumber,
+                    IsMatched = false,
+                    IsReconciled = false
+                }).ToList();
 
-                    await _repository.AddTransactionAsync(transaction);
-                }
-
-                // Try to auto-match transactions
-                await AutoMatchTransactionsAsync(organizationId, savedStatement.Id);
-
-                var dto = MapToDto(savedStatement);
-                response.Data = dto;
+                var saved = await _repository.AddBankStatementWithTransactionsAsync(statement, transactions);
+                await AutoMatchTransactionsAsync(organizationId, saved.Id);
+                response.Data = MapToDto(saved);
                 response.Message = "Bank statement uploaded successfully";
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error uploading bank statement");
-                response.Success = false;
-                response.Message = $"Error uploading bank statement: {ex.Message}";
+                _logger.LogError(ex, "Error uploading bank statement for organization {OrganizationId}", organizationId);
+                Fail(response, "Bank statement upload failed.");
             }
-
             return response;
         }
 
         public async Task<ServiceResponse<List<LoadBankStatementTransactionDto>>> GetUnmatchedTransactionsAsync(long organizationId, long? bankStatementId = null)
         {
             var response = new ServiceResponse<List<LoadBankStatementTransactionDto>>();
-
             try
             {
-                var transactions = await _repository.GetUnmatchedTransactionsAsync(organizationId, bankStatementId);
-                var dtos = transactions.Select(t => MapTransactionToDto(t)).ToList();
-                response.Data = dtos;
+                response.Data = (await _repository.GetUnmatchedTransactionsAsync(organizationId, bankStatementId))
+                    .Select(MapTransactionToDto).ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting unmatched transactions");
-                response.Success = false;
-                response.Message = $"Error getting unmatched transactions: {ex.Message}";
+                _logger.LogError(ex, "Error getting unmatched transactions for organization {OrganizationId}", organizationId);
+                Fail(response, "Unable to retrieve unmatched transactions.");
             }
-
             return response;
         }
 
         public async Task<ServiceResponse<List<LoadGeneralLedgerEntryDto>>> GetUnmatchedLedgerEntriesAsync(long organizationId, DateTime? startDate = null, DateTime? endDate = null)
         {
             var response = new ServiceResponse<List<LoadGeneralLedgerEntryDto>>();
-
             try
             {
-                // Get all ledger entries in the date range
-                if (!startDate.HasValue || !endDate.HasValue)
-                {
-                    startDate = DateTime.Today.AddMonths(-3);
-                    endDate = DateTime.Today;
-                }
+                startDate ??= DateTime.Today.AddMonths(-3);
+                endDate ??= DateTime.Today;
+                var entries = await _generalLedgerService.GetEntriesByDateRangeAsync(organizationId, startDate.Value, endDate.Value);
+                if (!entries.Success || entries.Data == null)
+                    return Fail(response, "Failed to retrieve ledger entries.");
 
-                var entriesResponse = await _generalLedgerService.GetEntriesByDateRangeAsync(organizationId, startDate.Value, endDate.Value);
-                if (!entriesResponse.Success || entriesResponse.Data == null)
-                {
-                    response.Success = false;
-                    response.Message = "Failed to retrieve ledger entries";
-                    return response;
-                }
-
-                // Get all matched ledger entry IDs from transactions that are NOT reconciled
-                // Only exclude entries that are matched to non-reconciled transactions
-                var allTransactions = await _repository.GetAllTransactionsAsync(organizationId, null);
-                var matchedIds = allTransactions
-                    .Where(t => t.IsMatched && t.MatchedLedgerEntryId.HasValue && !t.IsReconciled)
+                // Reconciled matches also consume a ledger entry; there is no split model.
+                var matchedIds = (await _repository.GetAllTransactionsAsync(organizationId))
+                    .Where(t => t.IsMatched && t.MatchedLedgerEntryId.HasValue)
                     .Select(t => t.MatchedLedgerEntryId!.Value)
                     .ToHashSet();
-
-                // Filter out matched entries (only those that are matched to non-reconciled transactions)
-                var unmatchedEntries = entriesResponse.Data
-                    .Where(e => !matchedIds.Contains(e.Id))
-                    .ToList();
-
-                response.Data = unmatchedEntries;
+                response.Data = entries.Data.Where(e => !matchedIds.Contains(e.Id)).ToList();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting unmatched ledger entries");
-                response.Success = false;
-                response.Message = $"Error getting unmatched ledger entries: {ex.Message}";
+                _logger.LogError(ex, "Error getting unmatched ledger entries for organization {OrganizationId}", organizationId);
+                Fail(response, "Unable to retrieve unmatched ledger entries.");
             }
-
             return response;
         }
 
-        public async Task<ServiceResponse<bool>> MatchTransactionAsync(long bankTransactionId, long ledgerEntryId)
+        public async Task<ServiceResponse<bool>> MatchTransactionAsync(long organizationId, long bankTransactionId, long ledgerEntryId)
         {
             var response = new ServiceResponse<bool>();
-
             try
             {
-                await _repository.UpdateTransactionMatchAsync(bankTransactionId, ledgerEntryId, true);
+                if (!await _repository.TryMatchTransactionAsync(organizationId, bankTransactionId, ledgerEntryId))
+                    return Fail(response, "Transaction or ledger entry was not found, is locked, or is already matched.", 409);
                 response.Data = true;
                 response.Message = "Transaction matched successfully";
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error matching transaction");
-                response.Success = false;
-                response.Message = $"Error matching transaction: {ex.Message}";
+                _logger.LogError(ex, "Error matching bank transaction {TransactionId}", bankTransactionId);
+                Fail(response, "Unable to match transaction.");
             }
-
             return response;
         }
 
-        public async Task<ServiceResponse<bool>> UnmatchTransactionAsync(long bankTransactionId)
+        public async Task<ServiceResponse<bool>> UnmatchTransactionAsync(long organizationId, long bankTransactionId)
         {
             var response = new ServiceResponse<bool>();
-
             try
             {
-                await _repository.UpdateTransactionMatchAsync(bankTransactionId, null, false);
+                if (!await _repository.TryUnmatchTransactionAsync(organizationId, bankTransactionId))
+                    return Fail(response, "Transaction was not found or belongs to a reconciled statement.", 409);
                 response.Data = true;
                 response.Message = "Transaction unmatched successfully";
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error unmatching transaction");
-                response.Success = false;
-                response.Message = $"Error unmatching transaction: {ex.Message}";
+                _logger.LogError(ex, "Error unmatching bank transaction {TransactionId}", bankTransactionId);
+                Fail(response, "Unable to unmatch transaction.");
             }
-
             return response;
         }
 
-        public async Task<ServiceResponse<bool>> DeleteTransactionAsync(long bankTransactionId)
+        public async Task<ServiceResponse<bool>> DeleteTransactionAsync(long organizationId, long bankTransactionId)
         {
             var response = new ServiceResponse<bool>();
-
             try
             {
-                var deleted = await _repository.DeleteTransactionAsync(bankTransactionId);
-                if (deleted)
-                {
-                    response.Data = true;
-                    response.Message = "Transaction deleted successfully";
-                }
-                else
-                {
-                    response.Success = false;
-                    response.Message = "Transaction not found";
-                    response.StatusCode = 404;
-                }
+                if (!await _repository.DeleteTransactionAsync(organizationId, bankTransactionId))
+                    return Fail(response, "Transaction was not found or is reconciled.", 409);
+                response.Data = true;
+                response.Message = "Transaction deleted successfully";
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting transaction");
-                response.Success = false;
-                response.Message = $"Error deleting transaction: {ex.Message}";
+                _logger.LogError(ex, "Error deleting bank transaction {TransactionId}", bankTransactionId);
+                Fail(response, "Unable to delete transaction.");
             }
-
             return response;
         }
 
@@ -229,46 +198,42 @@ namespace brownstone_hub_api.Services.BankReconciliationService
             var response = new ServiceResponse<int>();
             try
             {
-                var count = await _repository.DeleteAllUnmatchedTransactionsAsync(organizationId);
-                response.Data = count;
-                response.Message = $"Successfully deleted {count} unmatched transaction(s)";
+                response.Data = await _repository.DeleteAllUnmatchedTransactionsAsync(organizationId);
+                response.Message = $"Successfully deleted {response.Data} unmatched transaction(s)";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error clearing unmatched transactions for organization {OrganizationId}", organizationId);
-                response.Success = false;
-                response.Message = $"Error clearing unmatched transactions: {ex.Message}";
+                Fail(response, "Unable to clear unmatched transactions.");
             }
             return response;
         }
 
-        public async Task<ServiceResponse<ReconciliationReportDto>> GetReconciliationReportAsync(long bankStatementId)
+        public async Task<ServiceResponse<ReconciliationReportDto>> GetReconciliationReportAsync(long organizationId, long bankStatementId)
         {
             var response = new ServiceResponse<ReconciliationReportDto>();
-
             try
             {
-                var statement = await _repository.GetBankStatementByIdAsync(bankStatementId);
+                var statement = await _repository.GetBankStatementByIdAsync(organizationId, bankStatementId);
                 if (statement == null)
-                {
-                    response.Success = false;
-                    response.Message = "Bank statement not found";
-                    response.StatusCode = 404;
-                    return response;
-                }
+                    return Fail(response, "Bank statement not found.", 404);
 
-                var transactions = await _repository.GetTransactionsByStatementIdAsync(bankStatementId);
-                var transactionDtos = transactions.Select(t => MapTransactionToDto(t)).ToList();
-
-                var reconciliation = await _repository.GetReconciliationByStatementIdAsync(bankStatementId);
-
-                var report = new ReconciliationReportDto
+                var transactions = await _repository.GetTransactionsByStatementIdAsync(organizationId, bankStatementId);
+                var reconciliation = await _repository.GetReconciliationByStatementIdAsync(organizationId, bankStatementId);
+                decimal? difference = statement.StartingBalance.HasValue && statement.EndingBalance.HasValue
+                    ? statement.StartingBalance.Value + transactions.Sum(t => t.Amount) - statement.EndingBalance.Value
+                    : null;
+                response.Data = new ReconciliationReportDto
                 {
                     BankStatementId = bankStatementId,
                     StatementDate = statement.StatementDate,
                     StartingBalance = statement.StartingBalance,
                     EndingBalance = statement.EndingBalance,
-                    Transactions = transactionDtos,
+                    ExpectedEndingBalance = statement.StartingBalance.HasValue
+                        ? statement.StartingBalance.Value + transactions.Sum(t => t.Amount)
+                        : null,
+                    Difference = difference,
+                    Transactions = transactions.Select(MapTransactionToDto).ToList(),
                     TotalTransactions = transactions.Count,
                     MatchedTransactions = transactions.Count(t => t.IsMatched),
                     UnmatchedTransactions = transactions.Count(t => !t.IsMatched),
@@ -278,58 +243,30 @@ namespace brownstone_hub_api.Services.BankReconciliationService
                     ReconciledDate = reconciliation?.ReconciledDate,
                     ReconciledByUserName = reconciliation?.ReconciledByUser?.Email
                 };
-
-                response.Data = report;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting reconciliation report");
-                response.Success = false;
-                response.Message = $"Error getting reconciliation report: {ex.Message}";
+                _logger.LogError(ex, "Error getting reconciliation report {StatementId}", bankStatementId);
+                Fail(response, "Unable to retrieve reconciliation report.");
             }
-
             return response;
         }
 
-        public async Task<ServiceResponse<bool>> ReconcileStatementAsync(long bankStatementId, long userId, string? notes = null)
+        public async Task<ServiceResponse<bool>> ReconcileStatementAsync(long organizationId, long bankStatementId, long userId, string? notes = null)
         {
             var response = new ServiceResponse<bool>();
-
             try
             {
-                var existingReconciliation = await _repository.GetReconciliationByStatementIdAsync(bankStatementId);
-                
-                if (existingReconciliation != null)
-                {
-                    await _repository.UpdateReconciliationStatusAsync(existingReconciliation.Id, "Reconciled");
-                }
-                else
-                {
-                    var reconciliation = new BankReconciliation
-                    {
-                        BankStatementId = bankStatementId,
-                        ReconciledDate = DateTime.Now,
-                        ReconciledByUserId = userId,
-                        Status = "Reconciled",
-                        Notes = notes
-                    };
-
-                    await _repository.AddReconciliationAsync(reconciliation);
-                }
-
-                // Mark all matched transactions for this statement as reconciled
-                await _repository.MarkMatchedTransactionsAsReconciledAsync(bankStatementId);
-
+                if (!await _repository.TryReconcileStatementAsync(organizationId, bankStatementId, userId, notes))
+                    return Fail(response, "Statement cannot be reconciled: it must exist, have balances, have no unmatched rows, and have zero difference.", 409);
                 response.Data = true;
                 response.Message = "Statement reconciled successfully";
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error reconciling statement");
-                response.Success = false;
-                response.Message = $"Error reconciling statement: {ex.Message}";
+                _logger.LogError(ex, "Error reconciling statement {StatementId}", bankStatementId);
+                Fail(response, "Unable to reconcile statement.");
             }
-
             return response;
         }
 
@@ -338,71 +275,68 @@ namespace brownstone_hub_api.Services.BankReconciliationService
             try
             {
                 var bankTransactions = await _repository.GetUnmatchedTransactionsAsync(organizationId, bankStatementId);
-                var ledgerEntriesResponse = await _generalLedgerService.GetEntriesByDateRangeAsync(
+                if (bankTransactions.Count == 0)
+                    return;
+                var ledgerResponse = await _generalLedgerService.GetEntriesByDateRangeAsync(
                     organizationId,
                     bankTransactions.Min(t => t.TransactionDate).AddDays(-3),
-                    bankTransactions.Max(t => t.TransactionDate).AddDays(3)
-                );
-
-                if (!ledgerEntriesResponse.Success || ledgerEntriesResponse.Data == null)
+                    bankTransactions.Max(t => t.TransactionDate).AddDays(3));
+                if (!ledgerResponse.Success || ledgerResponse.Data == null)
                     return;
-
-                var ledgerEntries = ledgerEntriesResponse.Data;
 
                 foreach (var bankTransaction in bankTransactions)
                 {
-                    // Try to match by date (±3 days) and amount (exact match)
-                    var match = ledgerEntries.FirstOrDefault(e =>
+                    var match = ledgerResponse.Data.FirstOrDefault(e =>
                         Math.Abs((e.TransactionDate - bankTransaction.TransactionDate).TotalDays) <= 3 &&
                         Math.Abs(e.Amount - bankTransaction.Amount) < 0.01m &&
                         !string.IsNullOrEmpty(e.Reference) &&
                         !string.IsNullOrEmpty(bankTransaction.Reference) &&
-                        e.Reference.Contains(bankTransaction.Reference, StringComparison.OrdinalIgnoreCase)
-                    );
-
-                    if (match != null)
-                    {
-                        await _repository.UpdateTransactionMatchAsync(bankTransaction.Id, match.Id, true);
-                    }
+                        e.Reference.Contains(bankTransaction.Reference, StringComparison.OrdinalIgnoreCase));
+                    if (match != null && await _repository.TryMatchTransactionAsync(organizationId, bankTransaction.Id, match.Id))
+                        ledgerResponse.Data.Remove(match);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error during auto-matching transactions");
+                _logger.LogWarning(ex, "Auto-match failed for statement {StatementId}", bankStatementId);
             }
         }
 
-        private LoadBankStatementDto MapToDto(BankStatement statement)
+        private static ServiceResponse<T> Fail<T>(ServiceResponse<T> response, string message, int statusCode = 400)
         {
-            return new LoadBankStatementDto
-            {
-                Id = statement.Id,
-                OrganizationId = statement.OrganizationId,
-                BankAccountId = statement.BankAccountId,
-                BankAccountName = statement.BankAccount?.DisplayName,
-                StatementDate = statement.StatementDate,
-                StartingBalance = statement.StartingBalance,
-                EndingBalance = statement.EndingBalance,
-                CreatedAt = statement.CreatedAt
-            };
+            response.Success = false;
+            response.Message = message;
+            response.StatusCode = statusCode;
+            return response;
         }
 
-        private LoadBankStatementTransactionDto MapTransactionToDto(BankStatementTransaction transaction)
+        private static bool IsSupportedMoney(decimal value) => Math.Abs(value) <= MaxSqlMoneyValue;
+
+        private static LoadBankStatementDto MapToDto(BankStatement statement) => new()
         {
-            return new LoadBankStatementTransactionDto
-            {
-                Id = transaction.Id,
-                BankStatementId = transaction.BankStatementId,
-                TransactionDate = transaction.TransactionDate,
-                Description = transaction.Description,
-                Amount = transaction.Amount,
-                Reference = transaction.Reference,
-                CheckNumber = transaction.CheckNumber,
-                IsMatched = transaction.IsMatched,
-                MatchedLedgerEntryId = transaction.MatchedLedgerEntryId,
-                MatchedLedgerEntryDescription = transaction.MatchedLedgerEntry?.Description,
-                CreatedAt = transaction.CreatedAt
-            };
-        }
+            Id = statement.Id,
+            OrganizationId = statement.OrganizationId,
+            BankAccountId = statement.BankAccountId,
+            BankAccountName = statement.BankAccount?.DisplayName,
+            StatementDate = statement.StatementDate,
+            StartingBalance = statement.StartingBalance,
+            EndingBalance = statement.EndingBalance,
+            CreatedAt = statement.CreatedAt
+        };
+
+        private static LoadBankStatementTransactionDto MapTransactionToDto(BankStatementTransaction transaction) => new()
+        {
+            Id = transaction.Id,
+            BankStatementId = transaction.BankStatementId,
+            TransactionDate = transaction.TransactionDate,
+            Description = transaction.Description,
+            Amount = transaction.Amount,
+            Reference = transaction.Reference,
+            CheckNumber = transaction.CheckNumber,
+            IsMatched = transaction.IsMatched,
+            MatchedLedgerEntryId = transaction.MatchedLedgerEntryId,
+            MatchedLedgerEntryDescription = transaction.MatchedLedgerEntry?.Description,
+            CreatedAt = transaction.CreatedAt
+        };
     }
 }

@@ -13,6 +13,12 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public string UnitName { get; set; }
         public decimal RentAmount { get; set; }
         public decimal OverdueAmount { get; set; }
+        /// <summary>Remaining rent installment for the current calendar month.</summary>
+        public decimal CurrentMonthRentDue { get; set; }
+        /// <summary>Overdue rent from periods before the current calendar month.</summary>
+        public decimal PriorPeriodOverdueRent { get; set; }
+        /// <summary>Outstanding lease fees, itemized separately from rent.</summary>
+        public List<RentFeeBalanceDto> UnpaidFees { get; set; } = new();
         /// <summary>Overdue amount + current period rent when within 15-day charge window. Use for balance due display.</summary>
         public decimal AmountDueNow { get; set; }
         public decimal CollectedLifetime { get; set; } // Total payments collected for this lease

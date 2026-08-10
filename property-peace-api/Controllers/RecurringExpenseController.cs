@@ -1,3 +1,4 @@
+using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Dtos.RecurringExpense;
 using brownstone_hub_api.Services.RecurringExpenseService;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Landlord,Admin")]
+    [RequireOrganizationRole("Owner", "Manager")]
     public class RecurringExpenseController(IRecurringExpenseService recurringExpenseService) : ControllerBase
     {
         private readonly IRecurringExpenseService _recurringExpenseService = recurringExpenseService;
@@ -64,10 +66,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetRecurringExpenses(
-            [FromQuery] long landlordId,
-            [FromQuery] long? propertyId = null)
+            [FromQuery] long? propertyId = null,
+            [FromQuery] long? unitId = null)
         {
-            var response = await _recurringExpenseService.GetRecurringExpenses(landlordId, propertyId);
+            var response = await _recurringExpenseService.GetRecurringExpenses(propertyId, unitId);
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);

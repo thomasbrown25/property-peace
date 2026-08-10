@@ -490,3 +490,71 @@ div[class*="preferences" i][role="button"],
     display: none !important;
   }
 }
+
+@media print {
+  @page {
+    margin: 0.65in;
+  }
+
+  body {
+    background: #fff !important;
+    color: #172536 !important;
+    font-size: 11pt;
+  }
+
+  header,
+  footer,
+  [role="dialog"],
+  .article-screen-only,
+  .article-print-button,
+  body > div > div.fixed {
+    display: none !important;
+  }
+
+  .article-hero > div:last-child,
+  .article-main,
+  .article-references {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .article-hero {
+    overflow: visible !important;
+  }
+
+  .article-hero > div:first-child {
+    display: none !important;
+  }
+
+  .article-content h1,
+  .article-content h2,
+  .article-content h3,
+  .article-content h4,
+  .article-references h2 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .article-content p,
+  .article-content li,
+  .article-references li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .article-content a,
+  .article-references a {
+    color: #172536 !important;
+    text-decoration: underline !important;
+  }
+
+  .article-references a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    overflow-wrap: anywhere;
+    font-weight: 400;
+  }
+}

@@ -23,6 +23,14 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     openGraphUrl: 'https://propertypeace.io/blog/',
     twitterTitle: 'Manage Rentals Smarter: Free Software for 1-50 Units!',
   },
+  '/resources/': {
+    title: 'Landlord Guides & Checklists | Property Peace',
+    description: 'Practical landlord guides and checklists for tenant screening, leases, rent tracking, accounting, maintenance, and move-in workflows.',
+    canonical: 'https://propertypeace.io/resources/',
+    openGraphTitle: 'Landlord Resource Center | Property Peace',
+    openGraphDescription: 'Practical guides and checklists organized around the rental jobs independent landlords handle every day.',
+    openGraphUrl: 'https://propertypeace.io/resources/',
+  },
   '/contact-us/': {
     title: 'Contact Property Peace: Support & Inquiries',
     description: 'Contact Property Peace for 24/7 support. Reach us at support@propertypeace.io for product questions, billing help, demo requests, and landlord software support.',

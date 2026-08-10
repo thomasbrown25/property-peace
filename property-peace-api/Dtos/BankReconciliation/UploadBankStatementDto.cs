@@ -4,8 +4,8 @@ namespace brownstone_hub_api.Dtos.BankReconciliation
     {
         public long? BankAccountId { get; set; }
         public DateTime? StatementDate { get; set; } // Optional, will use latest transaction date if not provided
-        public decimal? StartingBalance { get; set; } // Optional, not needed for matching
-        public decimal? EndingBalance { get; set; } // Optional, not needed for matching
+        public decimal? StartingBalance { get; set; } // Required for a truthful reconciliation difference
+        public decimal? EndingBalance { get; set; } // Required for a truthful reconciliation difference
         public List<BankStatementTransactionDto> Transactions { get; set; } = new();
     }
 

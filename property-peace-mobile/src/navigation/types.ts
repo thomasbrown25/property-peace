@@ -37,7 +37,12 @@ export type TenantsStackParamList = {
 
 export type MaintenanceStackParamList = {
   MaintenanceList: undefined;
-  AddMaintenance: { propertyId?: string; unitId?: string; propertyName?: string } | undefined;
+  LandlordMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };
+  TenantMaintenanceList: undefined;
+  TenantMaintenanceIntake: undefined;
+  MaintenanceEmergency: { signals: import('../features/maintenance/maintenanceModel').MaintenanceSignal[] };
+  TenantMaintenanceReceipt: { request: import('../api/maintenanceAPI').MaintenanceRequest; uploadWarning?: string; failedMedia?: import('../api/maintenanceAPI').LocalMedia[] };
+  TenantMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };
 };
 
 export type LeasesStackParamList = {

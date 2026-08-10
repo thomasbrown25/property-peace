@@ -131,7 +131,11 @@ public sealed class StripeWebhookRefundTests
 
         context.ChangeTracker.Clear();
         (await context.StripeRentPayments.SingleAsync()).RefundedAmountCents.Should().Be(0);
-        (await context.Payments.SingleAsync(x => x.Reference == "pi_refund:loss")).Amount.Should().Be(0m);
+        var paymentAdjustments = await context.Payments
+            .Where(x => x.StripePaymentIntentId == "pi_refund" && x.Reference != "pi_refund")
+            .OrderBy(x => x.Id).ToListAsync();
+        paymentAdjustments.Select(x => x.Amount).Should().Equal(-30m, 30m);
+        paymentAdjustments.Sum(x => x.Amount).Should().Be(0m);
         var immutableLossHistory = await context.GeneralLedgerEntries
             .Where(x => x.TransactionType == "PaymentLossReversal").ToListAsync();
         immutableLossHistory.Select(x => x.Amount).Should().BeEquivalentTo([-30m, 30m]);

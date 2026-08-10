@@ -1,3 +1,4 @@
+using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Dtos.FutureExpense;
 using brownstone_hub_api.Services.FutureExpenseService;
 using Microsoft.AspNetCore.Authorization;
@@ -8,6 +9,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Landlord,Admin")]
+    [RequireOrganizationRole("Owner", "Manager")]
     public class FutureExpenseController(IFutureExpenseService futureExpenseService) : ControllerBase
     {
         private readonly IFutureExpenseService _futureExpenseService = futureExpenseService;
@@ -51,10 +53,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize]
         [HttpGet]
         public async Task<IActionResult> GetFutureExpenses(
-            [FromQuery] long landlordId,
-            [FromQuery] long? propertyId = null)
+            [FromQuery] long? propertyId = null,
+            [FromQuery] long? unitId = null)
         {
-            var response = await _futureExpenseService.GetFutureExpenses(landlordId, propertyId);
+            var response = await _futureExpenseService.GetFutureExpenses(propertyId, unitId);
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);

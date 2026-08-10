@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace brownstone_hub_api.Dtos.Vendor
 {
     public class LoadVendorDto
@@ -14,12 +16,15 @@ namespace brownstone_hub_api.Dtos.Vendor
         public string? City { get; set; }
         public string? State { get; set; }
         public string? ZipCode { get; set; }
+        // Kept for internal tax workflows, but never emitted by broad vendor APIs.
+        [JsonIgnore]
         public string? TaxId { get; set; }
         public string? LicenseNumber { get; set; }
         public bool Requires1099 { get; set; }
         public string? Category { get; set; }
         public string? Specialties { get; set; }
         public bool IsActive { get; set; }
+        public bool IsReadyForAssignment { get; set; }
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

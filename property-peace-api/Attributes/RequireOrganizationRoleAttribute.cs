@@ -15,6 +15,8 @@ namespace brownstone_hub_api.Attributes
             _allowedRoles = allowedRoles;
         }
 
+        public IReadOnlyList<string> AllowedRoles => _allowedRoles;
+
         public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
         {
             var memberRepository = context.HttpContext.RequestServices.GetRequiredService<IOrganizationMemberRepository>();
@@ -29,7 +31,7 @@ namespace brownstone_hub_api.Attributes
                 {
                     context.Result = new ObjectResult(new { Message = "Organization context required" })
                     {
-                        StatusCode = 400
+                        StatusCode = StatusCodes.Status403Forbidden
                     };
                     return;
                 }
@@ -77,27 +79,14 @@ namespace brownstone_hub_api.Attributes
             }
         }
 
-        private long? GetOrganizationId(ActionExecutingContext context)
+        private static long? GetOrganizationId(ActionExecutingContext context)
         {
-            // Try from context items (set by middleware)
-            if (context.HttpContext.Items.TryGetValue("OrganizationId", out var orgIdObj) && orgIdObj is long orgId)
+            // Only trust the organization selected and membership-validated by
+            // OrganizationContextMiddleware. Route and query values are caller-controlled.
+            if (context.HttpContext.Items.TryGetValue("OrganizationId", out var orgIdObj) &&
+                orgIdObj is long orgId && orgId > 0)
             {
                 return orgId;
-            }
-
-            // Try from route values
-            if (context.RouteData.Values.TryGetValue("organizationId", out var routeOrgId) && routeOrgId != null)
-            {
-                if (long.TryParse(routeOrgId.ToString(), out var parsedOrgId))
-                {
-                    return parsedOrgId;
-                }
-            }
-
-            // Try from query string
-            if (context.HttpContext.Request.Query.TryGetValue("organizationId", out var queryOrgId) && long.TryParse(queryOrgId, out var parsedQueryOrgId))
-            {
-                return parsedQueryOrgId;
             }
 
             return null;

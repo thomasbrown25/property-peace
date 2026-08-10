@@ -29,7 +29,6 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 // hooks
-import useAuth from 'hooks/useAuth';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { useOrganization } from 'contexts/OrganizationContext';
 import { organizationMemberAPI } from 'api';
@@ -106,7 +105,6 @@ const getAvailablePropertyTypes = (subscriptionStatus) => {
 
 export default function PropertyAdd() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const dispatch = useDispatch();
 
@@ -404,15 +402,7 @@ export default function PropertyAdd() {
         resetForm();
         setSelectedImage(undefined);
 
-        // Check if user hasn't completed onboarding - if so, go back to dashboard to show wizard
-        const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-        if (!hasSeenTutorial) {
-          // Navigate to dashboard so wizard can reopen
-          navigate('/landlord/dashboard');
-        } else {
-          // Navigate to property page
-          navigate(`/landlord/property/${created.id}`);
-        }
+        navigate(`/landlord/property/${created.id}`);
       } catch (error) {
         console.error(error);
         const errorMessage = error?.response?.data?.message || 'Failed to add property.';

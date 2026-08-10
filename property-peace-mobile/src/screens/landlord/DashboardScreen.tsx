@@ -185,7 +185,7 @@ export default function DashboardScreen() {
         <Text style={styles.sectionTitle}>Do it from your phone</Text>
         <View style={styles.quickList}>
           <QuickAction icon="add-circle-outline" title="Add a property" subtitle="Grow your portfolio" color="#2475cf" background="#eaf3ff" onPress={() => navigation.navigate('Properties', { screen: 'AddProperty' })} />
-          <QuickAction icon="construct-outline" title="New maintenance request" subtitle="Log an issue while you're on-site" color="#d94d63" background="#fff0f3" onPress={() => navigation.navigate('Maintenance', { screen: 'AddMaintenance' })} />
+          <QuickAction icon="construct-outline" title="Maintenance workflow" subtitle="Assign and track open repairs" color="#d94d63" background="#fff0f3" onPress={() => navigation.navigate('Maintenance', { screen: 'MaintenanceList' })} />
           <QuickAction icon="clipboard-outline" title="Property checklists" subtitle="Move-in and move-out inspections" color="#2f8f46" background="#edf9ef" onPress={() => navigation.navigate('Properties')} />
           <QuickAction icon="chatbubble-ellipses-outline" title="Open messages" subtitle="Reply to tenants and applicants" color="#168f91" background="#eafafa" onPress={() => navigation.navigate('Messages')} />
         </View>

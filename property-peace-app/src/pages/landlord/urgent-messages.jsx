@@ -265,7 +265,7 @@ export default function UrgentMessages() {
       if (message.leaseId) {
         navigate(`/landlord/leases/${message.leaseId}`);
       } else if (message.propertyId) {
-        navigate(`/landlord/rent-collection/${message.propertyId}`);
+        navigate(`/landlord/rent-collection?propertyId=${message.propertyId}`);
       } else {
         navigate('/landlord/rent-collection');
       }

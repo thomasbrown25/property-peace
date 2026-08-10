@@ -342,8 +342,8 @@ public sealed class StripeWebhookRentOrchestrationTests
         aggregate.Status.Should().Be(StripeRentPaymentStatus.Blocked);
         aggregate.DisputedAmountCents.Should().Be(5_000);
         aggregate.ReversedAmountCents.Should().Be(5_000);
-        (await context.Payments.Where(x => x.Reference == "pi_dispute_webhook:loss").ToListAsync())
-            .Should().ContainSingle().Which.Amount.Should().Be(-50m);
+        (await context.Payments.Where(x => x.Method == "Stripe loss adjustment").OrderBy(x => x.Id).ToListAsync())
+            .Select(x => x.Amount).Should().Equal(-30m, -20m);
         var immutableLossHistory = await context.GeneralLedgerEntries
             .Where(x => x.TransactionType == "PaymentLossReversal").OrderBy(x => x.Id).ToListAsync();
         immutableLossHistory.Select(x => x.Amount).Should().Equal(-30m, -20m);
@@ -430,8 +430,8 @@ public sealed class StripeWebhookRentOrchestrationTests
         aggregate.StripeDisputeStatus.Should().Be("won");
         aggregate.Status.Should().Be(StripeRentPaymentStatus.Blocked);
         (await context.Payments.CountAsync(x => x.Reference == "pi_dispute_webhook:loss")).Should().Be(1);
-        (await context.Payments.CountAsync(x => x.Reference == "pi_dispute_webhook:dispute-recovery")).Should().Be(0);
-        (await context.Payments.SingleAsync(x => x.Reference == "pi_dispute_webhook:loss")).Amount.Should().Be(0m);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_dispute_webhook:loss")).Amount.Should().Be(-30m);
+        (await context.Payments.SingleAsync(x => x.Reference == "pi_dispute_webhook:dispute-recovery")).Amount.Should().Be(30m);
         (await context.GeneralLedgerEntries.Where(x => x.TransactionType == "PaymentLossRecovery").ToListAsync())
             .Should().ContainSingle().Which.Amount.Should().Be(30m);
         (await context.Payments.SingleAsync(x => x.Amount > 0 && x.Reference == "pi_dispute_webhook")).Status

@@ -24,6 +24,7 @@ namespace brownstone_hub_api.Data
         {
             RejectScreeningDeletionEvidenceMutation();
             RejectAppendOnly<ConversationTimelineEntry>();
+            RejectAppendOnly<MaintenanceActivityEvent>();
             RejectInvalidMessageDeliveryEvidenceMutation();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
@@ -35,6 +36,7 @@ namespace brownstone_hub_api.Data
         {
             RejectScreeningDeletionEvidenceMutation();
             RejectAppendOnly<ConversationTimelineEntry>();
+            RejectAppendOnly<MaintenanceActivityEvent>();
             RejectInvalidMessageDeliveryEvidenceMutation();
             var now = DateTime.Now;
 
@@ -251,6 +253,16 @@ namespace brownstone_hub_api.Data
         public DbSet<MaintenanceRequest> MaintenanceRequests => Set<MaintenanceRequest>();
         public DbSet<MaintenanceCategory> MaintenanceCategories => Set<MaintenanceCategory>();
         public DbSet<MaintenanceImage> MaintenanceImages => Set<MaintenanceImage>();
+        public DbSet<MaintenancePreferredWindow> MaintenancePreferredWindows => Set<MaintenancePreferredWindow>();
+        public DbSet<MaintenanceEstimate> MaintenanceEstimates => Set<MaintenanceEstimate>();
+        public DbSet<MaintenanceWorkOrder> MaintenanceWorkOrders => Set<MaintenanceWorkOrder>();
+        public DbSet<MaintenanceAppointment> MaintenanceAppointments => Set<MaintenanceAppointment>();
+        public DbSet<MaintenanceCompletion> MaintenanceCompletions => Set<MaintenanceCompletion>();
+        public DbSet<MaintenanceTroubleshootingStep> MaintenanceTroubleshootingSteps => Set<MaintenanceTroubleshootingStep>();
+        public DbSet<MaintenanceActivityEvent> MaintenanceActivityEvents => Set<MaintenanceActivityEvent>();
+        public DbSet<MaintenanceAttachment> MaintenanceAttachments => Set<MaintenanceAttachment>();
+        public DbSet<MaintenanceCommandReceipt> MaintenanceCommandReceipts => Set<MaintenanceCommandReceipt>();
+        public DbSet<MaintenanceTimelineOutbox> MaintenanceTimelineOutboxes => Set<MaintenanceTimelineOutbox>();
         public DbSet<Amenity> Amenities => Set<Amenity>();
         public DbSet<IncludedUtility> IncludedUtilities => Set<IncludedUtility>();
         public DbSet<Payment> Payments => Set<Payment>();

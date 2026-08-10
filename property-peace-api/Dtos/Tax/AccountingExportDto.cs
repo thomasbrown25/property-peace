@@ -9,6 +9,8 @@ namespace brownstone_hub_api.Dtos.Tax
         public string FileContent { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
         public string MimeType { get; set; } = "text/csv";
+        public bool IsExperimentalTemplate { get; set; }
+        public string? ImportDisclaimer { get; set; }
     }
 }
 

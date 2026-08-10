@@ -19,14 +19,24 @@ namespace brownstone_hub_api.Services.ScheduleEPdfService
         private readonly IUserRepository _userRepository = userRepository;
         private readonly ILogger<ScheduleEPdfService> _logger = logger;
 
-        public async Task<ServiceResponse<byte[]>> GenerateScheduleEPdfAsync(long landlordId, int year, bool perProperty = false)
+        public async Task<ServiceResponse<byte[]>> GenerateScheduleEPdfAsync(long organizationId, long authorizedUserId, int year, bool perProperty = false)
         {
+            if (perProperty)
+            {
+                return new ServiceResponse<byte[]>
+                {
+                    Success = false,
+                    StatusCode = StatusCodes.Status422UnprocessableEntity,
+                    Message = "Per-property Schedule E is unsupported because verified property-level tax totals are not available. No PDF was generated."
+                };
+            }
+
             try
             {
                 QuestPDF.Settings.License = LicenseType.Community;
 
                 // Get tax report data
-                var taxReportResponse = await _taxReportService.GetTaxYearReport(landlordId, year);
+                var taxReportResponse = await _taxReportService.GetTaxYearReport(organizationId, year);
                 if (!taxReportResponse.Success || taxReportResponse.Data == null)
                 {
                     return ServiceResponse<byte[]>.CreateError("Failed to retrieve tax data", taxReportResponse.Message ?? "Tax report data not available");
@@ -35,7 +45,7 @@ namespace brownstone_hub_api.Services.ScheduleEPdfService
                 var taxReport = taxReportResponse.Data;
 
                 // Get landlord information
-                var landlord = await _userRepository.GetUser(landlordId);
+                var landlord = await _userRepository.GetUser(authorizedUserId);
                 if (landlord == null)
                 {
                     return ServiceResponse<byte[]>.CreateError("Landlord not found", "Unable to retrieve landlord information");
@@ -47,20 +57,13 @@ namespace brownstone_hub_api.Services.ScheduleEPdfService
 
                 // Generate PDF
                 byte[] pdfBytes;
-                if (perProperty)
-                {
-                    pdfBytes = GeneratePerPropertyPdf(taxReport, landlordName, year);
-                }
-                else
-                {
-                    pdfBytes = GenerateCombinedPdf(taxReport, landlordName, year);
-                }
+                pdfBytes = GenerateCombinedPdf(taxReport, landlordName, year);
 
                 return new ServiceResponse<byte[]> { Data = pdfBytes };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error generating Schedule E PDF for landlord {LandlordId}, year {Year}", landlordId, year);
+                _logger.LogError(ex, "Error generating Schedule E PDF for organization {OrganizationId}, user {UserId}, year {Year}", organizationId, authorizedUserId, year);
                 return ServiceResponse<byte[]>.CreateError("Error generating Schedule E PDF", ex.Message);
             }
         }

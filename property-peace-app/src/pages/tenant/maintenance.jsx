@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import MaintenanceAgentDrawer from './MaintenanceAgentDrawer';
 import TenantMaintenanceFormDrawer from 'components/drawers/TenantMaintenanceFormDrawer';
 
 // material-ui
@@ -44,6 +43,8 @@ import axiosServices from 'utils/axios';
 import { formatDate, formatRelativeTime, formatDateAndTime } from 'utils/formatters';
 import { getPriorityColor, getStatusColor } from 'utils/helper-methods';
 import { openSnackbar } from 'api/snackbar';
+import { maintenanceWorkflowAPI } from 'api/maintenanceWorkflow';
+import { normalizeWorkflowToken } from 'utils/maintenanceWorkflow';
 import TenantMaintenanceDetail from './maintenance-detail';
 
 // ==============================|| TENANT - MAINTENANCE ||============================== //
@@ -236,7 +237,7 @@ export default function TenantMaintenance() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [loading, setLoading] = useState(true);
   const [agentDrawerOpen, setAgentDrawerOpen] = useState(false);
-  const [maintenanceAgentEnabled, setMaintenanceAgentEnabled] = useState(true);
+
   const [error, setError] = useState(null);
 
   const selectedLease = useMemo(
@@ -259,22 +260,11 @@ export default function TenantMaintenance() {
           if (active) setSelectedLeaseId(active.id);
         }
 
-        // Fetch requests + agent settings in parallel
-        const [currentRes, historyRes, agentRes] = await Promise.allSettled([
-          axiosServices.get('/api/maintenance-request/tenant/current'),
-          axiosServices.get('/api/maintenance-request/tenant/history'),
-          axiosServices.get('/api/maintenance-agent/settings')
-        ]);
+        const requests = await maintenanceWorkflowAPI.list();
+        if (!Array.isArray(requests)) throw new Error('Maintenance response was incomplete.');
+        setCurrentRequests(requests.filter((item) => !['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
+        setHistoryRequests(requests.filter((item) => ['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
 
-        if (currentRes.status === 'fulfilled' && currentRes.value.data?.success) {
-          setCurrentRequests(currentRes.value.data.data || []);
-        }
-        if (historyRes.status === 'fulfilled' && historyRes.value.data?.success) {
-          setHistoryRequests(historyRes.value.data.data || []);
-        }
-        if (agentRes.status === 'fulfilled' && agentRes.value.data?.success) {
-          setMaintenanceAgentEnabled(agentRes.value.data.data?.isMaintenanceAgentEnabled ?? true);
-        }
       } catch (err) {
         const status = err?.response?.status || err?.status;
         if (status !== 404) {
@@ -290,18 +280,12 @@ export default function TenantMaintenance() {
 
   const refetchRequests = async () => {
     try {
-      const [currentRes, historyRes] = await Promise.allSettled([
-        axiosServices.get('/api/maintenance-request/tenant/current'),
-        axiosServices.get('/api/maintenance-request/tenant/history')
-      ]);
-      if (currentRes.status === 'fulfilled' && currentRes.value.data?.success) {
-        setCurrentRequests(currentRes.value.data.data || []);
-      }
-      if (historyRes.status === 'fulfilled' && historyRes.value.data?.success) {
-        setHistoryRequests(historyRes.value.data.data || []);
-      }
+      const requests = await maintenanceWorkflowAPI.list();
+      if (!Array.isArray(requests)) throw new Error('Maintenance response was incomplete.');
+      setCurrentRequests(requests.filter((item) => !['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
+      setHistoryRequests(requests.filter((item) => ['resolved', 'cancelled'].includes(normalizeWorkflowToken(item.status))));
     } catch (err) {
-      console.error('Error refetching requests:', err);
+      setError(err?.response?.data?.detail || err?.message || 'Maintenance requests could not be refreshed.');
     }
   };
 
@@ -728,30 +712,14 @@ export default function TenantMaintenance() {
         </Box>
       </Box>
 
-      {maintenanceAgentEnabled ? (
-        <MaintenanceAgentDrawer
-          open={agentDrawerOpen}
-          onClose={() => setAgentDrawerOpen(false)}
-          onRequestCreated={() => {
-            setAgentDrawerOpen(false);
-            axiosServices.get('/api/maintenance-request/tenant/current')
-              .then((res) => { if (res.data?.success) setCurrentRequests(res.data.data || []); })
-              .catch(() => {});
-          }}
-        />
-      ) : (
-        <TenantMaintenanceFormDrawer
-          open={agentDrawerOpen}
-          onClose={() => setAgentDrawerOpen(false)}
-          unitId={selectedLease?.unitId ?? null}
-          onRequestCreated={() => {
-            setAgentDrawerOpen(false);
-            axiosServices.get('/api/maintenance-request/tenant/current')
-              .then((res) => { if (res.data?.success) setCurrentRequests(res.data.data || []); })
-              .catch(() => {});
-          }}
-        />
-      )}
+      <TenantMaintenanceFormDrawer
+        open={agentDrawerOpen}
+        onClose={() => setAgentDrawerOpen(false)}
+        unitId={selectedLease?.unitId ?? null}
+        onRequestCreated={() => {
+          refetchRequests();
+        }}
+      />
     </Box>
   );
 }

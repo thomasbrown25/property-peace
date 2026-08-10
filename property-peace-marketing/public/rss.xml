@@ -5,7 +5,7 @@
     <link>https://propertypeace.io/blog</link>
     <description>Expert guides, tips, and insights for landlords managing rental properties. Learn about property management software, rent collection, tenant management, and more.</description>
     <language>en-US</language>
-    <lastBuildDate>Mon, 20 Jul 2026 00:55:32 GMT</lastBuildDate>
+    <lastBuildDate>Sat, 08 Aug 2026 13:36:42 GMT</lastBuildDate>
     <atom:link href="https://propertypeace.io/rss.xml" rel="self" type="application/rss+xml"/>
     <copyright>Copyright 2026 Property Peace</copyright>
     <managingEditor>support@propertypeace.io (Property Peace)</managingEditor>
@@ -16,6 +16,33 @@
       <guid isPermaLink="true">https://propertypeace.io/blog/how-to-automate-rent-collection-never-chase-payments-again/</guid>
       <description><![CDATA[Learn how automated rent collection helps small landlords reduce late payments, send reminders, accept secure online payments, and keep rent history organized.]]></description>
       <pubDate>Sun, 07 Jun 2026 16:00:00 GMT</pubDate>
+      <author>support@propertypeace.io (Property Peace Team)</author>
+      <category><![CDATA[How-To]]></category>
+    </item>
+    <item>
+      <title><![CDATA[Landlord Move-In and Move-Out Checklist: What to Document Before and After Tenancy]]></title>
+      <link>https://propertypeace.io/blog/landlord-move-in-move-out-checklist/</link>
+      <guid isPermaLink="true">https://propertypeace.io/blog/landlord-move-in-move-out-checklist/</guid>
+      <description><![CDATA[A practical move-in and move-out checklist for landlords. Learn what to inspect, document, photograph, and store so deposits, repairs, and tenant handoffs stay organized.]]></description>
+      <pubDate>Sun, 18 Jan 2026 00:00:00 GMT</pubDate>
+      <author>support@propertypeace.io (Property Peace Team)</author>
+      <category><![CDATA[Guides]]></category>
+    </item>
+    <item>
+      <title><![CDATA[Rental Property Cash Flow Template: What Landlords Should Track Monthly]]></title>
+      <link>https://propertypeace.io/blog/rental-property-cash-flow-template-landlords/</link>
+      <guid isPermaLink="true">https://propertypeace.io/blog/rental-property-cash-flow-template-landlords/</guid>
+      <description><![CDATA[Learn what belongs in a rental property cash flow template, including rent, vacancies, maintenance, mortgage payments, reserves, and property-level profitability.]]></description>
+      <pubDate>Mon, 12 Jan 2026 00:00:00 GMT</pubDate>
+      <author>support@propertypeace.io (Property Peace Team)</author>
+      <category><![CDATA[Guides]]></category>
+    </item>
+    <item>
+      <title><![CDATA[Landlord Maintenance Checklist: Prevent Costly Repairs Before They Happen]]></title>
+      <link>https://propertypeace.io/blog/landlord-maintenance-checklist-prevent-costly-repairs/</link>
+      <guid isPermaLink="true">https://propertypeace.io/blog/landlord-maintenance-checklist-prevent-costly-repairs/</guid>
+      <description><![CDATA[A seasonal and monthly maintenance checklist for landlords who want to reduce emergency repairs, protect property value, and keep tenants happy.]]></description>
+      <pubDate>Mon, 05 Jan 2026 00:00:00 GMT</pubDate>
       <author>support@propertypeace.io (Property Peace Team)</author>
       <category><![CDATA[How-To]]></category>
     </item>

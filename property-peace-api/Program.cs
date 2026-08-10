@@ -248,6 +248,8 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 if (!builder.Environment.IsDevelopment())
 {
     services.AddApplicationInsightsTelemetry();
+    services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer,
+        brownstone_hub_api.Telemetry.AuthenticatedUserTelemetryInitializer>();
     builder.Logging.AddApplicationInsights();    // bridge ILogger -> AI after ClearProviders()
     builder.Logging.AddFilter<Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider>(
         "",
@@ -471,9 +473,9 @@ services.AddAutoMapper(cfg =>
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
 services.AddHttpClient<IAppleAuthService, AppleAuthService>();
 services.AddScoped<IUserService, UserService>();
+services.AddScoped<brownstone_hub_api.Services.Activation.IActivationService, brownstone_hub_api.Services.Activation.ActivationService>();
 var dataProtectionKeysPath = configuration["DataProtection:KeysPath"];
 if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
-services.AddScoped<brownstone_hub_api.Services.Activation.IActivationService, brownstone_hub_api.Services.Activation.ActivationService>();
     dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
 Directory.CreateDirectory(dataProtectionKeysPath);
 services.AddDataProtection()
@@ -489,6 +491,15 @@ services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 services.AddScoped<IPropertyService, PropertyService>();
 services.AddScoped<IPropertyPortfolioService, PropertyPortfolioService>();
 services.AddScoped<IMaintenanceRequestService, MaintenanceRequestService>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceActorAccessor, brownstone_hub_api.Services.Maintenance.MaintenanceActorAccessor>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceRequestApiService, brownstone_hub_api.Services.Maintenance.MaintenanceRequestApiService>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceActivityService, brownstone_hub_api.Services.Maintenance.MaintenanceActivityService>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceCommandExecutor, brownstone_hub_api.Services.Maintenance.MaintenanceCommandExecutor>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceTransactionSideEffects, brownstone_hub_api.Services.Maintenance.MaintenanceTransactionSideEffects>();
+services.AddHostedService<brownstone_hub_api.Services.Maintenance.MaintenanceTimelineProjectionWorker>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceAttachmentStorage, brownstone_hub_api.Services.Maintenance.AzureMaintenanceAttachmentStorage>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceAttachmentService, brownstone_hub_api.Services.Maintenance.MaintenanceAttachmentService>();
+services.AddScoped(sp => new brownstone_hub_api.Services.MaintenanceTriage.MaintenanceTriagePolicyV1(sp.GetRequiredService<TimeProvider>()));
 services.AddScoped<IDemoRequestRepository, DemoRequestRepository>();
 services.AddScoped<IDemoRequestService, DemoRequestService>();
 services.AddScoped<IMaintenanceImageService, MaintenanceImageService>();
@@ -524,6 +535,8 @@ services.AddScoped<IScheduledNotificationService, ScheduledNotificationService>(
 services.AddScoped<brownstone_hub_api.Services.AnnouncementService.IAnnouncementService, brownstone_hub_api.Services.AnnouncementService.AnnouncementService>();
 services.AddScoped<IActivityService, ActivityService>();
 services.AddScoped<IExpenseService, ExpenseService>();
+services.AddScoped<brownstone_hub_api.Services.MoneyCenter.IMoneyCenterDataSource, brownstone_hub_api.Services.MoneyCenter.EfMoneyCenterDataSource>();
+services.AddScoped<brownstone_hub_api.Services.MoneyCenter.IMoneyCenterService, brownstone_hub_api.Services.MoneyCenter.MoneyCenterService>();
 services.AddScoped<IVendorService, VendorService>();
 services.AddScoped<IRecurringExpenseService, RecurringExpenseService>();
 services.AddScoped<IFutureExpenseService, FutureExpenseService>();

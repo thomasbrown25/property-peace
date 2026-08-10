@@ -78,6 +78,7 @@ import FilterDeleteIcon from 'components/FilterDeleteIcon';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { formatCurrency, formatDate, formatRentStatus, getRentStatusColor } from 'utils/formatters';
+import { getLeaseTermLabel } from 'utils/leaseTermLabel';
 import { endLease, reopenLease, setLease } from 'store/lease/lease.action';
 import { getAllPayments } from 'store/payment/payment.action';
 import { selectAllPayments } from 'store/payment/payment.selector';
@@ -1900,7 +1901,7 @@ export default function LeasesPage({ onEditLease }) {
 
                                   <Box>
                                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                                      <Typography variant="caption" fontWeight={700}>{term.total ? `Month ${term.current} / ${term.total}` : 'Not started'}</Typography>
+                                      <Typography variant="caption" fontWeight={700}>{getLeaseTermLabel({ hasLease, ...term })}</Typography>
                                       <Typography variant="caption" color={term.overDays ? 'warning.main' : 'text.secondary'} sx={{ fontWeight: term.overDays ? 700 : 400 }}>
                                         {term.overDays ? `${term.overDays}d over` : term.daysLeft != null ? `${term.daysLeft}d left` : ''}
                                       </Typography>
@@ -2005,7 +2006,7 @@ export default function LeasesPage({ onEditLease }) {
                                   </TableCell>
                                   <TableCell sx={{ minWidth: 155 }}>
                                     <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                                      <Typography variant="body2" fontWeight={500}>{term.total ? `Month ${term.current} / ${term.total}` : 'Not started'}</Typography>
+                                      <Typography variant="body2" fontWeight={500}>{getLeaseTermLabel({ hasLease, ...term })}</Typography>
                                       <Typography variant="caption" color={term.overDays ? 'warning.main' : 'text.secondary'} sx={{ fontWeight: term.overDays ? 700 : 400 }}>
                                         {term.overDays ? `${term.overDays}d over` : term.daysLeft != null ? `${term.daysLeft}d left` : ''}
                                       </Typography>

@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, View } from 'react-native';
 import {
   LeasesStackParamList,
   MainTabParamList,
@@ -20,7 +21,7 @@ import ChecklistsScreen from '../screens/landlord/ChecklistsScreen';
 import TenantsScreen from '../screens/landlord/TenantsScreen';
 import AddTenantScreen from '../screens/landlord/AddTenantScreen';
 import MaintenanceScreen from '../screens/landlord/MaintenanceScreen';
-import AddMaintenanceScreen from '../screens/landlord/AddMaintenanceScreen';
+import LandlordMaintenanceDetailScreen from '../screens/landlord/LandlordMaintenanceDetailScreen';
 import LeasesScreen from '../screens/landlord/LeasesScreen';
 import LeaseDetailScreen from '../screens/landlord/LeaseDetailScreen';
 import AddLeaseScreen from '../screens/landlord/AddLeaseScreen';
@@ -28,6 +29,13 @@ import MessagesScreen from '../screens/landlord/MessagesScreen';
 import ConversationDetailScreen from '../screens/landlord/ConversationDetailScreen';
 import NotificationsScreen from '../screens/landlord/NotificationsScreen';
 import SettingsScreen from '../screens/landlord/SettingsScreen';
+import TenantMaintenanceScreen from '../screens/tenant/TenantMaintenanceScreen';
+import TenantMaintenanceIntakeScreen from '../screens/tenant/TenantMaintenanceIntakeScreen';
+import TenantMaintenanceDetailScreen from '../screens/tenant/TenantMaintenanceDetailScreen';
+import TenantMaintenanceReceiptScreen from '../screens/tenant/TenantMaintenanceReceiptScreen';
+import MaintenanceEmergencyScreen from '../screens/tenant/MaintenanceEmergencyScreen';
+import { useAppSelector } from '../store/hooks';
+import { maintenanceAudience } from '../features/maintenance/maintenanceModel';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const PropertiesStack = createNativeStackNavigator<PropertiesStackParamList>();
@@ -55,13 +63,29 @@ function PropertiesNavigator() {
   );
 }
 
-function MaintenanceNavigator() {
+function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
   return (
     <MaintenanceStack.Navigator screenOptions={stackOptions}>
-      <MaintenanceStack.Screen name="MaintenanceList" component={MaintenanceScreen} options={{ title: 'Maintenance' }} />
-      <MaintenanceStack.Screen name="AddMaintenance" component={AddMaintenanceScreen} options={{ title: 'New request' }} />
+      {tenant ? <>
+        <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ title: 'Maintenance' }} />
+        <MaintenanceStack.Screen name="TenantMaintenanceIntake" component={TenantMaintenanceIntakeScreen} options={{ title: 'Report an issue' }} />
+        <MaintenanceStack.Screen name="MaintenanceEmergency" component={MaintenanceEmergencyScreen} options={{ title: 'Emergency safety', presentation: 'modal' }} />
+        <MaintenanceStack.Screen name="TenantMaintenanceReceipt" component={TenantMaintenanceReceiptScreen} options={{ title: 'Report received', headerBackVisible: false }} />
+        <MaintenanceStack.Screen name="TenantMaintenanceDetail" component={TenantMaintenanceDetailScreen} options={{ title: 'Request detail' }} />
+      </> : <>
+        <MaintenanceStack.Screen name="MaintenanceList" component={MaintenanceScreen} options={{ title: 'Maintenance' }} />
+        <MaintenanceStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={{ title: 'Maintenance workflow' }} />
+      </>}
     </MaintenanceStack.Navigator>
   );
+}
+
+function TenantMaintenanceNavigator() {
+  return <MaintenanceNavigator tenant />;
+}
+
+function UnsupportedMaintenanceNavigator() {
+  return <View style={{ flex: 1, justifyContent: 'center', padding: 28, backgroundColor: '#fbf7f4' }}><Text style={{ color: '#102d43', fontSize: 22, fontWeight: '800' }}>Maintenance access unavailable</Text><Text style={{ color: '#526874', lineHeight: 21, marginTop: 10 }}>Switch to an active tenant, landlord, or administrator organization role. Vendor maintenance needs its dedicated limited workflow and is never shown property-owner controls.</Text></View>;
 }
 
 function MessagesNavigator() {
@@ -94,6 +118,8 @@ function LeasesNavigator() {
 
 export default function MainNavigator() {
   const insets = useSafeAreaInsets();
+  const currentUser = useAppSelector((state) => state.user.currentUser);
+  const audience = maintenanceAudience(currentUser);
   const bottomInset = Math.max(insets.bottom, 8);
 
   return (
@@ -121,21 +147,32 @@ export default function MainNavigator() {
             Properties: { active: 'business', inactive: 'business-outline' },
             Maintenance: { active: 'construct', inactive: 'construct-outline' },
             Messages: { active: 'chatbubble-ellipses', inactive: 'chatbubble-ellipses-outline' },
+            Settings: { active: 'settings', inactive: 'settings-outline' },
           };
           const icon = icons[route.name];
           return icon ? <Ionicons name={focused ? icon.active : icon.inactive} size={size + 1} color={color} /> : null;
         },
       })}
     >
-      <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Home' }} />
-      <Tab.Screen name="Properties" component={PropertiesNavigator} />
-      <Tab.Screen name="Maintenance" component={MaintenanceNavigator} />
-      <Tab.Screen name="Messages" component={MessagesNavigator} />
+      {audience === 'tenant' ? <>
+        <Tab.Screen name="Maintenance" component={TenantMaintenanceNavigator} options={{ tabBarLabel: 'Repairs' }} />
+        <Tab.Screen name="Messages" component={MessagesNavigator} />
+        <Tab.Screen name="Settings" component={SettingsScreen} />
+      </> : audience === 'landlord' ? <>
+        <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Home' }} />
+        <Tab.Screen name="Properties" component={PropertiesNavigator} />
+        <Tab.Screen name="Maintenance" component={MaintenanceNavigator} />
+        <Tab.Screen name="Messages" component={MessagesNavigator} />
+        <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Tenants" component={TenantsNavigator} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Leases" component={LeasesNavigator} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
+      </> : <>
+        <Tab.Screen name="Maintenance" component={UnsupportedMaintenanceNavigator} />
+        <Tab.Screen name="Messages" component={MessagesNavigator} />
+        <Tab.Screen name="Settings" component={SettingsScreen} />
+      </>}
 
-      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Tenants" component={TenantsNavigator} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Leases" component={LeasesNavigator} options={{ tabBarButton: () => null }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
     </Tab.Navigator>
   );
 }
