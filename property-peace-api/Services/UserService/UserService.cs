@@ -145,12 +145,21 @@ namespace brownstone_hub_api.Services.UserService
                 _logger.LogInformation("Register called for email: {Email}, BusinessName: '{BusinessName}', Roles: {Roles}",
                     newUser.Email, newUser.BusinessName ?? "(null)", string.Join(", ", newUser.Roles ?? new List<string>()));
 
-                if (await _userRepository.UserExists(newUser.Email))
+                long? emailVerificationId = null;
+                var hasInviteContext = !string.IsNullOrWhiteSpace(newUser.OrganizationInviteToken) ||
+                    !string.IsNullOrWhiteSpace(newUser.InviteToken);
+                if (!emailVerifiedByTrustedProvider && !hasInviteContext)
                 {
-                    response.Message = "A user with that email already exists.";
-                    response.Success = false;
-                    _logger.LogTrace("Register user failed: A user with that email already exists.");
-                    return response;
+                    emailVerificationId = await GetValidEmailVerificationIdAsync(
+                        newUser.Email,
+                        newUser.EmailVerificationProof);
+                    if (!emailVerificationId.HasValue)
+                    {
+                        response.Success = false;
+                        response.StatusCode = StatusCodes.Status403Forbidden;
+                        response.Message = "Email verification is required before registration.";
+                        return response;
+                    }
                 }
 
                 // Never trust privileged/auth fields from the public registration payload.
@@ -243,46 +252,26 @@ namespace brownstone_hub_api.Services.UserService
                     serverAssignedRoles = new List<string> { "Tenant" };
                 }
 
-                long? emailVerificationId = null;
-                if (!emailVerifiedByTrustedProvider)
+                if (!emailVerifiedByTrustedProvider && !emailVerificationId.HasValue)
                 {
-                    var nowUtc = DateTime.UtcNow;
-                    var proofSecret = _configuration["JwtSettings:SecretKey"] ?? string.Empty;
-                    if (!EmailVerificationProof.TryValidate(
-                            newUser.EmailVerificationProof,
-                            newUser.Email,
-                            nowUtc,
-                            TimeSpan.FromMinutes(10),
-                            proofSecret,
-                            out var verifiedRecordId))
+                    emailVerificationId = await GetValidEmailVerificationIdAsync(
+                        newUser.Email,
+                        newUser.EmailVerificationProof);
+                    if (!emailVerificationId.HasValue)
                     {
                         response.Success = false;
                         response.StatusCode = StatusCodes.Status403Forbidden;
                         response.Message = "Email verification is required before registration.";
                         return response;
                     }
+                }
 
-                    var verificationCutoff = nowUtc.AddMinutes(-10);
-                    var hasMatchingVerification = await _dataContext.EmailVerifications
-                        .AsNoTracking()
-                        .AnyAsync(verification =>
-                            verification.Id == verifiedRecordId &&
-                            verification.Email == newUser.Email &&
-                            verification.IsVerified &&
-                            verification.VerifiedAt.HasValue &&
-                            verification.VerifiedAt.Value >= verificationCutoff &&
-                            verification.VerifiedAt.Value <= nowUtc.AddMinutes(1) &&
-                            verification.ExpiresAt >= nowUtc);
-
-                    if (!hasMatchingVerification)
-                    {
-                        response.Success = false;
-                        response.StatusCode = StatusCodes.Status403Forbidden;
-                        response.Message = "Email verification is required before registration.";
-                        return response;
-                    }
-
-                    emailVerificationId = verifiedRecordId;
+                if (await _userRepository.UserExists(newUser.Email))
+                {
+                    response.Message = "A user with that email already exists.";
+                    response.Success = false;
+                    _logger.LogTrace("Register user failed: A user with that email already exists.");
+                    return response;
                 }
 
                 // Apply only server-derived roles. Never use roles supplied by the registration request.
@@ -871,6 +860,36 @@ namespace brownstone_hub_api.Services.UserService
             }
 
             return response;
+        }
+
+        private async Task<long?> GetValidEmailVerificationIdAsync(string email, string? proof)
+        {
+            var nowUtc = DateTime.UtcNow;
+            var proofSecret = _configuration["JwtSettings:SecretKey"] ?? string.Empty;
+            if (!EmailVerificationProof.TryValidate(
+                    proof,
+                    email,
+                    nowUtc,
+                    TimeSpan.FromMinutes(10),
+                    proofSecret,
+                    out var verifiedRecordId))
+            {
+                return null;
+            }
+
+            var verificationCutoff = nowUtc.AddMinutes(-10);
+            var hasMatchingVerification = await _dataContext.EmailVerifications
+                .AsNoTracking()
+                .AnyAsync(verification =>
+                    verification.Id == verifiedRecordId &&
+                    verification.Email == email &&
+                    verification.IsVerified &&
+                    verification.VerifiedAt.HasValue &&
+                    verification.VerifiedAt.Value >= verificationCutoff &&
+                    verification.VerifiedAt.Value <= nowUtc.AddMinutes(1) &&
+                    verification.ExpiresAt >= nowUtc);
+
+            return hasMatchingVerification ? verifiedRecordId : null;
         }
 
         public async Task<ServiceResponse<LoadUserDto>> Login(string email, string password)

@@ -140,14 +140,16 @@ namespace brownstone_hub_api.Tests.Services.Users
         // ── Register — guard clauses ──────────────────────────────────────────────
 
         [Fact]
-        public async Task Register_ReturnsFailure_WhenEmailAlreadyExists()
+        public async Task Register_DoesNotRevealExistingAccountWithoutVerification()
         {
             _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(true);
 
             var result = await _sut.Register(new AddUserDto { Email = "john@test.com", Password = ValidPassword });
 
             result.Success.Should().BeFalse();
-            result.Message.Should().Contain("already exists");
+            result.StatusCode.Should().Be(403);
+            result.Message.Should().Be("Email verification is required before registration.");
+            _userRepo.Verify(r => r.UserExists(It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
