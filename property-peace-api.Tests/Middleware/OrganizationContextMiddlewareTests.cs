@@ -20,7 +20,7 @@ public sealed class OrganizationContextMiddlewareTests
     [Fact]
     public async Task InvokeAsync_WithoutHeader_UsesPersistedCurrentOrganizationAndContinuesPipeline()
     {
-        var fixture = CreateFixture();
+        var fixture = CreateFixture(persistedOrganizationIsMember: true);
 
         await fixture.InvokeAsync();
 
@@ -30,8 +30,24 @@ public sealed class OrganizationContextMiddlewareTests
         fixture.Context.Items["UserId"].Should().Be(UserId);
         fixture.Users.Verify(repository => repository.GetUser(UserId), Times.Once);
         fixture.Members.Verify(
-            repository => repository.IsUserMemberOfOrganizationAsync(It.IsAny<long>(), It.IsAny<long>()),
-            Times.Never);
+            repository => repository.IsUserMemberOfOrganizationAsync(UserId, PersistedOrganizationId),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task InvokeAsync_WithoutHeader_WhenPersistedOrganizationMembershipWasRevoked_ReturnsForbidden()
+    {
+        var fixture = CreateFixture(persistedOrganizationIsMember: false);
+
+        await fixture.InvokeAsync();
+
+        fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        fixture.NextWasCalled.Should().BeFalse();
+        fixture.Context.Items.Should().NotContainKey("OrganizationId");
+        fixture.Context.Items.Should().NotContainKey("UserId");
+        fixture.Members.Verify(
+            repository => repository.IsUserMemberOfOrganizationAsync(UserId, PersistedOrganizationId),
+            Times.Once);
     }
 
     [Fact]
@@ -88,7 +104,26 @@ public sealed class OrganizationContextMiddlewareTests
         fixture.Users.Verify(repository => repository.GetUser(It.IsAny<long>()), Times.Never);
     }
 
-    private static Fixture CreateFixture(string? organizationHeader = null, bool isMember = false)
+    [Fact]
+    public async Task InvokeAsync_WhenMembershipVerificationFails_ReturnsServerErrorWithoutContinuing()
+    {
+        var fixture = CreateFixture(RequestedOrganizationId.ToString());
+        fixture.Members
+            .Setup(repository => repository.IsUserMemberOfOrganizationAsync(UserId, RequestedOrganizationId))
+            .ThrowsAsync(new InvalidOperationException("membership store unavailable"));
+
+        await fixture.InvokeAsync();
+
+        fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        fixture.NextWasCalled.Should().BeFalse();
+        fixture.Context.Items.Should().NotContainKey("OrganizationId");
+        fixture.Context.Items.Should().NotContainKey("UserId");
+    }
+
+    private static Fixture CreateFixture(
+        string? organizationHeader = null,
+        bool isMember = false,
+        bool persistedOrganizationIsMember = false)
     {
         var context = new DefaultHttpContext
         {
@@ -111,6 +146,8 @@ public sealed class OrganizationContextMiddlewareTests
         var members = new Mock<IOrganizationMemberRepository>();
         members.Setup(repository => repository.IsUserMemberOfOrganizationAsync(UserId, RequestedOrganizationId))
             .ReturnsAsync(isMember);
+        members.Setup(repository => repository.IsUserMemberOfOrganizationAsync(UserId, PersistedOrganizationId))
+            .ReturnsAsync(persistedOrganizationIsMember);
 
         var fixture = new Fixture(context, users, members);
         fixture.Middleware = new OrganizationContextMiddleware(

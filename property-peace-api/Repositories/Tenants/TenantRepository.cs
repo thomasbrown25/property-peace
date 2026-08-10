@@ -134,14 +134,21 @@ namespace brownstone_hub_api.Repositories.Tenants
             return _mapper.Map<LoadTenantDto>(existingTenant);
         }
 
-        public async Task<List<LoadTenantDto>> GetTenantsByLeaseId(long leaseId)
+        public Task<List<LoadTenantDto>> GetTenantsByLeaseId(long leaseId) => GetTenantsByLeaseIdCore(leaseId, null);
+
+        public Task<List<LoadTenantDto>> GetTenantsByLeaseId(long leaseId, long organizationId) => GetTenantsByLeaseIdCore(leaseId, organizationId);
+
+        private async Task<List<LoadTenantDto>> GetTenantsByLeaseIdCore(long leaseId, long? organizationId)
         {
-            var lease = await _context.Leases.AsNoTracking().FirstOrDefaultAsync(l => l.Id == leaseId);
+            var lease = await _context.Leases.AsNoTracking()
+                .FirstOrDefaultAsync(l => l.Id == leaseId
+                    && (!organizationId.HasValue || l.Unit.Property.OrganizationId == organizationId.Value));
             if (lease == null) return new List<LoadTenantDto>();
 
             // Only return tenants that are assigned to this lease's unit. Org-only tenants (UnitId null) must not appear on any lease.
             var tenantLeases = await _context.TenantLeases
-                .Where(tl => tl.LeaseId == leaseId)
+                .Where(tl => tl.LeaseId == leaseId
+                    && (!organizationId.HasValue || tl.Tenant.OrganizationId == organizationId.Value))
                 .Include(tl => tl.Tenant)
                     .ThenInclude(t => t.User)
                 .ToListAsync();
@@ -153,7 +160,11 @@ namespace brownstone_hub_api.Repositories.Tenants
             return _mapper.Map<List<LoadTenantDto>>(tenants);
         }
 
-        public async Task<LoadTenantDto> GetTenantById(long id)
+        public Task<LoadTenantDto> GetTenantById(long id) => GetTenantByIdCore(id, null);
+
+        public Task<LoadTenantDto> GetTenantById(long id, long organizationId) => GetTenantByIdCore(id, organizationId);
+
+        private async Task<LoadTenantDto> GetTenantByIdCore(long id, long? organizationId)
         {
             var tenant = await _context.Tenants
                 .Include(t => t.User)
@@ -163,7 +174,7 @@ namespace brownstone_hub_api.Repositories.Tenants
                     .ThenInclude(tl => tl.Lease)
                 .Include(t => t.Unit)
                     .ThenInclude(u => u.Property)
-                .FirstOrDefaultAsync(t => t.Id == id);
+                .FirstOrDefaultAsync(t => t.Id == id && (!organizationId.HasValue || t.OrganizationId == organizationId.Value));
 
             return _mapper.Map<LoadTenantDto>(tenant);
         }
@@ -300,7 +311,11 @@ namespace brownstone_hub_api.Repositories.Tenants
                 .AnyAsync(t => t.Email != null && t.Email.ToLower().Equals(email.ToLower()));
         }
 
-        public async Task<LoadTenantDto?> GetTenantByEmail(string email)
+        public Task<LoadTenantDto?> GetTenantByEmail(string email) => GetTenantByEmailCore(email, null);
+
+        public Task<LoadTenantDto?> GetTenantByEmail(string email, long organizationId) => GetTenantByEmailCore(email, organizationId);
+
+        private async Task<LoadTenantDto?> GetTenantByEmailCore(string email, long? organizationId)
         {
             if (string.IsNullOrWhiteSpace(email))
                 return null;
@@ -311,7 +326,7 @@ namespace brownstone_hub_api.Repositories.Tenants
                     .ThenInclude(u => u.Property)
                 .Include(t => t.TenantLeases)
                     .ThenInclude(tl => tl.Lease)
-                .FirstOrDefaultAsync(t => t.Email != null && t.Email.ToLower().Equals(email.ToLower()) && !t.IsDeleted);
+                .FirstOrDefaultAsync(t => t.Email != null && t.Email.ToLower().Equals(email.ToLower()) && !t.IsDeleted && (!organizationId.HasValue || t.OrganizationId == organizationId.Value));
 
             return tenant == null ? null : _mapper.Map<LoadTenantDto>(tenant);
         }

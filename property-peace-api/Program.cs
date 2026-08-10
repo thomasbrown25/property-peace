@@ -473,6 +473,7 @@ services.AddHttpClient<IAppleAuthService, AppleAuthService>();
 services.AddScoped<IUserService, UserService>();
 var dataProtectionKeysPath = configuration["DataProtection:KeysPath"];
 if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+services.AddScoped<brownstone_hub_api.Services.Activation.IActivationService, brownstone_hub_api.Services.Activation.ActivationService>();
     dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
 Directory.CreateDirectory(dataProtectionKeysPath);
 services.AddDataProtection()

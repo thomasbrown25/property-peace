@@ -1676,7 +1676,7 @@ export default function LeasePage() {
         onUploadDocument={() => navigate(`/landlord/leases/${leaseId}/upload-document`)}
         onEditTerms={() => { dispatch(setLease(lease)); drawer.openLeaseEditDrawer(); }}
         onOpenSignature={() => setSendSignatureDialogOpen(true)}
-        onConfigureRent={() => navigate(propertyId ? `/landlord/rent-collection/${propertyId}` : '/landlord/rent-collection')}
+        onConfigureRent={() => navigate(leaseId ? `/landlord/rent-collection/${leaseId}` : '/landlord/rent-collection')}
         onCustomizeConditionReport={() => navigate('/landlord/customize-move-in-report', {
           state: {
             fromLeaseId: lease?.id ?? lease?.Id,

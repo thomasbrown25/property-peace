@@ -19,7 +19,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         public async Task<IActionResult> CreateInvite([FromBody] AddTenantInviteDto invite)
         {
-            var response = await _tenantInviteService.CreateInvite(invite);
+            if (!TryGetValidatedManagementContext(out var userId, out var organizationId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Validated organization context is required." });
+
+            var response = await _tenantInviteService.CreateInvite(invite, userId, organizationId);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -43,7 +46,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         public async Task<IActionResult> GetInvitesByTenantId(long tenantId)
         {
-            var response = await _tenantInviteService.GetInvitesByTenantId(tenantId);
+            if (!TryGetValidatedManagementContext(out var userId, out var organizationId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Validated organization context is required." });
+
+            var response = await _tenantInviteService.GetInvitesByTenantId(tenantId, userId, organizationId);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -55,7 +61,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         public async Task<IActionResult> GetInvitesByLandlordId()
         {
-            var response = await _tenantInviteService.GetInvitesByLandlordId();
+            if (!TryGetValidatedManagementContext(out var userId, out var organizationId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Validated organization context is required." });
+
+            var response = await _tenantInviteService.GetInvitesByLandlordId(userId, organizationId);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -67,7 +76,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         public async Task<IActionResult> DeleteInvite(long inviteId)
         {
-            var response = await _tenantInviteService.DeleteInvite(inviteId);
+            if (!TryGetValidatedManagementContext(out var userId, out var organizationId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Validated organization context is required." });
+
+            var response = await _tenantInviteService.DeleteInvite(inviteId, userId, organizationId);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -79,7 +91,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         public async Task<IActionResult> ResendInvite(long inviteId)
         {
-            var response = await _tenantInviteService.ResendInvite(inviteId);
+            if (!TryGetValidatedManagementContext(out var userId, out var organizationId))
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Validated organization context is required." });
+
+            var response = await _tenantInviteService.ResendInvite(inviteId, userId, organizationId);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -109,6 +124,31 @@ namespace brownstone_hub_api.Controllers
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
 
             return Ok(response);
+        }
+
+        private bool TryGetValidatedManagementContext(out long userId, out long organizationId)
+        {
+            userId = 0;
+            organizationId = 0;
+            var rawUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("userId")?.Value
+                ?? User.FindFirst("sub")?.Value;
+            if (!long.TryParse(rawUserId, out var claimUserId) || claimUserId <= 0)
+                return false;
+
+            if (!HttpContext.Items.TryGetValue("UserId", out var contextUserValue)
+                || contextUserValue is not long contextUserId
+                || contextUserId != claimUserId
+                || !HttpContext.Items.TryGetValue("OrganizationId", out var organizationValue)
+                || organizationValue is not long contextOrganizationId
+                || contextOrganizationId <= 0)
+            {
+                return false;
+            }
+
+            userId = contextUserId;
+            organizationId = contextOrganizationId;
+            return true;
         }
     }
 }

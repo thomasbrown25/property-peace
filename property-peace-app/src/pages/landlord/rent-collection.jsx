@@ -355,11 +355,7 @@ export default function RentCollection() {
     }
   };
 
-  const handleViewLease = (rent) => {
-    navigate(`/landlord/rent-collection/${rent.leaseId}`);
-  };
 
-  // Helper function to get icon and label for each tab
   const getTabDisplay = (tabValue) => {
     const tabConfig = {
       active: { icon: <CheckCircleOutlined style={{ fontSize: 16 }} />, label: 'Active' },
@@ -440,7 +436,7 @@ export default function RentCollection() {
             }
           }}
         >
-          <PropertySelect width={300} />
+          <PropertySelect width="100%" requestedPropertyId={searchParams.get('propertyId')} />
 
           <Box
             sx={{
@@ -567,7 +563,7 @@ export default function RentCollection() {
                 if (selectedProperty?.id) {
                   params.set('propertyId', selectedProperty.id);
                 }
-                navigate('/landlord/leases/selection');
+                navigate(`/landlord/leases/selection${params.size ? `?${params.toString()}` : ''}`);
               }}
               sx={{
                 color: 'primary.main',
@@ -602,7 +598,7 @@ export default function RentCollection() {
           <Grid container spacing={3}>
             {sortedRents.map((rent) => (
               <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={rent.leaseId || rent.id}>
-                <RentCard rent={rent} onSendReminder={handleSendReminder} onViewLease={handleViewLease} />
+                <RentCard rent={rent} onSendReminder={handleSendReminder} />
               </Grid>
             ))}
           </Grid>

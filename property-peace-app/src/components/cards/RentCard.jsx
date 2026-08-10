@@ -13,7 +13,7 @@ import { useModal } from 'contexts/ModalContext';
 import { Link } from 'react-router-dom';
 import { formatRentStatus, getRentStatusColor } from '../../utils/formatters';
 
-export default function RentCard({ rent, onSendReminder, onViewLease }) {
+export default function RentCard({ rent, onSendReminder }) {
   const modal = useModal();
   const propertyDisplay =
     rent.propertyType?.toLowerCase() === 'singlefamily' ? rent.propertyName : `${rent.propertyName} – ${rent.unitName}`;
@@ -78,22 +78,28 @@ export default function RentCard({ rent, onSendReminder, onViewLease }) {
       <Divider sx={{ my: 2 }} />
 
       {/* Actions */}
-      <Stack direction="row" justifyContent="space-between" mt="auto">
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        gap={1}
+        mt="auto"
+        sx={{ flexWrap: 'wrap' }}
+      >
         <Button
           component={Link}
-          to={`/landlord/rent-collection/${rent.propertyId}`}
+          to={`/landlord/rent-collection?propertyId=${rent.propertyId}`}
           size="small"
           variant="outlined"
           startIcon={<EyeOutlined />}
-          onClick={() => onViewLease(rent)}
+          sx={{ minHeight: 44 }}
         >
           View Payments
         </Button>
         <Stack direction="row" gap={1}>
-          <Button size="small" variant="outlined" color="success" startIcon={<CheckCircleOutlined />} onClick={handleMarkPaid}>
-            Make Payment
+          <Button size="small" variant="outlined" color="success" startIcon={<CheckCircleOutlined />} onClick={handleMarkPaid} sx={{ minHeight: 44 }}>
+            Record Payment
           </Button>
-          <IconButton size="small" color="warning" onClick={() => onSendReminder(rent)}>
+          <IconButton size="small" color="warning" onClick={() => onSendReminder(rent)} aria-label={`Send rent reminder for ${propertyDisplay}`} sx={{ minWidth: 44, minHeight: 44 }}>
             <MailOutlined />
           </IconButton>
         </Stack>

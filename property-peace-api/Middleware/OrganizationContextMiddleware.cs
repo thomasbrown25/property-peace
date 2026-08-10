@@ -96,12 +96,28 @@ namespace brownstone_hub_api.Middleware
                             // With no explicit selection, preserve the product convention of using
                             // the user's persisted current organization as the default.
                             var user = await userRepository.GetUser(userId.Value);
-                            if (user?.CurrentOrganizationId != null)
+                            if (user?.CurrentOrganizationId is > 0)
                             {
-                                context.Items["OrganizationId"] = user.CurrentOrganizationId;
+                                var persistedOrganizationId = user.CurrentOrganizationId.Value;
+                                var isMember = await memberRepository.IsUserMemberOfOrganizationAsync(
+                                    userId.Value,
+                                    persistedOrganizationId);
+                                if (!isMember)
+                                {
+                                    _logger.LogWarning(
+                                        "User {UserId}'s persisted organization {OrganizationId} is no longer an authorized membership.",
+                                        userId.Value,
+                                        persistedOrganizationId);
+                                    context.Items.Remove("OrganizationId");
+                                    context.Items.Remove("UserId");
+                                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                                    return;
+                                }
+
+                                context.Items["OrganizationId"] = persistedOrganizationId;
                                 context.Items["UserId"] = userId.Value;
                                 _logger.LogDebug("Organization context set from user's CurrentOrganizationId: {OrganizationId} for UserId: {UserId}", 
-                                    user.CurrentOrganizationId, userId.Value);
+                                    persistedOrganizationId, userId.Value);
                             }
                             else
                             {
@@ -118,7 +134,12 @@ namespace brownstone_hub_api.Middleware
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error setting organization context");
-                    // Continue without organization context - let authorization handle it
+                    // Organization authorization could not be verified. Fail closed rather than
+                    // allowing an authenticated request to continue with stale or absent scope.
+                    context.Items.Remove("OrganizationId");
+                    context.Items.Remove("UserId");
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    return;
                 }
             }
 

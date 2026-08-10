@@ -499,6 +499,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task CompleteDraft_ReturnsSuccess_WhenLeaseExists()
         {
             SetOrgContext(10);
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(MakeLeaseDto(1));
             _leaseRepo.Setup(r => r.CompleteDraft(1, 10)).ReturnsAsync(MakeLeaseDto(1));
 
             var result = await _sut.CompleteDraft(1);

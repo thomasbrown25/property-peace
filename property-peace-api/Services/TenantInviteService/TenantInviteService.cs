@@ -37,238 +37,56 @@ namespace brownstone_hub_api.Services.TenantInviteService
             return user?.Id;
         }
 
-        public async Task<ServiceResponse<LoadTenantInviteDto>> CreateInvite(AddTenantInviteDto invite)
+        public async Task<ServiceResponse<LoadTenantInviteDto>> CreateInvite(AddTenantInviteDto invite, long userId, long organizationId)
         {
             try
             {
-                var landlordId = await GetCurrentUserIdAsync();
-                if (!landlordId.HasValue)
-                {
-                    return ServiceResponse<LoadTenantInviteDto>.CreateError("User not found", "User not authenticated", "", 401);
-                }
+                if (!await CanManageTenantsAsync(userId, organizationId))
+                    return ServiceResponse<LoadTenantInviteDto>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
 
-                // Verify tenant exists and belongs to this landlord
-                var tenant = await _tenantRepository.GetTenantById(invite.TenantId);
+                var tenant = await _dataContext.Tenants.AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.Id == invite.TenantId && t.OrganizationId == organizationId && !t.IsDeleted);
                 if (tenant == null)
+                    return ServiceResponse<LoadTenantInviteDto>.CreateError("Tenant not found", statusCode: 404);
+
+                if (string.IsNullOrWhiteSpace(tenant.Email) || string.IsNullOrWhiteSpace(invite.Email)
+                    || !string.Equals(tenant.Email.Trim(), invite.Email.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return ServiceResponse<LoadTenantInviteDto>.CreateError("Invite email must match the tenant's saved email address", statusCode: 400);
+
+                var existingInvites = await _tenantInviteRepository.GetInvitesByTenantId(invite.TenantId, organizationId);
+                if (existingInvites.Any(i => !i.IsUsed && i.ExpiresAt > DateTime.UtcNow))
+                    return ServiceResponse<LoadTenantInviteDto>.CreateError("A valid invite already exists for this tenant", statusCode: 409);
+
+                var token = GenerateSecureToken();
+                var created = await _tenantInviteRepository.CreateInvite(invite, userId, organizationId, token, DateTime.UtcNow.AddDays(7));
+                if (!await SendInviteEmailAsync(created, token))
                 {
-                    return ServiceResponse<LoadTenantInviteDto>.CreateError("Tenant not found");
+                    await _tenantInviteRepository.DeleteInvite(created.Id);
+                    return ServiceResponse<LoadTenantInviteDto>.CreateError("Portal invite could not be delivered. Verify the tenant email and try again.", statusCode: 502);
                 }
 
-                _logger.LogInformation("[TenantInviteService] CreateInvite called for TenantId: {TenantId}, Email: {Email}", invite.TenantId, invite.Email);
-
-                // Get tenant entity to check TenantLeases and OrganizationId
-                var tenantEntity = await _dataContext.Tenants
-                    .Include(t => t.TenantLeases)
-                    .FirstOrDefaultAsync(t => t.Id == invite.TenantId);
-
-                if (tenantEntity == null)
+                var existingUser = await _userRepository.GetUserByEmailAsync(invite.Email.Trim());
+                if (existingUser != null)
                 {
-                    return ServiceResponse<LoadTenantInviteDto>.CreateError("Tenant not found");
-                }
-
-                // Check if tenant already has a user account
-                // If they do, we should still allow invites if they're being added to a new lease
-                // The invite will allow them to accept the new lease relationship
-                if (tenantEntity.UserId.HasValue)
-                {
-                    _logger.LogInformation("[TenantInviteService] Tenant {TenantId} already has UserId: {UserId}. Checking if invite is for new lease relationship.",
-                        tenantEntity.Id, tenantEntity.UserId.Value);
-
-                    // If tenant has UserId, they already have an account
-                    // But we should still allow the invite if they're being added to a new lease
-                    // The invite acceptance will create the TenantLease relationship
-                    // We'll continue to create the invite below - don't block it
-                    _logger.LogInformation("[TenantInviteService] Allowing invite for existing tenant account - they can accept the new lease relationship.");
-                }
-
-                // Check if this is a placeholder tenant (has email but no UserId)
-                // Placeholder tenants should NOT be auto-connected - they need to accept the invite first
-                bool isPlaceholderTenant = !tenantEntity.UserId.HasValue && !string.IsNullOrEmpty(tenantEntity.Email);
-                _logger.LogInformation("[TenantInviteService] Tenant {TenantId} isPlaceholder: {IsPlaceholder}, Email: {Email}, UserId: {UserId}",
-                    tenantEntity.Id, isPlaceholderTenant, tenantEntity.Email, tenantEntity.UserId);
-
-                // Check if a user with that email already exists
-                if (!string.IsNullOrEmpty(invite.Email))
-                {
-                    var existingUser = await _userRepository.GetUserByEmailAsync(invite.Email);
-                    if (existingUser != null)
+                    try
                     {
-                        _logger.LogInformation("[TenantInviteService] Found existing user with email {Email}, UserId: {UserId}, Roles: {Roles}",
-                            invite.Email, existingUser.Id, string.Join(", ", existingUser.Roles ?? new List<string>()));
-
-                        // If this is a placeholder tenant, DO NOT auto-connect - just create and send the invite
-                        // The user will accept the invite and connect themselves
-                        if (isPlaceholderTenant)
+                        await _notificationService.CreateNotification(new CreateNotificationDto
                         {
-                            _logger.LogInformation("[TenantInviteService] Placeholder tenant detected - skipping auto-connect. Will create invite for user to accept.");
-                            // Continue to create invite below - don't auto-connect
-                        }
-                        else
-                        {
-                            // User exists - check if they have Tenant role
-                            if (existingUser.Roles != null && existingUser.Roles.Contains("Tenant", StringComparer.OrdinalIgnoreCase))
-                            {
-                                _logger.LogInformation("[TenantInviteService] Auto-connecting existing tenant user {UserId} to tenant {TenantId}",
-                                    existingUser.Id, tenant.Id);
-
-                                // User is a Tenant - link tenant record to user and connect to org/property/lease/unit
-                                // Use the tenantEntity already loaded above to access OrganizationId
-                                var tenantOrganizationId = tenantEntity.OrganizationId;
-
-                                var updateTenantDto = new brownstone_hub_api.Dtos.Tenant.AddTenantDto
-                                {
-                                    Id = tenant.Id,
-                                    UserId = existingUser.Id,
-                                    Firstname = tenant.Firstname,
-                                    Lastname = tenant.Lastname,
-                                    Email = tenant.Email,
-                                    PhoneNumber = tenant.PhoneNumber,
-                                    LeaseId = tenant.LeaseId,
-                                    UnitId = tenant.UnitId,
-                                    IsActive = tenant.IsActive,
-                                    OrganizationId = tenantOrganizationId
-                                };
-
-                                await _tenantRepository.UpdateTenant(tenant.Id, updateTenantDto);
-
-                                // Set user's CurrentOrganizationId to tenant's OrganizationId if tenant has one
-                                if (tenantOrganizationId.HasValue)
-                                {
-                                    await _userRepository.UpdateCurrentOrganizationIdAsync(existingUser.Id, tenantOrganizationId.Value);
-                                    _logger.LogInformation("Linked existing tenant user {UserId} to tenant record {TenantId} and set CurrentOrganizationId to {OrganizationId}",
-                                        existingUser.Id, tenant.Id, tenantOrganizationId.Value);
-                                }
-                                else
-                                {
-                                    _logger.LogInformation("Linked existing tenant user {UserId} to tenant record {TenantId}",
-                                        existingUser.Id, tenant.Id);
-                                }
-
-                                // Return success with message indicating account already exists
-                                // Return null for Data since no invite was created
-                                return new ServiceResponse<LoadTenantInviteDto>
-                                {
-                                    Success = true,
-                                    Message = $"Tenant account already exists. {invite.Email} has been connected to this tenant.",
-                                    Data = null,
-                                    StatusCode = 200
-                                };
-                            }
-                            else
-                            {
-                                // User exists but is not a Tenant
-                                _logger.LogWarning("[TenantInviteService] User {UserId} exists but is not a Tenant", existingUser.Id);
-                                return ServiceResponse<LoadTenantInviteDto>.CreateError(
-                                    "A user with that email already exists",
-                                    "The email address belongs to a user who is not a tenant. Please use a different email address.",
-                                    statusCode: 400
-                                );
-                            }
-                        }
+                            UserId = existingUser.Id, Type = ENotificationType.TenantInvite,
+                            Title = "Portal invitation", Message = "You've been invited to connect your account to a lease.",
+                            RelatedId = created.Id, SendEmail = false, SendSMS = false
+                        });
                     }
-                    else
-                    {
-                        _logger.LogInformation("[TenantInviteService] No existing user found with email {Email}", invite.Email);
-                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Failed to create in-app notification for tenant invite"); }
                 }
 
-                // Check if there's already a valid (unused, not expired) invite for this tenant
-                var existingInvites = await _tenantInviteRepository.GetInvitesByTenantId(invite.TenantId);
-                var validInvite = existingInvites.FirstOrDefault(i => !i.IsUsed && i.ExpiresAt > DateTime.Now);
-
-                // For placeholder tenants (existing users who haven't joined yet), allow creating a new invite
-                // even if a valid one exists - this allows sending fresh reminder invites
-                // For tenants who already have accounts (UserId), allow new invites when being added to new leases
-                // For new users without accounts, prevent duplicate invites
-                bool shouldAllowNewInvite = isPlaceholderTenant || tenantEntity.UserId.HasValue;
-
-                if (validInvite != null && !shouldAllowNewInvite)
-                {
-                    return ServiceResponse<LoadTenantInviteDto>.CreateError("A valid invite already exists for this tenant");
-                }
-
-                // If we're allowing a new invite even though one exists, log it
-                if (validInvite != null && shouldAllowNewInvite)
-                {
-                    if (isPlaceholderTenant)
-                    {
-                        _logger.LogInformation("[TenantInviteService] Placeholder tenant has existing invite, but creating new invite for reminder. TenantId: {TenantId}", invite.TenantId);
-                    }
-                    else if (tenantEntity.UserId.HasValue)
-                    {
-                        _logger.LogInformation("[TenantInviteService] Tenant with existing account has invite, but creating new invite for new lease relationship. TenantId: {TenantId}", invite.TenantId);
-                    }
-                }
-
-                // Generate secure token
-                var inviteToken = GenerateSecureToken();
-                var expiresAt = DateTime.Now.AddDays(7); // Invite expires in 7 days
-
-                _logger.LogInformation("[TenantInviteService] Creating invite for TenantId: {TenantId}, Email: {Email}, Token: {Token}",
-                    invite.TenantId, invite.Email, inviteToken);
-
-                var createdInvite = await _tenantInviteRepository.CreateInvite(invite, landlordId.Value, inviteToken, expiresAt);
-
-                _logger.LogInformation("[TenantInviteService] Invite created successfully. InviteId: {InviteId}", createdInvite.Id);
-
-                // Send invite email
-                try
-                {
-                    _logger.LogInformation("[TenantInviteService] Sending invite email to {Email}", invite.Email);
-                    await SendInviteEmailAsync(createdInvite, inviteToken);
-                    _logger.LogInformation("[TenantInviteService] Invite email sent successfully to {Email}", invite.Email);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to send invite email, but invite was created. Invite ID: {InviteId}", createdInvite.Id);
-                    // Don't fail the request if email fails - invite is still created
-                }
-
-                // If invite was sent to an existing user (placeholder tenant), send in-app notification
-                if (!string.IsNullOrWhiteSpace(invite.Email))
-                {
-                    var existingUser = await _userRepository.GetUserByEmailAsync(invite.Email.Trim());
-                    if (existingUser != null)
-                    {
-                        try
-                        {
-                            string propertyName = "a property";
-                            var tenantWithProperty = await _dataContext.Tenants
-                                .Include(t => t.Unit).ThenInclude(u => u.Property)
-                                .Include(t => t.TenantLeases).ThenInclude(tl => tl.Lease).ThenInclude(l => l.Unit).ThenInclude(u => u.Property)
-                                .FirstOrDefaultAsync(t => t.Id == createdInvite.TenantId);
-                            if (tenantWithProperty?.Unit?.Property != null)
-                                propertyName = tenantWithProperty.Unit.Property.Name ?? propertyName;
-                            else if (tenantWithProperty?.TenantLeases?.FirstOrDefault()?.Lease?.Unit?.Property != null)
-                                propertyName = tenantWithProperty.TenantLeases!.First().Lease.Unit.Property.Name ?? propertyName;
-
-                            var notificationDto = new CreateNotificationDto
-                            {
-                                UserId = existingUser.Id,
-                                Type = ENotificationType.TenantInvite,
-                                Title = "Portal invitation",
-                                Message = $"You've been invited to join {propertyName}. Accept the invitation to connect your account to the lease.",
-                                RelatedId = createdInvite.Id,
-                                SendEmail = false,
-                                SendSMS = false
-                            };
-                            await _notificationService.CreateNotification(notificationDto);
-                            _logger.LogInformation("[TenantInviteService] Sent in-app tenant invite notification to user {UserId}", existingUser.Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Failed to create in-app notification for tenant invite");
-                        }
-                    }
-                }
-
-                _logger.LogInformation("[TenantInviteService] CreateInvite completed successfully for TenantId: {TenantId}", invite.TenantId);
-                return new ServiceResponse<LoadTenantInviteDto> { Data = createdInvite };
+                SanitizeManagementInvite(created);
+                return ServiceResponse<LoadTenantInviteDto>.CreateSuccess(created, "Portal invite sent");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating tenant invite");
-                return ServiceResponse<LoadTenantInviteDto>.CreateError("Error creating invite", ex.Message);
+                return ServiceResponse<LoadTenantInviteDto>.CreateError("Error creating invite");
             }
         }
 
@@ -278,7 +96,8 @@ namespace brownstone_hub_api.Services.TenantInviteService
             {
                 var invite = await _tenantInviteRepository.GetInviteByToken(token);
 
-                if (invite == null)
+                if (invite == null || invite.OrganizationId <= 0
+                    || !await InviteMatchesCurrentTenantEmailAsync(invite))
                 {
                     return new ServiceResponse<ValidateInviteTokenDto>
                     {
@@ -327,7 +146,7 @@ namespace brownstone_hub_api.Services.TenantInviteService
                     var tenantWithRelations = await _dataContext.Tenants
                         .Include(t => t.Unit)
                             .ThenInclude(u => u.Property)
-                        .FirstOrDefaultAsync(t => t.Id == tenantId);
+                        .FirstOrDefaultAsync(t => t.Id == tenantId && t.OrganizationId == invite.OrganizationId);
 
                     if (tenantWithRelations?.Unit?.Property != null)
                     {
@@ -365,117 +184,74 @@ namespace brownstone_hub_api.Services.TenantInviteService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error validating invite token");
-                return ServiceResponse<ValidateInviteTokenDto>.CreateError("Error validating invite", ex.Message);
+                return ServiceResponse<ValidateInviteTokenDto>.CreateError("Error validating invite");
             }
         }
 
-        public async Task<ServiceResponse<List<LoadTenantInviteDto>>> GetInvitesByTenantId(long tenantId)
+        public async Task<ServiceResponse<List<LoadTenantInviteDto>>> GetInvitesByTenantId(long tenantId, long userId, long organizationId)
         {
             try
             {
-                var invites = await _tenantInviteRepository.GetInvitesByTenantId(tenantId);
-                return new ServiceResponse<List<LoadTenantInviteDto>> { Data = invites };
+                if (!await CanManageTenantsAsync(userId, organizationId))
+                    return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
+                if (!await TenantBelongsToOrganizationAsync(tenantId, organizationId))
+                    return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("Tenant not found", statusCode: 404);
+                var invites = await _tenantInviteRepository.GetInvitesByTenantId(tenantId, organizationId);
+                foreach (var invite in invites) SanitizeManagementInvite(invite);
+                return ServiceResponse<List<LoadTenantInviteDto>>.CreateSuccess(invites);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting invites by tenant id");
-                return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("Error getting invites", ex.Message);
-            }
+            catch (Exception ex) { _logger.LogError(ex, "Error getting tenant invites"); return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("Error getting invites"); }
         }
 
-        public async Task<ServiceResponse<List<LoadTenantInviteDto>>> GetInvitesByLandlordId()
+        public async Task<ServiceResponse<List<LoadTenantInviteDto>>> GetInvitesByLandlordId(long userId, long organizationId)
         {
             try
             {
-                var landlordId = await GetCurrentUserIdAsync();
-                if (!landlordId.HasValue)
-                {
-                    return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("User not found", "User not authenticated", "", 401);
-                }
-
-                var invites = await _tenantInviteRepository.GetInvitesByLandlordId(landlordId.Value);
-                return new ServiceResponse<List<LoadTenantInviteDto>> { Data = invites };
+                if (!await CanManageTenantsAsync(userId, organizationId))
+                    return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
+                var invites = await _tenantInviteRepository.GetInvitesByLandlordId(userId, organizationId);
+                foreach (var invite in invites) SanitizeManagementInvite(invite);
+                return ServiceResponse<List<LoadTenantInviteDto>>.CreateSuccess(invites);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting invites by landlord id");
-                return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("Error getting invites", ex.Message);
-            }
+            catch (Exception ex) { _logger.LogError(ex, "Error getting tenant invites"); return ServiceResponse<List<LoadTenantInviteDto>>.CreateError("Error getting invites"); }
         }
 
-        public async Task<ServiceResponse<bool>> DeleteInvite(long inviteId)
+        public async Task<ServiceResponse<bool>> DeleteInvite(long inviteId, long userId, long organizationId)
         {
             try
             {
-                var landlordId = await GetCurrentUserIdAsync();
-                if (!landlordId.HasValue)
-                {
-                    return ServiceResponse<bool>.CreateError("User not found", "User not authenticated", "", 401);
-                }
-
-                var invite = await _tenantInviteRepository.GetInviteById(inviteId);
-                if (invite == null)
-                {
-                    return ServiceResponse<bool>.CreateError("Invite not found");
-                }
-
-                if (invite.CreatedBy != landlordId.Value)
-                {
-                    return ServiceResponse<bool>.CreateError("You don't have permission to delete this invite");
-                }
-
-                var result = await _tenantInviteRepository.DeleteInvite(inviteId);
-                return new ServiceResponse<bool> { Data = result };
+                if (!await CanManageTenantsAsync(userId, organizationId))
+                    return ServiceResponse<bool>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
+                var invite = await _tenantInviteRepository.GetInviteById(inviteId, organizationId);
+                if (invite == null || invite.OrganizationId != organizationId || !await TenantBelongsToOrganizationAsync(invite.TenantId, organizationId))
+                    return ServiceResponse<bool>.CreateError("Invite not found", statusCode: 404);
+                return ServiceResponse<bool>.CreateSuccess(await _tenantInviteRepository.DeleteInvite(inviteId));
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting invite");
-                return ServiceResponse<bool>.CreateError("Error deleting invite", ex.Message);
-            }
+            catch (Exception ex) { _logger.LogError(ex, "Error deleting tenant invite"); return ServiceResponse<bool>.CreateError("Error deleting invite"); }
         }
 
-        public async Task<ServiceResponse<bool>> ResendInvite(long inviteId)
+        public async Task<ServiceResponse<bool>> ResendInvite(long inviteId, long userId, long organizationId)
         {
             try
             {
-                var landlordId = await GetCurrentUserIdAsync();
-                if (!landlordId.HasValue)
+                if (!await CanManageTenantsAsync(userId, organizationId))
+                    return ServiceResponse<bool>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
+                var invite = await _tenantInviteRepository.GetInviteById(inviteId, organizationId);
+                if (invite == null || invite.OrganizationId != organizationId || !await InviteMatchesCurrentTenantEmailAsync(invite))
+                    return ServiceResponse<bool>.CreateError("Invite not found", statusCode: 404);
+
+                var request = new AddTenantInviteDto { TenantId = invite.TenantId, Email = invite.Email };
+                var token = GenerateSecureToken();
+                var replacement = await _tenantInviteRepository.CreateInvite(request, userId, organizationId, token, DateTime.UtcNow.AddDays(7));
+                if (!await SendInviteEmailAsync(replacement, token))
                 {
-                    return ServiceResponse<bool>.CreateError("User not found", "User not authenticated", "", 401);
+                    await _tenantInviteRepository.DeleteInvite(replacement.Id);
+                    return ServiceResponse<bool>.CreateError("Portal invite could not be delivered. The existing invite remains valid.", statusCode: 502);
                 }
-
-                var invite = await _tenantInviteRepository.GetInviteById(inviteId);
-                if (invite == null)
-                {
-                    return ServiceResponse<bool>.CreateError("Invite not found");
-                }
-
-                if (invite.CreatedBy != landlordId.Value)
-                {
-                    return ServiceResponse<bool>.CreateError("You don't have permission to resend this invite");
-                }
-
-                // Mark old invite as used and create a new one
-                await _tenantInviteRepository.MarkInviteAsUsed(invite.InviteToken);
-
-                var newInvite = new AddTenantInviteDto
-                {
-                    TenantId = invite.TenantId,
-                    Email = invite.Email
-                };
-
-                var newToken = GenerateSecureToken();
-                var expiresAt = DateTime.Now.AddDays(7);
-
-                await _tenantInviteRepository.CreateInvite(newInvite, landlordId.Value, newToken, expiresAt);
-
-                return new ServiceResponse<bool> { Data = true };
+                await _tenantInviteRepository.DeleteInvite(invite.Id);
+                return ServiceResponse<bool>.CreateSuccess(true);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error resending invite");
-                return ServiceResponse<bool>.CreateError("Error resending invite", ex.Message);
-            }
+            catch (Exception ex) { _logger.LogError(ex, "Error resending tenant invite"); return ServiceResponse<bool>.CreateError("Error resending invite"); }
         }
 
         public async Task<ServiceResponse<bool>> MarkInviteAsUsed(string token)
@@ -488,7 +264,7 @@ namespace brownstone_hub_api.Services.TenantInviteService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error marking invite as used");
-                return ServiceResponse<bool>.CreateError("Error marking invite as used", ex.Message);
+                return ServiceResponse<bool>.CreateError("Error marking invite as used");
             }
         }
 
@@ -510,13 +286,45 @@ namespace brownstone_hub_api.Services.TenantInviteService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting pending invite for current user");
-                return ServiceResponse<LoadTenantInviteDto?>.CreateError("Error getting pending invite", ex.Message);
+                return ServiceResponse<LoadTenantInviteDto?>.CreateError("Error getting pending invite");
             }
         }
 
-        private async Task SendInviteEmailAsync(LoadTenantInviteDto invite, string token)
+        private async Task<bool> CanManageTenantsAsync(long userId, long organizationId)
         {
-            _logger.LogInformation("[TenantInviteService] Preparing to send invite email to {Email}", invite.Email);
+            var member = await _dataContext.OrganizationMembers.AsNoTracking()
+                .Where(m => m.UserId == userId && m.OrganizationId == organizationId && m.IsActive
+                    && m.Organization.IsActive && !m.Organization.IsDeleted)
+                .Select(m => new { m.Role, m.CanManageTenants })
+                .SingleOrDefaultAsync();
+            return member is not null && (string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(member.Role, "Admin", StringComparison.OrdinalIgnoreCase) || member.CanManageTenants);
+        }
+
+        private Task<bool> TenantBelongsToOrganizationAsync(long tenantId, long organizationId) =>
+            _dataContext.Tenants.AsNoTracking().AnyAsync(t => t.Id == tenantId && t.OrganizationId == organizationId && !t.IsDeleted);
+
+        private async Task<bool> InviteMatchesCurrentTenantEmailAsync(LoadTenantInviteDto invite)
+        {
+            if (invite.OrganizationId <= 0 || string.IsNullOrWhiteSpace(invite.Email)) return false;
+            var currentEmail = await _dataContext.Tenants.AsNoTracking()
+                .Where(t => t.Id == invite.TenantId && t.OrganizationId == invite.OrganizationId && !t.IsDeleted)
+                .Select(t => t.Email)
+                .SingleOrDefaultAsync();
+            return !string.IsNullOrWhiteSpace(currentEmail)
+                && string.Equals(currentEmail.Trim(), invite.Email.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void SanitizeManagementInvite(LoadTenantInviteDto invite)
+        {
+            invite.InviteToken = string.Empty;
+            invite.CreatedBy = 0;
+            invite.Tenant = null;
+        }
+
+        private async Task<bool> SendInviteEmailAsync(LoadTenantInviteDto invite, string token)
+        {
+            _logger.LogInformation("[TenantInviteService] Preparing tenant invite delivery");
 
             // Get frontend base URL from configuration or use default
             var frontendBaseUrl = _configuration["FrontendBaseUrl"] ?? "http://localhost:3000";
@@ -547,12 +355,13 @@ namespace brownstone_hub_api.Services.TenantInviteService
                             .ThenInclude(l => l.Unit)
                                 .ThenInclude(u => u.Property)
                     .Include(t => t.Organization)
-                    .FirstOrDefaultAsync(t => t.Id == invite.Tenant.Id);
+                    .FirstOrDefaultAsync(t => t.Id == invite.Tenant.Id && t.OrganizationId == invite.OrganizationId && !t.IsDeleted);
 
                 // Try to get property/unit from TenantLeases first (for existing tenants being added to leases)
                 if (tenantEntity?.TenantLeases != null && tenantEntity.TenantLeases.Any())
                 {
                     var tenantLease = tenantEntity.TenantLeases
+                        .Where(tl => tl.Lease?.Unit?.Property?.OrganizationId == invite.OrganizationId)
                         .OrderByDescending(tl => tl.CreatedAt)
                         .FirstOrDefault();
 
@@ -573,7 +382,7 @@ namespace brownstone_hub_api.Services.TenantInviteService
                     }
                 }
                 // Fallback to tenant's direct Unit relationship
-                else if (tenantEntity?.Unit?.Property != null)
+                else if (tenantEntity?.Unit?.Property != null && tenantEntity.Unit.Property.OrganizationId == invite.OrganizationId)
                 {
                     var property = tenantEntity.Unit.Property;
                     propertyName = property.Name ?? "the property";
@@ -601,8 +410,7 @@ namespace brownstone_hub_api.Services.TenantInviteService
                 }
             }
 
-            _logger.LogInformation("[TenantInviteService] Email details - isExistingUserInvite: {IsExisting}, Landlord: {Landlord}, Property: {Property}",
-                isExistingUserInvite, landlordName, propertyName);
+            _logger.LogInformation("[TenantInviteService] Tenant invite email content prepared");
 
             string subject;
             string body;
@@ -934,353 +742,93 @@ Property Peace Team
                     plainTextContent: body
                 );
 
-                if (emailSent)
-                {
-                    _logger.LogInformation("Tenant invite email sent successfully to {Email}", invite.Email);
-                }
-                else
-                {
-                    _logger.LogWarning("Failed to send tenant invite email to {Email}", invite.Email);
-                }
+                if (emailSent) _logger.LogInformation("Tenant invite email sent successfully");
+                else _logger.LogWarning("Tenant invite email delivery failed");
+                return emailSent;
             }
             catch (Exception ex)
             {
-                // Log error but don't fail invite creation
-                _logger.LogError(ex, "Error sending tenant invite email to {Email}: {Error}", invite.Email, ex.Message);
+                _logger.LogError(ex, "Error sending tenant invite email");
+                return false;
             }
         }
 
-        public async Task<ServiceResponse<bool>> AcceptInviteForExistingUser(AcceptTenantInviteDto dto, long userId)
+        public Task<ServiceResponse<bool>> AcceptInviteForExistingUser(AcceptTenantInviteDto dto, long userId) =>
+            AcceptInviteCoreAsync(dto, userId);
+
+        public Task<ServiceResponse<bool>> AcceptInviteByEmail(AcceptTenantInviteDto dto) =>
+            AcceptInviteCoreAsync(dto, null);
+
+        private async Task<ServiceResponse<bool>> AcceptInviteCoreAsync(AcceptTenantInviteDto dto, long? authenticatedUserId)
         {
             try
             {
-                _logger.LogInformation("[TenantInviteService] AcceptInviteForExistingUser called for UserId: {UserId}, Email: {Email}, Token: {Token}",
-                    userId, dto.Email, dto.InviteToken);
-
-                // Validate invite token
-                var inviteValidation = await ValidateInviteToken(dto.InviteToken);
-                if (!inviteValidation.Success || inviteValidation.Data == null || !inviteValidation.Data.IsValid)
-                {
-                    _logger.LogWarning("[TenantInviteService] Invalid invite token: {Token}", dto.InviteToken);
-                    return ServiceResponse<bool>.CreateError(
-                        inviteValidation.Data?.Message ?? "Invalid or expired invite token"
-                    );
-                }
+                var validation = await ValidateInviteToken(dto.InviteToken);
+                if (!validation.Success || validation.Data?.IsValid != true)
+                    return ServiceResponse<bool>.CreateError(validation.Data?.Message ?? "Invalid or expired invite token");
 
                 var invite = await _tenantInviteRepository.GetInviteByToken(dto.InviteToken);
-                if (invite == null)
-                {
+                if (invite == null || invite.OrganizationId <= 0 || !await InviteMatchesCurrentTenantEmailAsync(invite))
                     return ServiceResponse<bool>.CreateError("Invite not found");
-                }
+                var organizationId = invite.OrganizationId;
 
-                var providedEmail = dto.Email?.Trim() ?? string.Empty;
-                var inviteEmail = invite.Email?.Trim() ?? string.Empty;
-
-                // Verify email matches invite
-                if (!string.Equals(providedEmail, inviteEmail, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("[TenantInviteService] Email mismatch. Invite email: {InviteEmail}, Provided email: {Email}",
-                        invite.Email, dto.Email);
+                if (!string.Equals(dto.Email?.Trim(), invite.Email?.Trim(), StringComparison.OrdinalIgnoreCase))
                     return ServiceResponse<bool>.CreateError("Email does not match the invite");
-                }
 
-                // Verify user exists and email matches
-                var user = await _userRepository.GetUser(userId);
-                if (user == null)
+                long acceptingUserId;
+                string? acceptingUserEmail;
+                if (authenticatedUserId.HasValue)
                 {
-                    return ServiceResponse<bool>.CreateError("User not found");
+                    var authenticatedUser = await _userRepository.GetUser(authenticatedUserId.Value);
+                    if (authenticatedUser == null)
+                        return ServiceResponse<bool>.CreateError("Account required", "Log in before accepting the invite.");
+                    acceptingUserId = authenticatedUser.Id;
+                    acceptingUserEmail = authenticatedUser.Email;
                 }
-
-                if (!string.Equals(user.Email, dto.Email, StringComparison.OrdinalIgnoreCase))
+                else
                 {
-                    _logger.LogWarning("[TenantInviteService] User email mismatch. User email: {UserEmail}, Provided email: {Email}",
-                        user.Email, dto.Email);
+                    var emailUser = await _userRepository.GetUserByEmailAsync(dto.Email);
+                    if (emailUser == null)
+                        return ServiceResponse<bool>.CreateError("Account required", "Create or log in to a tenant account with this email before accepting the invite.");
+                    acceptingUserId = emailUser.Id;
+                    acceptingUserEmail = emailUser.Email;
+                }
+                if (!string.Equals(acceptingUserEmail?.Trim(), dto.Email?.Trim(), StringComparison.OrdinalIgnoreCase))
                     return ServiceResponse<bool>.CreateError("Email does not match your account");
-                }
 
-                // Get tenant from invite
-                var inviteTenant = await _tenantRepository.GetTenantById(invite.TenantId);
-                if (inviteTenant == null)
-                {
-                    return ServiceResponse<bool>.CreateError("Tenant not found");
-                }
-
-                // Get tenant entity to access OrganizationId, UnitId, and LeaseId
-                var inviteTenantEntity = await _dataContext.Tenants
-                    .Include(t => t.Unit)
-                        .ThenInclude(u => u.Lease)
+                var invitedTenant = await _dataContext.Tenants
                     .Include(t => t.TenantLeases)
-                        .ThenInclude(tl => tl.Lease)
-                    .FirstOrDefaultAsync(t => t.Id == inviteTenant.Id);
+                    .FirstOrDefaultAsync(t => t.Id == invite.TenantId && t.OrganizationId == organizationId && !t.IsDeleted);
+                if (invitedTenant == null)
+                    return ServiceResponse<bool>.CreateError("Tenant not found");
 
-                if (inviteTenantEntity == null)
+                var existing = await _tenantRepository.GetTenantByEmail(dto.Email, organizationId);
+                var targetId = existing?.Id ?? invitedTenant.Id;
+                var target = existing ?? await _tenantRepository.GetTenantById(invitedTenant.Id, organizationId);
+                if (target == null) return ServiceResponse<bool>.CreateError("Tenant not found");
+                if (target.UserId.HasValue && target.UserId.Value != acceptingUserId)
+                    return ServiceResponse<bool>.CreateError("This tenant is already connected to another account");
+
+                var leaseId = invitedTenant.TenantLeases.OrderByDescending(tl => tl.CreatedAt).Select(tl => (long?)tl.LeaseId).FirstOrDefault();
+                var updated = await _tenantRepository.UpdateTenant(targetId, new AddTenantDto
                 {
-                    return ServiceResponse<bool>.CreateError("Tenant entity not found");
-                }
+                    Id = targetId, UserId = acceptingUserId, Firstname = target.Firstname, Lastname = target.Lastname,
+                    Email = target.Email, PhoneNumber = target.PhoneNumber, IsActive = target.IsActive,
+                    LeaseId = leaseId ?? target.LeaseId, UnitId = invitedTenant.UnitId ?? target.UnitId,
+                    OrganizationId = organizationId
+                });
+                if (updated == null) return ServiceResponse<bool>.CreateError("Unable to connect tenant account");
 
-                var organizationId = inviteTenantEntity.OrganizationId;
-                var unitId = inviteTenantEntity.UnitId;
-                // Get leaseId from TenantLeases - if tenant is being added to a new lease,
-                // the TenantLease might not exist yet, so fall back to Unit.Lease
-                var leaseId = inviteTenantEntity.TenantLeases?.FirstOrDefault()?.LeaseId;
-                if (!leaseId.HasValue && inviteTenantEntity.Unit?.Lease != null)
-                {
-                    leaseId = inviteTenantEntity.Unit.Lease.Id;
-                }
-
-                // Check if a tenant with this email already exists
-                var existingTenant = await _tenantRepository.GetTenantByEmail(dto.Email);
-                long finalTenantId;
-
-                if (existingTenant != null)
-                {
-                    // Update existing tenant with new unitId, orgId, and leaseId
-                    _logger.LogInformation("[TenantInviteService] Found existing tenant {TenantId} with email {Email}, updating with new unit/org/lease",
-                        existingTenant.Id, dto.Email);
-
-                    var updateTenantDto = new AddTenantDto
-                    {
-                        Id = existingTenant.Id,
-                        UserId = userId, // Link to the user accepting the invite
-                        Firstname = existingTenant.Firstname,
-                        Lastname = existingTenant.Lastname,
-                        Email = existingTenant.Email,
-                        PhoneNumber = existingTenant.PhoneNumber,
-                        LeaseId = leaseId, // Update with lease from invite
-                        UnitId = unitId, // Update with unit from invite
-                        OrganizationId = organizationId // Update with org from invite
-                    };
-
-                    var updatedTenant = await _tenantRepository.UpdateTenant(existingTenant.Id, updateTenantDto);
-                    finalTenantId = existingTenant.Id;
-
-                    // Delete the placeholder tenant from the invite (if it's different)
-                    if (inviteTenant.Id != existingTenant.Id && !inviteTenant.UserId.HasValue)
-                    {
-                        await _tenantRepository.DeleteTenant(inviteTenant.Id);
-                        _logger.LogInformation("[TenantInviteService] Deleted placeholder tenant {PlaceholderTenantId}", inviteTenant.Id);
-                    }
-                }
-                else
-                {
-                    // No existing tenant found - check if invite tenant is a placeholder
-                    if (inviteTenant.UserId.HasValue)
-                    {
-                        _logger.LogWarning("[TenantInviteService] Tenant {TenantId} already has UserId: {UserId}",
-                            inviteTenant.Id, inviteTenant.UserId.Value);
-                        return ServiceResponse<bool>.CreateError("This tenant is already connected to an account");
-                    }
-
-                    // Update the placeholder tenant with the user's ID
-                    var updateTenantDto = new AddTenantDto
-                    {
-                        Id = inviteTenant.Id,
-                        UserId = userId,
-                        Firstname = inviteTenant.Firstname,
-                        Lastname = inviteTenant.Lastname,
-                        Email = inviteTenant.Email,
-                        PhoneNumber = inviteTenant.PhoneNumber,
-                        LeaseId = leaseId,
-                        UnitId = unitId,
-                        OrganizationId = organizationId
-                    };
-
-                    var updatedTenant = await _tenantRepository.UpdateTenant(inviteTenant.Id, updateTenantDto);
-                    finalTenantId = inviteTenant.Id;
-                }
-
-                // Set user's CurrentOrganizationId to tenant's OrganizationId if tenant has one
-                if (organizationId.HasValue)
-                {
-                    await _userRepository.UpdateCurrentOrganizationIdAsync(userId, organizationId.Value);
-                    _logger.LogInformation("[TenantInviteService] Set CurrentOrganizationId to {OrganizationId} for user {UserId}",
-                        organizationId.Value, userId);
-                }
-
-                // Mark invite as used
-                await MarkInviteAsUsed(dto.InviteToken);
-
-                _logger.LogInformation("[TenantInviteService] Successfully accepted invite for existing user {UserId}, connected to tenant {TenantId}",
-                    userId, finalTenantId);
-
-                return new ServiceResponse<bool> { Data = true, Success = true };
+                if (targetId != invitedTenant.Id && !invitedTenant.UserId.HasValue)
+                    await _tenantRepository.DeleteTenant(invitedTenant.Id);
+                await _userRepository.UpdateCurrentOrganizationIdAsync(acceptingUserId, organizationId);
+                await _tenantInviteRepository.MarkInviteAsUsed(dto.InviteToken);
+                return ServiceResponse<bool>.CreateSuccess(true, "Invite accepted successfully");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[TenantInviteService] Error accepting invite for existing user");
-                return ServiceResponse<bool>.CreateError("Error accepting invite", ex.Message);
-            }
-        }
-
-        public async Task<ServiceResponse<bool>> AcceptInviteByEmail(AcceptTenantInviteDto dto)
-        {
-            try
-            {
-                _logger.LogInformation("[TenantInviteService] AcceptInviteByEmail called for Email: {Email}, Token: {Token}",
-                    dto.Email, dto.InviteToken);
-
-                // Validate invite token
-                var inviteValidation = await ValidateInviteToken(dto.InviteToken);
-                if (!inviteValidation.Success || inviteValidation.Data == null || !inviteValidation.Data.IsValid)
-                {
-                    _logger.LogWarning("[TenantInviteService] Invalid invite token: {Token}", dto.InviteToken);
-                    return ServiceResponse<bool>.CreateError(
-                        inviteValidation.Data?.Message ?? "Invalid or expired invite token"
-                    );
-                }
-
-                var invite = await _tenantInviteRepository.GetInviteByToken(dto.InviteToken);
-                if (invite == null)
-                {
-                    return ServiceResponse<bool>.CreateError("Invite not found");
-                }
-
-                var providedEmail = dto.Email?.Trim() ?? string.Empty;
-                var inviteEmail = invite.Email?.Trim() ?? string.Empty;
-
-                // Verify email matches invite
-                if (!string.Equals(providedEmail, inviteEmail, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("[TenantInviteService] Email mismatch. Invite email: {InviteEmail}, Provided email: {Email}",
-                        invite.Email, dto.Email);
-                    return ServiceResponse<bool>.CreateError("Email does not match the invite");
-                }
-
-                // Check if invite is already accepted
-                if (invite.IsUsed)
-                {
-                    return ServiceResponse<bool>.CreateError("This invite has already been accepted");
-                }
-
-                // Get tenant from invite
-                var inviteTenant = await _tenantRepository.GetTenantById(invite.TenantId);
-                if (inviteTenant == null)
-                {
-                    return ServiceResponse<bool>.CreateError("Tenant not found");
-                }
-
-                // Get tenant entity to access OrganizationId, UnitId, and LeaseId
-                var inviteTenantEntity = await _dataContext.Tenants
-                    .Include(t => t.Unit)
-                    .Include(t => t.TenantLeases)
-                    .FirstOrDefaultAsync(t => t.Id == inviteTenant.Id);
-
-                if (inviteTenantEntity == null)
-                {
-                    return ServiceResponse<bool>.CreateError("Tenant entity not found");
-                }
-
-                var organizationId = inviteTenantEntity.OrganizationId;
-                var unitId = inviteTenantEntity.UnitId;
-                var leaseId = inviteTenantEntity.TenantLeases?.FirstOrDefault()?.LeaseId;
-
-                // Try to find user by email (user may or may not exist)
-                var user = await _userRepository.GetUserByEmailAsync(dto.Email);
-
-                if (user != null)
-                {
-                    // User exists - check if a tenant with this email already exists
-                    var existingTenant = await _tenantRepository.GetTenantByEmail(dto.Email);
-
-                    if (existingTenant != null)
-                    {
-                        // Update existing tenant with new unitId, orgId, and leaseId
-                        _logger.LogInformation("[TenantInviteService] Found existing tenant {TenantId} with email {Email}, updating with new unit/org/lease",
-                            existingTenant.Id, dto.Email);
-
-                        var updateTenantDto = new AddTenantDto
-                        {
-                            Id = existingTenant.Id,
-                            UserId = user.Id, // Link to the user accepting the invite
-                            Firstname = existingTenant.Firstname,
-                            Lastname = existingTenant.Lastname,
-                            Email = existingTenant.Email,
-                            PhoneNumber = existingTenant.PhoneNumber,
-                            LeaseId = leaseId, // Update with lease from invite
-                            UnitId = unitId, // Update with unit from invite
-                            OrganizationId = organizationId // Update with org from invite
-                        };
-
-                        var updatedTenant = await _tenantRepository.UpdateTenant(existingTenant.Id, updateTenantDto);
-
-                        // Delete the placeholder tenant from the invite (if it's different)
-                        if (inviteTenant.Id != existingTenant.Id && !inviteTenant.UserId.HasValue)
-                        {
-                            await _tenantRepository.DeleteTenant(inviteTenant.Id);
-                            _logger.LogInformation("[TenantInviteService] Deleted placeholder tenant {PlaceholderTenantId}", inviteTenant.Id);
-                        }
-
-                        // Set user's CurrentOrganizationId to tenant's OrganizationId if tenant has one
-                        if (organizationId.HasValue)
-                        {
-                            await _userRepository.UpdateCurrentOrganizationIdAsync(user.Id, organizationId.Value);
-                            _logger.LogInformation("[TenantInviteService] Set CurrentOrganizationId to {OrganizationId} for user {UserId}",
-                                organizationId.Value, user.Id);
-                        }
-
-                        _logger.LogInformation("[TenantInviteService] Successfully accepted invite and updated existing tenant {TenantId} for user {UserId}",
-                            existingTenant.Id, user.Id);
-                    }
-                    else
-                    {
-                        // No existing tenant found - check if invite tenant is a placeholder
-                        if (inviteTenant.UserId.HasValue)
-                        {
-                            _logger.LogWarning("[TenantInviteService] Tenant {TenantId} already has UserId: {UserId}",
-                                inviteTenant.Id, inviteTenant.UserId.Value);
-                            // Still mark invite as used even if already linked
-                            await MarkInviteAsUsed(dto.InviteToken);
-                            return ServiceResponse<bool>.CreateSuccess(true, "Invite accepted. Tenant is already connected to an account.");
-                        }
-
-                        // Update the placeholder tenant with the user's ID
-                        var updateTenantDto = new AddTenantDto
-                        {
-                            Id = inviteTenant.Id,
-                            UserId = user.Id,
-                            Firstname = inviteTenant.Firstname,
-                            Lastname = inviteTenant.Lastname,
-                            Email = inviteTenant.Email,
-                            PhoneNumber = inviteTenant.PhoneNumber,
-                            LeaseId = leaseId,
-                            UnitId = unitId,
-                            OrganizationId = organizationId
-                        };
-
-                        var updatedTenant = await _tenantRepository.UpdateTenant(inviteTenant.Id, updateTenantDto);
-
-                        // Set user's CurrentOrganizationId to tenant's OrganizationId if tenant has one
-                        if (organizationId.HasValue)
-                        {
-                            await _userRepository.UpdateCurrentOrganizationIdAsync(user.Id, organizationId.Value);
-                            _logger.LogInformation("[TenantInviteService] Set CurrentOrganizationId to {OrganizationId} for user {UserId}",
-                                organizationId.Value, user.Id);
-                        }
-
-                        _logger.LogInformation("[TenantInviteService] Successfully accepted invite and linked to existing user {UserId}, connected to tenant {TenantId}",
-                            user.Id, updatedTenant?.Id ?? 0);
-                    }
-                }
-                else
-                {
-                    // User must exist before the invite can be consumed. Leaving the token unused lets the signup/login flow complete acceptance after account creation.
-                    _logger.LogInformation("[TenantInviteService] User not found for email {Email}; leaving invite unused until the tenant creates an account.",
-                        providedEmail);
-                    return ServiceResponse<bool>.CreateError(
-                        "Account required",
-                        "Create or log in to a tenant account with this email before accepting the invite."
-                    );
-                }
-
-                // Mark invite as used
-                await MarkInviteAsUsed(dto.InviteToken);
-
-                return new ServiceResponse<bool> { Data = true, Success = true, Message = "Invite accepted successfully" };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[TenantInviteService] Error accepting invite by email");
-                return ServiceResponse<bool>.CreateError("Error accepting invite", ex.Message);
+                _logger.LogError(ex, "Error accepting tenant invite");
+                return ServiceResponse<bool>.CreateError("Error accepting invite");
             }
         }
 

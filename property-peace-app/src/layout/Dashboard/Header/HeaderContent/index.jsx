@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 import { Divider, useMediaQuery } from '@mui/material';
 import { Box } from '@mui/material';
 
@@ -8,7 +6,7 @@ import Search from './Search';
 import Message from './Message';
 import Profile from './Profile';
 import Notification from './Notification';
-import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
+
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
 import Logo from 'components/logo';
@@ -16,7 +14,7 @@ import Logo from 'components/logo';
 import useConfig from 'hooks/useConfig';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
-import useLandlordSetupSteps from 'hooks/useLandlordSetupSteps';
+
 import { MenuOrientation } from 'config';
 import DrawerHeader from 'layout/Dashboard/Drawer/DrawerHeader';
 
@@ -36,10 +34,7 @@ export default function HeaderContent() {
   // Normalize roles to lowercase for case-insensitive comparison
   const normalizedRoles = userRoles.map((r) => String(r).toLowerCase().trim());
   const hasTenantRole = normalizedRoles.includes('tenant');
-  const hasLandlordRole = normalizedRoles.includes('landlord');
-  const [finishSetupOpen, setFinishSetupOpen] = useState(false);
-  const setupState = useLandlordSetupSteps(() => setFinishSetupOpen(false));
-  const showFinishSetup = hasLandlordRole && !hasTenantRole && !isAdmin && !setupState.isLoading && !setupState.isComplete;
+
 
   // Determine base path based on role (priority: Admin > Tenant > Landlord)
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
@@ -47,7 +42,7 @@ export default function HeaderContent() {
   return (
     <>
       {menuOrientation === MenuOrientation.HORIZONTAL && !downMD && <DrawerHeader open={true} />}
-      {!downMD && !hasTenantRole && <Search shrink={showFinishSetup} />}
+      {!downMD && !hasTenantRole && <Search />}
       {!downMD && hasTenantRole && <Box sx={{ flex: 1 }} />}
       {/* {!downMD && megaMenu} */}
       {/* {!downMD && localization} */}
@@ -79,18 +74,6 @@ export default function HeaderContent() {
       {/* Desktop command bar */}
       {!downMD && (
         <>
-          {showFinishSetup && (
-            <Box sx={{ flexShrink: 0, mr: 0.75 }}>
-              <FinishSetup
-                open={finishSetupOpen}
-                onOpen={() => setFinishSetupOpen(true)}
-                onClose={() => setFinishSetupOpen(false)}
-                steps={setupState.steps}
-                compact
-              />
-            </Box>
-          )}
-
           <Message />
           <Notification />
           <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1 }} />

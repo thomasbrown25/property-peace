@@ -12,6 +12,7 @@ import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
 
 // landlord pages (lazy-loaded)
 const Dashboard = Loadable(lazy(() => import('pages/landlord/dashboard')));
+const LandlordSetup = Loadable(lazy(() => import('pages/landlord/setup')));
 const Calendar = Loadable(lazy(() => import('pages/landlord/calendar')));
 const Properties = Loadable(lazy(() => import('pages/landlord/properties')));
 const Tenants = Loadable(lazy(() => import('pages/landlord/tenants')));
@@ -204,6 +205,10 @@ const MainRoutes = {
               <Dashboard />
             </SubscriptionPausedGuard>
           )
+        },
+        {
+          path: 'landlord/setup',
+          element: <LandlordSetup />
         },
         {
           path: 'landlord/calendar',
@@ -1164,7 +1169,7 @@ const MainRoutes = {
           element: <RentCollection />
         },
         {
-          path: 'landlord/rent-collection/:propertyId',
+          path: 'landlord/rent-collection/:leaseId',
           element: <RentCollectionSingle />
         },
         {

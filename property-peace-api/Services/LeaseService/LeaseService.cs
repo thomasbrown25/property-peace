@@ -69,6 +69,24 @@ namespace brownstone_hub_api.Services.LeaseService
             return null;
         }
 
+        private async Task<bool> HasOrganizationPermissionAsync(long organizationId, bool tenantPermission)
+        {
+            if (_dataContext == null)
+            {
+                var currentUser = _userContextService == null ? null : await _userContextService.GetCurrentUserAsync();
+                return currentUser?.Organizations.Any(org => org.Id == organizationId
+                    && (string.Equals(org.Role, "Owner", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(org.Role, "Admin", StringComparison.OrdinalIgnoreCase))) == true;
+            }
+            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("UserId", out var userIdObject) != true || userIdObject is not long userId)
+                return false;
+            return await _dataContext.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == userId && member.OrganizationId == organizationId && member.IsActive
+                && member.Organization.IsActive && !member.Organization.IsDeleted
+                && (member.Role == "Owner" || member.Role == "Manager"
+                    && (tenantPermission ? member.CanManageTenants : member.CanManageLeases)));
+        }
+
         private async Task<(bool Success, string Error)> BindAuthenticatedLandlordAsync(
             SendLeaseForSignatureDto request,
             long? expectedUserId = null,
@@ -126,6 +144,10 @@ namespace brownstone_hub_api.Services.LeaseService
                     return ServiceResponse<LoadLeaseDto>.CreateError(
                         "Organization ID is required", "No organization context found", "", 400);
 
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+
+                lease.OrganizationId = organizationId.Value;
                 var property = await _propertyRepository.GetPropertyById(lease.PropertyId, organizationId.Value);
                 if (property == null)
                     return ServiceResponse<LoadLeaseDto>.CreateError(
@@ -284,6 +306,10 @@ namespace brownstone_hub_api.Services.LeaseService
                 var organizationId = GetOrganizationIdFromContext();
                 if (!organizationId.HasValue)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
                 var lease = await _leaseRepository.CompleteDraft(leaseId, organizationId.Value);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Lease draft completed");
             }
@@ -305,6 +331,10 @@ namespace brownstone_hub_api.Services.LeaseService
                 var organizationId = GetOrganizationIdFromContext();
                 if (!organizationId.HasValue)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
                 var lease = await _leaseRepository.SetMoveInReportTemplateCompletedAt(leaseId, organizationId.Value);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Move-in report template step marked complete for this lease");
             }
@@ -323,6 +353,13 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", statusCode: 400);
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+                if (await _leaseRepository.GetLeaseById(signatureInfo.LeaseId, organizationId.Value) == null)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
                 var lease = await _leaseRepository.UpdateLeaseSignature(signatureInfo);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Lease signature information updated successfully");
             }
@@ -377,6 +414,13 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", statusCode: 400);
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
                 var lease = await _leaseRepository.DeleteLease(leaseId);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease);
             }
@@ -414,6 +458,9 @@ namespace brownstone_hub_api.Services.LeaseService
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
 
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+
                 // Verify the lease belongs to the organization
                 var existingLease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (existingLease == null)
@@ -442,6 +489,9 @@ namespace brownstone_hub_api.Services.LeaseService
                 {
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
+
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
 
                 // Verify the lease belongs to the organization
                 var existingLease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
@@ -563,6 +613,11 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue || !await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
+                        "Forbidden", "Lease management permission is required.", "", 403);
+
                 var landlordBinding = await BindAuthenticatedLandlordAsync(request);
                 if (!landlordBinding.Success)
                     return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
@@ -741,8 +796,8 @@ namespace brownstone_hub_api.Services.LeaseService
                 _logger.LogError(ex, "Error signing landlord only for lease {LeaseId}", leaseId);
                 return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
                     "Error signing lease",
-                    ex.Message,
-                    ex.InnerException?.Message
+                    "Unable to complete the signing request.",
+                    ""
                 );
             }
         }
@@ -755,6 +810,10 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
+                if (!organizationId.HasValue || !await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "Forbidden", "Lease management permission is required.", "", 403);
+
                 var landlordBinding = await BindAuthenticatedLandlordAsync(request, landlordId, organizationId);
                 if (!landlordBinding.Success)
                     return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
@@ -857,7 +916,7 @@ namespace brownstone_hub_api.Services.LeaseService
                                 return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
                                     "Error retrieving document",
                                     "Error retrieving lease document from storage",
-                                    ex.Message,
+                                    "",
                                     500
                                 );
                             }
@@ -980,8 +1039,8 @@ namespace brownstone_hub_api.Services.LeaseService
                 _logger.LogError(ex, "Error sending lease for signature {LeaseId}", leaseId);
                 return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
                     "Error sending lease for signature",
-                    ex.Message,
-                    ex.InnerException?.Message
+                    "Unable to send this lease for signature.",
+                    ""
                 );
             }
         }
@@ -990,6 +1049,11 @@ namespace brownstone_hub_api.Services.LeaseService
             long leaseId,
             string? landlordEmail)
         {
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue || !await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
+                    "Forbidden", "Lease management permission is required.", "", 403);
+
             if (_eSignatureService == null || _dataContext == null || _blobServiceClient == null)
             {
                 return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
@@ -1285,8 +1349,8 @@ namespace brownstone_hub_api.Services.LeaseService
                 _logger.LogError(ex, "Error syncing signature status for lease {LeaseId}", lease.Id);
                 return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
                     "Error syncing signature status",
-                    ex.Message,
-                    ex.InnerException?.Message
+                    "Unable to synchronize the signature status.",
+                    ""
                 );
             }
         }
@@ -1468,6 +1532,12 @@ namespace brownstone_hub_api.Services.LeaseService
                     return;
                 }
 
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: true))
+                {
+                    _logger.LogWarning("User lacks permission to send lease-added notifications for organization {OrganizationId}", organizationId.Value);
+                    return;
+                }
+
                 var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (lease == null)
                 {
@@ -1480,7 +1550,10 @@ namespace brownstone_hub_api.Services.LeaseService
                     .Include(t => t.TenantLeases)
                     .Include(t => t.Unit)
                         .ThenInclude(u => u.Property)
-                    .FirstOrDefaultAsync(t => t.Id == tenantId && !t.IsDeleted);
+                    .FirstOrDefaultAsync(t => t.Id == tenantId
+                        && t.OrganizationId == organizationId.Value
+                        && !t.IsDeleted
+                        && t.TenantLeases.Any(tl => tl.LeaseId == leaseId));
 
                 if (tenant == null || !tenant.UserId.HasValue || string.IsNullOrEmpty(tenant.Email))
                 {
@@ -1586,13 +1659,11 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
                 if (emailSent)
                 {
-                    _logger.LogInformation("Lease added notification email sent successfully to tenant {TenantId} ({Email}) for lease {LeaseId}",
-                        tenantId, tenant.Email, leaseId);
+                    _logger.LogInformation("Lease added notification email sent successfully to tenant {TenantId} for lease {LeaseId}", tenantId, leaseId);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to send lease added notification email to tenant {TenantId} ({Email}) for lease {LeaseId}",
-                        tenantId, tenant.Email, leaseId);
+                    _logger.LogWarning("Failed to send lease added notification email to tenant {TenantId} for lease {LeaseId}", tenantId, leaseId);
                 }
             }
             catch (Exception ex)
@@ -1610,6 +1681,8 @@ This is an automated email from Property Peace. Please do not reply to this mess
                 {
                     return ServiceResponse<bool>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: true))
+                    return ServiceResponse<bool>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
 
                 // Verify the lease belongs to the organization
                 var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
@@ -1621,6 +1694,11 @@ This is an automated email from Property Peace. Please do not reply to this mess
                         statusCode: 404
                     );
                 }
+
+                var tenantBelongsToOrganization = _dataContext != null && await _dataContext.Tenants.AsNoTracking()
+                    .AnyAsync(t => t.Id == tenantId && t.OrganizationId == organizationId.Value && !t.IsDeleted);
+                if (!tenantBelongsToOrganization)
+                    return ServiceResponse<bool>.CreateError("Tenant not found", "Tenant does not exist or does not belong to your organization", statusCode: 404);
 
                 // Remove the tenant from this specific lease only
                 var removed = await _leaseRepository.RemoveTenantFromLease(leaseId, tenantId);
@@ -1639,11 +1717,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing tenant {TenantId} from lease {LeaseId}", tenantId, leaseId);
-                return ServiceResponse<bool>.CreateError(
-                    "Error removing tenant from lease",
-                    ex.Message,
-                    ex.InnerException?.Message
-                );
+                return ServiceResponse<bool>.CreateError("Error removing tenant from lease");
             }
         }
 
@@ -1659,6 +1733,8 @@ This is an automated email from Property Peace. Please do not reply to this mess
                 {
                     return ServiceResponse<bool>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: true))
+                    return ServiceResponse<bool>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
 
                 var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (lease == null)
@@ -1666,13 +1742,18 @@ This is an automated email from Property Peace. Please do not reply to this mess
                     return ServiceResponse<bool>.CreateError("Lease not found", "Lease does not exist or does not belong to your organization", statusCode: 404);
                 }
 
+                var tenantBelongsToOrganization = _dataContext != null && await _dataContext.Tenants.AsNoTracking()
+                    .AnyAsync(t => t.Id == tenantId && t.OrganizationId == organizationId.Value && !t.IsDeleted);
+                if (!tenantBelongsToOrganization)
+                    return ServiceResponse<bool>.CreateError("Tenant not found", "Tenant does not exist or does not belong to your organization", statusCode: 404);
+
                 var added = await _leaseRepository.AddTenantToLease(leaseId, tenantId);
                 return ServiceResponse<bool>.CreateSuccess(added, added ? "Tenant added to lease successfully" : "Tenant already on lease");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding tenant {TenantId} to lease {LeaseId}", tenantId, leaseId);
-                return ServiceResponse<bool>.CreateError("Error adding tenant to lease", ex.Message, ex.InnerException?.Message);
+                return ServiceResponse<bool>.CreateError("Error adding tenant to lease");
             }
         }
     }

@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { activationModeStorage, readActivationModePreference } from 'utils/activationModePreference';
 
 // material-ui
 import { Divider, Grid, Link, Stack, Fade, Menu, MenuItem, Tooltip, IconButton, Collapse } from '@mui/material';
 import { Box, Typography } from '@mui/material';
 import { Grow } from '@mui/material';
-import OnboardingWizard from 'components/onboarding/OnboardingWizard';
 import OrphanedSubscriptionModal from 'components/subscription/OrphanedSubscriptionModal';
 import AnimateIn from 'components/AnimateIn';
 
@@ -53,7 +54,7 @@ import { getRentCollection } from 'store/rent-collection/rent-collection.action'
 import useFetchExpenses from 'hooks/useFetchExpenses';
 import useFetchNotifications from 'hooks/useFetchNotifications';
 import useLandlordSetupSteps from 'hooks/useLandlordSetupSteps';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { expenseAPI } from 'api';
 import { useSubscription, useSubscriptionPlans, useSubscriptionStatus } from 'hooks/useSubscription';
 import { subscriptionAPI } from 'api';
@@ -66,11 +67,12 @@ import { WarningOutlined, DollarCircleOutlined, RocketOutlined, ThunderboltOutli
 // ==============================|| LANDLORD - DASHBOARD ||============================== //
 
 export default function Dashboard() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
   const drawer = useDrawer();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+
 
   // Get rent collection data from Redux store
   const rentCollectionState = useSelector((state) => state.rentCollection);
@@ -226,10 +228,9 @@ export default function Dashboard() {
   // Get user ID (handle both Id and id for compatibility)
   const userId = user?.Id || user?.id;
 
-  // Onboarding wizard state
-  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
-  const [setupTasksOpen, setSetupTasksOpen] = useState(false);
-  const setupState = useLandlordSetupSteps(() => setSetupTasksOpen(false));
+  const setupOrganizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
+  const setupMode = readActivationModePreference(activationModeStorage(typeof window === 'undefined' ? null : window), setupOrganizationId);
+  const setupState = useLandlordSetupSteps({ mode: setupMode });
   
   // Add tenant dialog state
   const [addTenantDialogOpen, setAddTenantDialogOpen] = useState(false);
@@ -263,22 +264,6 @@ export default function Dashboard() {
     setFadeIn(true);
   }, []);
 
-  // Check if user has seen onboarding wizard on first login
-  useEffect(() => {
-    if (user?.Id || user?.id) {
-      // Check HasSeenTutorial from user object (handle both case variations)
-      const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-      
-      if (!hasSeenTutorial) {
-        // Small delay to ensure dashboard is loaded
-        const timer = setTimeout(() => {
-          setShowOnboardingWizard(true);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [user, userId]);
-
 
   // Check if subscription is orphaned and show modal (but not during trial)
   useEffect(() => {
@@ -287,30 +272,6 @@ export default function Dashboard() {
     }
   }, [subscription, subLoading]);
 
-  // Handle lease completion - reopen wizard if tutorial not seen
-  useEffect(() => {
-    const leaseCompleted = searchParams.get('leaseCompleted');
-    if (leaseCompleted === 'true') {
-      const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-      if (!hasSeenTutorial) {
-        // Remove query parameter
-        setSearchParams({});
-        // Refresh properties to get updated lease data
-        propertiesRefetch();
-        // Small delay to ensure data is loaded, then reopen wizard
-        setTimeout(() => {
-          setShowOnboardingWizard(true);
-        }, 500);
-      } else {
-        // Remove query parameter
-        setSearchParams({});
-      }
-    }
-  }, [searchParams, setSearchParams, user, propertiesRefetch]);
-
-  const handleOnboardingWizardClose = () => {
-    setShowOnboardingWizard(false);
-  };
 
   // Function to fetch profitability data
   const fetchProfitabilityData = async (startDate, endDate) => {
@@ -504,6 +465,10 @@ export default function Dashboard() {
     action.onClick();
   };
 
+  const showSetupCard = setupState.loading
+    || Boolean(setupState.error)
+    || !setupState.viewModel.available
+    || setupState.viewModel.progress.completed < setupState.viewModel.progress.total;
 
   return (
     <>
@@ -541,6 +506,12 @@ export default function Dashboard() {
             </Box>
           </AnimateIn>
         </Grid>
+
+        {showSetupCard && (
+          <Grid size={12}>
+            <FinishSetup setup={setupState} />
+          </Grid>
+        )}
 
         {/* Main dashboard columns */}
         <Grid size={12}>
@@ -865,35 +836,11 @@ export default function Dashboard() {
       <AddTenantDialog 
         open={addTenantDialogOpen}
         onClose={() => setAddTenantDialogOpen(false)}
-        onSuccess={(tenant, shouldReopenWizard) => {
+        onSuccess={() => {
           // Refresh data after tenant is added
           propertiesRefetch();
           refetchDashboardSummary();
-          
-          // Reopen wizard if user hasn't seen tutorial
-          if (shouldReopenWizard) {
-            const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-            if (!hasSeenTutorial) {
-              // Small delay to ensure tenant is saved and UI updates
-              setTimeout(() => {
-                setShowOnboardingWizard(true);
-              }, 500);
-            }
-          }
         }}
-      />
-      <OnboardingWizard 
-        open={showOnboardingWizard}
-        onClose={handleOnboardingWizardClose}
-        onStartSetupTasks={() => setSetupTasksOpen(true)}
-        steps={setupState.steps}
-      />
-      <FinishSetup
-        open={setupTasksOpen}
-        onOpen={() => setSetupTasksOpen(true)}
-        onClose={() => setSetupTasksOpen(false)}
-        steps={setupState.steps}
-        showButton={false}
       />
       
       {/* Orphaned Subscription Modal */}
