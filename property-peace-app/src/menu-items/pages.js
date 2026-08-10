@@ -78,11 +78,26 @@ const pages = [
         icon: icons.MessageOutlined
       },
       {
-        id: 'money',
-        title: 'Money',
-        type: 'item',
-        url: '/landlord/money',
-        icon: icons.DollarCircleOutlined
+        id: 'money-center',
+        title: 'Money Center',
+        type: 'collapse',
+        icon: icons.DollarCircleOutlined,
+        children: [
+          {
+            id: 'money',
+            title: 'Money',
+            type: 'item',
+            url: '/landlord/money',
+            icon: icons.DollarCircleOutlined
+          },
+          {
+            id: 'rent-collection',
+            title: 'Rent Collection',
+            type: 'item',
+            url: '/landlord/rent-collection',
+            icon: icons.DollarCircleOutlined
+          }
+        ]
       },
       {
         id: 'leads',
@@ -170,15 +185,8 @@ const pages = [
         icon: icons.FundOutlined,
         children: [
           {
-            id: 'rent-collection',
-            title: 'Rent Collection',
-            type: 'item',
-            url: '/landlord/rent-collection',
-            icon: icons.DollarCircleOutlined
-          },
-          {
             id: 'payments',
-            title: 'Payments & Transactions',
+            title: 'Payments',
             type: 'item',
             url: '/landlord/payments',
             icon: icons.ArrowUpOutlined

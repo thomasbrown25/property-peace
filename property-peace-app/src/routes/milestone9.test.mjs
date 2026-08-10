@@ -17,7 +17,7 @@ test('landlord navigation exposes Money and a grouped Accounting workspace', asy
   const menu = await read('../menu-items/pages.js');
   assert.match(menu, /id: 'money'[\s\S]*title: 'Money'[\s\S]*url: '\/landlord\/money'/);
   assert.match(menu, /id: 'accounting'[\s\S]*title: 'Accounting'[\s\S]*type: 'collapse'/);
-  for (const title of ['Rent Collection', 'Payments & Transactions', 'Expenses', 'Ledger', 'Reports', 'Tax Center']) {
+  for (const title of ['Rent Collection', 'Payments', 'Expenses', 'Ledger', 'Reports', 'Tax Center']) {
     assert.ok(menu.includes(`title: '${title}'`), `missing Accounting child ${title}`);
   }
 
