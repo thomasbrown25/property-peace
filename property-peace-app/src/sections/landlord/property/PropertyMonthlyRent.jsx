@@ -1,95 +1,97 @@
 import { useMemo } from 'react';
-import { alpha, Box, Stack, Typography, useTheme } from '@mui/material';
+import { alpha, Box, Chip, Stack, Typography, useTheme } from '@mui/material';
 import MainCard from 'components/MainCard';
 import { formatCurrency } from 'utils/formatters';
+import { normalizeRentBalance } from 'utils/rentBalance';
 import { propertyAccentCardSx } from './propertyAccentSx';
 
-export default function PropertyMonthlyRent({ property }) {
+export default function PropertyMonthlyRent({ property, rentRecords = [] }) {
   const theme = useTheme();
   const units = property?.units || property?.Units || [];
 
-  const { paidTotal, lateTotal, occupiedTotal, totalPotential, displayUnits } = useMemo(() => {
-    let paidTotal = 0, lateTotal = 0, totalPotential = 0;
-    const displayUnits = units.slice(0, 10).map((u, idx) => {
-      const lease = u.lease || u.Lease;
-      const hasLease = Boolean(lease?.id || lease?.Id);
-      const status = (u.status || u.Status || '').toLowerCase();
-      const rent = lease?.rentAmount || lease?.RentAmount || u.rentAmount || u.RentAmount || 0;
-      const unitName = u.name || u.Name || `Unit ${idx + 1}`;
-      const isPaid = hasLease && status === 'occupied';
-      const isLate = hasLease && status === 'overdue';
-      if (isPaid) paidTotal += rent;
-      if (isLate) lateTotal += rent;
-      totalPotential += rent;
-      return { unitName, isPaid, isLate, isVacant: !isPaid && !isLate, rent };
+  const { rentDue, monthlyRent, isOverdue, displayUnits } = useMemo(() => {
+    const recordsByLeaseId = new Map();
+    let totalRentDue = 0;
+    let totalMonthlyRent = 0;
+    let anyOverdue = false;
+
+    rentRecords.forEach((record) => {
+      const leaseId = record?.leaseId ?? record?.LeaseId;
+      if (leaseId === undefined || leaseId === null) return;
+      const balance = normalizeRentBalance(record);
+      recordsByLeaseId.set(String(leaseId), balance);
+      totalRentDue += balance.rentDue;
+      totalMonthlyRent += Number(record?.rentAmount ?? record?.RentAmount) || 0;
+      anyOverdue ||= balance.rentDueIsOverdue;
     });
-    units.slice(10).forEach((u) => {
-      const lease = u.lease || u.Lease;
-      const hasLease = Boolean(lease?.id || lease?.Id);
-      const status = (u.status || u.Status || '').toLowerCase();
-      const rent = lease?.rentAmount || lease?.RentAmount || u.rentAmount || u.RentAmount || 0;
-      if (hasLease && status === 'occupied') paidTotal += rent;
-      if (hasLease && status === 'overdue') lateTotal += rent;
-      totalPotential += rent;
+
+    const rows = units.slice(0, 10).map((unit, index) => {
+      const lease = unit?.lease || unit?.Lease;
+      const leaseId = lease?.id ?? lease?.Id ?? unit?.leaseId ?? unit?.LeaseId;
+      const balance = leaseId === undefined || leaseId === null
+        ? normalizeRentBalance(null)
+        : recordsByLeaseId.get(String(leaseId)) ?? normalizeRentBalance(null);
+      const status = String(unit?.status ?? unit?.Status ?? '').toLowerCase();
+      const occupied = Boolean(leaseId) || ['occupied', 'overdue'].includes(status);
+
+      return {
+        unitName: unit?.name || unit?.Name || `Unit ${index + 1}`,
+        occupied,
+        ...balance
+      };
     });
-    return { paidTotal, lateTotal, occupiedTotal: paidTotal + lateTotal, totalPotential, displayUnits };
-  }, [units]);
+
+    return {
+      rentDue: totalRentDue,
+      monthlyRent: totalMonthlyRent,
+      isOverdue: anyOverdue,
+      displayUnits: rows
+    };
+  }, [rentRecords, units]);
 
   return (
     <MainCard
       title={
         <Typography variant="overline" fontWeight={700} sx={{ fontSize: '0.75rem', letterSpacing: 1, color: 'text.secondary' }}>
-          THIS MONTH'S RENT
+          RENT DUE
         </Typography>
       }
+      secondary={isOverdue ? <Chip label="Overdue" color="error" size="small" /> : null}
       contentSX={{ pt: 1 }}
-      sx={propertyAccentCardSx(theme.palette.success.main, { '& .MuiCardHeader-root': { pb: 1 } })}
+      sx={propertyAccentCardSx(isOverdue ? theme.palette.error.main : theme.palette.success.main, { '& .MuiCardHeader-root': { pb: 1 } })}
     >
-      {/* Amount row */}
-      <Stack direction="row" alignItems="baseline" spacing={0.5} sx={{ mb: 0.75 }}>
-        <Typography fontWeight={700} sx={{ fontSize: '1.3rem', lineHeight: 1 }}>
-          {formatCurrency(occupiedTotal)}
+      <Stack direction="row" alignItems="baseline" spacing={0.75} sx={{ mb: 1.5 }}>
+        <Typography fontWeight={700} color={isOverdue ? 'error.main' : 'text.primary'} sx={{ fontSize: '1.3rem', lineHeight: 1 }}>
+          {formatCurrency(rentDue)}
         </Typography>
-        <Typography sx={{ fontSize: '0.9rem', color: 'text.secondary', fontWeight: 500 }}>
-          / {formatCurrency(totalPotential)}
+        <Typography sx={{ fontSize: '0.8rem', color: 'text.secondary', fontWeight: 500 }}>
+          {formatCurrency(monthlyRent)}/mo scheduled
         </Typography>
       </Stack>
 
-      {/* Progress bar */}
-      <Box sx={{ height: 6, borderRadius: 99, bgcolor: (t) => alpha(t.palette.text.primary, t.palette.mode === 'dark' ? 0.14 : 0.07), overflow: 'hidden', mb: 1.5, display: 'flex' }}>
-        {totalPotential > 0 && (
-          <>
-            <Box sx={{ width: `${(paidTotal / totalPotential) * 100}%`, bgcolor: theme.palette.success.main }} />
-            <Box sx={{ width: `${(lateTotal / totalPotential) * 100}%`, bgcolor: theme.palette.error.main }} />
-          </>
-        )}
-      </Box>
-
-      {/* Unit rows */}
       <Stack spacing={0.6}>
-        {displayUnits.map((u, idx) => (
-          <Stack key={idx} direction="row" alignItems="center" justifyContent="space-between">
+        {displayUnits.map((unit) => (
+          <Stack key={unit.unitName} direction="row" alignItems="center" justifyContent="space-between">
             <Stack direction="row" alignItems="center" spacing={0.75}>
-              <Box sx={{
-                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                bgcolor: u.isPaid ? theme.palette.success.main : u.isLate ? theme.palette.error.main : alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.24 : 0.18)
-              }} />
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  bgcolor: unit.rentDueIsOverdue
+                    ? theme.palette.error.main
+                    : unit.occupied
+                      ? theme.palette.success.main
+                      : alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.24 : 0.18)
+                }}
+              />
               <Typography sx={{ fontSize: '0.78rem', color: 'text.secondary' }}>
-                {u.unitName}
-                <Box component="span" sx={{ mx: 0.4, color: 'text.disabled' }}>·</Box>
-                <Box component="span" sx={{
-                  color: u.isPaid ? theme.palette.success.main : u.isLate ? theme.palette.error.main : 'text.secondary',
-                  fontWeight: 600
-                }}>
-                  {u.isPaid ? 'paid' : u.isLate ? 'late' : 'vacant'}
-                </Box>
+                {unit.unitName}
               </Typography>
             </Stack>
-            <Typography sx={{
-              fontSize: '0.78rem', fontWeight: 700,
-              color: u.isVacant ? 'text.disabled' : u.isLate ? theme.palette.error.main : 'text.primary'
-            }}>
-              {u.rent > 0 ? formatCurrency(u.rent) : '—'}
+            <Typography sx={{ fontSize: '0.78rem', fontWeight: 700, color: unit.rentDueIsOverdue ? 'error.main' : 'text.primary' }}>
+              {unit.occupied ? formatCurrency(unit.rentDue) : 'Vacant'}
             </Typography>
           </Stack>
         ))}

@@ -133,7 +133,7 @@ export const parseCommand = async (command, summaryData) => {
                 '/landlord/maintenances',
                 '/landlord/rent-collection',
                 '/landlord/leases',
-                '/landlord/reports'
+                '/landlord/accounting/tax-center'
               ]
             }
           },
@@ -649,7 +649,7 @@ const parseFromTextResponse = (response, command, summaryData) => {
     else if (lowerCommand.includes('property') || lowerCommand.includes('portfolio')) route = '/landlord/properties';
     else if (lowerCommand.includes('rent') || lowerCommand.includes('payment')) route = '/landlord/rent-collection';
     else if (lowerCommand.includes('lease')) route = '/landlord/leases';
-    else if (lowerCommand.includes('report')) route = '/landlord/reports';
+    else if (lowerCommand.includes('report')) route = '/landlord/accounting/tax-center';
 
     return {
       action: 'navigateToPage',

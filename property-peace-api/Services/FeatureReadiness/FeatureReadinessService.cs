@@ -1,6 +1,6 @@
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Repositories.Users;
-using brownstone_hub_api.Services.SubscriptionService;
+
 using Microsoft.Extensions.Options;
 
 namespace brownstone_hub_api.Services.FeatureReadiness;
@@ -14,7 +14,6 @@ public interface IFeatureReadinessService
 public sealed class FeatureReadinessService(
     IOptionsSnapshot<FeatureReadinessOptions> options,
     IConfiguration configuration,
-    IFeatureGateService featureGateService,
     IUserRepository userRepository,
     ILogger<FeatureReadinessService> logger) : IFeatureReadinessService
 {
@@ -53,8 +52,9 @@ public sealed class FeatureReadinessService(
             var organizationReady = organizationId is > 0 &&
                                     (state != FeatureReadinessState.Pilot ||
                                      options.Value.IsPilotOrganization(canonicalFeature, organizationId.Value));
-            var entitled = await featureGateService.HasPlanFeatureAccessAsync(userId, canonicalFeature);
-
+            // Readiness is operational rollout/provider state only. Plan authority belongs solely to
+            // the centralized entitlement decision service at the action boundary.
+            const bool entitled = true;
             return FeatureReadinessEvaluator.Evaluate(
                 canonicalFeature,
                 state,
@@ -83,8 +83,9 @@ public sealed class FeatureReadinessService(
                                   (HasReadableFile("DocuSign:PrivateKeyPath") || HasValue("DocuSign:PrivateKeyContent")),
         FeatureKeys.OnlineRentCollection => configuration.GetValue<bool>("Stripe:RentPaymentsEnabled") &&
                                                    HasValue("Stripe:SecretKey"),
-        FeatureKeys.DedicatedSmsNumber => HasValue("Twilio:AccountSid") && HasValue("Twilio:AuthToken") &&
-                                                 (HasValue("Twilio:FromPhoneNumber") || HasValue("Twilio:MessagingServiceSid")),
+        // Provisioning needs credentials/inventory access; it must work before an org owns a From.
+        // Messaging readiness is evaluated separately with the org's active-primary number.
+        FeatureKeys.DedicatedSmsNumber => HasValue("Twilio:AccountSid") && HasValue("Twilio:AuthToken"),
         FeatureKeys.Percy => HasValue("Anthropic:ApiKey") || HasValue("OpenAI:ApiKey"),
         _ => false,
     };

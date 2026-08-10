@@ -504,6 +504,104 @@ namespace brownstone_hub_api.Tests.Services.Users
         }
 
         [Fact]
+        public async Task DeleteUser_StaleOwnerIdWithoutActiveOwnerMembership_FailsBeforeTransferOrDeletion()
+        {
+            var user = MakeUser(1);
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(user);
+            _context.Users.Add(new User { Id = 2, FirstName = "Next", LastName = "Owner", Email = "next@test.com" });
+            _context.Organizations.Add(new Organization
+            {
+                Id = 10, Name = "Org", OwnerId = 1, IsActive = true, IsDeleted = false
+            });
+            _context.OrganizationMembers.Add(new OrganizationMember
+            {
+                Id = 2, OrganizationId = 10, UserId = 2, Role = "Manager", IsActive = true
+            });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.DeleteUser(1);
+
+            result.Success.Should().BeFalse();
+            result.Message.Should().Contain("ownership");
+            (await _context.Organizations.FindAsync(10L))!.OwnerId.Should().Be(1);
+            (await _context.OrganizationMembers.FindAsync(2L))!.Role.Should().Be("Manager");
+            _userRepo.Verify(r => r.DeleteUser(It.IsAny<User>()), Times.Never);
+        }
+
+        [Theory]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        public async Task DeleteUser_InactiveOrganizationOrOwnerMembership_FailsClosed(
+            bool organizationActive,
+            bool ownerMembershipActive)
+        {
+            var user = MakeUser(1);
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(user);
+            _context.Users.Add(new User { Id = 2, FirstName = "Next", LastName = "Owner", Email = "next@test.com" });
+            _context.Organizations.Add(new Organization
+            {
+                Id = 10, Name = "Org", OwnerId = 1, IsActive = organizationActive, IsDeleted = false
+            });
+            _context.OrganizationMembers.AddRange(
+                new OrganizationMember
+                {
+                    Id = 1, OrganizationId = 10, UserId = 1, Role = "Owner", IsActive = ownerMembershipActive
+                },
+                new OrganizationMember
+                {
+                    Id = 2, OrganizationId = 10, UserId = 2, Role = "Manager", IsActive = true
+                });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.DeleteUser(1);
+
+            result.Success.Should().BeFalse();
+            (await _context.Organizations.FindAsync(10L))!.OwnerId.Should().Be(1);
+            (await _context.OrganizationMembers.FindAsync(2L))!.Role.Should().Be("Manager");
+            _userRepo.Verify(r => r.DeleteUser(It.IsAny<User>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteUser_ValidActiveOwnerTransfer_ChoosesActiveSuccessorAndCanonicalizesOwnerRole()
+        {
+            var user = MakeUser(1);
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(user);
+            _userRepo.Setup(r => r.DeleteUser(user)).Returns(Task.CompletedTask);
+            _context.Users.AddRange(
+                new User { Id = 2, FirstName = "Inactive", LastName = "Member", Email = "inactive@test.com" },
+                new User { Id = 3, FirstName = "Next", LastName = "Owner", Email = "next@test.com" });
+            _context.Organizations.Add(new Organization
+            {
+                Id = 10, Name = "Org", OwnerId = 1, IsActive = true, IsDeleted = false
+            });
+            _context.OrganizationMembers.AddRange(
+                new OrganizationMember
+                {
+                    Id = 1, OrganizationId = 10, UserId = 1, Role = "owner", IsActive = true
+                },
+                new OrganizationMember
+                {
+                    Id = 2, OrganizationId = 10, UserId = 2, Role = "Manager", IsActive = false,
+                    JoinedAt = DateTime.Now.AddDays(-2)
+                },
+                new OrganizationMember
+                {
+                    Id = 3, OrganizationId = 10, UserId = 3, Role = "manager", IsActive = true,
+                    JoinedAt = DateTime.Now.AddDays(-1)
+                });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.DeleteUser(1);
+
+            result.Success.Should().BeTrue();
+            (await _context.Organizations.FindAsync(10L))!.OwnerId.Should().Be(3);
+            (await _context.OrganizationMembers.FindAsync(2L))!.Role.Should().Be("Manager");
+            var successor = (await _context.OrganizationMembers.FindAsync(3L))!;
+            successor.Role.Should().Be("Owner");
+            successor.CanManageMembers.Should().BeTrue();
+        }
+
+        [Fact]
         public async Task HardDeleteUserCompletely_RemovesTenantUserDependentReferences()
         {
             var user = MakeUser(1);

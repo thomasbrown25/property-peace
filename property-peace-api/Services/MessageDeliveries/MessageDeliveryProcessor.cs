@@ -13,6 +13,7 @@ public sealed class MessageDeliveryProcessor(
     IMessageDeliveryService deliveries,
     ICommunicationDestinationProtector protector,
     ISmsService sms,
+    IOutboundSmsSecurityService outboundSmsSecurity,
     IEmailService email,
     ILogger<MessageDeliveryProcessor> logger) : IMessageDeliveryProcessor
 {
@@ -40,6 +41,20 @@ public sealed class MessageDeliveryProcessor(
             var destination = protector.Unprotect(delivery.ProtectedDestination);
             var from = string.IsNullOrWhiteSpace(delivery.ProtectedFromAddress)
                 ? null : protector.Unprotect(delivery.ProtectedFromAddress);
+
+            if (delivery.Channel == MessageDeliveryChannel.Sms)
+            {
+                // Re-evaluate current plan/lifecycle, provider credentials, persisted resource scope,
+                // and the organization's current active-primary number immediately before submission.
+                // The snapshot From is audit evidence only and can never override current ownership.
+                var authorization = await outboundSmsSecurity.AuthorizeDeliveryAsync(delivery.Id, ct);
+                if (!authorization.IsAllowed || string.IsNullOrWhiteSpace(authorization.From))
+                {
+                    await FailAsync(delivery, authorization.ReasonCode ?? "sms_not_authorized", false, null, ct);
+                    return;
+                }
+                from = authorization.From;
+            }
 
             // Persist the at-most-once boundary before provider invocation. The immutable outbox key
             // is passed as a stable token for providers/adapters that can honor idempotency.

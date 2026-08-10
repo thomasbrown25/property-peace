@@ -51,22 +51,7 @@ function expandFeatures(plans) {
   });
 }
 
-function isAllIncludedPlan(plan) {
-  const name = plan.name?.toLowerCase() || '';
-  return name.includes('premium') || name.includes('lifetime');
-}
-
-const FREE_INCLUDED_FEATURES = new Set(['expense', 'online rent']);
-
 function hasFeature(plan, check) {
-  // Premium/lifetime include every listed comparison feature. This avoids a misleading dash
-  // when API copy changes (for example, "Everything in Free") but the comparison row text
-  // does not exactly match the feature string.
-  if (isAllIncludedPlan(plan)) return true;
-
-  const planName = plan.name?.toLowerCase().trim() || '';
-  if (planName === 'free' && FREE_INCLUDED_FEATURES.has(check.toLowerCase())) return true;
-
   const features = plan._expanded ?? parseFeatures(plan);
   return features.some((f) => f.toLowerCase().includes(check.toLowerCase()));
 }

@@ -13,7 +13,7 @@ namespace brownstone_hub_api.Services.SmsService
         async Task<SmsSubmissionResult> SubmitSmsAsync(string to, string message, CancellationToken cancellationToken = default, string? from = null,
             string? idempotencyToken = null) =>
             new(await SendSmsAsync(to, message, cancellationToken, from), "legacy-sms", null);
-        Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default);
+        Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default, string? from = null);
     }
 }
 

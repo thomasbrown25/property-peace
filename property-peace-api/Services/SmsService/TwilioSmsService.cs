@@ -55,7 +55,7 @@ namespace brownstone_hub_api.Services.SmsService
                     return false;
                 }
 
-                var hasFrom = !string.IsNullOrWhiteSpace(_settings.FromPhoneNumber);
+                var hasFrom = !string.IsNullOrWhiteSpace(from) || !string.IsNullOrWhiteSpace(_settings.FromPhoneNumber);
                 var hasSid = !string.IsNullOrWhiteSpace(_settings.MessagingServiceSid);
 
                 if (!hasFrom && !hasSid)
@@ -131,7 +131,7 @@ namespace brownstone_hub_api.Services.SmsService
             }
         }
 
-        public async Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default)
+        public async Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default, string? from = null)
         {
             try
             {
@@ -141,9 +141,10 @@ namespace brownstone_hub_api.Services.SmsService
                     return false;
                 }
 
-                if (string.IsNullOrWhiteSpace(_settings.FromPhoneNumber))
+                var normalizedFrom = NormalizePhoneNumber(from ?? string.Empty);
+                if (string.IsNullOrWhiteSpace(normalizedFrom))
                 {
-                    _logger.LogError("Twilio from phone number is not configured in TwilioSettings.");
+                    _logger.LogError("An explicit organization SMS sender is required for bulk sends.");
                     return false;
                 }
 
@@ -178,7 +179,7 @@ namespace brownstone_hub_api.Services.SmsService
                 }
 
                 _logger.LogInformation("Sending bulk SMS via Twilio to {Count} recipients from {From} with message length: {Length}", 
-                    normalizedNumbers.Count, CommunicationLogSanitizer.MaskDestination(_settings.FromPhoneNumber), message.Length);
+                    normalizedNumbers.Count, CommunicationLogSanitizer.MaskDestination(normalizedFrom), message.Length);
 
                 // Send to each recipient
                 var tasks = normalizedNumbers.Select(async phoneNumber =>
@@ -186,7 +187,7 @@ namespace brownstone_hub_api.Services.SmsService
                     try
                     {
                         var messageResource = await MessageResource.CreateAsync(
-                            from: new PhoneNumber(_settings.FromPhoneNumber),
+                            from: new PhoneNumber(normalizedFrom),
                             to: new PhoneNumber(phoneNumber),
                             body: message);
                         return new { PhoneNumber = phoneNumber, Success = messageResource.ErrorCode == null, MessageSid = messageResource.Sid, ErrorCode = messageResource.ErrorCode, ErrorMessage = messageResource.ErrorMessage };

@@ -38,9 +38,14 @@ public sealed class MessageIngestionSecurityTests
             }));
         var enqueuer = new Mock<IOutboundMessageDeliveryEnqueuer>();
         var hub = new Mock<IHubContext<ConversationHub>>();
-        var controller = new MessageController(messageService.Object, hub.Object, enqueuer.Object,
+        var smsSecurity = new Mock<IOutboundSmsSecurityService>();
+        smsSecurity.Setup(x => x.AuthorizeConversationEnqueueAsync(1, 100, 10, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OutboundSmsSecurityDecision.Allowed());
+        var controller = new MessageController(messageService.Object, hub.Object, enqueuer.Object, smsSecurity.Object,
             Mock.Of<ILogger<MessageController>>());
         controller.ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() };
+        controller.HttpContext.Items["UserId"] = 1L;
+        controller.HttpContext.Items["OrganizationId"] = 100L;
 
         var result = await controller.AddMessage(new AddMessageDto
         {

@@ -244,7 +244,8 @@ public class AutoMapperProfile : Profile
                                 ? (src.Lease.OverdueAmount.HasValue && src.Lease.OverdueAmount > 0 ? "overdue" : "occupied")
                                 : "vacant"));
         CreateMap<Unit, UpdateUnitDto>();
-        CreateMap<UpdateUnitDto, Unit>();
+        CreateMap<UpdateUnitDto, Unit>()
+            .ForMember(dest => dest.PropertyId, opt => opt.Ignore());
 
 
         CreateMap<Models.LeaseAgreement, LoadLeaseAgreementDto>();

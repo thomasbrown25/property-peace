@@ -64,15 +64,15 @@ const comparisonData: Record<string, ComparisonData> = {
     brownstoneAdvantages: [
       {
         title: 'Perfect for Solo Landlords and Growing Portfolios',
-        description: 'Property Peace is free for up to 5 units. Premium is $14.99/mo with no per-unit fees — rent collection, maintenance, leases, financial reports, LeaseShield, and more. Designed for solo landlords and growing portfolios. Buildium typically has per-unit pricing with minimum requirements, making it far more expensive for smaller portfolios.'
+        description: 'Property Peace is free for up to 5 units. Premium is $14.99/mo with no per-unit fees — rent ledger and reminders, maintenance, leases, financial reports, LeaseShield, and more. Designed for solo landlords and growing portfolios. Buildium typically has per-unit pricing with minimum requirements, making it far more expensive for smaller portfolios.'
       },
       {
         title: 'Real-Time Technology Advantage',
-        description: 'Property Peace uses SignalR for instant, real-time updates across all features. Buildium requires page refreshes to see updates, making Property Peace faster and more efficient for solo landlords managing multiple tasks.'
+        description: 'Property Peace uses SignalR for instant, real-time updates across supported workflows. Buildium requires page refreshes to see updates, making Property Peace faster and more efficient for solo landlords managing multiple tasks.'
       },
       {
         title: 'Free tier for small portfolios',
-        description: 'Property Peace is free for up to 5 units — no credit card required. Premium is $14.99/mo for unlimited units and all features. Buildium typically offers limited demos or shorter trial periods with no free tier.'
+        description: 'Property Peace is free for up to 5 units — no credit card required. Premium is $14.99/mo for unlimited units and the listed Premium workflows. Buildium typically offers limited demos or shorter trial periods with no free tier.'
       },
       {
         title: 'Modern, Intuitive Interface',
@@ -105,7 +105,7 @@ const comparisonData: Record<string, ComparisonData> = {
         description: 'Premium from $14.99/mo · Save 15% annually',
         features: [
           'Free forever for up to 5 units',
-          'Premium: $14.99/mo — unlimited units, all features included',
+          'Premium: $14.99/mo — unlimited units plus listed Premium workflows',
           'No per-unit fees',
           'Cancel anytime'
         ]
@@ -177,7 +177,7 @@ const comparisonData: Record<string, ComparisonData> = {
       },
       {
         title: 'Real-Time Technology',
-        description: 'Property Peace uses SignalR for instant, real-time updates across all features. DoorLoop relies on traditional page refreshes, making Property Peace more responsive and efficient for landlords managing multiple tasks.'
+        description: 'Property Peace uses SignalR for instant, real-time updates across supported workflows. DoorLoop relies on traditional page refreshes, making Property Peace more responsive and efficient for landlords managing multiple tasks.'
       },
       {
         title: 'Better Value for Solo Landlords',
@@ -189,7 +189,7 @@ const comparisonData: Record<string, ComparisonData> = {
       },
       {
         title: 'Free tier for small portfolios',
-        description: 'Property Peace is free for up to 5 units — no credit card required. Premium is $14.99/mo for unlimited units and all features. DoorLoop typically offers limited demos or shorter trial periods with no free tier.'
+        description: 'Property Peace is free for up to 5 units — no credit card required. Premium is $14.99/mo for unlimited units and the listed Premium workflows. DoorLoop typically offers limited demos or shorter trial periods with no free tier.'
       },
       {
         title: 'No Minimum Unit Requirements',
@@ -214,7 +214,7 @@ const comparisonData: Record<string, ComparisonData> = {
         description: 'Premium from $14.99/mo · Save 15% annually',
         features: [
           'Free forever for up to 5 units',
-          'Premium: $14.99/mo — unlimited units, all features included',
+          'Premium: $14.99/mo — unlimited units plus listed Premium workflows',
           'No per-unit fees',
           'Cancel anytime'
         ]
@@ -281,15 +281,15 @@ const comparisonData: Record<string, ComparisonData> = {
     brownstoneAdvantages: [
       {
         title: 'Perfect for Solo Landlords and Growing Portfolios',
-        description: 'Property Peace is free for up to 5 units. Premium is $14.99/mo with no per-unit fees — rent collection, financial reports, LeaseShield, Percy Pilot features, and more. AppFolio is designed for larger portfolios and can cost significantly more, often requiring minimum unit counts.'
+        description: 'Property Peace is free for up to 5 units. Premium is $14.99/mo with no per-unit fees — rent ledger and reminders, financial reports, LeaseShield, Percy Pilot features, and more. AppFolio is designed for larger portfolios and can cost significantly more, often requiring minimum unit counts.'
       },
       {
         title: 'Real-Time Technology',
-        description: 'Property Peace uses SignalR for instant, real-time updates across all features. AppFolio relies on traditional page refreshes, making Property Peace more responsive and efficient for solo landlords managing multiple tasks.'
+        description: 'Property Peace uses SignalR for instant, real-time updates across supported workflows. AppFolio relies on traditional page refreshes, making Property Peace more responsive and efficient for solo landlords managing multiple tasks.'
       },
       {
         title: 'Free tier for small portfolios',
-        description: 'Property Peace is free for up to 5 units — no credit card required. Premium is $14.99/mo for unlimited units and all features. AppFolio typically offers limited demos or requires commitments upfront, with no free option for small landlords.'
+        description: 'Property Peace is free for up to 5 units — no credit card required. Premium is $14.99/mo for unlimited units and the listed Premium workflows. AppFolio typically offers limited demos or requires commitments upfront, with no free option for small landlords.'
       },
       {
         title: 'Built for Solo Landlords and Growing Portfolios',
@@ -322,7 +322,7 @@ const comparisonData: Record<string, ComparisonData> = {
         description: 'Premium from $14.99/mo · Save 15% annually',
         features: [
           'Free forever for up to 5 units',
-          'Premium: $14.99/mo — unlimited units, all features included',
+          'Premium: $14.99/mo — unlimited units plus listed Premium workflows',
           'No per-unit fees',
           'Cancel anytime'
         ]

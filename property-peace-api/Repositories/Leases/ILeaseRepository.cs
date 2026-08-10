@@ -7,9 +7,17 @@ namespace brownstone_hub_api.Repositories.Leases
     {
         Task<LoadLeaseDto> AddLease(UpdateLeaseDto lease, long? organizationId = null);
         Task<LoadLeaseDto> UpdateLease(UpdateLeaseDto lease);
-        Task<LoadLeaseDto> UpdateLeaseSignature(UpdateLeaseSignatureDto signatureInfo);
+        /// <summary>Updates signature state only when the lease still belongs to the exact selected organization through its unit/property relationship.</summary>
+        Task<LoadLeaseDto?> UpdateLeaseSignature(UpdateLeaseSignatureDto signatureInfo, long organizationId, CancellationToken cancellationToken);
+        Task<string?> PersistSentEnvelopeAsync(long leaseId, long organizationId, string envelopeId,
+            DateTime sentAt, DateTime? expiresAt, CancellationToken cancellationToken);
+        Task<bool> PersistCancelledEnvelopeAsync(long leaseId, long organizationId, string envelopeId,
+            CancellationToken cancellationToken);
+        Task<SignatureSyncApplyResult?> ApplySignatureSyncAsync(long leaseId, long organizationId,
+            SignatureSyncUpdate update, CancellationToken cancellationToken);
         Task<LoadLeaseDto> GetLease(long unitId, long? organizationId = null);
         Task<LoadLeaseDto> GetLeaseById(long leaseId, long organizationId);
+        Task<LoadLeaseDto?> GetLeaseById(long leaseId, long organizationId, CancellationToken cancellationToken);
         Task<LoadLeaseDto> DeleteLease(long id);
         Task<List<LoadLeaseDto>> GetLeasesByLandlordId(long landlordId, bool isActive = true);
         Task<List<LoadLeaseDto>> GetLeasesByOrganizationId(long organizationId, bool isActive = true);
@@ -31,8 +39,13 @@ namespace brownstone_hub_api.Repositories.Leases
         Task<List<AdminLeaseOptionDto>> GetLeasesForAdminListAsync();
         /// <summary>Marks the move-in report template step as completed for this lease (per-lease completion).</summary>
         Task<LoadLeaseDto> SetMoveInReportTemplateCompletedAt(long leaseId, long organizationId);
-        /// <summary>Resolves lease by DocuSign envelope ID for Connect webhook. Returns null if not found.</summary>
-        Task<LeaseConnectInfoDto?> GetLeaseByDocuSignEnvelopeIdAsync(string envelopeId);
+        /// <summary>Resolves the exact, active organization/lease mapping for a DocuSign envelope.</summary>
+        Task<LeaseConnectInfoDto?> GetLeaseByDocuSignEnvelopeIdAsync(string envelopeId, CancellationToken cancellationToken);
+        /// <summary>Atomically applies authenticated Connect facts to that exact scoped mapping.</summary>
+        Task<DocuSignConnectApplyResult> ApplyDocuSignConnectUpdateAsync(
+            LeaseConnectInfoDto mapping,
+            DocuSignConnectUpdate update,
+            CancellationToken cancellationToken);
         /// <summary>Gets auto-renew candidates: fixed terms at end date and month-to-month leases beginning 15 days before end date.</summary>
         Task<List<LoadLeaseDto>> GetLeasesEndingOnOrBeforeForAutoRenew(DateTime date);
         /// <summary>Gets active leases configured for checklist creation whose start date has arrived.</summary>

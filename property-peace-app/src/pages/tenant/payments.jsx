@@ -45,6 +45,7 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 // ==============================|| TENANT - PAYMENTS ||============================== //
 
@@ -310,13 +311,11 @@ export default function TenantPayments() {
     const rentRecords = rentCollection?.rentRecords || rentCollection?.RentRecords || [];
     const leaseRecord = rentRecords.find((r) => r.leaseId === selectedLease.id || r.LeaseId === selectedLease.id);
 
-    const overdueAmount = leaseRecord
-      ? leaseRecord.overdueAmount || leaseRecord.OverdueAmount || 0
-      : calculateOverdueAmount(selectedLease, payments, today);
-
-    const rentAmount = leaseRecord?.rentAmount || leaseRecord?.RentAmount || selectedLease.rentAmount || 0;
-    const amountDueNow = leaseRecord?.amountDueNow ?? leaseRecord?.AmountDueNow;
-    const amountDue = amountDueNow != null ? amountDueNow : rentAmount + overdueAmount;
+    // Collection records use the canonical balance; only the no-record path keeps
+    // the local schedule fallback for older/property-only responses.
+    const normalizedBalance = leaseRecord ? normalizeRentBalance(leaseRecord) : null;
+    const overdueAmount = normalizedBalance?.overdueAmount ?? calculateOverdueAmount(selectedLease, payments, today);
+    const amountDue = normalizedBalance?.rentDue ?? ((selectedLease.rentAmount || 0) + overdueAmount);
 
     const rentDueDay = selectedLease.rentDueDay || 1;
     const leaseStartDate = moment(selectedLease.startDate);

@@ -13,6 +13,14 @@ namespace brownstone_hub_api.Utils
 {
     public static class RentCalculator
     {
+        public sealed record RentBalanceProjection(
+            decimal CurrentMonthRentDue,
+            decimal PriorPeriodOverdueRent,
+            decimal OverdueAmount,
+            decimal RentDue,
+            bool IsOverdue,
+            DateTime? CurrentMonthRentDueDate);
+
         private static readonly HashSet<string> BalanceCreditingStatuses = new(StringComparer.OrdinalIgnoreCase)
         {
             "Completed",
@@ -23,6 +31,20 @@ namespace brownstone_hub_api.Utils
         {
             return payments?.Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty)) ?? [];
         }
+
+        private static IEnumerable<LoadPaymentDto> RentBalanceCreditingPayments(IEnumerable<LoadPaymentDto>? payments) =>
+            BalanceCreditingPayments(payments).Where(payment => !payment.FeeId.HasValue && !payment.DepositId.HasValue);
+
+        private static DateTime ResolveToday(string? timezone, DateTime? today) => today?.Date
+            ?? (string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone));
+
+        private static int GetGraceDays(LoadLeaseDto lease) => lease.Fees?
+            .Where(fee => fee.IsLateFee)
+            .Select(fee => fee.AppliedAfterDays ?? fee.StartingAfterDays)
+            .Where(days => days.HasValue)
+            .Select(days => Math.Max(days!.Value, 0))
+            .DefaultIfEmpty(0)
+            .Min() ?? 0;
 
         public static List<RentFeeBalanceDto> GetUnpaidFeeBalances(LoadLeaseDto lease, IEnumerable<LoadPaymentDto>? payments)
         {
@@ -158,211 +180,130 @@ namespace brownstone_hub_api.Utils
         /// Calculates the overdue amount for a lease based on payments,
         /// prior months, and current month (if past due day).
         /// </summary>
-        public static decimal CalculateOverdue(IEnumerable<LoadLeaseDto> leases, List<LoadPaymentDto> payments, string? timezone = null)
-        {
-            decimal totalOverdue = 0;
-            var today = string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone);
-
-            foreach (var lease in leases)
-            {
-                // Skip if lease hasn't started yet or missing required fields
-                if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentAmount.HasValue ||
-                    !lease.RentDueDay.HasValue || lease.StartDate.Value > today || !lease.IsActive)
-                    continue;
-
-                // Determine how many months should have been paid up until today
-                var effectiveEnd = today < lease.EndDate.Value ? today : lease.EndDate.Value;
-
-                // Include current month only when today is strictly after the due day (overdue = today > dueDay)
-                var actualDueDay = GetActualDayOfMonth(lease.RentDueDay, today.Year, today.Month);
-                var currentDueDate = new DateTime(today.Year, today.Month, actualDueDay);
-                var includeCurrentMonth = today > currentDueDate;
-
-                var monthsElapsed = ((effectiveEnd.Year - lease.StartDate.Value.Year) * 12)
-                                    + effectiveEnd.Month - lease.StartDate.Value.Month
-                                    + (includeCurrentMonth ? 1 : 0);
-
-                if (monthsElapsed < 0) monthsElapsed = 0;
-
-                // Expected total rent up to now
-                var expectedSoFar = monthsElapsed * lease.RentAmount.Value;
-
-                // Total payments made for this lease
-                var leasePayments = BalanceCreditingPayments(payments).Where(p => p.LeaseId == lease.Id).Sum(p => p.Amount);
-
-                // Overdue = expected – paid
-                var leaseOverdue = expectedSoFar - leasePayments;
-
-                if (leaseOverdue > 0)
-                    totalOverdue += leaseOverdue;
-            }
-
-            return totalOverdue;
-        }
+        public static decimal CalculateOverdue(
+            IEnumerable<LoadLeaseDto> leases,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null) => leases.Sum(lease =>
+                GetRentBalance(lease, payments, timezone, today).OverdueAmount);
 
 
 
         // determine rent status for a lease given payments
-        public static ERentStatus GetStatus(LoadLeaseDto lease, List<LoadPaymentDto> payments, string? timezone = null)
+        public static ERentStatus GetStatus(
+            LoadLeaseDto lease,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null)
         {
-            var today = string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone);
+            var localToday = ResolveToday(timezone, today);
 
             // If lease hasn't started yet, show as NotStarted regardless of IsActive
-            if (!lease.StartDate.HasValue || lease.StartDate.Value > today)
+            if (!lease.StartDate.HasValue || lease.StartDate.Value.Date > localToday)
                 return ERentStatus.NotStarted;
 
             // If lease is not active and has started, it's archived
             if (!lease.IsActive)
                 return ERentStatus.Archived;
 
-            // Check for required nullable fields
             if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentAmount.HasValue || !lease.RentDueDay.HasValue)
                 return ERentStatus.Archived;
 
-            var startOfMonth = new DateTime(today.Year, today.Month, 1);
-            var endOfMonth = startOfMonth.AddMonths(1);
-
-            // Expected rent for this lease this month
-            var expectedThisMonth = ExpectedForLease(lease, startOfMonth, endOfMonth);
-
-            // Total collected for this lease (all-time, including early payments). Only finalized payments credit the balance.
-            var totalCollected = BalanceCreditingPayments(payments)
-                .Where(p => p.LeaseId == lease.Id)
-                .Sum(p => p.Amount);
-
-            // Total expected through this month - use same logic as CalculateOverdueForLease
-            var effectiveEnd = today < lease.EndDate.Value ? today : lease.EndDate.Value;
-
-            // Calculate first due date
-            // If rent due day matches lease start day, first payment is due on the lease start date
-            // Otherwise, calculate based on rent due day relative to start date
-            DateTime firstDueDate;
-            if (lease.RentDueDay.Value == lease.StartDate.Value.Day)
-            {
-                // Rent due day matches start day - first payment is due on the lease start date
-                firstDueDate = lease.StartDate.Value;
-            }
-            else
-            {
-                firstDueDate = new DateTime(lease.StartDate.Value.Year, lease.StartDate.Value.Month, lease.RentDueDay.Value);
-                if (firstDueDate < lease.StartDate.Value)
-                {
-                    // If due day is before start date, first payment is next month
-                    // (e.g., lease starts Jan 15, rent due on 1st -> first payment due Feb 1)
-                    firstDueDate = firstDueDate.AddMonths(1);
-                }
-                // If due day is after start date, first payment is due on that date in the start month
-                // (e.g., lease starts Jan 5, rent due on 10th -> first payment due Jan 10)
-            }
-
-            decimal expectedThroughThisMonth = 0m;
-
-            // If we've reached the first due date, calculate expected rent
-            if (today >= firstDueDate)
-            {
-                // Count months from first due date to effective end date
-                var monthsFromFirstDue = ((effectiveEnd.Year - firstDueDate.Year) * 12)
-                                        + effectiveEnd.Month - firstDueDate.Month;
-
-                // Include current month if today is on or past the due day
-                var currentMonthDueDay = GetActualDayOfMonth(lease.RentDueDay, today.Year, today.Month);
-                var currentDueDate = new DateTime(today.Year, today.Month, currentMonthDueDay);
-                if (today >= currentDueDate && currentDueDate >= firstDueDate)
-                {
-                    monthsFromFirstDue += 1;
-                }
-
-                // Special case: if first due date is today or in the past, and we're past the due day, ensure at least 1 month is expected
-                if (today > firstDueDate && monthsFromFirstDue == 0)
-                {
-                    monthsFromFirstDue = 1;
-                }
-
-                if (monthsFromFirstDue < 0) monthsFromFirstDue = 0;
-
-                expectedThroughThisMonth = monthsFromFirstDue * lease.RentAmount.Value;
-            }
-
-            // If tenant has paid enough to cover this month (even if paid early)
-            if (totalCollected >= expectedThroughThisMonth)
-                return ERentStatus.UpToDate;
-
-            // Overdue only when today is strictly after the due day (today > dueDay, not >=)
-            var thisMonthDueDay = GetActualDayOfMonth(lease.RentDueDay, today.Year, today.Month);
-            var dueDateThisMonth = new DateTime(today.Year, today.Month, thisMonthDueDay);
-            if (today <= dueDateThisMonth)
-                return ERentStatus.UpcomingDue;
-
-            // Otherwise they’re short and past due date
-            return ERentStatus.Overdue;
+            var balance = GetRentBalance(lease, payments, timezone, localToday);
+            if (balance.IsOverdue)
+                return ERentStatus.Overdue;
+            return balance.RentDue > 0m ? ERentStatus.UpcomingDue : ERentStatus.UpToDate;
         }
 
 
-        public static decimal CalculateOverdueForLease(LoadLeaseDto lease, List<LoadPaymentDto> payments, string? timezone = null)
+        public static decimal CalculateOverdueForLease(
+            LoadLeaseDto lease,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null) => GetRentBalance(lease, payments, timezone, today).OverdueAmount;
+
+        /// <summary>
+        /// Canonical rent-only balance. Finalized rent credits are allocated to the oldest
+        /// installment first. The current installment remains current through the complete
+        /// configured grace days and moves to overdue only when localToday is later than the
+        /// due date plus the earliest late-fee threshold.
+        /// </summary>
+        public static RentBalanceProjection GetRentBalance(
+            LoadLeaseDto lease,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null)
         {
-            var today = string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone);
+            var localToday = ResolveToday(timezone, today);
+            if (!lease.IsActive || !lease.StartDate.HasValue || !lease.EndDate.HasValue ||
+                !lease.RentAmount.HasValue || lease.RentAmount.Value <= 0m || !lease.RentDueDay.HasValue ||
+                lease.StartDate.Value.Date > localToday)
+                return new(0m, 0m, 0m, 0m, false, null);
 
-            // Skip if lease hasn't started or archived or missing required fields
-            if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentAmount.HasValue ||
-                !lease.RentDueDay.HasValue || lease.StartDate.Value > today || !lease.IsActive)
-                return 0;
-            var effectiveEnd = today < lease.EndDate.Value ? today : lease.EndDate.Value;
+            var leaseStart = lease.StartDate.Value.Date;
+            var leaseEnd = lease.EndDate.Value.Date;
 
-            // Calculate first due date
-            // Get actual due day for the start month
-            var startMonthDueDay = GetActualDayOfMonth(lease.RentDueDay, lease.StartDate.Value.Year, lease.StartDate.Value.Month);
-
-            DateTime firstDueDate;
-            if (startMonthDueDay == lease.StartDate.Value.Day)
+            var firstDueDay = GetActualDayOfMonth(lease.RentDueDay, leaseStart.Year, leaseStart.Month);
+            var firstDueDate = new DateTime(leaseStart.Year, leaseStart.Month, firstDueDay);
+            if (firstDueDate < leaseStart)
             {
-                // Rent due day matches start day - first payment is due on the lease start date
-                firstDueDate = lease.StartDate.Value;
+                var nextMonth = firstDueDate.AddMonths(1);
+                firstDueDate = new DateTime(nextMonth.Year, nextMonth.Month,
+                    GetActualDayOfMonth(lease.RentDueDay, nextMonth.Year, nextMonth.Month));
             }
-            else
+
+            var rentCredits = RentBalanceCreditingPayments(payments)
+                .Where(payment => payment.LeaseId == lease.Id)
+                .Sum(payment => payment.Amount);
+            var remainingCredits = rentCredits;
+            var currentRentDue = 0m;
+            var priorOverdue = 0m;
+            var currentPeriodOverdue = 0m;
+            DateTime? latestAccruedDueDate = null;
+
+            // Allocate finalized rent credits oldest-first, then classify each unpaid accrued
+            // installment by its own grace deadline. Future installments are not yet rent due.
+            for (var dueDate = firstDueDate;
+                 dueDate <= localToday && dueDate <= leaseEnd;
+                 dueDate = NextMonthlyDueDate(dueDate, lease.RentDueDay))
             {
-                firstDueDate = new DateTime(lease.StartDate.Value.Year, lease.StartDate.Value.Month, startMonthDueDay);
-                if (firstDueDate < lease.StartDate.Value)
+                latestAccruedDueDate = dueDate;
+                var appliedCredit = Math.Min(remainingCredits, lease.RentAmount.Value);
+                var unpaid = Math.Max(lease.RentAmount.Value - appliedCredit, 0m);
+                remainingCredits -= appliedCredit;
+                if (unpaid <= 0m)
+                    continue;
+
+                if (localToday > dueDate.AddDays(GetGraceDays(lease)))
                 {
-                    // If due day is before start date, first payment is next month
-                    // (e.g., lease starts Jan 15, rent due on 1st -> first payment due Feb 1)
-                    var nextMonthDueDay = GetActualDayOfMonth(lease.RentDueDay, firstDueDate.AddMonths(1).Year, firstDueDate.AddMonths(1).Month);
-                    firstDueDate = new DateTime(firstDueDate.AddMonths(1).Year, firstDueDate.AddMonths(1).Month, nextMonthDueDay);
+                    if (dueDate.Year == localToday.Year && dueDate.Month == localToday.Month)
+                        currentPeriodOverdue += unpaid;
+                    else
+                        priorOverdue += unpaid;
                 }
-                // If due day is after start date, first payment is due on that date in the start month
-                // (e.g., lease starts Jan 5, rent due on 10th -> first payment due Jan 10)
+                else
+                {
+                    currentRentDue += unpaid;
+                }
             }
 
-            // If we haven't reached the first due date yet, no rent is due
-            if (today < firstDueDate)
-                return 0;
+            var overdue = priorOverdue + currentPeriodOverdue;
+            var rentDue = overdue + currentRentDue;
 
-            // Count months from first due date to effective end date
-            var monthsFromFirstDue = ((effectiveEnd.Year - firstDueDate.Year) * 12)
-                                    + effectiveEnd.Month - firstDueDate.Month;
+            return new(
+                currentRentDue,
+                priorOverdue,
+                overdue,
+                rentDue,
+                overdue > 0m,
+                latestAccruedDueDate);
+        }
 
-            // Include current month only when today is strictly after the due day (overdue = today > dueDay)
-            var currentMonthDueDay = GetActualDayOfMonth(lease.RentDueDay, today.Year, today.Month);
-            var currentDueDate = new DateTime(today.Year, today.Month, currentMonthDueDay);
-            if (today > currentDueDate && currentDueDate >= firstDueDate)
-            {
-                monthsFromFirstDue += 1;
-            }
-
-            // Special case: if first due date is today or in the past, and we're past the due day, ensure at least 1 month is expected
-            if (today > firstDueDate && monthsFromFirstDue == 0)
-            {
-                monthsFromFirstDue = 1;
-            }
-
-            if (monthsFromFirstDue < 0) monthsFromFirstDue = 0;
-
-            var expectedSoFar = monthsFromFirstDue * lease.RentAmount.Value;
-
-            var leasePayments = BalanceCreditingPayments(payments).Where(p => p.LeaseId == lease.Id).Sum(p => p.Amount);
-
-            var overdue = expectedSoFar - leasePayments;
-
-            return overdue > 0 ? overdue : 0;
+        private static DateTime NextMonthlyDueDate(DateTime dueDate, int? rentDueDay)
+        {
+            var nextMonth = dueDate.AddMonths(1);
+            return new DateTime(nextMonth.Year, nextMonth.Month,
+                GetActualDayOfMonth(rentDueDay, nextMonth.Year, nextMonth.Month));
         }
 
         /// <summary>
@@ -418,54 +359,22 @@ namespace brownstone_hub_api.Utils
             LoadLeaseDto lease,
             List<LoadPaymentDto> payments,
             string? timezone = null,
-            DateTime? today = null)
-        {
-            var localToday = today?.Date
-                ?? (string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone));
-            if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentAmount.HasValue ||
-                !lease.RentDueDay.HasValue || !lease.IsActive || lease.StartDate.Value > localToday)
-                return 0m;
-
-            var dueDay = GetActualDayOfMonth(lease.RentDueDay, localToday.Year, localToday.Month);
-            var currentDueDate = new DateTime(localToday.Year, localToday.Month, dueDay);
-            if (currentDueDate < lease.StartDate.Value || currentDueDate > lease.EndDate.Value)
-                return 0m;
-
-            var startDueDay = GetActualDayOfMonth(lease.RentDueDay, lease.StartDate.Value.Year, lease.StartDate.Value.Month);
-            var firstDueDate = new DateTime(lease.StartDate.Value.Year, lease.StartDate.Value.Month, startDueDay);
-            if (firstDueDate < lease.StartDate.Value)
-            {
-                var nextMonth = firstDueDate.AddMonths(1);
-                var nextDueDay = GetActualDayOfMonth(lease.RentDueDay, nextMonth.Year, nextMonth.Month);
-                firstDueDate = new DateTime(nextMonth.Year, nextMonth.Month, nextDueDay);
-            }
-
-            if (currentDueDate < firstDueDate)
-                return 0m;
-
-            var periodsThroughCurrentMonth = 1 + ((currentDueDate.Year - firstDueDate.Year) * 12)
-                + currentDueDate.Month - firstDueDate.Month;
-            var expectedThroughCurrentMonth = Math.Max(periodsThroughCurrentMonth, 0) * lease.RentAmount.Value;
-            var collected = BalanceCreditingPayments(payments)
-                .Where(payment => payment.LeaseId == lease.Id)
-                .Sum(payment => payment.Amount);
-
-            return Math.Min(lease.RentAmount.Value, Math.Max(expectedThroughCurrentMonth - collected, 0m));
-        }
+            DateTime? today = null) => GetRentBalance(lease, payments, timezone, today).CurrentMonthRentDue;
 
         public static DateTime? GetCurrentMonthRentDueDate(
             LoadLeaseDto lease,
             string? timezone = null,
             DateTime? today = null)
         {
-            var localToday = today?.Date
-                ?? (string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone));
-            if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentDueDay.HasValue || !lease.IsActive)
+            var localToday = ResolveToday(timezone, today);
+            if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentDueDay.HasValue ||
+                !lease.RentAmount.HasValue || lease.RentAmount.Value <= 0m || !lease.IsActive ||
+                lease.StartDate.Value.Date > localToday)
                 return null;
 
             var dueDay = GetActualDayOfMonth(lease.RentDueDay, localToday.Year, localToday.Month);
             var dueDate = new DateTime(localToday.Year, localToday.Month, dueDay);
-            return dueDate < lease.StartDate.Value || dueDate > lease.EndDate.Value ? null : dueDate;
+            return dueDate < lease.StartDate.Value.Date || dueDate > lease.EndDate.Value.Date ? null : dueDate;
         }
 
         public static bool IsCurrentMonthRentOverdue(
@@ -474,51 +383,23 @@ namespace brownstone_hub_api.Utils
             string? timezone = null,
             DateTime? today = null)
         {
-            var localToday = today?.Date
-                ?? (string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone));
-            var dueDate = GetCurrentMonthRentDueDate(lease, timezone, localToday);
-            if (!dueDate.HasValue || GetCurrentMonthRentDue(lease, payments, timezone, localToday) <= 0m)
-                return false;
-
-            var graceDays = lease.Fees?
-                .Where(fee => fee.IsLateFee)
-                .Select(fee => fee.AppliedAfterDays ?? fee.StartingAfterDays)
-                .Where(days => days.HasValue)
-                .Select(days => Math.Max(days!.Value, 0))
-                .DefaultIfEmpty(0)
-                .Min() ?? 0;
-            var gracePeriodEnds = dueDate.Value.AddDays(graceDays);
-
-            return localToday > gracePeriodEnds;
+            var balance = GetRentBalance(lease, payments, timezone, today);
+            return balance.OverdueAmount > balance.PriorPeriodOverdueRent;
         }
 
-        /// <summary>
-        /// Unpaid rent from periods before the current calendar month's installment.
-        /// </summary>
-        public static decimal GetPriorPeriodOverdueRent(LoadLeaseDto lease, List<LoadPaymentDto> payments, string? timezone = null)
-        {
-            var today = string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone);
-            var overdue = CalculateOverdueForLease(lease, payments, timezone);
-            if (!lease.RentDueDay.HasValue)
-                return overdue;
+        /// <summary>Unpaid rent from installments before the current calendar month.</summary>
+        public static decimal GetPriorPeriodOverdueRent(
+            LoadLeaseDto lease,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null) => GetRentBalance(lease, payments, timezone, today).PriorPeriodOverdueRent;
 
-            var dueDay = GetActualDayOfMonth(lease.RentDueDay, today.Year, today.Month);
-            var currentDueDate = new DateTime(today.Year, today.Month, dueDay);
-            if (today <= currentDueDate)
-                return overdue;
-
-            return Math.Max(overdue - GetCurrentMonthRentDue(lease, payments, timezone), 0m);
-        }
-
-        /// <summary>
-        /// Amount due now: overdue amount (strictly after due day) + current period rent when within 15-day charge window.
-        /// </summary>
-        public static decimal GetAmountDueNow(LoadLeaseDto lease, List<LoadPaymentDto> payments, string? timezone = null)
-        {
-            var overdue = CalculateOverdueForLease(lease, payments, timezone);
-            var currentPeriodDue = GetCurrentPeriodDueAmount(lease, payments, timezone);
-            return overdue + currentPeriodDue;
-        }
+        /// <summary>Total accrued rent balance, excluding fees and deposits.</summary>
+        public static decimal GetAmountDueNow(
+            LoadLeaseDto lease,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null) => GetRentBalance(lease, payments, timezone, today).RentDue;
 
 
 

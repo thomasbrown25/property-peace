@@ -89,6 +89,7 @@ import { getSettings, saveSettings } from 'store/user/user.action';
 import { selectUserSettings } from 'store/user/user.selector';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { tenantDocumentAPI } from 'api';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 // Enhanced components
 import LeasesHeader from 'sections/landlord/leases/LeasesHeader';
@@ -326,13 +327,14 @@ function UpcomingCard({ leases, rentRecords, onCalendarClick }) {
 
         // If rent is overdue, show the past-due entry (dueDate is NextDueDate i.e. future;
         // the unpaid date is one cycle back). Include it so it appears before future items.
-        if (record.overdueAmount > 0) {
+        const { rentDue, overdueAmount, rentDueIsOverdue } = normalizeRentBalance(record);
+        if (rentDueIsOverdue) {
           const nextDate = new Date(record.dueDate);
           const overdueDate = new Date(nextDate);
           overdueDate.setMonth(overdueDate.getMonth() - 1);
-          items.push({ date: overdueDate, title: 'Rent overdue', subtitle: `${leaseDisplay} · ${formatCurrency(record.overdueAmount)}` });
+          items.push({ date: overdueDate, title: 'Rent overdue', subtitle: `${leaseDisplay} · ${formatCurrency(overdueAmount || rentDue)}` });
         } else {
-          items.push({ date: new Date(record.dueDate), title: 'Rent due', subtitle: `${leaseDisplay} · ${formatCurrency(record.remainingBalance || record.amount || lease?.rentAmount || 0)}` });
+          items.push({ date: new Date(record.dueDate), title: 'Rent due', subtitle: `${leaseDisplay} · ${formatCurrency(rentDue)}` });
         }
       }
     });
@@ -1084,7 +1086,7 @@ export default function LeasesPage({ onEditLease }) {
           // Overdue view: show only started, non-draft active leases that are overdue
           if (!isStartedActiveLease(l)) return false;
           const rentRecord = rentRecords?.find((r) => r.leaseId === l.id);
-          return rentRecord?.status === 'overdue';
+          return normalizeRentBalance(rentRecord).rentDueIsOverdue;
         }
         
         if (statusFilter === 'notStarted') {
@@ -1540,9 +1542,12 @@ export default function LeasesPage({ onEditLease }) {
     const expectedThisMonth = activeLeases.reduce((sum, lease) => sum + (Number(lease.rentAmount) || 0), 0);
     const outstanding = activeLeases.reduce((sum, lease) => {
       const rentRecord = rentRecords?.find((record) => record.leaseId === lease.id);
-      return sum + (Number(rentRecord?.remainingBalance) || (rentRecord?.status === 'overdue' ? Number(lease.rentAmount) || 0 : 0));
+      return sum + normalizeRentBalance(rentRecord).rentDue;
     }, 0);
-    const overdueCount = activeLeases.filter((lease) => rentRecords?.find((record) => record.leaseId === lease.id)?.status === 'overdue').length;
+    const overdueCount = activeLeases.filter((lease) => {
+      const rentRecord = rentRecords?.find((record) => record.leaseId === lease.id);
+      return normalizeRentBalance(rentRecord).rentDueIsOverdue;
+    }).length;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1833,10 +1838,9 @@ export default function LeasesPage({ onEditLease }) {
                           const hasLease = lease.hasLease !== false;
                           const rentRecord = rentRecords?.find((r) => r.leaseId === lease.id);
                           const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
-                          const isOverdue = rentRecord?.status === 'overdue';
+                          const { rentDue: balanceDue, rentDueIsOverdue: isOverdue } = normalizeRentBalance(rentRecord);
                           const propertyTenantTitle = getPropertyTenantTitle(lease);
                           const isActiveLease = isStartedActiveLease(lease);
-                          const balanceDue = rentRecord?.remainingBalance ?? (isOverdue ? (lease.rentAmount || 0) : 0);
                           const term = getLeaseMonths(lease);
 
                           return (
@@ -1953,10 +1957,9 @@ export default function LeasesPage({ onEditLease }) {
                               const hasLease = lease.hasLease !== false;
                               const rentRecord = rentRecords?.find((r) => r.leaseId === lease.id);
                               const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
-                              const isOverdue = rentRecord?.status === 'overdue';
+                              const { rentDue: balanceDue, rentDueIsOverdue: isOverdue } = normalizeRentBalance(rentRecord);
                               const propertyTenantTitle = getPropertyTenantTitle(lease);
                               const isActiveLease = isStartedActiveLease(lease);
-                              const balanceDue = rentRecord?.remainingBalance ?? (isOverdue ? (lease.rentAmount || 0) : 0);
                               const term = getLeaseMonths(lease);
 
                               const handleRowClick = (e) => {

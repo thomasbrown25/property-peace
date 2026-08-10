@@ -134,11 +134,7 @@ export default function PlanCard({
                 Save {plan.annualDiscount.toFixed(0)}% annually
               </Typography>
             )}
-            {plan.trialDays && plan.trialDays > 0 && (
-              <Typography variant="caption" color="primary.main" sx={{ display: 'block', mt: 0.5, fontWeight: 600 }}>
-                {plan.trialDays}-day free trial
-              </Typography>
-            )}
+
           </Box>
         </Box>
 
@@ -211,10 +207,10 @@ export default function PlanCard({
             ? 'Processing...'
             : isCurrentPlan
             ? 'Current Plan'
-            : plan.isTrial
-            ? 'Start Your Free 30-Day Trial'
             : hasActiveSubscription && (plan.monthlyPrice === 0 || plan.annualPrice === 0)
             ? 'Downgrade'
+            : plan.monthlyPrice === 0
+            ? 'Start Free'
             : 'Select Plan'}
         </Button>
       </CardContent>

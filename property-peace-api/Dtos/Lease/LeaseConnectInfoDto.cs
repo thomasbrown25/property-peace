@@ -8,5 +8,6 @@ namespace brownstone_hub_api.Dtos.Lease
         public long LeaseId { get; set; }
         public long OrganizationId { get; set; }
         public long LandlordId { get; set; }
+        public string EnvelopeId { get; set; } = string.Empty;
     }
 }

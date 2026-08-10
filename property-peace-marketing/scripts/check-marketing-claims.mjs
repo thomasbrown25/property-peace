@@ -16,6 +16,7 @@ const checks = [
   ['app/blog/[slug]/layout.tsx', /\.match\(\/rent\|payment\/i\)|availabilityNote/i],
   ['components/Sections/Hero.tsx', /Percy Pilot lease administration/i],
   ['components/Sections/PricingPlans.tsx', /['"]Percy-powered features['"]/i],
+  ['lib/blog-posts.ts', /Real-time updates across all features/i],
 ];
 
 const required = [
@@ -28,6 +29,11 @@ const required = [
   ['components/Sections/Hero.tsx', /Percy-assisted tools, currently in limited pilot/i],
   ['app/privacy/page.tsx', /<li><strong>Stripe<\/strong>[\s\S]{0,300}only if and when online rent processing is operationally enabled[\s\S]{0,150}currently unavailable[\s\S]{0,100}<\/li>/i],
   ['app/privacy/page.tsx', /<li><strong>DocuSign<\/strong>[\s\S]{0,300}only if and when integrated digital lease signing is operationally enabled[\s\S]{0,150}currently unavailable[\s\S]{0,100}<\/li>/i],
+  ['components/Sections/PricingPlans.tsx', /name: 'Free Plan for Small Portfolios'[\s\S]{0,250}'Up to 5 units'/i],
+  ['components/Sections/PricingPlans.tsx', /name: 'Premium'[\s\S]{0,120}monthlyPrice: 14\.99[\s\S]{0,120}annualTotal: 152\.90/i],
+  ['components/Sections/PricingPlans.tsx', /one dedicated organization SMS number included[\s\S]{0,120}activation and configuration required/i],
+  ['app/comparison/[slug]/page.tsx', /Online Payment Processing \(not currently available\)', brownstone: false/i],
+  ['lib/blog-posts.ts', /Current records across supported property-management workflows/i],
 ];
 
 const failures = [];
@@ -56,6 +62,34 @@ for (const file of await sourceFiles(new URL('../', import.meta.url))) {
   const source = await readFile(file, 'utf8');
   if (/Percy(?:-powered| AI)/i.test(source)) {
     failures.push(`${file.pathname}: Percy availability must be labeled as a Pilot`);
+  }
+  if (/free 30-day trial|30-day free trial|start free trial/i.test(source)) {
+    failures.push(`${file.pathname}: Property Peace public CTA must say Start Free / Free up to 5 units, not a trial`);
+  }
+}
+
+const comparison = await readFile(new URL('../app/comparison/[slug]/page.tsx', import.meta.url), 'utf8');
+if (/unlimited units and all features|all features included/i.test(comparison)) {
+  failures.push('app/comparison/[slug]/page.tsx: Premium must not claim all features');
+}
+if (/— rent collection,/i.test(comparison)) {
+  failures.push('app/comparison/[slug]/page.tsx: unavailable online rent collection must not be implied as included');
+}
+
+const smsClaims = [
+  'app/features/page.tsx',
+  'app/features/[slug]/page.tsx',
+  'components/Sections/MaintenanceCommunication.tsx',
+  'components/Marketing/RentCollectionHeroMock.tsx',
+  'components/Marketing/FeatureHeroMock.tsx',
+];
+for (const file of smsClaims) {
+  const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
+  if (/SMS/i.test(source) && (!/(?:one|1) (?:dedicated organization )?SMS number[^\r\n]{0,100}include|include[^\r\n]{0,100}(?:one|1) (?:dedicated organization )?(?:number|SMS number)/i.test(source) || !/activation and configuration (?:are )?required/i.test(source))) {
+    failures.push(`${file}: SMS claims must disclose one included eligible-plan number and required activation/configuration`);
+  }
+  if (/SMS[^\r\n]{0,100}(?:paid )?add-on|(?:paid )?add-on[^\r\n]{0,100}SMS/i.test(source)) {
+    failures.push(`${file}: SMS must not be described as a separate paid add-on`);
   }
 }
 

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using brownstone_hub_api.Hubs;
 using Microsoft.Extensions.Logging;
+using brownstone_hub_api.Services.SmsService;
 
 
 namespace brownstone_hub_api.Controllers
@@ -17,20 +18,37 @@ namespace brownstone_hub_api.Controllers
         IMessageService messageService,
         IHubContext<ConversationHub> hubContext,
         IOutboundMessageDeliveryEnqueuer deliveryEnqueuer,
+        IOutboundSmsSecurityService outboundSmsSecurity,
         ILogger<MessageController> logger) : ControllerBase
     {
         private readonly IMessageService _messageService = messageService;
         private readonly IHubContext<ConversationHub> _hubContext = hubContext;
         private readonly IOutboundMessageDeliveryEnqueuer _deliveryEnqueuer = deliveryEnqueuer;
+        private readonly IOutboundSmsSecurityService _outboundSmsSecurity = outboundSmsSecurity;
         private readonly ILogger<MessageController> _logger = logger;
 
 
         [HttpPost]
-        public async Task<IActionResult> AddMessage([FromBody] AddMessageDto message)
+        public async Task<IActionResult> AddMessage([FromBody] AddMessageDto message, CancellationToken cancellationToken = default)
         {
             // Public REST sends are always in-app. External channel evidence is accepted only
             // through authenticated provider ingestion services.
             message.Channel = "inApp";
+            if (!TryGetPositiveId(HttpContext.Items["UserId"], out var userId) ||
+                !TryGetPositiveId(HttpContext.Items["OrganizationId"], out var organizationId))
+                return Forbid();
+
+            // Resolve the persisted conversation organization before MessageRepository can create
+            // an SMS outbox row. A selected organization cannot authorize another org's sender.
+            var smsDecision = await _outboundSmsSecurity.AuthorizeConversationEnqueueAsync(
+                userId, organizationId, message.ConversationId, cancellationToken);
+            if (!smsDecision.IsAllowed)
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    Message = "This organization is not authorized to send SMS for the conversation.",
+                    ReasonCode = smsDecision.ReasonCode
+                });
+
             var response = await _messageService.AddMessage(message);
             
             if (!response.Success)
@@ -62,6 +80,12 @@ namespace brownstone_hub_api.Controllers
             }
 
             return Ok(response);
+        }
+
+        private static bool TryGetPositiveId(object? value, out long id)
+        {
+            id = value switch { long longValue => longValue, int intValue => intValue, _ => 0 };
+            return id > 0;
         }
 
         [HttpGet("{messageId}")]

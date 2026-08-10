@@ -382,7 +382,7 @@ const featureSteps: Record<string, MockStep[]> = {
     },
     {
       label: 'Reminder sent',
-      caption: 'Send a friendly rent reminder by email or SMS from the same workflow.',
+      caption: 'Send by email; eligible Premium/Lifetime plans include one SMS number, with activation and configuration required.',
       callout: 'Reminder ready',
       eyebrow: 'Tenant reminder',
       title: 'Friendly follow-up',
@@ -390,7 +390,7 @@ const featureSteps: Record<string, MockStep[]> = {
       tone: 'blue',
       rows: [
         { label: 'Email reminder', value: 'Ready', status: 'Drafted', tone: 'blue' },
-        { label: 'SMS reminder', value: 'Ready', status: 'Optional', tone: 'green' },
+        { label: 'SMS reminder', value: 'Setup required', status: 'Included number; setup required', tone: 'gray' },
         { label: 'Late fee', value: '$50', status: 'Calculated', tone: 'gray' },
       ],
       note: 'Send the right nudge without rewriting the same message.',
@@ -461,7 +461,7 @@ const featureSteps: Record<string, MockStep[]> = {
   'tenant-communication': [
     {
       label: 'Choose channel',
-      caption: 'Reach tenants by in-app message, email, or SMS based on urgency.',
+      caption: 'Reach tenants in-app or by email. Eligible Premium/Lifetime plans include one SMS number, with activation and configuration required.',
       callout: 'Channels ready',
       eyebrow: 'Notifications',
       title: 'Message Sarah Mitchell',
@@ -470,7 +470,7 @@ const featureSteps: Record<string, MockStep[]> = {
       rows: [
         { label: 'In-app', value: 'Enabled', status: 'Default', tone: 'green' },
         { label: 'Email', value: 'On', status: 'Backup', tone: 'blue' },
-        { label: 'SMS', value: 'Critical only', status: 'Set', tone: 'gray' },
+        { label: 'SMS', value: 'Setup required', status: 'Included number; setup required', tone: 'gray' },
       ],
       note: 'Pick the right channel without leaving the tenant record.',
     },
@@ -704,7 +704,7 @@ const featureSteps: Record<string, MockStep[]> = {
       tone: 'blue',
       rows: [
         { label: 'Trigger', value: '3 days before due', status: 'Set', tone: 'blue' },
-        { label: 'Channel', value: 'Email + SMS', status: 'Enabled', tone: 'green' },
+        { label: 'Channel', value: 'Email', status: 'SMS number setup required', tone: 'gray' },
         { label: 'Audience', value: 'Unpaid tenants', status: 'Filtered', tone: 'gray' },
       ],
       note: 'Routine reminders happen without rebuilding the task every month.',

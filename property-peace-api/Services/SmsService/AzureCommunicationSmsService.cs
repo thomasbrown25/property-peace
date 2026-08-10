@@ -42,7 +42,8 @@ namespace brownstone_hub_api.Services.SmsService
             string? from = null, string? idempotencyToken = null)
         {
             var maskedTo = CommunicationLogSanitizer.MaskDestination(to);
-            var maskedFrom = CommunicationLogSanitizer.MaskDestination(_settings.SmsFromPhoneNumber);
+            var selectedFrom = string.IsNullOrWhiteSpace(from) ? _settings.SmsFromPhoneNumber : from;
+            var maskedFrom = CommunicationLogSanitizer.MaskDestination(selectedFrom);
             try
             {
                 if (_smsClient == null)
@@ -51,9 +52,9 @@ namespace brownstone_hub_api.Services.SmsService
                     return false;
                 }
 
-                if (string.IsNullOrWhiteSpace(_settings.SmsFromPhoneNumber))
+                if (string.IsNullOrWhiteSpace(selectedFrom))
                 {
-                    _logger.LogError("SMS from phone number is not configured in AzureCommunicationSettings. Please set AzureCommunication:SmsFromPhoneNumber in Azure App Configuration.");
+                    _logger.LogError("SMS sender is not configured.");
                     return false;
                 }
 
@@ -81,7 +82,7 @@ namespace brownstone_hub_api.Services.SmsService
                 _logger.LogInformation("Sending SMS to {To} from {From} with message length: {Length}", maskedTo, maskedFrom, message.Length);
 
                 SmsSendResult sendResult = await _smsClient.SendAsync(
-                    from: _settings.SmsFromPhoneNumber,
+                    from: selectedFrom,
                     to: normalizedTo,
                     message: message,
                     cancellationToken: cancellationToken);
@@ -112,7 +113,7 @@ namespace brownstone_hub_api.Services.SmsService
             }
         }
 
-        public async Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default)
+        public async Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default, string? from = null)
         {
             try
             {
@@ -122,9 +123,9 @@ namespace brownstone_hub_api.Services.SmsService
                     return false;
                 }
 
-                if (string.IsNullOrWhiteSpace(_settings.SmsFromPhoneNumber))
+                if (string.IsNullOrWhiteSpace(from))
                 {
-                    _logger.LogError("SMS from phone number is not configured in AzureCommunicationSettings.");
+                    _logger.LogError("An explicit organization SMS sender is required for bulk sends.");
                     return false;
                 }
 
@@ -159,7 +160,7 @@ namespace brownstone_hub_api.Services.SmsService
                 }
 
                 _logger.LogInformation("Sending bulk SMS to {Count} recipients from {From} with message length: {Length}", 
-                    normalizedNumbers.Count, CommunicationLogSanitizer.MaskDestination(_settings.SmsFromPhoneNumber), message.Length);
+                    normalizedNumbers.Count, CommunicationLogSanitizer.MaskDestination(from), message.Length);
 
                 // Send to each recipient (ACS SMS doesn't have a true bulk send, so we send individually)
                 var results = new List<SmsSendResult>();
@@ -168,7 +169,7 @@ namespace brownstone_hub_api.Services.SmsService
                     try
                     {
                         var sendResult = await _smsClient.SendAsync(
-                            from: _settings.SmsFromPhoneNumber,
+                            from: from,
                             to: phoneNumber,
                             message: message,
                             cancellationToken: cancellationToken);

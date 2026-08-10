@@ -587,17 +587,13 @@ export const showData = async (dataType, params = {}) => {
         break;
 
       case 'reports':
-        // For reports, we'll provide a summary of available reports
         formattedData = {
           type: 'reports',
-          title: 'Available Reports',
+          title: 'Tax Center',
           items: [
-            { name: 'Expense Reports', route: '/landlord/reports?type=expense' },
-            { name: 'Tax Reports', route: '/landlord/reports?type=tax' },
-            { name: 'Analytics', route: '/landlord/reports?type=analytics' },
-            { name: 'Occupancy Reports', route: '/landlord/reports?type=occupancy' }
+            { name: 'Tax Center', route: '/landlord/accounting/tax-center' }
           ],
-          message: 'You can view detailed reports by navigating to the Reports page.'
+          message: 'Open Tax Center to review Schedule E figures, deductible expenses, and accountant-ready exports.'
         };
         break;
 

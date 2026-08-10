@@ -16,7 +16,7 @@ export const metadata: Metadata = applyOttoSeo('/small-landlord-tools/', {
 });
 
 const tools = [
-  'Online rent collection system',
+  'Rent ledger and reminder system',
   'Tenant management database',
   'Maintenance request tracker',
   'Digital lease management',
@@ -146,7 +146,7 @@ export default function SmallLandlordToolsPage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Professional tools help you present yourself as a serious landlord. Online rent collection, organized communication, and quick responses improve tenant relationships and attract better tenants.
+                Professional tools help you present yourself as a serious landlord. Organized rent records, communication, and quick responses improve tenant relationships and attract better tenants. Online payment processing is not currently available.
               </p>
             </div>
             <div>

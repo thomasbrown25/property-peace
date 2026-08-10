@@ -52,14 +52,14 @@ namespace brownstone_hub_api.Controllers
         private readonly IConfiguration _configuration = configuration;
         private const string SignedDocumentsContainerName = "signed-documents";
 
-        private async Task<bool> RequireLeaseManagementPermissionAsync()
+        private async Task<bool> RequireLeaseManagementPermissionAsync(CancellationToken cancellationToken)
         {
             var organizationId = this.GetCurrentOrganizationIdOrForbid();
             var userId = HttpContext.Items.TryGetValue("UserId", out var userIdObject) && userIdObject is long id ? id : 0;
             return userId > 0 && await _dataContext.OrganizationMembers.AsNoTracking().AnyAsync(member =>
                 member.UserId == userId && member.OrganizationId == organizationId && member.IsActive
                 && (member.Role == "Owner" || member.Role == "Admin"
-                    || member.Role == "Manager" && member.CanManageLeases));
+                    || member.Role == "Manager" && member.CanManageLeases), cancellationToken);
         }
 
         [Authorize(Roles = "Landlord,Admin")]
@@ -378,16 +378,16 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/sign-landlord")]
         [RequireFeatureReady(FeatureKeys.ESignature)]
-        public async Task<IActionResult> SignLandlordOnly(long leaseId, [FromBody] SendLeaseForSignatureDto request)
+        public async Task<IActionResult> SignLandlordOnly(long leaseId, [FromBody] SendLeaseForSignatureDto request, CancellationToken cancellationToken)
         {
-            if (!await RequireLeaseManagementPermissionAsync()) return Forbid();
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
             if (leaseId != request.LeaseId)
                 return BadRequest(new { Message = "Lease ID mismatch" });
 
             var frontendBaseUrl = _configuration["FrontendBaseUrl"] ?? 
                 (Request.IsHttps ? $"https://{Request.Host}" : $"http://{Request.Host}");
             
-            var response = await _leaseService.SignLandlordOnlyAsync(leaseId, request, frontendBaseUrl);
+            var response = await _leaseService.SignLandlordOnlyAsync(leaseId, request, frontendBaseUrl, cancellationToken);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -398,9 +398,9 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/send-for-signature")]
         [RequireFeatureReady(FeatureKeys.ESignature)]
-        public async Task<IActionResult> SendLeaseForSignature(long leaseId, [FromBody] SendLeaseForSignatureDto request)
+        public async Task<IActionResult> SendLeaseForSignature(long leaseId, [FromBody] SendLeaseForSignatureDto request, CancellationToken cancellationToken)
         {
-            if (!await RequireLeaseManagementPermissionAsync()) return Forbid();
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
             if (leaseId != request.LeaseId)
                 return BadRequest(new { Message = "Lease ID mismatch" });
 
@@ -423,7 +423,7 @@ namespace brownstone_hub_api.Controllers
             // Get organization ID from context
             var organizationId = this.GetCurrentOrganizationId();
 
-            var response = await _leaseService.SendLeaseForSignatureAsync(leaseId, request, landlordId.Value, organizationId);
+            var response = await _leaseService.SendLeaseForSignatureAsync(leaseId, request, landlordId.Value, organizationId, cancellationToken);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -434,7 +434,7 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{leaseId}/signature-status")]
         [RequireFeatureReady(FeatureKeys.ESignature)]
-        public async Task<IActionResult> GetLeaseSignatureStatus(long leaseId)
+        public async Task<IActionResult> GetLeaseSignatureStatus(long leaseId, CancellationToken cancellationToken)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);
             if (!leaseResponse.Success || leaseResponse.Data == null)
@@ -444,7 +444,7 @@ namespace brownstone_hub_api.Controllers
             if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
                 return BadRequest(new { Message = "Lease has not been sent for signature" });
 
-            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement?.DocuSignEnvelopeId);
+            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement.DocuSignEnvelopeId, cancellationToken);
             if (!statusResponse.Success)
                 return StatusCode(statusResponse.StatusCode, new
                 {
@@ -458,18 +458,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/cancel-signature")]
         [RequireFeatureReady(FeatureKeys.ESignature)]
-        public async Task<IActionResult> CancelLeaseSignature(long leaseId, [FromBody] string? reason = null)
+        public async Task<IActionResult> CancelLeaseSignature(long leaseId, [FromBody] string? reason, CancellationToken cancellationToken)
         {
-            if (!await RequireLeaseManagementPermissionAsync()) return Forbid();
-            var leaseResponse = await _leaseService.GetLeaseById(leaseId);
-            if (!leaseResponse.Success || leaseResponse.Data == null)
-                return NotFound(new { Message = "Lease not found" });
-
-            var lease = leaseResponse.Data;
-            if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
-                return BadRequest(new { Message = "Lease has not been sent for signature" });
-
-            var cancelResponse = await _eSignatureService.CancelSignature(lease.LeaseAgreement?.DocuSignEnvelopeId, reason);
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
+            var cancelResponse = await _leaseService.CancelLeaseSignatureAsync(leaseId, reason, cancellationToken);
             if (!cancelResponse.Success)
                 return StatusCode(cancelResponse.StatusCode, new
                 {
@@ -483,13 +475,13 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/sync-signature-status")]
         [RequireFeatureReady(FeatureKeys.ESignature)]
-        public async Task<IActionResult> SyncSignatureStatus(long leaseId)
+        public async Task<IActionResult> SyncSignatureStatus(long leaseId, CancellationToken cancellationToken)
         {
-            if (!await RequireLeaseManagementPermissionAsync()) return Forbid();
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
             var landlordEmail = User?.FindFirst(ClaimTypes.Email)?.Value ?? 
                               User?.FindFirst("email")?.Value;
 
-            var response = await _leaseService.SyncLeaseSignatureStatusAsync(leaseId, landlordEmail);
+            var response = await _leaseService.SyncLeaseSignatureStatusAsync(leaseId, landlordEmail, cancellationToken);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -505,7 +497,7 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{leaseId}/signing-url")]
         [RequireFeatureReady(FeatureKeys.ESignature)]
-        public async Task<IActionResult> GetLandlordSigningUrl(long leaseId)
+        public async Task<IActionResult> GetLandlordSigningUrl(long leaseId, CancellationToken cancellationToken)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);
             if (!leaseResponse.Success || leaseResponse.Data == null)
@@ -516,7 +508,7 @@ namespace brownstone_hub_api.Controllers
                 return BadRequest(new { Message = "Lease has not been sent for signature" });
 
             // Get signature status to check if already signed
-            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement?.DocuSignEnvelopeId);
+            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement.DocuSignEnvelopeId, cancellationToken);
             if (!statusResponse.Success)
                 return StatusCode(statusResponse.StatusCode, new
                 {
@@ -547,18 +539,10 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/resend-signature")]
         [RequireFeatureReady(FeatureKeys.ESignature)]
-        public async Task<IActionResult> ResendLeaseSignature(long leaseId)
+        public async Task<IActionResult> ResendLeaseSignature(long leaseId, CancellationToken cancellationToken)
         {
-            if (!await RequireLeaseManagementPermissionAsync()) return Forbid();
-            var leaseResponse = await _leaseService.GetLeaseById(leaseId);
-            if (!leaseResponse.Success || leaseResponse.Data == null)
-                return NotFound(new { Message = "Lease not found" });
-
-            var lease = leaseResponse.Data;
-            if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
-                return BadRequest(new { Message = "Lease has not been sent for signature" });
-
-            var resendResponse = await _eSignatureService.ResendSignatureRequest(lease.LeaseAgreement?.DocuSignEnvelopeId);
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
+            var resendResponse = await _leaseService.ResendLeaseSignatureAsync(leaseId, cancellationToken);
             if (!resendResponse.Success)
                 return StatusCode(resendResponse.StatusCode, new
                 {

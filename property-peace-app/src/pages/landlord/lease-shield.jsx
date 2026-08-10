@@ -39,7 +39,8 @@ import PlusOutlined from '@ant-design/icons/PlusOutlined';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-import { useSubscription } from 'hooks/useSubscription';
+import useEntitlement from 'hooks/useEntitlement';
+import { LEASE_SHIELD_MANAGE_FEATURE, LEASE_SHIELD_READ_FEATURE } from 'utils/entitlements';
 import remarkGfm from 'remark-gfm';
 import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
@@ -230,9 +231,10 @@ export default function LeaseShield() {
   const navigate = useNavigate();
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('lg'));
-  const { subscription, loading: subscriptionLoading } = useSubscription();
-  const planName = subscription?.plan?.name?.toLowerCase() ?? '';
-  const isPremium = planName === 'premium' || planName.includes('lifetime') || subscription?.cancelAtPeriodEnd === true;
+  const readEntitlement = useEntitlement(LEASE_SHIELD_READ_FEATURE);
+  const manageEntitlement = useEntitlement(LEASE_SHIELD_MANAGE_FEATURE);
+  const canRead = readEntitlement.presentation.kind === 'allowed';
+  const canManage = manageEntitlement.presentation.kind === 'allowed';
   const isTenantPortal = location.pathname.startsWith('/tenant/');
   const dashboardPath = isTenantPortal ? '/tenant/dashboard' : '/landlord/dashboard';
   const breadcrumbItems = [
@@ -258,6 +260,10 @@ export default function LeaseShield() {
     : conversations;
 
   useEffect(() => {
+    if (!canRead) {
+      setLoadingConversations(false);
+      return undefined;
+    }
     let cancelled = false;
     (async () => {
       setLoadingConversations(true);
@@ -274,10 +280,10 @@ export default function LeaseShield() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [canRead]);
 
   useEffect(() => {
-    if (!selectedId) {
+    if (!canRead || !selectedId) {
       setSelectedDetail(null);
       return;
     }
@@ -303,7 +309,7 @@ export default function LeaseShield() {
         if (!cancelled) setLoadingDetail(false);
       });
     return () => { cancelled = true; };
-  }, [selectedId]);
+  }, [canRead, selectedId]);
 
   const scrollToBottom = useCallback((smooth = true) => {
     requestAnimationFrame(() => {
@@ -333,7 +339,7 @@ export default function LeaseShield() {
   }, [optimisticUserMessage, sending, scrollToBottom]);
 
   useEffect(() => {
-    if (isPremium) return;
+    if (canRead || readEntitlement.presentation.kind !== 'upgrade') return;
     const TICK = 50;
     const TOTAL = 4000;
     const id = setInterval(() => {
@@ -347,9 +353,10 @@ export default function LeaseShield() {
       });
     }, TICK);
     return () => clearInterval(id);
-  }, [isPremium]);
+  }, [canRead, readEntitlement.presentation.kind]);
 
-  if (loadingConversations) {
+  const entitlementIsLoading = readEntitlement.isLoading || readEntitlement.presentation.kind === 'loading';
+  if (entitlementIsLoading || loadingConversations) {
     return (
       <MainCard>
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
@@ -360,6 +367,7 @@ export default function LeaseShield() {
   }
 
   const createNewConversation = async () => {
+    if (!canManage) return;
     const stateCode = selectedState ? (STATE_NAME_TO_CODE[selectedState] || selectedState) : '';
     if (!stateCode) {
       setStateRequiredError(true);
@@ -399,6 +407,7 @@ export default function LeaseShield() {
 
   const handleDeleteConversation = async (e, id) => {
     e.stopPropagation();
+    if (!canManage) return;
     try {
       const res = await deleteConversationApi(id);
       if (res?.success) {
@@ -425,6 +434,7 @@ export default function LeaseShield() {
   };
 
   const handleRenameSave = async () => {
+    if (!canManage) return;
     if (renameConvId == null || !renameValue.trim()) return;
     try {
       const res = await updateConversation(renameConvId, { title: renameValue.trim() });
@@ -453,6 +463,7 @@ export default function LeaseShield() {
   };
 
   const handleSend = async (overrideText) => {
+    if (!canManage) return;
     const text = (overrideText ?? messageInput).trim();
     if (!text || sending) return;
 
@@ -513,8 +524,29 @@ export default function LeaseShield() {
 
   const hasSidebar = (conversations.length > 0 || startedNewConversation) && !isSmallScreen;
 
-  // Hard gate: show upgrade wall for non-premium users once subscription has loaded
-  if (!subscriptionLoading && !isPremium) {
+  if (!canRead && readEntitlement.presentation.kind !== 'upgrade') {
+    const deniedCopy = {
+      'setup': ['Finish organization setup', 'Complete setup before using LeaseShield.'],
+      'unauthorized': ['LeaseShield is not authorized', 'Ask an organization owner or manager to review your access.'],
+      'unavailable': ['LeaseShield is unavailable', 'Access could not be confirmed, so this feature remains locked.']
+    };
+    const [title, message] = deniedCopy[readEntitlement.presentation.kind] || deniedCopy.unavailable;
+    return (
+      <MainCard>
+        <Stack spacing={2} alignItems="center" sx={{ py: 8, textAlign: 'center' }}>
+          <SafetyCertificateOutlined style={{ fontSize: 36 }} />
+          <Typography variant="h4">{title}</Typography>
+          <Typography color="text.secondary">{message}</Typography>
+          {readEntitlement.presentation.kind === 'unavailable' && (
+            <Button variant="outlined" onClick={readEntitlement.refresh}>Retry</Button>
+          )}
+        </Stack>
+      </MainCard>
+    );
+  }
+
+  // Upgrade presentation is driven only by the centralized entitlement decision.
+  if (!canRead) {
     const mockPanels = [LeaseShieldMock1, LeaseShieldMock2, LeaseShieldMock3];
     const ActiveMock = mockPanels[upgradeStep];
     return (
@@ -867,7 +899,7 @@ export default function LeaseShield() {
                       </Box>
                     </Stack>
                   </Paper>
-                  {!isPremium ? (
+                  {!canManage ? (
                     <>
                       <Paper
                         variant="outlined"

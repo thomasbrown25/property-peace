@@ -288,7 +288,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task SignLandlordOnly_IgnoresConflictingClientIdentityAndUsesAuthenticatedMember()
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
             var request = new SendLeaseForSignatureDto
             {
                 LeaseId = 1,
@@ -296,7 +296,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
                 LandlordName = "Attacker"
             };
 
-            var result = await _sut.SignLandlordOnlyAsync(1, request, "https://example.test");
+            var result = await _sut.SignLandlordOnlyAsync(1, request, "https://example.test", CancellationToken.None);
 
             result.StatusCode.Should().Be(400); // no document service in this focused unit test
             request.LandlordEmail.Should().Be("current.landlord@example.com");
@@ -310,7 +310,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task SendLeaseForSignature_RejectsSignerSetThatDoesNotExactlyMatchLease(string variation)
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
             var signers = variation switch
             {
                 "missing" => new List<TenantSignerDto> { Signer(10, "one@example.com", "One Tenant") },
@@ -328,7 +328,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
             };
 
             var result = await _sut.SendLeaseForSignatureAsync(1,
-                new SendLeaseForSignatureDto { TenantSigners = signers }, 5, 10);
+                new SendLeaseForSignatureDto { LeaseId = 1, TenantSigners = signers }, 5, 10, CancellationToken.None);
 
             result.Success.Should().BeFalse();
             result.StatusCode.Should().Be(400);
@@ -339,7 +339,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task SendLeaseForSignature_RejectsIdentityMismatch()
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
             var request = new SendLeaseForSignatureDto
             {
                 TenantSigners =
@@ -349,7 +349,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
                 ]
             };
 
-            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10);
+            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10, CancellationToken.None);
 
             result.Success.Should().BeFalse();
             result.StatusCode.Should().Be(400);
@@ -360,7 +360,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task SendLeaseForSignature_NormalizesIdentityAndOrdersSignersByTenantId()
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
             var request = new SendLeaseForSignatureDto
             {
                 LandlordEmail = "attacker@example.com",
@@ -372,7 +372,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
                 ]
             };
 
-            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10);
+            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10, CancellationToken.None);
 
             // This test has no document service, so it stops after signer normalization.
             result.StatusCode.Should().Be(400);

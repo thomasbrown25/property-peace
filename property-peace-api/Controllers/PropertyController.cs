@@ -15,14 +15,14 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpPost("")]
-        public async Task<IActionResult> AddOrUpdateProperty([FromForm] string propertyData, [FromForm] List<IFormFile> files)
+        public async Task<IActionResult> AddOrUpdateProperty([FromForm] string propertyData, [FromForm] List<IFormFile> files, CancellationToken cancellationToken)
         {
             var settings = new Newtonsoft.Json.JsonSerializerSettings
             {
                 ContractResolver = new Newtonsoft.Json.Serialization.CamelCasePropertyNamesContractResolver()
             };
             var newPropertyDto = Newtonsoft.Json.JsonConvert.DeserializeObject<UpdatePropertyDto>(propertyData, settings);
-            var response = await _propertyService.AddOrUpdateProperty(newPropertyDto, files);
+            var response = await _propertyService.AddOrUpdateProperty(newPropertyDto, files, cancellationToken);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new

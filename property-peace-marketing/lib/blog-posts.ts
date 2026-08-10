@@ -146,7 +146,7 @@ Choose the platform that feels most natural and solves your biggest pain points.
 Property Peace is designed specifically for landlords managing 1-50 units. We offer:
 - Simple, flat pricing with Premium at $14.99/month
 - No per-unit fees
-- Real-time updates across all features
+- Current records across supported property-management workflows
 - Comprehensive features without the complexity
 - Mobile-friendly interface
 - Dedicated support for small landlords

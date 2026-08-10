@@ -1,5 +1,5 @@
-using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Repositories.Users;
+using brownstone_hub_api.Security;
 using System.Security.Claims;
 
 namespace brownstone_hub_api.Middleware
@@ -18,7 +18,7 @@ namespace brownstone_hub_api.Middleware
         public async Task InvokeAsync(
             HttpContext context,
             IUserRepository userRepository,
-            IOrganizationMemberRepository memberRepository)
+            IOrganizationAuthorityResolver authorityResolver)
         {
             if (context.User.Identity?.IsAuthenticated == true)
             {
@@ -49,6 +49,10 @@ namespace brownstone_hub_api.Middleware
                                     userId = userDto.Id;
                                 }
                             }
+                            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+                            {
+                                throw;
+                            }
                             catch (Exception ex)
                             {
                                 _logger.LogWarning(ex, "Could not find user by email/claim: {UserIdClaim}", userIdClaim);
@@ -75,7 +79,10 @@ namespace brownstone_hub_api.Middleware
                                 return;
                             }
 
-                            var isMember = await memberRepository.IsUserMemberOfOrganizationAsync(userId.Value, organizationId);
+                            var isMember = await authorityResolver.HasActiveMembershipAsync(
+                                userId.Value,
+                                organizationId,
+                                context.RequestAborted);
                             if (!isMember)
                             {
                                 _logger.LogWarning(
@@ -99,9 +106,10 @@ namespace brownstone_hub_api.Middleware
                             if (user?.CurrentOrganizationId is > 0)
                             {
                                 var persistedOrganizationId = user.CurrentOrganizationId.Value;
-                                var isMember = await memberRepository.IsUserMemberOfOrganizationAsync(
+                                var isMember = await authorityResolver.HasActiveMembershipAsync(
                                     userId.Value,
-                                    persistedOrganizationId);
+                                    persistedOrganizationId,
+                                    context.RequestAborted);
                                 if (!isMember)
                                 {
                                     _logger.LogWarning(
@@ -130,6 +138,10 @@ namespace brownstone_hub_api.Middleware
                     {
                         _logger.LogWarning("Could not determine user ID from claims for authenticated user");
                     }
+                }
+                catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {

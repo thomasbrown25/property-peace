@@ -62,6 +62,7 @@ import { openSnackbar } from 'api/snackbar';
 import axiosServices from 'utils/axios';
 import { alpha, useTheme, Button, useMediaQuery } from '@mui/material';
 import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
+import { normalizeRentBalance } from 'utils/rentBalance';
 import { WarningOutlined, DollarCircleOutlined, RocketOutlined, ThunderboltOutlined, SettingOutlined, HomeOutlined, WalletOutlined, UnorderedListOutlined, ToolOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, DollarOutlined, DownOutlined } from '@ant-design/icons';
 
 // ==============================|| LANDLORD - DASHBOARD ||============================== //
@@ -114,15 +115,8 @@ export default function Dashboard() {
   const allMaintenanceRequests = dashboardSummaryData?.maintenanceRequests?.maintenanceRequests || [];
   const headerSummaryText = useMemo(() => {
     let attentionCount = 0;
-    // Count overdue units (backend-computed status)
-    if (properties?.length) {
-      properties.forEach((p) => {
-        (p.units || p.Units || []).forEach((u) => {
-          const unitStatus = (u.status || u.Status || '').toLowerCase();
-          if (unitStatus === 'overdue') attentionCount++;
-        });
-      });
-    }
+    // Count the canonical grace-aware rent obligations rather than the persisted unit status.
+    attentionCount += (rentRecords || []).filter((record) => normalizeRentBalance(record).rentDueIsOverdue).length;
     // Count high/medium maintenance
     attentionCount += allMaintenanceRequests.filter(
       (r) => ['high', 'medium'].includes((r.priority || '').toLowerCase()) && isOpenMaintenanceRequest(r)
@@ -143,7 +137,7 @@ export default function Dashboard() {
     }
     if (attentionCount === 0) return null;
     return `${attentionCount} thing${attentionCount !== 1 ? 's' : ''} need your attention today`;
-  }, [properties, allMaintenanceRequests]);
+  }, [properties, allMaintenanceRequests, rentRecords]);
 
   const dashboardStats = useMemo(() => {
     const propertyCount = properties?.length || 0;
@@ -816,10 +810,10 @@ export default function Dashboard() {
             View Rent Collection
           </Box>
         </MenuItem>
-        <MenuItem onClick={() => { handleCreateMenuClose(); navigate('/landlord/reports'); }} sx={{ py: 1.25, px: 2 }}>
+        <MenuItem onClick={() => { handleCreateMenuClose(); navigate('/landlord/accounting/tax-center'); }} sx={{ py: 1.25, px: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <BarChartOutlined style={{ fontSize: 16, color: '#fff' }} />
-            Generate Report
+            Open Tax Center
           </Box>
         </MenuItem>
       </Menu>

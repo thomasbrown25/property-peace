@@ -186,8 +186,6 @@ public class FeatureReadinessServiceTests
         };
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(configurationValues).Build();
 
-        var featureGate = new Mock<IFeatureGateService>();
-        featureGate.Setup(gate => gate.HasPlanFeatureAccessAsync(42, feature)).ReturnsAsync(true);
 
         var userRepository = new Mock<IUserRepository>();
         userRepository.Setup(repository => repository.GetUser(42)).ReturnsAsync(new User
@@ -203,7 +201,6 @@ public class FeatureReadinessServiceTests
         return new FeatureReadinessService(
             options.Object,
             configuration,
-            featureGate.Object,
             userRepository.Object,
             Mock.Of<ILogger<FeatureReadinessService>>());
     }

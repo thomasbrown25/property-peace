@@ -221,6 +221,52 @@ namespace brownstone_hub_api.Repositories.Payments
             }
         }
 
+        public async Task<List<LoadPaymentDto>> GetPaymentsByOrganizationAndPropertyId(
+            long organizationId,
+            long? propertyId,
+            DateTime startInclusive,
+            DateTime endExclusive)
+        {
+            try
+            {
+                var query = _context.Payments
+                    .AsNoTracking()
+                    .Include(p => p.Lease)
+                        .ThenInclude(l => l.Unit)
+                            .ThenInclude(u => u.Property)
+                    .Where(p =>
+                        p.Lease.Unit.Property.OrganizationId == organizationId &&
+                        !p.Lease.Unit.Property.IsDeleted &&
+                        !p.Lease.IsDeleted &&
+                        p.PaymentDate >= startInclusive &&
+                        p.PaymentDate < endExclusive);
+
+                if (propertyId.HasValue)
+                {
+                    query = query.Where(p =>
+                        p.PropertyId == propertyId.Value &&
+                        p.Lease.Unit.Property.Id == propertyId.Value);
+                }
+
+                var payments = await query
+                    .OrderByDescending(p => p.PaymentDate)
+                    .ToListAsync();
+
+                return _mapper.Map<List<LoadPaymentDto>>(payments);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Error retrieving organization-scoped payments for organization {OrganizationId}, property {PropertyId}, between {Start} and {End}",
+                    organizationId,
+                    propertyId,
+                    startInclusive,
+                    endExclusive);
+                throw new Exception("Error retrieving organization-scoped payments", ex);
+            }
+        }
+
         public async Task<Dictionary<long, List<LoadPaymentDto>>> GetPaymentsByPropertyIds(List<long> propertyIds, DateTime start, DateTime end)
         {
             try

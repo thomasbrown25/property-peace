@@ -450,12 +450,12 @@ export default function AICopilot({ onDashboardRefresh }) {
           </Box>
         </MenuItem>
         <MenuItem 
-          onClick={() => { setCreateMenuAnchor(null); navigate('/landlord/reports'); }}
+          onClick={() => { setCreateMenuAnchor(null); navigate('/landlord/accounting/tax-center'); }}
           sx={{ py: 1.25, px: 2 }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <BarChartOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />
-            Generate Report
+            Open Tax Center
           </Box>
         </MenuItem>
       </Menu>

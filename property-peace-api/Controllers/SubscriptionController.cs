@@ -228,27 +228,13 @@ namespace brownstone_hub_api.Controllers
         }
 
         /// <summary>
-        /// Start 7-day free trial
+        /// Retired trial endpoint retained for client compatibility.
         /// </summary>
         [HttpPost("start-trial")]
         [Authorize(Roles = "Landlord,Admin,Tenant")]
-        public async Task<IActionResult> StartTrial()
-        {
-            try
-            {
-                var response = await _subscriptionService.StartTrialAsync();
-                if (!response.Success)
-                {
-                    return StatusCode(response.StatusCode, response);
-                }
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error starting trial");
-                return StatusCode(500, new { Message = "An error occurred while starting trial" });
-            }
-        }
+        public Task<IActionResult> StartTrial()
+            => Task.FromResult<IActionResult>(
+                StatusCode(StatusCodes.Status410Gone, new { Message = "Trials are no longer available." }));
 
         /// <summary>
         /// Get subscription status and limits

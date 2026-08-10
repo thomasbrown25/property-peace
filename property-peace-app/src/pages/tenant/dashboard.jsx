@@ -59,6 +59,7 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 // ==============================|| TENANT - DASHBOARD ||============================== //
 
@@ -795,7 +796,6 @@ export default function TenantDashboard() {
 
     // Get rent record to match landlord portal calculation
     let overdueAmount = 0;
-    let rentAmount = lease.rentAmount || 0;
     let leaseRecord = null;
 
     // Handle both camelCase and PascalCase property names
@@ -803,8 +803,7 @@ export default function TenantDashboard() {
     if (rentRecords && rentRecords.length > 0) {
       leaseRecord = rentRecords.find((r) => r.leaseId === lease.id || r.LeaseId === lease.id);
       if (leaseRecord) {
-        overdueAmount = leaseRecord.overdueAmount || leaseRecord.OverdueAmount || 0;
-        rentAmount = leaseRecord.rentAmount || leaseRecord.RentAmount || lease.rentAmount || 0;
+        overdueAmount = normalizeRentBalance(leaseRecord).overdueAmount;
       } else {
         overdueAmount = calculateOverdueAmount(lease, payments, today);
       }
@@ -812,9 +811,10 @@ export default function TenantDashboard() {
       overdueAmount = calculateOverdueAmount(lease, payments, today);
     }
 
-    // Amount due: use AmountDueNow (15-day charge window + overdue) when present; else rent + overdue.
-    const amountDueNow = leaseRecord?.amountDueNow ?? leaseRecord?.AmountDueNow;
-    const amountDue = amountDueNow != null ? amountDueNow : rentAmount + overdueAmount;
+    // Keep local schedule arithmetic only when this surface has no collection record.
+    const amountDue = leaseRecord
+      ? normalizeRentBalance(leaseRecord).rentDue
+      : (lease.rentAmount || 0) + overdueAmount;
 
     return {
       date: nextDue.toDate(),

@@ -1,8 +1,8 @@
-using System.Security.Claims;
 using brownstone_hub_api.Dtos.LeaseShield;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Enforcement;
+using brownstone_hub_api.Entitlements.Policy;
 using brownstone_hub_api.Services.LeaseShieldService;
-using brownstone_hub_api.Services.SubscriptionService;
-using brownstone_hub_api.Services.UserService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,55 +13,24 @@ namespace brownstone_hub_api.Controllers
     [Authorize(Roles = "Landlord,Admin,Tenant")]
     public class LeaseShieldController(
         ILeaseShieldService leaseShieldService,
-        IUserService userService,
-        IFeatureGateService featureGateService,
+        IEntitlementDecisionService entitlementDecisionService,
+        IEntitlementResourceOrganizationResolver resourceOrganizationResolver,
         ILogger<LeaseShieldController> logger) : ControllerBase
     {
         private readonly ILeaseShieldService _leaseShieldService = leaseShieldService;
-        private readonly IUserService _userService = userService;
-        private readonly IFeatureGateService _featureGateService = featureGateService;
+        private readonly IEntitlementDecisionService _entitlementDecisionService = entitlementDecisionService;
+        private readonly IEntitlementResourceOrganizationResolver _resourceOrganizationResolver = resourceOrganizationResolver;
         private readonly ILogger<LeaseShieldController> _logger = logger;
-
-        private async Task<long> GetUserIdAsync()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(userIdClaim) && long.TryParse(userIdClaim, out var userId))
-                return userId;
-
-            var email = User.FindFirst("sub")?.Value
-                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                ?? User.FindFirst(ClaimTypes.Name)?.Value;
-            if (!string.IsNullOrEmpty(email))
-            {
-                try
-                {
-                    var userResponse = await _userService.GetUserByEmailAsync(email);
-                    return userResponse.Success && userResponse.Data != null ? userResponse.Data.Id : 0;
-                }
-                catch { return 0; }
-            }
-            return 0;
-        }
-
-        private async Task<IActionResult?> RequireLeaseShieldAccessAsync(long userId)
-        {
-            var hasAccess = await _featureGateService.HasLeaseShieldAccessAsync(userId);
-            if (!hasAccess)
-            {
-                return StatusCode(403, new { success = false, message = "LeaseShield is a Premium feature. Upgrade your subscription to use it." });
-            }
-            return null;
-        }
 
         [HttpGet("conversations")]
         public async Task<IActionResult> GetConversations(CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-            var accessResult = await RequireLeaseShieldAccessAsync(userId);
-            if (accessResult != null) return accessResult;
+            var scope = TrustedScope(FeatureKeys.LeaseShieldRead);
+            if (scope.Denial != null) return scope.Denial;
+            var denial = await RequireAccessAsync(FeatureKeys.LeaseShieldRead, scope.UserId, scope.OrganizationId, null, cancellationToken);
+            if (denial != null) return denial;
 
-            var response = await _leaseShieldService.GetConversationsAsync(userId, cancellationToken);
+            var response = await _leaseShieldService.GetConversationsAsync(scope.UserId, scope.OrganizationId, cancellationToken);
             if (!response.Success) return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);
         }
@@ -69,12 +38,14 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("conversations/{id:long}")]
         public async Task<IActionResult> GetConversation(long id, CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-            var accessResult = await RequireLeaseShieldAccessAsync(userId);
-            if (accessResult != null) return accessResult;
+            var scope = TrustedScope(FeatureKeys.LeaseShieldRead);
+            if (scope.Denial != null) return scope.Denial;
+            var resource = await ConversationOrganizationAsync(id, scope.UserId, cancellationToken);
+            if (!resource.HasValue) return ConversationNotFound();
+            var denial = await RequireAccessAsync(FeatureKeys.LeaseShieldRead, scope.UserId, scope.OrganizationId, resource, cancellationToken);
+            if (denial != null) return denial;
 
-            var response = await _leaseShieldService.GetConversationAsync(id, userId, cancellationToken);
+            var response = await _leaseShieldService.GetConversationAsync(id, scope.UserId, scope.OrganizationId, cancellationToken);
             if (!response.Success) return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);
         }
@@ -82,12 +53,12 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("conversations")]
         public async Task<IActionResult> CreateConversation([FromBody] CreateLeaseShieldConversationRequest request, CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-            var accessResult = await RequireLeaseShieldAccessAsync(userId);
-            if (accessResult != null) return accessResult;
+            var scope = TrustedScope(FeatureKeys.LeaseShieldManage);
+            if (scope.Denial != null) return scope.Denial;
+            var denial = await RequireAccessAsync(FeatureKeys.LeaseShieldManage, scope.UserId, scope.OrganizationId, null, cancellationToken);
+            if (denial != null) return denial;
 
-            var response = await _leaseShieldService.CreateConversationAsync(userId, request, null, cancellationToken);
+            var response = await _leaseShieldService.CreateConversationAsync(scope.UserId, request, scope.OrganizationId, cancellationToken);
             if (!response.Success) return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);
         }
@@ -95,12 +66,14 @@ namespace brownstone_hub_api.Controllers
         [HttpPut("conversations/{id:long}")]
         public async Task<IActionResult> UpdateConversation(long id, [FromBody] UpdateLeaseShieldConversationRequest request, CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-            var accessResult = await RequireLeaseShieldAccessAsync(userId);
-            if (accessResult != null) return accessResult;
+            var scope = TrustedScope(FeatureKeys.LeaseShieldManage);
+            if (scope.Denial != null) return scope.Denial;
+            var resource = await ConversationOrganizationAsync(id, scope.UserId, cancellationToken);
+            if (!resource.HasValue) return ConversationNotFound();
+            var denial = await RequireAccessAsync(FeatureKeys.LeaseShieldManage, scope.UserId, scope.OrganizationId, resource, cancellationToken);
+            if (denial != null) return denial;
 
-            var response = await _leaseShieldService.UpdateConversationTitleAsync(id, userId, request, cancellationToken);
+            var response = await _leaseShieldService.UpdateConversationTitleAsync(id, scope.UserId, scope.OrganizationId, request, cancellationToken);
             if (!response.Success) return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);
         }
@@ -108,12 +81,14 @@ namespace brownstone_hub_api.Controllers
         [HttpDelete("conversations/{id:long}")]
         public async Task<IActionResult> DeleteConversation(long id, CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-            var accessResult = await RequireLeaseShieldAccessAsync(userId);
-            if (accessResult != null) return accessResult;
+            var scope = TrustedScope(FeatureKeys.LeaseShieldManage);
+            if (scope.Denial != null) return scope.Denial;
+            var resource = await ConversationOrganizationAsync(id, scope.UserId, cancellationToken);
+            if (!resource.HasValue) return ConversationNotFound();
+            var denial = await RequireAccessAsync(FeatureKeys.LeaseShieldManage, scope.UserId, scope.OrganizationId, resource, cancellationToken);
+            if (denial != null) return denial;
 
-            var response = await _leaseShieldService.DeleteConversationAsync(id, userId, cancellationToken);
+            var response = await _leaseShieldService.DeleteConversationAsync(id, scope.UserId, scope.OrganizationId, cancellationToken);
             if (!response.Success) return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);
         }
@@ -121,12 +96,14 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("conversations/{id:long}/messages")]
         public async Task<IActionResult> SendMessage(long id, [FromBody] SendLeaseShieldMessageRequest request, CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-            var accessResult = await RequireLeaseShieldAccessAsync(userId);
-            if (accessResult != null) return accessResult;
+            var scope = TrustedScope(FeatureKeys.LeaseShieldManage);
+            if (scope.Denial != null) return scope.Denial;
+            var resource = await ConversationOrganizationAsync(id, scope.UserId, cancellationToken);
+            if (!resource.HasValue) return ConversationNotFound();
+            var denial = await RequireAccessAsync(FeatureKeys.LeaseShieldManage, scope.UserId, scope.OrganizationId, resource, cancellationToken);
+            if (denial != null) return denial;
 
-            var response = await _leaseShieldService.SendMessageAsync(id, userId, request, null, cancellationToken);
+            var response = await _leaseShieldService.SendMessageAsync(id, scope.UserId, request, scope.OrganizationId, cancellationToken);
             if (!response.Success) return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);
         }
@@ -134,14 +111,59 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("messages")]
         public async Task<IActionResult> SendMessageNewConversation([FromBody] SendLeaseShieldMessageRequest request, CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-            var accessResult = await RequireLeaseShieldAccessAsync(userId);
-            if (accessResult != null) return accessResult;
+            var scope = TrustedScope(FeatureKeys.LeaseShieldManage);
+            if (scope.Denial != null) return scope.Denial;
+            var denial = await RequireAccessAsync(FeatureKeys.LeaseShieldManage, scope.UserId, scope.OrganizationId, null, cancellationToken);
+            if (denial != null) return denial;
 
-            var response = await _leaseShieldService.SendMessageAsync(null, userId, request, null, cancellationToken);
+            var response = await _leaseShieldService.SendMessageAsync(null, scope.UserId, request, scope.OrganizationId, cancellationToken);
             if (!response.Success) return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             return Ok(response);
         }
+
+        private async Task<IActionResult?> RequireAccessAsync(
+            FeatureKey feature,
+            long userId,
+            long organizationId,
+            long? resourceOrganizationId,
+            CancellationToken cancellationToken)
+        {
+            var decision = await _entitlementDecisionService.DecideAsync(
+                EntitlementEnforcement.Request(
+                    userId,
+                    organizationId,
+                    feature,
+                    resourceOrganizationId),
+                cancellationToken);
+            return EntitlementEnforcement.IsAllowed(feature, decision)
+                ? null
+                : EntitlementEnforcement.Denied(feature, decision);
+        }
+
+        private Task<long?> ConversationOrganizationAsync(long id, long userId, CancellationToken cancellationToken) =>
+            _resourceOrganizationResolver.GetLeaseShieldConversationOrganizationIdAsync(id, userId, cancellationToken);
+
+        private (long UserId, long OrganizationId, IActionResult? Denial) TrustedScope(FeatureKey feature)
+        {
+            var userId = HttpContext.Items["UserId"] switch
+            {
+                long value when value > 0 => value,
+                int value when value > 0 => value,
+                _ => 0
+            };
+            var organizationId = HttpContext.Items["OrganizationId"] switch
+            {
+                long value when value > 0 => value,
+                int value when value > 0 => value,
+                _ => 0
+            };
+
+            if (userId <= 0) return (0, organizationId, EntitlementEnforcement.MissingUser(feature));
+            if (organizationId <= 0) return (userId, 0, EntitlementEnforcement.MissingOrganization(feature));
+            return (userId, organizationId, null);
+        }
+
+        private static ObjectResult ConversationNotFound() =>
+            new(new { success = false, message = "Conversation not found." }) { StatusCode = StatusCodes.Status404NotFound };
     }
 }

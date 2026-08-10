@@ -33,6 +33,45 @@ public sealed class PropertyRepositoryOrganizationScopeTests : IDisposable
         foreignResult.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Inactive_lookup_and_state_mutations_are_organization_scoped()
+    {
+        var ownActive = PropertyWithUnit(101, 10, 1001);
+        var foreignActive = PropertyWithUnit(202, 20, 2002);
+        var ownInactive = PropertyWithUnit(303, 10, 3003);
+        ownInactive.IsDeleted = true;
+        ownInactive.DeletedAt = DateTime.UtcNow;
+        var foreignInactive = PropertyWithUnit(404, 20, 4004);
+        foreignInactive.IsDeleted = true;
+        foreignInactive.DeletedAt = DateTime.UtcNow;
+        _context.Properties.AddRange(ownActive, foreignActive, ownInactive, foreignInactive);
+        await _context.SaveChangesAsync();
+        var repository = new PropertyRepository(
+            _context, NullLogger<PropertyRepository>.Instance, MapperFactory.Create());
+
+        var ownInactiveResult = await repository.GetInactivePropertyByIdForMutationAsync(
+            ownInactive.Id, 10, CancellationToken.None);
+        var foreignInactiveResult = await repository.GetInactivePropertyByIdForMutationAsync(
+            foreignInactive.Id, 10, CancellationToken.None);
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => repository.InactivateProperty(
+            foreignActive.Id, 10, CancellationToken.None));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => repository.ReactivateProperty(
+            foreignInactive.Id, 10, CancellationToken.None));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => repository.DeleteProperty(
+            foreignActive.Id, 10, CancellationToken.None));
+
+        var inactivated = await repository.InactivateProperty(ownActive.Id, 10, CancellationToken.None);
+        var reactivated = await repository.ReactivateProperty(ownInactive.Id, 10, CancellationToken.None);
+
+        ownInactiveResult.Should().NotBeNull();
+        ownInactiveResult!.Units.Should().HaveCount(1);
+        foreignInactiveResult.Should().BeNull();
+        inactivated.IsDeleted.Should().BeTrue();
+        reactivated.IsDeleted.Should().BeFalse();
+        (await _context.Properties.FindAsync(foreignActive.Id)).Should().NotBeNull();
+        (await _context.Properties.FindAsync(foreignInactive.Id))!.IsDeleted.Should().BeTrue();
+    }
+
     private static Property PropertyWithUnit(long propertyId, long organizationId, long unitId)
     {
         var property = new Property

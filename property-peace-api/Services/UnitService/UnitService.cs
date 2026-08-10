@@ -3,28 +3,30 @@ using brownstone_hub_api.Dtos.Unit;
 using brownstone_hub_api.Repositories.Leases;
 using brownstone_hub_api.Repositories.MaintenanceRequests;
 using brownstone_hub_api.Repositories.Properties;
-using brownstone_hub_api.Repositories.Subscriptions;
 using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Repositories.Units;
 using brownstone_hub_api.Repositories.Listings;
-using brownstone_hub_api.Services.SubscriptionService;
 using brownstone_hub_api.Services.ChecklistService;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Infrastructure;
+using brownstone_hub_api.Entitlements.Policy;
 using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 namespace brownstone_hub_api.Services.UnitService
 {
-    public class UnitService(IUnitRepository unitRepository, ILeaseRepository leaseRepository, ITenantRepository tenantRepository, IMaintenanceRequestRepository maintenanceRequestRepository, IPropertyRepository propertyRepository, IFeatureGateService featureGateService, ISubscriptionRepository subscriptionRepository, IChecklistService checklistService, IListingRepository listingRepository, IHttpContextAccessor httpContextAccessor, ILogger<UnitService> logger) : IUnitService
+    public class UnitService(IUnitRepository unitRepository, ILeaseRepository leaseRepository, ITenantRepository tenantRepository, IMaintenanceRequestRepository maintenanceRequestRepository, IPropertyRepository propertyRepository, IChecklistService checklistService, IListingRepository listingRepository, IHttpContextAccessor httpContextAccessor, IEntitlementDecisionService entitlementDecisionService, IOrganizationEntitlementMutationCoordinator mutationCoordinator, ILogger<UnitService> logger) : IUnitService
     {
         private readonly IUnitRepository _unitRepository = unitRepository;
         private readonly ILeaseRepository _leaseRepository = leaseRepository;
         private readonly ITenantRepository _tenantRepository = tenantRepository;
         private readonly IMaintenanceRequestRepository _maintenanceRequestRepository = maintenanceRequestRepository;
         private readonly IPropertyRepository _propertyRepository = propertyRepository;
-        private readonly IFeatureGateService _featureGateService = featureGateService;
-        private readonly ISubscriptionRepository _subscriptionRepository = subscriptionRepository;
         private readonly IChecklistService _checklistService = checklistService;
         private readonly IListingRepository _listingRepository = listingRepository;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly IEntitlementDecisionService _entitlementDecisionService = entitlementDecisionService;
+        private readonly IOrganizationEntitlementMutationCoordinator _mutationCoordinator = mutationCoordinator;
         private readonly ILogger<UnitService> _logger = logger;
 
         private long? GetOrganizationIdFromContext()
@@ -34,6 +36,26 @@ namespace brownstone_hub_api.Services.UnitService
                 return orgId;
             }
             return null;
+        }
+
+        private bool TryGetTrustedCreationScope(out long userId, out long organizationId)
+        {
+            userId = 0;
+            organizationId = 0;
+            var context = _httpContextAccessor.HttpContext;
+            if (context?.Items.TryGetValue("OrganizationId", out var organizationValue) != true ||
+                organizationValue is not long selectedOrganizationId || selectedOrganizationId <= 0 ||
+                context.Items.TryGetValue("UserId", out var userValue) != true ||
+                userValue is not long selectedUserId || selectedUserId <= 0 ||
+                !long.TryParse(context.User.FindFirstValue(ClaimTypes.NameIdentifier), out var subjectUserId) ||
+                subjectUserId != selectedUserId)
+            {
+                return false;
+            }
+
+            userId = selectedUserId;
+            organizationId = selectedOrganizationId;
+            return true;
         }
 
         public async Task<ServiceResponse<List<LoadUnitDto>>> GetUnits(long propertyId)
@@ -60,152 +82,196 @@ namespace brownstone_hub_api.Services.UnitService
             }
         }
 
-        public async Task<ServiceResponse<LoadUnitDto>> AddOrUpdateUnit(UpdateUnitDto updatedUnit)
+        public async Task<ServiceResponse<LoadUnitDto>> AddOrUpdateUnit(
+            UpdateUnitDto updatedUnit,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                LoadUnitDto newUnit;
+                cancellationToken.ThrowIfCancellationRequested();
 
-                var existingUnit = await _unitRepository.GetUnitById(updatedUnit.Id);
-                if (existingUnit != null)
+                if (!TryGetTrustedCreationScope(out var userId, out var organizationId))
                 {
-                    // Updating existing unit - no limit check needed
-                    newUnit = await _unitRepository.UpdateUnit(updatedUnit);
+                    return Forbidden<LoadUnitDto>();
                 }
-                else
+
+                if (updatedUnit.Id > 0)
                 {
-                    // Adding new unit - check subscription limit
-                    var property = await _propertyRepository.GetPropertyById(updatedUnit.PropertyId);
-                    if (property == null)
+                    var existingUnit = await _unitRepository.GetUnitByIdForMutationAsync(
+                        updatedUnit.Id, organizationId, cancellationToken);
+                    if (existingUnit is null || existingUnit.PropertyId != updatedUnit.PropertyId)
                     {
-                        return ServiceResponse<LoadUnitDto>.CreateError(
-                            "Property Not Found",
-                            $"Property with ID {updatedUnit.PropertyId} not found."
-                        );
+                        return Forbidden<LoadUnitDto>();
                     }
 
-                    // Check if user can add unit to this property
-                    var canAddUnit = await _featureGateService.CanAddUnitToPropertyAsync(property.LandlordId, updatedUnit.PropertyId);
-                    if (!canAddUnit)
+                    var updated = await _unitRepository.UpdateUnitForMutationAsync(
+                        updatedUnit, organizationId, cancellationToken);
+                    return updated is null
+                        ? Forbidden<LoadUnitDto>()
+                        : ServiceResponse<LoadUnitDto>.CreateSuccess(updated, "Unit saved successfully");
+                }
+
+                var outcome = await _mutationCoordinator.ExecuteAsync(
+                    organizationId,
+                    async token =>
                     {
-                        // Get subscription to provide helpful error message (subscriptions are organization-only)
-                        Models.Subscription? subscription = null;
-                        if (property.OrganizationId.HasValue)
+                        var property = await _propertyRepository.GetPropertyByIdForMutationAsync(updatedUnit.PropertyId, organizationId, token);
+                        if (property?.OrganizationId != organizationId)
                         {
-                            subscription = await _subscriptionRepository.GetSubscriptionByOrganizationIdAsync(property.OrganizationId.Value);
+                            return EntitlementMutationOutcome<ServiceResponse<LoadUnitDto>>.Rollback(Forbidden<LoadUnitDto>());
                         }
-                        var maxTotalUnits = subscription?.SubscriptionPlan?.MaxTotalUnits;
-                        var currentTotalUnits = await _featureGateService.GetCurrentTotalUnitsAsync(property.LandlordId);
 
-                        var errorMessage = maxTotalUnits.HasValue
-                            ? $"You've reached your plan's total unit limit ({currentTotalUnits}/{maxTotalUnits.Value} units). Upgrade your subscription to add more units."
-                            : "You've reached your unit limit. Upgrade your subscription to add more units.";
+                        var decision = await _entitlementDecisionService.DecideAsync(
+                            new EntitlementDecisionRequest(
+                                userId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                organizationId,
+                                FeatureKeys.PropertyManagement,
+                                RequestedQuantity: 1,
+                                ResourceOrganizationId: organizationId),
+                            token);
 
-                        return ServiceResponse<LoadUnitDto>.CreateError(
-                            "Unit Limit Reached",
-                            errorMessage,
-                            "",
-                            403
-                        );
-                    }
+                        var denial = MapDecisionDenial<LoadUnitDto>(decision);
+                        if (denial is not null)
+                        {
+                            return EntitlementMutationOutcome<ServiceResponse<LoadUnitDto>>.Rollback(denial);
+                        }
 
-                    var organizationId = GetOrganizationIdFromContext();
-                    newUnit = await _unitRepository.AddUnit(updatedUnit, updatedUnit.PropertyId, organizationId);
+                        // Repository insert is deliberately inside the serializable transaction.
+                        updatedUnit.Id = 0;
+                        var created = await _unitRepository.AddUnit(updatedUnit, updatedUnit.PropertyId, organizationId, token);
+                        return EntitlementMutationOutcome<ServiceResponse<LoadUnitDto>>.Commit(
+                            ServiceResponse<LoadUnitDto>.CreateSuccess(created, "Unit saved successfully"));
+                    },
+                    cancellationToken);
 
-                    // Do not auto-create inspections/checklists when units are added.
-                    // Users should intentionally create move-in or move-out inspections from the Inspections page.
-
-                }
-
-                return new ServiceResponse<LoadUnitDto>
-                {
-                    Data = newUnit,
-                    Message = "Unit saved successfully"
-                };
+                return outcome.Value;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saving unit to property: {PropertyId}", updatedUnit.PropertyId);
-                return ServiceResponse<LoadUnitDto>.CreateError(
-                    "Error saving unit",
-                    ex.Message,
-                    ex.InnerException?.Message
-                );
+                _logger.LogError(ex, "Unit creation is unavailable for property {PropertyId}", updatedUnit.PropertyId);
+                return Unavailable<LoadUnitDto>();
             }
         }
 
-        public async Task<ServiceResponse<List<LoadUnitDto>>> BulkCreateUnits(BulkCreateUnitsDto bulkCreateDto)
+        public async Task<ServiceResponse<List<LoadUnitDto>>> BulkCreateUnits(
+            BulkCreateUnitsDto bulkCreateDto,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                if (bulkCreateDto.Units == null || bulkCreateDto.Units.Count == 0)
+                cancellationToken.ThrowIfCancellationRequested();
+                if (bulkCreateDto?.Units is null || bulkCreateDto.Units.Count <= 0)
                 {
                     return ServiceResponse<List<LoadUnitDto>>.CreateError(
-                        "No units provided",
-                        "At least one unit must be provided for bulk creation."
-                    );
+                        "Invalid unit quantity",
+                        "A positive unit quantity is required.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
                 }
 
-                // Check subscription limit before bulk creating
-                var property = await _propertyRepository.GetPropertyById(bulkCreateDto.PropertyId);
-                if (property == null)
+                // Count is materialized and validated before the policy call; checked conversion
+                // prevents a future non-List DTO implementation from silently overflowing.
+                int unitsToAdd;
+                try
+                {
+                    unitsToAdd = checked(bulkCreateDto.Units.Count);
+                }
+                catch (OverflowException)
                 {
                     return ServiceResponse<List<LoadUnitDto>>.CreateError(
-                        "Property Not Found",
-                        $"Property with ID {bulkCreateDto.PropertyId} not found."
-                    );
+                        "Invalid unit quantity", statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
                 }
 
-                // Get current total units across all properties
-                var currentTotalUnits = await _featureGateService.GetCurrentTotalUnitsAsync(property.LandlordId);
-                var unitsToAdd = bulkCreateDto.Units.Count;
-                var totalUnitsAfterAdd = currentTotalUnits + unitsToAdd;
-
-                // Check if user can add these units (subscriptions are organization-only)
-                Models.Subscription? subscription = null;
-                if (property.OrganizationId.HasValue)
+                if (!TryGetTrustedCreationScope(out var userId, out var organizationId))
                 {
-                    subscription = await _subscriptionRepository.GetSubscriptionByOrganizationIdAsync(property.OrganizationId.Value);
+                    return Forbidden<List<LoadUnitDto>>();
                 }
-                if (subscription != null && (subscription.Status == "Active" || subscription.Status == "Trial"))
-                {
-                    var maxTotalUnits = subscription.SubscriptionPlan.MaxTotalUnits;
-                    if (maxTotalUnits.HasValue && totalUnitsAfterAdd > maxTotalUnits.Value)
+
+                var outcome = await _mutationCoordinator.ExecuteAsync(
+                    organizationId,
+                    async token =>
                     {
-                        var errorMessage = $"Cannot add {unitsToAdd} unit(s). This would exceed your plan's total unit limit ({currentTotalUnits}/{maxTotalUnits.Value} units). " +
-                                          $"Upgrade your subscription to add more units.";
+                        var property = await _propertyRepository.GetPropertyByIdForMutationAsync(bulkCreateDto.PropertyId, organizationId, token);
+                        if (property?.OrganizationId != organizationId)
+                        {
+                            return EntitlementMutationOutcome<ServiceResponse<List<LoadUnitDto>>>.Rollback(Forbidden<List<LoadUnitDto>>());
+                        }
 
-                        return ServiceResponse<List<LoadUnitDto>>.CreateError(
-                            "Unit Limit Exceeded",
-                            errorMessage,
-                            "",
-                            403
-                        );
-                    }
-                }
+                        var decision = await _entitlementDecisionService.DecideAsync(
+                            new EntitlementDecisionRequest(
+                                userId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                organizationId,
+                                FeatureKeys.PropertyManagement,
+                                RequestedQuantity: unitsToAdd,
+                                ResourceOrganizationId: organizationId),
+                            token);
 
-                var organizationId = GetOrganizationIdFromContext();
-                var createdUnits = await _unitRepository.BulkCreateUnits(bulkCreateDto, organizationId);
+                        var denial = MapDecisionDenial<List<LoadUnitDto>>(decision);
+                        if (denial is not null)
+                        {
+                            return EntitlementMutationOutcome<ServiceResponse<List<LoadUnitDto>>>.Rollback(denial);
+                        }
 
-                // Do not auto-create inspections/checklists for newly bulk-created units.
-                // Users should intentionally create move-in or move-out inspections from the Inspections page.
+                        var created = await _unitRepository.BulkCreateUnits(bulkCreateDto, organizationId, token);
+                        return EntitlementMutationOutcome<ServiceResponse<List<LoadUnitDto>>>.Commit(
+                            ServiceResponse<List<LoadUnitDto>>.CreateSuccess(
+                                created,
+                                $"Successfully created {created.Count} unit(s)"));
+                    },
+                    cancellationToken);
 
-                return new ServiceResponse<List<LoadUnitDto>>
-                {
-                    Data = createdUnits,
-                    Message = $"Successfully created {createdUnits.Count} unit(s)"
-                };
+                return outcome.Value;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error bulk creating units for property: {PropertyId}", bulkCreateDto.PropertyId);
-                return ServiceResponse<List<LoadUnitDto>>.CreateError(
-                    "Error bulk creating units",
-                    ex.Message,
-                    ex.InnerException?.Message
-                );
+                _logger.LogError(ex, "Unit creation is unavailable for property {PropertyId}", bulkCreateDto?.PropertyId);
+                return Unavailable<List<LoadUnitDto>>();
             }
         }
+
+        private static ServiceResponse<T>? MapDecisionDenial<T>(UnifiedEntitlementDecision? decision)
+        {
+            if (decision is not null && decision.IsAllowed && decision.Category == EntitlementDecisionCategory.Allowed)
+            {
+                return null;
+            }
+
+            if (decision is not null && !decision.IsAllowed && decision.Category == EntitlementDecisionCategory.Upgrade)
+            {
+                return ServiceResponse<T>.CreateError(
+                    "Unit limit reached",
+                    "Upgrade your plan to add more units.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    suppressDetailedErrors: true);
+            }
+
+            if (decision is not null && !decision.IsAllowed && decision.Category == EntitlementDecisionCategory.Unauthorized)
+            {
+                return Forbidden<T>();
+            }
+
+            // Includes null, contradictory/malformed decisions, setup, expired, and unavailable facts/policy.
+            return Unavailable<T>();
+        }
+
+        private static ServiceResponse<T> Forbidden<T>() => ServiceResponse<T>.CreateError(
+            "Forbidden",
+            statusCode: StatusCodes.Status403Forbidden,
+            suppressDetailedErrors: true);
+
+        private static ServiceResponse<T> Unavailable<T>() => ServiceResponse<T>.CreateError(
+            "Unit creation unavailable",
+            statusCode: StatusCodes.Status503ServiceUnavailable,
+            suppressDetailedErrors: true);
 
         public async Task<ServiceResponse<LoadUnitDto>> GetUnitById(long id)
         {

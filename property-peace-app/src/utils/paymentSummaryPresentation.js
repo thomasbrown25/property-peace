@@ -20,7 +20,7 @@ export const getCurrentRentPresentation = ({ dueDate, isOverdue }) => {
   }
 
   return {
-    label: `${parsedDueDate.toLocaleDateString('en-US', { month: 'long' })} Rent`,
+    label: 'Rent Due',
     dueLabel: `Due ${parsedDueDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}`,
     isOverdue: Boolean(isOverdue)
   };

@@ -14,15 +14,50 @@ namespace brownstone_hub_api.Tests.Services.SubscriptionService;
 public sealed class SubscriptionPlanVisibilityTests
 {
     [Fact]
-    public async Task GetAllPlansAsync_HidesLifetimePlanFromCustomerPlanList()
+    public async Task GetAllPlansAsync_HidesInactiveAndInternalPlansFromCustomerPlanList()
     {
         var plans = new List<SubscriptionPlan>
         {
             new() { Id = 1, Name = "Free", IsActive = true },
             new() { Id = 2, Name = "Premium", IsActive = true },
             new() { Id = 3, Name = "Lifetime Plan", IsActive = true },
+            new() { Id = 4, Name = "Free", IsActive = false },
+            new() { Id = 5, Name = "Future Internal", IsActive = true },
         };
 
+        var service = CreateService(plans);
+
+        var response = await service.GetAllPlansAsync();
+
+        response.Success.Should().BeTrue();
+        response.Data.Should().NotBeNull();
+        response.Data!.Select(plan => plan.Name).Should().Equal("Free", "Premium");
+    }
+
+    [Fact]
+    public async Task GetAdminPlansAsync_IncludesInactiveAndInternalPlans()
+    {
+        var plans = new List<SubscriptionPlan>
+        {
+            new() { Id = 1, Name = "Free", IsActive = true },
+            new() { Id = 2, Name = "Premium", IsActive = false },
+            new() { Id = 3, Name = "Lifetime Plan", IsActive = true },
+            new() { Id = 4, Name = "Future Internal", IsActive = false },
+        };
+
+        var service = CreateService(plans);
+
+        var response = await service.GetAdminPlansAsync();
+
+        response.Success.Should().BeTrue();
+        response.Data.Should().NotBeNull();
+        response.Data!.Select(plan => plan.Name)
+            .Should().Equal("Free", "Premium", "Lifetime Plan", "Future Internal");
+        response.Data.Single(plan => plan.Name == "Premium").IsActive.Should().BeFalse();
+    }
+
+    private static SubscriptionPlanService CreateService(List<SubscriptionPlan> plans)
+    {
         var repository = new Mock<ISubscriptionPlanRepository>();
         repository.Setup(repo => repo.GetAllPlansAsync()).ReturnsAsync(plans);
 
@@ -35,18 +70,11 @@ public sealed class SubscriptionPlanVisibilityTests
                 IsActive = plan.IsActive,
             });
 
-        var service = new SubscriptionPlanService(
+        return new SubscriptionPlanService(
             repository.Object,
             Mock.Of<IStripeService>(),
             Mock.Of<IStripeSyncService>(),
             mapper.Object,
             Mock.Of<ILogger<SubscriptionPlanService>>());
-
-        var response = await service.GetAllPlansAsync();
-
-        response.Success.Should().BeTrue();
-        response.Data.Should().NotBeNull();
-        response.Data!.Select(plan => plan.Name).Should().Equal("Free", "Premium");
-        response.Data.Should().NotContain(plan => plan.Name == "Lifetime Plan");
     }
 }

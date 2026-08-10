@@ -47,10 +47,15 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
             _logger = logger;
         }
 
-        public async Task<ServiceResponse<LoadOrganizationInviteDto>> CreateInviteAsync(CreateOrganizationInviteDto dto, long invitedByUserId)
+        public async Task<ServiceResponse<LoadOrganizationInviteDto>> CreateInviteAsync(CreateOrganizationInviteDto dto, long selectedOrganizationId, long invitedByUserId)
         {
             try
             {
+                if (selectedOrganizationId <= 0 || dto.OrganizationId != selectedOrganizationId)
+                {
+                    return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Unauthorized", "Organization access denied.", "", 403);
+                }
+
                 dto.Email = dto.Email?.Trim().ToLowerInvariant() ?? string.Empty;
                 dto.Role = dto.Role?.Trim() ?? string.Empty;
 
@@ -77,19 +82,21 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
 
                 // Verify organization exists
                 var organization = await _organizationRepository.GetOrganizationByIdAsync(dto.OrganizationId);
-                if (organization == null)
+                if (organization == null || !organization.IsActive || organization.IsDeleted)
                 {
                     return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Organization not found", "The specified organization does not exist.");
                 }
 
                 // Check if inviter has permission
                 var inviterMember = await _memberRepository.GetMemberAsync(dto.OrganizationId, invitedByUserId);
-                if (inviterMember == null || (!inviterMember.CanManageMembers && inviterMember.Role != "Owner"))
+                if (inviterMember == null || !inviterMember.IsActive ||
+                    inviterMember.OrganizationId != dto.OrganizationId || inviterMember.UserId != invitedByUserId ||
+                    (!inviterMember.CanManageMembers && !string.Equals(inviterMember.Role, "Owner", StringComparison.OrdinalIgnoreCase)))
                 {
                     return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Unauthorized", "You do not have permission to invite members.", "", 403);
                 }
 
-                if (dto.Role == "Owner" && inviterMember.Role != "Owner")
+                if (dto.Role == "Owner" && !string.Equals(inviterMember.Role, "Owner", StringComparison.OrdinalIgnoreCase))
                 {
                     return ServiceResponse<LoadOrganizationInviteDto>.CreateError("Unauthorized", "Only an organization owner can invite another owner.", "", 403);
                 }
@@ -281,6 +288,24 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
                     return ServiceResponse<bool>.CreateError("Invite expired", "This invite has expired.");
                 }
 
+                // Owner authority is revalidated when the role is actually activated, not only
+                // when the invitation was originally created.
+                var organization = await _organizationRepository.GetOrganizationByIdAsync(invite.OrganizationId);
+                if (organization == null || !organization.IsActive || organization.IsDeleted)
+                {
+                    return ServiceResponse<bool>.CreateError("Invite unavailable", "This invite cannot be accepted.", "", 403);
+                }
+                if (string.Equals(invite.Role, "Owner", StringComparison.OrdinalIgnoreCase))
+                {
+                    var grantingOwner = await _memberRepository.GetMemberAsync(invite.OrganizationId, invite.InvitedBy);
+                    if (grantingOwner == null || !grantingOwner.IsActive ||
+                        grantingOwner.OrganizationId != invite.OrganizationId || grantingOwner.UserId != invite.InvitedBy ||
+                        !string.Equals(grantingOwner.Role, "Owner", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return ServiceResponse<bool>.CreateError("Invite unavailable", "This invite cannot be accepted.", "", 403);
+                    }
+                }
+
                 var user = await _userRepository.GetUser(userId);
                 if (user == null)
                 {
@@ -321,7 +346,7 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
                         InvitedBy = invite.InvitedBy
                     };
 
-                    var addMemberResponse = await _memberService.AddMemberAsync(addMemberDto, invite.InvitedBy);
+                    var addMemberResponse = await _memberService.AddMemberAsync(addMemberDto, invite.OrganizationId, invite.InvitedBy);
                     if (!addMemberResponse.Success)
                     {
                         return ServiceResponse<bool>.CreateError("Error adding member", addMemberResponse.Message);

@@ -163,6 +163,10 @@ using brownstone_hub_api.Services.AdminDashboardService;
 using Fido2NetLib;
 using brownstone_hub_api.Services.MfaService;
 using brownstone_hub_api.Dtos.Mfa;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Infrastructure;
+using brownstone_hub_api.Entitlements.Enforcement;
+using brownstone_hub_api.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -293,6 +297,7 @@ services.AddSingleton<TimeProvider>(TimeProvider.System);
 services.AddScoped<ICommunicationDestinationProtector, DataProtectionCommunicationDestinationProtector>();
 services.AddScoped<IMessageDeliveryService, MessageDeliveryService>();
 services.AddScoped<IOutboundMessageDeliveryEnqueuer, OutboundMessageDeliveryEnqueuer>();
+services.AddScoped<IOutboundSmsSecurityService, OutboundSmsSecurityService>();
 services.AddScoped<IMessageDeliveryProcessor, MessageDeliveryProcessor>();
 services.AddSingleton<ILeadAbuseGuard, MemoryLeadAbuseGuard>();
 services.AddScoped<ILeadTokenDelivery, ProtectedLeadTokenDelivery>();
@@ -506,6 +511,7 @@ services.AddScoped<IMaintenanceImageService, MaintenanceImageService>();
 services.AddScoped<IUnitService, UnitService>();
 services.AddScoped<IAzureBlobService, AzureBlobService>();
 services.AddScoped<ILeaseService, LeaseService>();
+services.AddScoped<IDocuSignConnectProcessor, DocuSignConnectProcessor>();
 services.AddScoped<ILeaseTemplateService, LeaseTemplateService>();
 services.AddScoped<IPolicyPackService, PolicyPackService>();
 services.AddScoped<ILeaseGenerationService, LeaseGenerationService>();
@@ -563,7 +569,6 @@ services.AddScoped<IMessageAnalysisService, MessageAnalysisService>();
 services.AddScoped<IAdminSettingsService, AdminSettingsService>();
 services.AddScoped<ISupportRequestService, SupportRequestService>();
 services.AddScoped<IAdminDashboardService, AdminDashboardService>();
-services.AddSingleton(TimeProvider.System);
 services.AddScoped<IStripeService, StripeService>();
 services.AddScoped<IStripeSyncService, StripeSyncService>();
 services.AddScoped<IStripeWebhookService, StripeWebhookService>();
@@ -585,6 +590,11 @@ services.AddScoped<IUpcomingFeatureService, UpcomingFeatureService>();
 services.AddScoped<IDailySummaryEmailService, DailySummaryEmailService>();
 
 // Subscription Services
+services.AddScoped<IEntitlementFeatureFactsLoader, EfEntitlementFeatureFactsLoader>();
+services.AddScoped<IEntitlementDecisionFactsProvider, EfEntitlementDecisionFactsProvider>();
+services.AddScoped<IEntitlementDecisionService, EntitlementDecisionService>();
+services.AddScoped<IEntitlementResourceOrganizationResolver, EfEntitlementResourceOrganizationResolver>();
+services.AddScoped<IOrganizationEntitlementMutationCoordinator, EfOrganizationEntitlementMutationCoordinator>();
 services.AddOptions<FeatureReadinessOptions>()
     .Bind(configuration.GetSection(FeatureReadinessOptions.SectionName));
 services.AddScoped<IFeatureReadinessService, FeatureReadinessService>();
@@ -800,6 +810,7 @@ services.AddScoped<IOrganizationSmsNumberRepository, OrganizationSmsNumberReposi
 // Organization Repositories
 services.AddScoped<brownstone_hub_api.Repositories.Organizations.IOrganizationRepository, brownstone_hub_api.Repositories.Organizations.OrganizationRepository>();
 services.AddScoped<brownstone_hub_api.Repositories.Organizations.IOrganizationMemberRepository, brownstone_hub_api.Repositories.Organizations.OrganizationMemberRepository>();
+services.AddScoped<IOrganizationAuthorityResolver, OrganizationAuthorityResolver>();
 services.AddScoped<brownstone_hub_api.Repositories.Organizations.IOrganizationInviteRepository, brownstone_hub_api.Repositories.Organizations.OrganizationInviteRepository>();
 
 // Client Repositories

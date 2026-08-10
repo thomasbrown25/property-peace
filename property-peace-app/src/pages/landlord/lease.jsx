@@ -79,6 +79,7 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { buildLeaseMoveInReadiness, deriveExactLeaseSigners, selectCurrentSignatureStatus, validateExactLeaseSigners } from 'utils/leaseMoveIn';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 // E-Signature Status Labels
 const SIGNATURE_STATUS_LABELS = {
@@ -1010,25 +1011,15 @@ export default function LeasePage() {
     return depositRemaining <= 0;
   }, [depositRemaining]);
 
-  // Calculate balance due: current due (rent amount) + overdue amount - MUST be called before any early returns (Rules of Hooks)
+  // Canonical collection balance; lease.balanceDue is the property/lease fallback.
   const balanceDue = useMemo(() => {
-    if (rentRecord) {
-      // Use AmountDueNow (15-day charge window + overdue) when present; fallback for backward compatibility
-      if (rentRecord.amountDueNow != null && rentRecord.amountDueNow !== undefined) {
-        return rentRecord.amountDueNow;
-      }
-      const currentDue = rentRecord.rentAmount || 0;
-      const overdue = rentRecord.overdueAmount || 0;
-      return currentDue + overdue;
-    }
+    if (rentRecord) return normalizeRentBalance(rentRecord).rentDue;
     return lease?.balanceDue || 0;
   }, [rentRecord, lease?.balanceDue]);
 
   // Check if lease is overdue - MUST be called before any early returns (Rules of Hooks)
   const isOverdue = useMemo(() => {
-    if (rentRecord) {
-      return rentRecord.status === 'overdue' || (rentRecord.overdueAmount && rentRecord.overdueAmount > 0);
-    }
+    if (rentRecord) return normalizeRentBalance(rentRecord).rentDueIsOverdue;
     return false;
   }, [rentRecord]);
 

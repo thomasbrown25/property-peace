@@ -4,7 +4,7 @@ namespace brownstone_hub_api.Services.OrganizationInviteService
 {
     public interface IOrganizationInviteService
     {
-        Task<ServiceResponse<LoadOrganizationInviteDto>> CreateInviteAsync(CreateOrganizationInviteDto dto, long invitedByUserId);
+        Task<ServiceResponse<LoadOrganizationInviteDto>> CreateInviteAsync(CreateOrganizationInviteDto dto, long selectedOrganizationId, long invitedByUserId);
         Task<ServiceResponse<LoadOrganizationInviteDto>> GetInviteByTokenAsync(string token);
         Task<ServiceResponse<List<LoadOrganizationInviteDto>>> GetInvitesByOrganizationIdAsync(long organizationId, long userId);
         Task<ServiceResponse<List<LoadOrganizationInviteDto>>> GetPendingInvitesByEmailAsync(string email);

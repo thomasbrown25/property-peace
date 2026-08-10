@@ -29,10 +29,13 @@ public sealed class MessageDeliveryProcessorTests
             .ReturnsAsync(row);
         service.Setup(x => x.RecordSubmissionStartedAsync(9, It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(row);
         var sms = new Mock<ISmsService>();
-        sms.Setup(x => x.SubmitSmsAsync("+14155550123", "original body", It.IsAny<CancellationToken>(), "+14155550999",
+        sms.Setup(x => x.SubmitSmsAsync("+14155550123", "original body", It.IsAny<CancellationToken>(), "+14155550777",
                 "stable-delivery-token"))
             .ReturnsAsync(new SmsSubmissionResult(true, "twilio", "SM-real"));
-        var processor = new MessageDeliveryProcessor(service.Object, new Protector(), sms.Object,
+        var security = new Mock<IOutboundSmsSecurityService>();
+        security.Setup(x => x.AuthorizeDeliveryAsync(9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(OutboundSmsSecurityDecision.Allowed("+14155550777"));
+        var processor = new MessageDeliveryProcessor(service.Object, new Protector(), sms.Object, security.Object,
             Mock.Of<IEmailService>(), Mock.Of<ILogger<MessageDeliveryProcessor>>());
 
         (await processor.ProcessDueAsync()).Should().Be(1);
@@ -62,6 +65,7 @@ public sealed class MessageDeliveryProcessorTests
                 It.IsAny<CancellationToken>(), "stable-email-token"))
             .ReturnsAsync(new EmailSubmissionResult(true, "legacy-email", null));
         var processor = new MessageDeliveryProcessor(service.Object, new Protector(), Mock.Of<ISmsService>(),
+            Mock.Of<IOutboundSmsSecurityService>(),
             email.Object, Mock.Of<ILogger<MessageDeliveryProcessor>>());
 
         await processor.ProcessDueAsync();

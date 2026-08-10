@@ -680,7 +680,10 @@ namespace brownstone_hub_api.Services.UserService
                 {
                     try
                     {
-                        var orgResponse = await _organizationService.GetOrganizationByIdAsync(response.Data.CurrentOrganizationId.Value);
+                        var orgResponse = await _organizationService.GetOrganizationByIdAsync(
+                            response.Data.CurrentOrganizationId.Value,
+                            response.Data.CurrentOrganizationId.Value,
+                            loadedUser.Id);
                         if (orgResponse.Success && orgResponse.Data != null)
                         {
                             response.Data.CurrentOrganizationName = orgResponse.Data.Name;
@@ -1491,26 +1494,45 @@ namespace brownstone_hub_api.Services.UserService
 
                 if (ownedOrganizations.Any())
                 {
-                    // For each owned organization, either transfer ownership or delete it
+                    // Resolve and validate every ownership operation before mutating anything.
+                    // OwnerId is legacy metadata, not sufficient authorization to promote a member.
+                    var ownershipPlans = new List<(Models.Organization Organization, Models.OrganizationMember? Successor)>();
                     foreach (var org in ownedOrganizations)
                     {
-                        // Find another active member to transfer ownership to
+                        var deletingOwnerMembership = await _dataContext.OrganizationMembers
+                            .AsNoTracking()
+                            .SingleOrDefaultAsync(m => m.OrganizationId == org.Id && m.UserId == userId);
+                        if (!org.IsActive || org.IsDeleted ||
+                            deletingOwnerMembership is not { IsActive: true } ||
+                            !string.Equals(deletingOwnerMembership.Role, "Owner", StringComparison.OrdinalIgnoreCase))
+                        {
+                            response.Success = false;
+                            response.Message = "Cannot delete account: Organization ownership could not be verified.";
+                            return response;
+                        }
+
                         var otherMember = await _dataContext.OrganizationMembers
                             .Include(m => m.User)
                             .Where(m => m.OrganizationId == org.Id
                                 && m.UserId != userId
+                                && m.UserId.HasValue
                                 && m.IsActive
+                                && m.User != null
                                 && !m.User.IsDeleted)
-                            .OrderBy(m => m.JoinedAt) // Transfer to the oldest member
+                            .OrderBy(m => m.JoinedAt)
                             .FirstOrDefaultAsync();
 
+                        ownershipPlans.Add((org, otherMember));
+                    }
+
+                    // All organizations passed the authority/precondition checks. Apply the plans.
+                    foreach (var (org, otherMember) in ownershipPlans)
+                    {
                         if (otherMember != null)
                         {
-                            // Transfer ownership to another member
-                            org.OwnerId = (long)otherMember.UserId;
+                            // Transfer ownership to another member and canonicalize the role.
+                            org.OwnerId = otherMember.UserId!.Value;
                             org.UpdatedAt = DateTime.Now;
-
-                            // Update the member's role to Owner
                             otherMember.Role = "Owner";
                             otherMember.CanManageMembers = true;
 
@@ -1519,7 +1541,7 @@ namespace brownstone_hub_api.Services.UserService
                         }
                         else
                         {
-                            // No other members, soft delete the organization
+                            // No other members, soft delete the organization.
                             org.IsDeleted = true;
                             org.DeletedAt = DateTime.Now;
                             org.UpdatedAt = DateTime.Now;

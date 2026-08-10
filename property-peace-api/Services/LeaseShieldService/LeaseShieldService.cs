@@ -38,11 +38,11 @@ namespace brownstone_hub_api.Services.LeaseShieldService
             _logger = logger;
         }
 
-        public async Task<ServiceResponse<List<LeaseShieldConversationListItemDto>>> GetConversationsAsync(long userId, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<List<LeaseShieldConversationListItemDto>>> GetConversationsAsync(long userId, long organizationId, CancellationToken cancellationToken = default)
         {
             try
             {
-                var list = await _conversationRepository.GetByUserIdAsync(userId, cancellationToken);
+                var list = await _conversationRepository.GetByUserIdAsync(userId, organizationId, cancellationToken);
                 var dtos = list.Select(c => new LeaseShieldConversationListItemDto
                 {
                     Id = c.Id,
@@ -53,18 +53,22 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                 }).ToList();
                 return ServiceResponse<List<LeaseShieldConversationListItemDto>>.CreateSuccess(dtos);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting LeaseShield conversations for user {UserId}", userId);
-                return ServiceResponse<List<LeaseShieldConversationListItemDto>>.CreateError("Error retrieving conversations", ex.Message, ex.InnerException?.Message, 500);
+                return ServiceResponse<List<LeaseShieldConversationListItemDto>>.CreateError("LeaseShield is temporarily unavailable.", statusCode: 500, suppressDetailedErrors: true);
             }
         }
 
-        public async Task<ServiceResponse<LeaseShieldConversationDetailDto>> GetConversationAsync(long conversationId, long userId, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<LeaseShieldConversationDetailDto>> GetConversationAsync(long conversationId, long userId, long organizationId, CancellationToken cancellationToken = default)
         {
             try
             {
-                var conv = await _conversationRepository.GetByIdAsync(conversationId, userId, cancellationToken);
+                var conv = await _conversationRepository.GetByIdAsync(conversationId, userId, organizationId, cancellationToken);
                 if (conv == null)
                     return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("Conversation not found", "The conversation does not exist or you do not have access.", statusCode: 404);
 
@@ -81,14 +85,18 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                 };
                 return ServiceResponse<LeaseShieldConversationDetailDto>.CreateSuccess(dto);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting LeaseShield conversation {ConversationId}", conversationId);
-                return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("Error retrieving conversation", ex.Message, ex.InnerException?.Message, 500);
+                return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("LeaseShield is temporarily unavailable.", statusCode: 500, suppressDetailedErrors: true);
             }
         }
 
-        public async Task<ServiceResponse<LeaseShieldConversationDetailDto>> CreateConversationAsync(long userId, CreateLeaseShieldConversationRequest request, long? organizationId = null, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<LeaseShieldConversationDetailDto>> CreateConversationAsync(long userId, CreateLeaseShieldConversationRequest request, long organizationId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -109,46 +117,58 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                 };
                 return ServiceResponse<LeaseShieldConversationDetailDto>.CreateSuccess(dto);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating LeaseShield conversation for user {UserId}", userId);
-                return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("Error creating conversation", ex.Message, ex.InnerException?.Message, 500);
+                return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("LeaseShield is temporarily unavailable.", statusCode: 500, suppressDetailedErrors: true);
             }
         }
 
-        public async Task<ServiceResponse<bool>> UpdateConversationTitleAsync(long conversationId, long userId, UpdateLeaseShieldConversationRequest request, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<bool>> UpdateConversationTitleAsync(long conversationId, long userId, long organizationId, UpdateLeaseShieldConversationRequest request, CancellationToken cancellationToken = default)
         {
             try
             {
-                var updated = await _conversationRepository.UpdateTitleAsync(conversationId, userId, request.Title, cancellationToken);
+                var updated = await _conversationRepository.UpdateTitleAsync(conversationId, userId, organizationId, request.Title, cancellationToken);
                 if (!updated)
                     return ServiceResponse<bool>.CreateError("Conversation not found", "The conversation does not exist or you do not have access.", statusCode: 404);
                 return ServiceResponse<bool>.CreateSuccess(true);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating LeaseShield conversation {ConversationId}", conversationId);
-                return ServiceResponse<bool>.CreateError("Error updating conversation", ex.Message, ex.InnerException?.Message, 500);
+                return ServiceResponse<bool>.CreateError("LeaseShield is temporarily unavailable.", statusCode: 500, suppressDetailedErrors: true);
             }
         }
 
-        public async Task<ServiceResponse<bool>> DeleteConversationAsync(long conversationId, long userId, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<bool>> DeleteConversationAsync(long conversationId, long userId, long organizationId, CancellationToken cancellationToken = default)
         {
             try
             {
-                var deleted = await _conversationRepository.DeleteAsync(conversationId, userId, cancellationToken);
+                var deleted = await _conversationRepository.DeleteAsync(conversationId, userId, organizationId, cancellationToken);
                 if (!deleted)
                     return ServiceResponse<bool>.CreateError("Conversation not found", "The conversation does not exist or you do not have access.", statusCode: 404);
                 return ServiceResponse<bool>.CreateSuccess(true);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting LeaseShield conversation {ConversationId}", conversationId);
-                return ServiceResponse<bool>.CreateError("Error deleting conversation", ex.Message, ex.InnerException?.Message, 500);
+                return ServiceResponse<bool>.CreateError("LeaseShield is temporarily unavailable.", statusCode: 500, suppressDetailedErrors: true);
             }
         }
 
-        public async Task<ServiceResponse<LeaseShieldConversationDetailDto>> SendMessageAsync(long? conversationId, long userId, SendLeaseShieldMessageRequest request, long? organizationId = null, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<LeaseShieldConversationDetailDto>> SendMessageAsync(long? conversationId, long userId, SendLeaseShieldMessageRequest request, long organizationId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -173,7 +193,7 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                 }
                 else
                 {
-                    var existing = await _conversationRepository.GetByIdAsync(conversationId.Value, userId, cancellationToken);
+                    var existing = await _conversationRepository.GetByIdAsync(conversationId.Value, userId, organizationId, cancellationToken);
                     if (existing == null)
                         return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("Conversation not found", "The conversation does not exist or you do not have access.", statusCode: 404);
                     convId = existing.Id;
@@ -189,13 +209,13 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                 await _messageRepository.UpdateConversationUpdatedAtAsync(convId, cancellationToken);
 
                 if (!string.IsNullOrEmpty(titleToSet) && !isNewConversation)
-                    await _conversationRepository.UpdateTitleAsync(convId, userId, titleToSet, cancellationToken);
+                    await _conversationRepository.UpdateTitleAsync(convId, userId, organizationId, titleToSet, cancellationToken);
 
                 var assistantContent = await GenerateLeaseShieldAnswerAsync(state, content, cancellationToken);
                 await _messageRepository.AddAsync(convId, "assistant", assistantContent, null, state, cancellationToken);
                 await _messageRepository.UpdateConversationUpdatedAtAsync(convId, cancellationToken);
 
-                var detail = await _conversationRepository.GetByIdAsync(convId, userId, cancellationToken);
+                var detail = await _conversationRepository.GetByIdAsync(convId, userId, organizationId, cancellationToken);
                 if (detail == null)
                     return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("Error loading conversation", "Conversation was created but could not be loaded.", statusCode: 500);
 
@@ -212,10 +232,14 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                 };
                 return ServiceResponse<LeaseShieldConversationDetailDto>.CreateSuccess(dto);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending LeaseShield message for user {UserId}", userId);
-                return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("Error sending message", ex.Message, ex.InnerException?.Message, 500);
+                return ServiceResponse<LeaseShieldConversationDetailDto>.CreateError("LeaseShield is temporarily unavailable.", statusCode: 500, suppressDetailedErrors: true);
             }
         }
 
@@ -240,7 +264,7 @@ namespace brownstone_hub_api.Services.LeaseShieldService
         {
             if (string.IsNullOrWhiteSpace(question)) return null;
             var prompt = $"Generate a very short conversation title (maximum 6-8 words) that summarizes this landlord-tenant legal question. Reply with only the title, no quotes or punctuation at the end.\n\nQuestion: {question.Trim()}";
-            var response = await _openAIService.GenerateTextAsync(prompt, maxTokens: 50);
+            var response = await GenerateTextWithCancellationAsync(prompt, 50, cancellationToken);
             if (!response.Success || string.IsNullOrWhiteSpace(response.Data))
                 return null;
             var title = response.Data.Trim();
@@ -257,7 +281,7 @@ namespace brownstone_hub_api.Services.LeaseShieldService
             if (sections == null || sections.Count == 0) return new List<string>();
             var list = string.Join("\n", sections.Select(s => $"{s.SectionCode}: {s.SectionTitle ?? ""}"));
             var prompt = "The user asked a landlord-tenant law question. Below are statute section codes and titles for their state. Which sections are most relevant to answering the question? Reply with only the section codes, comma-separated, up to " + MaxSectionsToInject + " codes (e.g. 42-46, 42-50). If none seem relevant, reply with the single most relevant code.\n\nUser question: " + (userQuestion?.Trim() ?? "") + "\n\nSections:\n" + list;
-            var response = await _openAIService.GenerateTextAsync(prompt, maxTokens: 80);
+            var response = await GenerateTextWithCancellationAsync(prompt, 80, cancellationToken);
             if (!response.Success || string.IsNullOrWhiteSpace(response.Data)) return new List<string>();
             var codes = response.Data.Trim()
                 .Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -371,7 +395,7 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                 + "If the context does not contain enough information to answer, say so briefly and give your best general guidance.\n\n"
                 + "Question:\n" + userQuestion.Trim();
 
-            var response = await _openAIService.GenerateTextAsync(prompt, maxTokens: 800);
+            var response = await GenerateTextWithCancellationAsync(prompt, 800, cancellationToken);
             if (!response.Success || string.IsNullOrWhiteSpace(response.Data))
             {
                 _logger.LogWarning("LeaseShield AI answer failed for state {State}, using placeholder. Error: {Error}", state, response.Message);
@@ -387,6 +411,21 @@ namespace brownstone_hub_api.Services.LeaseShieldService
                     answer += "- [" + label + "](" + url + ")\n";
             }
             return answer;
+        }
+
+        /// <summary>
+        /// IOpenAIService does not currently accept a CancellationToken. Fail closed by checking immediately
+        /// before and after the non-cancellable provider call so cancelled requests cannot continue persistence.
+        /// </summary>
+        private async Task<ServiceResponse<string>> GenerateTextWithCancellationAsync(
+            string prompt,
+            int maxTokens,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var response = await _openAIService.GenerateTextAsync(prompt, maxTokens);
+            cancellationToken.ThrowIfCancellationRequested();
+            return response;
         }
     }
 }

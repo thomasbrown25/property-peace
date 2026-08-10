@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Models;
-using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Repositories.Users;
+using brownstone_hub_api.Security;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -18,60 +18,46 @@ public sealed class OrganizationContextMiddlewareTests
     private const long RequestedOrganizationId = 202;
 
     [Fact]
-    public async Task InvokeAsync_WithoutHeader_UsesPersistedCurrentOrganizationAndContinuesPipeline()
+    public async Task WithoutHeader_UsesAuthorizedPersistedOrganization()
     {
-        var fixture = CreateFixture(persistedOrganizationIsMember: true);
+        var fixture = CreateFixture();
+        fixture.Users.Setup(x => x.GetUser(UserId)).ReturnsAsync(new User
+        {
+            Id = UserId,
+            CurrentOrganizationId = PersistedOrganizationId
+        });
+        fixture.Authority.Setup(x => x.HasActiveMembershipAsync(
+                UserId, PersistedOrganizationId, fixture.Context.RequestAborted))
+            .ReturnsAsync(true);
 
         await fixture.InvokeAsync();
 
         fixture.NextWasCalled.Should().BeTrue();
-        fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
         fixture.Context.Items["OrganizationId"].Should().Be(PersistedOrganizationId);
         fixture.Context.Items["UserId"].Should().Be(UserId);
-        fixture.Users.Verify(repository => repository.GetUser(UserId), Times.Once);
-        fixture.Members.Verify(
-            repository => repository.IsUserMemberOfOrganizationAsync(UserId, PersistedOrganizationId),
-            Times.Once);
     }
 
     [Fact]
-    public async Task InvokeAsync_WithoutHeader_WhenPersistedOrganizationMembershipWasRevoked_ReturnsForbidden()
+    public async Task AuthorizedHeader_UsesRequestedOrganizationAndPropagatesRequestToken()
     {
-        var fixture = CreateFixture(persistedOrganizationIsMember: false);
-
-        await fixture.InvokeAsync();
-
-        fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        fixture.NextWasCalled.Should().BeFalse();
-        fixture.Context.Items.Should().NotContainKey("OrganizationId");
-        fixture.Context.Items.Should().NotContainKey("UserId");
-        fixture.Members.Verify(
-            repository => repository.IsUserMemberOfOrganizationAsync(UserId, PersistedOrganizationId),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task InvokeAsync_WithAuthorizedHeader_UsesRequestedOrganizationAndContinuesPipeline()
-    {
-        var fixture = CreateFixture(RequestedOrganizationId.ToString(), isMember: true);
+        var fixture = CreateFixture(RequestedOrganizationId.ToString());
+        fixture.Authority.Setup(x => x.HasActiveMembershipAsync(
+                UserId, RequestedOrganizationId, fixture.Context.RequestAborted))
+            .ReturnsAsync(true);
 
         await fixture.InvokeAsync();
 
         fixture.NextWasCalled.Should().BeTrue();
-        fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status200OK);
         fixture.Context.Items["OrganizationId"].Should().Be(RequestedOrganizationId);
-        fixture.Context.Items["UserId"].Should().Be(UserId);
-        fixture.Members.Verify(
-            repository => repository.IsUserMemberOfOrganizationAsync(UserId, RequestedOrganizationId),
-            Times.Once);
-        fixture.Users.Verify(repository => repository.GetUser(It.IsAny<long>()), Times.Never);
+        fixture.Users.Verify(x => x.GetUser(It.IsAny<long>()), Times.Never);
+        fixture.Authority.VerifyAll();
     }
 
     [Theory]
     [InlineData("not-an-id")]
     [InlineData("0")]
     [InlineData("-1")]
-    public async Task InvokeAsync_WithMalformedOrNonPositiveHeader_ReturnsBadRequestWithoutFallback(string header)
+    public async Task MalformedOrNonPositiveHeader_ReturnsBadRequestWithoutFallback(string header)
     {
         var fixture = CreateFixture(header);
 
@@ -80,17 +66,16 @@ public sealed class OrganizationContextMiddlewareTests
         fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
         fixture.NextWasCalled.Should().BeFalse();
         fixture.Context.Items.Should().NotContainKey("OrganizationId");
-        fixture.Context.Items.Should().NotContainKey("UserId");
-        fixture.Users.Verify(repository => repository.GetUser(It.IsAny<long>()), Times.Never);
-        fixture.Members.Verify(
-            repository => repository.IsUserMemberOfOrganizationAsync(It.IsAny<long>(), It.IsAny<long>()),
-            Times.Never);
+        fixture.Authority.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task InvokeAsync_WithUnauthorizedHeader_ReturnsForbiddenWithoutFallback()
+    public async Task InactiveOrganizationOrMember_FromAtomicResolver_ReturnsForbidden()
     {
-        var fixture = CreateFixture(RequestedOrganizationId.ToString(), isMember: false);
+        var fixture = CreateFixture(RequestedOrganizationId.ToString());
+        fixture.Authority.Setup(x => x.HasActiveMembershipAsync(
+                UserId, RequestedOrganizationId, fixture.Context.RequestAborted))
+            .ReturnsAsync(false);
 
         await fixture.InvokeAsync();
 
@@ -98,80 +83,73 @@ public sealed class OrganizationContextMiddlewareTests
         fixture.NextWasCalled.Should().BeFalse();
         fixture.Context.Items.Should().NotContainKey("OrganizationId");
         fixture.Context.Items.Should().NotContainKey("UserId");
-        fixture.Members.Verify(
-            repository => repository.IsUserMemberOfOrganizationAsync(UserId, RequestedOrganizationId),
-            Times.Once);
-        fixture.Users.Verify(repository => repository.GetUser(It.IsAny<long>()), Times.Never);
     }
 
     [Fact]
-    public async Task InvokeAsync_WhenMembershipVerificationFails_ReturnsServerErrorWithoutContinuing()
+    public async Task AuthorityStoreFailure_ReturnsServerErrorWithoutContinuing()
     {
         var fixture = CreateFixture(RequestedOrganizationId.ToString());
-        fixture.Members
-            .Setup(repository => repository.IsUserMemberOfOrganizationAsync(UserId, RequestedOrganizationId))
+        fixture.Authority.Setup(x => x.HasActiveMembershipAsync(
+                UserId, RequestedOrganizationId, fixture.Context.RequestAborted))
             .ThrowsAsync(new InvalidOperationException("membership store unavailable"));
 
         await fixture.InvokeAsync();
 
         fixture.Context.Response.StatusCode.Should().Be(StatusCodes.Status500InternalServerError);
         fixture.NextWasCalled.Should().BeFalse();
-        fixture.Context.Items.Should().NotContainKey("OrganizationId");
-        fixture.Context.Items.Should().NotContainKey("UserId");
     }
 
-    private static Fixture CreateFixture(
-        string? organizationHeader = null,
-        bool isMember = false,
-        bool persistedOrganizationIsMember = false)
+    [Fact]
+    public async Task AbortedAuthorityResolution_PreservesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var fixture = CreateFixture(RequestedOrganizationId.ToString(), cancellation.Token);
+        fixture.Authority.Setup(x => x.HasActiveMembershipAsync(
+                UserId, RequestedOrganizationId, cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(cancellation.Token));
+
+        var action = () => fixture.InvokeAsync();
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+        fixture.Context.Response.StatusCode.Should().NotBe(StatusCodes.Status500InternalServerError);
+        fixture.NextWasCalled.Should().BeFalse();
+    }
+
+    private static Fixture CreateFixture(string? organizationHeader = null, CancellationToken requestAborted = default)
     {
         var context = new DefaultHttpContext
         {
             User = new ClaimsPrincipal(new ClaimsIdentity(
-                [new Claim(ClaimTypes.NameIdentifier, UserId.ToString())],
-                authenticationType: "Test")),
+                [new Claim(ClaimTypes.NameIdentifier, UserId.ToString())], "Test"))
         };
-
+        context.RequestAborted = requestAborted;
         if (organizationHeader is not null)
             context.Request.Headers["X-Organization-Id"] = organizationHeader;
 
-        var users = new Mock<IUserRepository>();
-        users.Setup(repository => repository.GetUser(UserId))
-            .ReturnsAsync(new User
-            {
-                Id = UserId,
-                CurrentOrganizationId = PersistedOrganizationId,
-            });
-
-        var members = new Mock<IOrganizationMemberRepository>();
-        members.Setup(repository => repository.IsUserMemberOfOrganizationAsync(UserId, RequestedOrganizationId))
-            .ReturnsAsync(isMember);
-        members.Setup(repository => repository.IsUserMemberOfOrganizationAsync(UserId, PersistedOrganizationId))
-            .ReturnsAsync(persistedOrganizationIsMember);
-
-        var fixture = new Fixture(context, users, members);
-        fixture.Middleware = new OrganizationContextMiddleware(
-            _ =>
-            {
-                fixture.NextWasCalled = true;
-                return Task.CompletedTask;
-            },
-            NullLogger<OrganizationContextMiddleware>.Instance);
-
-        return fixture;
+        return new Fixture(context);
     }
 
-    private sealed class Fixture(
-        DefaultHttpContext context,
-        Mock<IUserRepository> users,
-        Mock<IOrganizationMemberRepository> members)
+    private sealed class Fixture
     {
-        public DefaultHttpContext Context { get; } = context;
-        public Mock<IUserRepository> Users { get; } = users;
-        public Mock<IOrganizationMemberRepository> Members { get; } = members;
-        public OrganizationContextMiddleware Middleware { get; set; } = null!;
-        public bool NextWasCalled { get; set; }
+        public Fixture(DefaultHttpContext context)
+        {
+            Context = context;
+            Middleware = new OrganizationContextMiddleware(
+                _ =>
+                {
+                    NextWasCalled = true;
+                    return Task.CompletedTask;
+                },
+                NullLogger<OrganizationContextMiddleware>.Instance);
+        }
 
-        public Task InvokeAsync() => Middleware.InvokeAsync(Context, Users.Object, Members.Object);
+        public DefaultHttpContext Context { get; }
+        public Mock<IUserRepository> Users { get; } = new();
+        public Mock<IOrganizationAuthorityResolver> Authority { get; } = new(MockBehavior.Strict);
+        public OrganizationContextMiddleware Middleware { get; }
+        public bool NextWasCalled { get; private set; }
+
+        public Task InvokeAsync() => Middleware.InvokeAsync(Context, Users.Object, Authority.Object);
     }
 }

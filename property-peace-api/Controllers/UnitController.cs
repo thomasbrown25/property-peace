@@ -30,9 +30,9 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpPost("")]
-        public async Task<IActionResult> AddOrUpdateUnit([FromBody] UpdateUnitDto updatedUnit)
+        public async Task<IActionResult> AddOrUpdateUnit([FromBody] UpdateUnitDto updatedUnit, CancellationToken cancellationToken)
         {
-            var response = await _unitService.AddOrUpdateUnit(updatedUnit);
+            var response = await _unitService.AddOrUpdateUnit(updatedUnit, cancellationToken);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -46,9 +46,9 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpPost("bulk")]
-        public async Task<IActionResult> BulkCreateUnits([FromBody] BulkCreateUnitsDto bulkCreateDto)
+        public async Task<IActionResult> BulkCreateUnits([FromBody] BulkCreateUnitsDto bulkCreateDto, CancellationToken cancellationToken)
         {
-            var response = await _unitService.BulkCreateUnits(bulkCreateDto);
+            var response = await _unitService.BulkCreateUnits(bulkCreateDto, cancellationToken);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new

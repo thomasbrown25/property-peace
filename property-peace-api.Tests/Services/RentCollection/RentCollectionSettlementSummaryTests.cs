@@ -129,6 +129,39 @@ public sealed class RentCollectionSettlementSummaryTests : IDisposable
     }
 
     [Fact]
+    public async Task GetRentCollection_ProjectsCanonicalRentBalanceIntoRecordAndPortfolioSummary()
+    {
+        var lease = ActiveLease(101);
+        lease.RentAmount = 1_000m;
+        lease.RentDueDay = 1;
+        var previousMonth = DateTime.Today.AddMonths(-1);
+        lease.StartDate = new DateTime(previousMonth.Year, previousMonth.Month, 1);
+        lease.EndDate = DateTime.Today.AddYears(1);
+        lease.Fees =
+        [
+            new LeaseFeeDto { Id = 10, LeaseId = lease.Id, IsLateFee = true, AppliedAfterDays = 40 }
+        ];
+        _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true))
+            .ReturnsAsync([lease]);
+        _payments.Setup(repository => repository.GetLifetimeRentPaymentsByOrganizationId(OrganizationId))
+            .ReturnsAsync([
+                new LoadPaymentDto { LeaseId = lease.Id, Amount = 1_000m, Status = "Completed", PaymentDate = lease.StartDate.Value }
+            ]);
+
+        var result = await _sut.GetRentCollection(OrganizationId);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Summary.RemainingThisMonth.Should().Be(1_000m);
+        result.Data.Summary.Overdue.Should().Be(0m);
+        result.Data.RentRecords.Should().ContainSingle();
+        var record = result.Data.RentRecords.Single();
+        record.RentDue.Should().Be(1_000m);
+        record.RentDueIsOverdue.Should().BeFalse();
+        record.CurrentMonthRentDue.Should().Be(1_000m);
+        record.OverdueAmount.Should().Be(0m);
+    }
+
+    [Fact]
     public async Task GetRentCollection_DoesNotExposeInternalErrors()
     {
         _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true))

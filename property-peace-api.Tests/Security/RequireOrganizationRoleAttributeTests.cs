@@ -1,7 +1,7 @@
 using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Models;
-using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Repositories.Users;
+using brownstone_hub_api.Security;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -28,76 +28,168 @@ public sealed class RequireOrganizationRoleAttributeTests
         var fixture = CreateFixture("Owner", includeContext: false);
         fixture.Context.HttpContext.Request.QueryString = new QueryString($"?organizationId={OrganizationId}");
 
-        await fixture.Attribute.OnActionExecutionAsync(fixture.Context, fixture.Next);
+        await fixture.InvokeAsync();
 
         fixture.NextCalled.Should().BeFalse();
         fixture.ResultStatusCode.Should().Be(StatusCodes.Status403Forbidden);
-        fixture.Members.Verify(x => x.GetMemberAsync(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task ViewerInActiveOrganization_IsForbidden()
-    {
-        var fixture = CreateFixture("Viewer");
-
-        await fixture.Attribute.OnActionExecutionAsync(fixture.Context, fixture.Next);
-
-        fixture.NextCalled.Should().BeFalse();
-        fixture.ResultStatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        fixture.Authority.VerifyNoOtherCalls();
     }
 
     [Theory]
-    [InlineData("Owner")]
-    [InlineData("Manager")]
-    [InlineData("manager")]
-    public async Task AllowedActiveOrganizationRole_ContinuesPipeline(string role)
+    [InlineData("Viewer", 403)]
+    [InlineData("SuperOwner", 403)]
+    [InlineData("3", 403)]
+    [InlineData("Manager", null)]
+    [InlineData("Owner", null)]
+    public async Task PersistedRoles_AreKnownAndApplyHierarchy(string role, int? expectedStatus)
     {
-        var fixture = CreateFixture(role);
+        var fixture = CreateFixture(role, allowedRoles: ["Manager"]);
 
-        await fixture.Attribute.OnActionExecutionAsync(fixture.Context, fixture.Next);
+        await fixture.InvokeAsync();
 
-        fixture.NextCalled.Should().BeTrue();
+        fixture.NextCalled.Should().Be(expectedStatus is null);
+        fixture.ResultStatusCode.Should().Be(expectedStatus);
+    }
+
+    [Theory]
+    [InlineData("SuperOwner")]
+    [InlineData("2")]
+    [InlineData("")]
+    public async Task UnknownOrNumericRoleRequirement_FailsClosed(string requiredRole)
+    {
+        var fixture = CreateFixture("Owner", allowedRoles: [requiredRole]);
+
+        await fixture.InvokeAsync();
+
+        fixture.NextCalled.Should().BeFalse();
+        fixture.ResultStatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        fixture.Authority.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task AtomicResolverReturningNull_ForInactiveOrganizationOrMember_IsForbidden()
+    {
+        var fixture = CreateFixture(memberRole: null);
+
+        await fixture.InvokeAsync();
+
+        fixture.ResultStatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        fixture.NextCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AuthorityStoreFailure_IsConvertedToServerError()
+    {
+        var fixture = CreateFixture("Owner");
+        fixture.Authority.Reset();
+        fixture.Authority.Setup(x => x.ResolveActiveMemberAsync(
+                UserId, OrganizationId, fixture.Context.HttpContext.RequestAborted))
+            .ThrowsAsync(new InvalidOperationException("store unavailable"));
+
+        await fixture.InvokeAsync();
+
+        fixture.ResultStatusCode.Should().Be(StatusCodes.Status500InternalServerError);
+        fixture.NextCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AbortedAuthorityResolution_PreservesCancellationAndToken()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var fixture = CreateFixture("Owner", requestAborted: cancellation.Token);
+        fixture.Authority.Reset();
+        fixture.Authority.Setup(x => x.ResolveActiveMemberAsync(UserId, OrganizationId, cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(cancellation.Token));
+
+        var action = () => fixture.InvokeAsync();
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+        fixture.ResultStatusCode.Should().BeNull();
+        fixture.NextCalled.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task DownstreamActionException_PropagatesToGlobalHandler()
+    {
+        var fixture = CreateFixture("Owner");
+        var expected = new InvalidOperationException("action failed");
+
+        var action = () => fixture.InvokeAsync(() => Task.FromException<ActionExecutedContext>(expected));
+
+        (await action.Should().ThrowAsync<InvalidOperationException>()).Which.Should().BeSameAs(expected);
         fixture.Context.Result.Should().BeNull();
     }
 
-    private static Fixture CreateFixture(string role, bool includeContext = true)
+    private static Fixture CreateFixture(
+        string? memberRole,
+        bool includeContext = true,
+        string[]? allowedRoles = null,
+        CancellationToken requestAborted = default)
     {
-        var members = new Mock<IOrganizationMemberRepository>(MockBehavior.Strict);
-        members.Setup(x => x.GetMemberAsync(OrganizationId, UserId)).ReturnsAsync(new OrganizationMember
-        {
-            OrganizationId = OrganizationId,
-            UserId = UserId,
-            Role = role,
-            IsActive = true
-        });
+        var authority = new Mock<IOrganizationAuthorityResolver>(MockBehavior.Strict);
+        authority.Setup(x => x.ResolveActiveMemberAsync(UserId, OrganizationId, requestAborted))
+            .ReturnsAsync(memberRole is null ? null : new OrganizationMember
+            {
+                OrganizationId = OrganizationId,
+                UserId = UserId,
+                Role = memberRole,
+                IsActive = true
+            });
 
         var users = new Mock<IUserRepository>();
         var services = new ServiceCollection()
-            .AddSingleton(members.Object)
             .AddSingleton(users.Object)
-            .AddSingleton<ILogger<RequireOrganizationRoleAttribute>>(NullLogger<RequireOrganizationRoleAttribute>.Instance)
+            .AddSingleton(authority.Object)
+            .AddSingleton<ILogger<RequireOrganizationRoleAttribute>>(
+                NullLogger<RequireOrganizationRoleAttribute>.Instance)
             .BuildServiceProvider();
-        var httpContext = new DefaultHttpContext { RequestServices = services };
+        var httpContext = new DefaultHttpContext
+        {
+            RequestServices = services,
+            RequestAborted = requestAborted
+        };
         if (includeContext)
         {
             httpContext.Items["OrganizationId"] = OrganizationId;
             httpContext.Items["UserId"] = UserId;
         }
 
-        var actionContext = new ActionContext(httpContext, new RouteData(), new ActionDescriptor(), new ModelStateDictionary());
-        var executingContext = new ActionExecutingContext(actionContext, [], new Dictionary<string, object?>(), new object());
-        return new Fixture(executingContext, members);
+        var actionContext = new ActionContext(
+            httpContext,
+            new RouteData(),
+            new ActionDescriptor(),
+            new ModelStateDictionary());
+        var executingContext = new ActionExecutingContext(
+            actionContext,
+            [],
+            new Dictionary<string, object?>(),
+            new object());
+        return new Fixture(
+            executingContext,
+            authority,
+            new RequireOrganizationRoleAttribute(allowedRoles ?? ["Owner", "Manager"]));
     }
 
-    private sealed class Fixture(ActionExecutingContext context, Mock<IOrganizationMemberRepository> members)
+    private sealed class Fixture(
+        ActionExecutingContext context,
+        Mock<IOrganizationAuthorityResolver> authority,
+        RequireOrganizationRoleAttribute attribute)
     {
-        public RequireOrganizationRoleAttribute Attribute { get; } = new("Owner", "Manager");
+        public RequireOrganizationRoleAttribute Attribute { get; } = attribute;
         public ActionExecutingContext Context { get; } = context;
-        public Mock<IOrganizationMemberRepository> Members { get; } = members;
+        public Mock<IOrganizationAuthorityResolver> Authority { get; } = authority;
         public bool NextCalled { get; private set; }
         public int? ResultStatusCode => (Context.Result as ObjectResult)?.StatusCode;
 
-        public Task<ActionExecutedContext> Next()
+        public Task InvokeAsync(Func<Task<ActionExecutedContext>>? next = null) =>
+            Attribute.OnActionExecutionAsync(Context, next is null ? Next : () =>
+            {
+                NextCalled = true;
+                return next();
+            });
+
+        private Task<ActionExecutedContext> Next()
         {
             NextCalled = true;
             return Task.FromResult(new ActionExecutedContext(Context, [], new object()));

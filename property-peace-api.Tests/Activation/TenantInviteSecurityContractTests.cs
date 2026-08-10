@@ -62,7 +62,7 @@ public sealed class TenantInviteSecurityContractTests
         var service = ReadSource("property-peace-api", "Services", "LeaseService", "LeaseService.cs");
         var controller = ReadSource("property-peace-api", "Controllers", "LeaseController.cs");
 
-        foreach (var method in new[] { "CompleteDraft", "SetMoveInReportTemplateCompletedAt", "UpdateLeaseSignature", "DeleteLease", "EndLease", "ReopenLease" })
+        foreach (var method in new[] { "CompleteDraft", "SetMoveInReportTemplateCompletedAt", "DeleteLease", "EndLease", "ReopenLease" })
         {
             var start = service.IndexOf($" {method}(", StringComparison.Ordinal);
             Assert.True(start >= 0, $"{method} must exist");

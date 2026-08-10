@@ -1,9 +1,9 @@
 import { Alert, AlertTitle, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
-export default function TrialBanner() {
+export default function FreePlanBanner() {
   const navigate = useNavigate();
-  const handleStartTrial = () => {
+  const handleStartFree = () => {
     navigate('/landlord/settings?tab=subscription');
   };
 
@@ -20,11 +20,11 @@ export default function TrialBanner() {
           boxShadow: 2
         }
       }}
-      onClick={handleStartTrial}
+      onClick={handleStartFree}
     >
-      <AlertTitle sx={{ fontWeight: 600, mb: 0.5 }}>Start Your Free 30-Day Trial</AlertTitle>
+      <AlertTitle sx={{ fontWeight: 600, mb: 0.5 }}>Start Free</AlertTitle>
       <Typography variant="body2">
-        Click anywhere on this banner to get started and start your free trial. You will need to subscribe before you can add a property.
+        Free for up to 5 units. Click anywhere on this banner to review your plan options.
       </Typography>
     </Alert>
   );

@@ -30,6 +30,7 @@ import PropertiesTableView from 'components/property/PropertiesTableView';
 import { setProperty } from 'store/property/property.action';
 
 import useFetchProperties from 'hooks/useFetchProperties';
+import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectProperties, selectProperty } from 'store/property/property.selector';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -48,6 +49,7 @@ export default function PropertiesPage() {
   const drawer = useDrawer();
   const theme = useTheme();
   const { propertiesRefetch, isLoading } = useFetchProperties();
+  const { rentRecords } = useFetchRentCollection(null, true, true);
   const properties = useSelector(selectProperties);
   const selectedProperty = useSelector(selectProperty);
   const userSettings = useSelector(selectUserSettings);
@@ -158,6 +160,21 @@ export default function PropertiesPage() {
   const paginated = propertyLayout === 'table' 
     ? filteredProperties // Show all in table view (no pagination)
     : filteredProperties.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+  const rentRecordsByProperty = useMemo(() => {
+    const recordsByProperty = new Map();
+    const records = Array.isArray(rentRecords) ? rentRecords : rentRecords ? [rentRecords] : [];
+
+    records.forEach((record) => {
+      const recordPropertyId = record?.propertyId ?? record?.PropertyId;
+      if (recordPropertyId === undefined || recordPropertyId === null) return;
+
+      const key = String(recordPropertyId);
+      recordsByProperty.set(key, [...(recordsByProperty.get(key) || []), record]);
+    });
+
+    return recordsByProperty;
+  }, [rentRecords]);
 
   return (
     <Fade in={fadeIn} timeout={600}>
@@ -503,13 +520,20 @@ export default function PropertiesPage() {
           ) : filteredProperties.length === 0 ? (
             <PropertiesEmptyState />
           ) : propertyLayout === 'table' ? (
-            <PropertiesTableView properties={paginated} onRefresh={propertiesRefetch} />
+            <PropertiesTableView
+              properties={paginated}
+              rentRecords={paginated.flatMap((property) => rentRecordsByProperty.get(String(property.id)) || [])}
+              onRefresh={propertiesRefetch}
+            />
           ) : (
             <>
               <Grid container spacing={3} alignItems="stretch">
                 {paginated.map((property) => (
                   <Grid size={{ xs: 12, sm: 6 }} key={property.id}>
-                    <PropertyCard property={property} />
+                    <PropertyCard
+                      property={property}
+                      rentRecords={rentRecordsByProperty.get(String(property.id)) || []}
+                    />
                   </Grid>
                 ))}
               </Grid>

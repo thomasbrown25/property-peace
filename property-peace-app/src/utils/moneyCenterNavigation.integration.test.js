@@ -23,13 +23,13 @@ test('Money Center is collapsible and contains the Money and Rent Collection des
   assert.ok(moneyCenter.indexOf("id: 'money'") < moneyCenter.indexOf("id: 'rent-collection'"));
 });
 
-test('Rent Collection is no longer listed in Accounting', () => {
+test('Accounting contains Tax Center without legacy Rent Collection or Reports entries', () => {
   const accounting = menuBlock('accounting', 'operations');
 
   assert.doesNotMatch(accounting, /id: 'rent-collection'/);
   assert.match(accounting, /id: 'payments'/);
   assert.match(accounting, /id: 'expenses'/);
   assert.match(accounting, /id: 'ledger'/);
-  assert.match(accounting, /id: 'reports'/);
-  assert.match(accounting, /id: 'tax-center'/);
+  assert.doesNotMatch(accounting, /id: 'reports'/);
+  assert.match(accounting, /id: 'tax-center'[\s\S]*title: 'Tax Center'[\s\S]*url: '\/landlord\/accounting\/tax-center'/);
 });

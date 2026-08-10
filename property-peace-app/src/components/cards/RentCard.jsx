@@ -12,9 +12,11 @@ import { formatCurrency } from 'utils/formatters';
 import { useModal } from 'contexts/ModalContext';
 import { Link } from 'react-router-dom';
 import { formatRentStatus, getRentStatusColor } from '../../utils/formatters';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 export default function RentCard({ rent, onSendReminder }) {
   const modal = useModal();
+  const { rentDue, overdueAmount } = normalizeRentBalance(rent);
   const propertyDisplay =
     rent.propertyType?.toLowerCase() === 'singlefamily' ? rent.propertyName : `${rent.propertyName} – ${rent.unitName}`;
 
@@ -67,11 +69,11 @@ export default function RentCard({ rent, onSendReminder }) {
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
           <DollarOutlined style={{ color: '#52c41a' }} />
-          <Typography variant="body2">Amount: {formatCurrency(rent.rentAmount)}</Typography>
+          <Typography variant="body2">Rent Due: {formatCurrency(rentDue)}</Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
           <DollarOutlined style={{ color: '#dd3f27' }} />
-          <Typography variant="body2">Overdue: {formatCurrency(rent.overdueAmount)}</Typography>
+          <Typography variant="body2">Overdue: {formatCurrency(overdueAmount)}</Typography>
         </Stack>
       </Stack>
 

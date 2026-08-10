@@ -2620,6 +2620,7 @@ export default function Property() {
             <PropertyOverview
               property={selectedProperty}
               propertyId={propertyId}
+              rentRecords={rentRecords}
               onCreateListing={drawer.openListingAddDrawer}
             />
           </AnimateIn>

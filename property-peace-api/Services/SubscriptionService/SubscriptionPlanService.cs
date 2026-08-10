@@ -29,6 +29,9 @@ namespace brownstone_hub_api.Services.SubscriptionService
         }
 
         public async Task<ServiceResponse<List<SubscriptionPlanDto>>> GetAllPlansAsync()
+            => await GetCustomerPlansAsync();
+
+        public async Task<ServiceResponse<List<SubscriptionPlanDto>>> GetCustomerPlansAsync()
         {
             var response = new ServiceResponse<List<SubscriptionPlanDto>>();
             
@@ -36,7 +39,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
             {
                 var plans = await _planRepository.GetAllPlansAsync();
                 var planDtos = plans
-                    .Where(plan => !string.Equals(plan.Name, "Lifetime Plan", StringComparison.OrdinalIgnoreCase))
+                    .Where(CustomerSelectableSubscriptionPlan.IsSelectable)
                     .Select(plan =>
                 {
                     var dto = _mapper.Map<SubscriptionPlanDto>(plan);
@@ -58,6 +61,38 @@ namespace brownstone_hub_api.Services.SubscriptionService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting all subscription plans");
+                response.Success = false;
+                response.Message = $"Error retrieving plans: {ex.Message}";
+            }
+
+            return response;
+        }
+
+        public async Task<ServiceResponse<List<SubscriptionPlanDto>>> GetAdminPlansAsync()
+        {
+            var response = new ServiceResponse<List<SubscriptionPlanDto>>();
+
+            try
+            {
+                var plans = await _planRepository.GetAllPlansAsync();
+                response.Data = plans.Select(plan =>
+                {
+                    var dto = _mapper.Map<SubscriptionPlanDto>(plan);
+                    if (plan.MonthlyPrice > 0 && plan.AnnualPrice > 0)
+                    {
+                        var monthlyAnnual = plan.MonthlyPrice * 12;
+                        if (monthlyAnnual > plan.AnnualPrice)
+                        {
+                            dto.AnnualDiscount = ((monthlyAnnual - plan.AnnualPrice) / monthlyAnnual) * 100;
+                        }
+                    }
+                    return dto;
+                }).ToList();
+                response.Message = "Plans retrieved successfully";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all subscription plans for admin");
                 response.Success = false;
                 response.Message = $"Error retrieving plans: {ex.Message}";
             }

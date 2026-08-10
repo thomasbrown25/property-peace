@@ -146,7 +146,7 @@ namespace brownstone_hub_api.Repositories.Messages
                             .Select(x => new { x.Email, x.PhoneNumber }).SingleOrDefaultAsync()
                         : null;
                     var organizationSmsNumber = await _context.OrganizationSmsNumbers
-                        .Where(x => x.OrganizationId == organizationId && x.IsActive)
+                        .Where(x => x.OrganizationId == organizationId && x.IsActive && x.IsPrimary)
                         .Select(x => x.PhoneNumber).FirstOrDefaultAsync();
                     var senderName = await _context.Users.Where(x => x.Id == senderId)
                         .Select(x => (x.FirstName + " " + x.LastName).Trim()).SingleAsync();

@@ -6,7 +6,7 @@ import { selectProperty } from 'store/property/property.selector';
 
 // period: "current" | "6months" | "lifetime"
 // propertyId: number | null
-export default function useFetchRentCollection(propertyId = null, lifetime = false) {
+export default function useFetchRentCollection(propertyId = null, lifetime = false, ignoreSelectedProperty = false) {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const { summary, rentRecords, lifetimeSummary, lifetimeRentRecords, loading, error } = useSelector((state) => state.rentCollection);
@@ -34,8 +34,9 @@ export default function useFetchRentCollection(propertyId = null, lifetime = fal
     if (!user?.id || isTenantOnly) return;
 
     // OrganizationId is sent via X-Organization-Id header
-    dispatch(getRentCollection(selectedProperty?.id || propertyId, lifetime));
-  }, [dispatch, user?.id, selectedProperty?.id, propertyId, lifetime, isTenantOnly]);
+    const effectivePropertyId = ignoreSelectedProperty ? propertyId : selectedProperty?.id || propertyId;
+    dispatch(getRentCollection(effectivePropertyId, lifetime));
+  }, [dispatch, user?.id, selectedProperty?.id, propertyId, lifetime, ignoreSelectedProperty, isTenantOnly]);
 
   // fetch on mount + whenever landlordId, propertyId, or period changes
   useEffect(() => {

@@ -96,7 +96,7 @@ const featureCategories = [
         slug: 'tenant-communication',
         icon: FiBell,
         title: 'Multi-Channel Notifications',
-        description: 'Never miss a due date or request. In-app, email, and SMS notifications the way you and your tenants want—so everyone stays in the loop.'
+        description: 'Never miss a due date or request with in-app and email notifications. Eligible Premium/Lifetime plans include one dedicated organization SMS number; activation and configuration are required.'
       },
       {
         slug: 'property-management',

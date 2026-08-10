@@ -17,7 +17,7 @@ namespace brownstone_hub_api.Services.CommunicationService
             _logger = logger;
         }
 
-        public async Task<ServiceResponse<SendSmsResponseDto>> SendSmsAsync(SendSmsDto request, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<SendSmsResponseDto>> SendSmsAsync(SendSmsDto request, string from, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -41,7 +41,9 @@ namespace brownstone_hub_api.Services.CommunicationService
 
                 _logger.LogInformation("Sending SMS to {To}", request.To);
 
-                var success = await _smsService.SendSmsAsync(request.To, request.Message, cancellationToken);
+                if (string.IsNullOrWhiteSpace(from))
+                    return ServiceResponse<SendSmsResponseDto>.CreateError("SMS sender is unavailable", "An active primary organization number is required", statusCode: 503);
+                var success = await _smsService.SendSmsAsync(request.To, request.Message, cancellationToken, from);
 
                 if (success)
                 {
@@ -74,7 +76,7 @@ namespace brownstone_hub_api.Services.CommunicationService
             }
         }
 
-        public async Task<ServiceResponse<SendBulkSmsResponseDto>> SendBulkSmsAsync(SendBulkSmsDto request, CancellationToken cancellationToken = default)
+        public async Task<ServiceResponse<SendBulkSmsResponseDto>> SendBulkSmsAsync(SendBulkSmsDto request, string from, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -98,7 +100,9 @@ namespace brownstone_hub_api.Services.CommunicationService
 
                 _logger.LogInformation("Sending bulk SMS to {Count} recipients", request.To.Count);
 
-                var success = await _smsService.SendBulkSmsAsync(request.To, request.Message, cancellationToken);
+                if (string.IsNullOrWhiteSpace(from))
+                    return ServiceResponse<SendBulkSmsResponseDto>.CreateError("SMS sender is unavailable", "An active primary organization number is required", statusCode: 503);
+                var success = await _smsService.SendBulkSmsAsync(request.To, request.Message, cancellationToken, from);
 
                 // Note: The current ISmsService.SendBulkSmsAsync returns a bool, not detailed results
                 // We'll track success/failure counts if we enhance the service later

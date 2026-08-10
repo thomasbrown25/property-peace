@@ -48,6 +48,7 @@ const plans = [
       'Rent estimates',
       'LeaseShield protection',
       'Percy Pilot workflows (limited availability)',
+      'One dedicated organization SMS number included for eligible Premium/Lifetime plans; activation and configuration required',
       'Priority support',
       'Cancel anytime',
     ],

@@ -14,18 +14,25 @@ namespace brownstone_hub_api.Repositories.Properties
         private readonly ILogger<PropertyRepository> _logger = logger;
         private readonly IMapper _mapper = mapper;
 
-        public async Task<LoadPropertyDto> AddProperty(UpdatePropertyDto propertyDto)
+        public Task<LoadPropertyDto> AddProperty(UpdatePropertyDto propertyDto) =>
+            AddProperty(propertyDto, CancellationToken.None);
+
+        public async Task<LoadPropertyDto> AddProperty(UpdatePropertyDto propertyDto, CancellationToken cancellationToken)
         {
             try
             {
                 var entity = _mapper.Map<Property>(propertyDto);
 
-                var entry = await _context.Properties.AddAsync(entity);
-                await _context.SaveChangesAsync();
+                var entry = await _context.Properties.AddAsync(entity, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
 
                 var saved = entry.Entity;
 
                 return _mapper.Map<LoadPropertyDto>(saved);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -35,14 +42,45 @@ namespace brownstone_hub_api.Repositories.Properties
         }
 
 
-        public async Task<LoadPropertyDto> UpdateProperty(UpdatePropertyDto property)
+        public Task<LoadPropertyDto> UpdateProperty(UpdatePropertyDto property) =>
+            UpdateProperty(property, CancellationToken.None);
+
+        public async Task<LoadPropertyDto?> UpdatePropertyForMutationAsync(
+            UpdatePropertyDto property,
+            long organizationId,
+            CancellationToken cancellationToken)
+        {
+            var existingProperty = await _context.Properties
+                .Where(p => !p.IsDeleted && p.OrganizationId == organizationId)
+                .Include(p => p.Units)
+                .FirstOrDefaultAsync(p => p.Id == property.Id, cancellationToken);
+            if (existingProperty is null)
+            {
+                return null;
+            }
+
+            var existingName = existingProperty.Name;
+            var existingLandlordId = existingProperty.LandlordId;
+            _mapper.Map(property, existingProperty);
+            existingProperty.OrganizationId = organizationId;
+            existingProperty.LandlordId = existingLandlordId;
+            existingProperty.Name = string.IsNullOrWhiteSpace(property.Name)
+                ? existingName
+                : property.Name.Trim();
+            existingProperty.TargetRent = property.TargetRent;
+            existingProperty.TargetDeposit = property.TargetDeposit;
+            await _context.SaveChangesAsync(cancellationToken);
+            return _mapper.Map<LoadPropertyDto>(existingProperty);
+        }
+
+        public async Task<LoadPropertyDto> UpdateProperty(UpdatePropertyDto property, CancellationToken cancellationToken)
         {
             try
             {
                 var existingProperty = await _context.Properties
                     .Where(p => !p.IsDeleted)
                     .Include(p => p.Units)
-                    .FirstOrDefaultAsync(p => p.Id == property.Id) ?? throw new KeyNotFoundException("Property not found");
+                    .FirstOrDefaultAsync(p => p.Id == property.Id, cancellationToken) ?? throw new KeyNotFoundException("Property not found");
 
                 // Log the incoming values for debugging
                 _logger.LogInformation("Updating property {PropertyId}: Name={Name}, TargetRent={TargetRent}, TargetDeposit={TargetDeposit}", 
@@ -72,11 +110,15 @@ namespace brownstone_hub_api.Repositories.Properties
                 _logger.LogInformation("After mapping - Name={Name}, TargetRent={TargetRent}, TargetDeposit={TargetDeposit}", 
                     existingProperty.Name, existingProperty.TargetRent, existingProperty.TargetDeposit);
                 
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation("Property {PropertyId} updated successfully", property.Id);
 
                 return _mapper.Map<LoadPropertyDto>(existingProperty);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -86,12 +128,25 @@ namespace brownstone_hub_api.Repositories.Properties
         }
 
         public Task<LoadPropertyDto?> GetPropertyById(long propertyId) =>
-            GetPropertyByIdInternal(propertyId, organizationId: null);
+            GetPropertyByIdInternal(propertyId, organizationId: null, CancellationToken.None);
 
         public Task<LoadPropertyDto?> GetPropertyById(long propertyId, long organizationId) =>
-            GetPropertyByIdInternal(propertyId, organizationId);
+            GetPropertyByIdInternal(propertyId, organizationId, CancellationToken.None);
 
-        private async Task<LoadPropertyDto?> GetPropertyByIdInternal(long propertyId, long? organizationId)
+        public Task<LoadPropertyDto?> GetPropertyByIdForMutationAsync(long propertyId, long organizationId, CancellationToken cancellationToken) =>
+            GetPropertyByIdInternal(propertyId, organizationId, cancellationToken);
+
+        public async Task<LoadPropertyDto?> GetInactivePropertyByIdForMutationAsync(
+            long propertyId, long organizationId, CancellationToken cancellationToken)
+        {
+            var property = await _context.Properties
+                .Where(p => p.IsDeleted && p.OrganizationId == organizationId)
+                .Include(p => p.Units)
+                .FirstOrDefaultAsync(p => p.Id == propertyId, cancellationToken);
+            return property is null ? null : _mapper.Map<LoadPropertyDto>(property);
+        }
+
+        private async Task<LoadPropertyDto?> GetPropertyByIdInternal(long propertyId, long? organizationId, CancellationToken cancellationToken)
         {
             try
             {
@@ -144,7 +199,7 @@ namespace brownstone_hub_api.Repositories.Properties
                         .Include(p => p.PrimaryManager)
                         .AsSplitQuery()
                     .FirstOrDefaultAsync(p => p.Id == propertyId &&
-                        (!organizationId.HasValue || p.OrganizationId == organizationId.Value));
+                        (!organizationId.HasValue || p.OrganizationId == organizationId.Value), cancellationToken);
 
                 if (property == null)
                 {
@@ -152,6 +207,10 @@ namespace brownstone_hub_api.Repositories.Properties
                 }
 
                 return _mapper.Map<LoadPropertyDto>(property);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -323,6 +382,18 @@ namespace brownstone_hub_api.Repositories.Properties
             }
         }
 
+        public async Task<LoadPropertyDto> DeleteProperty(
+            long propertyId, long organizationId, CancellationToken cancellationToken)
+        {
+            var property = await _context.Properties.FirstOrDefaultAsync(
+                p => p.Id == propertyId && !p.IsDeleted && p.OrganizationId == organizationId,
+                cancellationToken) ?? throw new KeyNotFoundException($"Property with ID {propertyId} not found");
+            var propertyDto = _mapper.Map<LoadPropertyDto>(property);
+            _context.Properties.Remove(property);
+            await _context.SaveChangesAsync(cancellationToken);
+            return propertyDto;
+        }
+
         public async Task<LoadPropertyDto> InactivateProperty(long propertyId)
         {
             try
@@ -350,6 +421,18 @@ namespace brownstone_hub_api.Repositories.Properties
             }
         }
 
+        public async Task<LoadPropertyDto> InactivateProperty(
+            long propertyId, long organizationId, CancellationToken cancellationToken)
+        {
+            var property = await _context.Properties.FirstOrDefaultAsync(
+                p => p.Id == propertyId && !p.IsDeleted && p.OrganizationId == organizationId,
+                cancellationToken) ?? throw new KeyNotFoundException($"Property with ID {propertyId} not found");
+            property.IsDeleted = true;
+            property.DeletedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync(cancellationToken);
+            return _mapper.Map<LoadPropertyDto>(property);
+        }
+
         public async Task<LoadPropertyDto> ReactivateProperty(long propertyId)
         {
             try
@@ -375,6 +458,18 @@ namespace brownstone_hub_api.Repositories.Properties
                 _logger.LogError(ex, "Error reactivating property with ID {PropertyId}", propertyId);
                 throw new Exception($"Error reactivating property with ID {propertyId}", ex);
             }
+        }
+
+        public async Task<LoadPropertyDto> ReactivateProperty(
+            long propertyId, long organizationId, CancellationToken cancellationToken)
+        {
+            var property = await _context.Properties.FirstOrDefaultAsync(
+                p => p.Id == propertyId && p.IsDeleted && p.OrganizationId == organizationId,
+                cancellationToken) ?? throw new KeyNotFoundException($"Property with ID {propertyId} not found");
+            property.IsDeleted = false;
+            property.DeletedAt = null;
+            await _context.SaveChangesAsync(cancellationToken);
+            return _mapper.Map<LoadPropertyDto>(property);
         }
 
         public async Task<bool> IsSingleUnitPortfolio(long organizationId)

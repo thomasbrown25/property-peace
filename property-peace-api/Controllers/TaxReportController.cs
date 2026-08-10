@@ -1,4 +1,5 @@
 using brownstone_hub_api.Attributes;
+using brownstone_hub_api.Entitlements.Enforcement;
 using brownstone_hub_api.Services.TaxReportService;
 using brownstone_hub_api.Services.ScheduleEPdfService;
 using brownstone_hub_api.Services.UserService;
@@ -12,6 +13,7 @@ namespace brownstone_hub_api.Controllers
     [Route("api/[controller]")]
     [Authorize(Roles = "Landlord,Admin")]
     [RequireOrganizationRole("Owner", "Manager")]
+    [AdvancedReportingEntitlement]
     public class TaxReportController(ITaxReportService taxReportService, IScheduleEPdfService scheduleEPdfService, IUserService userService) : ControllerBase
     {
         private readonly ITaxReportService _taxReportService = taxReportService;

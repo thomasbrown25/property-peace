@@ -34,6 +34,7 @@ import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import PaymentRecipientSearch from 'components/payment/PaymentRecipientSearch';
 import Autocomplete from 'components/@extended/AutoComplete';
 import { formatCurrency } from 'utils/formatters';
+import { normalizeRentBalance } from 'utils/rentBalance';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import useFetchProperties from 'hooks/useFetchProperties';
@@ -130,7 +131,8 @@ export default function PaymentAddWorkflow() {
   // Fetch rent collection data for selected property
   const { rentRecords, loading: rentRecordsLoading, refetch: refetchRentRecords } = useFetchRentCollection(
     selectedProperty?.id || null,
-    false
+    false,
+    true
   );
 
   // Find rent record for selected lease
@@ -212,9 +214,7 @@ export default function PaymentAddWorkflow() {
   // Update payment amount when rent record changes
   useEffect(() => {
     if (rentRecord) {
-      const monthlyDue = rentRecord.rentAmount || rentRecord.RentAmount || 0;
-      const overdue = rentRecord.overdueAmount || rentRecord.OverdueAmount || 0;
-      const totalDue = monthlyDue + overdue;
+      const { rentDue: totalDue } = normalizeRentBalance(rentRecord);
       setAmount(totalDue);
       setAmountDisplay(formatCurrency(totalDue));
     }
@@ -427,9 +427,8 @@ export default function PaymentAddWorkflow() {
   };
 
   // Calculate payment summary values
-  const monthlyDue = rentRecord?.rentAmount || rentRecord?.RentAmount || 0;
-  const overdue = rentRecord?.overdueAmount || rentRecord?.OverdueAmount || 0;
-  const totalDue = monthlyDue + overdue;
+  const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rentRecord);
+  const totalDue = rentDue;
   const unpaidFees = []; // TODO: Fetch unpaid fees when fee system is implemented
 
   const renderStep = () => {
@@ -633,25 +632,16 @@ export default function PaymentAddWorkflow() {
               ) : (
                 <Stack spacing={2}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Monthly Due
-                    </Typography>
-                    <Typography variant="body1" fontWeight={500} color="text.primary">
-                      {formatCurrency(monthlyDue)}
-                    </Typography>
-                  </Stack>
-                  <Divider sx={{ my: 0.5 }} />
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography variant="body2" color="text.secondary">
-                        Overdue Amount
+                        Rent Due
                       </Typography>
-                      {overdue > 0 && (
+                      {rentDueIsOverdue && (
                         <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
                       )}
                     </Stack>
-                    <Typography variant="body1" fontWeight={600} color={overdue > 0 ? 'error.main' : 'text.primary'}>
-                      {formatCurrency(overdue)}
+                    <Typography variant="body1" fontWeight={600} color={rentDueIsOverdue ? 'error.main' : 'text.primary'}>
+                      {formatCurrency(rentDue)}
                     </Typography>
                   </Stack>
                   {unpaidFees && unpaidFees.length > 0 && (

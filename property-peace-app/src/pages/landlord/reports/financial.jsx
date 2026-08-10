@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useSubscription } from 'hooks/useSubscription';
+import { useSearchParams } from 'react-router-dom';
 import {
   Grid,
   Box,
@@ -64,18 +63,11 @@ const formatDateDisplay = (dateStr) => {
 
 export default function FinancialReports() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const hasPremiumAccess = planName === 'premium' || planName.includes('lifetime');
+
   const selectedProperty = useSelector(selectProperty);
   const theme = useTheme();
 
-  useEffect(() => {
-    if (!subscriptionLoading && !hasPremiumAccess) {
-      navigate('/landlord/reports');
-    }
-  }, [hasPremiumAccess, subscriptionLoading, navigate]);
+
   const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(false);

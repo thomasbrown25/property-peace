@@ -207,18 +207,18 @@ const pages = [
             icon: icons.FormOutlined
           },
           {
-            id: 'reports',
-            title: 'Reports',
-            type: 'item',
-            url: '/landlord/reports',
-            icon: icons.FundOutlined
-          },
-          {
             id: 'tax-center',
             title: 'Tax Center',
             type: 'item',
-            url: '/landlord/reports/tax',
+            url: '/landlord/money/tax-center',
             icon: icons.AuditOutlined
+          },
+          {
+            id: 'reports-analytics',
+            title: 'Reports & Analytics',
+            type: 'item',
+            url: '/landlord/reports',
+            icon: icons.FundOutlined
           }
         ]
       },

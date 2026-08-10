@@ -7,6 +7,7 @@ import DashboardLayout from 'layout/Dashboard';
 import AdminRoute from 'components/auth/AdminRoute';
 import ScreeningStaffRoute from 'components/auth/ScreeningStaffRoute';
 import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
+import EntitlementGate from 'components/entitlements/EntitlementGate';
 import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
 
 
@@ -88,19 +89,20 @@ const ExpensesProperty = Loadable(lazy(() => import('pages/landlord/expenses-pro
 const ExpenseAddWorkflow = Loadable(lazy(() => import('pages/landlord/expense-add-workflow')));
 const Messages = Loadable(lazy(() => import('pages/landlord/messages')));
 const UrgentMessages = Loadable(lazy(() => import('pages/landlord/urgent-messages')));
-const ReportsDashboard = Loadable(lazy(() => import('pages/landlord/reports/index')));
+const ReportsDashboard = Loadable(lazy(() => import('pages/landlord/reports')));
+const TaxReports = Loadable(lazy(() => import('pages/landlord/reports/tax')));
+
 const OccupancyReport = Loadable(lazy(() => import('pages/landlord/reports/occupancy')));
 const RevenuePerUnitReport = Loadable(lazy(() => import('pages/landlord/reports/revenue-per-unit')));
 const UnitsPerClientReport = Loadable(lazy(() => import('pages/landlord/reports/units-per-client')));
 const ClientChurnReport = Loadable(lazy(() => import('pages/landlord/reports/client-churn')));
 const UnitsPerEmployeeReport = Loadable(lazy(() => import('pages/landlord/reports/units-per-employee')));
 const ClosingRateReport = Loadable(lazy(() => import('pages/landlord/reports/closing-rate')));
-const MedianDOMReport = Loadable(lazy(() => import('pages/landlord/reports/median-dom')));
-const MedianTTTReport = Loadable(lazy(() => import('pages/landlord/reports/median-ttt')));
-const NPSClientReport = Loadable(lazy(() => import('pages/landlord/reports/nps-client')));
-const NPSTenantReport = Loadable(lazy(() => import('pages/landlord/reports/nps-tenant')));
+const MedianDomReport = Loadable(lazy(() => import('pages/landlord/reports/median-dom')));
+const MedianTttReport = Loadable(lazy(() => import('pages/landlord/reports/median-ttt')));
+const NpsClientReport = Loadable(lazy(() => import('pages/landlord/reports/nps-client')));
+const NpsTenantReport = Loadable(lazy(() => import('pages/landlord/reports/nps-tenant')));
 const FinancialReports = Loadable(lazy(() => import('pages/landlord/reports/financial')));
-const TaxReports = Loadable(lazy(() => import('pages/landlord/reports/tax')));
 const Settings = Loadable(lazy(() => import('pages/landlord/settings')));
 const Notifications = Loadable(lazy(() => import('pages/landlord/notifications')));
 const Activity = Loadable(lazy(() => import('pages/landlord/activity')));
@@ -906,56 +908,64 @@ const MainRoutes = {
           )
         },
         {
+          path: 'landlord/accounting/tax-center',
+          element: <EntitlementGate><TaxReports /></EntitlementGate>
+        },
+        {
+          path: 'landlord/money/tax-center',
+          element: <EntitlementGate><TaxReports /></EntitlementGate>
+        },
+        {
           path: 'landlord/reports',
           element: <ReportsDashboard />
         },
         {
           path: 'landlord/reports/occupancy',
-          element: <OccupancyReport />
+          element: <EntitlementGate><OccupancyReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/revenue-per-unit',
-          element: <RevenuePerUnitReport />
+          element: <EntitlementGate><RevenuePerUnitReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/units-per-client',
-          element: <UnitsPerClientReport />
+          element: <EntitlementGate><UnitsPerClientReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/client-churn',
-          element: <ClientChurnReport />
+          element: <EntitlementGate><ClientChurnReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/units-per-employee',
-          element: <UnitsPerEmployeeReport />
+          element: <EntitlementGate><UnitsPerEmployeeReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/closing-rate',
-          element: <ClosingRateReport />
+          element: <EntitlementGate><ClosingRateReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/median-dom',
-          element: <MedianDOMReport />
+          element: <EntitlementGate><MedianDomReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/median-ttt',
-          element: <MedianTTTReport />
+          element: <EntitlementGate><MedianTttReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/nps-client',
-          element: <NPSClientReport />
+          element: <EntitlementGate><NpsClientReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/nps-tenant',
-          element: <NPSTenantReport />
+          element: <EntitlementGate><NpsTenantReport /></EntitlementGate>
         },
         {
           path: 'landlord/reports/financial',
-          element: <FinancialReports />
+          element: <EntitlementGate><FinancialReports /></EntitlementGate>
         },
         {
           path: 'landlord/reports/tax',
-          element: <TaxReports />
+          element: <EntitlementGate><TaxReports /></EntitlementGate>
         },
         {
           path: 'landlord/upcoming-features',
@@ -969,7 +979,7 @@ const MainRoutes = {
           path: 'landlord/tax-reports',
           element: (
             <SubscriptionPausedGuard>
-              <Navigate to="/landlord/reports?tab=2" replace />
+              <Navigate to="/landlord/accounting/tax-center" replace />
             </SubscriptionPausedGuard>
           )
         },
@@ -977,7 +987,7 @@ const MainRoutes = {
           path: 'landlord/property-portfolio',
           element: (
             <SubscriptionPausedGuard>
-              <Navigate to="/landlord/reports?tab=0" replace />
+              <Navigate to="/landlord/portfolio-summary" replace />
             </SubscriptionPausedGuard>
           )
         },

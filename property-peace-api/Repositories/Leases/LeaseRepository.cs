@@ -6,8 +6,10 @@ using brownstone_hub_api.Dtos.Lease;
 using brownstone_hub_api.Dtos.Tenant;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Services.ESignatureService;
 using brownstone_hub_api.Utils;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace brownstone_hub_api.Repositories.Leases
 {
@@ -811,34 +813,198 @@ namespace brownstone_hub_api.Repositories.Leases
             return _mapper.Map<LoadLeaseDto>(reloaded);
         }
 
-        public async Task<LoadLeaseDto> UpdateLeaseSignature(UpdateLeaseSignatureDto signatureInfo)
+        public async Task<LoadLeaseDto?> UpdateLeaseSignature(
+            UpdateLeaseSignatureDto signatureInfo,
+            long organizationId,
+            CancellationToken cancellationToken)
         {
-            var agreement = await _context.LeaseAgreements
-                .FirstOrDefaultAsync(la => la.LeaseId == signatureInfo.LeaseId)
-                ?? throw new KeyNotFoundException("LeaseAgreement not found");
+            var agreement = await _context.LeaseAgreements.FirstOrDefaultAsync(candidate =>
+                candidate.LeaseId == signatureInfo.LeaseId &&
+                !candidate.Lease.IsDeleted && candidate.Lease.IsActive &&
+                candidate.Lease.Unit.Property.OrganizationId == organizationId &&
+                candidate.Lease.OrganizationId == organizationId,
+                cancellationToken);
+            if (agreement == null) return null;
 
             agreement.SignatureStatus = signatureInfo.SignatureStatus;
             agreement.DocuSignEnvelopeId = signatureInfo.DocuSignEnvelopeId;
             agreement.SignatureSentAt = signatureInfo.SignatureSentAt;
             agreement.SignatureCompletedAt = signatureInfo.SignatureCompletedAt;
             agreement.SignatureExpiresAt = signatureInfo.SignatureExpiresAt;
+            if (signatureInfo.LandlordSignedAt.HasValue) agreement.LandlordSignedAt = signatureInfo.LandlordSignedAt;
+            if (!string.IsNullOrEmpty(signatureInfo.LandlordSignedBy)) agreement.LandlordSignedBy = signatureInfo.LandlordSignedBy;
 
-            if (signatureInfo.LandlordSignedAt.HasValue)
-                agreement.LandlordSignedAt = signatureInfo.LandlordSignedAt;
-            if (!string.IsNullOrEmpty(signatureInfo.LandlordSignedBy))
-                agreement.LandlordSignedBy = signatureInfo.LandlordSignedBy;
+            await _context.SaveChangesAsync(cancellationToken);
+            var lease = await _context.Leases.AsNoTracking()
+                .Include(candidate => candidate.Unit).ThenInclude(unit => unit.Property).ThenInclude(property => property.Landlord)
+                .Include(candidate => candidate.LeaseAgreement)
+                .Include(candidate => candidate.TenantLeases).ThenInclude(tenantLease => tenantLease.Tenant)
+                .Include(candidate => candidate.LeaseFees)
+                .FirstOrDefaultAsync(candidate => candidate.Id == signatureInfo.LeaseId &&
+                    !candidate.IsDeleted && candidate.IsActive &&
+                    candidate.Unit.Property.OrganizationId == organizationId &&
+                    candidate.OrganizationId == organizationId,
+                    cancellationToken);
+            return lease == null ? null : _mapper.Map<LoadLeaseDto>(lease);
+        }
 
-            _context.LeaseAgreements.Update(agreement);
-            await _context.SaveChangesAsync();
+        public async Task<string?> PersistSentEnvelopeAsync(long leaseId, long organizationId, string envelopeId,
+            DateTime sentAt, DateTime? expiresAt, CancellationToken cancellationToken)
+        {
+            if (!ESignatureEnvelopeId.IsCanonical(envelopeId)) return null;
 
-            var lease = await _context.Leases
-                .Include(l => l.Unit).ThenInclude(u => u.Property).ThenInclude(p => p.Landlord)
-                .Include(l => l.LeaseAgreement)
-                .Include(l => l.TenantLeases).ThenInclude(tl => tl.Tenant)
-                .Include(l => l.LeaseFees)
-                .FirstOrDefaultAsync(l => l.Id == signatureInfo.LeaseId)
-                ?? throw new KeyNotFoundException("Lease not found");
-            return _mapper.Map<LoadLeaseDto>(lease);
+            var scoped = _context.LeaseAgreements.Where(candidate =>
+                candidate.LeaseId == leaseId && !candidate.Lease.IsDeleted && candidate.Lease.IsActive &&
+                candidate.Lease.OrganizationId == organizationId &&
+                candidate.Lease.Unit.Property.OrganizationId == organizationId);
+
+            if (_context.Database.IsRelational())
+            {
+                // A single conditional statement is the compare-and-set. A transaction around a
+                // read followed by a write is insufficient on SQLite and allows two contexts to win.
+                var affected = await scoped.Where(candidate =>
+                        candidate.DocuSignEnvelopeId == null &&
+                        candidate.SignatureStatus != ESignatureStatus.Completed &&
+                        candidate.SignatureStatus != ESignatureStatus.Declined &&
+                        candidate.SignatureStatus != ESignatureStatus.Expired &&
+                        candidate.SignatureStatus != ESignatureStatus.Cancelled)
+                    .ExecuteUpdateAsync(setters => setters
+                        .SetProperty(candidate => candidate.SignatureStatus, ESignatureStatus.Sent)
+                        .SetProperty(candidate => candidate.DocuSignEnvelopeId, envelopeId)
+                        .SetProperty(candidate => candidate.SignatureSentAt, sentAt)
+                        .SetProperty(candidate => candidate.SignatureExpiresAt, expiresAt), cancellationToken);
+                if (affected is < 0 or > 1)
+                    throw new DbUpdateException("Envelope persistence updated an unexpected number of agreements.");
+            }
+            else
+            {
+                // EF's in-memory provider has no ExecuteUpdate; preserve the same compare-and-set
+                // contract for unit tests (real concurrency is covered against SQLite).
+                var agreement = await scoped.SingleOrDefaultAsync(cancellationToken);
+                if (agreement != null && agreement.DocuSignEnvelopeId == null && !IsTerminal(agreement.SignatureStatus))
+                {
+                    agreement.SignatureStatus = ESignatureStatus.Sent;
+                    agreement.DocuSignEnvelopeId = envelopeId;
+                    agreement.SignatureSentAt = sentAt;
+                    agreement.SignatureExpiresAt = expiresAt;
+                    if (await _context.SaveChangesAsync(cancellationToken) != 1)
+                        throw new DbUpdateException("Envelope persistence did not update exactly one agreement.");
+                }
+            }
+
+            var readback = await scoped.AsNoTracking()
+                .Select(candidate => new { candidate.DocuSignEnvelopeId, candidate.SignatureStatus })
+                .SingleOrDefaultAsync(cancellationToken);
+            return readback != null && string.Equals(readback.DocuSignEnvelopeId, envelopeId, StringComparison.Ordinal)
+                ? readback.DocuSignEnvelopeId
+                : null;
+        }
+
+        public async Task<bool> PersistCancelledEnvelopeAsync(long leaseId, long organizationId, string envelopeId,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(envelopeId)) return false;
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
+            try
+            {
+                var agreement = await _context.LeaseAgreements.SingleOrDefaultAsync(candidate =>
+                    candidate.LeaseId == leaseId && !candidate.Lease.IsDeleted && candidate.Lease.IsActive &&
+                    candidate.Lease.OrganizationId == organizationId &&
+                    candidate.Lease.Unit.Property.OrganizationId == organizationId &&
+                    candidate.DocuSignEnvelopeId == envelopeId, cancellationToken);
+                if (agreement == null || IsTerminal(agreement.SignatureStatus)) return false;
+                agreement.SignatureStatus = ESignatureStatus.Cancelled;
+                if (await _context.SaveChangesAsync(cancellationToken) != 1)
+                    throw new DbUpdateException("Cancellation did not update exactly one agreement.");
+                if (transaction != null) await transaction.CommitAsync(cancellationToken);
+                return true;
+            }
+            catch
+            {
+                if (transaction != null) await transaction.RollbackAsync(CancellationToken.None);
+                throw;
+            }
+        }
+
+        public async Task<SignatureSyncApplyResult?> ApplySignatureSyncAsync(long leaseId, long organizationId,
+            SignatureSyncUpdate update, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(update.EnvelopeId)) return null;
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
+            try
+            {
+                var agreement = await _context.LeaseAgreements.SingleOrDefaultAsync(candidate =>
+                    candidate.LeaseId == leaseId && !candidate.Lease.IsDeleted && candidate.Lease.IsActive &&
+                    candidate.Lease.OrganizationId == organizationId &&
+                    candidate.Lease.Unit.Property.OrganizationId == organizationId &&
+                    candidate.DocuSignEnvelopeId == update.EnvelopeId, cancellationToken);
+                if (agreement == null) return null;
+
+                var statusTransitionApplied = CanAdvance(agreement.SignatureStatus, update.Status) &&
+                    agreement.SignatureStatus != update.Status;
+                if (!statusTransitionApplied && agreement.SignatureStatus != update.Status &&
+                    IsTerminal(agreement.SignatureStatus))
+                {
+                    if (transaction != null) await transaction.CommitAsync(cancellationToken);
+                    return new SignatureSyncApplyResult(false,
+                        agreement.SignatureStatus ?? ESignatureStatus.NotSent,
+                        agreement.LandlordSignedAt, 0, false);
+                }
+                if (statusTransitionApplied)
+                {
+                    agreement.SignatureStatus = update.Status;
+                    if (update.Status == ESignatureStatus.Completed)
+                        agreement.SignatureCompletedAt = update.CompletedAt;
+                }
+                if (update.ExpiresAt.HasValue && !agreement.SignatureExpiresAt.HasValue)
+                    agreement.SignatureExpiresAt = update.ExpiresAt;
+                if (update.LandlordSignedAt.HasValue && !agreement.LandlordSignedAt.HasValue)
+                {
+                    agreement.LandlordSignedAt = update.LandlordSignedAt;
+                    agreement.LandlordSignedBy = update.LandlordSignedBy;
+                }
+                var documentApplied = !string.IsNullOrWhiteSpace(update.SignedDocumentBlobName) &&
+                    string.IsNullOrWhiteSpace(agreement.SignedDocumentBlobName);
+                if (documentApplied)
+                {
+                    agreement.SignedDocumentBlobName = update.SignedDocumentBlobName;
+                    agreement.SignedDocumentBlobUrl = update.SignedDocumentBlobUrl;
+                }
+
+                var tenantUpdates = 0;
+                if (update.SignedRecipients.Count > 0)
+                {
+                    var links = await _context.TenantLeases.Include(link => link.Tenant).Where(link =>
+                        link.LeaseId == leaseId && link.Lease.OrganizationId == organizationId &&
+                        link.Lease.Unit.Property.OrganizationId == organizationId &&
+                        link.Tenant.OrganizationId == organizationId && !link.Tenant.IsDeleted).ToListAsync(cancellationToken);
+                    foreach (var link in links)
+                    {
+                        if (link.TenantSignedAt.HasValue || string.IsNullOrWhiteSpace(link.Tenant.Email)) continue;
+                        var fact = update.SignedRecipients.FirstOrDefault(pair =>
+                            string.Equals(pair.Key, link.Tenant.Email, StringComparison.OrdinalIgnoreCase));
+                        if (string.IsNullOrEmpty(fact.Key)) continue;
+                        link.TenantSignedAt = fact.Value;
+                        tenantUpdates++;
+                    }
+                }
+
+                var changed = _context.ChangeTracker.Entries().Count(entry => entry.State == EntityState.Modified);
+                if (changed > 0 && await _context.SaveChangesAsync(cancellationToken) != changed)
+                    throw new DbUpdateException("Signature synchronization update count did not match.");
+                if (transaction != null) await transaction.CommitAsync(cancellationToken);
+                return new SignatureSyncApplyResult(changed > 0, agreement.SignatureStatus ?? ESignatureStatus.NotSent,
+                    agreement.LandlordSignedAt, tenantUpdates, documentApplied);
+            }
+            catch
+            {
+                if (transaction != null) await transaction.RollbackAsync(CancellationToken.None);
+                throw;
+            }
         }
 
         public async Task<LoadLeaseDto> GetLease(long unitId, long? organizationId = null)
@@ -985,6 +1151,31 @@ namespace brownstone_hub_api.Repositories.Leases
             }
         }
 
+        public async Task<LoadLeaseDto?> GetLeaseById(long leaseId, long organizationId, CancellationToken cancellationToken)
+        {
+            var lease = await _context.Leases.AsNoTracking()
+                .Include(candidate => candidate.Unit).ThenInclude(unit => unit.Property)
+                .Include(candidate => candidate.TenantLeases).ThenInclude(tenantLease => tenantLease.Tenant)
+                .Include(candidate => candidate.LeaseFees)
+                .Include(candidate => candidate.LeaseLandlords)
+                .Include(candidate => candidate.LeaseDeposits)
+                .Include(candidate => candidate.Pets)
+                .Include(candidate => candidate.Parking)
+                .Include(candidate => candidate.UtilityServiceResponsibilities)
+                .Include(candidate => candidate.MaintenanceResponsibilities)
+                .Include(candidate => candidate.LeaseKeys)
+                .Include(candidate => candidate.LeaseCoSigners)
+                .Include(candidate => candidate.LeaseAdditionalSigners)
+                .Include(candidate => candidate.LeaseOccupants)
+                .Include(candidate => candidate.LeaseAgreement)
+                .FirstOrDefaultAsync(candidate => candidate.Id == leaseId &&
+                    !candidate.IsDeleted &&
+                    candidate.Unit.Property.OrganizationId == organizationId &&
+                    candidate.OrganizationId == organizationId,
+                    cancellationToken);
+            return lease == null ? null : _mapper.Map<LoadLeaseDto>(lease);
+        }
+
         public async Task<LoadLeaseDto> SetMoveInReportTemplateCompletedAt(long leaseId, long organizationId)
         {
             var lease = await _context.Leases
@@ -1013,27 +1204,162 @@ namespace brownstone_hub_api.Repositories.Leases
             return _mapper.Map<LoadLeaseDto>(lease);
         }
 
-        public async Task<LeaseConnectInfoDto?> GetLeaseByDocuSignEnvelopeIdAsync(string envelopeId)
+        public async Task<LeaseConnectInfoDto?> GetLeaseByDocuSignEnvelopeIdAsync(
+            string envelopeId,
+            CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(envelopeId))
                 return null;
-            var row = await _context.LeaseAgreements
+            cancellationToken.ThrowIfCancellationRequested();
+            var rows = await _context.LeaseAgreements
                 .AsNoTracking()
-                .Include(la => la.Lease)
-                    .ThenInclude(l => l.Unit)
-                        .ThenInclude(u => u.Property)
-                .Where(la => la.DocuSignEnvelopeId == envelopeId && la.Lease.OrganizationId != null)
-                .Select(la => new { la.LeaseId, la.Lease.OrganizationId, LandlordId = la.Lease.Unit.Property.LandlordId })
-                .FirstOrDefaultAsync();
-            if (row == null || !row.OrganizationId.HasValue)
+                .Where(agreement =>
+                    agreement.DocuSignEnvelopeId == envelopeId &&
+                    agreement.Lease.OrganizationId.HasValue &&
+                    !agreement.Lease.IsDeleted && agreement.Lease.IsActive &&
+                    agreement.Lease.Organization!.IsActive &&
+                    !agreement.Lease.Organization.IsDeleted &&
+                    agreement.Lease.Unit.Property.OrganizationId == agreement.Lease.OrganizationId)
+                .Select(agreement => new
+                {
+                    agreement.LeaseId,
+                    agreement.Lease.OrganizationId,
+                    LandlordId = agreement.Lease.Unit.Property.LandlordId,
+                    agreement.DocuSignEnvelopeId
+                })
+                .ToListAsync(cancellationToken);
+            var row = rows.SingleOrDefault(candidate =>
+                string.Equals(candidate.DocuSignEnvelopeId, envelopeId, StringComparison.Ordinal));
+            if (row == null || !row.OrganizationId.HasValue || row.DocuSignEnvelopeId == null)
                 return null;
             return new LeaseConnectInfoDto
             {
                 LeaseId = row.LeaseId,
                 OrganizationId = row.OrganizationId.Value,
-                LandlordId = row.LandlordId
+                LandlordId = row.LandlordId,
+                EnvelopeId = row.DocuSignEnvelopeId
             };
         }
+
+        public async Task<DocuSignConnectApplyResult> ApplyDocuSignConnectUpdateAsync(
+            LeaseConnectInfoDto mapping,
+            DocuSignConnectUpdate update,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!string.Equals(mapping.EnvelopeId, update.EnvelopeId, StringComparison.Ordinal))
+                throw new UnauthorizedAccessException("Envelope mapping does not match.");
+
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken)
+                : null;
+            try
+            {
+                var candidates = await _context.LeaseAgreements
+                    .Where(agreement =>
+                        agreement.LeaseId == mapping.LeaseId &&
+                        agreement.Lease.OrganizationId == mapping.OrganizationId &&
+                        agreement.Lease.Unit.Property.OrganizationId == mapping.OrganizationId &&
+                        !agreement.Lease.IsDeleted && agreement.Lease.IsActive &&
+                        agreement.Lease.Organization!.IsActive &&
+                        !agreement.Lease.Organization.IsDeleted &&
+                        agreement.DocuSignEnvelopeId == mapping.EnvelopeId)
+                    .ToListAsync(cancellationToken);
+                var agreement = candidates.SingleOrDefault(candidate =>
+                    string.Equals(candidate.DocuSignEnvelopeId, mapping.EnvelopeId, StringComparison.Ordinal));
+                if (agreement == null)
+                    throw new UnauthorizedAccessException("Envelope mapping is no longer authorized.");
+
+                var changedEntries = 0;
+                var statusTransitionApplied = CanAdvance(agreement.SignatureStatus, update.Status) &&
+                    agreement.SignatureStatus != update.Status;
+                if (!statusTransitionApplied && agreement.SignatureStatus != update.Status &&
+                    IsTerminal(agreement.SignatureStatus))
+                {
+                    if (transaction != null) await transaction.CommitAsync(cancellationToken);
+                    return new DocuSignConnectApplyResult(false, 0);
+                }
+                if (statusTransitionApplied)
+                {
+                    agreement.SignatureStatus = update.Status;
+                    changedEntries++;
+                }
+                if (statusTransitionApplied && update.Status == ESignatureStatus.Completed)
+                {
+                    // Only the winning transition to Completed owns this value. A lower/equal
+                    // replay can therefore never alter the completion timestamp.
+                    agreement.SignatureCompletedAt = update.CompletedAt ?? update.EventOccurredAt;
+                }
+
+                var tenantUpdates = 0;
+                if (update.SignedRecipients.Count > 0)
+                {
+                    var tenantLeases = await _context.TenantLeases
+                        .Include(link => link.Tenant)
+                        .Where(link =>
+                            link.LeaseId == mapping.LeaseId &&
+                            link.Lease.OrganizationId == mapping.OrganizationId &&
+                            link.Lease.Unit.Property.OrganizationId == mapping.OrganizationId &&
+                            !link.Lease.IsDeleted && link.Lease.IsActive &&
+                            link.Tenant.OrganizationId == mapping.OrganizationId &&
+                            !link.Tenant.IsDeleted)
+                        .ToListAsync(cancellationToken);
+                    foreach (var link in tenantLeases)
+                    {
+                        if (link.TenantSignedAt.HasValue || string.IsNullOrWhiteSpace(link.Tenant.Email))
+                            continue;
+                        var signedRecipient = update.SignedRecipients.FirstOrDefault(pair =>
+                            string.Equals(pair.Key, link.Tenant.Email, StringComparison.OrdinalIgnoreCase));
+                        if (string.IsNullOrEmpty(signedRecipient.Key))
+                            continue;
+                        link.TenantSignedAt = signedRecipient.Value;
+                        tenantUpdates++;
+                        changedEntries++;
+                    }
+                }
+
+                if (changedEntries > 0)
+                {
+                    var saved = await _context.SaveChangesAsync(cancellationToken);
+                    if (saved != changedEntries)
+                        throw new DbUpdateException("DocuSign Connect update count did not match.");
+                }
+                if (transaction != null)
+                    await transaction.CommitAsync(cancellationToken);
+                return new DocuSignConnectApplyResult(changedEntries > 0, tenantUpdates);
+            }
+            catch
+            {
+                if (transaction != null)
+                    await transaction.RollbackAsync(CancellationToken.None);
+                throw;
+            }
+        }
+
+        private static bool CanAdvance(ESignatureStatus? current, ESignatureStatus incoming)
+        {
+            return Rank(incoming) >= Rank(current ?? ESignatureStatus.NotSent);
+        }
+
+        private static bool IsTerminal(ESignatureStatus? status) =>
+            status is ESignatureStatus.Completed or ESignatureStatus.Declined or ESignatureStatus.Expired or ESignatureStatus.Cancelled;
+
+        private static int Rank(ESignatureStatus status) => status switch
+        {
+            ESignatureStatus.NotSent => 0,
+            ESignatureStatus.Sent => 1,
+            ESignatureStatus.InProgress => 2,
+            ESignatureStatus.PartiallySigned => 3,
+            // Terminal precedence deliberately favors the successful contract outcome. If
+            // contradictory authenticated terminal events race, every arrival order converges:
+            // Completed > Declined (explicit signer action) > Cancelled (sender action) >
+            // Expired (passage of time). Nonterminal observations remain below all four.
+            ESignatureStatus.Expired => 4,
+            ESignatureStatus.Cancelled => 5,
+            ESignatureStatus.Declined => 6,
+            ESignatureStatus.Completed => 7,
+            _ => 0
+        };
 
         public async Task<List<LoadLeaseDto>> GetLeasesEndingOnOrBeforeForAutoRenew(DateTime date)
         {

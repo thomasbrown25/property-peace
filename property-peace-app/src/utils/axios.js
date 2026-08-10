@@ -136,6 +136,18 @@ axiosServices.interceptors.request.use(async (config) => {
   return config;
 }, (error) => Promise.reject(error));
 
+export const normalizeAxiosError = (error) => {
+  const responsePayload = error.response?.data;
+  const payload = responsePayload && typeof responsePayload === 'object' && !Array.isArray(responsePayload)
+    ? responsePayload
+    : { message: typeof responsePayload === 'string' ? responsePayload : (error.message || 'Request failed') };
+  return {
+    ...payload,
+    status: error.response?.status,
+    statusText: error.response?.statusText
+  };
+};
+
 axiosServices.interceptors.response.use((response) => response, async (error) => {
   const authEndpoint = isAuthEndpoint(error.config?.url);
   const isSubscriptionEndpoint = error.config?.url?.includes('/api/subscription');
@@ -152,11 +164,7 @@ axiosServices.interceptors.response.use((response) => response, async (error) =>
       else handleTokenExpiration();
     }
   }
-  return Promise.reject(error.response?.data || {
-    message: error.message || 'Request failed',
-    status: error.response?.status,
-    statusText: error.response?.statusText
-  });
+  return Promise.reject(normalizeAxiosError(error));
 });
 
 export default axiosServices;

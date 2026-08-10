@@ -7,6 +7,11 @@ namespace brownstone_hub_api.Repositories.Payments
         Task<List<LoadPaymentDto>> AddPayment(AddPaymentDto newPayment);
         Task<LoadPaymentDto> UpdatePayment(long paymentId, UpdatePaymentDto updatePayment, long organizationId);
         Task<bool> DeletePayment(long paymentId, long? userId);
+        Task<List<LoadPaymentDto>> GetPaymentsByOrganizationAndPropertyId(
+            long organizationId,
+            long? propertyId,
+            DateTime startInclusive,
+            DateTime endExclusive);
         Task<List<LoadPaymentDto>> GetPaymentsByPropertyId(long propertyId, DateTime start, DateTime end);
         Task<Dictionary<long, List<LoadPaymentDto>>> GetPaymentsByPropertyIds(List<long> propertyIds, DateTime start, DateTime end);
         Task<List<LoadPaymentDto>> GetLifetimePaymentsByPropertyId(long propertyId);

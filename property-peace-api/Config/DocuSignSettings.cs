@@ -5,6 +5,7 @@ namespace brownstone_hub_api.Config
     /// </summary>
     public class DocuSignSettings
     {
+        public const int DefaultConnectBodyLimitBytes = 262_144;
         public string IntegrationKey { get; set; } = string.Empty; // Client ID / Integration Key
         public string UserId { get; set; } = string.Empty; // User ID (GUID)
         public string AccountId { get; set; } = string.Empty; // Account ID (GUID)
@@ -14,8 +15,10 @@ namespace brownstone_hub_api.Config
         public string AuthServer { get; set; } = "account-d.docusign.com"; // Demo: account-d.docusign.com, Production: account.docusign.com
         public int JwtExpirationSeconds { get; set; } = 3600; // JWT token expiration (1 hour default)
         public bool UseProduction { get; set; } = false; // Set to true for production environment
-        /// <summary>Optional. HMAC secret for verifying DocuSign Connect webhook requests (X-Docusign-Signature-* headers). If not set, verification is skipped.</summary>
+        /// <summary>Required HMAC secret for DocuSign Connect. The endpoint fails closed when blank.</summary>
         public string ConnectSecret { get; set; } = string.Empty;
+        /// <summary>Connect payload limit, capped at 256 KiB.</summary>
+        public int ConnectBodyLimitBytes { get; set; } = DefaultConnectBodyLimitBytes;
     }
 }
 

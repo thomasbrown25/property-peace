@@ -6,7 +6,7 @@ namespace brownstone_hub_api.Services.PropertyService
 {
     public interface IPropertyService
     {
-        Task<ServiceResponse<LoadPropertyDto>> AddOrUpdateProperty(UpdatePropertyDto propertyDto, List<IFormFile> files);
+        Task<ServiceResponse<LoadPropertyDto>> AddOrUpdateProperty(UpdatePropertyDto propertyDto, List<IFormFile> files, CancellationToken cancellationToken = default);
         Task<ServiceResponse<LoadPropertyDto>> GetPropertyById(long propertyId);
         Task<ServiceResponse<List<LoadPropertyDto>>> GetPropertiesByOrganizationId(long organizationId);
         Task<ServiceResponse<int>> GetOccupiedPropertiesCountAsync(long organizationId);

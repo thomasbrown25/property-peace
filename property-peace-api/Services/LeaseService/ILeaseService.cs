@@ -6,7 +6,6 @@ namespace brownstone_hub_api.Services.LeaseService
     public interface ILeaseService
     {
         Task<ServiceResponse<LoadLeaseDto>> AddOrUpdateLease(UpdateLeaseDto lease);
-        Task<ServiceResponse<LoadLeaseDto>> UpdateLeaseSignature(UpdateLeaseSignatureDto signatureInfo);
         Task<ServiceResponse<LoadLeaseDto>> GetLease(long unitId);
         Task<ServiceResponse<LoadLeaseDto>> GetLeaseById(long leaseId);
         Task<ServiceResponse<List<LoadLeaseDto>>> GetLeasesByLandlordId(long landlordId);
@@ -21,20 +20,24 @@ namespace brownstone_hub_api.Services.LeaseService
         Task<ServiceResponse<SignLandlordOnlyResultDto>> SignLandlordOnlyAsync(
             long leaseId, 
             SendLeaseForSignatureDto request, 
-            string? frontendBaseUrl);
+            string? frontendBaseUrl,
+            CancellationToken cancellationToken);
         
         Task<ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>> SendLeaseForSignatureAsync(
             long leaseId, 
             SendLeaseForSignatureDto request,
             long landlordId,
-            long? organizationId);
+            long? organizationId,
+            CancellationToken cancellationToken);
         
         Task<ServiceResponse<SyncSignatureStatusResultDto>> SyncLeaseSignatureStatusAsync(
             long leaseId,
-            string? landlordEmail);
+            string? landlordEmail,
+            CancellationToken cancellationToken);
 
-        /// <summary>Syncs signature status from DocuSign when triggered by Connect webhook (no user context).</summary>
-        Task<ServiceResponse<SyncSignatureStatusResultDto>> SyncLeaseSignatureStatusFromConnectAsync(long leaseId, long organizationId);
+        Task<ServiceResponse<bool>> CancelLeaseSignatureAsync(long leaseId, string? reason, CancellationToken cancellationToken);
+        Task<ServiceResponse<bool>> ResendLeaseSignatureAsync(long leaseId, CancellationToken cancellationToken);
+
 
         Task SendLeaseAddedNotificationAsync(long leaseId, long tenantId, long? organizationId = null);
         Task<ServiceResponse<bool>> RemoveTenantFromLease(long leaseId, long tenantId);

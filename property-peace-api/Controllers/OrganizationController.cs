@@ -57,7 +57,22 @@ namespace brownstone_hub_api.Controllers
         [HttpGet("{organizationId}")]
         public async Task<IActionResult> GetOrganizationById(long organizationId)
         {
-            var response = await _organizationService.GetOrganizationByIdAsync(organizationId);
+            var selectedOrganizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!selectedOrganizationId.HasValue || selectedOrganizationId.Value != organizationId)
+            {
+                return OrganizationScopeDenied();
+            }
+
+            var userId = await this.GetCurrentUserIdAsync(_userRepository);
+            if (!userId.HasValue)
+            {
+                return Unauthorized(new { Message = "User not authenticated" });
+            }
+
+            var response = await _organizationService.GetOrganizationByIdAsync(
+                organizationId,
+                selectedOrganizationId.Value,
+                userId.Value);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -138,19 +153,33 @@ namespace brownstone_hub_api.Controllers
         [HttpDelete("{organizationId}")]
         public async Task<IActionResult> DeleteOrganization(long organizationId)
         {
+            var selectedOrganizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!selectedOrganizationId.HasValue || selectedOrganizationId.Value != organizationId)
+            {
+                return OrganizationScopeDenied();
+            }
+
             var userId = await this.GetCurrentUserIdAsync(_userRepository);
             if (!userId.HasValue)
             {
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var response = await _organizationService.DeleteOrganizationAsync(organizationId, userId.Value);
+            var response = await _organizationService.DeleteOrganizationAsync(
+                organizationId,
+                selectedOrganizationId.Value,
+                userId.Value);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
             }
 
             return Ok(response);
+        }
+
+        private IActionResult OrganizationScopeDenied()
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Organization access denied." });
         }
 
         [HttpPost("switch")]
@@ -175,13 +204,19 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("members")]
         public async Task<IActionResult> AddMember([FromBody] AddOrganizationMemberDto dto)
         {
+            var selectedOrganizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!selectedOrganizationId.HasValue || selectedOrganizationId.Value != dto.OrganizationId)
+            {
+                return OrganizationScopeDenied();
+            }
+
             var userId = await this.GetCurrentUserIdAsync(_userRepository);
             if (!userId.HasValue)
             {
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var response = await _memberService.AddMemberAsync(dto, userId.Value);
+            var response = await _memberService.AddMemberAsync(dto, selectedOrganizationId.Value, userId.Value);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -211,13 +246,19 @@ namespace brownstone_hub_api.Controllers
         [HttpPut("members")]
         public async Task<IActionResult> UpdateMember([FromBody] UpdateOrganizationMemberDto dto)
         {
+            var selectedOrganizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!selectedOrganizationId.HasValue)
+            {
+                return OrganizationScopeDenied();
+            }
+
             var userId = await this.GetCurrentUserIdAsync(_userRepository);
             if (!userId.HasValue)
             {
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var response = await _memberService.UpdateMemberAsync(dto, userId.Value);
+            var response = await _memberService.UpdateMemberAsync(dto, selectedOrganizationId.Value, userId.Value);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -248,13 +289,19 @@ namespace brownstone_hub_api.Controllers
         [HttpPost("invites")]
         public async Task<IActionResult> CreateInvite([FromBody] CreateOrganizationInviteDto dto)
         {
+            var selectedOrganizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!selectedOrganizationId.HasValue || selectedOrganizationId.Value != dto.OrganizationId)
+            {
+                return OrganizationScopeDenied();
+            }
+
             var userId = await this.GetCurrentUserIdAsync(_userRepository);
             if (!userId.HasValue)
             {
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var response = await _inviteService.CreateInviteAsync(dto, userId.Value);
+            var response = await _inviteService.CreateInviteAsync(dto, selectedOrganizationId.Value, userId.Value);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });

@@ -8,6 +8,73 @@ namespace brownstone_hub_api.Tests.Services.RentCollection;
 
 public sealed class RentPaymentSummaryTests
 {
+    [Theory]
+    [InlineData(6, 1190, 0, 1190, false)]
+    [InlineData(7, 0, 1190, 1190, true)]
+    [InlineData(9, 0, 1190, 1190, true)]
+    public void RentBalance_MovesCurrentInstallmentToOverdueOnlyAfterGracePeriod(
+        int augustDay,
+        decimal expectedCurrentMonthRentDue,
+        decimal expectedOverdue,
+        decimal expectedRentDue,
+        bool expectedIsOverdue)
+    {
+        var today = new DateTime(2026, 8, augustDay);
+        var lease = ActiveMonthlyLease(new DateTime(2026, 7, 1), new DateTime(2027, 6, 30), 1_190m);
+        lease.RentDueDay = 1;
+        lease.Fees =
+        [
+            new LeaseFeeDto { Id = 10, LeaseId = lease.Id, IsLateFee = true, AppliedAfterDays = 5 }
+        ];
+        var payments = new List<LoadPaymentDto>
+        {
+            new() { LeaseId = lease.Id, Amount = 1_190m, Status = "Completed", PaymentDate = new DateTime(2026, 7, 1) }
+        };
+
+        var balance = RentCalculator.GetRentBalance(lease, payments, today: today);
+
+        balance.CurrentMonthRentDue.Should().Be(expectedCurrentMonthRentDue);
+        balance.OverdueAmount.Should().Be(expectedOverdue);
+        balance.RentDue.Should().Be(expectedRentDue);
+        balance.IsOverdue.Should().Be(expectedIsOverdue);
+        RentCalculator.CalculateOverdueForLease(lease, payments, today: today).Should().Be(expectedOverdue);
+        RentCalculator.GetAmountDueNow(lease, payments, today: today).Should().Be(expectedRentDue);
+    }
+
+    [Fact]
+    public void RentBalance_AllocatesCreditsOldestFirst_AndNeverCountsFeesOrDepositsAsRent()
+    {
+        var today = new DateTime(2026, 8, 6);
+        var lease = ActiveMonthlyLease(new DateTime(2026, 6, 1), new DateTime(2027, 5, 31), 1_000m);
+        lease.RentDueDay = 1;
+        lease.Fees =
+        [
+            new LeaseFeeDto { Id = 10, LeaseId = lease.Id, IsLateFee = true, AppliedAfterDays = 5 }
+        ];
+        var payments = new List<LoadPaymentDto>
+        {
+            new() { LeaseId = lease.Id, Amount = 1_500m, Status = "Completed" },
+            new() { LeaseId = lease.Id, Amount = 500m, Status = "Completed", FeeId = 44 },
+            new() { LeaseId = lease.Id, Amount = 500m, Status = "Completed", DepositId = 55 },
+            new() { LeaseId = lease.Id, Amount = 500m, Status = "Failed" }
+        };
+
+        var balance = RentCalculator.GetRentBalance(lease, payments, today: today);
+
+        balance.PriorPeriodOverdueRent.Should().Be(500m);
+        balance.CurrentMonthRentDue.Should().Be(1_000m);
+        balance.OverdueAmount.Should().Be(500m);
+        balance.RentDue.Should().Be(1_500m);
+        balance.IsOverdue.Should().BeTrue("unpaid prior periods are always overdue, including during current-month grace");
+    }
+
+    [Fact]
+    public void RentRecordDto_ExposesCanonicalRentDueFields()
+    {
+        typeof(brownstone_hub_api.Dtos.RentCollection.RentRecordDto).GetProperty("RentDue").Should().NotBeNull();
+        typeof(brownstone_hub_api.Dtos.RentCollection.RentRecordDto).GetProperty("RentDueIsOverdue").Should().NotBeNull();
+    }
+
     [Fact]
     public void CurrentMonthRentDue_SeparatesThisMonthsRentFromOlderOverdueRent()
     {
@@ -73,6 +140,35 @@ public sealed class RentPaymentSummaryTests
         RentCalculator.IsCurrentMonthRentOverdue(lease, [], today: graceBoundary).Should().BeFalse();
         RentCalculator.IsCurrentMonthRentOverdue(lease, [], today: graceBoundary.AddDays(1)).Should().BeTrue();
         RentCalculator.GetCurrentMonthRentDueDate(lease, today: graceBoundary).Should().Be(new DateTime(graceBoundary.Year, graceBoundary.Month, dueDay));
+    }
+
+    [Fact]
+    public void PreviousCalendarMonthInstallment_StillHonorsGracePeriodAcrossMonthBoundary()
+    {
+        var lease = ActiveMonthlyLease(new DateTime(2026, 7, 31), new DateTime(2027, 7, 30), 1_190m);
+        lease.RentDueDay = 31;
+        lease.Fees =
+        [
+            new LeaseFeeDto
+            {
+                Id = 11,
+                LeaseId = lease.Id,
+                Name = "Late Fee",
+                IsLateFee = true,
+                LateFeeType = "OneTime",
+                AppliedAfterDays = 5
+            }
+        ];
+
+        var withinGrace = RentCalculator.GetRentBalance(lease, [], today: new DateTime(2026, 8, 4));
+        var afterGrace = RentCalculator.GetRentBalance(lease, [], today: new DateTime(2026, 8, 6));
+
+        withinGrace.RentDue.Should().Be(1_190m);
+        withinGrace.OverdueAmount.Should().Be(0m);
+        withinGrace.IsOverdue.Should().BeFalse();
+        afterGrace.RentDue.Should().Be(1_190m);
+        afterGrace.OverdueAmount.Should().Be(1_190m);
+        afterGrace.IsOverdue.Should().BeTrue();
     }
 
     [Fact]
