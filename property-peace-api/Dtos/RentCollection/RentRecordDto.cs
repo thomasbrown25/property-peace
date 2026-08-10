@@ -15,6 +15,10 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public decimal OverdueAmount { get; set; }
         /// <summary>Remaining rent installment for the current calendar month.</summary>
         public decimal CurrentMonthRentDue { get; set; }
+        /// <summary>Due date for the current calendar month's rent installment.</summary>
+        public DateTime? CurrentMonthRentDueDate { get; set; }
+        /// <summary>True when the current installment remains unpaid after its configured grace period.</summary>
+        public bool CurrentMonthRentIsOverdue { get; set; }
         /// <summary>Overdue rent from periods before the current calendar month.</summary>
         public decimal PriorPeriodOverdueRent { get; set; }
         /// <summary>Outstanding lease fees, itemized separately from rent.</summary>

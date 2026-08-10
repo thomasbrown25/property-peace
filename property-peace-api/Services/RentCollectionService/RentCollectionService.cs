@@ -43,11 +43,25 @@ namespace brownstone_hub_api.Services.RentCollectionService
             return null;
         }
 
+        private async Task<string?> GetCurrentUserTimezone()
+        {
+            var principal = _httpContextAccessor.HttpContext?.User;
+            var userIdValue = principal?.FindFirst("userId")?.Value
+                ?? principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (!long.TryParse(userIdValue, out var userId))
+                return null;
+
+            var settings = await _userRepository.GetUserSettings(userId);
+            return settings?.Timezone;
+        }
 
         public async Task<ServiceResponse<RentCollectionResponseDto>> GetRentCollection(long organizationId, long? propertyId = null, long? leaseId = null, bool lifetime = false)
         {
             try
             {
+                var timezone = await GetCurrentUserTimezone();
+
                 // Get active leases only for rent collection. Historical/archived leases belong in
                 // reporting/history flows, not the current collection dashboard.
                 var leases = propertyId.HasValue
@@ -152,7 +166,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     var leasePaymentList = paymentsByLease.TryGetValue(lease.Id, out var lp) ? lp : [];
 
                     // Skip overdue leases - they should not be counted in remaining
-                    var leaseStatus = RentCalculator.GetStatus(lease, leasePaymentList);
+                    var leaseStatus = RentCalculator.GetStatus(lease, leasePaymentList, timezone);
                     if (leaseStatus == Enums.ERentStatus.Overdue)
                         continue;
 
@@ -180,7 +194,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     var leaseFeePaymentList = feePaymentsByLease.TryGetValue(l.Id, out var fp) ? fp : [];
 
                     // Use the proper CalculateOverdueForLease method which checks if lease has started
-                    var overdueAmount = RentCalculator.CalculateOverdueForLease(l, leasePaymentList);
+                    var overdueAmount = RentCalculator.CalculateOverdueForLease(l, leasePaymentList, timezone);
 
                     // total finalized payments made for this lease (all payments are rent payments)
                     var leasePayments = leasePaymentList
@@ -215,13 +229,15 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         DueDate = l.NextDueDate ?? DateTime.UtcNow,
                         LeaseId = l.Id,
                         OverdueAmount = overdueAmount,
-                        CurrentMonthRentDue = RentCalculator.GetCurrentMonthRentDue(l, leasePaymentList),
-                        PriorPeriodOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(l, leasePaymentList),
+                        CurrentMonthRentDue = RentCalculator.GetCurrentMonthRentDue(l, leasePaymentList, timezone),
+                        CurrentMonthRentDueDate = RentCalculator.GetCurrentMonthRentDueDate(l, timezone),
+                        CurrentMonthRentIsOverdue = RentCalculator.IsCurrentMonthRentOverdue(l, leasePaymentList, timezone),
+                        PriorPeriodOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(l, leasePaymentList, timezone),
                         UnpaidFees = RentCalculator.GetUnpaidFeeBalances(l, leaseFeePaymentList),
-                        AmountDueNow = RentCalculator.GetAmountDueNow(l, leasePaymentList),
+                        AmountDueNow = RentCalculator.GetAmountDueNow(l, leasePaymentList, timezone),
                         CollectedLifetime = leasePayments, // Total rent payments collected for this lease
                         Outstanding = outstanding, // Total outstanding for entire lease period
-                        Status = RentCalculator.GetStatus(l, leasePaymentList),
+                        Status = RentCalculator.GetStatus(l, leasePaymentList, timezone),
                         PropertyImageUrl = l.PropertyImageUrl, // Already populated by AutoMapper
                         UpdatedAt = l.UpdatedAt,
                         PaymentIssueCount = paymentIssueCount,
@@ -394,6 +410,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                 var rentPayments = payments
                     .Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty))
                     .Sum(p => p.Amount);
+                var timezone = await GetCurrentUserTimezone();
 
                 var rentRecord = new RentRecordDto
                 {
@@ -404,15 +421,17 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     UnitName = lease.UnitName,
                     RentAmount = lease.RentAmount ?? 0m,
                     DueDate = lease.NextDueDate ?? DateTime.UtcNow,
-                    OverdueAmount = RentCalculator.CalculateOverdueForLease(lease, payments),
-                    CurrentMonthRentDue = RentCalculator.GetCurrentMonthRentDue(lease, payments),
-                    PriorPeriodOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(lease, payments),
+                    OverdueAmount = RentCalculator.CalculateOverdueForLease(lease, payments, timezone),
+                    CurrentMonthRentDue = RentCalculator.GetCurrentMonthRentDue(lease, payments, timezone),
+                    CurrentMonthRentDueDate = RentCalculator.GetCurrentMonthRentDueDate(lease, timezone),
+                    CurrentMonthRentIsOverdue = RentCalculator.IsCurrentMonthRentOverdue(lease, payments, timezone),
+                    PriorPeriodOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(lease, payments, timezone),
                     UnpaidFees = RentCalculator.GetUnpaidFeeBalances(lease, feePayments),
-                    AmountDueNow = RentCalculator.GetAmountDueNow(lease, payments),
+                    AmountDueNow = RentCalculator.GetAmountDueNow(lease, payments, timezone),
                     CollectedLifetime = rentPayments,
                     Outstanding = RentCalculator.OutstandingForLease(lease, payments),
                     LeaseId = lease.Id,
-                    Status = RentCalculator.GetStatus(lease, payments)
+                    Status = RentCalculator.GetStatus(lease, payments, timezone)
                 };
 
                 return new ServiceResponse<RentRecordDto> { Data = rentRecord };

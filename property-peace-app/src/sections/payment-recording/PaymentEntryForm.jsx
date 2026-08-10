@@ -26,6 +26,7 @@ import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined
 import HomeOutlined from '@ant-design/icons/HomeOutlined';
 import DollarOutlined from '@ant-design/icons/DollarOutlined';
 import { formatCurrency } from 'utils/formatters';
+import { getCurrentRentPresentation } from 'utils/paymentSummaryPresentation';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import axiosServices from 'utils/axios';
 
@@ -150,6 +151,10 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
   const legacyOverdue = rentRecord?.overdueAmount ?? rentRecord?.OverdueAmount ?? 0;
   const rentDue = rentRecord?.currentMonthRentDue ?? rentRecord?.CurrentMonthRentDue ?? Math.max(amountDueNow - legacyOverdue, 0);
   const overdueRent = rentRecord?.priorPeriodOverdueRent ?? rentRecord?.PriorPeriodOverdueRent ?? legacyOverdue;
+  const currentRentPresentation = getCurrentRentPresentation({
+    dueDate: rentRecord?.currentMonthRentDueDate ?? rentRecord?.CurrentMonthRentDueDate,
+    isOverdue: rentRecord?.currentMonthRentIsOverdue ?? rentRecord?.CurrentMonthRentIsOverdue ?? false
+  });
   const unpaidFees = useMemo(() => {
     const fees = rentRecord?.unpaidFees ?? rentRecord?.UnpaidFees ?? [];
     return fees.map((fee) => ({
@@ -282,10 +287,26 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
         ) : (
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                Rent Due
-              </Typography>
-              <Typography variant="body1" fontWeight={500} color="text.primary">
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    {currentRentPresentation.label}
+                  </Typography>
+                  {rentDue > 0 && currentRentPresentation.isOverdue && (
+                    <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
+                  )}
+                </Stack>
+                {rentDue > 0 && currentRentPresentation.dueLabel && (
+                  <Typography variant="caption" color="text.secondary">
+                    {currentRentPresentation.dueLabel}
+                  </Typography>
+                )}
+              </Box>
+              <Typography
+                variant="body1"
+                fontWeight={currentRentPresentation.isOverdue ? 600 : 500}
+                color={currentRentPresentation.isOverdue ? 'error.main' : 'text.primary'}
+              >
                 {formatCurrency(rentDue)}
               </Typography>
             </Stack>
@@ -308,7 +329,7 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="body2" color="text.secondary">
-                      Overdue Rent
+                      Prior Unpaid Rent
                     </Typography>
                     <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
                   </Stack>
@@ -366,7 +387,7 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
               <Typography
                 variant="h6"
                 fontWeight={700}
-                color={overdueRent > 0 ? 'error.main' : 'success.main'}
+                color={currentRentPresentation.isOverdue || overdueRent > 0 ? 'error.main' : 'success.main'}
                 sx={{
                   fontSize: '1.5rem'
                 }}

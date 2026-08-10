@@ -414,15 +414,20 @@ namespace brownstone_hub_api.Utils
         /// Remaining rent for the due date in the current calendar month. This keeps the
         /// current month's rent separate from older overdue rent in payment summaries.
         /// </summary>
-        public static decimal GetCurrentMonthRentDue(LoadLeaseDto lease, List<LoadPaymentDto> payments, string? timezone = null)
+        public static decimal GetCurrentMonthRentDue(
+            LoadLeaseDto lease,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null)
         {
-            var today = string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone);
+            var localToday = today?.Date
+                ?? (string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone));
             if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentAmount.HasValue ||
-                !lease.RentDueDay.HasValue || !lease.IsActive || lease.StartDate.Value > today)
+                !lease.RentDueDay.HasValue || !lease.IsActive || lease.StartDate.Value > localToday)
                 return 0m;
 
-            var dueDay = GetActualDayOfMonth(lease.RentDueDay, today.Year, today.Month);
-            var currentDueDate = new DateTime(today.Year, today.Month, dueDay);
+            var dueDay = GetActualDayOfMonth(lease.RentDueDay, localToday.Year, localToday.Month);
+            var currentDueDate = new DateTime(localToday.Year, localToday.Month, dueDay);
             if (currentDueDate < lease.StartDate.Value || currentDueDate > lease.EndDate.Value)
                 return 0m;
 
@@ -446,6 +451,45 @@ namespace brownstone_hub_api.Utils
                 .Sum(payment => payment.Amount);
 
             return Math.Min(lease.RentAmount.Value, Math.Max(expectedThroughCurrentMonth - collected, 0m));
+        }
+
+        public static DateTime? GetCurrentMonthRentDueDate(
+            LoadLeaseDto lease,
+            string? timezone = null,
+            DateTime? today = null)
+        {
+            var localToday = today?.Date
+                ?? (string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone));
+            if (!lease.StartDate.HasValue || !lease.EndDate.HasValue || !lease.RentDueDay.HasValue || !lease.IsActive)
+                return null;
+
+            var dueDay = GetActualDayOfMonth(lease.RentDueDay, localToday.Year, localToday.Month);
+            var dueDate = new DateTime(localToday.Year, localToday.Month, dueDay);
+            return dueDate < lease.StartDate.Value || dueDate > lease.EndDate.Value ? null : dueDate;
+        }
+
+        public static bool IsCurrentMonthRentOverdue(
+            LoadLeaseDto lease,
+            List<LoadPaymentDto> payments,
+            string? timezone = null,
+            DateTime? today = null)
+        {
+            var localToday = today?.Date
+                ?? (string.IsNullOrWhiteSpace(timezone) ? DateTime.Today : TimezoneHelper.GetLocalToday(timezone));
+            var dueDate = GetCurrentMonthRentDueDate(lease, timezone, localToday);
+            if (!dueDate.HasValue || GetCurrentMonthRentDue(lease, payments, timezone, localToday) <= 0m)
+                return false;
+
+            var graceDays = lease.Fees?
+                .Where(fee => fee.IsLateFee)
+                .Select(fee => fee.AppliedAfterDays ?? fee.StartingAfterDays)
+                .Where(days => days.HasValue)
+                .Select(days => Math.Max(days!.Value, 0))
+                .DefaultIfEmpty(0)
+                .Min() ?? 0;
+            var gracePeriodEnds = dueDate.Value.AddDays(graceDays);
+
+            return localToday > gracePeriodEnds;
         }
 
         /// <summary>
