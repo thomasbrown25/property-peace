@@ -25,6 +25,7 @@ using brownstone_hub_api.Services.SubscriptionService;
 using brownstone_hub_api.Dtos.Subscription;
 using brownstone_hub_api.Services.StripeService;
 using Microsoft.AspNetCore.Http;
+using brownstone_hub_api.Services.EmailVerificationService;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.AzureBlobService;
 using Azure.Storage.Blobs;
@@ -129,12 +130,18 @@ namespace brownstone_hub_api.Services.UserService
             }
         }
 
-        public async Task<ServiceResponse<LoadUserDto>> Register(AddUserDto newUser)
+        public Task<ServiceResponse<LoadUserDto>> Register(AddUserDto newUser) =>
+            Register(newUser, emailVerifiedByTrustedProvider: false);
+
+        private async Task<ServiceResponse<LoadUserDto>> Register(
+            AddUserDto newUser,
+            bool emailVerifiedByTrustedProvider)
         {
             ServiceResponse<LoadUserDto> response = new();
 
             try
             {
+                newUser.Email = newUser.Email?.Trim().ToLowerInvariant() ?? string.Empty;
                 _logger.LogInformation("Register called for email: {Email}, BusinessName: '{BusinessName}', Roles: {Roles}",
                     newUser.Email, newUser.BusinessName ?? "(null)", string.Join(", ", newUser.Roles ?? new List<string>()));
 
@@ -236,6 +243,48 @@ namespace brownstone_hub_api.Services.UserService
                     serverAssignedRoles = new List<string> { "Tenant" };
                 }
 
+                long? emailVerificationId = null;
+                if (!emailVerifiedByTrustedProvider)
+                {
+                    var nowUtc = DateTime.UtcNow;
+                    var proofSecret = _configuration["JwtSettings:SecretKey"] ?? string.Empty;
+                    if (!EmailVerificationProof.TryValidate(
+                            newUser.EmailVerificationProof,
+                            newUser.Email,
+                            nowUtc,
+                            TimeSpan.FromMinutes(10),
+                            proofSecret,
+                            out var verifiedRecordId))
+                    {
+                        response.Success = false;
+                        response.StatusCode = StatusCodes.Status403Forbidden;
+                        response.Message = "Email verification is required before registration.";
+                        return response;
+                    }
+
+                    var verificationCutoff = nowUtc.AddMinutes(-10);
+                    var hasMatchingVerification = await _dataContext.EmailVerifications
+                        .AsNoTracking()
+                        .AnyAsync(verification =>
+                            verification.Id == verifiedRecordId &&
+                            verification.Email == newUser.Email &&
+                            verification.IsVerified &&
+                            verification.VerifiedAt.HasValue &&
+                            verification.VerifiedAt.Value >= verificationCutoff &&
+                            verification.VerifiedAt.Value <= nowUtc.AddMinutes(1) &&
+                            verification.ExpiresAt >= nowUtc);
+
+                    if (!hasMatchingVerification)
+                    {
+                        response.Success = false;
+                        response.StatusCode = StatusCodes.Status403Forbidden;
+                        response.Message = "Email verification is required before registration.";
+                        return response;
+                    }
+
+                    emailVerificationId = verifiedRecordId;
+                }
+
                 // Apply only server-derived roles. Never use roles supplied by the registration request.
                 newUser.Roles = serverAssignedRoles
                     .Where(role => !string.IsNullOrWhiteSpace(role))
@@ -290,7 +339,70 @@ namespace brownstone_hub_api.Services.UserService
 
                 var token = CreateToken(newUser);
 
-                var loadedUser = await _userRepository.AddUser(newUser);
+                Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? registrationTransaction = null;
+                if (emailVerificationId.HasValue && _dataContext.Database.IsRelational())
+                {
+                    registrationTransaction = await _dataContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                }
+
+                LoadUserDto loadedUser;
+                await using (registrationTransaction)
+                {
+                    if (emailVerificationId.HasValue)
+                    {
+                        var consumedAtUtc = DateTime.UtcNow;
+                        int consumedRows;
+                        if (_dataContext.Database.IsRelational())
+                        {
+                            consumedRows = await _dataContext.EmailVerifications
+                                .Where(verification =>
+                                    verification.Id == emailVerificationId.Value &&
+                                    verification.IsVerified &&
+                                    verification.ExpiresAt >= consumedAtUtc)
+                                .ExecuteUpdateAsync(setters => setters
+                                    .SetProperty(verification => verification.Code, string.Empty)
+                                    .SetProperty(verification => verification.ExpiresAt, consumedAtUtc.AddSeconds(-1)));
+                        }
+                        else
+                        {
+                            var verification = await _dataContext.EmailVerifications
+                                .FirstOrDefaultAsync(candidate =>
+                                    candidate.Id == emailVerificationId.Value &&
+                                    candidate.IsVerified &&
+                                    candidate.ExpiresAt >= consumedAtUtc);
+                            if (verification == null)
+                            {
+                                consumedRows = 0;
+                            }
+                            else
+                            {
+                                verification.Code = string.Empty;
+                                verification.ExpiresAt = consumedAtUtc.AddSeconds(-1);
+                                await _dataContext.SaveChangesAsync();
+                                consumedRows = 1;
+                            }
+                        }
+
+                        if (consumedRows != 1)
+                        {
+                            if (registrationTransaction != null)
+                            {
+                                await registrationTransaction.RollbackAsync();
+                            }
+
+                            response.Success = false;
+                            response.StatusCode = StatusCodes.Status403Forbidden;
+                            response.Message = "Email verification is required before registration.";
+                            return response;
+                        }
+                    }
+
+                    loadedUser = await _userRepository.AddUser(newUser);
+                    if (registrationTransaction != null)
+                    {
+                        await registrationTransaction.CommitAsync();
+                    }
+                }
 
                 // Set LastLogin to creation date and LoginCount to 1 for new users
                 if (loadedUser != null)
@@ -752,9 +864,10 @@ namespace brownstone_hub_api.Services.UserService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception occurred in User Service");
+                _logger.LogError(ex, "Exception occurred while registering user");
                 response.Success = false;
-                response.Message = ex.Message;
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = "Registration could not be completed. Please try again.";
             }
 
             return response;
@@ -981,12 +1094,15 @@ namespace brownstone_hub_api.Services.UserService
                     }
                 }
 
-                if (googleUser == null)
+                if (googleUser == null || !googleUser.EmailVerified || string.IsNullOrWhiteSpace(googleUser.Email))
                 {
                     response.Success = false;
-                    response.Message = "Invalid Google token";
+                    response.Message = "Google did not provide a verified email address.";
+                    response.StatusCode = StatusCodes.Status403Forbidden;
                     return (response, false);
                 }
+
+                googleUser.Email = googleUser.Email.Trim().ToLowerInvariant();
 
                 // Check if user exists by Google ID
                 var existingUser = await _userRepository.GetUserByGoogleIdAsync(googleUser.Id);
@@ -1375,7 +1491,7 @@ namespace brownstone_hub_api.Services.UserService
                 Password = string.Empty,
                 Roles = [],
                 Timezone = timezone
-            });
+            }, emailVerifiedByTrustedProvider: true);
             if (!registration.Success || registration.Data == null)
             {
                 return (registration, false);

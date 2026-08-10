@@ -7,6 +7,7 @@ using brownstone_hub_api.Repositories.Roles;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.GoogleAuthService;
 using brownstone_hub_api.Services.AppleAuthService;
+using brownstone_hub_api.Services.EmailVerificationService;
 using brownstone_hub_api.Services.OrganizationInviteService;
 using brownstone_hub_api.Services.TenantInviteService;
 using brownstone_hub_api.Dtos.Tenant;
@@ -114,6 +115,28 @@ namespace brownstone_hub_api.Tests.Services.Users
             }
         };
 
+        private async Task<string> SeedVerifiedEmailAsync(string email = "john@test.com", DateTime? verifiedAt = null)
+        {
+            var verified = verifiedAt ?? DateTime.UtcNow;
+            var verification = new brownstone_hub_api.Models.EmailVerification
+            {
+                Email = email.Trim().ToLowerInvariant(),
+                Code = "123456",
+                CreatedAt = verified.AddMinutes(-1),
+                ExpiresAt = verified.AddMinutes(9),
+                IsVerified = true,
+                VerifiedAt = verified,
+            };
+            _context.EmailVerifications.Add(verification);
+            await _context.SaveChangesAsync();
+
+            return EmailVerificationProof.Create(
+                verification.Id,
+                verification.Email,
+                verified,
+                _configuration["JwtSettings:SecretKey"]!);
+        }
+
         // ── Register — guard clauses ──────────────────────────────────────────────
 
         [Fact]
@@ -125,6 +148,41 @@ namespace brownstone_hub_api.Tests.Services.Users
 
             result.Success.Should().BeFalse();
             result.Message.Should().Contain("already exists");
+        }
+
+        [Fact]
+        public async Task Register_ReturnsFailure_WhenEmailWasNotVerified()
+        {
+            _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(false);
+
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com",
+                Password = ValidPassword,
+            });
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            result.Message.Should().Be("Email verification is required before registration.");
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Register_ReturnsFailure_WhenEmailVerificationIsStale()
+        {
+            _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(false);
+            var proof = await SeedVerifiedEmailAsync(verifiedAt: DateTime.UtcNow.AddMinutes(-31));
+
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com",
+                EmailVerificationProof = proof,
+                Password = ValidPassword,
+            });
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Never);
         }
 
         [Fact]
@@ -242,6 +300,7 @@ namespace brownstone_hub_api.Tests.Services.Users
         [Fact]
         public async Task Register_ReturnsSuccess_WithValidSimpleUser()
         {
+            var proof = await SeedVerifiedEmailAsync();
             _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(false);
             _userRepo.Setup(r => r.AddUser(It.IsAny<AddUserDto>()))
                      .ReturnsAsync(MakeLoadUserDto(1, "john@test.com"));
@@ -254,12 +313,13 @@ namespace brownstone_hub_api.Tests.Services.Users
             var result = await _sut.Register(new AddUserDto
             {
                 Email = "john@test.com",
+                EmailVerificationProof = proof,
                 Password = ValidPassword,
                 Firstname = "John",
                 Lastname = "Doe",
             });
 
-            result.Success.Should().BeTrue();
+            result.Success.Should().BeTrue(result.Message);
             result.Data.Should().NotBeNull();
             result.Data!.JWTToken.Should().NotBeNullOrEmpty();
         }
@@ -347,6 +407,26 @@ namespace brownstone_hub_api.Tests.Services.Users
 
             result.Success.Should().BeTrue();
             result.Data.Should().Contain("successfully");
+        }
+
+        [Fact]
+        public async Task GoogleLogin_RejectsProviderEmailThatIsNotVerified()
+        {
+            _googleAuth.Setup(service => service.VerifyGoogleTokenAsync("token"))
+                .ReturnsAsync(new GoogleUserInfo
+                {
+                    Id = "google-user-123",
+                    Email = "john@test.com",
+                    EmailVerified = false,
+                });
+
+            var (response, isNewUser) = await _sut.GoogleLogin("token");
+
+            response.Success.Should().BeFalse();
+            response.StatusCode.Should().Be(403);
+            response.Message.Should().Contain("verified email");
+            isNewUser.Should().BeFalse();
+            _userRepo.Verify(repository => repository.GetUserByGoogleIdAsync(It.IsAny<string>()), Times.Never);
         }
 
         // ── AppleLogin ─────────────────────────────────────────────────────────────

@@ -66,21 +66,26 @@ namespace brownstone_hub_api.Controllers
         private readonly INotificationSettingRepository _notificationSettingRepository = notificationSettingRepository;
         private readonly IMfaService _mfaService = mfaService;
         private readonly ILogger<UserController> _logger = logger;
+        private const string EmailVerificationCookieName = "pp-email-verification";
 
         [HttpPost("register")]
         public async Task<ActionResult<ServiceResponse<LoadUserDto>>> Register(AddUserDto request)
         {
+            request.EmailVerificationProof = Request.Cookies[EmailVerificationCookieName];
             var response = await _userService.Register(request);
 
             if (!response.Success)
             {
-                return BadRequest(response);
+                return response.StatusCode >= 400
+                    ? StatusCode(response.StatusCode, response)
+                    : BadRequest(response);
             }
             if (response.Data != null)
             {
                 var session = await _userService.CreateRefreshSession(response.Data.Id);
                 SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
                 response.Data.JWTToken = session.User.JWTToken;
+                Response.Cookies.Delete(EmailVerificationCookieName, new CookieOptions { Path = "/" });
             }
             return Ok(response);
         }
@@ -564,11 +569,22 @@ This is an automated email from Property Peace. Please do not reply to this mess
         {
             var response = await _emailVerificationService.VerifyCodeAsync(request.Email, request.Code);
 
-            if (!response.Success)
+            if (!response.Success || string.IsNullOrWhiteSpace(response.Data))
             {
                 return BadRequest(response);
             }
-            return Ok(response);
+
+            Response.Cookies.Append(EmailVerificationCookieName, response.Data, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = Request.IsHttps,
+                SameSite = Request.IsHttps ? SameSiteMode.None : SameSiteMode.Lax,
+                Path = "/",
+                MaxAge = TimeSpan.FromMinutes(10),
+                IsEssential = true,
+            });
+
+            return Ok(ServiceResponse<bool>.CreateSuccess(true, response.Message));
         }
 
         [HttpPost("google-user-info")]

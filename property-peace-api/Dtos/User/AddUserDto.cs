@@ -12,6 +12,8 @@ namespace brownstone_hub_api.Dtos.User
         public string Firstname { get; set; } = string.Empty;
         public string Lastname { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        [JsonIgnore]
+        public string? EmailVerificationProof { get; set; }
         public string Password { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public string Company { get; set; } = string.Empty;
