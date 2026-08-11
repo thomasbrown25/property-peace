@@ -725,6 +725,20 @@ namespace brownstone_hub_api.Tests.Services.Users
             _userRepo.Verify(r => r.HardDeleteUser(user), Times.Once);
         }
 
+        // ── GetUserByIdAsync ──────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetUserByIdAsync_PreservesCurrentOrganizationForTrustedMutationBinding()
+        {
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(MakeUser(1, currentOrgId: 313));
+
+            var result = await _sut.GetUserByIdAsync(1);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.CurrentOrganizationId.Should().Be(313);
+        }
+
         // ── SuspendUser ───────────────────────────────────────────────────────────
 
         [Fact]

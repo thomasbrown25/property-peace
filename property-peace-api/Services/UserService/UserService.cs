@@ -2057,6 +2057,7 @@ namespace brownstone_hub_api.Services.UserService
                     IsDeleted = user.IsDeleted,
                     DeletedAt = user.DeletedAt,
                     CreateDate = user.CreateDate,
+                    CurrentOrganizationId = user.CurrentOrganizationId,
                     Roles = user.UserRoles?.Select(ur => ur.Role.RoleName).ToList() ?? new List<string>(),
                     HasPassword = user.PasswordHash != null && user.PasswordHash.Length > 0
                 };
