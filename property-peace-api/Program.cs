@@ -935,6 +935,10 @@ services
     })
     .AddJwtBearer(options =>
     {
+        // Preserve the token's explicit numeric NameIdentifier claim. Mapping the
+        // email-valued `sub` claim creates a duplicate NameIdentifier that can
+        // shadow the numeric subject on authorization-sensitive paths.
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
