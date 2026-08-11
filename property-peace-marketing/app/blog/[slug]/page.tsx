@@ -145,7 +145,7 @@ function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
 }
 
 export async function generateStaticParams() {
-  const posts = getAllBlogPosts();
+  const posts = getAllBlogPosts().filter((post) => getArticleEditorial(post.slug));
   return posts.map((post) => ({ slug: post.slug }));
 }
 
@@ -266,8 +266,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const post = getBlogPost(slug);
 
   if (!post) notFound();
+  const editorial = getArticleEditorial(post.slug);
+  if (!post || !editorial) notFound();
 
-  const allPosts = getAllBlogPosts();
+  const allPosts = getAllBlogPosts().filter((candidate) => getArticleEditorial(candidate.slug));
   const related = allPosts
     .filter((p) => p.slug !== post.slug && p.category === post.category)
     .slice(0, 2);
@@ -276,7 +278,6 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const color = categoryColor(post.category);
   const headings = extractHeadings(post.content);
   const cta = getPostCta(post);
-  const editorial = getArticleEditorial(post.slug);
 
   const structuredData = {
     '@context': 'https://schema.org',

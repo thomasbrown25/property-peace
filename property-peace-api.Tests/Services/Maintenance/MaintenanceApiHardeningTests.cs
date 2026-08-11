@@ -134,5 +134,8 @@ public sealed class MaintenanceApiHardeningTests
 
         public Task<Dtos.Timeline.TimelinePage> ReadAsync(long conversationId, long userId, long? afterSequence, int limit, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
+
+        public Task<Dtos.Timeline.TimelinePage> ReadAsync(long conversationId, long userId, long organizationId, long? afterSequence, int limit, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 }

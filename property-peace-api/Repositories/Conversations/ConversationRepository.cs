@@ -187,7 +187,7 @@ namespace brownstone_hub_api.Repositories.Conversations
 
             if (organizationId.HasValue)
             {
-                query = query.Where(c => c.OrganizationId == organizationId.Value || c.OrganizationId == null);
+                query = query.Where(c => c.OrganizationId == organizationId.Value);
             }
 
             return await query
@@ -274,6 +274,12 @@ namespace brownstone_hub_api.Repositories.Conversations
         }
 
         public async Task<LoadConversationDto> GetConversationById(long conversationId, long userId)
+            => await GetConversationByIdCore(conversationId, userId, null);
+
+        public async Task<LoadConversationDto> GetConversationById(long conversationId, long userId, long organizationId)
+            => await GetConversationByIdCore(conversationId, userId, organizationId);
+
+        private async Task<LoadConversationDto> GetConversationByIdCore(long conversationId, long userId, long? organizationId)
         {
             try
             {
@@ -284,7 +290,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
-                    .WhereActiveParticipant(_context.OrganizationMembers, userId)
+                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, userId)
+                    .Where(c => !organizationId.HasValue || c.OrganizationId == organizationId.Value)
                     .FirstOrDefaultAsync(c => c.Id == conversationId);
 
                 if (conversation == null)
@@ -371,7 +378,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
-                    .WhereActiveParticipant(_context.OrganizationMembers, landlordId)
+                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, landlordId)
                     .Where(c => c.LandlordId == landlordId &&
                         !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
@@ -485,7 +492,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                         !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
                 if (landlordId.HasValue)
-                    query = query.WhereActiveParticipant(_context.OrganizationMembers, landlordId.Value);
+                    query = query.WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, landlordId.Value);
 
                 if (!includeArchived)
                 {
@@ -602,7 +609,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants)
                         .ThenInclude(p => p.User)
-                    .WhereActiveParticipant(_context.OrganizationMembers, userId)
+                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, userId)
                     .Where(c =>
                         !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
@@ -805,7 +812,8 @@ namespace brownstone_hub_api.Repositories.Conversations
             // remain authorized through their organization-owned tenant workflow.
             var organizationId = conversation.OrganizationId.Value;
             var belongsToOrganization = await _context.OrganizationMembers.AnyAsync(m =>
-                    m.OrganizationId == organizationId && m.UserId == actorUserId && m.IsActive) ||
+                    m.OrganizationId == organizationId && m.UserId == actorUserId && m.IsActive &&
+                    (m.Role == "Owner" || m.Role == "Manager" || m.Role == "Viewer")) ||
                 await _context.Tenants.AnyAsync(t =>
                     t.OrganizationId == organizationId && t.UserId == actorUserId && !t.IsDeleted);
             if (!belongsToOrganization)
@@ -821,7 +829,8 @@ namespace brownstone_hub_api.Repositories.Conversations
             var orgId = organizationId.Value;
 
             var actorAuthorized = await _context.OrganizationMembers.AnyAsync(m =>
-                m.OrganizationId == orgId && m.UserId == actorUserId && m.IsActive);
+                m.OrganizationId == orgId && m.UserId == actorUserId && m.IsActive &&
+                (m.Role == "Owner" || m.Role == "Manager" || m.Role == "Viewer"));
             if (!actorAuthorized)
                 throw new KeyNotFoundException("Conversation context not found");
 
@@ -897,7 +906,7 @@ namespace brownstone_hub_api.Repositories.Conversations
             try
             {
                 var access = await _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, userId)
+                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, userId)
                     .Where(c => c.Id == conversationId)
                     .Select(c => new
                     {
@@ -939,11 +948,11 @@ namespace brownstone_hub_api.Repositories.Conversations
             }
         }
 
-        public async Task<LoadConversationDto> GetOrCreateTenantLandlordConversation(long tenantUserId)
+        public async Task<LoadConversationDto> GetOrCreateTenantLandlordConversation(long tenantUserId, long organizationId)
         {
             try
             {
-                // Get tenant - include leases, organization with owner, and related relationships
+                // Get the tenant only from the validated active organization.
                 var tenant = await _context.Tenants
                     .Include(t => t.TenantLeases)
                         .ThenInclude(tl => tl.Lease)
@@ -951,7 +960,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                                 .ThenInclude(u => u.Property)
                     .Include(t => t.Organization)
                         .ThenInclude(o => o.Owner)
-                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId && !t.IsDeleted);
+                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId &&
+                        t.OrganizationId == organizationId && !t.IsDeleted);
 
                 if (tenant == null)
                 {
@@ -965,8 +975,11 @@ namespace brownstone_hub_api.Repositories.Conversations
                 string conversationTitle = "Conversation with Landlord";
                 string conversationDescription = "Messages with your landlord";
 
-                // Priority 1: Try to get landlord from first lease (if lease exists)
-                var firstLease = tenant.TenantLeases?.FirstOrDefault()?.Lease;
+                // Priority 1: Try to get landlord from a lease in the active organization.
+                var firstLease = tenant.TenantLeases?
+                    .Select(tl => tl.Lease)
+                    .FirstOrDefault(l => l != null && !l.IsDeleted && l.OrganizationId == organizationId &&
+                        l.Unit?.Property?.OrganizationId == organizationId);
                 if (firstLease != null && !firstLease.IsDeleted)
                 {
                     landlordId = firstLease.Unit.Property.LandlordId;
@@ -1030,13 +1043,13 @@ namespace brownstone_hub_api.Repositories.Conversations
                     tenantUserId,
                     tenantId,
                     landlordId,
-                    tenant.OrganizationId);
+                    organizationId);
 
                 if (existingConversation != null)
                 {
                     await EnsureDirectConversationParticipantsAsync(existingConversation.Id, landlordId, [tenantUserId]);
-                    await ReviveAndHydrateDirectConversationAsync(existingConversation, tenant.OrganizationId, propertyId, leaseId, tenantId);
-                    return await GetConversationById(existingConversation.Id, tenantUserId);
+                    await ReviveAndHydrateDirectConversationAsync(existingConversation, organizationId, propertyId, leaseId, tenantId);
+                    return await GetConversationById(existingConversation.Id, tenantUserId, organizationId);
                 }
 
                 // Create new conversation
@@ -1049,7 +1062,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                     PropertyId = propertyId,
                     LeaseId = leaseId,
                     TenantId = tenantId,
-                    OrganizationId = tenant.OrganizationId,
+                    OrganizationId = organizationId,
                     CreatedBy = tenantUserId
                 };
 
@@ -1058,7 +1071,7 @@ namespace brownstone_hub_api.Repositories.Conversations
 
                 await EnsureDirectConversationParticipantsAsync(conversation.Id, landlordId, [tenantUserId]);
 
-                return await GetConversationById(conversation.Id, tenantUserId);
+                return await GetConversationById(conversation.Id, tenantUserId, organizationId);
             }
             catch (Exception ex)
             {
@@ -1068,11 +1081,18 @@ namespace brownstone_hub_api.Repositories.Conversations
         }
 
         public async Task<List<LoadConversationDto>> GetConversationsByTenantUserId(long tenantUserId, bool includeArchived = false)
+            => await GetConversationsByTenantUserIdCore(tenantUserId, null, includeArchived);
+
+        public async Task<List<LoadConversationDto>> GetConversationsByTenantUserId(long tenantUserId, long organizationId, bool includeArchived = false)
+            => await GetConversationsByTenantUserIdCore(tenantUserId, organizationId, includeArchived);
+
+        private async Task<List<LoadConversationDto>> GetConversationsByTenantUserIdCore(long tenantUserId, long? organizationId, bool includeArchived)
         {
             try
             {
                 var tenant = await _context.Tenants
-                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId && !t.IsDeleted);
+                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId && !t.IsDeleted &&
+                        (!organizationId.HasValue || t.OrganizationId == organizationId.Value));
 
                 if (tenant == null) return [];
 
@@ -1082,7 +1102,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Participants).ThenInclude(p => p.User)
-                    .Where(c => (c.TenantId == tenant.Id || c.Participants.Any(p => p.UserId == tenantUserId && !p.IsDeleted)) &&
+                    .Where(c => (!organizationId.HasValue || c.OrganizationId == organizationId.Value) &&
+                        (c.TenantId == tenant.Id || c.Participants.Any(p => p.UserId == tenantUserId && !p.IsDeleted)) &&
                         !_context.SupportAndFeedbacks.Any(ticket => ticket.ConversationId == c.Id));
 
                 if (!includeArchived)
@@ -1162,7 +1183,7 @@ namespace brownstone_hub_api.Repositories.Conversations
             }
         }
 
-        public async Task<List<TenantAvailableLandlordDto>> GetAvailableLandlordsForTenant(long tenantUserId)
+        public async Task<List<TenantAvailableLandlordDto>> GetAvailableLandlordsForTenant(long tenantUserId, long organizationId)
         {
             try
             {
@@ -1171,7 +1192,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                         .ThenInclude(tl => tl.Lease)
                             .ThenInclude(l => l.Unit)
                                 .ThenInclude(u => u.Property)
-                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId && !t.IsDeleted);
+                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId &&
+                        t.OrganizationId == organizationId && !t.IsDeleted);
 
                 if (tenant == null) return [];
 
@@ -1197,18 +1219,20 @@ namespace brownstone_hub_api.Repositories.Conversations
                     });
                 }
 
-                foreach (var tl in tenant.TenantLeases.Where(tl => tl.Lease != null && !tl.Lease.IsDeleted))
+                foreach (var tl in tenant.TenantLeases.Where(tl => tl.Lease != null && !tl.Lease.IsDeleted &&
+                             tl.Lease.OrganizationId == organizationId &&
+                             tl.Lease.Unit?.Property?.OrganizationId == organizationId))
                 {
                     var property = tl.Lease?.Unit?.Property;
                     if (property == null) continue;
                     await AddLandlordAsync(property.LandlordId, property.Name);
                 }
 
-                if (result.Count == 0 && tenant.OrganizationId.HasValue)
+                if (result.Count == 0)
                 {
                     var organization = await _context.Organizations
                         .AsNoTracking()
-                        .FirstOrDefaultAsync(o => o.Id == tenant.OrganizationId.Value && !o.IsDeleted);
+                        .FirstOrDefaultAsync(o => o.Id == organizationId && !o.IsDeleted);
 
                     if (organization?.OwnerId.HasValue == true)
                     {
@@ -1217,7 +1241,7 @@ namespace brownstone_hub_api.Repositories.Conversations
 
                     var organizationPropertyLandlords = await _context.Properties
                         .AsNoTracking()
-                        .Where(p => p.OrganizationId == tenant.OrganizationId.Value && !p.IsDeleted)
+                        .Where(p => p.OrganizationId == organizationId && !p.IsDeleted)
                         .Select(p => new { p.LandlordId, p.Name })
                         .Distinct()
                         .ToListAsync();
@@ -1237,7 +1261,8 @@ namespace brownstone_hub_api.Repositories.Conversations
             }
         }
 
-        public async Task<LoadConversationDto> GetOrCreateConversationForTenantLandlord(long tenantUserId, long landlordUserId)
+        public async Task<LoadConversationDto> GetOrCreateConversationForTenantLandlord(
+            long tenantUserId, long landlordUserId, long organizationId)
         {
             try
             {
@@ -1246,13 +1271,17 @@ namespace brownstone_hub_api.Repositories.Conversations
                         .ThenInclude(tl => tl.Lease)
                             .ThenInclude(l => l.Unit)
                                 .ThenInclude(u => u.Property)
-                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId && !t.IsDeleted);
+                    .FirstOrDefaultAsync(t => t.UserId == tenantUserId &&
+                        t.OrganizationId == organizationId && !t.IsDeleted);
 
                 if (tenant == null) throw new Exception("Tenant not found");
 
                 // Find the most relevant lease for this landlord
                 var relatedLease = tenant.TenantLeases?
-                    .Where(tl => tl.Lease != null && !tl.Lease.IsDeleted && tl.Lease.Unit?.Property?.LandlordId == landlordUserId)
+                    .Where(tl => tl.Lease != null && !tl.Lease.IsDeleted &&
+                        tl.Lease.OrganizationId == organizationId &&
+                        tl.Lease.Unit?.Property?.OrganizationId == organizationId &&
+                        tl.Lease.Unit.Property.LandlordId == landlordUserId)
                     .OrderByDescending(tl => tl.Lease!.StartDate)
                     .FirstOrDefault()?.Lease;
 
@@ -1260,23 +1289,23 @@ namespace brownstone_hub_api.Repositories.Conversations
                     tenantUserId,
                     tenant.Id,
                     landlordUserId,
-                    tenant.OrganizationId);
+                    organizationId);
 
                 if (existing != null)
                 {
                     await EnsureDirectConversationParticipantsAsync(existing.Id, landlordUserId, [tenantUserId]);
-                    await ReviveAndHydrateDirectConversationAsync(existing, tenant.OrganizationId, relatedLease?.Unit?.Property?.Id, relatedLease?.Id, tenant.Id);
-                    return await GetConversationById(existing.Id, tenantUserId);
+                    await ReviveAndHydrateDirectConversationAsync(existing, organizationId, relatedLease?.Unit?.Property?.Id, relatedLease?.Id, tenant.Id);
+                    return await GetConversationById(existing.Id, tenantUserId, organizationId);
                 }
 
-                if (relatedLease == null && tenant.OrganizationId.HasValue)
+                if (relatedLease == null)
                 {
                     var landlordInTenantOrganization = await _context.Organizations
                         .AsNoTracking()
-                        .AnyAsync(o => o.Id == tenant.OrganizationId.Value && !o.IsDeleted && o.OwnerId == landlordUserId)
+                        .AnyAsync(o => o.Id == organizationId && !o.IsDeleted && o.OwnerId == landlordUserId)
                         || await _context.Properties
                             .AsNoTracking()
-                            .AnyAsync(p => p.OrganizationId == tenant.OrganizationId.Value && !p.IsDeleted && p.LandlordId == landlordUserId);
+                            .AnyAsync(p => p.OrganizationId == organizationId && !p.IsDeleted && p.LandlordId == landlordUserId);
 
                     if (!landlordInTenantOrganization)
                     {
@@ -1298,7 +1327,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                     PropertyId = relatedLease?.Unit?.Property?.Id,
                     LeaseId = relatedLease?.Id,
                     TenantId = tenant.Id,
-                    OrganizationId = tenant.OrganizationId,
+                    OrganizationId = organizationId,
                     CreatedBy = tenantUserId
                 };
 
@@ -1314,7 +1343,7 @@ namespace brownstone_hub_api.Repositories.Conversations
                 await _context.ConversationParticipants.AddRangeAsync(participants);
                 await _context.SaveChangesAsync();
 
-                return await GetConversationById(conversation.Id, tenantUserId);
+                return await GetConversationById(conversation.Id, tenantUserId, organizationId);
             }
             catch (Exception ex)
             {

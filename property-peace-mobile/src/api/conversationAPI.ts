@@ -1,6 +1,6 @@
 import apiClient from '../services/apiClient';
 import { ApiResponse } from '../types';
-import { ConversationSummary, TimelinePage } from '../features/messages/messagesModel';
+import { ConversationSummary, getConversationInboxPath, MessagesAudience, TimelinePage } from '../features/messages/messagesModel';
 
 export interface UnreadState {
   conversationId: number;
@@ -51,8 +51,8 @@ export interface CreateGroupRequest {
 }
 
 class ConversationAPI {
-  async getConversations(includeArchived = false): Promise<ConversationSummary[]> {
-    const response = await apiClient.get<ApiResponse<ConversationSummary[]>>(`/api/Conversation?includeArchived=${includeArchived}`);
+  async getConversations(audience: MessagesAudience, includeArchived = false): Promise<ConversationSummary[]> {
+    const response = await apiClient.get<ApiResponse<ConversationSummary[]>>(getConversationInboxPath(audience, includeArchived));
     return response.data;
   }
 

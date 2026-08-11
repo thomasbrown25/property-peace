@@ -67,6 +67,7 @@ namespace brownstone_hub_api.Models
         public long CreatedBy { get; set; }
         public User CreatedByUser { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
+        public DateTime? PublishedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
         // Navigation

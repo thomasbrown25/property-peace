@@ -133,6 +133,21 @@ namespace brownstone_hub_api.Tests.Repositories.Conversations
             result.Should().BeNull();
         }
 
+        [Fact]
+        public async Task GetConversationById_ReturnsNull_ForActiveMemberWithUnknownOrganizationRole()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            _context.OrganizationMembers.Add(new OrganizationMember
+                { Id = 10, OrganizationId = 50, UserId = 1, IsActive = true, Role = "Administrator" });
+            _context.Conversations.Add(new Conversation { Id = 21, Title = "Private", LandlordId = 1, OrganizationId = 50 });
+            _context.ConversationParticipants.Add(new ConversationParticipant { ConversationId = 21, UserId = 1 });
+            await _context.SaveChangesAsync();
+
+            var result = await _repo.GetConversationById(21, 1, 50);
+
+            result.Should().BeNull();
+        }
+
         [Theory]
         [InlineData("update")]
         [InlineData("delete")]
@@ -175,6 +190,22 @@ namespace brownstone_hub_api.Tests.Repositories.Conversations
             (await _repo.ArchiveConversation(31, true, 1)).IsArchived.Should().BeTrue();
             (await _repo.PinConversation(31, true, 1)).IsPinned.Should().BeTrue();
             (await _repo.DeleteConversation(31, 1)).Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task ConversationMutations_RejectActiveMemberWithUnknownOrganizationRole()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            _context.OrganizationMembers.Add(new OrganizationMember
+                { Id = 10, OrganizationId = 50, UserId = 1, IsActive = true, Role = "Administrator" });
+            _context.Conversations.Add(new Conversation { Id = 32, Title = "Private", LandlordId = 1, OrganizationId = 50 });
+            _context.ConversationParticipants.Add(new ConversationParticipant { ConversationId = 32, UserId = 1 });
+            await _context.SaveChangesAsync();
+
+            var act = () => _repo.ArchiveConversation(32, true, 1);
+
+            await act.Should().ThrowAsync<KeyNotFoundException>();
+            _context.Conversations.Single(x => x.Id == 32).IsArchived.Should().BeFalse();
         }
 
         [Fact]
@@ -374,6 +405,23 @@ namespace brownstone_hub_api.Tests.Repositories.Conversations
             _context.ConversationParticipants.Single(x => x.UserId == 1).IsDeleted = true;
             await _context.SaveChangesAsync();
             (await _repo.GetConversationsByLandlordId(1)).Should().BeEmpty("soft-deleted participants fail closed");
+        }
+
+        [Fact]
+        public async Task TenantConversationWorkflows_RejectTenantOutsideRequestedOrganization()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            SeedUser(2, "Tara", "Tenant", "tenant@example.com");
+            SeedTenant(10, 2, "tenant@example.com");
+            await _context.SaveChangesAsync();
+
+            Func<Task> getDefault = async () => await _repo.GetOrCreateTenantLandlordConversation(2, 99);
+            Func<Task> start = async () => await _repo.GetOrCreateConversationForTenantLandlord(2, 1, 99);
+
+            await getDefault.Should().ThrowAsync<Exception>().WithMessage("*Tenant not found*");
+            await start.Should().ThrowAsync<Exception>().WithMessage("*Tenant not found*");
+            (await _repo.GetAvailableLandlordsForTenant(2, 99)).Should().BeEmpty();
+            _context.Conversations.Should().BeEmpty();
         }
 
         [Fact]

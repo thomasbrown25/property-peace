@@ -5,6 +5,7 @@ using System.Text;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Utils;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -19,9 +20,11 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         private readonly IConfiguration _configuration;
         private readonly TimeProvider _timeProvider;
         private readonly ILogger<StripeRentPaymentService> _logger;
+        private readonly IActivationOccurrenceRecorder? _activationRecorder;
 
         public StripeRentPaymentService(DataContext context, IStripeRentGateway gateway, IStripeRentRiskService risk,
-            IConfiguration configuration, TimeProvider timeProvider, ILogger<StripeRentPaymentService> logger)
+            IConfiguration configuration, TimeProvider timeProvider, ILogger<StripeRentPaymentService> logger,
+            IActivationOccurrenceRecorder? activationRecorder = null)
         {
             _context = context;
             _gateway = gateway;
@@ -29,6 +32,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             _configuration = configuration;
             _timeProvider = timeProvider;
             _logger = logger;
+            _activationRecorder = activationRecorder;
         }
 
         public async Task<StripeRentPaymentClientResult> CreateAsync(CreateStripeRentPaymentCommand command, CancellationToken cancellationToken = default)
@@ -210,8 +214,13 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 _logger.LogWarning("Ignoring succeeded rent PaymentIntent {PaymentIntentId} because no durable aggregate exists", succeeded.PaymentIntentId);
                 return;
             }
+            if (payment.Status == StripeRentPaymentStatus.Held && payment.HeldAt.HasValue)
+            {
+                await RecordSuccessfulActivationAsync(payment, payment.HeldAt.Value, cancellationToken);
+                return;
+            }
             if (payment.Status != StripeRentPaymentStatus.Created)
-                return; // Never resurrect Blocked/Failed/Canceled or duplicate a held/pending/terminal success.
+                return; // Never resurrect Blocked/Failed/Canceled or pending/terminal recovery states.
 
             var allocated = await GetAllocatedAmountAsync(payment, cancellationToken);
             if (allocated != payment.AmountCents / 100m)
@@ -241,6 +250,33 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 payment.RiskReason = null;
             }
             await _context.SaveChangesAsync(cancellationToken);
+            if (payment.Status == StripeRentPaymentStatus.Held)
+                await RecordSuccessfulActivationAsync(payment, succeeded.SucceededAt, cancellationToken);
+        }
+
+        private async Task RecordSuccessfulActivationAsync(
+            StripeRentPayment payment,
+            DateTimeOffset succeededAt,
+            CancellationToken cancellationToken)
+        {
+            if (payment.AmountCents <= 0 || _activationRecorder is null)
+                return;
+            var authoritativeLeaseExists = await (from lease in _context.Leases.AsNoTracking()
+                                                  join unit in _context.Units.AsNoTracking() on lease.UnitId equals unit.Id
+                                                  join property in _context.Properties.AsNoTracking() on unit.PropertyId equals property.Id
+                                                  where lease.Id == payment.LeaseId && !lease.IsDeleted &&
+                                                        lease.OrganizationId == payment.OrganizationId &&
+                                                        property.OrganizationId == payment.OrganizationId
+                                                  select lease.Id).AnyAsync(cancellationToken);
+            if (!authoritativeLeaseExists)
+                return;
+            await _activationRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                payment.OrganizationId,
+                ActivationMilestones.FirstRentRecordedOrPaid,
+                $"lease:{payment.LeaseId}",
+                succeededAt.ToUniversalTime(),
+                SourceEventType: "stripe_rent_payment",
+                SourceEventId: payment.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), cancellationToken);
         }
 
         public Task MarkFailedAsync(string paymentIntentId, string reason, CancellationToken cancellationToken = default) =>

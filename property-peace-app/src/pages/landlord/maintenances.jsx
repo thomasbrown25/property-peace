@@ -31,7 +31,7 @@ import {
 
   RobotOutlined,
   SearchOutlined,
-  SettingOutlined,
+  PlusOutlined,
   ShopOutlined,
   ToolOutlined,
   UserOutlined
@@ -372,7 +372,7 @@ export default function Maintenances() {
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button variant="outlined" startIcon={<ShopOutlined />} onClick={() => navigate('/landlord/vendors')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.38), textTransform: 'none', '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>Vendors</Button>
-            <Button variant="outlined" startIcon={<SettingOutlined />} onClick={() => navigate('/landlord/ai-center/maintenance-agent')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.38), textTransform: 'none', '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>Agent settings</Button>
+            <Button variant="outlined" startIcon={<PlusOutlined />} onClick={() => navigate('/landlord/maintenances/add')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.38), textTransform: 'none', '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>New request</Button>
           </Stack>
         </Stack>
       </Box>

@@ -35,7 +35,7 @@ const plans = [
     annualMonthly: 12.74,
     annualTotal: 152.90,
     description: 'Complete portfolio management with unlimited units and advanced workflows.',
-    badge: 'Most popular',
+    badge: null,
     features: [
       'Everything in Free',
       'Unlimited units',
@@ -48,8 +48,7 @@ const plans = [
       'Rent estimates',
       'LeaseShield protection',
       'Percy Pilot workflows (limited availability)',
-      'One dedicated organization SMS number included for eligible Premium/Lifetime plans; activation and configuration required',
-      'Priority support',
+      'One dedicated organization SMS number included with Premium; activation and configuration required',
       'Cancel anytime',
     ],
     cta: 'Get started',
@@ -82,7 +81,7 @@ export default function PricingPlans() {
             className="text-lg md:text-xl text-[#737373] max-w-2xl mx-auto mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Start free. Upgrade when you&apos;re ready. No hidden fees, no per-unit charges.
+            Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled.
           </p>
 
           {/* Annual toggle */}

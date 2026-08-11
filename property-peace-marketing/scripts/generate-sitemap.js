@@ -17,11 +17,7 @@ const staticPages = [
 ];
 
 // Comparison pages
-const comparisonPages = [
-  'brownstone-hub-vs-buildium',
-  'brownstone-hub-vs-doorloop',
-  'brownstone-hub-vs-appfolio',
-];
+const comparisonPages = [];
 
 // Blog posts
 const blogPosts = require('../lib/blog-posts.ts');

@@ -24,6 +24,7 @@ using brownstone_hub_api.Entitlements.Decision;
 using brownstone_hub_api.Entitlements.Infrastructure;
 using brownstone_hub_api.Entitlements.Policy;
 using brownstone_hub_api.Services.AzureBlobService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Azure.Storage.Blobs;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
@@ -31,7 +32,7 @@ using System.Security.Claims;
 
 namespace brownstone_hub_api.Services.PropertyService
 {
-    public class PropertyService(IPropertyRepository propertyRepository, IImageService<PropertyImage, LoadImageDto, AddImageDto> imageService, IMaintenanceRequestRepository maintenanceRequestRepository, ILeaseRepository leaseRepository, IExpenseRepository expenseRepository, IRecurringExpenseRepository recurringExpenseRepository, IConversationRepository conversationRepository, IApplicationRepository applicationRepository, IChecklistRepository checklistRepository, ITenantDocumentRepository tenantDocumentRepository, IPaymentRepository paymentRepository, IUnitRepository unitRepository, IApplicationInviteRepository applicationInviteRepository, IChecklistService checklistService, ITenantRepository tenantRepository, BlobServiceClient blobServiceClient, IAzureBlobService azureBlobService, IHttpContextAccessor httpContextAccessor, IListingRepository listingRepository, IEntitlementDecisionService entitlementDecisionService, IOrganizationEntitlementMutationCoordinator mutationCoordinator, ILogger<PropertyService> logger) : IPropertyService
+    public class PropertyService(IPropertyRepository propertyRepository, IImageService<PropertyImage, LoadImageDto, AddImageDto> imageService, IMaintenanceRequestRepository maintenanceRequestRepository, ILeaseRepository leaseRepository, IExpenseRepository expenseRepository, IRecurringExpenseRepository recurringExpenseRepository, IConversationRepository conversationRepository, IApplicationRepository applicationRepository, IChecklistRepository checklistRepository, ITenantDocumentRepository tenantDocumentRepository, IPaymentRepository paymentRepository, IUnitRepository unitRepository, IApplicationInviteRepository applicationInviteRepository, IChecklistService checklistService, ITenantRepository tenantRepository, BlobServiceClient blobServiceClient, IAzureBlobService azureBlobService, IHttpContextAccessor httpContextAccessor, IListingRepository listingRepository, IEntitlementDecisionService entitlementDecisionService, IOrganizationEntitlementMutationCoordinator mutationCoordinator, ILogger<PropertyService> logger, IActivationOccurrenceRecorder? occurrenceRecorder = null) : IPropertyService
     {
         private readonly IPropertyRepository _propertyRepository = propertyRepository;
         private readonly IImageService<PropertyImage, LoadImageDto, AddImageDto> _imageService = imageService;
@@ -55,6 +56,7 @@ namespace brownstone_hub_api.Services.PropertyService
         private readonly IEntitlementDecisionService _entitlementDecisionService = entitlementDecisionService;
         private readonly IOrganizationEntitlementMutationCoordinator _mutationCoordinator = mutationCoordinator;
         private readonly ILogger<PropertyService> _logger = logger;
+        private readonly IActivationOccurrenceRecorder? _occurrenceRecorder = occurrenceRecorder;
         private const string ChecklistContainerName = "checklist-images";
 
         private long? GetCurrentOrganizationId()
@@ -224,6 +226,12 @@ namespace brownstone_hub_api.Services.PropertyService
                         }
 
                         created.Units = createdUnits;
+                        if (_occurrenceRecorder is not null)
+                            await _occurrenceRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                                organizationId, ActivationMilestones.PropertyAdded, $"property:{created.Id}",
+                                DateTimeOffset.UtcNow, SourceEventType: "property",
+                                SourceEventId: created.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                ActorUserId: userId), token);
                         return EntitlementMutationOutcome<ServiceResponse<LoadPropertyDto>>.Commit(
                             ServiceResponse<LoadPropertyDto>.CreateSuccess(
                                 created, "Property added successfully"));

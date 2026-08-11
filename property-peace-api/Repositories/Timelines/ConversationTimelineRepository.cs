@@ -14,6 +14,7 @@ public interface IConversationTimelineRepository
 {
     Task<ConversationTimelineEntry> AppendAsync(AppendTimelineEntryRequest request, CancellationToken cancellationToken = default);
     Task<TimelinePage> ReadAsync(long conversationId, long actorUserId, long? afterSequence, int take, CancellationToken cancellationToken = default);
+    Task<TimelinePage> ReadAsync(long conversationId, long actorUserId, long organizationId, long? afterSequence, int take, CancellationToken cancellationToken = default);
 }
 
 public sealed class ConversationTimelineRepository(
@@ -85,22 +86,41 @@ public sealed class ConversationTimelineRepository(
         }
     }
 
-    public async Task<TimelinePage> ReadAsync(
+    public Task<TimelinePage> ReadAsync(
         long conversationId,
         long actorUserId,
         long? afterSequence,
         int take,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        ReadCoreAsync(conversationId, actorUserId, null, afterSequence, take, cancellationToken);
+
+    public Task<TimelinePage> ReadAsync(
+        long conversationId,
+        long actorUserId,
+        long organizationId,
+        long? afterSequence,
+        int take,
+        CancellationToken cancellationToken = default) =>
+        ReadCoreAsync(conversationId, actorUserId, organizationId, afterSequence, take, cancellationToken);
+
+    private async Task<TimelinePage> ReadCoreAsync(
+        long conversationId,
+        long actorUserId,
+        long? activeOrganizationId,
+        long? afterSequence,
+        int take,
+        CancellationToken cancellationToken)
     {
         if (take is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(take));
-        var conversation = await context.Conversations.WhereActiveParticipant(context.OrganizationMembers, actorUserId)
-            .Where(x => x.Id == conversationId)
+        var conversation = await context.Conversations.WhereActiveParticipant(context.OrganizationMembers, context.Tenants, actorUserId)
+            .Where(x => x.Id == conversationId && (!activeOrganizationId.HasValue || x.OrganizationId == activeOrganizationId.Value))
             .Select(x => new { x.OrganizationId, Participant = x.Participants.Where(p => p.UserId == actorUserId && !p.IsDeleted).Select(p => p.StaffVisibilityFromSequence).FirstOrDefault() })
             .SingleOrDefaultAsync(cancellationToken);
         if (conversation == null) throw new KeyNotFoundException("Conversation not found");
 
         var isStaff = conversation.OrganizationId.HasValue && await context.OrganizationMembers.AnyAsync(x =>
-            x.OrganizationId == conversation.OrganizationId.Value && x.UserId == actorUserId && x.IsActive,
+            x.OrganizationId == conversation.OrganizationId.Value && x.UserId == actorUserId && x.IsActive &&
+            (x.Role == "Owner" || x.Role == "Manager"),
             cancellationToken);
 
         var query = context.ConversationTimelineEntries.AsNoTracking().Where(x => x.ConversationId == conversationId);

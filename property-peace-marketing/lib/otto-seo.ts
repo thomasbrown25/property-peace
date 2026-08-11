@@ -13,11 +13,11 @@ type OttoSeoOverride = {
 
 const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   '/': {
-    title: '#1 Free Rental Management Software | Property Peace',
-    description: 'The #1 free rental management software for independent landlords. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
+    title: 'Free Rental Management Software | Property Peace',
+    description: 'Free rental management software for independent landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
     canonical: 'https://propertypeace.io/',
-    openGraphTitle: '#1 Free Rental Management Software | Property Peace',
-    twitterTitle: '#1 Free Rental Management Software | Property Peace',
+    openGraphTitle: 'Free Rental Management Software | Property Peace',
+    twitterTitle: 'Free Rental Management Software | Property Peace',
   },
   '/blog/': {
     openGraphUrl: 'https://propertypeace.io/blog/',
@@ -33,7 +33,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/contact-us/': {
     title: 'Contact Property Peace: Support & Inquiries',
-    description: 'Contact Property Peace for 24/7 support. Reach us at support@propertypeace.io for product questions, billing help, demo requests, and landlord software support.',
+    description: 'Contact Property Peace at support@propertypeace.io for product questions, billing help, demo requests, and landlord software support.',
     canonical: 'https://propertypeace.io/contact-us/',
     openGraphUrl: 'https://propertypeace.io/contact-us/',
   },
@@ -121,11 +121,11 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     openGraphDescription: 'Connect with tenants through in-app and email notifications; SMS availability depends on messaging configuration.',
   },
   '/free-landlord-software/': {
-    title: '#1 Free Rental Management Software | Property Peace',
-    description: 'The #1 free rental management software for small landlords. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.',
-    openGraphTitle: '#1 Free Rental Management Software | Property Peace',
-    twitterTitle: '#1 Free Rental Management Software | Property Peace',
-    twitterDescription: 'Manage rent, tenants, leases, maintenance, and expenses with the #1 free rental management software for small landlords.',
+    title: 'Free Rental Management Software | Property Peace',
+    description: 'Free rental management software for small landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.',
+    openGraphTitle: 'Free Rental Management Software | Property Peace',
+    twitterTitle: 'Free Rental Management Software | Property Peace',
+    twitterDescription: 'Manage rent, tenants, leases, maintenance, and expenses with free rental management software for small landlords with up to 5 units.',
   },
   '/help-center/': {
     title: 'Property Peace Help Center: Support & FAQs for Landlords',
@@ -163,7 +163,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/pricing/': {
     title: 'Property Peace Pricing: Free Plan & Premium Features',
-    description: 'Start free with landlord software for up to 5 units. Upgrade for unlimited units, LeaseShield, AI tools, rent workflows, and financial reports.',
+    description: 'Start free with landlord software for up to 5 units. Upgrade for unlimited units, LeaseShield, rent workflows, financial reports, and limited Percy Pilot tools.',
     canonical: 'https://propertypeace.io/pricing',
     openGraphTitle: 'Property Peace Pricing: Free Plan & Premium Features',
     twitterTitle: 'Property Peace: Manage 1-50 Units FREE! #LandlordLife',

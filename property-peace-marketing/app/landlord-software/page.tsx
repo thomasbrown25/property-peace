@@ -132,7 +132,7 @@ export default function LandlordSoftwarePage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Free for up to 5 units. No per-unit fees, no setup costs. Premium features like LeaseShield available on higher plans.
+                Free for up to 5 units. No per-unit fees. Premium features like LeaseShield available on higher plans.
               </p>
             </div>
             <div>

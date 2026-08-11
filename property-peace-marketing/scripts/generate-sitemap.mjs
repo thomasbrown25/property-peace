@@ -46,11 +46,7 @@ const staticPages = [
 ];
 
 // Comparison pages
-const comparisonPages = [
-  'brownstone-hub-vs-buildium',
-  'brownstone-hub-vs-doorloop',
-  'brownstone-hub-vs-appfolio',
-];
+const comparisonPages = [];
 
 // Feature detail pages (must match app/features/[slug])
 const featureSlugs = [
@@ -70,32 +66,8 @@ const featureSlugs = [
   'lease-shield',
 ];
 
-// Blog posts - full list from lib/blog-posts.ts (add new slugs when publishing)
+// Only articles with dated editorial review and official sources are published.
 const blogSlugs = [
-  'how-to-choose-property-management-software-for-small-landlords',
-  'property-management-software-vs-spreadsheets',
-  'essential-features-landlord-software',
-  'streamline-rent-collection-property-management-software',
-  'property-management-software-small-apartment-buildings',
-  'best-property-management-app-solo-landlords',
-  'manage-multiple-rental-properties',
-  'online-rent-collection-property-management-software',
-  'property-management-software-charlotte-nc',
-  'how-to-screen-tenants-complete-guide',
-  'property-management-software-pricing-2024',
-  'best-property-management-software-airbnb-hosts',
-  'how-to-handle-maintenance-requests-like-pro',
-  'property-management-software-vs-hiring-property-manager',
-  'tax-deductions-landlords-complete-guide',
-  'how-to-write-lease-agreement-landlord-guide',
-  'property-management-software-reviews-top-10-2024',
-  'how-to-increase-rental-property-roi-software',
-  'property-management-software-trends-2025',
-  'property-management-software-austin-texas',
-  'prepare-rental-properties-2025-tax-season',
-  'property-management-software-whats-new-2025',
-  'scale-rental-property-business-2025',
-  'how-to-automate-rent-collection-never-chase-payments-again',
   'landlord-move-in-move-out-checklist',
   'rental-property-cash-flow-template-landlords',
   'landlord-maintenance-checklist-prevent-costly-repairs',

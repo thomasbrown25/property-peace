@@ -113,13 +113,13 @@ export default function ContactPage() {
                   className="mt-3 text-2xl font-semibold text-primary-main"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
-                  24/7 inbox monitoring
+                  Email support
                 </p>
                 <p
                   className="mt-3 text-sm leading-6 text-[#737373]"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
-                  We monitor incoming support emails around the clock and aim to respond within 24 hours.
+                  Send us a message for account help or product questions. Response times vary with request volume.
                 </p>
               </div>
 

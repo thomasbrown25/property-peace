@@ -41,7 +41,7 @@ import { getConversations } from 'store/conversation/conversation.action';
 import { openSnackbar } from 'api/snackbar';
 import { useDrawer } from 'contexts/DrawerContext';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
-import { createMaintenanceFromUrgent } from 'services/copilotActions';
+import { prepareMaintenanceFromUrgent } from 'utils/maintenanceFromUrgent';
 import useFetchProperties from 'hooks/useFetchProperties';
 
 // Severity color mapping
@@ -206,7 +206,7 @@ export default function UrgentMessages() {
           foundFromLease: !!(leaseId && propertyId && !message.propertyId)
         });
 
-        const result = await createMaintenanceFromUrgent({
+        const result = prepareMaintenanceFromUrgent({
           urgentMessage,
           urgentItem,
           onUrgencyCleared: loadUrgentMessages,

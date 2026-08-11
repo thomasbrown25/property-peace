@@ -20,7 +20,6 @@ import DashboardHeader from 'sections/landlord/dashboard/DashboardHeader';
 import TodaysPriorities from 'sections/landlord/dashboard/TodaysPriorities';
 import UrgentMessages from 'sections/landlord/dashboard/UrgentMessages';
 import PropertyProfitability from 'sections/landlord/dashboard/PropertyProfitability';
-import AICopilot from 'sections/landlord/dashboard/AICopilot';
 import PortfolioHealthSummary from 'sections/landlord/dashboard/PortfolioHealthSummary';
 import MoneySummary from 'sections/landlord/dashboard/MoneySummary';
 import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
@@ -44,7 +43,6 @@ import { selectTotalExpenses } from 'store/expense/expense.selector';
 import { selectDashboardLoading, selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import LeaseViewDrawer from 'components/drawers/LeaseViewDrawer';
 import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
-import SendRentReminderDrawer from 'components/drawers/SendRentReminderDrawer';
 import useFetchDashboardSummary from 'hooks/useFetchDashboard';
 import useFetchAllTenants from 'hooks/useFetchAllTenants';
 import useFetchAllPayments from 'hooks/useFetchAllPayments';
@@ -240,7 +238,6 @@ export default function Dashboard() {
   const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [addExpenseDrawerOpen, setAddExpenseDrawerOpen] = useState(false);
-  const [rentReminderOpen, setRentReminderOpen] = useState(false);
   
   // Register with TriggerSummaryContext so bottom nav Plus menu can trigger Generate Summary
   useEffect(() => {
@@ -447,10 +444,10 @@ export default function Dashboard() {
     },
     {
       icon: <MessageOutlined style={{ fontSize: 18 }} />,
-      label: 'Rent Reminder',
-      sub: 'Send a nudge',
+      label: 'Rent Collection',
+      sub: 'Review balances',
       color: theme.palette.info.main,
-      onClick: () => setRentReminderOpen(true)
+      onClick: () => navigate('/landlord/rent-collection')
     }
   ];
 
@@ -845,15 +842,6 @@ export default function Dashboard() {
         subscription={subscription}
         loading={checkoutLoading}
       />
-      
-      
-      {/* Send Rent Reminder Drawer */}
-      <SendRentReminderDrawer
-        open={rentReminderOpen}
-        onClose={() => setRentReminderOpen(false)}
-        rentRecords={rentRecords}
-      />
-
       {/* Add Expense Drawer */}
       <ExpenseAddDrawer
         open={addExpenseDrawerOpen}
@@ -896,10 +884,10 @@ export default function Dashboard() {
           >
             <WarningOutlined style={{ fontSize: 64, color: theme.palette.error.main, marginBottom: 16 }} />
             <Typography variant="h4" fontWeight={700} gutterBottom>
-              Trial Expired
+              Legacy trial ended
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Your free trial has ended. Please select a subscription plan to continue using Property Peace.
+              Choose the permanent Free plan or Premium to continue using Property Peace.
             </Typography>
             <Button
               variant="contained"

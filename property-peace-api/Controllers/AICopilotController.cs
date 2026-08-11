@@ -4,6 +4,7 @@ using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Services.AICopilotService;
 using brownstone_hub_api.Services.AgentFollowUpService;
+using brownstone_hub_api.Services.PercyActions;
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Filters;
 using Microsoft.AspNetCore.Authorization;
@@ -179,19 +180,21 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("agents/force-followup/{leaseId:long}")]
-        public async Task<IActionResult> ForceFollowUp(long leaseId, [FromBody] ForceFollowUpRequest? request, CancellationToken cancellationToken)
+        public Task<IActionResult> ForceFollowUp(long leaseId, [FromBody] ForceFollowUpRequest? request, CancellationToken cancellationToken)
         {
-            try
+            _ = leaseId;
+            _ = request;
+            _ = cancellationToken;
+            var policy = PercyActionPolicy.Evaluate(PercyActionTypes.CollectionsForceFollowUp);
+            IActionResult result = StatusCode(StatusCodes.Status409Conflict, new
             {
-                var sentCount = await _agentFollowUpService.ForceFollowUpForLeaseAsync(leaseId, request?.TenantIds, cancellationToken);
-                if (sentCount == 0) return StatusCode(500, new { message = "Failed to send follow-up. Check server logs." });
-                return Ok(new { success = true, sentCount });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Force follow-up failed for lease {LeaseId}", leaseId);
-                return StatusCode(500, new { message = "Failed to send follow-up." });
-            }
+                code = PercyActionErrorCodes.Unavailable,
+                actionType = policy.ActionType,
+                confirmationRequired = policy.ConfirmationRequired,
+                executionEnabled = policy.ExecutionEnabled,
+                message = "No follow-up was sent. This action requires organization-scoped Percy confirmation execution, which is not enabled yet."
+            });
+            return Task.FromResult(result);
         }
 
         public class ForceFollowUpRequest
@@ -202,14 +205,31 @@ namespace brownstone_hub_api.Controllers
         private async Task<(long? OrganizationId, long? UserId)> GetPercyContextAsync()
         {
             var organizationId = this.GetCurrentOrganizationIdOrForbid();
-            var userId = await this.GetCurrentUserIdAsync(_userRepository);
-            if (!organizationId.HasValue || !userId.HasValue)
-                return (organizationId, userId);
+            if (!organizationId.HasValue
+                || !HttpContext.Items.TryGetValue("UserId", out var middlewareUserValue)
+                || middlewareUserValue is not long middlewareUserId
+                || middlewareUserId <= 0)
+            {
+                return (null, null);
+            }
 
-            var member = await _organizationMemberRepository.GetMemberAsync(organizationId.Value, userId.Value);
+            var claimedUserId = await this.GetCurrentUserIdAsync(_userRepository);
+            if (!claimedUserId.HasValue || claimedUserId.Value != middlewareUserId)
+                return (null, null);
+
+            var databaseUser = await _userRepository.GetUser(middlewareUserId);
+            if (databaseUser == null
+                || databaseUser.Id != middlewareUserId
+                || databaseUser.IsDeleted
+                || databaseUser.IsSuspended)
+            {
+                return (null, null);
+            }
+
+            var member = await _organizationMemberRepository.GetMemberAsync(organizationId.Value, middlewareUserId);
             return member is { IsActive: true }
-                ? (organizationId, userId)
-                : (null, userId);
+                ? (organizationId, middlewareUserId)
+                : (null, null);
         }
 
         private IActionResult PercyResult<T>(ServiceResponse<T> response) =>

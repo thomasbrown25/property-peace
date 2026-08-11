@@ -25,6 +25,7 @@ namespace brownstone_hub_api.Data
             RejectScreeningDeletionEvidenceMutation();
             RejectAppendOnly<ConversationTimelineEntry>();
             RejectAppendOnly<MaintenanceActivityEvent>();
+            RejectAppendOnly<ActivationMilestoneOccurrence>();
             RejectInvalidMessageDeliveryEvidenceMutation();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
@@ -37,6 +38,7 @@ namespace brownstone_hub_api.Data
             RejectScreeningDeletionEvidenceMutation();
             RejectAppendOnly<ConversationTimelineEntry>();
             RejectAppendOnly<MaintenanceActivityEvent>();
+            RejectAppendOnly<ActivationMilestoneOccurrence>();
             RejectInvalidMessageDeliveryEvidenceMutation();
             var now = DateTime.Now;
 
@@ -192,6 +194,7 @@ namespace brownstone_hub_api.Data
 
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<ActivationMilestoneOccurrence> ActivationMilestoneOccurrences => Set<ActivationMilestoneOccurrence>();
         public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
         public DbSet<ImpersonationSession> ImpersonationSessions => Set<ImpersonationSession>();
         public DbSet<ImpersonationAuditRecord> ImpersonationAuditRecords => Set<ImpersonationAuditRecord>();
@@ -392,6 +395,7 @@ namespace brownstone_hub_api.Data
         public DbSet<PercyMessage> PercyMessages => Set<PercyMessage>();
         public DbSet<PercyActionConfirmation> PercyActionConfirmations => Set<PercyActionConfirmation>();
         public DbSet<PercyAuditRecord> PercyAuditRecords => Set<PercyAuditRecord>();
+        public DbSet<PercyChatOperation> PercyChatOperations => Set<PercyChatOperation>();
 
         // Time Tracking
         public DbSet<StaffMember> StaffMembers => Set<StaffMember>();

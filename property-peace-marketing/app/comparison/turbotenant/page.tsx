@@ -28,48 +28,68 @@ export const metadata: Metadata = applyOttoSeo('/comparison/turbotenant/', {
   },
 });
 
-const checkedOn = 'August 8, 2026';
+const checkedOn = 'August 11, 2026';
+
+const turboPricingUrl = 'https://www.turbotenant.com/pricing/';
+const turboPlansUrl = 'https://support.turbotenant.com/en/articles/4003980-is-there-a-cost-to-sign-up-for-turbotenant';
+const turboLeasesUrl = 'https://support.turbotenant.com/en/articles/4403674-creating-a-lease-agreement';
 
 const costRows = [
   {
-    label: 'Free landlord plan',
-    propertyPeace: '$0 for up to 5 total units',
-    turboTenant: '$0 with unlimited property listings',
-  },
-  {
-    label: 'Paid landlord plan',
-    propertyPeace: 'Premium: $14.99 month-to-month for unlimited units',
-    turboTenant: 'Essentials: $149–$349/year; Pro: $199–$999/year, based on unit tier',
-  },
-  {
-    label: 'Annual billing',
-    propertyPeace: '$152.90/year for Premium (15% below twelve monthly payments)',
-    turboTenant: 'Paid plans are billed annually; published prices rise at 11, 31, and 61+ units',
+    label: 'Landlord subscription',
+    payer: 'Landlord',
+    cadence: 'Monthly or annual (Property Peace); annual (TurboTenant paid plans)',
+    propertyPeace: { cost: 'Free: $0 for up to 5 total units. Premium: $14.99/month for unlimited units; optional annual billing is $152.90/year.', readiness: 'Available. Premium is month-to-month unless the landlord chooses annual billing.' },
+    turboTenant: { cost: 'Free: $0. Essentials: starting at $12.42/month, billed annually at $149. Pro: starting at $16.58/month, billed annually at $199.', readiness: 'Published starting prices and annual totals on the live pricing page; confirm the current unit-tier quote for your portfolio before purchase.', sources: [{ label: 'Plans', href: turboPlansUrl }, { label: 'Pricing', href: turboPricingUrl }] },
   },
   {
     label: 'Applicant screening',
-    propertyPeace: 'Not currently available as an integrated provider workflow',
-    turboTenant: '$55 with a Free landlord; $45 with an upgraded landlord, normally applicant-paid',
+    payer: 'Applicant, normally',
+    cadence: 'Per screening report',
+    propertyPeace: { cost: '$0 charged by Property Peace today', readiness: 'Consumer-report screening is not currently available; provider readiness and configuration are required before launch.' },
+    turboTenant: { cost: '$45 with an upgraded landlord. The live pricing page did not state a Free-landlord screening amount.', readiness: 'Operational according to TurboTenant. Confirm the applicant-facing amount before inviting an applicant.', sources: [{ label: 'Screening', href: 'https://www.turbotenant.com/tenant-screening/' }, { label: 'Pricing', href: turboPricingUrl }] },
   },
   {
     label: 'ACH rent payment',
-    propertyPeace: 'No in-platform payment processing currently available',
-    turboTenant: '$2 on Free; official plan details identify waived ACH as Pro-only',
+    payer: 'Renter on fee-bearing plans',
+    cadence: 'Per payment',
+    propertyPeace: { cost: 'No transaction fee because payments are not being processed', readiness: 'Stripe online rent processing is suspended and not currently available.' },
+    turboTenant: { cost: 'Free ACH is shown in the live renter-pricing section for upgraded landlords.', readiness: 'The public page does not make the applicable upgraded plan unambiguous in extracted text; confirm the plan and payment screen before relying on waived ACH.', sources: [{ label: 'Plans', href: turboPlansUrl }, { label: 'Rent payments', href: 'https://www.turbotenant.com/collect-rent-payments-online/' }] },
   },
   {
     label: 'Card rent payment',
-    propertyPeace: 'No in-platform payment processing currently available',
-    turboTenant: '3.49% convenience fee on the published renter-cost table',
+    payer: 'Renter',
+    cadence: 'Per payment',
+    propertyPeace: { cost: 'No transaction fee because payments are not being processed', readiness: 'Stripe online rent processing is suspended and not currently available.' },
+    turboTenant: { cost: '3.49% credit/debit-card fee on the live renter-pricing table.', readiness: 'Operational according to TurboTenant; confirm the fee displayed at checkout.', sources: [{ label: 'Pricing', href: turboPricingUrl }, { label: 'Rent payments', href: 'https://www.turbotenant.com/collect-rent-payments-online/' }] },
   },
   {
-    label: 'Optional renter products',
-    propertyPeace: 'No required renter subscription or partner-product bundle',
-    turboTenant: 'Rent reporting: $4.99/month; renters insurance through SURE starts at $11/month on the current pricing page',
+    label: 'Integrated e-signature',
+    payer: 'Landlord',
+    cadence: 'Included by plan or add-on',
+    propertyPeace: { cost: '$0 charged for an integration today', readiness: 'Not currently available. Plan entitlement does not mean a live workflow; provider readiness and configuration are required.' },
+    turboTenant: { cost: 'Paid plan required to finalize, print, download, or send a drafted lease; unlimited e-signatures are Pro.', readiness: 'Available with plan and document-scope limits. Confirm the plan needed for your document.', sources: [{ label: 'Lease guide', href: turboLeasesUrl }, { label: 'Plans', href: turboPlansUrl }] },
   },
   {
-    label: 'Lease/forms access',
-    propertyPeace: 'Lease records and document storage are available; integrated e-signature currently requires configuration',
-    turboTenant: 'Free can build/save a lease draft; a paid plan is required to finalize, print, download, or send. Forms Pack is $199 on Free.',
+    label: 'SMS messaging',
+    payer: 'Landlord',
+    cadence: 'Included entitlement; no separate public add-on price',
+    propertyPeace: { cost: 'One organization SMS number is included with Premium.', readiness: 'Operational only with an active configured number. Premium entitlement alone does not activate SMS.' },
+    turboTenant: { cost: 'No separate SMS price verified in the cited pricing snapshot.', readiness: 'Messaging scope may vary by workflow; confirm directly with TurboTenant.', sources: [{ label: 'Plans', href: turboPlansUrl }] },
+  },
+  {
+    label: 'Optional add-ons',
+    payer: 'Landlord or renter who elects the product',
+    cadence: 'One-time or monthly',
+    propertyPeace: { cost: 'No public paid add-on required for the workflows compared here.', readiness: 'Unavailable provider workflows are not presented as purchasable add-ons.' },
+    turboTenant: { cost: 'Landlord Forms Pack: $199 in the live comparison table; rent reporting: $4.99/month; renters insurance through SURE starts at $11/month.', readiness: 'Optional. Confirm Forms Pack plan applicability; insurance pricing varies by applicant, property, and coverage.', sources: [{ label: 'Pricing', href: turboPricingUrl }, { label: 'Rent reporting', href: 'https://www.turbotenant.com/rent-reporting/' }] },
+  },
+  {
+    label: 'Renter costs',
+    payer: 'Renter / applicant',
+    cadence: 'Per report, per payment, or monthly when elected',
+    propertyPeace: { cost: '$0 in required in-platform renter fees today.', readiness: 'This reflects current readiness: no integrated screening, e-signature charge, or online payment processing. External services a renter or landlord chooses may charge separately.' },
+    turboTenant: { cost: 'Potential screening, ACH/card, rent-reporting, and insurance costs shown above.', readiness: 'Not every renter pays every cost. Method, landlord plan, and optional product choices determine the total.', sources: [{ label: 'Pricing', href: turboPricingUrl }] },
   },
 ];
 
@@ -79,9 +99,9 @@ const workflowRows = [
   { workflow: 'External listing syndication', propertyPeace: 'Coming soon—not currently operational', turboTenant: 'Available according to TurboTenant' },
   { workflow: 'Lead records and showings', propertyPeace: 'Available', turboTenant: 'Available, including pre-screeners and reminders' },
   { workflow: 'Digital rental applications', propertyPeace: 'Available', turboTenant: 'Available' },
-  { workflow: 'Integrated tenant screening', propertyPeace: 'Premium-only; currently unavailable pending provider configuration', turboTenant: 'Available with applicant-mediated screening' },
+  { workflow: 'Integrated tenant screening', propertyPeace: 'Not currently available; Premium entitlement remains provider-readiness and configuration dependent', turboTenant: 'Available with applicant-mediated screening' },
   { workflow: 'Lease records and documents', propertyPeace: 'Available', turboTenant: 'Available; finalization/signing requires a paid plan' },
-  { workflow: 'Integrated e-signature', propertyPeace: 'Premium-only; currently unavailable pending e-signature provider configuration', turboTenant: 'Available on paid plans; scope differs by plan' },
+  { workflow: 'Integrated e-signature', propertyPeace: 'Not currently available; Premium entitlement remains provider-readiness and configuration dependent', turboTenant: 'Available on paid plans; scope differs by plan' },
   { workflow: 'Rent records and reminders', propertyPeace: 'Manual rent records and landlord-triggered reminders are available; automated reminders are Premium', turboTenant: 'Available with in-platform payment collection' },
   { workflow: 'Online rent processing', propertyPeace: 'Suspended/not currently available', turboTenant: 'Available with payment-method fees described above' },
   { workflow: 'Expenses and accounting', propertyPeace: 'Basic tracking on Free; advanced accounting/reporting on Premium', turboTenant: 'Basic/manual capabilities vary; advanced accounting is Pro' },
@@ -107,7 +127,7 @@ const pageSchema = {
   name: 'Property Peace vs. TurboTenant: Pricing and Fees',
   description: 'A dated comparison of landlord subscriptions, applicant and tenant costs, portfolio limits, and workflow availability.',
   url: 'https://propertypeace.io/comparison/turbotenant/',
-  dateModified: '2026-08-08',
+  dateModified: '2026-08-11',
   breadcrumb: {
     '@type': 'BreadcrumbList',
     itemListElement: [
@@ -167,7 +187,7 @@ export default function TurboTenantComparisonPage() {
               <ul className="mt-5 space-y-3 text-sm leading-6 text-[#405a70]">
                 <li className="flex gap-2"><FiCheck className="mt-1 h-4 w-4 text-green-700" />Free up to 5 units; no credit card required</li>
                 <li className="flex gap-2"><FiCheck className="mt-1 h-4 w-4 text-green-700" />Premium is $14.99/month for unlimited units</li>
-                <li className="flex gap-2"><FiAlertCircle className="mt-1 h-4 w-4 text-amber-600" />Online payments, external syndication, screening, and integrated e-signature are not all operational today</li>
+                <li className="flex gap-2"><FiAlertCircle className="mt-1 h-4 w-4 text-amber-600" />Online payments, external syndication, screening, and integrated e-signature are not currently operational</li>
               </ul>
             </article>
             <article className="border border-slate-200 bg-white p-7 md:p-8">
@@ -186,13 +206,32 @@ export default function TurboTenantComparisonPage() {
       <section className="bg-white px-4 py-16 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl"><p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-700">Total stakeholder cost</p><h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>What can the rental actually cost?</h2><p className="mt-4 text-lg leading-8 text-[#637083]">Subscription price is only one line. This table separates what the landlord pays from costs that may be paid by an applicant or tenant.</p></div>
-          <div className="mt-9 overflow-x-auto border border-slate-200">
-            <table className="min-w-[820px] w-full border-collapse text-left">
-              <thead className="bg-[#061e35] text-white"><tr><th className="p-4 text-sm font-bold">Cost area</th><th className="p-4 text-sm font-bold">Property Peace</th><th className="p-4 text-sm font-bold">TurboTenant</th></tr></thead>
-              <tbody>{costRows.map((row, index) => <tr key={row.label} className={index % 2 ? 'bg-[#F7F9F8]' : 'bg-white'}><th scope="row" className="w-[24%] border-t border-slate-200 p-4 align-top text-sm font-bold text-primary-main">{row.label}</th><td className="w-[38%] border-t border-slate-200 p-4 align-top text-sm leading-6 text-[#405a70]">{row.propertyPeace}</td><td className="w-[38%] border-t border-slate-200 p-4 align-top text-sm leading-6 text-[#405a70]">{row.turboTenant}</td></tr>)}</tbody>
-            </table>
+          <div className="mt-9 space-y-4">
+            <div className="hidden grid-cols-[1.05fr_0.8fr_1fr_1.55fr_1.55fr] gap-px overflow-hidden border border-slate-200 bg-slate-200 text-xs font-bold uppercase tracking-[0.12em] text-white lg:grid">
+              {['Cost area', 'Who pays', 'Billing cadence', 'Property Peace', 'TurboTenant'].map((heading) => <div key={heading} className="bg-[#061e35] p-4">{heading}</div>)}
+            </div>
+            {costRows.map((row) => (
+              <article key={row.label} className="overflow-hidden border border-slate-200 bg-white shadow-[0_12px_36px_rgba(6,30,53,0.05)]">
+                <div className="grid lg:grid-cols-[1.05fr_0.8fr_1fr_1.55fr_1.55fr]">
+                  <div className="border-b border-slate-200 bg-[#061e35] p-5 text-white lg:border-b-0"><h3 className="font-bold">{row.label}</h3></div>
+                  <div className="border-b border-slate-200 p-5 lg:border-b-0 lg:border-r"><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 lg:hidden">Who pays</p><p className="text-sm font-semibold text-primary-main">{row.payer}</p></div>
+                  <div className="border-b border-slate-200 bg-[#F7F9F8] p-5 lg:border-b-0 lg:border-r"><p className="mb-1 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500 lg:hidden">Billing cadence</p><p className="text-sm leading-6 text-[#405a70]">{row.cadence}</p></div>
+                  <div className="border-b border-slate-200 p-5 lg:border-b-0 lg:border-r">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-green-700 lg:hidden">Property Peace</p>
+                    <p className="text-sm font-bold leading-6 text-primary-main">{row.propertyPeace.cost}</p>
+                    <p className="mt-2 border-l-2 border-amber-400 pl-3 text-xs leading-5 text-[#637083]"><span className="font-bold text-primary-main">Readiness / caveat:</span> {row.propertyPeace.readiness}</p>
+                  </div>
+                  <div className="bg-blue-50/30 p-5">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-[#217eff] lg:hidden">TurboTenant</p>
+                    <p className="text-sm font-bold leading-6 text-primary-main">{row.turboTenant.cost}</p>
+                    <p className="mt-2 border-l-2 border-blue-300 pl-3 text-xs leading-5 text-[#637083]"><span className="font-bold text-primary-main">Readiness / caveat:</span> {row.turboTenant.readiness}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">{row.turboTenant.sources.map((source) => <a key={source.href} href={source.href} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-1.5 border border-blue-200 bg-white px-3 py-2 text-xs font-bold text-blue-800 transition hover:border-blue-400"><FiExternalLink className="h-3 w-3" />{source.label}</a>)}</div>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
-          <div className="mt-5 flex items-start gap-3 border-l-4 border-amber-500 bg-amber-50 p-5 text-sm leading-6 text-amber-950"><FiAlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" /><p className="!text-amber-950">TurboTenant’s broad “upgraded landlord” renter-cost tab shows free ACH, while its detailed plan matrix and Help Center identify waived ACH as Pro-only. We use the narrower Pro-only statement until TurboTenant clarifies the discrepancy.</p></div>
+          <div className="mt-5 flex items-start gap-3 border-l-4 border-amber-500 bg-amber-50 p-5 text-sm leading-6 text-amber-950"><FiAlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" /><p className="!text-amber-950"><strong>Official-source uncertainty:</strong> TurboTenant’s live pricing page was checked on {checkedOn}. It publishes annual billing for paid landlord plans and renter costs, but extracted page text does not make the Free-plan screening amount or waived-ACH plan boundary unambiguous. Those entries are labeled for checkout confirmation rather than inferred.</p></div>
         </div>
       </section>
 

@@ -3,6 +3,7 @@ using brownstone_hub_api.Repositories.Payments;
 using brownstone_hub_api.Services.AccountMappingService;
 using brownstone_hub_api.Services.GeneralLedgerService;
 using brownstone_hub_api.Services.PaymentService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using brownstone_hub_api.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
@@ -75,6 +76,37 @@ namespace brownstone_hub_api.Tests.Services.Payments
 
             result.Success.Should().BeFalse();
             result.Message.Should().NotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public async Task AddManualPayment_RecordsOnlyPositiveRentUsingServerOccurrenceTime()
+        {
+            var now = new DateTimeOffset(2026, 8, 11, 10, 0, 0, TimeSpan.Zero);
+            _context.Properties.Add(new Models.Property { Id = 80, Name = "Authorized", OrganizationId = 10 });
+            _context.Units.Add(new Models.Unit { Id = 81, PropertyId = 80, Name = "Main" });
+            _context.Leases.Add(new Models.Lease { Id = 82, UnitId = 81 });
+            await _context.SaveChangesAsync();
+            var dto = new AddPaymentDto
+            {
+                LeaseId = 82, Amount = 100m, PaymentDate = now.AddYears(-1).UtcDateTime,
+                Method = "Manual Entry", Status = "Completed"
+            };
+            _repo.Setup(r => r.AddPayment(dto)).ReturnsAsync([MakePaymentDto(91, 100m)]);
+            var service = new PaymentService(_repo.Object, _accountMapping.Object, _ledger.Object, _context,
+                Mock.Of<ILogger<PaymentService>>(), new ActivationOccurrenceRecorder(_context, new FixedTime(now)), new FixedTime(now));
+
+            (await service.AddManualPayment(dto, 10)).Success.Should().BeTrue();
+            var occurrence = _context.ActivationMilestoneOccurrences.Should().ContainSingle().Subject;
+            occurrence.OrganizationId.Should().Be(10);
+            occurrence.Milestone.Should().Be(ActivationMilestones.FirstRentRecordedOrPaid);
+            occurrence.SubjectId.Should().Be("lease:82");
+            occurrence.SourceEventType.Should().Be("manual_payment");
+            occurrence.SourceEventId.Should().Be("91");
+            occurrence.OccurredAtUtc.Should().Be(now.UtcDateTime);
+
+            _repo.Setup(r => r.AddPayment(It.Is<AddPaymentDto>(x => x.Amount == 0))).ReturnsAsync([MakePaymentDto(92, 0m)]);
+            await service.AddManualPayment(new AddPaymentDto { LeaseId = 82, Amount = 0, Status = "Completed" }, 10);
+            _context.ActivationMilestoneOccurrences.Should().ContainSingle();
         }
 
         [Fact]
@@ -392,6 +424,11 @@ namespace brownstone_hub_api.Tests.Services.Payments
 
             result.Success.Should().BeTrue();
             result.Data.Should().HaveCount(1);
+        }
+
+        private sealed class FixedTime(DateTimeOffset now) : TimeProvider
+        {
+            public override DateTimeOffset GetUtcNow() => now;
         }
     }
 }

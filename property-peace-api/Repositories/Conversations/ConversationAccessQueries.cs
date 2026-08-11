@@ -7,15 +7,17 @@ public static class ConversationAccessQueries
     public static IQueryable<Conversation> WhereActiveParticipant(
         this IQueryable<Conversation> conversations,
         IQueryable<OrganizationMember> organizationMembers,
+        IQueryable<Tenant> tenants,
         long userId) => conversations.Where(c =>
             c.OrganizationId != null &&
             c.Participants.Any(p => p.UserId == userId && !p.IsDeleted) &&
             (organizationMembers.Any(m =>
                  m.OrganizationId == c.OrganizationId &&
                  m.UserId == userId &&
-                 m.IsActive) ||
-             (c.Tenant != null &&
-              c.Tenant.UserId == userId &&
-              !c.Tenant.IsDeleted &&
-              c.Tenant.OrganizationId == c.OrganizationId)));
+                 m.IsActive &&
+                 (m.Role == "Owner" || m.Role == "Manager" || m.Role == "Viewer")) ||
+             tenants.Any(t =>
+                 t.UserId == userId &&
+                 !t.IsDeleted &&
+                 t.OrganizationId == c.OrganizationId)));
 }

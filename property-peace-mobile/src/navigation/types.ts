@@ -53,5 +53,5 @@ export type LeasesStackParamList = {
 
 export type MessagesStackParamList = {
   MessagesList: undefined;
-  ConversationDetail: { conversationId: string };
+  ConversationDetail: { conversationId: string; selectedConversation?: import('../features/messages/messagesModel').ConversationSummary };
 };

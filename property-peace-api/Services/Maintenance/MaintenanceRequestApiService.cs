@@ -5,6 +5,7 @@ using brownstone_hub_api.Dtos.Maintenance;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.MaintenanceTriage;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Services.Maintenance;
@@ -68,7 +69,8 @@ public sealed partial class MaintenanceRequestApiService(
     IMaintenanceActorAccessor actors,
     MaintenanceTriagePolicyV1 triagePolicy,
     TimeProvider timeProvider,
-    IMaintenanceActivityService? activity = null) : IMaintenanceRequestApiService
+    IMaintenanceActivityService? activity = null,
+    IActivationOccurrenceRecorder? activationRecorder = null) : IMaintenanceRequestApiService
 {
     private static readonly JsonSerializerOptions StoredJson = new(JsonSerializerDefaults.Web)
     {

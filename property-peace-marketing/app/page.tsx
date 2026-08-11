@@ -19,8 +19,8 @@ import ResourceHighlights from '@/components/Sections/ResourceHighlights';
 import Pricing from '@/components/Sections/Pricing';
 
 export const metadata: Metadata = applyOttoSeo('/', {
-  title: '#1 Free Rental Management Software | Property Peace',
-  description: 'The #1 free rental management software for independent landlords. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
+  title: 'Free Rental Management Software | Property Peace',
+  description: 'Free rental management software for independent landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
 });
 
 export default function Home() {

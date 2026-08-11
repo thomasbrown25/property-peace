@@ -1,5 +1,59 @@
 export type ConversationFilter = 'inbox' | 'unread' | 'archived';
 
+export type MessagesAudience = 'tenant' | 'landlord' | 'admin' | 'unsupported';
+
+export interface MessagingScopeGeneration {
+  scope: string;
+  generation: number;
+}
+
+export function advanceMessagingScopeGeneration(previous: MessagingScopeGeneration | undefined, scope: string): MessagingScopeGeneration {
+  if (previous?.scope === scope) return previous;
+  return { scope, generation: (previous?.generation ?? 0) + 1 };
+}
+
+export function isMessagingOperationCurrent(captured: MessagingScopeGeneration, current: MessagingScopeGeneration): boolean {
+  return captured.scope === current.scope && captured.generation === current.generation;
+}
+
+export function getMessagesAudience(user: any): MessagesAudience {
+  const activeRole = user?.currentOrganizationRole ?? user?.CurrentOrganizationRole;
+  const roleValue = activeRole ? [activeRole] : user?.roles ?? user?.Roles ?? user?.role ?? user?.Role ?? [];
+  const roles = (Array.isArray(roleValue) ? roleValue : [roleValue]).map(String).map((role) => role.toLowerCase());
+  if (roles.length !== 1) return 'unsupported';
+  if (roles[0] === 'tenant') return 'tenant';
+  if (['landlord', 'owner', 'manager'].includes(roles[0])) return 'landlord';
+  if (roles[0] === 'admin') return 'admin';
+  return 'unsupported';
+}
+
+export function buildMessagingScopeKey(user: any, audience: MessagesAudience, conversationId?: string | number): string {
+  const userId = user?.id ?? user?.Id ?? 'anonymous';
+  const organizationId = user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? 'none';
+  const base = `${String(userId)}:${String(organizationId)}:${audience}`;
+  return conversationId === undefined ? base : `${base}:${String(conversationId)}`;
+}
+
+export function canAccessMessages(audience: MessagesAudience): boolean {
+  return audience !== 'unsupported';
+}
+
+export function getConversationInboxPath(audience: MessagesAudience, includeArchived = false): string {
+  if (!canAccessMessages(audience)) throw new Error('Unsupported messaging audience.');
+  const base = audience === 'tenant'
+    ? '/api/Conversation/tenant/my-conversations'
+    : audience === 'admin' ? '/api/Conversation/admin/conversations' : '/api/Conversation';
+  return `${base}?includeArchived=${includeArchived}`;
+}
+
+export function getMessageCapabilities(audience: MessagesAudience) {
+  const staff = audience === 'landlord' || audience === 'admin';
+  return {
+    createGroup: staff, manageGroup: staff, quickReplies: staff,
+    followUps: staff, archive: staff, pin: staff,
+  };
+}
+
 export interface ConversationSummary {
   id: string | number;
   title?: string;
@@ -82,6 +136,21 @@ export interface TimelineEntry {
 
 export interface TimelinePage { items: TimelineEntry[]; nextCursor: number | null }
 
+export async function loadConversationCore(options: {
+  audience: MessagesAudience;
+  selectedConversation?: ConversationSummary | null;
+  loadConversation: () => Promise<ConversationSummary>;
+  loadTimeline: () => Promise<TimelinePage>;
+}): Promise<{ conversation: ConversationSummary | null; timeline: TimelinePage }> {
+  if (!canAccessMessages(options.audience)) throw new Error('Unsupported messaging audience.');
+  if (options.audience !== 'tenant') {
+    const [conversation, timeline] = await Promise.all([options.loadConversation(), options.loadTimeline()]);
+    return { conversation, timeline };
+  }
+  const timeline = await options.loadTimeline();
+  return { conversation: options.selectedConversation ?? null, timeline };
+}
+
 const KINDS: Record<string, string> = {
   message: 'Message', inboundSms: 'SMS', outboundSms: 'SMS', inboundEmail: 'Email', outboundEmail: 'Email',
   maintenance: 'Maintenance', payment: 'Payment', lease: 'Lease', reminder: 'Reminder', percyFollowUp: 'Follow-up', system: 'Update',
@@ -115,6 +184,12 @@ export function normalizeTimelinePage(payload: unknown): TimelinePage | null {
   if (page.nextCursor !== null && page.nextCursor !== undefined && !Number.isInteger(page.nextCursor)) return null;
   if (!Object.prototype.hasOwnProperty.call(page, 'nextCursor')) return null;
   return { items: page.items, nextCursor: page.nextCursor ?? null };
+}
+
+export function filterTimelineForAudience(items: TimelineEntry[], audience: MessagesAudience): TimelineEntry[] {
+  if (audience === 'unsupported') return [];
+  if (audience !== 'tenant') return items;
+  return items.filter((item) => item.visibility.toLowerCase() === 'participants');
 }
 
 export function getDeliveryPresentation(delivery: Partial<TimelineDelivery>) {

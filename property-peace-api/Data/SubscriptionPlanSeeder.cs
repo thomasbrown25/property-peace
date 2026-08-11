@@ -29,7 +29,7 @@ namespace brownstone_hub_api.Data
                     MaxTotalUnits = null,
                     MonthlyPrice = 14.99m,
                     AnnualPrice = 152.90m,
-                    Features = "[\"Everything in Free\", \"Unlimited units\", \"Multiple active external listings (coming soon)\", \"Online rent collection\", \"Automated rent reminders\", \"Advanced accounting and Schedule E\", \"Reports and analytics\", \"Occupancy tracking\", \"Rent estimates\", \"LeaseShield\", \"Percy Pilot workflows\", \"Priority support\"]",
+                    Features = "[\"Everything in Free\", \"Unlimited units\", \"Multiple active external listings (coming soon)\", \"Online rent collection\", \"Automated rent reminders\", \"Advanced accounting and Schedule E\", \"Reports and analytics\", \"Occupancy tracking\", \"Rent estimates\", \"LeaseShield\", \"Percy Pilot workflows\"]",
                     IsActive = true,
                     IsTrial = false,
                 },
@@ -65,9 +65,24 @@ namespace brownstone_hub_api.Data
                 existing.Description = desired.Description;
                 existing.MaxProperties = desired.MaxProperties;
                 existing.MaxTotalUnits = desired.MaxTotalUnits;
+                // Stripe price IDs are immutable amount mappings. If the stored catalog amount
+                // disagrees with the canonical product price, clear the unverified provider mapping
+                // before synchronizing the public amount. Checkout then fails closed until an
+                // explicit provider sync installs a verified mapping for that amount.
+                if (existing.MonthlyPrice != desired.MonthlyPrice
+                    && !string.IsNullOrWhiteSpace(existing.StripePriceIdMonthly))
+                {
+                    existing.StripePriceIdMonthly = null;
+                }
+                if (existing.AnnualPrice != desired.AnnualPrice
+                    && !string.IsNullOrWhiteSpace(existing.StripePriceIdAnnual))
+                {
+                    existing.StripePriceIdAnnual = null;
+                }
                 existing.MonthlyPrice = desired.MonthlyPrice;
                 existing.AnnualPrice = desired.AnnualPrice;
                 existing.Features = desired.Features;
+                existing.IsTrial = desired.IsTrial;
                 existing.UpdatedAt = DateTime.Now;
             }
 

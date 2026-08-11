@@ -188,7 +188,7 @@ export default function Header({ hideAuthButtons = false, hideNavigationLinks = 
                   {!isLoggedIn && (
                     <AnimateButton>
                       <Button component={RouterLink} to="/register" disableElevation color="primary" variant="contained">
-                        Free Trial
+                        Start free
                       </Button>
                     </AnimateButton>
                   )}
@@ -215,7 +215,7 @@ export default function Header({ hideAuthButtons = false, hideNavigationLinks = 
                       size="small"
                       sx={{ minWidth: 'auto', px: 1.5 }}
                     >
-                      Free Trial
+                      Start free
                     </Button>
                   )}
                   {isLoggedIn && (

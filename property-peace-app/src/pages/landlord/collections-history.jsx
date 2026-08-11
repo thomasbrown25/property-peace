@@ -129,8 +129,7 @@ export default function CollectionsHistory() {
             <PageBreadcrumbs
               items={[
                 { label: 'Dashboard', path: '/landlord/dashboard' },
-                { label: 'Percy', path: '/landlord/ai-center' },
-                { label: 'Collections Agent', path: '/landlord/ai-center/collections-agent' },
+                { label: 'Rent collection', path: '/landlord/rent-collection' },
                 { label: 'History' }
               ]}
             />
@@ -150,9 +149,9 @@ export default function CollectionsHistory() {
                 <HistoryOutlined style={{ fontSize: 26, color: theme.palette.primary.main }} />
               </Box>
               <Box>
-                <Typography variant="h3" fontWeight={700}>Collections History</Typography>
+                <Typography variant="h3" fontWeight={700}>Rent Collection History</Typography>
                 <Typography variant="body1" color="text.secondary">
-                  All actions taken by the Collections Agent across your leases.
+                  Rent follow-up and collection activity across your leases.
                 </Typography>
               </Box>
             </Stack>
@@ -174,7 +173,7 @@ export default function CollectionsHistory() {
               <Box sx={{ py: 6, textAlign: 'center' }}>
                 <HistoryOutlined style={{ fontSize: 36, color: theme.palette.text.disabled, marginBottom: 8 }} />
                 <Typography variant="body2" color="text.secondary">
-                  No collections history yet. Run the Collections Agent to get started.
+                  Rent collection activity will appear here as follow-ups are recorded.
                 </Typography>
               </Box>
             ) : (

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -10,7 +10,7 @@ import MessageAPI from '../../api/messageAPI';
 import signalRService from '../../services/signalRService';
 import { RootState } from '../../store';
 import * as Crypto from 'expo-crypto';
-import { ConversationSummary, TimelineEntry, getConversationPresentation, getTimelineEntryPresentation, mergeTimelinePages, normalizeTimelinePage, selectReadThroughSequence } from '../../features/messages/messagesModel';
+import { advanceMessagingScopeGeneration, buildMessagingScopeKey, canAccessMessages, ConversationSummary, filterTimelineForAudience, TimelineEntry, getConversationPresentation, getMessageCapabilities, getMessagesAudience, getTimelineEntryPresentation, isMessagingOperationCurrent, loadConversationCore, mergeTimelinePages, MessagingScopeGeneration, normalizeTimelinePage, selectReadThroughSequence } from '../../features/messages/messagesModel';
 import GroupConversationDialog from '../../components/messages/GroupConversationDialog';
 
 type DetailRoute = RouteProp<MessagesStackParamList, 'ConversationDetail'>;
@@ -18,7 +18,7 @@ type Navigation = NativeStackNavigationProp<MessagesStackParamList, 'Conversatio
 const MAX_MESSAGE_LENGTH = 2000;
 
 export default function ConversationDetailScreen() {
-  const { conversationId } = useRoute<DetailRoute>().params;
+  const { conversationId, selectedConversation } = useRoute<DetailRoute>().params;
   const navigation = useNavigation<Navigation>();
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   const listRef = useRef<FlatList<TimelineEntry>>(null);
@@ -38,11 +38,26 @@ export default function ConversationDetailScreen() {
   const [followUpEntry, setFollowUpEntry] = useState<TimelineEntry | null>(null);
   const [followUpTitle, setFollowUpTitle] = useState('');
   const [groupDialogVisible, setGroupDialogVisible] = useState(false);
+  const [loadedScope, setLoadedScope] = useState<string | null>(null);
   const retrySend = useRef<{ content: string; clientRequestId: string } | null>(null);
+  const requestSequence = useRef(0);
+  const coreLoadInFlight = useRef(0);
+  const currentScopeRef = useRef('');
+  const scopeGenerationRef = useRef<MessagingScopeGeneration | undefined>(undefined);
   const organizationId = currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId;
   const currentUserId = currentUser?.id ?? currentUser?.Id;
+  const audience = getMessagesAudience(currentUser);
+  const dataScope = buildMessagingScopeKey(currentUser, audience, conversationId);
+  const scopeGeneration = advanceMessagingScopeGeneration(scopeGenerationRef.current, dataScope);
+  scopeGenerationRef.current = scopeGeneration;
+  currentScopeRef.current = dataScope;
+  const selectedConversationScope = useRef(dataScope);
+  const hasMessageAccess = canAccessMessages(audience);
+  const capabilities = getMessageCapabilities(audience);
+  const scopeIsCurrent = loadedScope === dataScope;
 
-  const markVisibleRead = useCallback(async (items: TimelineEntry[]) => {
+  const markVisibleRead = useCallback(async (items: TimelineEntry[], requestScope: string) => {
+    if (currentScopeRef.current !== requestScope) return;
     const through = selectReadThroughSequence(items);
     if (through !== null) {
       try { await ConversationAPI.markTimelineRead(conversationId, through); } catch { /* Reading must not block the thread. */ }
@@ -50,70 +65,128 @@ export default function ConversationDetailScreen() {
   }, [conversationId]);
 
   const load = useCallback(async (refresh = false) => {
+    const requestScope = dataScope;
+    const operation = scopeGeneration;
+    const requestId = ++requestSequence.current;
+    if (!hasMessageAccess || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
+    coreLoadInFlight.current += 1;
     refresh ? setRefreshing(true) : setLoading(true);
     try {
-      const [conversationResult, rawPage] = await Promise.all([
-        ConversationAPI.getConversation(conversationId),
-        timelineQuery.trim() || timelineChannel
+      const { conversation: conversationResult, timeline: rawPage } = await loadConversationCore({
+        audience,
+        selectedConversation: selectedConversationScope.current === requestScope ? selectedConversation : null,
+        loadConversation: () => ConversationAPI.getConversation(conversationId),
+        loadTimeline: () => timelineQuery.trim() || timelineChannel
           ? ConversationAPI.searchTimeline(conversationId, timelineQuery, timelineChannel)
           : ConversationAPI.getTimeline(conversationId),
-      ]);
+      });
+      if (requestId !== requestSequence.current || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       const page = normalizeTimelinePage(rawPage);
       if (!page) throw new Error('The conversation returned an unsupported timeline.');
-      setConversation(conversationResult); setEntries(page.items); setNextCursor(page.nextCursor); setError(null);
-      void markVisibleRead(page.items);
-      if (organizationId) {
-        ConversationAPI.getQuickReplies(organizationId).then((items) => setQuickReplies(items.filter((item) => item.isActive))).catch(() => setQuickReplies([]));
-        ConversationAPI.getFollowUps(organizationId, conversationId).then(setFollowUps).catch(() => setFollowUps([]));
+      const visibleItems = filterTimelineForAudience(page.items, audience);
+      setConversation(conversationResult); setEntries(visibleItems); setNextCursor(page.nextCursor); setError(null); setLoadedScope(requestScope);
+      void markVisibleRead(visibleItems, requestScope);
+      if (capabilities.quickReplies && organizationId) {
+        ConversationAPI.getQuickReplies(organizationId).then((items) => {
+          if (requestId === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setQuickReplies(items.filter((item) => item.isActive));
+        }).catch(() => {
+          if (requestId === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setQuickReplies([]);
+        });
+        ConversationAPI.getFollowUps(organizationId, conversationId).then((items) => {
+          if (requestId === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setFollowUps(items);
+        }).catch(() => {
+          if (requestId === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setFollowUps([]);
+        });
+      } else {
+        setQuickReplies([]); setFollowUps([]);
       }
-      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+      requestAnimationFrame(() => {
+        if (requestId === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) listRef.current?.scrollToEnd({ animated: false });
+      });
     } catch (loadError: any) {
+      if (requestId !== requestSequence.current || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
+      setConversation(null); setEntries([]); setNextCursor(null); setQuickReplies([]); setFollowUps([]);
+      setFollowUpEntry(null); setGroupDialogVisible(false); setLoadedScope(requestScope);
       setError(loadError?.message || 'This conversation could not be loaded.');
-    } finally { setLoading(false); setRefreshing(false); }
-  }, [conversationId, currentUser, markVisibleRead, timelineChannel, timelineQuery]);
+    } finally {
+      coreLoadInFlight.current = Math.max(0, coreLoadInFlight.current - 1);
+      if (requestId === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) {
+        setLoading(false); setRefreshing(false);
+      }
+    }
+  }, [audience, capabilities.quickReplies, conversationId, dataScope, hasMessageAccess, markVisibleRead, organizationId, scopeGeneration, selectedConversation, timelineChannel, timelineQuery]);
 
+  useEffect(() => {
+    requestSequence.current += 1;
+    setConversation(null); setEntries([]); setNextCursor(null); setQuickReplies([]); setFollowUps([]); setError(null);
+    setFollowUpEntry(null); setFollowUpTitle(''); setGroupDialogVisible(false); setDraft(''); retrySend.current = null;
+    setLoading(true); setRefreshing(false); setLoadingMore(false); setSending(false); setLoadedScope(null);
+  }, [dataScope]);
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
+    if (!hasMessageAccess) return undefined;
+    const realtimeScope = dataScope;
+    const realtimeOperation = scopeGeneration;
     let active = true;
+    let subscribed = false;
+    const isCurrentRealtimeScope = () => active && currentScopeRef.current === realtimeScope && !!scopeGenerationRef.current && isMessagingOperationCurrent(realtimeOperation, scopeGenerationRef.current);
     const onUpdate = (payload: any) => {
-      if (active && String(payload?.conversationId ?? payload?.ConversationId) === String(conversationId)) void load(true);
+      if (isCurrentRealtimeScope() && String(payload?.conversationId ?? payload?.ConversationId) === String(conversationId)) void load(true);
     };
-    const onListUpdate = () => { if (active) void load(true); };
+    const onListUpdate = () => { if (isCurrentRealtimeScope()) void load(true); };
     (async () => {
       try {
-        const connection = await signalRService.connect();
-        if (!active) return;
+        const connection = await signalRService.connect(organizationId);
+        if (!isCurrentRealtimeScope()) return;
         connection.on('MessageReceived', onUpdate);
         connection.on('ConversationListUpdated', onListUpdate);
-        await connection.invoke('JoinConversation', Number(conversationId));
+        const subscription = signalRService.subscribeToConversation(organizationId, Number(conversationId));
+        subscribed = true;
+        await subscription;
+        if (!isCurrentRealtimeScope() && subscribed) {
+          subscribed = false;
+          void signalRService.unsubscribeFromConversation(organizationId, Number(conversationId)).catch(() => undefined);
+        }
       } catch { /* The REST thread remains fully usable offline from SignalR. */ }
     })();
     return () => {
       active = false;
       const connection = signalRService.getConnection();
       connection?.off('MessageReceived', onUpdate); connection?.off('ConversationListUpdated', onListUpdate);
-      if (connection && signalRService.isConnected()) void connection.invoke('LeaveConversation', Number(conversationId)).catch(() => undefined);
+      if (subscribed) {
+        subscribed = false;
+        void signalRService.unsubscribeFromConversation(organizationId, Number(conversationId)).catch(() => undefined);
+      }
     };
-  }, [conversationId, load]);
+  }, [conversationId, dataScope, hasMessageAccess, load, organizationId, scopeGeneration]);
 
-  useEffect(() => {
-    const card = conversation ? getConversationPresentation(conversation) : null;
-    if (card) navigation.setOptions({ title: card.title });
-  }, [conversation, navigation]);
+  useLayoutEffect(() => {
+    const card = scopeIsCurrent && conversation ? getConversationPresentation(conversation) : null;
+    navigation.setOptions({ title: card?.title ?? 'Conversation' });
+  }, [conversation, navigation, scopeIsCurrent]);
 
   const loadMore = async () => {
-    if (nextCursor === null || loadingMore) return;
+    const actionScope = dataScope;
+    const operation = scopeGeneration;
+    const generation = requestSequence.current;
+    if (!hasMessageAccess || !scopeIsCurrent || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current) || nextCursor === null || loadingMore || loading || refreshing || coreLoadInFlight.current > 0) return;
     setLoadingMore(true);
     try {
       const page = normalizeTimelinePage(await ConversationAPI.getTimeline(conversationId, nextCursor));
+      if (generation !== requestSequence.current || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       if (!page) throw new Error('Unsupported timeline page.');
-      const merged = mergeTimelinePages(entries, page.items);
-      setEntries(merged); setNextCursor(page.nextCursor); setError(null); void markVisibleRead(merged);
-    } catch (loadError: any) { setError(loadError?.message || 'More activity could not be loaded.'); }
-    finally { setLoadingMore(false); }
+      const merged = mergeTimelinePages(entries, filterTimelineForAudience(page.items, audience));
+      setEntries(merged); setNextCursor(page.nextCursor); setError(null); void markVisibleRead(merged, actionScope);
+    } catch (loadError: any) {
+      if (generation === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setError(loadError?.message || 'More activity could not be loaded.');
+    } finally {
+      if (generation === requestSequence.current && scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setLoadingMore(false);
+    }
   };
 
   const send = async () => {
+    const operation = scopeGeneration;
+    if (!hasMessageAccess || !scopeIsCurrent || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
     const content = draft.trim();
     if (!content || sending || content.length > MAX_MESSAGE_LENGTH) return;
     const attempt = retrySend.current?.content === content
@@ -123,15 +196,21 @@ export default function ConversationDetailScreen() {
     setSending(true); setDraft(''); setError(null);
     try {
       await MessageAPI.addMessage({ conversationId, content, clientRequestId: attempt.clientRequestId });
+      if (!scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       retrySend.current = null;
       await load(true);
     } catch (sendError: any) {
-      setDraft(content); setError(sendError?.message || 'Message could not be sent. Please try again.');
-    } finally { setSending(false); }
+      if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) {
+        setDraft(content); setError(sendError?.message || 'Message could not be sent. Please try again.');
+      }
+    } finally {
+      if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setSending(false);
+    }
   };
 
   const createContextualFollowUp = async () => {
-    if (!followUpEntry?.context || !followUpTitle.trim() || !organizationId || !currentUserId) return;
+    const operation = scopeGeneration;
+    if (!capabilities.followUps || !scopeIsCurrent || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current) || !followUpEntry?.context || !followUpTitle.trim() || !organizationId || !currentUserId) return;
     try {
       const created = await ConversationAPI.createFollowUp({
         organizationId, conversationId: Number(conversationId), timelineEntryId: followUpEntry.id,
@@ -139,31 +218,48 @@ export default function ConversationDetailScreen() {
         assigneeUserId: currentUserId, title: followUpTitle.trim(),
         dueAtUtc: new Date(Date.now() + 86400000).toISOString(), idempotencyKey: Crypto.randomUUID(),
       });
+      if (!scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
       setFollowUps((items) => [...items, created]); setFollowUpEntry(null); setFollowUpTitle('');
-    } catch (actionError: any) { setError(actionError?.message || 'Follow-up could not be created.'); }
+    } catch (actionError: any) {
+      if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setError(actionError?.message || 'Follow-up could not be created.');
+    }
   };
 
   const completeFollowUp = async (task: FollowUpTask) => {
+    const operation = scopeGeneration;
+    if (!capabilities.followUps || !scopeIsCurrent || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
     try {
       const completed = await ConversationAPI.completeFollowUp(task.id, task.rowVersion);
-      setFollowUps((items) => items.map((item) => item.id === task.id ? completed : item));
-    } catch (actionError: any) { setError(actionError?.message || 'Follow-up could not be completed.'); }
+      if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setFollowUps((items) => items.map((item) => item.id === task.id ? completed : item));
+    } catch (actionError: any) {
+      if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setError(actionError?.message || 'Follow-up could not be completed.');
+    }
   };
 
-  const toggleArchive = () => Alert.alert(conversation?.isArchived ? 'Restore conversation?' : 'Archive conversation?',
-    conversation?.isArchived ? 'It will return to your inbox.' : 'You can find it under Archived.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: conversation?.isArchived ? 'Restore' : 'Archive', onPress: async () => {
-        try { await ConversationAPI.archiveConversation(conversationId, !conversation?.isArchived); navigation.goBack(); }
-        catch (actionError: any) { setError(actionError?.message || 'Conversation could not be updated.'); }
-      } },
-    ]);
+  const toggleArchive = () => {
+    const operation = scopeGeneration;
+    const archived = !!conversation?.isArchived;
+    if (!capabilities.archive || !scopeIsCurrent || !scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
+    Alert.alert(archived ? 'Restore conversation?' : 'Archive conversation?',
+      archived ? 'It will return to your inbox.' : 'You can find it under Archived.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: archived ? 'Restore' : 'Archive', onPress: async () => {
+          if (!scopeGenerationRef.current || !isMessagingOperationCurrent(operation, scopeGenerationRef.current)) return;
+          try {
+            await ConversationAPI.archiveConversation(conversationId, !archived);
+            if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) navigation.goBack();
+          } catch (actionError: any) {
+            if (scopeGenerationRef.current && isMessagingOperationCurrent(operation, scopeGenerationRef.current)) setError(actionError?.message || 'Conversation could not be updated.');
+          }
+        } },
+      ]);
+  };
 
   const renderEntry = ({ item }: { item: TimelineEntry }) => {
     const entry = getTimelineEntryPresentation(item);
     const outgoing = entry.direction === 'outbound' || (entry.direction === null && String(item.actorUserId) === String(currentUser?.Id ?? currentUser?.id));
     const messageLike = ['message', 'inboundSms', 'outboundSms', 'inboundEmail', 'outboundEmail'].includes(entry.kind);
-    if (!messageLike) return <View style={[styles.activity, entry.isStaffOnly && styles.staffActivity]}><Ionicons name="information-circle-outline" size={16} color="#64748b" /><View style={styles.activityCopy}><Text style={styles.activityKind}>{entry.kindLabel}{entry.isStaffOnly ? ' · STAFF ONLY' : ''}</Text><Text style={styles.activityText}>{entry.summary}</Text>{entry.context && <><Text style={styles.context}>{entry.context.label}</Text><TouchableOpacity onPress={() => setFollowUpEntry(item)}><Text style={styles.followUpLink}>Create follow-up</Text></TouchableOpacity></>}</View></View>;
+    if (!messageLike) return <View style={[styles.activity, entry.isStaffOnly && styles.staffActivity]}><Ionicons name="information-circle-outline" size={16} color="#64748b" /><View style={styles.activityCopy}><Text style={styles.activityKind}>{entry.kindLabel}{entry.isStaffOnly ? ' · STAFF ONLY' : ''}</Text><Text style={styles.activityText}>{entry.summary}</Text>{entry.context && <><Text style={styles.context}>{entry.context.label}</Text>{capabilities.followUps && <TouchableOpacity onPress={() => setFollowUpEntry(item)}><Text style={styles.followUpLink}>Create follow-up</Text></TouchableOpacity>}</>}</View></View>;
     return <View style={[styles.bubbleWrap, outgoing ? styles.outgoingWrap : styles.incomingWrap]}>
       <View style={[styles.bubble, outgoing ? styles.outgoing : styles.incoming]}>
         {!!entry.channelLabel && <Text style={[styles.channel, outgoing && styles.outgoingMuted]}>{entry.channelLabel}</Text>}
@@ -174,31 +270,33 @@ export default function ConversationDetailScreen() {
     </View>;
   };
 
+  if (!hasMessageAccess) return <View style={styles.center}><Ionicons name="lock-closed-outline" size={40} color="#64748b" /><Text style={styles.error}>Messages aren’t available for this role.</Text></View>;
+  if (loadedScope !== dataScope) return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /><Text style={styles.muted}>Loading conversation…</Text></View>;
   if (loading && entries.length === 0) return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /><Text style={styles.muted}>Loading conversation…</Text></View>;
   if (error && entries.length === 0) return <View style={styles.center}><Ionicons name="alert-circle-outline" size={40} color="#b42318" /><Text style={styles.error}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Try again</Text></TouchableOpacity></View>;
   const card = conversation ? getConversationPresentation(conversation) : null;
 
   return <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-    <View style={styles.personBar}><View style={styles.personCopy}><Text style={styles.personName}>{card?.title ?? 'Conversation'}</Text>{!!card?.subtitle && <Text style={styles.personSub} numberOfLines={1}>{card.subtitle}</Text>}</View>{conversation?.isGroupChat && <TouchableOpacity testID="manage-group" accessibilityLabel="Manage group members" style={styles.manageButton} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people-outline" size={18} color="#2563eb" /><Text style={styles.manageText}>Members</Text></TouchableOpacity>}<TouchableOpacity accessibilityLabel={conversation?.isArchived ? 'Restore conversation' : 'Archive conversation'} style={styles.iconButton} onPress={toggleArchive}><Ionicons name={conversation?.isArchived ? 'arrow-undo-outline' : 'archive-outline'} size={20} color="#475569" /></TouchableOpacity></View>
+    <View style={styles.personBar}><View style={styles.personCopy}><Text style={styles.personName}>{card?.title ?? 'Conversation'}</Text>{!!card?.subtitle && <Text style={styles.personSub} numberOfLines={1}>{card.subtitle}</Text>}</View>{capabilities.manageGroup && conversation?.isGroupChat && <TouchableOpacity testID="manage-group" accessibilityLabel="Manage group members" style={styles.manageButton} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people-outline" size={18} color="#2563eb" /><Text style={styles.manageText}>Members</Text></TouchableOpacity>}{capabilities.archive && <TouchableOpacity accessibilityLabel={conversation?.isArchived ? 'Restore conversation' : 'Archive conversation'} style={styles.iconButton} onPress={toggleArchive}><Ionicons name={conversation?.isArchived ? 'arrow-undo-outline' : 'archive-outline'} size={20} color="#475569" /></TouchableOpacity>}</View>
     {!!error && <View style={styles.errorBanner}><Text style={styles.errorBannerText}>{error}</Text><TouchableOpacity onPress={() => setError(null)}><Ionicons name="close" size={18} color="#b42318" /></TouchableOpacity></View>}
     <View style={styles.filters}>
       <TextInput style={styles.searchInput} placeholder="Search timeline" value={timelineQuery} onChangeText={setTimelineQuery} />
       <View style={styles.channelFilters}>{['', 'inApp', 'sms', 'email'].map((value: string) => <TouchableOpacity key={value || 'all'} style={[styles.filterChip, timelineChannel === value && styles.filterChipActive]} onPress={() => setTimelineChannel(value)}><Text style={timelineChannel === value ? styles.filterTextActive : styles.filterText}>{value || 'All'}</Text></TouchableOpacity>)}</View>
     </View>
-    {followUpEntry?.context && <View style={styles.followUpComposer}><Text style={styles.followUpHeading}>Follow up on {followUpEntry.context.label}</Text><TextInput style={styles.searchInput} placeholder="What needs follow-up?" value={followUpTitle} onChangeText={setFollowUpTitle} /><View style={styles.followUpActions}><TouchableOpacity onPress={() => setFollowUpEntry(null)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={!followUpTitle.trim()} onPress={() => void createContextualFollowUp()}><Text style={styles.followUpLink}>Create · due tomorrow</Text></TouchableOpacity></View></View>}
-    {followUps.some((task) => task.status === 'open') && <View style={styles.followUpList}>{followUps.filter((task) => task.status === 'open').map((task) => <View key={task.id} style={styles.followUpRow}><Text style={styles.followUpTask}>{task.title}</Text><TouchableOpacity onPress={() => void completeFollowUp(task)}><Text style={styles.followUpLink}>Complete</Text></TouchableOpacity></View>)}</View>}
+    {capabilities.followUps && followUpEntry?.context && <View style={styles.followUpComposer}><Text style={styles.followUpHeading}>Follow up on {followUpEntry.context.label}</Text><TextInput style={styles.searchInput} placeholder="What needs follow-up?" value={followUpTitle} onChangeText={setFollowUpTitle} /><View style={styles.followUpActions}><TouchableOpacity onPress={() => setFollowUpEntry(null)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={!followUpTitle.trim()} onPress={() => void createContextualFollowUp()}><Text style={styles.followUpLink}>Create · due tomorrow</Text></TouchableOpacity></View></View>}
+    {capabilities.followUps && followUps.some((task) => task.status === 'open') && <View style={styles.followUpList}>{followUps.filter((task) => task.status === 'open').map((task) => <View key={task.id} style={styles.followUpRow}><Text style={styles.followUpTask}>{task.title}</Text><TouchableOpacity onPress={() => void completeFollowUp(task)}><Text style={styles.followUpLink}>Complete</Text></TouchableOpacity></View>)}</View>}
     <FlatList ref={listRef} data={entries} renderItem={renderEntry} keyExtractor={(item) => String(item.id)} contentContainerStyle={[styles.timeline, entries.length === 0 && styles.emptyTimeline]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#2563eb" />}
       ListHeaderComponent={nextCursor !== null ? <TouchableOpacity style={styles.more} disabled={loadingMore} onPress={() => void loadMore()}>{loadingMore ? <ActivityIndicator color="#2563eb" /> : <Text style={styles.moreText}>Load more activity</Text>}</TouchableOpacity> : null}
       ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubble-outline" size={38} color="#94a3b8" /><Text style={styles.emptyTitle}>No activity yet</Text><Text style={styles.muted}>Send a message to start the conversation.</Text></View>}
       onContentSizeChange={() => !loadingMore && listRef.current?.scrollToEnd({ animated: false })} />
-    {quickReplies.length > 0 && <FlatList horizontal data={quickReplies} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickReplies} renderItem={({ item }) => <TouchableOpacity style={styles.quickReply} onPress={() => setDraft(item.body)}><Text style={styles.quickReplyText}>{item.title}</Text></TouchableOpacity>} />}
+    {capabilities.quickReplies && quickReplies.length > 0 && <FlatList horizontal data={quickReplies} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickReplies} renderItem={({ item }) => <TouchableOpacity style={styles.quickReply} onPress={() => setDraft(item.body)}><Text style={styles.quickReplyText}>{item.title}</Text></TouchableOpacity>} />}
     <View style={styles.composer}>
       <TextInput testID="message-composer" style={styles.input} placeholder="Type a message…" placeholderTextColor="#94a3b8" value={draft} onChangeText={setDraft} multiline maxLength={MAX_MESSAGE_LENGTH} accessibilityLabel="Message" />
       <TouchableOpacity testID="send-message" accessibilityLabel="Send message" disabled={!draft.trim() || sending} style={[styles.send, (!draft.trim() || sending) && styles.disabled]} onPress={() => void send()}>{sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="send" size={20} color="#fff" />}</TouchableOpacity>
     </View>
     {draft.length > MAX_MESSAGE_LENGTH - 200 && <Text style={styles.counter}>{draft.length}/{MAX_MESSAGE_LENGTH}</Text>}
-    {conversation?.isGroupChat && <GroupConversationDialog visible={groupDialogVisible} organizationId={organizationId ?? conversation.organizationId} currentUserId={currentUserId} conversation={conversation} onClose={() => setGroupDialogVisible(false)} onChanged={() => void load(true)} onLeft={() => { setGroupDialogVisible(false); navigation.goBack(); }} />}
+    {capabilities.manageGroup && conversation?.isGroupChat && <GroupConversationDialog visible={groupDialogVisible && scopeIsCurrent} organizationId={organizationId ?? conversation.organizationId} currentUserId={currentUserId} conversation={conversation} onClose={() => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) setGroupDialogVisible(false); }} onChanged={() => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) void load(true); }} onLeft={() => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) { setGroupDialogVisible(false); navigation.goBack(); } }} />}
   </KeyboardAvoidingView>;
 }
 

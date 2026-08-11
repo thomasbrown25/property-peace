@@ -15,7 +15,7 @@ const steps = [
   },
   {
     label: 'Reminder sent',
-    caption: 'Send by email; eligible Premium/Lifetime plans include one SMS number, with activation and configuration required.',
+    caption: 'Send by email; Premium includes one SMS number, with activation and configuration required.',
     callout: 'Reminder ready',
   },
   {

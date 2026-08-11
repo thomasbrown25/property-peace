@@ -10,4 +10,8 @@ public sealed record DocuSignConnectUpdate(
     IReadOnlyDictionary<string, DateTime> SignedRecipients,
     DateTime? EventOccurredAt = null);
 
-public sealed record DocuSignConnectApplyResult(bool Applied, int TenantSignaturesUpdated);
+public sealed record DocuSignConnectApplyResult(
+    bool Applied,
+    int TenantSignaturesUpdated,
+    ESignatureStatus? AuthoritativeStatus = null,
+    DateTime? AuthoritativeCompletedAt = null);

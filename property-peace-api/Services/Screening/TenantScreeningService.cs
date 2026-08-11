@@ -6,6 +6,7 @@ using brownstone_hub_api.Domain.Screening;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.Timelines;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -24,13 +25,15 @@ public sealed class TenantScreeningService : ITenantScreeningService
     private readonly ScreeningWebhookProcessingOptions _webhookOptions;
     private readonly IScreeningIncidentRecorder _incidentRecorder;
     private readonly IWorkflowTimelineIntegration? _workflowTimeline;
+    private readonly IActivationOccurrenceRecorder? _activationRecorder;
 
     public TenantScreeningService(DataContext db, IScreeningProviderGateway gateway, IScreeningPolicyResolver policyResolver,
         IScreeningApplicantInvitationDelivery delivery, IScreeningApplicantLinkFactory linkFactory,
         IScreeningCallbackVerifier callbackVerifier, TimeProvider timeProvider,
         ScreeningWebhookProcessingOptions? webhookOptions = null, IScreeningIncidentRecorder? incidentRecorder = null,
         IScreeningQuoteOptionsResolver? quoteOptionsResolver = null,
-        IWorkflowTimelineIntegration? workflowTimeline = null)
+        IWorkflowTimelineIntegration? workflowTimeline = null,
+        IActivationOccurrenceRecorder? activationRecorder = null)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _gateway = gateway ?? throw new ArgumentNullException(nameof(gateway));
@@ -43,6 +46,7 @@ public sealed class TenantScreeningService : ITenantScreeningService
         _webhookOptions = webhookOptions ?? new ScreeningWebhookProcessingOptions();
         _incidentRecorder = incidentRecorder ?? new ScreeningIncidentRecorder(db, timeProvider);
         _workflowTimeline = workflowTimeline;
+        _activationRecorder = activationRecorder;
     }
 
     public async Task<StaffScreeningOrderResult> CreateInvitationAsync(CreateTenantScreeningInvitationCommand command,
@@ -627,7 +631,14 @@ public sealed class TenantScreeningService : ITenantScreeningService
         _db.ScreeningTransitionEvents.Add(Transition(order, from, update.Status, update.OccurredAt, now,
             ScreeningTransitionSource.ProviderPolling, update.ReasonCode,
             update.ProviderSequence.HasValue ? $"poll:{order.Id}:{update.ProviderSequence.Value}" : null, null));
-        await InTransactionAsync(() => _db.SaveChangesAsync(cancellationToken), cancellationToken);
+        await InTransactionAsync(async () =>
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            await RecordScreeningCompletedAsync(order, update.OccurredAt,
+                ScreeningTransitionSource.ProviderPolling,
+                update.ProviderSequence.HasValue ? $"poll:{order.Id}:{update.ProviderSequence.Value}" : null,
+                cancellationToken);
+        }, cancellationToken);
         await RecordStatusTimelineAsync(order, update.Status, null, cancellationToken);
         return new ScreeningCallbackApplyResult(ScreeningCallbackOutcome.Applied, order.Id, order.CurrentRevision);
     }
@@ -740,9 +751,28 @@ public sealed class TenantScreeningService : ITenantScreeningService
         _db.ScreeningTransitionEvents.Add(Transition(order, from, inbox.CanonicalStatus, occurredAt, now,
             ScreeningTransitionSource.ProviderWebhook, inbox.NormalizedReasonCode, inbox.ProviderEventId, null));
         inbox.MarkProcessed(now);
-        await InTransactionAsync(() => _db.SaveChangesAsync(cancellationToken), cancellationToken);
+        await InTransactionAsync(async () =>
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            await RecordScreeningCompletedAsync(order, occurredAt, ScreeningTransitionSource.ProviderWebhook,
+                inbox.ProviderEventId, cancellationToken);
+        }, cancellationToken);
         await RecordStatusTimelineAsync(order, inbox.CanonicalStatus, null, cancellationToken);
         return new ScreeningCallbackApplyResult(ScreeningCallbackOutcome.Applied, order.Id, order.CurrentRevision);
+    }
+
+    private Task RecordScreeningCompletedAsync(TenantScreeningOrder order, DateTimeOffset occurredAt,
+        ScreeningTransitionSource source, string? sourceEventId, CancellationToken cancellationToken)
+    {
+        if (_activationRecorder is null || order.Status != ScreeningStatus.Complete)
+            return Task.CompletedTask;
+        var stableSourceId = sourceEventId ?? $"{source}:{order.Id}:{order.CurrentRevision}";
+        return _activationRecorder.RecordAsync(new ActivationOccurrenceRequest(order.OrganizationId,
+            ActivationMilestones.ScreeningCompleted, $"screening-order:{order.Id}", occurredAt.ToUniversalTime(),
+            SourceEventType: source == ScreeningTransitionSource.ProviderWebhook
+                ? "screening-provider-webhook"
+                : "screening-provider-polling",
+            SourceEventId: stableSourceId), cancellationToken);
     }
 
     private async Task<ScreeningReportRevision?> FetchAndStageReportRevisionAsync(TenantScreeningOrder order,

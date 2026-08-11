@@ -13,24 +13,27 @@ namespace brownstone_hub_api.Services.Timelines;
 public interface IMilestone7ConversationService
 {
     Task<TimelineDtoPage> ReadTimelineAsync(long conversationId, long actorUserId, long? afterSequence, int take, CancellationToken ct = default);
+    Task<TimelineDtoPage> ReadTimelineAsync(long conversationId, long actorUserId, long organizationId, long? afterSequence, int take, CancellationToken ct = default);
     Task<TimelineSearchPage> SearchAsync(long actorUserId, TimelineSearchRequest request, CancellationToken ct = default);
+    Task<TimelineSearchPage> SearchAsync(long actorUserId, long organizationId, TimelineSearchRequest request, CancellationToken ct = default);
     Task<UnreadStateDto> GetUnreadAsync(long conversationId, long actorUserId, CancellationToken ct = default);
-    Task<UnreadStateDto> MarkReadAsync(long conversationId, long actorUserId, long? throughSequence, CancellationToken ct = default);
+    Task<UnreadStateDto> GetUnreadAsync(long conversationId, long actorUserId, long organizationId, CancellationToken ct = default);
+    Task<UnreadStateDto> MarkReadAsync(long conversationId, long actorUserId, long activeOrganizationId, long? throughSequence, CancellationToken ct = default);
     Task<IReadOnlyList<QuickReplyDto>> ListQuickRepliesAsync(long actorUserId, long organizationId, string? contextKind, CancellationToken ct = default);
-    Task<QuickReplyDto> CreateQuickReplyAsync(long actorUserId, SaveQuickReplyRequest request, CancellationToken ct = default);
-    Task<QuickReplyDto> UpdateQuickReplyAsync(long actorUserId, long id, SaveQuickReplyRequest request, CancellationToken ct = default);
-    Task DeleteQuickReplyAsync(long actorUserId, long id, CancellationToken ct = default);
-    Task<GroupDto> CreateGroupAsync(long actorUserId, CreateGroupRequest request, CancellationToken ct = default);
+    Task<QuickReplyDto> CreateQuickReplyAsync(long actorUserId, long activeOrganizationId, SaveQuickReplyRequest request, CancellationToken ct = default);
+    Task<QuickReplyDto> UpdateQuickReplyAsync(long actorUserId, long activeOrganizationId, long id, SaveQuickReplyRequest request, CancellationToken ct = default);
+    Task DeleteQuickReplyAsync(long actorUserId, long activeOrganizationId, long id, CancellationToken ct = default);
+    Task<GroupDto> CreateGroupAsync(long actorUserId, long activeOrganizationId, CreateGroupRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<ParticipantDiscoveryDto>> DiscoverParticipantsAsync(long actorUserId, long organizationId, CancellationToken ct = default);
-    Task AddGroupParticipantAsync(long actorUserId, long conversationId, long userId, CancellationToken ct = default);
-    Task RemoveGroupParticipantAsync(long actorUserId, long conversationId, long userId, CancellationToken ct = default);
-    Task LeaveGroupAsync(long actorUserId, long conversationId, CancellationToken ct = default);
-    Task<FollowUpTaskDto> CreateFollowUpAsync(long actorUserId, SaveFollowUpTaskRequest request, CancellationToken ct = default);
+    Task AddGroupParticipantAsync(long actorUserId, long activeOrganizationId, long conversationId, long userId, CancellationToken ct = default);
+    Task RemoveGroupParticipantAsync(long actorUserId, long activeOrganizationId, long conversationId, long userId, CancellationToken ct = default);
+    Task LeaveGroupAsync(long actorUserId, long activeOrganizationId, long conversationId, CancellationToken ct = default);
+    Task<FollowUpTaskDto> CreateFollowUpAsync(long actorUserId, long activeOrganizationId, SaveFollowUpTaskRequest request, CancellationToken ct = default);
     Task<IReadOnlyList<FollowUpTaskDto>> ListFollowUpsAsync(long actorUserId, long organizationId, long? conversationId, CancellationToken ct = default);
-    Task<FollowUpTaskDto> GetFollowUpAsync(long actorUserId, long id, CancellationToken ct = default);
-    Task<FollowUpTaskDto> UpdateFollowUpAsync(long actorUserId, long id, SaveFollowUpTaskRequest request, byte[] rowVersion, CancellationToken ct = default);
-    Task<FollowUpTaskDto> CompleteFollowUpAsync(long actorUserId, long id, byte[] rowVersion, CancellationToken ct = default);
-    Task DeleteFollowUpAsync(long actorUserId, long id, byte[] rowVersion, CancellationToken ct = default);
+    Task<FollowUpTaskDto> GetFollowUpAsync(long actorUserId, long activeOrganizationId, long id, CancellationToken ct = default);
+    Task<FollowUpTaskDto> UpdateFollowUpAsync(long actorUserId, long activeOrganizationId, long id, SaveFollowUpTaskRequest request, byte[] rowVersion, CancellationToken ct = default);
+    Task<FollowUpTaskDto> CompleteFollowUpAsync(long actorUserId, long activeOrganizationId, long id, byte[] rowVersion, CancellationToken ct = default);
+    Task DeleteFollowUpAsync(long actorUserId, long activeOrganizationId, long id, byte[] rowVersion, CancellationToken ct = default);
 }
 
 public sealed class Milestone7ConversationService(
@@ -54,18 +57,35 @@ public sealed class Milestone7ConversationService(
         return new TimelineDtoPage(await ProjectAsync(page.Items, ct), page.NextCursor);
     }
 
-    public async Task<TimelineSearchPage> SearchAsync(long actorUserId, TimelineSearchRequest request, CancellationToken ct = default)
+    public async Task<TimelineDtoPage> ReadTimelineAsync(long conversationId, long actorUserId, long organizationId, long? afterSequence, int take, CancellationToken ct = default)
+    {
+        if (take is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(take));
+        var page = await timeline.ReadAsync(conversationId, actorUserId, organizationId, afterSequence, take, ct);
+        return new TimelineDtoPage(await ProjectAsync(page.Items, ct), page.NextCursor);
+    }
+
+    public Task<TimelineSearchPage> SearchAsync(long actorUserId, TimelineSearchRequest request, CancellationToken ct = default) =>
+        SearchCoreAsync(actorUserId, null, request, ct);
+
+    public Task<TimelineSearchPage> SearchAsync(long actorUserId, long organizationId, TimelineSearchRequest request, CancellationToken ct = default) =>
+        SearchCoreAsync(actorUserId, organizationId, request, ct);
+
+    private async Task<TimelineSearchPage> SearchCoreAsync(long actorUserId, long? activeOrganizationId, TimelineSearchRequest request, CancellationToken ct)
     {
         if (request.Take is < 1 or > 100 || request.Skip is < 0 or > 10_000) throw new ArgumentOutOfRangeException(nameof(request.Take));
         if (request.FromUtc.HasValue && request.ToUtc.HasValue && request.FromUtc > request.ToUtc) throw new ArgumentException("Invalid date range.");
 
         // Resolve an explicitly supplied conversation first and deliberately collapse inaccessible and absent to 404.
-        if (request.ConversationId.HasValue && !await IsActiveParticipantAsync(request.ConversationId.Value, actorUserId, ct))
+        if (request.ConversationId.HasValue && !await IsActiveParticipantAsync(request.ConversationId.Value, actorUserId, activeOrganizationId, ct))
             throw new KeyNotFoundException("Conversation not found");
 
-        var visibleConversationIds = db.Conversations.WhereActiveParticipant(db.OrganizationMembers, actorUserId).Select(c => c.Id);
+        var visibleConversations = db.Conversations.WhereActiveParticipant(db.OrganizationMembers, db.Tenants, actorUserId);
+        if (activeOrganizationId.HasValue)
+            visibleConversations = visibleConversations.Where(c => c.OrganizationId == activeOrganizationId.Value);
+        var visibleConversationIds = visibleConversations.Select(c => c.Id);
         var query = db.ConversationTimelineEntries.AsNoTracking().Where(e => visibleConversationIds.Contains(e.ConversationId));
-        if (request.OrganizationId.HasValue) query = query.Where(e => e.OrganizationId == request.OrganizationId.Value);
+        if (activeOrganizationId.HasValue) query = query.Where(e => e.OrganizationId == activeOrganizationId.Value);
+        else if (request.OrganizationId.HasValue) query = query.Where(e => e.OrganizationId == request.OrganizationId.Value);
         if (request.ConversationId.HasValue) query = query.Where(e => e.ConversationId == request.ConversationId.Value);
         if (request.ContextKind != null) query = query.Where(e => e.ContextKind == request.ContextKind.ToLower());
         if (request.ContextId.HasValue) query = query.Where(e => e.ContextId == request.ContextId);
@@ -73,7 +93,9 @@ public sealed class Milestone7ConversationService(
         if (request.FromUtc.HasValue) query = query.Where(e => e.OccurredAtUtc >= request.FromUtc);
         if (request.ToUtc.HasValue) query = query.Where(e => e.OccurredAtUtc <= request.ToUtc);
 
-        var staffOrganizations = db.OrganizationMembers.Where(m => m.UserId == actorUserId && m.IsActive).Select(m => m.OrganizationId);
+        var staffOrganizations = db.OrganizationMembers.Where(m => m.UserId == actorUserId && m.IsActive &&
+            (m.Role == "Owner" || m.Role == "Manager") &&
+            (!activeOrganizationId.HasValue || m.OrganizationId == activeOrganizationId.Value)).Select(m => m.OrganizationId);
         query = query.Where(e => e.Visibility != TimelineVisibility.StaffOnly || staffOrganizations.Contains(e.OrganizationId));
         var participantFloors = db.ConversationParticipants.Where(p => p.UserId == actorUserId && !p.IsDeleted && p.StaffVisibilityFromSequence.HasValue);
         query = query.Where(e => e.Visibility != TimelineVisibility.StaffOnly ||
@@ -94,9 +116,15 @@ public sealed class Milestone7ConversationService(
         return new TimelineSearchPage(await ProjectAsync(filtered, ct), request.Skip, request.Take);
     }
 
-    public async Task<UnreadStateDto> GetUnreadAsync(long conversationId, long actorUserId, CancellationToken ct = default)
+    public Task<UnreadStateDto> GetUnreadAsync(long conversationId, long actorUserId, CancellationToken ct = default) =>
+        GetUnreadCoreAsync(conversationId, actorUserId, null, ct);
+
+    public Task<UnreadStateDto> GetUnreadAsync(long conversationId, long actorUserId, long organizationId, CancellationToken ct = default) =>
+        GetUnreadCoreAsync(conversationId, actorUserId, organizationId, ct);
+
+    private async Task<UnreadStateDto> GetUnreadCoreAsync(long conversationId, long actorUserId, long? activeOrganizationId, CancellationToken ct)
     {
-        var visible = await VisibleQueryAsync(conversationId, actorUserId, ct);
+        var visible = await VisibleQueryAsync(conversationId, actorUserId, activeOrganizationId, ct);
         var latest = await visible.Select(e => (long?)e.Sequence).MaxAsync(ct) ?? 0;
         var lastRead = await db.ConversationReadWatermarks.Where(x => x.ConversationId == conversationId && x.UserId == actorUserId)
             .Select(x => (long?)x.LastReadSequence).SingleOrDefaultAsync(ct) ?? 0;
@@ -105,9 +133,12 @@ public sealed class Milestone7ConversationService(
         return new UnreadStateDto(conversationId, lastRead, latest, count);
     }
 
-    public async Task<UnreadStateDto> MarkReadAsync(long conversationId, long actorUserId, long? throughSequence, CancellationToken ct = default)
+    public Task<UnreadStateDto> MarkReadAsync(long conversationId, long actorUserId, long activeOrganizationId, long? throughSequence, CancellationToken ct = default) =>
+        MarkReadCoreAsync(conversationId, actorUserId, activeOrganizationId, throughSequence, ct);
+
+    private async Task<UnreadStateDto> MarkReadCoreAsync(long conversationId, long actorUserId, long? activeOrganizationId, long? throughSequence, CancellationToken ct)
     {
-        var visible = await VisibleQueryAsync(conversationId, actorUserId, ct);
+        var visible = await VisibleQueryAsync(conversationId, actorUserId, activeOrganizationId, ct);
         var latest = await visible.Select(e => (long?)e.Sequence).MaxAsync(ct) ?? 0;
         var requested = Math.Clamp(throughSequence ?? latest, 0, latest);
         var watermark = await db.ConversationReadWatermarks.SingleOrDefaultAsync(x => x.ConversationId == conversationId && x.UserId == actorUserId, ct);
@@ -119,7 +150,7 @@ public sealed class Milestone7ConversationService(
         watermark.LastReadSequence = Math.Max(watermark.LastReadSequence, requested);
         watermark.UpdatedAtUtc = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
-        return await GetUnreadAsync(conversationId, actorUserId, ct);
+        return await GetUnreadCoreAsync(conversationId, actorUserId, activeOrganizationId, ct);
     }
 
     public async Task<IReadOnlyList<QuickReplyDto>> ListQuickRepliesAsync(long actorUserId, long organizationId, string? contextKind, CancellationToken ct = default)
@@ -132,8 +163,9 @@ public sealed class Milestone7ConversationService(
             .Select(x => new QuickReplyDto(x.Id, x.OrganizationId, x.OwnerUserId, x.Title, x.Body, x.SortOrder, x.IsActive, x.ContextKind)).ToListAsync(ct);
     }
 
-    public async Task<QuickReplyDto> CreateQuickReplyAsync(long actorUserId, SaveQuickReplyRequest request, CancellationToken ct = default)
+    public async Task<QuickReplyDto> CreateQuickReplyAsync(long actorUserId, long activeOrganizationId, SaveQuickReplyRequest request, CancellationToken ct = default)
     {
+        RequireActiveOrganization(activeOrganizationId, request.OrganizationId);
         ValidateQuickReply(request);
         var isStaff = await IsStaffAsync(actorUserId, request.OrganizationId, ct);
         if (isStaff)
@@ -156,10 +188,11 @@ public sealed class Milestone7ConversationService(
         return QuickDto(entity);
     }
 
-    public async Task<QuickReplyDto> UpdateQuickReplyAsync(long actorUserId, long id, SaveQuickReplyRequest request, CancellationToken ct = default)
+    public async Task<QuickReplyDto> UpdateQuickReplyAsync(long actorUserId, long activeOrganizationId, long id, SaveQuickReplyRequest request, CancellationToken ct = default)
     {
+        RequireActiveOrganization(activeOrganizationId, request.OrganizationId);
         ValidateQuickReply(request);
-        var entity = await db.QuickReplies.SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == request.OrganizationId, ct)
+        var entity = await db.QuickReplies.SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == activeOrganizationId, ct)
             ?? throw new KeyNotFoundException("Quick reply not found");
         var isStaff = await IsStaffAsync(actorUserId, entity.OrganizationId, ct);
         if (isStaff)
@@ -181,15 +214,17 @@ public sealed class Milestone7ConversationService(
         return QuickDto(entity);
     }
 
-    public async Task DeleteQuickReplyAsync(long actorUserId, long id, CancellationToken ct = default)
+    public async Task DeleteQuickReplyAsync(long actorUserId, long activeOrganizationId, long id, CancellationToken ct = default)
     {
-        var entity = await db.QuickReplies.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Quick reply not found");
+        var entity = await db.QuickReplies.SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == activeOrganizationId, ct)
+            ?? throw new KeyNotFoundException("Quick reply not found");
         if (entity.OwnerUserId != actorUserId && !await IsStaffAsync(actorUserId, entity.OrganizationId, ct)) throw new KeyNotFoundException("Quick reply not found");
         db.QuickReplies.Remove(entity); await db.SaveChangesAsync(ct);
     }
 
-    public async Task<GroupDto> CreateGroupAsync(long actorUserId, CreateGroupRequest request, CancellationToken ct = default)
+    public async Task<GroupDto> CreateGroupAsync(long actorUserId, long activeOrganizationId, CreateGroupRequest request, CancellationToken ct = default)
     {
+        RequireActiveOrganization(activeOrganizationId, request.OrganizationId);
         if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Length > 100) throw new ArgumentException("Invalid group title.");
         await RequireStaffAsync(actorUserId, request.OrganizationId, ct);
         var participantIds = request.ParticipantUserIds.Append(actorUserId).Distinct().ToList();
@@ -215,9 +250,9 @@ public sealed class Milestone7ConversationService(
             .Select(u => new ParticipantDiscoveryDto(u.Id, (u.FirstName + " " + u.LastName).Trim(), staff.Contains(u.Id))).ToListAsync(ct);
     }
 
-    public async Task AddGroupParticipantAsync(long actorUserId, long conversationId, long userId, CancellationToken ct = default)
+    public async Task AddGroupParticipantAsync(long actorUserId, long activeOrganizationId, long conversationId, long userId, CancellationToken ct = default)
     {
-        var conversation = await RequireGroupManagerAsync(actorUserId, conversationId, ct);
+        var conversation = await RequireGroupManagerAsync(actorUserId, activeOrganizationId, conversationId, ct);
         if (!await IsEligibleParticipantAsync(userId, conversation.OrganizationId!.Value, ct)) throw new KeyNotFoundException("Participant not found");
         var currentMax = await db.ConversationTimelineEntries.Where(e => e.ConversationId == conversationId).Select(e => (long?)e.Sequence).MaxAsync(ct) ?? 0;
         var participant = await db.ConversationParticipants.SingleOrDefaultAsync(p => p.ConversationId == conversationId && p.UserId == userId, ct);
@@ -226,9 +261,9 @@ public sealed class Milestone7ConversationService(
         await db.SaveChangesAsync(ct); await AuditAsync(conversation, actorUserId, $"participant-added-{userId}-{currentMax + 1}", "Participant added", ct);
     }
 
-    public async Task RemoveGroupParticipantAsync(long actorUserId, long conversationId, long userId, CancellationToken ct = default)
+    public async Task RemoveGroupParticipantAsync(long actorUserId, long activeOrganizationId, long conversationId, long userId, CancellationToken ct = default)
     {
-        var conversation = await RequireGroupManagerAsync(actorUserId, conversationId, ct);
+        var conversation = await RequireGroupManagerAsync(actorUserId, activeOrganizationId, conversationId, ct);
         var participant = await db.ConversationParticipants.SingleOrDefaultAsync(p => p.ConversationId == conversationId && p.UserId == userId && !p.IsDeleted, ct)
             ?? throw new KeyNotFoundException("Participant not found");
         if (participant.IsAdmin && !await IsStaffAsync(actorUserId, conversation.OrganizationId!.Value, ct)) throw new InvalidOperationException("Only staff can remove a group admin.");
@@ -236,9 +271,11 @@ public sealed class Milestone7ConversationService(
         await db.SaveChangesAsync(ct); await AuditAsync(conversation, actorUserId, $"participant-removed-{userId}-{Guid.NewGuid():N}", "Participant removed", ct);
     }
 
-    public async Task LeaveGroupAsync(long actorUserId, long conversationId, CancellationToken ct = default)
+    public async Task LeaveGroupAsync(long actorUserId, long activeOrganizationId, long conversationId, CancellationToken ct = default)
     {
-        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId && c.IsGroupChat && c.Participants.Any(p => p.UserId == actorUserId && !p.IsDeleted), ct)
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId &&
+            c.OrganizationId == activeOrganizationId && c.IsGroupChat &&
+            c.Participants.Any(p => p.UserId == actorUserId && !p.IsDeleted), ct)
             ?? throw new KeyNotFoundException("Conversation not found");
         var participant = await db.ConversationParticipants.SingleAsync(p => p.ConversationId == conversationId && p.UserId == actorUserId && !p.IsDeleted, ct);
         if (participant.IsAdmin && !await db.ConversationParticipants.AnyAsync(p => p.ConversationId == conversationId && !p.IsDeleted && p.UserId != actorUserId && p.IsAdmin, ct))
@@ -247,8 +284,9 @@ public sealed class Milestone7ConversationService(
         participant.IsDeleted = true; participant.LeftAt = participant.DeletedAt = clock.GetUtcNow().UtcDateTime; await db.SaveChangesAsync(ct);
     }
 
-    public async Task<FollowUpTaskDto> CreateFollowUpAsync(long actorUserId, SaveFollowUpTaskRequest request, CancellationToken ct = default)
+    public async Task<FollowUpTaskDto> CreateFollowUpAsync(long actorUserId, long activeOrganizationId, SaveFollowUpTaskRequest request, CancellationToken ct = default)
     {
+        RequireActiveOrganization(activeOrganizationId, request.OrganizationId);
         ValidateFollowUp(request); await RequireStaffAsync(actorUserId, request.OrganizationId, ct);
         var existing = await db.ConversationFollowUpTasks.SingleOrDefaultAsync(x => x.OrganizationId == request.OrganizationId && x.IdempotencyKey == request.IdempotencyKey, ct);
         if (existing != null)
@@ -276,41 +314,47 @@ public sealed class Milestone7ConversationService(
             .OrderBy(x => x.DueAtUtc).Select(x => FollowUpProjection(x)).ToListAsync(ct);
     }
 
-    public async Task<FollowUpTaskDto> GetFollowUpAsync(long actorUserId, long id, CancellationToken ct = default)
+    public async Task<FollowUpTaskDto> GetFollowUpAsync(long actorUserId, long activeOrganizationId, long id, CancellationToken ct = default)
     {
-        var entity = await db.ConversationFollowUpTasks.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Follow-up not found");
+        var entity = await db.ConversationFollowUpTasks.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == activeOrganizationId, ct)
+            ?? throw new KeyNotFoundException("Follow-up not found");
         await RequireStaffAsync(actorUserId, entity.OrganizationId, ct); return FollowUpDto(entity);
     }
 
-    public async Task<FollowUpTaskDto> UpdateFollowUpAsync(long actorUserId, long id, SaveFollowUpTaskRequest request, byte[] rowVersion, CancellationToken ct = default)
+    public async Task<FollowUpTaskDto> UpdateFollowUpAsync(long actorUserId, long activeOrganizationId, long id, SaveFollowUpTaskRequest request, byte[] rowVersion, CancellationToken ct = default)
     {
+        RequireActiveOrganization(activeOrganizationId, request.OrganizationId);
         ValidateFollowUp(request); await RequireStaffAsync(actorUserId, request.OrganizationId, ct);
-        var entity = await db.ConversationFollowUpTasks.SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == request.OrganizationId, ct) ?? throw new KeyNotFoundException("Follow-up not found");
+        var entity = await db.ConversationFollowUpTasks.SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == activeOrganizationId, ct)
+            ?? throw new KeyNotFoundException("Follow-up not found");
         RequireVersion(entity, rowVersion); await ValidateFollowUpLinksAsync(request, ct);
         entity.ConversationId = request.ConversationId; entity.TimelineEntryId = request.TimelineEntryId; entity.ContextKind = request.ContextKind;
         entity.ContextId = request.ContextId; entity.AssigneeUserId = request.AssigneeUserId; entity.Title = request.Title.Trim(); entity.DueAtUtc = request.DueAtUtc;
         Bump(entity); await db.SaveChangesAsync(ct); await FollowUpAuditAsync(entity, actorUserId, "updated", ct); return FollowUpDto(entity);
     }
 
-    public async Task<FollowUpTaskDto> CompleteFollowUpAsync(long actorUserId, long id, byte[] rowVersion, CancellationToken ct = default)
+    public async Task<FollowUpTaskDto> CompleteFollowUpAsync(long actorUserId, long activeOrganizationId, long id, byte[] rowVersion, CancellationToken ct = default)
     {
-        var entity = await db.ConversationFollowUpTasks.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Follow-up not found");
+        var entity = await db.ConversationFollowUpTasks.SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == activeOrganizationId, ct)
+            ?? throw new KeyNotFoundException("Follow-up not found");
         await RequireStaffAsync(actorUserId, entity.OrganizationId, ct); RequireVersion(entity, rowVersion);
         entity.Status = FollowUpTaskStatus.Completed; entity.CompletedAtUtc = clock.GetUtcNow().UtcDateTime; Bump(entity);
         await db.SaveChangesAsync(ct); await FollowUpAuditAsync(entity, actorUserId, "completed", ct); return FollowUpDto(entity);
     }
 
-    public async Task DeleteFollowUpAsync(long actorUserId, long id, byte[] rowVersion, CancellationToken ct = default)
+    public async Task DeleteFollowUpAsync(long actorUserId, long activeOrganizationId, long id, byte[] rowVersion, CancellationToken ct = default)
     {
-        var entity = await db.ConversationFollowUpTasks.SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new KeyNotFoundException("Follow-up not found");
+        var entity = await db.ConversationFollowUpTasks.SingleOrDefaultAsync(x => x.Id == id && x.OrganizationId == activeOrganizationId, ct)
+            ?? throw new KeyNotFoundException("Follow-up not found");
         await RequireStaffAsync(actorUserId, entity.OrganizationId, ct); RequireVersion(entity, rowVersion);
         entity.Status = FollowUpTaskStatus.Cancelled; Bump(entity); await db.SaveChangesAsync(ct); await FollowUpAuditAsync(entity, actorUserId, "cancelled", ct);
     }
 
-    private async Task<IQueryable<ConversationTimelineEntry>> VisibleQueryAsync(long conversationId, long actorUserId, CancellationToken ct)
+    private async Task<IQueryable<ConversationTimelineEntry>> VisibleQueryAsync(long conversationId, long actorUserId, long? activeOrganizationId, CancellationToken ct)
     {
-        var authorized = await db.Conversations.WhereActiveParticipant(db.OrganizationMembers, actorUserId)
-            .Where(c => c.Id == conversationId)
+        var authorized = await db.Conversations.WhereActiveParticipant(db.OrganizationMembers, db.Tenants, actorUserId)
+            .Where(c => c.Id == conversationId && (!activeOrganizationId.HasValue || c.OrganizationId == activeOrganizationId.Value))
             .Select(c => new { OrganizationId = c.OrganizationId!.Value,
                 Floor = c.Participants.Where(p => p.UserId == actorUserId && !p.IsDeleted)
                     .Select(p => p.StaffVisibilityFromSequence).FirstOrDefault() })
@@ -354,10 +398,12 @@ public sealed class Milestone7ConversationService(
                (status == null || metadata.TryGetValue("status", out var s) && string.Equals(s, status, StringComparison.OrdinalIgnoreCase));
     }
 
-    private async Task<bool> IsActiveParticipantAsync(long conversationId, long userId, CancellationToken ct) =>
-        await db.Conversations.WhereActiveParticipant(db.OrganizationMembers, userId).AnyAsync(c => c.Id == conversationId, ct);
+    private async Task<bool> IsActiveParticipantAsync(long conversationId, long userId, long? activeOrganizationId, CancellationToken ct) =>
+        await db.Conversations.WhereActiveParticipant(db.OrganizationMembers, db.Tenants, userId)
+            .AnyAsync(c => c.Id == conversationId && (!activeOrganizationId.HasValue || c.OrganizationId == activeOrganizationId.Value), ct);
     private async Task<bool> IsStaffAsync(long userId, long organizationId, CancellationToken ct) =>
-        await db.OrganizationMembers.AnyAsync(m => m.OrganizationId == organizationId && m.UserId == userId && m.IsActive, ct);
+        await db.OrganizationMembers.AnyAsync(m => m.OrganizationId == organizationId && m.UserId == userId && m.IsActive &&
+            (m.Role == "Owner" || m.Role == "Manager"), ct);
     private async Task RequireStaffAsync(long userId, long organizationId, CancellationToken ct)
     { if (!await IsStaffAsync(userId, organizationId, ct)) throw new KeyNotFoundException("Organization not found"); }
     private async Task RequireOrganizationAccessAsync(long userId, long organizationId, CancellationToken ct)
@@ -370,9 +416,10 @@ public sealed class Milestone7ConversationService(
         await db.OrganizationMembers.AnyAsync(m => m.OrganizationId == organizationId && m.UserId == userId && m.IsActive, ct) ||
         await db.ConversationParticipants.AnyAsync(p => p.UserId == userId && !p.IsDeleted && p.Conversation.OrganizationId == organizationId, ct);
 
-    private async Task<Conversation> RequireGroupManagerAsync(long actorUserId, long conversationId, CancellationToken ct)
+    private async Task<Conversation> RequireGroupManagerAsync(long actorUserId, long activeOrganizationId, long conversationId, CancellationToken ct)
     {
-        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId && c.IsGroupChat && c.OrganizationId.HasValue &&
+        var conversation = await db.Conversations.SingleOrDefaultAsync(c => c.Id == conversationId &&
+            c.OrganizationId == activeOrganizationId && c.IsGroupChat &&
             c.Participants.Any(p => p.UserId == actorUserId && !p.IsDeleted), ct) ?? throw new KeyNotFoundException("Conversation not found");
         var admin = await db.ConversationParticipants.AnyAsync(p => p.ConversationId == conversationId && p.UserId == actorUserId && !p.IsDeleted && p.IsAdmin, ct);
         if (!admin && !await IsStaffAsync(actorUserId, conversation.OrganizationId!.Value, ct)) throw new KeyNotFoundException("Conversation not found");
@@ -407,6 +454,12 @@ public sealed class Milestone7ConversationService(
         var validConversation = await db.Conversations.AnyAsync(c => c.Id == request.ConversationId && c.OrganizationId == request.OrganizationId, ct);
         var validAssignee = await IsStaffAsync(request.AssigneeUserId, request.OrganizationId, ct);
         if (!validTimeline || !validConversation || !validAssignee) throw new KeyNotFoundException("Follow-up context not found");
+    }
+
+    private static void RequireActiveOrganization(long activeOrganizationId, long resourceOrganizationId)
+    {
+        if (activeOrganizationId <= 0 || resourceOrganizationId != activeOrganizationId)
+            throw new KeyNotFoundException("Organization not found");
     }
 
     private static void ValidateQuickReply(SaveQuickReplyRequest x)

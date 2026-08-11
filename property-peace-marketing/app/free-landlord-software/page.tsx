@@ -3,15 +3,15 @@ import NicheLandingPage, { type NicheLandingPageConfig } from '@/components/SEO/
 import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/free-landlord-software/', {
-  title: '#1 Free Rental Management Software | Property Peace',
-  description: 'The #1 free rental management software for small landlords. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.',
+  title: 'Free Rental Management Software | Property Peace',
+  description: 'Free rental management software for small landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.',
   alternates: { canonical: '/free-landlord-software' },
-  openGraph: { title: '#1 Free Rental Management Software | Property Peace', description: 'The #1 free rental management software for small landlords. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.', type: 'website', url: '/free-landlord-software' },
-  twitter: { card: 'summary_large_image', title: '#1 Free Rental Management Software | Property Peace', description: 'The #1 free rental management software for small landlords. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.' },
+  openGraph: { title: 'Free Rental Management Software | Property Peace', description: 'Free rental management software for small landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.', type: 'website', url: '/free-landlord-software' },
+  twitter: { card: 'summary_large_image', title: 'Free Rental Management Software | Property Peace', description: 'Free rental management software for small landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses with no credit card required.' },
 });
 
 const config: NicheLandingPageConfig = {
-  eyebrow: 'The #1 Free Rental Management Software',
+  eyebrow: 'Free for up to 5 units',
   title: 'Free Rental Management Software for Small Landlords',
   description: 'Get free landlord software to manage rent, tenants, and expenses. Perfect for small rental owners with 1-50 units. No credit card required.',
   proofPoints: ['Free for up to 5 units', 'No credit card required', 'Built for 1–50 units', 'Upgrade only when ready'],

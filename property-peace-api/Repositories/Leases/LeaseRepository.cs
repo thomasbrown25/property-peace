@@ -1277,7 +1277,11 @@ namespace brownstone_hub_api.Repositories.Leases
                     IsTerminal(agreement.SignatureStatus))
                 {
                     if (transaction != null) await transaction.CommitAsync(cancellationToken);
-                    return new DocuSignConnectApplyResult(false, 0);
+                    return new DocuSignConnectApplyResult(
+                        false,
+                        0,
+                        agreement.SignatureStatus,
+                        agreement.SignatureCompletedAt);
                 }
                 if (statusTransitionApplied)
                 {
@@ -1326,7 +1330,11 @@ namespace brownstone_hub_api.Repositories.Leases
                 }
                 if (transaction != null)
                     await transaction.CommitAsync(cancellationToken);
-                return new DocuSignConnectApplyResult(changedEntries > 0, tenantUpdates);
+                return new DocuSignConnectApplyResult(
+                    changedEntries > 0,
+                    tenantUpdates,
+                    agreement.SignatureStatus,
+                    agreement.SignatureCompletedAt);
             }
             catch
             {

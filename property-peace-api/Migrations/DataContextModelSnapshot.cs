@@ -127,6 +127,70 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("ActionSuppressions", "core");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ActivationMilestoneOccurrence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ActorUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsTimestampEstimated")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Milestone")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasPrecision(0)
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("RecordedAtUtc")
+                        .HasPrecision(0)
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<string>("SourceEventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("SourceEventType")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SubjectId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc", "Milestone");
+
+                    b.HasIndex("OrganizationId", "Milestone", "SubjectId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ActivationOccurrence_OrganizationMilestoneSubject");
+
+                    b.HasIndex("OrganizationId", "SourceEventType", "SourceEventId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_ActivationOccurrence_SourceReplay")
+                        .HasFilter("[SourceEventType] IS NOT NULL AND [SourceEventId] IS NOT NULL");
+
+                    b.ToTable("ActivationMilestoneOccurrences", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ActivationMilestoneOccurrences_Milestone", "[Milestone] IN ('property_added', 'listing_published', 'lead_received', 'showing_booked', 'application_completed', 'screening_completed', 'lease_signed', 'tenant_invited', 'first_rent_recorded_or_paid', 'maintenance_closed')");
+
+                            t.HasCheckConstraint("CK_ActivationMilestoneOccurrences_SourcePair", "([SourceEventType] IS NULL AND [SourceEventId] IS NULL) OR ([SourceEventType] IS NOT NULL AND [SourceEventId] IS NOT NULL)");
+                        });
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Admin", b =>
                 {
                     b.Property<long>("Id")
@@ -4478,6 +4542,9 @@ namespace brownstone_hub_api.Migrations
                     b.Property<long>("PropertyId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool?>("RequireIncomeVerification")
                         .HasColumnType("bit");
 
@@ -7006,6 +7073,11 @@ namespace brownstone_hub_api.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<string>("EventKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -7024,6 +7096,9 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("EventKey")
+                        .IsUnique();
+
                     b.HasIndex("UserId");
 
                     b.HasIndex("ConfirmationId", "CreatedAt");
@@ -7031,6 +7106,80 @@ namespace brownstone_hub_api.Migrations
                     b.HasIndex("OrganizationId", "UserId", "CreatedAt");
 
                     b.ToTable("AuditRecords", "percy");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyChatOperation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("AssistantMessageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ClientRequestId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("CompletedResponseJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("ConversationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("LeaseExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("UserMessageId")
+                        .HasColumnType("bigint");
+
+                    b.Property<byte[]>("Version")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssistantMessageId");
+
+                    b.HasIndex("ConversationId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserMessageId");
+
+                    b.HasIndex("Status", "LeaseExpiresAt");
+
+                    b.HasIndex("OrganizationId", "UserId", "ClientRequestId")
+                        .IsUnique();
+
+                    b.ToTable("ChatOperations", "percy");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>
@@ -13928,6 +14077,46 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Organization");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.PercyChatOperation", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.PercyMessage", "AssistantMessage")
+                        .WithMany()
+                        .HasForeignKey("AssistantMessageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.PercyConversation", "Conversation")
+                        .WithMany()
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.PercyMessage", "UserMessage")
+                        .WithMany()
+                        .HasForeignKey("UserMessageId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("AssistantMessage");
+
+                    b.Navigation("Conversation");
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("User");
+
+                    b.Navigation("UserMessage");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.PercyConversation", b =>

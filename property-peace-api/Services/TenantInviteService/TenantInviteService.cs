@@ -8,6 +8,7 @@ using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.NotificationService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Services.TenantInviteService
@@ -20,7 +21,8 @@ namespace brownstone_hub_api.Services.TenantInviteService
         IConfiguration configuration,
         IEmailService emailService,
         INotificationService notificationService,
-        ILogger<TenantInviteService> logger) : ITenantInviteService
+        ILogger<TenantInviteService> logger,
+        IActivationOccurrenceRecorder? activationRecorder = null) : ITenantInviteService
     {
         private readonly ITenantInviteRepository _tenantInviteRepository = tenantInviteRepository;
         private readonly ITenantRepository _tenantRepository = tenantRepository;
@@ -30,6 +32,7 @@ namespace brownstone_hub_api.Services.TenantInviteService
         private readonly IEmailService _emailService = emailService;
         private readonly INotificationService _notificationService = notificationService;
         private readonly ILogger<TenantInviteService> _logger = logger;
+        private readonly IActivationOccurrenceRecorder? _activationRecorder = activationRecorder;
 
         private async Task<long?> GetCurrentUserIdAsync()
         {
@@ -54,8 +57,15 @@ namespace brownstone_hub_api.Services.TenantInviteService
                     return ServiceResponse<LoadTenantInviteDto>.CreateError("Invite email must match the tenant's saved email address", statusCode: 400);
 
                 var existingInvites = await _tenantInviteRepository.GetInvitesByTenantId(invite.TenantId, organizationId);
-                if (existingInvites.Any(i => !i.IsUsed && i.ExpiresAt > DateTime.UtcNow))
-                    return ServiceResponse<LoadTenantInviteDto>.CreateError("A valid invite already exists for this tenant", statusCode: 409);
+                var existingInvite = existingInvites.FirstOrDefault(i => !i.IsUsed && i.ExpiresAt > DateTime.UtcNow);
+                if (existingInvite is not null)
+                {
+                    // A surviving valid invite was delivered (failed deliveries are deleted). Retrying
+                    // repairs a prior telemetry write failure without sending another email.
+                    await RecordTenantInvitedAsync(existingInvite, organizationId, userId);
+                    SanitizeManagementInvite(existingInvite);
+                    return ServiceResponse<LoadTenantInviteDto>.CreateSuccess(existingInvite, "Portal invite already sent");
+                }
 
                 var token = GenerateSecureToken();
                 var created = await _tenantInviteRepository.CreateInvite(invite, userId, organizationId, token, DateTime.UtcNow.AddDays(7));
@@ -64,6 +74,7 @@ namespace brownstone_hub_api.Services.TenantInviteService
                     await _tenantInviteRepository.DeleteInvite(created.Id);
                     return ServiceResponse<LoadTenantInviteDto>.CreateError("Portal invite could not be delivered. Verify the tenant email and try again.", statusCode: 502);
                 }
+                await RecordTenantInvitedAsync(created, organizationId, userId);
 
                 var existingUser = await _userRepository.GetUserByEmailAsync(invite.Email.Trim());
                 if (existingUser != null)
@@ -248,10 +259,33 @@ namespace brownstone_hub_api.Services.TenantInviteService
                     await _tenantInviteRepository.DeleteInvite(replacement.Id);
                     return ServiceResponse<bool>.CreateError("Portal invite could not be delivered. The existing invite remains valid.", statusCode: 502);
                 }
+                await RecordTenantInvitedAsync(replacement, organizationId, userId);
                 await _tenantInviteRepository.DeleteInvite(invite.Id);
                 return ServiceResponse<bool>.CreateSuccess(true);
             }
             catch (Exception ex) { _logger.LogError(ex, "Error resending tenant invite"); return ServiceResponse<bool>.CreateError("Error resending invite"); }
+        }
+
+        private async Task RecordTenantInvitedAsync(LoadTenantInviteDto invite, long organizationId, long actorUserId)
+        {
+            if (_activationRecorder is null) return;
+            var createdUtc = invite.CreatedAt.Kind == DateTimeKind.Utc
+                ? invite.CreatedAt
+                : invite.CreatedAt.ToUniversalTime();
+            try
+            {
+                await _activationRecorder.RecordAsync(new ActivationOccurrenceRequest(organizationId,
+                    ActivationMilestones.TenantInvited, $"tenant-invite:{invite.Id}", new DateTimeOffset(createdUtc),
+                    SourceEventType: "tenant-invite",
+                    SourceEventId: invite.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ActorUserId: actorUserId));
+            }
+            catch (Exception ex)
+            {
+                // Delivery has already succeeded. Do not report a false invite failure or encourage a
+                // duplicate email; a retry against the durable invite repairs the idempotent occurrence.
+                _logger.LogError(ex, "Tenant invite {InviteId} was delivered but activation recording failed", invite.Id);
+            }
         }
 
         public async Task<ServiceResponse<bool>> MarkInviteAsUsed(string token)

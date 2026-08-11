@@ -1440,7 +1440,7 @@ The best property management app for solo landlords:
 
 Don't overthink it. Get started, test with your actual properties, and see if it makes your life easier.
 
-Explore our [complete feature list](/features) designed for solo landlords and see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Check our [pricing](/pricing) and learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Get started with Property Peace](https://app.propertypeace.io/register) and discover why it's the best choice for solo landlords.
+Explore our [complete feature list](/features) designed for solo landlords and see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Check our [pricing](/pricing) and learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Get started with Property Peace](https://app.propertypeace.io/register) to evaluate it with your own portfolio.
     `,
     date: '2024-02-19',
     author: 'Property Peace Team',
@@ -5908,7 +5908,7 @@ Choose based on:
 
 ## The Bottom Line
 
-The best property management software for you depends on your specific needs, portfolio size, and budget. For most small to medium landlords (1-50 units), Property Peace offers the best combination of features, affordability, and ease of use.
+The best property management software for you depends on your specific needs, portfolio size, and budget. Property Peace is designed for independent landlords managing 1-50 units, with a permanent Free plan for up to 5 units and a flat-price Premium option.
 
 Key takeaways:
 - **Start with free trials**: Test before committing
@@ -5919,7 +5919,7 @@ Key takeaways:
 
 Remember, the best software is the one that solves your specific problems and fits your budget. Don't be swayed by flashy features you'll never use—focus on what matters for your rental business.
 
-Compare our solution with others in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Explore our [complete feature list](/features) and [pricing options](/pricing). Learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Try Property Peace](https://app.propertypeace.io/register) and see why it's the top choice for landlords managing 1-50 units in 2024.
+Compare our solution with others in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Explore our [complete feature list](/features) and [pricing options](/pricing). Learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Try Property Peace](https://app.propertypeace.io/register) to evaluate the workflow for your own portfolio.
     `,
     date: '2024-05-07',
     author: 'Property Peace Team',

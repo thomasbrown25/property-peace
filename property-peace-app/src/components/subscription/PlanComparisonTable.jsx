@@ -5,6 +5,7 @@ import { useTheme } from '@mui/material/styles';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { getPlanPricePresentation } from 'utils/subscriptionPresentation';
 
 const COMPARISON_FEATURES = [
   { label: 'Units', type: 'value', getValue: (plan) => plan.maxTotalUnits == null ? 'Unlimited' : String(plan.maxTotalUnits) },
@@ -139,7 +140,8 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
         {displayPlans.map((plan) => {
           const isCurrentPlan = plan.id === currentPlanId && currentBillingCycle === billingCycle;
           const isRecommended = plan.id === recommendedPlanId && plan.id !== currentPlanId;
-          const price = billingCycle === 'Annual' ? plan.annualPrice : plan.monthlyPrice;
+          const pricePresentation = getPlanPricePresentation(plan, billingCycle);
+          const price = pricePresentation.amount;
           const currentPlan = displayPlans.find((candidate) => candidate.id === currentPlanId);
           const currentPrice = currentPlan ? (billingCycle === 'Annual' ? currentPlan.annualPrice : currentPlan.monthlyPrice) : 0;
           const isDowngrade = currentPlanId && price < currentPrice;
@@ -167,7 +169,12 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
                 </Box>
                 <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
                   <Typography variant="h4" fontWeight={800}>${price?.toFixed(2)}</Typography>
-                  <Typography variant="caption" color="text.secondary">per month</Typography>
+                  <Typography variant="caption" color="text.secondary">{pricePresentation.cadence}</Typography>
+                  {pricePresentation.supportingText && (
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {pricePresentation.supportingText}
+                    </Typography>
+                  )}
                 </Box>
               </Stack>
 
@@ -202,7 +209,8 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
           {displayPlans.map((plan, idx) => {
             const isCurrentPlan = plan.id === currentPlanId;
             const isRecommended = plan.id === recommendedPlanId && plan.id !== currentPlanId;
-            const price = billingCycle === 'Annual' ? plan.annualPrice : plan.monthlyPrice;
+            const pricePresentation = getPlanPricePresentation(plan, billingCycle);
+            const price = pricePresentation.amount;
             return (
               <Box
                 key={plan.id}
@@ -245,9 +253,14 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
                     ${price?.toFixed(2)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: isRecommended ? alpha('#fff', 0.75) : 'text.secondary' }}>
-                    /mo
+                    {pricePresentation.cadence}
                   </Typography>
                 </Box>
+                {pricePresentation.supportingText && (
+                  <Typography variant="caption" sx={{ color: isRecommended ? alpha('#fff', 0.75) : 'text.secondary' }}>
+                    {pricePresentation.supportingText}
+                  </Typography>
+                )}
               </Box>
             );
           })}

@@ -15,15 +15,18 @@ namespace brownstone_hub_api.Hubs
     {
         private readonly IUserRepository _userRepository;
         private readonly IConversationRepository _conversationRepository;
+        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ILogger<ConversationHub> _logger;
 
         public ConversationHub(
             IUserRepository userRepository,
             IConversationRepository conversationRepository,
+            IHttpContextAccessor httpContextAccessor,
             ILogger<ConversationHub> logger)
         {
             _userRepository = userRepository;
             _conversationRepository = conversationRepository;
+            _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
 
@@ -35,20 +38,21 @@ namespace brownstone_hub_api.Hubs
         {
             try
             {
-                var userId = await GetUserIdAsync();
-                if (!string.IsNullOrEmpty(userId))
+                var scope = GetValidatedOrganizationScope();
+                if (scope.HasValue)
                 {
                     // Join a group named after the user ID
-                    var groupName = $"user_{userId}";
+                    var groupName = $"user_{scope.Value.UserId}";
                     await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                    _logger.LogInformation("User {UserId} connected to ConversationHub with connection {ConnectionId} and joined group {GroupName}",
-                        userId, Context.ConnectionId, groupName);
+                    _logger.LogInformation("User {UserId} connected to ConversationHub for organization {OrganizationId} with connection {ConnectionId} and joined group {GroupName}",
+                        scope.Value.UserId, scope.Value.OrganizationId, Context.ConnectionId, groupName);
                     await base.OnConnectedAsync();
                 }
                 else
                 {
-                    _logger.LogWarning("User connected to ConversationHub but could not determine user ID. Connection {ConnectionId}",
+                    _logger.LogWarning("User connected to ConversationHub without a validated active organization. Connection {ConnectionId}",
                         Context.ConnectionId);
+                    Context.Abort();
                 }
             }
             catch (Exception ex)
@@ -63,24 +67,42 @@ namespace brownstone_hub_api.Hubs
         /// </summary>
         public async Task JoinConversation(long conversationId)
         {
-            var userId = await GetNumericUserIdAsync();
-            if (!userId.HasValue)
+            var scope = GetValidatedOrganizationScope();
+            if (!scope.HasValue)
             {
-                _logger.LogWarning("Unable to resolve a numeric user for conversation join on connection {ConnectionId}", Context.ConnectionId);
+                _logger.LogWarning("Conversation join refused because connection {ConnectionId} has no validated active organization", Context.ConnectionId);
                 throw new HubException("Conversation not found");
             }
 
-            var conversation = await _conversationRepository.GetConversationById(conversationId, userId.Value);
+            var conversation = await _conversationRepository.GetConversationById(
+                conversationId,
+                scope.Value.UserId,
+                scope.Value.OrganizationId);
             if (conversation == null)
             {
-                _logger.LogWarning("User {UserId} refused access to conversation {ConversationId}", userId.Value, conversationId);
+                _logger.LogWarning("User {UserId} refused access to conversation {ConversationId} in organization {OrganizationId}",
+                    scope.Value.UserId, conversationId, scope.Value.OrganizationId);
                 throw new HubException("Conversation not found");
             }
 
             var groupName = $"conversation_{conversationId}";
             await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-            _logger.LogInformation("User {UserId} joined conversation {ConversationId} group {GroupName}",
-                userId.Value, conversationId, groupName);
+            _logger.LogInformation("User {UserId} joined conversation {ConversationId} group {GroupName} for organization {OrganizationId}",
+                scope.Value.UserId, conversationId, groupName, scope.Value.OrganizationId);
+        }
+
+        private (long UserId, long OrganizationId)? GetValidatedOrganizationScope()
+        {
+            var httpContext = _httpContextAccessor.HttpContext;
+            if (httpContext?.Items.TryGetValue("UserId", out var userValue) == true &&
+                userValue is long userId && userId > 0 &&
+                httpContext.Items.TryGetValue("OrganizationId", out var organizationValue) &&
+                organizationValue is long organizationId && organizationId > 0)
+            {
+                return (userId, organizationId);
+            }
+
+            return null;
         }
 
         private async Task<long?> GetNumericUserIdAsync()
@@ -108,17 +130,28 @@ namespace brownstone_hub_api.Hubs
         /// </summary>
         public async Task LeaveConversation(long conversationId)
         {
-            try
+            var scope = GetValidatedOrganizationScope();
+            if (!scope.HasValue)
             {
-                var groupName = $"conversation_{conversationId}";
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-                _logger.LogInformation("User left conversation {ConversationId} group {GroupName}",
-                    conversationId, groupName);
+                _logger.LogWarning("Conversation leave refused because connection {ConnectionId} has no validated active organization", Context.ConnectionId);
+                throw new HubException("Conversation not found");
             }
-            catch (Exception ex)
+
+            var conversation = await _conversationRepository.GetConversationById(
+                conversationId,
+                scope.Value.UserId,
+                scope.Value.OrganizationId);
+            if (conversation == null)
             {
-                _logger.LogError(ex, "Error leaving conversation {ConversationId}", conversationId);
+                _logger.LogWarning("User {UserId} refused leave for conversation {ConversationId} in organization {OrganizationId}",
+                    scope.Value.UserId, conversationId, scope.Value.OrganizationId);
+                throw new HubException("Conversation not found");
             }
+
+            var groupName = $"conversation_{conversationId}";
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+            _logger.LogInformation("User {UserId} left conversation {ConversationId} group {GroupName} for organization {OrganizationId}",
+                scope.Value.UserId, conversationId, groupName, scope.Value.OrganizationId);
         }
 
         /// <summary>

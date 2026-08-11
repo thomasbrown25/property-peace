@@ -16,6 +16,7 @@ using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Dtos.Payment;
 using brownstone_hub_api.Repositories.Payments;
 using brownstone_hub_api.Services.PaymentService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.AspNetCore.Http;
@@ -40,7 +41,8 @@ namespace brownstone_hub_api.Services.LeaseService
         DataContext? dataContext,
         IPaymentRepository? paymentRepository,
         IPaymentService? paymentService,
-        IEmailService? emailService) : ILeaseService
+        IEmailService? emailService,
+        IActivationOccurrenceRecorder? activationRecorder = null) : ILeaseService
     {
         private readonly ILeaseRepository _leaseRepository = leaseRepository;
         private readonly IPropertyRepository _propertyRepository = propertyRepository;
@@ -58,6 +60,7 @@ namespace brownstone_hub_api.Services.LeaseService
         private readonly IPaymentRepository? _paymentRepository = paymentRepository;
         private readonly IPaymentService? _paymentService = paymentService;
         private readonly IEmailService? _emailService = emailService;
+        private readonly IActivationOccurrenceRecorder? _activationRecorder = activationRecorder;
         private const string SignedDocumentsContainerName = "signed-documents";
 
         private long? GetOrganizationIdFromContext()
@@ -1272,6 +1275,16 @@ namespace brownstone_hub_api.Services.LeaseService
                         providerBlobName, providerBlobUrl, providerSignedRecipients), cancellationToken);
                 if (atomicResult == null)
                     return ServiceResponse<SyncSignatureStatusResultDto>.CreateError("Lease not found", statusCode: 404);
+
+                if (_activationRecorder is not null && atomicResult.Status == ESignatureStatus.Completed &&
+                    status.CompletedAt.HasValue)
+                {
+                    await _activationRecorder.RecordAsync(new ActivationOccurrenceRequest(organizationId,
+                        ActivationMilestones.LeaseSigned, $"lease:{lease.Id}",
+                        new DateTimeOffset(DateTime.SpecifyKind(status.CompletedAt.Value, DateTimeKind.Utc)),
+                        SourceEventType: "docusign-envelope", SourceEventId: lease.LeaseAgreement.DocuSignEnvelopeId),
+                        cancellationToken);
+                }
 
                 return ServiceResponse<SyncSignatureStatusResultDto>.CreateSuccess(new SyncSignatureStatusResultDto
                 {

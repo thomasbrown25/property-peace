@@ -185,11 +185,11 @@ const featureDetails: Record<string, {
     icon: FiDollarSign,
     title: 'Rent Tracking and Reminders',
     shortDescription: 'Record payments, calculate overdue balances, and keep reminder workflows organized. Online payment processing is not currently available.',
-    description: 'Keep rent records, overdue calculations, reminders, late fees, and rent-roll reports in one landlord-focused workflow. Property Peace does not currently process online rent payments. SMS reminders require an eligible Premium or Lifetime plan; one dedicated organization number is included, with activation and configuration required.',
+    description: 'Keep rent records, overdue calculations, reminders, late fees, and rent-roll reports in one landlord-focused workflow. Property Peace does not currently process online rent payments. SMS reminders require Premium; one dedicated organization number is included, with activation and configuration required.',
     benefits: [
       'Recorded payment tracking',
       'Overdue calculations',
-      'In-app and email reminders; eligible Premium/Lifetime plans include one SMS number, with activation and configuration required',
+      'In-app and email reminders; Premium includes one SMS number, with activation and configuration required',
       'Payment history tracking',
       'Late fee calculation',
       'Rent roll report generation'
@@ -230,12 +230,12 @@ const featureDetails: Record<string, {
   'tenant-communication': {
     icon: FiBell,
     title: 'Tenant Notifications',
-    shortDescription: 'Stay connected through in-app and email notifications; SMS requires an eligible Premium or Lifetime plan; one dedicated organization number is included, with activation and configuration required.',
-    description: 'Keep important updates organized with in-app messages and email notifications. Customize notification preferences and maintain communication history. SMS requires an eligible Premium or Lifetime plan; one dedicated organization number is included, with activation and configuration required.',
+    shortDescription: 'Stay connected through in-app and email notifications; SMS requires Premium; one dedicated organization number is included, with activation and configuration required.',
+    description: 'Keep important updates organized with in-app messages and email notifications. Customize notification preferences and maintain communication history. SMS requires Premium; one dedicated organization number is included, with activation and configuration required.',
     benefits: [
       'In-app real-time notifications',
       'Email notifications for important events',
-      'SMS with eligible Premium/Lifetime plans; one number included, activation and configuration required',
+      'SMS with Premium; one number included, activation and configuration required',
       'Customizable notification preferences',
       'Notification history tracking',
       'Mark as read functionality'

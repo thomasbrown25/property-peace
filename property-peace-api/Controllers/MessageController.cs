@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.SignalR;
 using brownstone_hub_api.Hubs;
 using Microsoft.Extensions.Logging;
 using brownstone_hub_api.Services.SmsService;
+using brownstone_hub_api.Data;
+using brownstone_hub_api.Repositories.Conversations;
+using Microsoft.EntityFrameworkCore;
 
 
 namespace brownstone_hub_api.Controllers
@@ -19,13 +22,15 @@ namespace brownstone_hub_api.Controllers
         IHubContext<ConversationHub> hubContext,
         IOutboundMessageDeliveryEnqueuer deliveryEnqueuer,
         IOutboundSmsSecurityService outboundSmsSecurity,
-        ILogger<MessageController> logger) : ControllerBase
+        ILogger<MessageController> logger,
+        DataContext? dataContext = null) : ControllerBase
     {
         private readonly IMessageService _messageService = messageService;
         private readonly IHubContext<ConversationHub> _hubContext = hubContext;
         private readonly IOutboundMessageDeliveryEnqueuer _deliveryEnqueuer = deliveryEnqueuer;
         private readonly IOutboundSmsSecurityService _outboundSmsSecurity = outboundSmsSecurity;
         private readonly ILogger<MessageController> _logger = logger;
+        private readonly DataContext? _dataContext = dataContext;
 
 
         [HttpPost]
@@ -88,9 +93,45 @@ namespace brownstone_hub_api.Controllers
             return id > 0;
         }
 
-        [HttpGet("{messageId}")]
-        public async Task<IActionResult> GetMessage(long messageId)
+        private async Task<bool> IsConversationInActiveOrganizationAsync(
+            long conversationId,
+            CancellationToken cancellationToken = default)
         {
+            if (_dataContext is null ||
+                !TryGetPositiveId(HttpContext.Items["UserId"], out var userId) ||
+                !TryGetPositiveId(HttpContext.Items["OrganizationId"], out var organizationId))
+                return false;
+
+            return await _dataContext.Conversations
+                .WhereActiveParticipant(_dataContext.OrganizationMembers, _dataContext.Tenants, userId)
+                .AnyAsync(conversation =>
+                    conversation.Id == conversationId &&
+                    conversation.OrganizationId == organizationId,
+                    cancellationToken);
+        }
+
+        private async Task<bool> IsMessageInActiveOrganizationAsync(
+            long messageId,
+            CancellationToken cancellationToken = default)
+        {
+            if (_dataContext is null)
+                return false;
+
+            var conversationId = await _dataContext.Messages.AsNoTracking()
+                .Where(message => message.Id == messageId && !message.IsDeleted)
+                .Select(message => (long?)message.ConversationId)
+                .SingleOrDefaultAsync(cancellationToken);
+
+            return conversationId.HasValue &&
+                await IsConversationInActiveOrganizationAsync(conversationId.Value, cancellationToken);
+        }
+
+        [HttpGet("{messageId}")]
+        public async Task<IActionResult> GetMessage(long messageId, CancellationToken cancellationToken = default)
+        {
+            if (!await IsMessageInActiveOrganizationAsync(messageId, cancellationToken))
+                return NotFound();
+
             var response = await _messageService.GetMessageById(messageId);
             
             if (!response.Success)
@@ -100,8 +141,11 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("conversation/{conversationId}")]
-        public async Task<IActionResult> GetMessages(long conversationId, [FromQuery] int skip = 0, [FromQuery] int take = 50)
+        public async Task<IActionResult> GetMessages(long conversationId, [FromQuery] int skip = 0, [FromQuery] int take = 50, CancellationToken cancellationToken = default)
         {
+            if (!await IsConversationInActiveOrganizationAsync(conversationId, cancellationToken))
+                return NotFound();
+
             var response = await _messageService.GetMessagesByConversationId(conversationId, skip, take);
             
             if (!response.Success)
@@ -111,8 +155,11 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPut("{messageId}")]
-        public async Task<IActionResult> UpdateMessage(long messageId, [FromBody] string content)
+        public async Task<IActionResult> UpdateMessage(long messageId, [FromBody] string content, CancellationToken cancellationToken = default)
         {
+            if (!await IsMessageInActiveOrganizationAsync(messageId, cancellationToken))
+                return NotFound();
+
             var response = await _messageService.UpdateMessage(messageId, content);
             
             if (!response.Success)
@@ -122,8 +169,11 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpDelete("{messageId}")]
-        public async Task<IActionResult> DeleteMessage(long messageId)
+        public async Task<IActionResult> DeleteMessage(long messageId, CancellationToken cancellationToken = default)
         {
+            if (!await IsMessageInActiveOrganizationAsync(messageId, cancellationToken))
+                return NotFound();
+
             var response = await _messageService.DeleteMessage(messageId);
             
             if (!response.Success)
@@ -133,8 +183,11 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("{messageId}/read")]
-        public async Task<IActionResult> MarkMessageAsRead(long messageId)
+        public async Task<IActionResult> MarkMessageAsRead(long messageId, CancellationToken cancellationToken = default)
         {
+            if (!await IsMessageInActiveOrganizationAsync(messageId, cancellationToken))
+                return NotFound();
+
             var response = await _messageService.MarkMessageAsRead(messageId);
             
             if (!response.Success)
@@ -144,8 +197,11 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("conversation/{conversationId}/read")]
-        public async Task<IActionResult> MarkConversationAsRead(long conversationId)
+        public async Task<IActionResult> MarkConversationAsRead(long conversationId, CancellationToken cancellationToken = default)
         {
+            if (!await IsConversationInActiveOrganizationAsync(conversationId, cancellationToken))
+                return NotFound();
+
             var response = await _messageService.MarkConversationAsRead(conversationId);
             
             if (!response.Success)

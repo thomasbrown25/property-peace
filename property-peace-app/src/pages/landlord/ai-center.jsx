@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Alert,
@@ -11,7 +11,6 @@ import {
   IconButton,
   InputBase,
   Stack,
-  Switch,
   Tooltip,
   Typography,
   useTheme
@@ -30,17 +29,27 @@ import {
   PlusOutlined,
   RobotOutlined,
   SendOutlined,
-  SettingOutlined,
   SyncOutlined,
   ToolOutlined
 } from '@ant-design/icons';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import useOrganizationSummary from 'hooks/useOrganizationSummary';
-import { aiFollowUpAPI, organizationAPI } from 'api';
-import { openSnackbar } from 'api/snackbar';
+import useAuth from 'hooks/useAuth';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { aiFollowUpAPI } from 'api';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { mapPercySource } from 'utils/percySources';
+import { createPercyChatRequestAttempt } from 'utils/percyChatRequestAttempt';
+import {
+  createAICenterScopeGuard,
+  getAICenterReadinessMarker,
+  getCurrentOrganizationId,
+  isAICenterRuntimeReady,
+  isAICenterScopeEligible,
+  makeAICenterScope
+} from 'utils/aiCenterScope';
 
 const NAVY = '#061e35';
 const GREEN = '#16a34a';
@@ -75,13 +84,14 @@ const mapConfirmation = (value) => {
 
 const mapMessage = (value) => {
   const activityLabel = readField(value, 'activityLabel', 'ActivityLabel');
+  const activityStatus = readField(value, 'activityStatus', 'ActivityStatus');
   return {
     id: readField(value, 'id', 'Id') || `${readField(value, 'role', 'Role')}-${Date.now()}-${Math.random()}`,
     role: String(readField(value, 'role', 'Role') || 'assistant').toLowerCase(),
     content: readField(value, 'content', 'Content') || '',
     createdAt: readField(value, 'createdAt', 'CreatedAt'),
-    tool: activityLabel
-      ? { label: activityLabel, status: readField(value, 'activityStatus', 'ActivityStatus') || 'Property Peace data reviewed' }
+    tool: activityLabel && activityStatus
+      ? { label: activityLabel, status: activityStatus }
       : null,
     metrics: asArray(readField(value, 'metrics', 'Metrics')).map((metric) => ({
       label: readField(metric, 'label', 'Label'),
@@ -93,6 +103,7 @@ const mapMessage = (value) => {
       detail: readField(item, 'detail', 'Detail'),
       value: readField(item, 'value', 'Value')
     })),
+    sources: asArray(readField(value, 'sources', 'Sources')).map(mapPercySource),
     pendingConfirmation: mapConfirmation(readField(value, 'pendingConfirmation', 'PendingConfirmation'))
   };
 };
@@ -106,6 +117,7 @@ const mapChatResponse = (value) =>
     activityStatus: readField(value, 'activityStatus', 'ActivityStatus'),
     metrics: readField(value, 'metrics', 'Metrics'),
     items: readField(value, 'items', 'Items'),
+    sources: readField(value, 'sources', 'Sources'),
     pendingConfirmation: readField(value, 'pendingConfirmation', 'PendingConfirmation')
   });
 
@@ -134,6 +146,23 @@ function ToolStatus({ tool }) {
   );
 }
 
+function SourceLinks({ sources }) {
+  if (!sources?.length) return null;
+  return (
+    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" sx={{ mt: 1.25 }}>
+      <Typography variant="caption" color="text.secondary">Sources</Typography>
+      {sources.map((source, index) => {
+        const label = source.label || 'Property Peace data';
+        const key = `${source.kind}-${source.workflowRoute || 'unlinked'}-${index}`;
+        return source.workflowRoute ? (
+          <Chip key={key} size="small" component={Link} clickable to={source.workflowRoute} label={label}
+            icon={<DatabaseOutlined />} sx={{ textDecoration: 'none' }} />
+        ) : <Chip key={key} size="small" label={label} icon={<DatabaseOutlined />} />;
+      })}
+    </Stack>
+  );
+}
+
 function AssistantMessage({ message, onResolveConfirmation, confirmationLoading, confirmationError }) {
   const confirmation = message.pendingConfirmation;
   const confirmationPending = confirmation && String(confirmation.status).toLowerCase() === 'pending';
@@ -159,6 +188,7 @@ function AssistantMessage({ message, onResolveConfirmation, confirmationLoading,
         </Typography>
 
         {message.tool && <ToolStatus tool={message.tool} />}
+        <SourceLinks sources={message.sources} />
 
         {message.metrics?.length > 0 && (
           <Box
@@ -313,10 +343,24 @@ export default function AICenter() {
 
   const messageEndRef = useRef(null);
   const selectionVersionRef = useRef(0);
+  const scopeGuardRef = useRef(createAICenterScopeGuard());
   const progressTimerRef = useRef(null);
   const streamAbortRef = useRef(null);
+  const chatRequestAttemptRef = useRef(createPercyChatRequestAttempt());
+  const { user } = useAuth();
+  const { currentOrganization, loading: organizationLoading } = useOrganization();
+  const userId = user?.id ?? user?.Id ?? user?.email ?? user?.Email ?? null;
+  const organizationId = getCurrentOrganizationId(currentOrganization);
+  const aiScopeEligible = isAICenterScopeEligible({ userId, currentOrganization, organizationLoading });
+  const aiScope = useMemo(() => makeAICenterScope({ userId, organizationId }), [organizationId, userId]);
+  // Synchronize during render so same-organization loading transitions close
+  // currentness immediately, rather than waiting for effect cleanup.
+  const aiRuntime = scopeGuardRef.current.synchronize(aiScope, aiScopeEligible);
+  const currentScopeRef = useRef(aiRuntime);
+  currentScopeRef.current = aiRuntime;
   const { data: summary, loading: summaryLoading, error: summaryError } = useOrganizationSummary();
   const { presentation: percyReadiness } = useFeatureReadiness(FEATURE_KEYS.percy);
+  const readinessMarker = getAICenterReadinessMarker(percyReadiness);
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -330,11 +374,9 @@ export default function AICenter() {
   const [conversationError, setConversationError] = useState('');
   const [confirmationLoading, setConfirmationLoading] = useState({});
   const [confirmationErrors, setConfirmationErrors] = useState({});
-  const [collectionsEnabled, setCollectionsEnabled] = useState(true);
-  const [maintenanceEnabled, setMaintenanceEnabled] = useState(true);
-  const [settingsLoading, setSettingsLoading] = useState(true);
-  const [settingsSaving, setSettingsSaving] = useState(false);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [stateScopeGeneration, setStateScopeGeneration] = useState(null);
+  const aiRuntimeReady = isAICenterRuntimeReady({ runtime: aiRuntime, stateGeneration: stateScopeGeneration });
 
   const sortConversations = (items) =>
     [...items].sort(
@@ -342,27 +384,13 @@ export default function AICenter() {
     );
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const response = await organizationAPI.getCurrentOrganization();
-        if (response?.success && response?.data) {
-          setCollectionsEnabled(response.data.isCollectionsAgentEnabled ?? true);
-          setMaintenanceEnabled(response.data.isMaintenanceAgentEnabled ?? true);
-        }
-      } catch {
-        // Percy remains usable when workflow settings cannot be loaded.
-      } finally {
-        setSettingsLoading(false);
-      }
-    };
-    loadSettings();
-  }, []);
-
-  useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, thinking]);
 
   const handleSelectConversation = async (id) => {
+    if (!aiScopeEligible) return;
+    const scopeRequest = scopeGuardRef.current.capture(aiScope);
+    chatRequestAttemptRef.current.contextChanged({ conversationId: id, scopeKey: aiScope.scopeKey });
     streamAbortRef.current?.abort();
     const version = ++selectionVersionRef.current;
     clearTimeout(progressTimerRef.current);
@@ -374,45 +402,76 @@ export default function AICenter() {
     setConversationError('');
     try {
       const response = unwrapData(await aiFollowUpAPI.getConversation(id));
-      if (selectionVersionRef.current !== version) return;
+      if (selectionVersionRef.current !== version || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
       setMessages(asArray(readField(response, 'messages', 'Messages')).map(mapMessage));
     } catch (error) {
-      if (selectionVersionRef.current !== version) return;
+      if (selectionVersionRef.current !== version || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
       setConversationError(errorMessage(error, 'Could not load this conversation. Please try again.'));
     } finally {
-      if (selectionVersionRef.current === version) setConversationLoading(false);
+      if (selectionVersionRef.current === version && scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) {
+        setConversationLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    let active = true;
-    const loadConversations = async () => {
-      setConversationsLoading(true);
-      setConversationsError('');
-      try {
-        const response = unwrapData(await aiFollowUpAPI.getConversations());
-        if (!active) return;
-        const loaded = sortConversations(asArray(response));
-        setConversations(loaded);
-        if (loaded.length > 0) handleSelectConversation(readField(loaded[0], 'id', 'Id'));
-      } catch (error) {
-        if (active) setConversationsError(errorMessage(error, 'Could not load your Percy conversations.'));
-      } finally {
-        if (active) setConversationsLoading(false);
-      }
-    };
-    loadConversations();
-    return () => {
-      active = false;
+    const scopeRequest = scopeGuardRef.current.beginScope(aiScope, aiScopeEligible);
+    const isCurrentScope = () => scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current);
+    chatRequestAttemptRef.current.contextChanged({ conversationId: null, scopeKey: aiScope.scopeKey });
+
+    selectionVersionRef.current += 1;
+    streamAbortRef.current?.abort();
+    clearTimeout(progressTimerRef.current);
+    setMessages([]);
+    setInput('');
+    setThinking(false);
+    setProgressText('Understanding your request');
+    setConversations([]);
+    setSelectedConversationId(null);
+    setConversationsLoading(true);
+    setConversationsError('');
+    setConversationLoading(false);
+    setConversationError('');
+    setConfirmationLoading({});
+    setConfirmationErrors({});
+    setMobilePanelOpen(false);
+    setStateScopeGeneration(scopeRequest.generation);
+
+    const disposeScope = () => {
+      // Invalidate first: aborts and timer cleanup are not sufficient when an adapter ignores cancellation.
+      scopeGuardRef.current.dispose();
       selectionVersionRef.current += 1;
       streamAbortRef.current?.abort();
       clearTimeout(progressTimerRef.current);
     };
+
+    if (!aiScopeEligible) {
+      setConversationsLoading(false);
+      return disposeScope;
+    }
+
+    const loadConversations = async () => {
+      try {
+        const response = unwrapData(await aiFollowUpAPI.getConversations());
+        if (!isCurrentScope()) return;
+        const loaded = sortConversations(asArray(response));
+        setConversations(loaded);
+        if (loaded.length > 0) handleSelectConversation(readField(loaded[0], 'id', 'Id'));
+      } catch (error) {
+        if (isCurrentScope()) setConversationsError(errorMessage(error, 'Could not load your Percy conversations.'));
+      } finally {
+        if (isCurrentScope()) setConversationsLoading(false);
+      }
+    };
+    loadConversations();
+    return disposeScope;
     // Initial durable conversation load only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [aiScope.scopeKey, aiScopeEligible]);
 
   const handleNewChat = () => {
+    if (!aiRuntimeReady) return;
+    chatRequestAttemptRef.current.contextChanged({ conversationId: null, scopeKey: aiScope.scopeKey });
     streamAbortRef.current?.abort();
     selectionVersionRef.current += 1;
     clearTimeout(progressTimerRef.current);
@@ -425,12 +484,18 @@ export default function AICenter() {
   };
 
   const handleSend = async (value = input) => {
-    if (!percyReadiness.canInvoke) return;
+    if (!aiRuntimeReady || !percyReadiness.canInvoke) return;
     const prompt = value.trim();
     if (!prompt || thinking || conversationLoading) return;
 
+    const scopeRequest = scopeGuardRef.current.capture(aiScope);
     const version = selectionVersionRef.current;
     const conversationId = selectedConversationId;
+    const requestAttempt = chatRequestAttemptRef.current.begin({
+      message: prompt,
+      conversationId,
+      scopeKey: aiScope.scopeKey
+    });
     const optimisticId = `user-${Date.now()}`;
     const assistantPlaceholderId = `assistant-stream-${Date.now()}`;
     const controller = new AbortController();
@@ -447,10 +512,10 @@ export default function AICenter() {
 
     let completedResponse = null;
     try {
-      await aiFollowUpAPI.streamChat(prompt, conversationId, {
+      await aiFollowUpAPI.streamChat(prompt, conversationId, requestAttempt.clientRequestId, {
         signal: controller.signal,
         onEvent: (event) => {
-          if (selectionVersionRef.current !== version) return;
+          if (selectionVersionRef.current !== version || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
           if (event.type === 'status') {
             setProgressText(event.message || 'Checking Property Peace data');
             return;
@@ -474,8 +539,13 @@ export default function AICenter() {
         }
       });
 
-      if (selectionVersionRef.current !== version || !completedResponse) return;
+      if (
+        selectionVersionRef.current !== version
+        || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)
+      ) return;
+      if (!completedResponse) throw new Error('Percy could not complete this request. Please try again.');
       const response = completedResponse;
+      chatRequestAttemptRef.current.succeed(requestAttempt);
       const serverConversationId = readField(response, 'conversationId', 'ConversationId');
       const title = readField(response, 'conversationTitle', 'ConversationTitle') || prompt;
       const userMessageId = readField(response, 'userMessageId', 'UserMessageId');
@@ -500,7 +570,9 @@ export default function AICenter() {
       });
     } catch (error) {
       if (controller.signal.aborted) return;
-      if (selectionVersionRef.current === version) {
+      chatRequestAttemptRef.current.fail(requestAttempt);
+      if (selectionVersionRef.current === version && scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) {
+        setInput(prompt);
         setMessages((current) =>
           current.map((message) =>
             message.id === assistantPlaceholderId
@@ -516,7 +588,9 @@ export default function AICenter() {
     } finally {
       if (streamAbortRef.current === controller) streamAbortRef.current = null;
       clearTimeout(progressTimerRef.current);
-      if (selectionVersionRef.current === version) setThinking(false);
+      if (selectionVersionRef.current === version && scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) {
+        setThinking(false);
+      }
     }
   };
 
@@ -527,30 +601,17 @@ export default function AICenter() {
     }
   };
 
-  const updateWorkflowSettings = async (nextCollections, nextMaintenance) => {
-    setSettingsSaving(true);
-    try {
-      await organizationAPI.updateAgentSettings({
-        isCollectionsAgentEnabled: nextCollections,
-        isMaintenanceAgentEnabled: nextMaintenance
-      });
-      setCollectionsEnabled(nextCollections);
-      setMaintenanceEnabled(nextMaintenance);
-      openSnackbar({ open: true, message: 'Percy workflow settings updated.', variant: 'alert', alert: { color: 'success' } });
-    } catch {
-      openSnackbar({ open: true, message: 'Could not update Percy workflow settings.', variant: 'alert', alert: { color: 'error' } });
-    } finally {
-      setSettingsSaving(false);
-    }
-  };
 
   const handleResolveConfirmation = async (messageId, confirmationId, confirm) => {
+    if (!aiRuntimeReady) return;
+    const scopeRequest = scopeGuardRef.current.capture(aiScope);
     setConfirmationLoading((current) => ({ ...current, [confirmationId]: true }));
     setConfirmationErrors((current) => ({ ...current, [confirmationId]: '' }));
     try {
       const response = unwrapData(
         await (confirm ? aiFollowUpAPI.confirmAction(confirmationId) : aiFollowUpAPI.declineAction(confirmationId))
       );
+      if (!scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
       const status = readField(response, 'status', 'Status') || (confirm ? 'Completed' : 'Declined');
       const resultMessage = readField(response, 'message', 'Message');
       setMessages((current) =>
@@ -565,21 +626,27 @@ export default function AICenter() {
         )
       );
     } catch (error) {
+      if (!scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
       setConfirmationErrors((current) => ({
         ...current,
         [confirmationId]: errorMessage(error, `Could not ${confirm ? 'confirm' : 'cancel'} this action. Please try again.`)
       }));
     } finally {
-      setConfirmationLoading((current) => ({ ...current, [confirmationId]: false }));
+      if (scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) {
+        setConfirmationLoading((current) => ({ ...current, [confirmationId]: false }));
+      }
     }
   };
 
   const dataReady = !summaryLoading && !summaryError;
   const contextCounts = {
     properties: asArray(readField(summary, 'properties', 'Properties')).length,
-    tenants: asArray(readField(summary, 'tenants', 'Tenants')).length,
-    tools: 8
+    tenants: asArray(readField(summary, 'tenants', 'Tenants')).length
   };
+
+  // Never render retained state while the scope is ineligible or while a fresh
+  // runtime generation is waiting for its reset/reload effect.
+  if (!aiRuntimeReady) return null;
 
   return (
     <Box>
@@ -712,15 +779,7 @@ export default function AICenter() {
             >
               Activity history
             </Button>
-            <Button
-              component={Link}
-              to="/landlord/settings?tab=aiSummary"
-              fullWidth
-              startIcon={<SettingOutlined />}
-              sx={{ justifyContent: 'flex-start', color: 'text.secondary', textTransform: 'none' }}
-            >
-              Percy settings
-            </Button>
+
           </Box>
         </Box>
 
@@ -741,13 +800,19 @@ export default function AICenter() {
                     Percy workspace
                   </Typography>
                   <Chip
-                    label="Live"
+                    label={readinessMarker.label}
                     size="small"
-                    sx={{ height: 20, fontSize: '0.65rem', bgcolor: alpha(GREEN, 0.09), color: GREEN, fontWeight: 800 }}
+                    sx={{
+                      height: 20,
+                      fontSize: '0.65rem',
+                      bgcolor: readinessMarker.active ? alpha(GREEN, 0.09) : alpha(NAVY, 0.06),
+                      color: readinessMarker.active ? GREEN : 'text.secondary',
+                      fontWeight: 800
+                    }}
                   />
                 </Stack>
                 <Typography variant="caption" color="text.secondary">
-                  Property Peace tools · Organization scoped
+                  {readinessMarker.toolDetail}
                 </Typography>
               </Box>
             </Stack>
@@ -827,6 +892,7 @@ export default function AICenter() {
                       key={starter.label}
                       component="button"
                       type="button"
+                      disabled={!aiRuntimeReady || !percyReadiness.canInvoke || thinking || conversationLoading}
                       onClick={() => handleSend(starter.prompt)}
                       sx={{
                         p: 1.5,
@@ -945,10 +1011,13 @@ export default function AICenter() {
                   maxRows={5}
                   fullWidth
                   value={input}
-                  onChange={(event) => setInput(event.target.value)}
+                  onChange={(event) => {
+                    chatRequestAttemptRef.current.inputChanged(event.target.value);
+                    setInput(event.target.value);
+                  }}
                   onKeyDown={handleComposerKeyDown}
                   placeholder="Ask Percy about your properties…"
-                  disabled={summaryLoading || conversationLoading}
+                  disabled={!aiRuntimeReady || !percyReadiness.canInvoke || summaryLoading || conversationLoading}
                   sx={{ py: 0.75, fontSize: '0.95rem' }}
                 />
                 <IconButton
@@ -966,7 +1035,7 @@ export default function AICenter() {
                 </IconButton>
               </Box>
               <Typography variant="caption" color="text.disabled" sx={{ display: 'block', textAlign: 'center', mt: 0.75 }}>
-                Percy uses live organization-scoped data. Confirmations are required before consequential actions.
+                Percy uses organization-scoped data. Confirmations are required before consequential actions.
               </Typography>
             </Box>
           </Box>
@@ -1002,73 +1071,9 @@ export default function AICenter() {
               <ConnectionRow
                 icon={<ApiOutlined />}
                 title="Built-in tools"
-                detail={`${contextCounts.tools} organization-scoped tools`}
-                active
+                detail={readinessMarker.toolDetail}
+                active={readinessMarker.active}
               />
-              <ConnectionRow icon={<RobotOutlined />} title="MCP servers" detail="No external servers connected" />
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          <Box sx={{ p: 2 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Box>
-                <Typography variant="subtitle2" fontWeight={850} sx={{ color: NAVY }}>
-                  Automations
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Background Percy workflows
-                </Typography>
-              </Box>
-              {(settingsLoading || settingsSaving) && <CircularProgress size={16} />}
-            </Stack>
-
-            <Stack spacing={1.25} sx={{ mt: 1.5 }}>
-              <Box sx={{ p: 1.25, borderRadius: 1.75, border: `1px solid ${alpha(NAVY, 0.08)}`, bgcolor: '#fff' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <DollarCircleOutlined style={{ color: GREEN }} />
-                    <Box>
-                      <Typography variant="body2" fontWeight={750}>
-                        Collections
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Rent follow-ups
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Switch
-                    size="small"
-                    checked={collectionsEnabled}
-                    disabled={settingsLoading || settingsSaving}
-                    onChange={(event) => updateWorkflowSettings(event.target.checked, maintenanceEnabled)}
-                    color="success"
-                  />
-                </Stack>
-              </Box>
-              <Box sx={{ p: 1.25, borderRadius: 1.75, border: `1px solid ${alpha(NAVY, 0.08)}`, bgcolor: '#fff' }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <ToolOutlined style={{ color: '#d97706' }} />
-                    <Box>
-                      <Typography variant="body2" fontWeight={750}>
-                        Maintenance
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Request support
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Switch
-                    size="small"
-                    checked={maintenanceEnabled}
-                    disabled={settingsLoading || settingsSaving}
-                    onChange={(event) => updateWorkflowSettings(collectionsEnabled, event.target.checked)}
-                    color="success"
-                  />
-                </Stack>
-              </Box>
             </Stack>
           </Box>
 
@@ -1215,34 +1220,20 @@ export default function AICenter() {
             <ConnectionRow
               icon={<ApiOutlined />}
               title="Built-in tools"
-              detail={`${contextCounts.tools} organization-scoped tools`}
-              active
+              detail={readinessMarker.toolDetail}
+              active={readinessMarker.active}
             />
-            <ConnectionRow icon={<RobotOutlined />} title="MCP servers" detail="No external servers connected" />
-            <Divider sx={{ my: 2 }} />
-            <Typography variant="subtitle2" fontWeight={800} sx={{ mb: 1 }}>
-              Automations
-            </Typography>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
-              <Typography variant="body2">Collections</Typography>
-              <Switch
-                size="small"
-                checked={collectionsEnabled}
-                disabled={settingsLoading || settingsSaving}
-                onChange={(event) => updateWorkflowSettings(event.target.checked, maintenanceEnabled)}
-                color="success"
-              />
-            </Stack>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1 }}>
-              <Typography variant="body2">Maintenance</Typography>
-              <Switch
-                size="small"
-                checked={maintenanceEnabled}
-                disabled={settingsLoading || settingsSaving}
-                onChange={(event) => updateWorkflowSettings(collectionsEnabled, event.target.checked)}
-                color="success"
-              />
-            </Stack>
+            <Divider sx={{ my: 1.5 }} />
+            <Button
+              component={Link}
+              to="/landlord/ai-center/collections-history"
+              fullWidth
+              startIcon={<HistoryOutlined />}
+              onClick={() => setMobilePanelOpen(false)}
+              sx={{ justifyContent: 'flex-start', color: 'text.secondary', textTransform: 'none' }}
+            >
+              Activity history
+            </Button>
           </Box>
         </Box>
       )}

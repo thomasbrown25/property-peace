@@ -45,7 +45,7 @@ import { openSnackbar } from 'api/snackbar';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useAuth from 'hooks/useAuth';
 import { getTodayLocalDate } from 'utils/formatters';
-import { generateChatCompletion, isConfigured } from 'services/azureAIService';
+import { categorizeExpense } from 'utils/expenseCategorization';
 
 const STEPS = {
   EXPENSE_TYPE: 1,
@@ -281,61 +281,14 @@ export default function ExpenseAddWorkflow() {
     handleChange('unitId', null); // Reset unit when property changes
   };
 
-  // AI function to categorize and name expense
-  const categorizeExpenseWithAI = async (description) => {
-    if (!isConfigured()) {
-      // Fallback to simple categorization
-      return {
-        category: 'Other',
-        name: description.length > 50 ? description.substring(0, 50) : description
-      };
-    }
-
-    try {
-      const categoryList = 'Application Fee, Screening, Auto & Travel, Car Rental, Water tank, Repairs, Maintenance, Utilities, HOA, Insurance, Taxes, Landscaping, Cleaning, Advertising, Legal, Accounting, Property Management, Capital Improvements, Supplies, Other';
-      
-      const prompt = `Based on this expense description: "${description}", determine:
-1. The most appropriate expense category from this list: ${categoryList}
-2. A clear, concise name for this expense (max 50 characters)
-
-Respond in JSON format:
-{
-  "category": "category name",
-  "name": "expense name"
-}`;
-
-      const messages = [
-        { role: 'system', content: 'You are a helpful assistant that categorizes property management expenses. Always respond with valid JSON only.' },
-        { role: 'user', content: prompt }
-      ];
-
-      const response = await generateChatCompletion(messages, { temperature: 0.3, maxTokens: 200 });
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return {
-          category: parsed.category || 'Other',
-          name: parsed.name || (description.length > 50 ? description.substring(0, 50) : description)
-        };
-      }
-    } catch (error) {
-      console.error('AI categorization error:', error);
-    }
-
-    // Fallback
-    return {
-      category: 'Other',
-      name: description.length > 50 ? description.substring(0, 50) : description
-    };
-  };
+  const categorizeExpenseLocally = (description) => categorizeExpense(description);
 
   const handleCreateExpense = async () => {
     setError(null);
     setProcessing(true);
 
     try {
-      // Use AI to categorize and name the expense
-      const aiResult = await categorizeExpenseWithAI(formData.expenseDescription);
+      const aiResult = categorizeExpenseLocally(formData.expenseDescription);
       setAiResult(aiResult);
 
       // Calculate dayOfPeriod for recurring expenses

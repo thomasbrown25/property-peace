@@ -6,6 +6,7 @@ using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Leads;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Caching.Memory;
@@ -100,6 +101,7 @@ public sealed class LeadService : ILeadService
     private readonly ILeadAbuseGuard abuseGuard;
     private readonly TimeProvider clock;
     private readonly ILeadTokenDelivery delivery;
+    private readonly IActivationOccurrenceRecorder? occurrenceRecorder;
 
     private enum BookingAuthority
     {
@@ -107,12 +109,14 @@ public sealed class LeadService : ILeadService
         VerifiedBrowserSession
     }
 
-    public LeadService(DataContext db, ILeadAbuseGuard abuseGuard, TimeProvider clock, ILeadTokenDelivery delivery)
+    public LeadService(DataContext db, ILeadAbuseGuard abuseGuard, TimeProvider clock, ILeadTokenDelivery delivery,
+        IActivationOccurrenceRecorder? occurrenceRecorder = null)
     {
         this.db = db;
         this.abuseGuard = abuseGuard;
         this.clock = clock;
         this.delivery = delivery;
+        this.occurrenceRecorder = occurrenceRecorder;
     }
 
     public async Task<PublicInquiryResult> SubmitInquiryAsync(long listingId, PublicInquiryRequest request,
@@ -206,6 +210,11 @@ public sealed class LeadService : ILeadService
             }
 
             await db.SaveChangesAsync(ct);
+            if (created && occurrenceRecorder is not null)
+                await occurrenceRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                    organizationId, ActivationMilestones.LeadReceived, $"lead:{lead.Id}",
+                    new DateTimeOffset(DateTime.SpecifyKind(now, DateTimeKind.Utc), TimeSpan.Zero),
+                    SourceEventType: "lead", SourceEventId: lead.Id.ToString()), ct);
             await CommitAsync(transaction, ct);
             return new(receipt, "pending");
         }
@@ -359,6 +368,11 @@ public sealed class LeadService : ILeadService
             lead.ShowingReachedAtUtc ??= now;
             lead.UpdatedAtUtc = now;
             await db.SaveChangesAsync(ct);
+            if (occurrenceRecorder is not null)
+                await occurrenceRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                    organizationId, ActivationMilestones.ShowingBooked, $"showing:{showing.Id}",
+                    new DateTimeOffset(DateTime.SpecifyKind(now, DateTimeKind.Utc), TimeSpan.Zero),
+                    SourceEventType: "showing", SourceEventId: showing.Id.ToString()), ct);
             QueueShowingIntents(showing, now, LeadNotificationKind.ShowingConfirmation);
             await db.SaveChangesAsync(ct);
             await CommitAsync(transaction, ct);

@@ -9,6 +9,7 @@ using brownstone_hub_api.Repositories.Messages;
 using brownstone_hub_api.Repositories.Timelines;
 using brownstone_hub_api.Services.Timelines;
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Attributes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -75,6 +76,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost]
         public async Task<IActionResult> AddConversation([FromBody] AddConversationDto conversation)
         {
@@ -156,6 +158,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("{conversationId}")]
         public async Task<IActionResult> GetConversation(long conversationId)
         {
@@ -172,6 +175,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet]
         public async Task<IActionResult> GetConversations([FromQuery] bool includeArchived = false)
         {
@@ -188,6 +192,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("admin/conversations")]
         public async Task<IActionResult> GetAdminConversations([FromQuery] bool includeArchived = false)
         {
@@ -204,6 +209,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPut("{conversationId}")]
         public async Task<IActionResult> UpdateConversation(long conversationId, [FromBody] AddConversationDto conversation)
         {
@@ -218,6 +224,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpDelete("{conversationId}")]
         public async Task<IActionResult> DeleteConversation(long conversationId)
         {
@@ -232,6 +239,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("{conversationId}/archive")]
         public async Task<IActionResult> ArchiveConversation(long conversationId, [FromBody] bool archive)
         {
@@ -246,6 +254,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("{conversationId}/pin")]
         public async Task<IActionResult> PinConversation(long conversationId, [FromBody] bool pin)
         {
@@ -260,6 +269,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("{conversationId}/summary")]
         public async Task<IActionResult> GetConversationSummary(long conversationId)
         {
@@ -287,6 +297,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("urgent")]
         public async Task<IActionResult> GetUrgentConversations()
         {
@@ -303,6 +314,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("{conversationId}/analyze")]
         public async Task<IActionResult> AnalyzeConversation(long conversationId)
         {
@@ -319,6 +331,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("{conversationId}/clear-urgent")]
         public async Task<IActionResult> ClearUrgentItems(long conversationId, [FromBody] ClearUrgentItemRequest? request = null)
         {
@@ -478,6 +491,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("suppressed-messages")]
         public async Task<IActionResult> GetSuppressedMessageIds()
         {
@@ -513,6 +527,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("urgent-messages/all")]
         public async Task<IActionResult> GetAllUrgentMessageDetails()
         {
@@ -544,100 +559,122 @@ namespace brownstone_hub_api.Controllers
         }
         [HttpGet("{conversationId:long}/timeline")]
         public async Task<IActionResult> GetTimeline(long conversationId, [FromQuery] long? afterSequence = null, [FromQuery] int take = 50) =>
-            await M7(async userId => await _milestone7Service.ReadTimelineAsync(conversationId, userId, afterSequence, take));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.ReadTimelineAsync(conversationId, userId, organizationId, afterSequence, take));
 
         [HttpGet("timeline/search")]
         public async Task<IActionResult> SearchTimeline([FromQuery] TimelineSearchRequest request) =>
-            await M7(async userId => await _milestone7Service.SearchAsync(userId, request));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.SearchAsync(userId, organizationId, request));
 
         [HttpGet("{conversationId:long}/unread")]
         public async Task<IActionResult> GetUnread(long conversationId) =>
-            await M7(async userId => await _milestone7Service.GetUnreadAsync(conversationId, userId));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.GetUnreadAsync(conversationId, userId, organizationId));
 
         [HttpPost("{conversationId:long}/read")]
         public async Task<IActionResult> MarkRead(long conversationId, [FromBody] MarkTimelineReadRequest request) =>
-            await M7(async userId => await _milestone7Service.MarkReadAsync(conversationId, userId, request.ThroughSequence));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.MarkReadAsync(conversationId, userId, organizationId, request.ThroughSequence));
 
         [HttpGet("quick-replies")]
         public async Task<IActionResult> ListQuickReplies([FromQuery] long organizationId, [FromQuery] string? contextKind = null) =>
-            await M7(async userId => await _milestone7Service.ListQuickRepliesAsync(userId, organizationId, contextKind));
+            await M7Scoped(async (userId, activeOrganizationId) => await _milestone7Service.ListQuickRepliesAsync(userId, activeOrganizationId, contextKind));
 
         [HttpPost("quick-replies")]
         public async Task<IActionResult> CreateQuickReply([FromBody] SaveQuickReplyRequest request) =>
-            await M7(async userId => await _milestone7Service.CreateQuickReplyAsync(userId, request));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.CreateQuickReplyAsync(userId, organizationId, request));
 
         [HttpPut("quick-replies/{id:long}")]
         public async Task<IActionResult> UpdateQuickReply(long id, [FromBody] SaveQuickReplyRequest request) =>
-            await M7(async userId => await _milestone7Service.UpdateQuickReplyAsync(userId, id, request));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.UpdateQuickReplyAsync(userId, organizationId, id, request));
 
         [HttpDelete("quick-replies/{id:long}")]
-        public async Task<IActionResult> DeleteQuickReply(long id) => await M7(async userId =>
+        public async Task<IActionResult> DeleteQuickReply(long id) => await M7Scoped(async (userId, organizationId) =>
         {
-            await _milestone7Service.DeleteQuickReplyAsync(userId, id);
+            await _milestone7Service.DeleteQuickReplyAsync(userId, organizationId, id);
             return new { deleted = true };
         });
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("groups/participants")]
         public async Task<IActionResult> DiscoverGroupParticipants([FromQuery] long organizationId) =>
-            await M7(async userId => await _milestone7Service.DiscoverParticipantsAsync(userId, organizationId));
+            await M7Scoped(async (userId, activeOrganizationId) => await _milestone7Service.DiscoverParticipantsAsync(userId, activeOrganizationId));
 
+        [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("groups")]
         public async Task<IActionResult> CreateGroup([FromBody] CreateGroupRequest request) =>
-            await M7(async userId => await _milestone7Service.CreateGroupAsync(userId, request));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.CreateGroupAsync(userId, organizationId, request));
 
+        [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("groups/{conversationId:long}/participants/{participantUserId:long}")]
-        public async Task<IActionResult> AddGroupParticipant(long conversationId, long participantUserId) => await M7(async userId =>
+        public async Task<IActionResult> AddGroupParticipant(long conversationId, long participantUserId) => await M7Scoped(async (userId, organizationId) =>
         {
-            await _milestone7Service.AddGroupParticipantAsync(userId, conversationId, participantUserId);
+            await _milestone7Service.AddGroupParticipantAsync(userId, organizationId, conversationId, participantUserId);
             return new { added = true };
         });
 
+        [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpDelete("groups/{conversationId:long}/participants/{participantUserId:long}")]
-        public async Task<IActionResult> RemoveGroupParticipant(long conversationId, long participantUserId) => await M7(async userId =>
+        public async Task<IActionResult> RemoveGroupParticipant(long conversationId, long participantUserId) => await M7Scoped(async (userId, organizationId) =>
         {
-            await _milestone7Service.RemoveGroupParticipantAsync(userId, conversationId, participantUserId);
+            await _milestone7Service.RemoveGroupParticipantAsync(userId, organizationId, conversationId, participantUserId);
             return new { removed = true };
         });
 
         [HttpPost("groups/{conversationId:long}/leave")]
-        public async Task<IActionResult> LeaveGroup(long conversationId) => await M7(async userId =>
+        public async Task<IActionResult> LeaveGroup(long conversationId) => await M7Scoped(async (userId, organizationId) =>
         {
-            await _milestone7Service.LeaveGroupAsync(userId, conversationId);
+            await _milestone7Service.LeaveGroupAsync(userId, organizationId, conversationId);
             return new { left = true };
         });
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("follow-ups")]
         public async Task<IActionResult> ListFollowUps([FromQuery] long organizationId, [FromQuery] long? conversationId = null) =>
-            await M7(async userId => await _milestone7Service.ListFollowUpsAsync(userId, organizationId, conversationId));
+            await M7Scoped(async (userId, activeOrganizationId) => await _milestone7Service.ListFollowUpsAsync(userId, activeOrganizationId, conversationId));
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
         [HttpGet("follow-ups/{id:long}")]
-        public async Task<IActionResult> GetFollowUp(long id) => await M7(async userId => await _milestone7Service.GetFollowUpAsync(userId, id));
+        public async Task<IActionResult> GetFollowUp(long id) =>
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.GetFollowUpAsync(userId, organizationId, id));
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("follow-ups")]
         public async Task<IActionResult> CreateFollowUp([FromBody] SaveFollowUpTaskRequest request) =>
-            await M7(async userId => await _milestone7Service.CreateFollowUpAsync(userId, request));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.CreateFollowUpAsync(userId, organizationId, request));
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPut("follow-ups/{id:long}")]
         public async Task<IActionResult> UpdateFollowUp(long id, [FromBody] FollowUpMutationRequest request) =>
-            await M7(async userId => await _milestone7Service.UpdateFollowUpAsync(userId, id, request.Task, request.RowVersion));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.UpdateFollowUpAsync(userId, organizationId, id, request.Task, request.RowVersion));
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("follow-ups/{id:long}/complete")]
         public async Task<IActionResult> CompleteFollowUp(long id, [FromBody] RowVersionRequest request) =>
-            await M7(async userId => await _milestone7Service.CompleteFollowUpAsync(userId, id, request.RowVersion));
+            await M7Scoped(async (userId, organizationId) => await _milestone7Service.CompleteFollowUpAsync(userId, organizationId, id, request.RowVersion));
 
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpDelete("follow-ups/{id:long}")]
-        public async Task<IActionResult> DeleteFollowUp(long id, [FromBody] RowVersionRequest request) => await M7(async userId =>
+        public async Task<IActionResult> DeleteFollowUp(long id, [FromBody] RowVersionRequest request) => await M7Scoped(async (userId, organizationId) =>
         {
-            await _milestone7Service.DeleteFollowUpAsync(userId, id, request.RowVersion);
+            await _milestone7Service.DeleteFollowUpAsync(userId, organizationId, id, request.RowVersion);
             return new { deleted = true };
         });
+
+        private async Task<IActionResult> M7Scoped<T>(Func<long, long, Task<T>> action)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = "Organization context is required" });
+            return await M7(userId => action(userId, organizationId.Value));
+        }
 
         private async Task<IActionResult> M7<T>(Func<long, Task<T>> action)
         {

@@ -169,7 +169,6 @@ export default function MainNavigator() {
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
       </> : <>
         <Tab.Screen name="Maintenance" component={UnsupportedMaintenanceNavigator} />
-        <Tab.Screen name="Messages" component={MessagesNavigator} />
         <Tab.Screen name="Settings" component={SettingsScreen} />
       </>}
 

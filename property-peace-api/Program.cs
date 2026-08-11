@@ -167,6 +167,7 @@ using brownstone_hub_api.Entitlements.Decision;
 using brownstone_hub_api.Entitlements.Infrastructure;
 using brownstone_hub_api.Entitlements.Enforcement;
 using brownstone_hub_api.Security;
+using brownstone_hub_api.Services.ActivationFunnel;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -294,6 +295,8 @@ services.AddDbContext<DataContext>(
     }
 );
 services.AddSingleton<TimeProvider>(TimeProvider.System);
+services.AddScoped<IActivationOccurrenceRecorder, ActivationOccurrenceRecorder>();
+services.AddScoped<IActivationFunnelProjection, ActivationFunnelProjection>();
 services.AddScoped<ICommunicationDestinationProtector, DataProtectionCommunicationDestinationProtector>();
 services.AddScoped<IMessageDeliveryService, MessageDeliveryService>();
 services.AddScoped<IOutboundMessageDeliveryEnqueuer, OutboundMessageDeliveryEnqueuer>();

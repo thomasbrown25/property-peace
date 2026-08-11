@@ -10,6 +10,7 @@ using brownstone_hub_api.Services.NotificationService;
 using brownstone_hub_api.Services.PaymentService;
 using brownstone_hub_api.Services.StripeRentPayments;
 using brownstone_hub_api.Services.StripeService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public sealed class StripeWebhookRentOrchestrationTests
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
         await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        await StripeRentPaymentFlowTests.SeedLeaseDestinationAsync(context, 1, 2, "acct_activation_test");
         context.StripeRentPayments.Add(StripeRentPaymentFlowTests.NewPayment("pi_webhook_success"));
         await context.SaveChangesAsync();
 
@@ -62,6 +64,13 @@ public sealed class StripeWebhookRentOrchestrationTests
         aggregate.PaymentMethodType.Should().Be(authoritativeMethod);
         aggregate.HeldAt.Should().Be(occurredAt);
         aggregate.TransferEligibleAt.Should().Be(occurredAt.AddDays(holdDays));
+        var occurrence = await context.ActivationMilestoneOccurrences.SingleAsync();
+        occurrence.OrganizationId.Should().Be(2);
+        occurrence.Milestone.Should().Be(ActivationMilestones.FirstRentRecordedOrPaid);
+        occurrence.SubjectId.Should().Be("lease:1");
+        occurrence.SourceEventType.Should().Be("stripe_rent_payment");
+        occurrence.SourceEventId.Should().Be(aggregate.Id.ToString());
+        occurrence.OccurredAtUtc.Should().Be(occurredAt.UtcDateTime);
     }
 
     [Fact]

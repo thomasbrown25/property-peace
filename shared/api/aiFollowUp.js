@@ -25,19 +25,21 @@ export class AIFollowUpAPI {
     return this.client.get('/api/ai-copilot/agents/dashboard-summary');
   }
 
-  async chat(message, conversationId) {
+  async chat(message, conversationId, clientRequestId) {
     return this.client.post('/api/ai-copilot/chat', {
       message,
-      ...(conversationId !== undefined && conversationId !== null ? { conversationId } : {})
+      ...(conversationId !== undefined && conversationId !== null ? { conversationId } : {}),
+      clientRequestId
     });
   }
 
-  async streamChat(message, conversationId, options = {}) {
+  async streamChat(message, conversationId, clientRequestId, options = {}) {
     return this.client.streamNdjson(
       '/api/ai-copilot/chat/stream',
       {
         message,
-        ...(conversationId !== undefined && conversationId !== null ? { conversationId } : {})
+        ...(conversationId !== undefined && conversationId !== null ? { conversationId } : {}),
+        clientRequestId
       },
       options
     );

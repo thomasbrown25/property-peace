@@ -1834,6 +1834,16 @@ namespace brownstone_hub_api.Services.SubscriptionService
         {
             var response = new ServiceResponse<string>();
 
+            // Billing cycle values cross repository and provider boundaries, so accept only the
+            // canonical contract values before consulting any dependency.
+            if (createDto.BillingCycle != "Monthly" && createDto.BillingCycle != "Annual")
+            {
+                response.Success = false;
+                response.Message = "Billing cycle must be either Monthly or Annual.";
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                return response;
+            }
+
             try
             {
                 var userId = await GetCurrentUserIdAsync();
@@ -1914,6 +1924,24 @@ namespace brownstone_hub_api.Services.SubscriptionService
 
                 // Check if this is a free plan - if so, create subscription directly without Stripe checkout
                 bool isFreePlan = IsFreePlan(plan);
+                string? priceId = null;
+
+                // Resolve and validate the applicable provider mapping before creating/updating a
+                // customer or persisting a PaymentPending subscription.
+                if (!isFreePlan)
+                {
+                    priceId = createDto.BillingCycle == "Annual"
+                        ? plan.StripePriceIdAnnual
+                        : plan.StripePriceIdMonthly;
+
+                    if (string.IsNullOrWhiteSpace(priceId))
+                    {
+                        response.Success = false;
+                        response.Message = $"Price ID not configured for {createDto.BillingCycle} billing";
+                        response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                        return response;
+                    }
+                }
                 
                 if (isFreePlan)
                 {
@@ -1984,20 +2012,13 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     var tenantCustomerId = customerResponse.Data.Id;
                     tenantSubscription.StripeCustomerId = tenantCustomerId;
                     await _subscriptionRepository.UpdateSubscriptionAsync(tenantSubscription);
-                    var tenantPriceId = (createDto.BillingCycle == "Annual" ? plan.StripePriceIdAnnual : plan.StripePriceIdMonthly);
-                    if (string.IsNullOrWhiteSpace(tenantPriceId))
-                    {
-                        response.Success = false;
-                        response.Message = $"Price ID not configured for {(createDto.BillingCycle ?? "Monthly")} billing";
-                        return response;
-                    }
                     var tenantCheckoutResponse = await _stripeService.CreateCheckoutSessionAsync(
                         tenantCustomerId,
-                        tenantPriceId,
+                        priceId!,
                         createDto.SuccessUrl ?? "/tenant/subscription?success=true",
                         createDto.CancelUrl ?? "/tenant/subscription?canceled=true",
                         trialDays: null);
-                    if (!tenantCheckoutResponse.Success)
+                    if (!tenantCheckoutResponse.Success || string.IsNullOrWhiteSpace(tenantCheckoutResponse.Data))
                     {
                         response.Success = false;
                         response.Message = tenantCheckoutResponse.Message ?? "Failed to create checkout session";
@@ -2102,18 +2123,6 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     }
                 }
 
-                // Get price ID based on billing cycle
-                var priceId = createDto.BillingCycle == "Annual"
-                    ? plan.StripePriceIdAnnual
-                    : plan.StripePriceIdMonthly;
-
-                if (string.IsNullOrWhiteSpace(priceId))
-                {
-                    response.Success = false;
-                    response.Message = $"Price ID not configured for {createDto.BillingCycle} billing";
-                    return response;
-                }
-
                 // Use URLs from DTO (should be provided by controller)
                 var successUrl = createDto.SuccessUrl ?? "/landlord/subscription?success=true";
                 var cancelUrl = createDto.CancelUrl ?? "/landlord/subscription?canceled=true";
@@ -2158,7 +2167,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 // Create checkout session
                 var checkoutResponse = await _stripeService.CreateCheckoutSessionAsync(
                     customerId,
-                    priceId,
+                    priceId!,
                     successUrl,
                     cancelUrl,
                     trialDays

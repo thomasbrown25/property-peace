@@ -3,6 +3,7 @@ using brownstone_hub_api.Dtos.Maintenance;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.Maintenance;
 using brownstone_hub_api.Services.MaintenanceTriage;
+using brownstone_hub_api.Services.ActivationFunnel;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -269,6 +270,7 @@ public sealed class MaintenanceWorkflowApiServiceTests
         db.MaintenanceAttachments.Add(CompletionEvidence());
         await db.SaveChangesAsync();
         var completion = (await Service(db, Vendor).SubmitCompletionAsync(100, new(wo.Id, "Fixed", "file:proof", 100m))).Value!;
+        db.ActivationMilestoneOccurrences.Should().BeEmpty();
 
         var early = await Service(db, Manager).StaffCloseCompletionAsync(100, completion.Id, new(completion.Version, "No tenant response"));
         early.Code.Should().Be(MaintenanceApiResultCode.Conflict);
@@ -276,6 +278,14 @@ public sealed class MaintenanceWorkflowApiServiceTests
         var confirmed = await Service(db, Tenant).ConfirmCompletionAsync(100, completion.Id, new(completion.Version));
         confirmed.Value!.Status.Should().Be(MaintenanceCompletionStatus.Accepted);
         (await db.MaintenanceRequests.FindAsync(100L))!.Status.Should().Be(EMaintenanceStatus.Resolved);
+        var occurrence = db.ActivationMilestoneOccurrences.Should().ContainSingle().Subject;
+        occurrence.OrganizationId.Should().Be(60);
+        occurrence.Milestone.Should().Be(ActivationMilestones.MaintenanceClosed);
+        occurrence.SubjectId.Should().Be("maintenance_request:100");
+        occurrence.SourceEventType.Should().Be("maintenance_completion");
+        occurrence.SourceEventId.Should().Be(completion.Id.ToString());
+        occurrence.ActorUserId.Should().Be(Tenant.UserId);
+        occurrence.OccurredAtUtc.Should().Be(Now.UtcDateTime);
     }
 
     [Fact]
@@ -312,7 +322,8 @@ public sealed class MaintenanceWorkflowApiServiceTests
         db.Vendors.Add(new Vendor { Id = id, LandlordId = 61, OrganizationId = organizationId, PortalUserId = portalUserId, Name = "Vendor", IsActive = active, IsDeleted = false });
 
     private static MaintenanceRequestApiService Service(DataContext db, MaintenanceActor actor) =>
-        new(db, new StubActor(actor), new MaintenanceTriagePolicyV1(new FixedTime(Now)), new FixedTime(Now));
+        new(db, new StubActor(actor), new MaintenanceTriagePolicyV1(new FixedTime(Now)), new FixedTime(Now),
+            activationRecorder: new ActivationOccurrenceRecorder(db, new FixedTime(Now)));
 
     private static DataContext CreateDb() => new(new DbContextOptionsBuilder<DataContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
 

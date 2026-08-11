@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState, useMemo } from 'react';
-import { getAllBlogPosts } from '@/lib/blog-posts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowRight, FiCalendar, FiRss, FiBookOpen, FiZap, FiCheckCircle } from 'react-icons/fi';
 
@@ -19,8 +18,16 @@ function categoryColor(cat: string) {
   return CATEGORY_COLORS[cat] ?? '#16a34a';
 }
 
-export default function BlogPageClient() {
-  const posts = getAllBlogPosts();
+interface PublishedBlogSummary {
+  slug: string;
+  title: string;
+  description: string;
+  date: string;
+  author: string;
+  category: string;
+}
+
+export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[] }) {
   const [activeCategory, setActiveCategory] = useState('All');
 
   const categories = useMemo(

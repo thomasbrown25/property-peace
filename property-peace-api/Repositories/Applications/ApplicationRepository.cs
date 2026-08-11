@@ -21,7 +21,7 @@ namespace brownstone_hub_api.Repositories.Applications
                 // Set submitted date if status is Submitted
                 if (application.Status == EApplicationStatus.Submitted)
                 {
-                    entity.SubmittedAt = DateTime.Now;
+                    entity.SubmittedAt = DateTime.UtcNow;
                 }
                 
                 // Set LandlordId
@@ -224,7 +224,7 @@ namespace brownstone_hub_api.Repositories.Applications
                 // Set submitted date if transitioning to Submitted
                 if (application.Status.Value == EApplicationStatus.Submitted && oldStatus != EApplicationStatus.Submitted)
                 {
-                    entity.SubmittedAt = DateTime.Now;
+                    entity.SubmittedAt = DateTime.UtcNow;
                 }
                 
                 // Set reviewed date if transitioning to Approved or Rejected

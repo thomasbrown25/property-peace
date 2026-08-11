@@ -1,5 +1,6 @@
 using brownstone_hub_api.Dtos.Maintenance;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Services.Maintenance;
@@ -315,10 +316,17 @@ public sealed partial class MaintenanceRequestApiService
         var now = timeProvider.GetUtcNow(); completion.Version++; completion.DecidedAtUtc = now; completion.DecidedByUserId = actor.UserId;
         if (reopenReason is null) { completion.Status = MaintenanceCompletionStatus.Accepted; completion.ConfirmedByUserId = actor.UserId; request.Status = EMaintenanceStatus.Resolved; }
         else { completion.Status = MaintenanceCompletionStatus.Disputed; completion.DecisionReason = reopenReason.Trim(); request.Status = EMaintenanceStatus.Assigned; request.ResolutionCycle++; }
+        await using var transaction = db.Database.IsRelational()
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         await db.SaveChangesAsync(cancellationToken);
+        if (reopenReason is null)
+            await RecordMaintenanceClosedAsync(request, completion, now, actor.UserId, cancellationToken);
         await RecordActivity(request, actor.UserId, reopenReason is null ? "completion.tenantConfirmed" : "completion.reopened", "completion", completion.Id,
             reopenReason is null ? "Tenant confirmed maintenance completion" : "Tenant reopened maintenance request",
             MaintenanceActivityVisibility.Participants, completion.Status.ToString(), completion.DecisionReason, cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
         return MaintenanceApiResult<MaintenanceCompletionDto>.Success(MapCompletion(completion));
     }
 
@@ -335,10 +343,31 @@ public sealed partial class MaintenanceRequestApiService
         if (timeProvider.GetUtcNow() < completion.TenantConfirmationDueAtUtc) return Conflict<MaintenanceCompletionDto>("maintenance.confirmation_due_not_reached", "Tenant confirmation time has not elapsed.");
         if (string.IsNullOrWhiteSpace(command.Reason)) return BadRequest<MaintenanceCompletionDto>("A staff-close reason is required.");
         completion.Status = MaintenanceCompletionStatus.Accepted; completion.Version++; completion.DecidedByUserId = actor.UserId; completion.DecidedAtUtc = timeProvider.GetUtcNow(); completion.DecisionReason = command.Reason.Trim(); request.Status = EMaintenanceStatus.Resolved;
+        await using var transaction = db.Database.IsRelational()
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         await db.SaveChangesAsync(cancellationToken);
+        await RecordMaintenanceClosedAsync(request, completion, completion.DecidedAtUtc.Value, actor.UserId, cancellationToken);
         await RecordActivity(request, actor.UserId, "completion.staffClosed", "completion", completion.Id,
             "Staff closed maintenance completion", MaintenanceActivityVisibility.Participants, completion.Status.ToString(), completion.DecisionReason, cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
         return MaintenanceApiResult<MaintenanceCompletionDto>.Success(MapCompletion(completion));
+    }
+
+    private async Task RecordMaintenanceClosedAsync(MaintenanceRequest request, MaintenanceCompletion completion,
+        DateTimeOffset occurredAtUtc, long actorUserId, CancellationToken cancellationToken)
+    {
+        if (activationRecorder is null || request.OrganizationId is not > 0 ||
+            request.Property.OrganizationId != request.OrganizationId) return;
+        await activationRecorder.RecordAsync(new ActivationOccurrenceRequest(
+            request.OrganizationId.Value,
+            ActivationMilestones.MaintenanceClosed,
+            $"maintenance_request:{request.Id}",
+            occurredAtUtc,
+            SourceEventType: "maintenance_completion",
+            SourceEventId: completion.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ActorUserId: actorUserId), cancellationToken);
     }
 
     public async Task<MaintenanceApiResult<MaintenanceCostProjectionDto>> GetCostProjectionAsync(long id, CancellationToken cancellationToken = default)

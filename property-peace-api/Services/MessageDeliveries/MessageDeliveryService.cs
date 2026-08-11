@@ -322,7 +322,7 @@ public sealed class MessageDeliveryService(
     public async Task<IReadOnlyList<MessageDeliveryView>> ReadForConversationAsync(
         long conversationId, long actorUserId, CancellationToken ct = default)
     {
-        var conversation = await context.Conversations.WhereActiveParticipant(context.OrganizationMembers, actorUserId)
+        var conversation = await context.Conversations.WhereActiveParticipant(context.OrganizationMembers, context.Tenants, actorUserId)
             .Where(x => x.Id == conversationId)
             .Select(x => new { x.Id, x.OrganizationId })
             .SingleOrDefaultAsync(ct);
