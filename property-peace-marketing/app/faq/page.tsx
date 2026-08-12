@@ -1,12 +1,9 @@
-import type { Metadata } from 'next';
 import FAQ from '@/components/Sections/FAQ';
-import { applyOttoSeo } from '@/lib/otto-seo';
 
-export const metadata: Metadata = applyOttoSeo('/faq/', {
+export const metadata = {
   title: 'FAQ | Property Peace',
-  description: 'Frequently asked questions about Property Peace landlord software, pricing, setup, rental workflows, and the limited Percy Pilot.',
-  alternates: { canonical: '/faq' },
-});
+  description: 'Frequently asked questions about Property Peace — the property management software built for independent landlords.',
+};
 
 export default function FAQPage() {
   return (

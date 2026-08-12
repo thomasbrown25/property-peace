@@ -6,7 +6,7 @@ import { getArticleEditorial } from '@/lib/article-editorial';
 
 export const metadata: Metadata = applyOttoSeo('/blog/', {
   title: "Property Management Blog for Landlords | Property Peace",
-  description: "Educational property management guides for landlords, plus a path from practical guidance to organized records and limited read-only Percy Pilot review.",
+  description: "Expert guides, tips, and insights for landlords managing rental properties. Learn about property management software, rent collection, tenant management, and more.",
   keywords: "property management blog, landlord tips, rental property management guides, property management software blog, landlord resources",
   openGraph: {
     title: "Property Management Blog for Landlords | Property Peace",

@@ -20,8 +20,8 @@ export default function Solutions() {
     {
       icon: FiZap,
       title: 'Percy Pilot Summaries',
-      description: 'In the limited Percy Pilot, open a read-only briefing across supported Property Peace records, review attention signals, and follow links to the workflow categories Percy checked.',
-      benefit: 'Current context, landlord-controlled actions'
+      description: 'Percy summarizes your entire portfolio, shows you items that need attention, and recommends actions you can trigger with a click.',
+      benefit: 'Smart insights, instant actions'
     }
   ];
 

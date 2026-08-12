@@ -72,8 +72,6 @@ export default function RentalManagementSoftwarePage() {
         </div>
       </section>
 
-      <section className="px-4 py-12 sm:px-6 lg:px-8"><div className="max-w-4xl mx-auto border-l-4 border-blue-600 bg-blue-50/60 p-6"><h2 className="text-2xl font-bold text-primary-main">Organized rental workflows give Percy supported context</h2><p className="mt-3 leading-7 text-[#405a70]">Structured lease, recorded rent, maintenance, and tenant-conversation records let landlords open Percy Pilot for a current review of supported context. Percy is read-only and does not take actions or monitor continuously.</p></div></section>
-
       {/* Features Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">

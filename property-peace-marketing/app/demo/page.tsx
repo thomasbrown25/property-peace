@@ -102,13 +102,13 @@ export default function DemoPage() {
               className="text-4xl md:text-5xl font-bold text-primary-main mb-4"
               style={{ fontFamily: '"Poppins", sans-serif' }}
             >
-              See your rental work in one organized system
+              Simplify Your Property Management
             </h1>
             <p
               className="text-xl text-[#737373] max-w-2xl mx-auto"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Walk through Property Peace as the structured system of record for your properties, leases, rent, maintenance, and documents. We can also show the current Percy Pilot: Percy is Property Peace&apos;s AI property assistant, limited to landlord-opened, read-only help for supported records—not actions on your behalf.
+              See how Property Peace can streamline your property management. Schedule a personalized demo with our team.
             </p>
           </motion.div>
 

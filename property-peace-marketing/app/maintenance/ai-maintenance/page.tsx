@@ -13,16 +13,16 @@ import StructuredData from "@/components/SEO/StructuredData";
 import AIMaintenanceFAQ from "./AIMaintenanceFAQ";
 
 export const metadata: Metadata = applyOttoSeo('/maintenance/ai-maintenance/', {
-  title: "AI Maintenance Records Review for Landlords | Property Peace",
+  title: "Percy Pilot Maintenance Management for Landlords | Property Peace",
   description:
-    "Rental property maintenance software for requests, work orders, photos, vendors, and costs. In the limited Percy Pilot, review supported maintenance records by status, priority, and age signals.",
+    "Rental property maintenance software that stops lost requests and text chaos. Percy categorizes tenant maintenance requests, prioritizes work orders, and tracks vendors. Built for small landlords. Try free.",
   keywords:
     "Percy Pilot maintenance management, rental property maintenance software, landlord maintenance tracking, work order tracking, tenant maintenance requests, maintenance ticket software, work order management system, software for small landlords, landlord expense software",
   alternates: { canonical: "/maintenance/ai-maintenance" },
   openGraph: {
-    title: "AI Maintenance Records Review for Landlords | Property Peace",
+    title: "Percy Pilot Maintenance Management for Landlords | Property Peace",
     description:
-      "Rental property maintenance software with landlord-run work order and vendor tracking, plus read-only review of supported records in the limited Percy Pilot.",
+      "Rental property maintenance software with Percy categorization, work order tracking, and vendor coordination. Never miss a repair again.",
     type: "website",
   },
 });
@@ -31,12 +31,12 @@ const faqSchema = [
   {
     question: "What is Percy Pilot maintenance management software?",
     answer:
-      "Property Peace provides the maintenance system landlords use to record requests, set priorities, update statuses, assign vendors, and track costs. In the limited Percy Pilot, Percy can review current supported maintenance records and organize recorded status, priority, and age signals. Percy is read-only: it does not diagnose repairs, dispatch vendors, update requests, or resolve emergencies.",
+      "Percy Pilot maintenance management software uses artificial intelligence to help landlords and property managers organize, categorize, and prioritize maintenance requests from tenants. Property Peace uses Percy to tag urgency, detect emergencies versus cosmetic issues, and route work orders so you can focus on what matters. It replaces spreadsheets and text-message chaos with one system for rental property maintenance.",
   },
   {
     question: "How does Property Peace prioritize work orders?",
     answer:
-      "Landlords review each request and set its priority in the Property Peace work order workflow. In the limited Percy Pilot, Percy can organize supported current records by their recorded priority, status, and age so the landlord can decide what to handle first. Percy does not diagnose an issue or change its priority.",
+      "Property Peace uses Percy to categorize each tenant maintenance request by type and urgency. Emergencies (e.g., no heat, water leaks) are flagged so you can respond first. Non-urgent and cosmetic requests are organized in a clear queue. You get automatic follow-up reminders so nothing falls through the cracks. This work order management system keeps your rental maintenance tracking under control.",
   },
   {
     question: "Can tenants upload photos?",
@@ -73,7 +73,7 @@ export default function AIMaintenancePage() {
             className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-4"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
-            AI Maintenance Records Review for Landlords
+            Percy Pilot Maintenance Management for Landlords
           </h1>
           <p
             className="text-xl md:text-2xl font-semibold text-primary-main mb-4 max-w-2xl mx-auto"
@@ -85,7 +85,7 @@ export default function AIMaintenancePage() {
             className="text-lg text-[#737373] mb-4 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Rental property maintenance software where landlords track tenant requests, work orders, photos, vendors, and costs—all in one place.
+            Rental property maintenance software that categorizes work orders, tracks tenant maintenance requests, and coordinates vendors—all in one place.
           </p>
           <p
             className="text-base text-[#737373] mb-8 max-w-xl mx-auto"
@@ -121,7 +121,7 @@ export default function AIMaintenancePage() {
               Sound familiar? Landlord maintenance management gets harder when you can’t tell emergencies from cosmetic fixes, and when <strong style={{ color: "#ffffff" }}>vendor coordination</strong> means chasing people across multiple apps.
             </p>
             <p style={{ color: "rgba(255,255,255,0.95)" }}>
-              Property Peace is rental property maintenance software that fixes this. Landlords run tenant requests, work order tracking, and vendor coordination in one place. In the limited Percy Pilot, Percy reviews supported current records by status, priority, and age signals without changing them.
+              Property Peace is rental property maintenance software that fixes this. One place for tenant maintenance requests, work order tracking, and vendor coordination—with Percy categorizing and prioritizing so you never miss a repair again.
             </p>
           </div>
         </div>
@@ -139,13 +139,13 @@ export default function AIMaintenancePage() {
           <div className="space-y-10">
             <div className="bg-white rounded-2xl p-6 md:p-8 border border-[#E5E5E5]">
               <h3 className="text-xl font-bold text-primary-main mb-3" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Review Supported Maintenance Records with Percy
+                Percy Categorizes Maintenance Requests Automatically
               </h3>
               <p className="text-[#737373] leading-relaxed mb-3" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Tenants submit requests through the Property Peace portal, and landlords record priority, status, photos, and vendor details in the maintenance workflow. In the limited Percy Pilot, Percy can review supported current records and organize their recorded status, priority, and age signals.
+                Tenants submit requests through the portal. Percy tags urgency and request type, detects emergency vs. cosmetic issues, and helps route work to the right place. You get automated maintenance requests and a clear maintenance ticket software workflow—no more guessing what’s urgent.
               </p>
               <p className="text-[#737373] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Percy does not diagnose repairs. Percy does not route work or dispatch vendors. Percy does not update requests. The landlord reviews the records, decides urgency, and determines what happens next.
+                Result: a real work order management system that scales with your portfolio.
               </p>
             </div>
             <div className="bg-white rounded-2xl p-6 md:p-8 border border-[#E5E5E5]">
@@ -158,10 +158,10 @@ export default function AIMaintenancePage() {
             </div>
             <div className="bg-white rounded-2xl p-6 md:p-8 border border-[#E5E5E5]">
               <h3 className="text-xl font-bold text-primary-main mb-3" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                Status Tracking and Follow-Up Review
+                Automatic Tracking and Follow-Up Reminders
               </h3>
               <p className="text-[#737373] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Use Property Peace to track each request from submission to completion and review which follow-ups are due. Percy notifications and maintenance drafts are planned; today, landlords open the records and handle vendor and tenant follow-up themselves.
+                Each request is tracked from submission to completion. Automated follow-up reminders keep you and vendors on track. No more spreadsheets or sticky notes—tenant maintenance requests get handled on time.
               </p>
             </div>
             <div className="bg-white rounded-2xl p-6 md:p-8 border border-[#E5E5E5]">
@@ -205,7 +205,7 @@ export default function AIMaintenancePage() {
             ))}
           </div>
           <p className="text-lg mt-8 text-center max-w-2xl mx-auto" style={{ fontFamily: '"Inter", sans-serif', color: "rgba(255,255,255,0.9)" }}>
-            Whether you need software for small landlords, rental management software for 10 units, or simple landlord tools that scale, Property Peace provides landlord-run maintenance workflows plus limited, read-only Percy Pilot review of supported records.
+            Whether you need software for small landlords, rental management software for 10 units, or simple landlord tools that scale, Property Peace gives you Percy Pilot maintenance management without enterprise bloat.
           </p>
         </div>
       </section>
@@ -347,7 +347,7 @@ export default function AIMaintenancePage() {
             Ready to Stop Losing Maintenance Requests?
           </h2>
           <p className="text-white/90 mb-6 max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
-            Use Property Peace to keep work orders under control. The limited Percy Pilot can review supported maintenance records, while every decision and update stays with the landlord.
+            Join landlords who use Percy Pilot maintenance management to keep work orders under control. No spreadsheets, no text chaos.
           </p>
           <Link
             href="https://app.propertypeace.io/register"

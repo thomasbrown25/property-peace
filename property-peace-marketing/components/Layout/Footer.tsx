@@ -26,8 +26,8 @@ export default function Footer() {
                 priority={false}
               />
             </Link>
-            <p className="text-white/90 text-sm leading-6 mb-4" style={{ fontFamily: '"Inter", sans-serif' }}>
-              Property Peace is the structured system of record and workflows for self-managing landlords. Percy is Property Peace&apos;s AI property assistant, currently limited to read-only help with supported records in the Percy Pilot.
+            <p className="text-white/90 text-sm mb-4" style={{ fontFamily: '"Inter", sans-serif' }}>
+              Built for landlords with 1–50 units.
             </p>
             <p className="text-white/80 text-sm mb-4">Find on Social Media</p>
             <div className="flex space-x-3 justify-center lg:justify-start">
@@ -167,11 +167,6 @@ export default function Footer() {
               <li>
                 <Link href="/listings" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
                   Rental Listings
-                </Link>
-              </li>
-              <li>
-                <Link href="/#how-percy-helps" className="inline-flex min-h-11 items-center justify-center font-semibold text-white hover:text-white/90 transition-colors text-sm">
-                  How Percy Helps
                 </Link>
               </li>
               <li>

@@ -18,7 +18,6 @@ export const websiteSchema = {
   '@id': websiteId,
   name: 'Property Peace',
   url: siteUrl,
-  description: 'Property Peace is landlord software and a structured system of record for rental workflows. Percy, Property Peace’s AI property assistant, offers read-only help for supported records through a limited pilot.',
   publisher: { '@id': organizationId },
   inLanguage: 'en-US',
 };

@@ -71,7 +71,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
             className="text-lg text-[#737373] max-w-2xl mx-auto mb-8 leading-relaxed"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Educational guides and practical insights for landlords managing 1–50 rental units. Put what you learn into organized records; when opened, the limited Percy Pilot can review supported current context read-only, without taking actions.
+            Expert guides, tips, and insights for landlords managing 1–50 rental units.
           </p>
 
           <div

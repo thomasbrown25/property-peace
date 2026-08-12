@@ -94,7 +94,6 @@ const costRows = [
 ];
 
 const workflowRows = [
-  { workflow: 'Percy Pilot assistant review', propertyPeace: 'Landlord-opened, read-only review of supported current records with source-aware boundaries; no actions or continuous monitoring', turboTenant: 'Not evaluated in this comparison; confirm any assistant scope directly with TurboTenant' },
   { workflow: 'Property and unit records', propertyPeace: 'Available; property-first organization', turboTenant: 'Available' },
   { workflow: 'Hosted rental listing', propertyPeace: 'Available on Property Peace', turboTenant: 'Available' },
   { workflow: 'External listing syndication', propertyPeace: 'Coming soon—not currently operational', turboTenant: 'Available according to TurboTenant' },
@@ -233,14 +232,6 @@ export default function TurboTenantComparisonPage() {
             ))}
           </div>
           <div className="mt-5 flex items-start gap-3 border-l-4 border-amber-500 bg-amber-50 p-5 text-sm leading-6 text-amber-950"><FiAlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0" /><p className="!text-amber-950"><strong>Official-source uncertainty:</strong> TurboTenant’s live pricing page was checked on {checkedOn}. It publishes annual billing for paid landlord plans and renter costs, but extracted page text does not make the Free-plan screening amount or waived-ACH plan boundary unambiguous. Those entries are labeled for checkout confirmation rather than inferred.</p></div>
-        </div>
-      </section>
-
-      <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl border-l-4 border-blue-600 bg-blue-50/50 p-7 md:p-9">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">A bounded Property Peace difference</p>
-          <h2 className="mt-3 text-3xl font-bold text-primary-main">Structured records support source-aware Percy Pilot review</h2>
-          <p className="mt-4 max-w-4xl leading-7 text-[#405a70]">Property Peace connects supported rent-payment, maintenance, lease, and urgent tenant-conversation records so a landlord can open Percy Pilot for a current plain-language review. The pilot is read-only: it does not change records, take actions, or continuously monitor the portfolio. We have not evaluated TurboTenant&apos;s assistant capabilities here, so this is a description of Property Peace—not a claim of competitor inferiority.</p>
         </div>
       </section>
 
