@@ -4,10 +4,10 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/rent-collection-software-for-landlords/', {
   title: 'Rent Collection Software for Landlords | Property Peace',
-  description: 'Track rent, reminders, payment history, overdue balances, and tenant records in one landlord dashboard. Built for small rental owners. Start free.',
+  description: 'Record rent history, overdue balances, late fees, reminders, and tenant records in one dashboard. Online payment processing is not currently available.',
   alternates: { canonical: '/rent-collection-software-for-landlords' },
-  openGraph: { title: 'Rent Collection Software for Landlords | Property Peace', description: 'Track rent, reminders, payment history, overdue balances, and tenant records in one landlord dashboard. Built for small rental owners. Start free.', type: 'website', url: '/rent-collection-software-for-landlords' },
-  twitter: { card: 'summary_large_image', title: 'Rent Collection Software for Landlords | Property Peace', description: 'Track rent, reminders, payment history, overdue balances, and tenant records in one landlord dashboard. Built for small rental owners. Start free.' },
+  openGraph: { title: 'Rent Collection Software for Landlords | Property Peace', description: 'Organize recorded rent history, overdue balances, late fees, reminders, and tenant records. Online payment processing is not currently available.', type: 'website', url: '/rent-collection-software-for-landlords' },
+  twitter: { card: 'summary_large_image', title: 'Rent Collection Software for Landlords | Property Peace', description: 'Organize recorded rent history, overdue balances, late fees, reminders, and tenant records. Online payment processing is not currently available.' },
 });
 
 const config: NicheLandingPageConfig = {
@@ -38,6 +38,11 @@ const config: NicheLandingPageConfig = {
     { href: '/rent/rent-reporting', label: 'Rent reporting' },
     { href: '/pricing', label: 'Pricing' },
   ],
+  assistantBridge: {
+    title: 'Structured rent records support limited review',
+    description: 'Recorded rent status, balances, leases, and tenant context stay organized in Property Peace so a landlord can open Percy Pilot to review supported current records.',
+    note: 'Percy does not provide accounting or tax advice and cannot move money. Online payment processing is not currently available.',
+  },
   structuredName: 'Property Peace Rent Collection Software for Landlords',
   structuredDescription: 'Rent collection software for landlords to track rent status, payment history, overdue balances, reminders, tenants, and reports.',
 };

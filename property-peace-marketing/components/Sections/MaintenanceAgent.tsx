@@ -272,11 +272,12 @@ function TrackingStep() {
 
 // ── Bullets ───────────────────────────────────────────────────────────────────
 const bullets = [
-  'Tenants chat with Percy — no more vague "something\'s broken" tickets',
-  'Percy determines priority and category automatically',
-  'Clarifying questions surface the details you actually need',
-  'Landlord receives a complete, organized request instantly',
-  'No vendor dispatched or fees applied without your approval',
+  'Landlords open and manage maintenance records in Property Peace',
+  'Limited Percy Pilot review is read-only and restricted to supported records',
+  'Percy does not chat with tenants or ask diagnostic questions',
+  'Percy does not determine issue type or urgency',
+  'Percy does not create or edit maintenance requests',
+  'Dispatch, notifications, reminders, and follow-up remain landlord-run',
 ];
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -445,9 +446,10 @@ export default function MaintenanceAgent() {
               className="text-base md:text-lg text-[#737373] mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Instead of a blank text box, tenants chat with Percy. Percy asks the right
-              questions, figures out the priority and category, and hands you a fully formed request —
-              so you can act immediately instead of playing 20 questions.
+              Property Peace keeps landlord-opened maintenance records organized for landlord review.
+              In the limited Percy Pilot, Percy can provide read-only review of supported records;
+              Percy does not chat with tenants, diagnose issues, determine issue type or urgency,
+              create or edit requests, dispatch vendors, or send notifications or reminders.
             </p>
 
             <ul className="space-y-2.5 mb-6 text-left">
@@ -472,7 +474,7 @@ export default function MaintenanceAgent() {
               className="text-sm md:text-base text-[#516A80] italic pl-4"
               style={{ fontFamily: '"Inter", sans-serif', borderLeft: `3px solid ${GREEN}` }}
             >
-              Your landlord has been notified and will follow up shortly.
+              Landlords remain responsible for follow-up, vendor dispatch, and notifications.
             </p>
           </motion.div>
 

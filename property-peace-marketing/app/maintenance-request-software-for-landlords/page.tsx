@@ -38,6 +38,11 @@ const config: NicheLandingPageConfig = {
     { href: '/features/maintenance-tracking', label: 'Maintenance tracking feature' },
     { href: '/pricing', label: 'Pricing' },
   ],
+  assistantBridge: {
+    title: 'A complete request trail gives Percy useful context',
+    description: 'When request details, status, photos, notes, and tenant conversations are structured, a landlord can open Percy Pilot to review supported maintenance context.',
+    note: 'Percy is read-only. It does not assign vendors, send messages, change request status, or monitor continuously.',
+  },
   structuredName: 'Property Peace Maintenance Request Software for Landlords',
   structuredDescription: 'Maintenance request software for landlords to organize tenant requests, photos, messages, vendors, repair status, and property history.',
 };

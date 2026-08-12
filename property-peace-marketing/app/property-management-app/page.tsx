@@ -16,23 +16,19 @@ export const metadata: Metadata = applyOttoSeo('/property-management-app/', {
 });
 
 const appFeatures = [
-  'Mobile-responsive design works on any device',
-  'iOS and Android compatible',
-  'Real-time updates without page refreshes',
-  'Access all features from your phone',
-  'Push notifications for important updates',
-  'Quick actions for common tasks',
-  'Offline access to key information',
-  'Secure cloud storage and backups',
+  'Mobile browser access from any device',
+  'Responsive workflows for common landlord tasks',
+  'Current record updates when the page refreshes',
+  'Secure cloud-hosted record storage',
 ];
 
 export default function PropertyManagementAppPage() {
   const structuredData = {
     '@context': 'https://schema.org',
-    '@type': 'MobileApplication',
+    "@type": "WebApplication",
     name: 'Property Peace - Property Management App',
     applicationCategory: 'BusinessApplication',
-    operatingSystem: 'Web, iOS, Android',
+    operatingSystem: 'Web',
     offers: {
       '@type': 'Offer',
       price: '0',
@@ -60,7 +56,7 @@ export default function PropertyManagementAppPage() {
             className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Manage your rental properties from anywhere with Property Peace's mobile-friendly property management app. Perfect for landlords who need flexibility and convenience.
+            Manage your rental properties from anywhere with Property Peace&apos;s mobile-friendly property management app. Perfect for landlords who need flexibility and convenience.
           </p>
           <Link
             href="https://app.propertypeace.io/register"
@@ -72,6 +68,8 @@ export default function PropertyManagementAppPage() {
           </Link>
         </div>
       </section>
+
+      <section className="px-4 py-12 sm:px-6 lg:px-8"><div className="max-w-4xl mx-auto border-l-4 border-blue-600 bg-blue-50/60 p-6"><h2 className="text-2xl font-bold text-primary-main">Mobile-friendly records, with limited Percy review</h2><p className="mt-3 leading-7 text-[#405a70]">Property Peace keeps supported property, lease, recorded rent, maintenance, and tenant-conversation context organized. Percy Pilot can be opened to summarize that supported context; it is read-only and does not act or monitor continuously.</p></div></section>
 
       {/* Mobile Features */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
@@ -133,7 +131,7 @@ export default function PropertyManagementAppPage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Receive maintenance requests instantly and respond quickly, even when you're away from your desk.
+                Receive maintenance requests and respond from a mobile browser, even when you&apos;re away from your desk.
               </p>
             </div>
             <div>
@@ -175,7 +173,7 @@ export default function PropertyManagementAppPage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Respond to tenant requests and maintenance issues immediately, even when you're not at your computer. This improves tenant satisfaction and prevents small issues from becoming big problems.
+                Respond to tenant requests and maintenance issues from a mobile browser when you&apos;re not at your computer. This keeps the request history available while you decide what to do next.
               </p>
             </div>
             <div>

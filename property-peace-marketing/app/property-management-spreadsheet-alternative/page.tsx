@@ -4,7 +4,7 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/property-management-spreadsheet-alternative/', {
   title: 'Property Management Spreadsheet Alternative | Property Peace',
-  description: 'Replace rental spreadsheets with one dashboard for rent, tenants, leases, maintenance, expenses, documents, and Percy Pilot summaries. Built for small landlords. Start free.',
+  description: 'Replace rental spreadsheets with structured rent, tenant, lease, maintenance, expense, and document records, plus limited read-only Percy Pilot review. Start free.',
   alternates: { canonical: '/property-management-spreadsheet-alternative' },
   openGraph: { title: 'Property Management Spreadsheet Alternative | Property Peace', description: 'Replace rental spreadsheets with one dashboard for rent, tenants, leases, maintenance, expenses, documents, and Percy Pilot summaries. Built for small landlords. Start free.', type: 'website', url: '/property-management-spreadsheet-alternative' },
   twitter: { card: 'summary_large_image', title: 'Property Management Spreadsheet Alternative | Property Peace', description: 'Replace rental spreadsheets with one dashboard for rent, tenants, leases, maintenance, expenses, documents, and Percy Pilot summaries. Built for small landlords. Start free.' },
@@ -23,10 +23,10 @@ const config: NicheLandingPageConfig = {
     { title: 'Connected rental records', description: 'Properties, units, tenants, leases, maintenance, expenses, and documents live in a connected system.' },
     { title: 'Real landlord workflows', description: 'Track rent, reminders, repairs, renewals, and reports the way rental work actually happens.' },
     { title: 'Cleaner visibility', description: 'See what needs attention without scanning rows, filters, formulas, and old notes.' },
-    { title: 'Percy Pilot summaries', description: 'Use plain-English portfolio summaries to understand rent, maintenance, lease, and tenant activity faster.' },
+    { title: 'Percy Pilot review', description: 'Open a plain-English summary of supported current rent-payment, maintenance, lease, and urgent tenant-conversation records.' },
   ],
   workflowTitle: 'Move from spreadsheet to system',
-  workflowSteps: ['Create your free account.', 'Add properties, units, tenants, rent terms, leases, and documents.', 'Use Property Peace as the daily source of truth instead of a spreadsheet.', 'Review reports and Percy Pilot summaries when you need the big picture.'],
+  workflowSteps: ['Create your free account.', 'Add properties, units, tenants, rent terms, leases, and documents.', 'Use Property Peace as the daily source of truth instead of a spreadsheet.', 'Open Percy Pilot when you want a read-only review of supported current records.'],
   faq: [
     { question: 'Why replace a rental spreadsheet?', answer: 'Spreadsheets are easy to start, but they do not naturally connect tenants, leases, rent, maintenance requests, photos, documents, and reminders. Property Peace gives those records a structured home.' },
     { question: 'Can I start with just one property?', answer: 'Yes. Property Peace is free for up to 5 units and works well for landlords starting with one or two rentals.' },
@@ -38,8 +38,13 @@ const config: NicheLandingPageConfig = {
     { href: '/pricing', label: 'Pricing' },
     { href: '/features', label: 'All features' },
   ],
+  assistantBridge: {
+    title: 'Connected records give Percy supported source context',
+    description: 'Unlike disconnected spreadsheet tabs, structured records let a landlord open Percy Pilot and review supported current context with source-aware boundaries.',
+    note: 'Percy is read-only: it does not edit records, take actions, or continuously monitor the portfolio.',
+  },
   structuredName: 'Property Peace Property Management Spreadsheet Alternative',
-  structuredDescription: 'Property management spreadsheet alternative for small landlords to organize rent, tenants, leases, maintenance, expenses, documents, and Percy Pilot summaries.',
+  structuredDescription: 'Property management spreadsheet alternative for small landlords to organize connected rental records and open limited read-only Percy Pilot review of supported current context.',
 };
 
 export default function Page() {

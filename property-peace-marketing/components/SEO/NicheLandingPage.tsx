@@ -32,6 +32,11 @@ export type NicheLandingPageConfig = {
   canonicalPath?: string;
   structuredName: string;
   structuredDescription: string;
+  assistantBridge?: {
+    title: string;
+    description: string;
+    note?: string;
+  };
 };
 
 const icons = [FiFileText, FiTool, FiMessageSquare, FiTrendingUp];
@@ -178,6 +183,17 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
             </div>
           </div>
         </section>
+
+        {config.assistantBridge && (
+          <section className="border-y border-slate-200 bg-white px-4 py-12 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-5xl border-l-4 border-blue-600 bg-blue-50/60 p-6 md:p-8">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-700">Percy Pilot</p>
+              <h2 className="mt-3 text-2xl font-bold text-primary-main md:text-3xl">{config.assistantBridge.title}</h2>
+              <p className="mt-3 leading-7 text-[#405a70]">{config.assistantBridge.description}</p>
+              {config.assistantBridge.note && <p className="mt-3 text-sm leading-6 text-[#637083]">{config.assistantBridge.note}</p>}
+            </div>
+          </section>
+        )}
 
         <section className="bg-[#f7f9fc] px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">

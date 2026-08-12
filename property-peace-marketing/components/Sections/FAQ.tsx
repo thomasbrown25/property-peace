@@ -16,7 +16,19 @@ const faqs = [
   },
   {
     question: 'Does Property Peace replace spreadsheets?',
-    answer: 'Property Peace helps replace scattered spreadsheets for rent tracking, expenses, lease dates, maintenance notes, reminders, and reporting so your rental workflow stays in one place.',
+    answer: 'Property Peace is a structured system of record and workflows for self-managing landlords. It helps replace scattered spreadsheets for rent tracking, expenses, lease dates, maintenance notes, reminders, and reporting so rental work stays in one place.',
+  },
+  {
+    question: 'What is Percy?',
+    answer: 'Percy is Property Peace’s AI property assistant. It sits alongside the organized records and workflows in Property Peace to help a landlord review supported information; Percy is not a separate property-management service or a replacement for landlord judgment.',
+  },
+  {
+    question: 'What can Percy do today?',
+    answer: 'In the limited Percy Pilot, Percy provides landlord-opened, read-only briefings and source-linked context for supported rent-payment, maintenance, lease, and urgent in-app conversation records. It does not autonomously contact tenants or vendors, change records, send reminders, make payments, or execute actions.',
+  },
+  {
+    question: 'Is Percy included in the Free or Premium plan?',
+    answer: 'No. Percy Pilot access may be offered separately, but it is not a Free or Premium plan entitlement. Pilot availability and supported records can change as the product is tested.',
   },
   {
     question: 'Can I track income and expenses by property?',
@@ -79,7 +91,7 @@ export default function FAQ() {
             className="text-base leading-relaxed text-[#737373] md:text-lg"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Get the basics on setup, pricing, accounting, and how Property Peace fits into your rental workflow.
+            Get the basics on setup, pricing, accounting, Property Peace workflows, and the current limits of the Percy Pilot.
           </p>
         </motion.div>
 
