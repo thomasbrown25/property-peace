@@ -1,75 +1,93 @@
 'use client';
 
-import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { FiClipboard, FiDollarSign, FiUsers } from 'react-icons/fi';
 
-const listItems = [
-  'Rent collection, reminders, and overdue follow-up in one place so you are not chasing payments from a spreadsheet.',
-  'Maintenance requests that become trackable work orders instead of scattered texts, calls, and forgotten repairs.',
-  'Lease, tenant, document, and property records organized around each rental you actually own.',
-  'Income, expenses, and simple financial views built for 1–50-unit portfolios — not enterprise accounting overhead.',
-  'Percy Pilot summaries and reminders that help you spot what needs attention before it turns into a bigger problem.',
+const pillars = [
+  {
+    icon: FiUsers,
+    title: 'Choose tenants with the full picture',
+    description:
+      'Keep applications, tenant details, and lease records connected so you can make informed decisions without piecing everything together.',
+  },
+  {
+    icon: FiDollarSign,
+    title: 'Know where your money stands',
+    description:
+      'Track rent and expenses in one clear view, keep your records current, and spend less time rebuilding the story at tax time.',
+  },
+  {
+    icon: FiClipboard,
+    title: 'Keep the day-to-day under control',
+    description:
+      'Maintenance requests, messages, documents, and important dates stay organized by rental so the details are there when you need them.',
+  },
 ];
 
 export default function PainPoints() {
   return (
-    <section className="relative bg-white px-4 pb-24 pt-8 sm:px-6 md:pt-20 lg:px-8 lg:pt-24">
+    <section className="relative overflow-hidden bg-white px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
+      <div
+        className="pointer-events-none absolute left-1/2 top-0 h-px w-[min(90%,72rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent"
+        aria-hidden="true"
+      />
+
       <motion.div
-        className="relative mx-auto max-w-5xl"
+        className="relative mx-auto max-w-6xl"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
+        viewport={{ once: true, amount: 0.15 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        <span
-          className="mb-5 inline-block rounded-full border border-green-500/20 bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-green-600"
-          style={{ fontFamily: '"Inter", sans-serif' }}
-        >
-          Built for 1–50 unit landlords
-        </span>
+        <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-end lg:gap-20">
+          <h2
+            className="max-w-3xl text-3xl font-bold leading-[1.13] tracking-[-0.035em] text-[#061e35] sm:text-4xl lg:text-[3.25rem]"
+            style={{ fontFamily: '"Poppins", sans-serif' }}
+          >
+            Less busywork. More control.{' '}
+            <span className="text-green-600">Manage every rental with confidence.</span>
+          </h2>
 
-        <h2
-          className="mb-5 max-w-4xl text-3xl font-bold leading-tight text-primary-main md:text-4xl lg:text-5xl"
-          style={{ fontFamily: '"Poppins", sans-serif' }}
-        >
-          Why choose landlord software{' '}
-          <span className="text-green-600">built for small portfolios?</span>
-        </h2>
-
-        <p
-          className="max-w-3xl text-base leading-8 text-slate-600 md:text-lg"
-          style={{ fontFamily: '"Inter", sans-serif' }}
-        >
-          Property Peace is built around the real work of independent landlords — rent, repairs, records, and renewals — not enterprise property management workflows trimmed down for smaller teams. This gives you:
-        </p>
-
-        <ul className="mt-10 max-w-4xl space-y-6">
-          {listItems.map((item, index) => (
-            <motion.li
-              key={item}
-              className="flex gap-4 text-base leading-8 text-slate-700 md:text-lg"
-              initial={{ opacity: 0, x: -10 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 0.45, ease: 'easeOut', delay: index * 0.06 }}
-              style={{ fontFamily: '"Inter", sans-serif' }}
-            >
-              <span className="mt-0.5 shrink-0 text-xl font-semibold text-green-600" aria-hidden="true">
-                →
-              </span>
-              <span>{item}</span>
-            </motion.li>
-          ))}
-        </ul>
-
-        <div className="mt-12">
-          <Link
-            href="/demo"
-            className="inline-flex min-h-[52px] items-center justify-center bg-primary-main px-8 py-4 text-sm font-bold text-white transition-colors hover:bg-primary-hover focus:outline-none focus:ring-4 focus:ring-primary-main/20"
+          <p
+            className="max-w-2xl text-base leading-8 text-slate-600 sm:text-lg lg:pb-1"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Book a demo
-          </Link>
+            One calm home base for independent landlords—whether you are managing your first rental, investing from out of state, or growing a small portfolio.
+          </p>
+        </div>
+
+        <div className="mt-14 grid gap-10 border-t border-slate-200 pt-10 md:grid-cols-3 md:gap-8 lg:mt-16 lg:gap-12 lg:pt-12">
+          {pillars.map((pillar, index) => {
+            const Icon = pillar.icon;
+
+            return (
+              <motion.article
+                key={pillar.title}
+                className="group relative"
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.45, ease: 'easeOut', delay: index * 0.08 }}
+              >
+                <div className="mb-6 flex h-14 w-14 items-center justify-center border border-green-200 bg-green-50 text-green-700 transition-colors duration-200 group-hover:border-green-300 group-hover:bg-green-100">
+                  <Icon className="h-6 w-6" aria-hidden="true" />
+                </div>
+
+                <h3
+                  className="text-xl font-bold leading-snug text-[#061e35]"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
+                >
+                  {pillar.title}
+                </h3>
+                <p
+                  className="mt-3 text-base leading-7 text-slate-600"
+                  style={{ fontFamily: '"Inter", sans-serif' }}
+                >
+                  {pillar.description}
+                </p>
+              </motion.article>
+            );
+          })}
         </div>
       </motion.div>
     </section>
