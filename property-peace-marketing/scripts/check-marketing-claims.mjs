@@ -85,10 +85,11 @@ function withoutComments(source) {
   return source.replace(/\{?\/\*[\s\S]*?\*\/\}?/g, '').replace(/^\s*\/\/.*$/gm, '');
 }
 
-function hasUnnegatedMatch(source, pattern) {
+function hasUnnegatedMatch(source, pattern, acceptsMatch = () => true) {
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
   const matcher = new RegExp(pattern.source, flags);
   for (const match of source.matchAll(matcher)) {
+    if (!acceptsMatch(match, source)) continue;
     // A negator must govern the matched phrase in the same short clause. This accepts truthful
     // copy such as "is not a replacement" / "isn't a replacement" without allowing contrastive
     // claims such as "is not only a replacement" or a negation in an earlier clause.
@@ -260,12 +261,212 @@ for (const prohibited of [
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = await Promise.all(entries.map(async (entry) => {
-    if (entry.name === 'node_modules' || entry.name === '.next' || entry.name === 'out') return [];
+    if (entry.name === 'node_modules' || entry.name === '.next' || entry.name === 'out' ||
+        entry.name === '.git' || entry.name === 'coverage') return [];
     const path = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, directory);
     if (entry.isDirectory()) return sourceFiles(path);
     return /\.(?:ts|tsx|js|jsx)$/.test(entry.name) ? [path] : [];
   }));
   return files.flat();
+}
+
+function nearbyInClause(pattern, radius = 320) {
+  return (match, source) => {
+    const before = source.slice(Math.max(0, match.index - radius), match.index);
+    const after = source.slice(match.index + match[0].length, Math.min(source.length, match.index + match[0].length + radius));
+    const clauseBefore = before.slice(Math.max(before.lastIndexOf('.'), before.lastIndexOf('!'), before.lastIndexOf('?'), before.lastIndexOf('\n')) + 1);
+    const boundary = after.search(/[.!?\n]/);
+    const clauseAfter = boundary === -1 ? after : after.slice(0, boundary);
+    return pattern.test(`${clauseBefore}${match[0]}${clauseAfter}`);
+  };
+}
+
+function inAiMaintenanceCard(match, source) {
+  const cardStart = source.lastIndexOf('{', match.index);
+  const cardEnd = source.indexOf('}', match.index + match[0].length);
+  if (cardStart === -1 || cardEnd === -1 || match.index - cardStart > 700 || cardEnd - match.index > 700) return false;
+  const card = source.slice(cardStart, cardEnd + 1);
+  const hasAiCardField = /['"`]?(?:label|title|name)['"`]?\s*:\s*['"`](?=[^'"`]{0,100}['"`])(?:(?:[^'"`]*(?:AI|Percy)[^'"`]*maintenance)|(?:[^'"`]*maintenance[^'"`]*(?:AI|Percy)))[^'"`]*['"`]/i.test(card);
+  if (!hasAiCardField) return false;
+
+  // Keep all parts of the claim in the same card field. A card may truthfully describe manual
+  // categorization while advertising a separate automatic capability in another field.
+  const fieldPattern = /['"`]?[A-Za-z_$][\w$-]*['"`]?\s*:\s*(['"`])((?:\\[\s\S]|(?!\1)[\s\S])*)\1/g;
+  for (const field of card.matchAll(fieldPattern)) {
+    const value = field[2];
+    const valueStart = cardStart + field.index + field[0].length - value.length - 1;
+    const valueEnd = valueStart + value.length;
+    if (match.index < valueStart || match.index + match[0].length > valueEnd) continue;
+    if (!/\b(?:requests?|tickets?|issues?)\b/i.test(value)) return false;
+
+    const matchStart = match.index - valueStart;
+    const matchEnd = matchStart + match[0].length;
+    for (const automation of value.matchAll(/\b(?:automatic(?:ally)?|automated)\b(?!\s+(?:notifications?|reminders?|alerts?|messages?|updates?))/gi)) {
+      const automationPrefix = value.slice(Math.max(0, automation.index - 80), automation.index);
+      const automationClause = automationPrefix.slice(Math.max(
+        automationPrefix.lastIndexOf('.'), automationPrefix.lastIndexOf('!'),
+        automationPrefix.lastIndexOf('?'), automationPrefix.lastIndexOf(';'),
+      ) + 1);
+      if (/\b(?:not|never)\s*$/i.test(automationClause) || /\b(?:isn|aren|wasn|weren|doesn|don|didn|won|wouldn|can|couldn|shouldn|hasn|haven|hadn)['’]t\s*$/i.test(automationClause)) continue;
+      const automationEnd = automation.index + automation[0].length;
+      const between = automationEnd <= matchStart
+        ? value.slice(automationEnd, matchStart)
+        : value.slice(matchEnd, automation.index);
+      const wordDistance = (between.match(/[A-Za-z]+(?:[-'][A-Za-z]+)*/g) ?? []).length;
+      if (wordDistance <= 6 && !/\b(?:manual(?:ly)?|notifications?|reminders?|alerts?|messages?|updates?)\b/i.test(between)) return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+// Release B is deliberately site-wide: a claim can surface through any indexable route or shared
+// component, not only through the homepage import graph. The capability contract and this test
+// script are excluded because they necessarily contain prohibited language as contract/fixture
+// text rather than public copy. Generated output and dependencies are excluded by sourceFiles().
+const releaseBClaimRules = [
+  {
+    description: 'Percy Pilot must not be represented as a Premium plan entitlement',
+    pattern: /\b(?:included (?:in|with) Premium|part of (?:your )?Property Peace Premium subscription|Premium Feature)\b/i,
+    acceptsMatch: nearbyInClause(/\bPercy\b/i),
+  },
+  {
+    description: 'Percy Pilot must not promise entire-portfolio or universal property coverage',
+    pattern: /\b(?:entire (?:property )?portfolio|portfolio-wide|every property and unit|everything happening across (?:the|your) portfolio)\b/i,
+    acceptsMatch: nearbyInClause(/\bPercy\b/i),
+  },
+  {
+    description: 'Percy Pilot must not claim current maintenance categorization or diagnosis',
+    pattern: /\b(?:categori(?:ze|zes|zed|zing|zation)|determines? (?:the )?(?:priority|category)|figures? out (?:the )?(?:priority|category)|tags? urgency|detects? emergenc(?:y|ies))\b/i,
+    acceptsMatch: nearbyInClause(/\bPercy\b/i),
+  },
+  {
+    description: 'AI/Percy maintenance cards must not imply automatic request categorization or prioritization',
+    pattern: /\b(?:categori(?:ze|zes|zed|zing|zation)|prioriti(?:ze|zes|zed|zing|zation))\b/i,
+    acceptsMatch: inAiMaintenanceCard,
+  },
+  {
+    description: 'Percy Pilot must not claim current tenant maintenance chat or questioning',
+    pattern: /\b(?:tenants? chats? with Percy|Percy asks? (?:the right|clarifying) questions?|clarifying questions? surface)\b/i,
+  },
+  {
+    description: 'Percy Pilot must not claim current maintenance request creation',
+    pattern: /\b(?:fully formed|complete,? organized) (?:maintenance )?requests?\b/i,
+  },
+  {
+    description: 'Percy Pilot must not claim current vendor routing or dispatch',
+    pattern: /\b(?:routes? (?:the )?(?:work|work orders?)|dispatches? vendors?)\b/i,
+    acceptsMatch: nearbyInClause(/\bPercy\b/i),
+  },
+  {
+    description: 'Percy Pilot must not claim current automatic reminders or notifications',
+    pattern: /\b(?:(?:automatic(?:ally)?|automated) (?:follow-up )?(?:reminders?|notifications?)|Percy Pilot summaries and reminders)\b/i,
+    acceptsMatch: nearbyInClause(/\bPercy\b/i),
+  },
+  {
+    description: 'Percy does not currently create, build, or guide lease drafts',
+    pattern: /\b(?:create|creates|creating|build|builds|building|guided|guides?|drafts?)\b[^\r\n.!?]{0,45}\blease drafts?\b|\blease drafts?\b[^\r\n.!?]{0,45}\b(?:create|creates|creating|build|builds|building|guided|guides?|drafts?)\b/i,
+    acceptsMatch: nearbyInClause(/\bPercy\b/i),
+  },
+];
+
+const releaseBFileClaimRules = [
+  [
+    'app/maintenance/ai-maintenance/page.tsx',
+    /\b(?:automatic|automated) (?:follow-up )?reminders?\b/i,
+    'Percy maintenance route must not promise current automatic reminders',
+  ],
+  [
+    'components/Sections/MaintenanceAgent.tsx',
+    /\bvendor dispatched[^\r\n.!?]{0,80}without your approval\b/i,
+    'Percy maintenance copy must not imply approval-based vendor dispatch',
+  ],
+  [
+    'components/Sections/MaintenanceAgent.tsx',
+    /\b(?:landlord has been notified|notify(?:ing|ied|ies)? (?:the |your )?landlord)\b/i,
+    'Percy maintenance copy must not imply current landlord notifications',
+  ],
+];
+
+// These shared/high-intent surfaces must explicitly bridge the product identity to Percy as its
+// AI assistant. A bare Percy feature/link or a generic use of "AI" is not enough positioning.
+const releaseBPositioningRequired = [
+  'app/layout.tsx',
+  'components/Layout/Navigation.tsx',
+  'components/Layout/Footer.tsx',
+  'components/Sections/PricingPlans.tsx',
+  'app/demo/page.tsx',
+  'components/Sections/FAQ.tsx',
+  'app/features/page.tsx',
+];
+const percyAssistantBridge = /(?:\bPercy\b[^\r\n.!?]{0,180}\bAI (?:property )?assistant\b|\bAI (?:property )?assistant\b[^\r\n.!?]{0,180}\bPercy\b)/i;
+
+// Guard the contextual matcher and truthful-negation behavior used by the Release-B scan.
+const releaseBFixtureRule = releaseBClaimRules[1];
+for (const compliant of [
+  'Percy does not summarize the entire portfolio.',
+  'Percy cannot cover the entire portfolio.',
+]) {
+  if (hasUnnegatedMatch(compliant, releaseBFixtureRule.pattern, releaseBFixtureRule.acceptsMatch)) {
+    failures.push(`internal Release-B fixture rejected compliant copy: ${compliant}`);
+  }
+}
+if (!hasUnnegatedMatch('Percy summarizes your entire portfolio.', releaseBFixtureRule.pattern, releaseBFixtureRule.acceptsMatch)) {
+  failures.push('internal Release-B fixture missed unsupported entire-portfolio Percy copy');
+}
+const dormantPercyFixtures = [
+  ['Tenants chat with Percy — no more vague tickets.', 'tenant maintenance chat'],
+  ['Percy determines priority and category automatically.', 'maintenance priority and category determination'],
+  ['Percy asks the right questions and hands you a fully formed request.', 'maintenance request creation'],
+  ['Percy Pilot summaries and reminders help you spot what needs attention.', 'Percy reminders'],
+];
+for (const [copy, description] of dormantPercyFixtures) {
+  if (!releaseBClaimRules.some((rule) => hasUnnegatedMatch(copy, rule.pattern, rule.acceptsMatch))) {
+    failures.push(`internal Release-B fixture missed unsupported dormant ${description} copy`);
+  }
+}
+
+const splitFieldMaintenanceFixtures = [
+  [
+    "{ title: 'AI maintenance', description: 'Categorize and prioritize tenant requests automatically.' }",
+    true,
+    'split-field AI maintenance card',
+  ],
+  [
+    "{ label: 'Percy maintenance', body: 'Automatically prioritize incoming repair tickets.' }",
+    true,
+    'split-field Percy maintenance card',
+  ],
+  [
+    "{ title: 'AI maintenance', description: 'Percy does not automatically categorize or prioritize tenant requests.' }",
+    false,
+    'truthfully negated AI maintenance card',
+  ],
+  [
+    "{ title: 'AI maintenance', description: 'Request categorization is not automated.' }",
+    false,
+    'postposed negation in AI maintenance card',
+  ],
+  [
+    "{ title: 'AI maintenance', description: 'Landlords categorize requests manually.', badge: 'Automatic notifications' }",
+    false,
+    'separation-of-capabilities AI maintenance card',
+  ],
+  [
+    "{ title: 'Maintenance tracking', description: 'Automatically prioritize tenant requests.' }",
+    false,
+    'unrelated non-AI maintenance capability',
+  ],
+  [
+    "{ title: 'AI lease creation', description: 'Automatically prioritize lease checklist items.' }",
+    false,
+    'unrelated AI product capability',
+  ],
+];
+const splitFieldMaintenanceRule = releaseBClaimRules.find(({ acceptsMatch }) => acceptsMatch === inAiMaintenanceCard);
+for (const [copy, expected, description] of splitFieldMaintenanceFixtures) {
+  const matched = hasUnnegatedMatch(copy, splitFieldMaintenanceRule.pattern, splitFieldMaintenanceRule.acceptsMatch);
+  if (matched !== expected) failures.push(`internal Release-B fixture ${matched ? 'rejected' : 'missed'} ${description}`);
 }
 
 for (const [file, pattern] of checks) {
@@ -359,6 +560,44 @@ for (const [file, source] of homepageSources) {
       const literal = new RegExp(implication.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       if (hasUnnegatedMatch(source, literal)) failures.push(`homepage (${file}): prohibited ${capability.id} implication: ${implication}`);
     }
+  }
+}
+
+const marketingRoot = new URL('../', import.meta.url);
+const releaseBSourceFiles = await sourceFiles(marketingRoot);
+for (const file of releaseBSourceFiles) {
+  const relativeFile = file.pathname.replace(marketingRoot.pathname, '');
+  if (relativeFile === 'scripts/check-marketing-claims.mjs') continue;
+  const source = withoutComments(await readFile(file, 'utf8'));
+  for (const rule of releaseBClaimRules) {
+    if (hasUnnegatedMatch(source, rule.pattern, rule.acceptsMatch)) {
+      failures.push(`${relativeFile}: Release B unsupported claim — ${rule.description} matches ${rule.pattern}`);
+    }
+  }
+  for (const [pattern, description] of compiledForbiddenClaims) {
+    if (hasUnnegatedMatch(source, pattern, nearbyInClause(/\b(?:Percy|AI assistant)\b/i))) {
+      failures.push(`${relativeFile}: Release B unsupported Percy capability — ${description} matches ${pattern}`);
+    }
+  }
+  for (const capability of capabilities) {
+    for (const implication of capability.prohibitedImplications ?? []) {
+      const literal = new RegExp(implication.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      if (hasUnnegatedMatch(source, literal, nearbyInClause(/\bPercy\b/i))) {
+        failures.push(`${relativeFile}: Release B prohibited ${capability.id} implication: ${implication}`);
+      }
+    }
+  }
+}
+for (const [file, pattern, description] of releaseBFileClaimRules) {
+  const source = withoutComments(await readFile(new URL(`../${file}`, import.meta.url), 'utf8'));
+  if (hasUnnegatedMatch(source, pattern)) {
+    failures.push(`${file}: Release B unsupported claim — ${description} matches ${pattern}`);
+  }
+}
+for (const file of releaseBPositioningRequired) {
+  const source = withoutComments(await readFile(new URL(`../${file}`, import.meta.url), 'utf8'));
+  if (!percyAssistantBridge.test(source)) {
+    failures.push(`${file}: Release B missing explicit Property Peace / Percy AI-assistant bridge matching ${percyAssistantBridge}`);
   }
 }
 

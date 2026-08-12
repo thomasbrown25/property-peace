@@ -30,7 +30,7 @@ const config: NicheLandingPageConfig = {
   faq: [
     { question: 'Is Property Peace really free for landlords?', answer: 'Yes. Property Peace has a free plan for landlords managing up to 5 units, so small rental owners can start without a credit card.' },
     { question: 'Who is Property Peace best for?', answer: 'Property Peace is built for independent landlords and small rental owners managing roughly 1–50 units, especially people replacing spreadsheets and scattered messages.' },
-    { question: 'Can I upgrade later?', answer: 'Yes. Start free, then upgrade when you need unlimited units, LeaseShield, Percy Pilot tools, and more advanced workflows.' },
+    { question: 'Can I upgrade later?', answer: 'Yes. Start free, then review current pricing and availability when you need unlimited units or more advanced workflows. Percy Pilot access is not described as a Premium entitlement.' },
   ],
   relatedLinks: [
     { href: '/landlord-software', label: 'Landlord software' },
@@ -38,6 +38,11 @@ const config: NicheLandingPageConfig = {
     { href: '/pricing', label: 'Pricing' },
     { href: '/features', label: 'All features' },
   ],
+  assistantBridge: {
+    title: 'Start with the system of record, then review supported context',
+    description: 'Structured property, lease, rent, maintenance, and tenant-conversation records give Percy Pilot supported context to summarize when a landlord opens it.',
+    note: 'Percy is currently read-only and landlord-opened. It does not take actions or continuously monitor records.',
+  },
   structuredName: 'Property Peace Free Landlord Software',
   structuredDescription: 'Free landlord software for small rental owners to manage rent, tenants, leases, maintenance, expenses, and documents.',
 };

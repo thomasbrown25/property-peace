@@ -72,6 +72,8 @@ export default function SmallLandlordToolsPage() {
         </div>
       </section>
 
+      <section className="px-4 py-12 sm:px-6 lg:px-8"><div className="max-w-4xl mx-auto border-l-4 border-blue-600 bg-blue-50/60 p-6"><h2 className="text-2xl font-bold text-primary-main">Good tools create reviewable records</h2><p className="mt-3 leading-7 text-[#405a70]">Structured property, lease, recorded rent, maintenance, and tenant-conversation records give Percy Pilot supported context when a landlord opens it. Percy remains read-only: no record changes, actions, or continuous monitoring.</p></div></section>
+
       {/* Tools Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">

@@ -14,7 +14,7 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/resources/', {
   title: 'Landlord Guides & Checklists | Property Peace',
-  description: 'Practical landlord guides and checklists for tenant screening, leases, rent tracking, accounting, maintenance, and move-in workflows.',
+  description: 'Practical landlord guides and checklists for rental workflows, with a path to organized records and limited read-only Percy Pilot review.',
   keywords: 'landlord resources, landlord guides, rental property checklist, property management education, small landlord tools',
   alternates: { canonical: '/resources' },
   openGraph: {
@@ -144,7 +144,7 @@ export default function ResourcesPage() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.18em] text-emerald-200"><FiBookOpen className="h-4 w-4" /> From guide to workflow</div>
             <h2 className="mt-4 text-3xl font-bold md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Put the useful parts into one calm system.</h2>
-            <p className="mt-4 text-lg leading-8 text-white/70">Organize properties, tenants, lease records, rent tracking, maintenance, documents, and expenses without rebuilding another spreadsheet.</p>
+            <p className="mt-4 text-lg leading-8 text-white/70">Organize properties, tenants, lease records, rent tracking, maintenance, documents, and expenses without rebuilding another spreadsheet. Those structured records also provide supported context when a landlord opens Percy Pilot for a read-only review; Percy does not take actions or monitor continuously.</p>
           </div>
           <Link href="https://app.propertypeace.io/register" className="mt-7 inline-flex min-h-[52px] flex-shrink-0 items-center justify-center gap-2 bg-green-700 px-7 py-3.5 font-bold text-white transition hover:bg-green-600 md:mt-0">
             Start free

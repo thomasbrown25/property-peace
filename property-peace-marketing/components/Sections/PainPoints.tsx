@@ -8,7 +8,7 @@ const listItems = [
   'Maintenance requests that become trackable work orders instead of scattered texts, calls, and forgotten repairs.',
   'Lease, tenant, document, and property records organized around each rental you actually own.',
   'Income, expenses, and simple financial views built for 1–50-unit portfolios — not enterprise accounting overhead.',
-  'Percy Pilot summaries and reminders that help you spot what needs attention before it turns into a bigger problem.',
+  'Limited Percy Pilot read-only review of supported, landlord-opened maintenance records; reminders and follow-up remain landlord-run.',
 ];
 
 export default function PainPoints() {
