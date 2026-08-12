@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { applyOttoSeo } from '@/lib/otto-seo';
 import Hero from '@/components/Sections/Hero';
-import OnboardingWorkflow from '@/components/Sections/OnboardingWorkflow';
 import PainPoints from '@/components/Sections/PainPoints';
 import CTA from '@/components/Sections/CTA';
 // import Features from '@/components/Sections/Features'; // Hidden for now
@@ -28,11 +27,10 @@ export default function Home() {
     <div className="min-h-screen bg-white w-full min-w-0 overflow-x-hidden">
       <main className="w-full min-w-0">
 
-        {/* Zone 1: Hero + PainPoints + setup workflow — clean white background */}
+        {/* Zone 1: Hero + landlord benefits — clean white background */}
         <div className="relative overflow-hidden bg-white">
           <div className="relative z-10">
             <Hero />
-            <OnboardingWorkflow />
             <PainPoints />
             <CTA />
           </div>
