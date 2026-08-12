@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -121,9 +122,12 @@ namespace brownstone_hub_api.Services.GoogleAuthService
         {
             public string? Id { get; set; }
             public string? Email { get; set; }
+            [JsonPropertyName("given_name")]
             public string? GivenName { get; set; }
+            [JsonPropertyName("family_name")]
             public string? FamilyName { get; set; }
             public string? Picture { get; set; }
+            [JsonPropertyName("verified_email")]
             public bool? VerifiedEmail { get; set; }
         }
 
@@ -131,10 +135,14 @@ namespace brownstone_hub_api.Services.GoogleAuthService
         {
             public string? Sub { get; set; }
             public string? Email { get; set; }
+            [JsonPropertyName("given_name")]
             public string? GivenName { get; set; }
+            [JsonPropertyName("family_name")]
             public string? FamilyName { get; set; }
             public string? Picture { get; set; }
+            [JsonPropertyName("email_verified")]
             public string? EmailVerified { get; set; }
+            [JsonPropertyName("aud")]
             public string? Audience { get; set; }
         }
     }
