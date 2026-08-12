@@ -16,27 +16,15 @@ const faqs = [
   },
   {
     question: 'Does Property Peace replace spreadsheets?',
-    answer: 'Property Peace is a structured system of record and workflows for self-managing landlords. It helps replace scattered spreadsheets for rent tracking, expenses, lease dates, maintenance notes, reminders, and reporting so rental work stays in one place.',
-  },
-  {
-    question: 'What is Percy?',
-    answer: 'Percy is Property Peace’s AI property assistant. It sits alongside the organized records and workflows in Property Peace to help a landlord review supported information; Percy is not a separate property-management service or a replacement for landlord judgment.',
-  },
-  {
-    question: 'What can Percy do today?',
-    answer: 'In the limited Percy Pilot, Percy provides landlord-opened, read-only briefings and source-linked context for supported rent-payment, maintenance, lease, and urgent in-app conversation records. It does not autonomously contact tenants or vendors, change records, send reminders, make payments, or execute actions.',
-  },
-  {
-    question: 'Is Percy included in the Free or Premium plan?',
-    answer: 'No. Percy Pilot access may be offered separately, but it is not a Free or Premium plan entitlement. Pilot availability and supported records can change as the product is tested.',
+    answer: 'Property Peace helps replace scattered spreadsheets for rent tracking, expenses, lease dates, maintenance notes, reminders, and reporting so your rental workflow stays in one place.',
   },
   {
     question: 'Can I track income and expenses by property?',
     answer: 'Yes. You can keep income, expenses, receipts, and reports tied to the right rental property so tax-time cleanup is easier.',
   },
   {
-    question: 'Can I import properties into Property Peace?',
-    answer: 'Property Peace includes a product importer for properties and basic units. Percy does not run imports, and tenants, leases, rent history, expenses, and communications are not included in the current import workflow.',
+    question: 'Can I easily transfer all of my data to Property Peace?',
+    answer: 'Yes. Property Peace includes Percy import tools that automatically map your spreadsheet columns, making it easy to bring over tenants, properties, leases, rent history, expenses, and other rental data without rebuilding everything by hand.',
   },
   {
     question: 'Can I cancel anytime?',
@@ -91,7 +79,7 @@ export default function FAQ() {
             className="text-base leading-relaxed text-[#737373] md:text-lg"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Get the basics on setup, pricing, accounting, Property Peace workflows, and the current limits of the Percy Pilot.
+            Get the basics on setup, pricing, accounting, and how Property Peace fits into your rental workflow.
           </p>
         </motion.div>
 
@@ -124,7 +112,6 @@ export default function FAQ() {
                     {faq.question}
                   </span>
                   <span
-                    aria-hidden="true"
                     className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600 transition-transform duration-300 ${
                       isOpen ? 'rotate-180' : ''
                     }`}

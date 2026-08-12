@@ -37,13 +37,9 @@ export default function Navigation() {
   const loginUrl = `${appUrl}/login`;
   const registerUrl = `${appUrl}/register`;
 
-  const closeMobileMenu = () => {
-    setMobileMenuOpen(() => false);
-    setMobileFeaturesOpen(false);
-  };
-
   useEffect(() => {
     if (!mobileMenuOpen) {
+      setMobileFeaturesOpen(false);
       return;
     }
 
@@ -188,7 +184,7 @@ export default function Navigation() {
           slug: 'ai-summaries',
           title: 'Percy Pilot Summaries',
           icon: FiActivity,
-          description: 'Limited Percy Pilot briefings across supported rent-payment, maintenance, and lease records.'
+          description: 'Instant plain-English summaries of your entire portfolio — rent, maintenance, and leases.'
         },
         {
           slug: 'rent-estimate',
@@ -234,10 +230,7 @@ export default function Navigation() {
               className={`inline-flex h-11 items-center justify-start gap-2 rounded-xl pr-2 transition-colors duration-300 ${
                 transparent ? 'text-primary-main hover:text-primary-hover' : 'text-white/85 hover:text-white'
               }`}
-              onClick={() => {
-                setMobileMenuOpen(!mobileMenuOpen);
-                if (!mobileMenuOpen) setMobileFeaturesOpen(false);
-              }}
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation-menu"
@@ -293,7 +286,7 @@ export default function Navigation() {
           </div>
 
           {/* Desktop Navigation - Centered */}
-          <div className="hidden nav:flex flex-1 justify-center items-center gap-5 xl:gap-7">
+          <div className="hidden nav:flex flex-1 justify-center items-center space-x-8">
             {/* Features Dropdown */}
             <div
               className="relative h-full flex items-center"
@@ -313,13 +306,6 @@ export default function Navigation() {
               </Link>
             </div>
 
-            <Link href="/#how-percy-helps" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              transparent
-                ? 'text-primary-main hover:text-primary-hover hover:border-primary-main/30'
-                : 'text-white/80 hover:text-white hover:border-white/30'
-            }`}>
-              How Percy helps
-            </Link>
             <Link href="/listings" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
               transparent
                 ? 'text-primary-main hover:text-primary-hover hover:border-primary-main/30'
@@ -497,17 +483,6 @@ export default function Navigation() {
                   Explore
                 </p>
                 <nav className="divide-y divide-white/10 border-y border-white/10" aria-label="Primary mobile navigation">
-                  <Link
-                    href="/#how-percy-helps"
-                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-emerald-100"
-                    onClick={closeMobileMenu}
-                  >
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-400/12 text-emerald-300"><FiActivity className="h-4 w-4" /></span>
-                    <span className="min-w-0">
-                      <span className="block text-[15px] font-semibold">How Percy helps</span>
-                      <span className="block text-xs text-white/50">Percy is Property Peace&apos;s AI property assistant</span>
-                    </span>
-                  </Link>
                   <button
                     type="button"
                     className="group flex min-h-[58px] w-full items-center justify-between gap-4 py-3 text-left text-white transition-colors hover:text-emerald-100"

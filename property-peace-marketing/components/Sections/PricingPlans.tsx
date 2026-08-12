@@ -47,6 +47,7 @@ const plans = [
       'Occupancy tracking',
       'Rent estimates',
       'LeaseShield protection',
+      'Percy Pilot workflows (limited availability)',
       'One dedicated organization SMS number included with Premium; activation and configuration required',
       'Cancel anytime',
     ],
@@ -82,9 +83,6 @@ export default function PricingPlans() {
           >
             Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled.
           </p>
-          <div className="mx-auto mb-8 max-w-4xl rounded-2xl border border-green-200 bg-green-50/60 px-5 py-4 text-sm leading-6 text-slate-700" style={{ fontFamily: '"Inter", sans-serif' }}>
-            <strong className="text-primary-main">Percy Pilot availability:</strong> Percy is Property Peace&apos;s AI property assistant. The current limited pilot provides landlord-opened, read-only help for supported records. Pilot access may be offered separately and is not a Free or Premium plan entitlement.
-          </div>
 
           {/* Annual toggle */}
           <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#E5E5E5] bg-white px-3 py-2 shadow-sm sm:gap-3 sm:px-4">

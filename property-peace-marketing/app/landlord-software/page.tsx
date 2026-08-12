@@ -72,8 +72,6 @@ export default function LandlordSoftwarePage() {
         </div>
       </section>
 
-      <section className="px-4 py-12 sm:px-6 lg:px-8"><div className="max-w-4xl mx-auto border-l-4 border-blue-600 bg-blue-50/60 p-6"><h2 className="text-2xl font-bold text-primary-main">Structured landlord records support limited Percy review</h2><p className="mt-3 leading-7 text-[#405a70]">Property, lease, recorded rent, maintenance, and tenant-conversation workflows create supported context a landlord can review by opening Percy Pilot. Percy is read-only: it does not change records, take actions, or continuously monitor a portfolio.</p></div></section>
-
       {/* Features Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">

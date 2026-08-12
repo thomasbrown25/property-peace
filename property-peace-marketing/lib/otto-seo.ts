@@ -13,13 +13,11 @@ type OttoSeoOverride = {
 
 const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   '/': {
-    title: 'AI Property Assistant for Landlords | Property Peace',
-    description: 'Property Peace combines rental property management software with Percy, a limited-pilot AI property assistant for supported portfolio briefings, source-linked context, and landlord review.',
+    title: 'Free Rental Management Software | Property Peace',
+    description: 'Free rental management software for independent landlords with up to 5 units. Manage rent, tenants, leases, maintenance, and expenses in one calm dashboard. No credit card required.',
     canonical: 'https://propertypeace.io/',
-    openGraphTitle: 'AI Property Assistant for Landlords | Property Peace',
-    openGraphDescription: 'Meet Percy, the limited-pilot AI property assistant that helps landlords review supported rental records and source-linked context in Property Peace.',
-    twitterTitle: 'AI Property Assistant for Landlords | Property Peace',
-    twitterDescription: 'Meet Percy, the limited-pilot AI property assistant for supported portfolio briefings and landlord review in Property Peace.',
+    openGraphTitle: 'Free Rental Management Software | Property Peace',
+    twitterTitle: 'Free Rental Management Software | Property Peace',
   },
   '/blog/': {
     openGraphUrl: 'https://propertypeace.io/blog/',
@@ -41,17 +39,15 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/demo/': {
     title: 'Book a Property Management Demo | Property Peace',
-    description: 'Book a Property Peace demo to see organized rental records and workflows, plus read-only help from Percy, the AI property assistant, for supported records in the limited Percy Pilot.',
-    openGraphTitle: 'See Property Peace and the Percy Pilot',
-    openGraphDescription: 'Walk through Property Peace landlord workflows and current read-only Percy Pilot help for supported records.',
+    description: 'Book a Property Peace demo to see rent, maintenance, and lease workflows, plus Percy-assisted tools currently available through the limited Percy Pilot.',
+    openGraphTitle: 'Manage Properties Easily: Try Property Peace Free',
   },
   '/features/': {
     title: 'Property Management Software Features: Streamline Your Landlord Tasks | Property Peace',
     description: 'Explore Property Peace tools for rent tracking, maintenance, leases, applications, and accounting, plus portfolio summaries in the limited Percy Pilot.',
     canonical: 'https://propertypeace.io/features',
-    openGraphDescription: 'Explore Property Peace landlord workflows and Percy, its AI property assistant, currently limited to read-only help for supported records in the Percy Pilot.',
-    twitterTitle: 'Landlord Software Features | Property Peace',
-    twitterDescription: 'Organize rent, leases, maintenance, and expenses, with limited-pilot read-only Percy help for supported records.',
+    twitterTitle: 'Property Peace: Simplify Landlord Life. Free Plan! #PropTech',
+    twitterDescription: 'Simplify rent, leases, maintenance & expenses. Property Peace: your calm dashboard for 1-50 units. Start free! #LandlordLife',
   },
   '/features/ai-summaries/': {
     title: 'AI Summaries: Simplify Your Property Management | Property Peace',
@@ -167,19 +163,10 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/pricing/': {
     title: 'Property Peace Pricing: Free Plan & Premium Features',
-    description: 'Start free with landlord software for up to 5 units. Upgrade for unlimited units, LeaseShield, rent workflows, and financial reports. Limited Percy Pilot access may be available and is not a plan entitlement.',
+    description: 'Start free with landlord software for up to 5 units. Upgrade for unlimited units, LeaseShield, rent workflows, financial reports, and limited Percy Pilot tools.',
     canonical: 'https://propertypeace.io/pricing',
     openGraphTitle: 'Property Peace Pricing: Free Plan & Premium Features',
-    openGraphDescription: 'Compare Property Peace landlord software plans. Percy Pilot access is limited, offered separately, and not a plan entitlement.',
-    twitterTitle: 'Property Peace Pricing: Free & Premium Plans',
-    twitterDescription: 'Compare landlord software plans. Limited Percy Pilot access may be offered separately and is not a plan entitlement.',
-  },
-  '/faq/': {
-    title: 'Landlord Software & Percy Pilot FAQ | Property Peace',
-    description: 'Answers about Property Peace setup, pricing, rental workflows, and Percy, the limited-pilot AI property assistant for supported records.',
-    canonical: 'https://propertypeace.io/faq',
-    openGraphTitle: 'Property Peace and Percy Pilot FAQ',
-    openGraphDescription: 'Learn how Property Peace organizes landlord workflows and what read-only help Percy can provide in the limited pilot.',
+    twitterTitle: 'Property Peace: Manage 1-50 Units FREE! #LandlordLife',
   },
   '/privacy/': {
     canonical: 'https://propertypeace.io/privacy/',

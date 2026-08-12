@@ -4,10 +4,10 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/landlord-accounting-software/', {
   title: 'Landlord Accounting Software for Rentals | Property Peace',
-  description: 'Keep landlord rent and expense records organized by property with reports and exports for review and professional handoff. Property Peace does not provide tax advice.',
+  description: 'Simple landlord accounting for rent, expenses, property performance, tax-ready records, and reports. Built for small landlords with 1–50 units. Start free.',
   alternates: { canonical: '/landlord-accounting-software' },
-  openGraph: { title: 'Landlord Accounting Software for Rentals | Property Peace', description: 'Keep landlord rent and expense records organized by property for review, reports, exports, and professional handoff.', type: 'website', url: '/landlord-accounting-software' },
-  twitter: { card: 'summary_large_image', title: 'Landlord Accounting Software for Rentals | Property Peace', description: 'Keep landlord rent and expense records organized by property for review, reports, exports, and professional handoff.' },
+  openGraph: { title: 'Landlord Accounting Software for Rentals | Property Peace', description: 'Simple landlord accounting for rent, expenses, property performance, tax-ready records, and reports. Built for small landlords with 1–50 units. Start free.', type: 'website', url: '/landlord-accounting-software' },
+  twitter: { card: 'summary_large_image', title: 'Landlord Accounting Software for Rentals | Property Peace', description: 'Simple landlord accounting for rent, expenses, property performance, tax-ready records, and reports. Built for small landlords with 1–50 units. Start free.' },
 });
 
 const config: NicheLandingPageConfig = {
@@ -38,11 +38,6 @@ const config: NicheLandingPageConfig = {
     { href: '/rent/rent-reporting', label: 'Rent reporting' },
     { href: '/pricing', label: 'Pricing' },
   ],
-  assistantBridge: {
-    title: 'The system keeps financial records organized',
-    description: 'Property Peace connects recorded rent activity and expenses to the right properties so landlords have a cleaner system of record to review and share with qualified professionals.',
-    note: 'Percy does not provide accounting or tax advice, explain financial results, or move money. Online payment processing is not currently available.',
-  },
   structuredName: 'Property Peace Landlord Accounting Software',
   structuredDescription: 'Landlord accounting software for small rental owners to track rent, expenses, property performance, reports, and tax-ready records.',
 };

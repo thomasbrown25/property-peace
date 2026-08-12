@@ -38,11 +38,6 @@ const config: NicheLandingPageConfig = {
     { href: '/pricing', label: 'Pricing' },
     { href: '/features', label: 'All features' },
   ],
-  assistantBridge: {
-    title: 'Organized records make limited assistant review useful',
-    description: 'When properties, leases, rent records, maintenance, and tenant conversations are structured in Property Peace, landlords can open Percy Pilot to review supported current context in plain language.',
-    note: 'Percy is a landlord-opened, read-only pilot. It does not change records, take actions, or continuously monitor a portfolio.',
-  },
   structuredName: 'Property Peace Small Landlord Property Management Software',
   structuredDescription: 'Property management software for small landlords to organize rent, tenants, maintenance, leases, documents, and expenses.',
 };

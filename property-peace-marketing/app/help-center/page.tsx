@@ -6,7 +6,7 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 export const metadata: Metadata = applyOttoSeo('/help-center/', {
   title: "Help Center | Property Peace",
   description:
-    "Find product answers, support options, and guidance for organized landlord workflows, including the limited read-only Percy Pilot.",
+    "Property Peace help center. Find answers to frequently asked questions, get support, and learn how to use our property management software.",
   keywords: "help center, Property Peace help, property management software support, landlord software FAQ",
   openGraph: {
     title: "Help Center | Property Peace",
@@ -35,11 +35,6 @@ const faqs = [
     question: "Can I manage multiple properties?",
     answer:
       "Yes. The permanent Free plan supports up to 5 total units, while Premium supports unlimited units. Both plans organize properties, units, tenants, leases, maintenance, and financial records in one workspace; advanced reporting depends on plan entitlement and feature readiness.",
-  },
-  {
-    question: "What can Percy Pilot do?",
-    answer:
-      "A landlord can open Percy Pilot for a read-only review of supported current rent-payment, maintenance, lease, and urgent tenant-conversation records. Percy does not change records, take actions, or continuously monitor an account.",
   },
   {
     question: "How do I get support?",
