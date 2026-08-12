@@ -2,6 +2,10 @@ import { Box, Typography, ToggleButton, ToggleButtonGroup, Button, Chip, Stack, 
 import { CheckOutlined } from '@ant-design/icons';
 import { useState, useEffect } from 'react';
 import { useTheme } from '@mui/material/styles';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { getPlanPricePresentation } from 'utils/subscriptionPresentation';
 
 const COMPARISON_FEATURES = [
   { label: 'Units', type: 'value', getValue: (plan) => plan.maxTotalUnits == null ? 'Unlimited' : String(plan.maxTotalUnits) },
@@ -10,6 +14,8 @@ const COMPARISON_FEATURES = [
   { label: 'Lease management', type: 'check', check: 'lease' },
   { label: 'Expense tracking', type: 'check', check: 'expense' },
   { label: 'Document storage', type: 'check', check: 'document storage' },
+  { label: 'Hosted listing page', type: 'check', check: 'hosted property peace listing' },
+  { label: 'External listing syndication', type: 'check', check: 'external listing' },
   { label: 'Online rent collection', type: 'check', check: 'online rent' },
   { label: 'Automated rent reminders', type: 'check', check: 'automated rent' },
   { label: 'Financial reports', type: 'check', check: 'financial report' },
@@ -46,22 +52,7 @@ function expandFeatures(plans) {
   });
 }
 
-function isAllIncludedPlan(plan) {
-  const name = plan.name?.toLowerCase() || '';
-  return name.includes('premium') || name.includes('lifetime');
-}
-
-const FREE_INCLUDED_FEATURES = new Set(['expense', 'online rent']);
-
 function hasFeature(plan, check) {
-  // Premium/lifetime include every listed comparison feature. This avoids a misleading dash
-  // when API copy changes (for example, "Everything in Free") but the comparison row text
-  // does not exactly match the feature string.
-  if (isAllIncludedPlan(plan)) return true;
-
-  const planName = plan.name?.toLowerCase().trim() || '';
-  if (planName === 'free' && FREE_INCLUDED_FEATURES.has(check.toLowerCase())) return true;
-
   const features = plan._expanded ?? parseFeatures(plan);
   return features.some((f) => f.toLowerCase().includes(check.toLowerCase()));
 }
@@ -69,6 +60,8 @@ function hasFeature(plan, check) {
 export default function PlanComparisonTable({ plans = [], currentPlanId, currentBillingCycle, onSelectPlan, loading = false }) {
   const theme = useTheme();
   const [billingCycle, setBillingCycle] = useState(currentBillingCycle || 'Monthly');
+  const { presentation: rentReadiness } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
+  const { presentation: syndicationReadiness } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
   const rawPlans = plans.filter((p) => !p.isTrial);
   const displayPlans = expandFeatures(rawPlans);
 
@@ -86,10 +79,16 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
     if (feature.type === 'value') {
       return <Typography variant="body2" fontWeight={600}>{feature.getValue(plan)}</Typography>;
     }
-    if (hasFeature(plan, feature.check)) {
-      return <CheckOutlined style={{ color: theme.palette.success.main, fontSize: 15 }} />;
+    if (!hasFeature(plan, feature.check)) {
+      return <Typography component="span" color="text.disabled" sx={{ fontSize: 18, lineHeight: 1 }}>—</Typography>;
     }
-    return <Typography component="span" color="text.disabled" sx={{ fontSize: 18, lineHeight: 1 }}>—</Typography>;
+    if (feature.check === 'online rent' && !rentReadiness.canInvoke) {
+      return <Chip label={rentReadiness.title} size="small" variant="outlined" color={rentReadiness.severity === 'error' ? 'error' : 'default'} />;
+    }
+    if (feature.check === 'external listing' && !syndicationReadiness.canInvoke) {
+      return <Chip label={syndicationReadiness.title} size="small" variant="outlined" color={syndicationReadiness.severity === 'error' ? 'error' : 'default'} />;
+    }
+    return <CheckOutlined style={{ color: theme.palette.success.main, fontSize: 15 }} />;
   };
 
   const getPlanHighlightColor = (plan) => {
@@ -129,17 +128,20 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
                 px: 0.6, py: 0.15, borderRadius: 0.5, lineHeight: 1.6
               }}
             >
-              -20%
+              -15%
             </Typography>
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
 
+      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection availability" />
+
       <Stack spacing={1.5} sx={{ display: { xs: 'flex', md: 'none' } }}>
         {displayPlans.map((plan) => {
           const isCurrentPlan = plan.id === currentPlanId && currentBillingCycle === billingCycle;
           const isRecommended = plan.id === recommendedPlanId && plan.id !== currentPlanId;
-          const price = billingCycle === 'Annual' ? plan.annualPrice : plan.monthlyPrice;
+          const pricePresentation = getPlanPricePresentation(plan, billingCycle);
+          const price = pricePresentation.amount;
           const currentPlan = displayPlans.find((candidate) => candidate.id === currentPlanId);
           const currentPrice = currentPlan ? (billingCycle === 'Annual' ? currentPlan.annualPrice : currentPlan.monthlyPrice) : 0;
           const isDowngrade = currentPlanId && price < currentPrice;
@@ -167,7 +169,12 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
                 </Box>
                 <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
                   <Typography variant="h4" fontWeight={800}>${price?.toFixed(2)}</Typography>
-                  <Typography variant="caption" color="text.secondary">per month</Typography>
+                  <Typography variant="caption" color="text.secondary">{pricePresentation.cadence}</Typography>
+                  {pricePresentation.supportingText && (
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {pricePresentation.supportingText}
+                    </Typography>
+                  )}
                 </Box>
               </Stack>
 
@@ -202,7 +209,8 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
           {displayPlans.map((plan, idx) => {
             const isCurrentPlan = plan.id === currentPlanId;
             const isRecommended = plan.id === recommendedPlanId && plan.id !== currentPlanId;
-            const price = billingCycle === 'Annual' ? plan.annualPrice : plan.monthlyPrice;
+            const pricePresentation = getPlanPricePresentation(plan, billingCycle);
+            const price = pricePresentation.amount;
             return (
               <Box
                 key={plan.id}
@@ -245,9 +253,14 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
                     ${price?.toFixed(2)}
                   </Typography>
                   <Typography variant="body2" sx={{ color: isRecommended ? alpha('#fff', 0.75) : 'text.secondary' }}>
-                    /mo
+                    {pricePresentation.cadence}
                   </Typography>
                 </Box>
+                {pricePresentation.supportingText && (
+                  <Typography variant="caption" sx={{ color: isRecommended ? alpha('#fff', 0.75) : 'text.secondary' }}>
+                    {pricePresentation.supportingText}
+                  </Typography>
+                )}
               </Box>
             );
           })}

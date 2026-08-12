@@ -24,6 +24,8 @@ import {
   CheckCircleOutlined
 } from '@ant-design/icons';
 import { getRentEstimate } from 'api/rentEstimate';
+import useEntitlement from 'hooks/useEntitlement';
+import { RENT_ESTIMATE_FEATURE } from 'utils/entitlements';
 
 function formatCurrency(val) {
   return val != null ? `$${Number(val).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : '—';
@@ -51,8 +53,10 @@ function isCacheExpired(cachedAt) {
  * Auto-loads on mount for Premium users, showing cached results immediately.
  * Cached backend values are reused for 3 months; manual refresh bypasses cache.
  */
-export default function RentEstimateCard({ propertyId, unitId = null, isPremium = false, onUseAmount }) {
+export default function RentEstimateCard({ propertyId, unitId = null, onUseAmount }) {
   const theme = useTheme();
+  const { presentation, refresh: refreshEntitlement } = useEntitlement(RENT_ESTIMATE_FEATURE);
+  const canInvoke = presentation.kind === 'allowed';
   const [loading, setLoading] = useState(false);
   const [estimate, setEstimate] = useState(null);
   const [error, setError] = useState(null);
@@ -60,7 +64,7 @@ export default function RentEstimateCard({ propertyId, unitId = null, isPremium 
   const [usedAmount, setUsedAmount] = useState(false);
 
   const fetchEstimate = useCallback(async (forceRefresh = false) => {
-    if (!propertyId || !isPremium) return;
+    if (!propertyId || !canInvoke) return;
 
     setLoading(true);
     setError(null);
@@ -74,7 +78,7 @@ export default function RentEstimateCard({ propertyId, unitId = null, isPremium 
     } finally {
       setLoading(false);
     }
-  }, [isPremium, propertyId, unitId]);
+  }, [canInvoke, propertyId, unitId]);
 
   useEffect(() => {
     fetchEstimate(false);
@@ -85,8 +89,16 @@ export default function RentEstimateCard({ propertyId, unitId = null, isPremium 
     setUsedAmount(true);
   };
 
-  // ── Premium locked ──────────────────────────────────────────────────────
-  if (!isPremium) {
+  // Every non-allowed entitlement state fails closed before the provider call.
+  if (!canInvoke) {
+    const entitlementCopy = {
+      'loading': ['Checking rent estimate access…', 'Please wait while access is verified.'],
+      'upgrade': ['Rent Estimate requires an upgrade', 'Upgrade to see data-driven estimates based on nearby listings.'],
+      'setup': ['Finish organization setup', 'Complete setup before requesting a rent estimate.'],
+      'unauthorized': ['Rent Estimate is not authorized', 'Ask an organization owner or manager to review your access.'],
+      'unavailable': ['Rent Estimate is unavailable', 'Access could not be confirmed, so this feature remains locked.']
+    };
+    const [title, message] = entitlementCopy[presentation.kind] || entitlementCopy.unavailable;
     return (
       <Box
         sx={{
@@ -99,15 +111,18 @@ export default function RentEstimateCard({ propertyId, unitId = null, isPremium 
           gap: 1.5
         }}
       >
-        <LockOutlined style={{ color: theme.palette.primary.main, fontSize: 18, flexShrink: 0 }} />
+        {presentation.kind === 'loading'
+          ? <CircularProgress size={18} />
+          : <LockOutlined style={{ color: theme.palette.primary.main, fontSize: 18, flexShrink: 0 }} />}
         <Box sx={{ flex: 1 }}>
           <Typography variant="body2" fontWeight={600}>
-            Rent Estimate — Premium
+            {title}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Upgrade to see data-driven rent estimates based on nearby comparable listings.
+            {message}
           </Typography>
         </Box>
+        {presentation.kind === 'unavailable' && <Button size="small" onClick={refreshEntitlement}>Retry</Button>}
       </Box>
     );
   }

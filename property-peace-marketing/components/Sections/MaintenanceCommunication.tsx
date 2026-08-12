@@ -110,7 +110,7 @@ export default function MaintenanceCommunication() {
               className="text-lg text-[#737373] mb-6 leading-relaxed"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Send announcements to all properties or specific units instantly. Keep tenants informed about important updates, policy changes, or maintenance schedules with multi-channel notifications via email, SMS, and in-app messaging.
+              Send announcements to all properties or specific units instantly. Keep tenants informed with in-app and email notifications. SMS requires Premium; one dedicated organization number is included, with activation and configuration required.
             </p>
             <Link
               href="/features/tenant-communication"
@@ -146,7 +146,7 @@ export default function MaintenanceCommunication() {
                     Multi-Channel Notifications
                   </h3>
                   <p className="text-sm text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    Reach tenants via email, SMS, and in-app messages
+                    Reach tenants in-app and by email; Premium includes one SMS number, with activation and configuration required
                   </p>
                 </div>
               </div>

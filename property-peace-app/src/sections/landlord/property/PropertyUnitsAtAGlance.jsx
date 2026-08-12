@@ -1,18 +1,18 @@
 import { useState, useMemo } from 'react';
 import {
-  alpha, Avatar, Box, Button, Chip, Divider, IconButton,
+  alpha, Avatar, Box, Button, Divider,
   InputAdornment, OutlinedInput, Stack, Typography, useTheme
 } from '@mui/material';
-import { PlusOutlined, SearchOutlined, ArrowRightOutlined, MoreOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, PlusOutlined, SearchOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
-import unitIcon from 'assets/images/icons/unit.png';
 import { formatCurrency } from 'utils/formatters';
+import { getUnitStatusPresentation } from 'utils/unitPresentation';
 import { differenceInDays, differenceInMonths, format } from 'date-fns';
 import UnitDetailDrawer from 'components/drawers/UnitDetailDrawer';
 import BulkUnitCreateDrawer from 'components/drawers/BulkUnitCreateDrawer';
 import { darkModeActionButtonSx, propertyAccentCardSx } from './propertyAccentSx';
 
-export default function PropertyUnitsAtAGlance({ property, propertyId }) {
+export default function PropertyUnitsAtAGlance({ property }) {
   const theme = useTheme();
   const [search, setSearch] = useState('');
   const [selectedUnit, setSelectedUnit] = useState(null);
@@ -91,22 +91,16 @@ export default function PropertyUnitsAtAGlance({ property, propertyId }) {
           ) : (
             filteredUnits.map((unit, idx) => {
               const lease = unit.lease || unit.Lease;
-              const hasLease = Boolean(lease?.id || lease?.Id);
-              const status = (unit.status || unit.Status || '').toLowerCase();
-              const isPaid = hasLease && status === 'occupied';
-              const isLate = hasLease && status === 'overdue';
+              const statusPresentation = getUnitStatusPresentation(unit.status || unit.Status);
+              const statusColor = {
+                success: theme.palette.success.main,
+                error: theme.palette.error.main,
+                warning: theme.palette.warning.dark,
+                info: theme.palette.info.main,
+                neutral: theme.palette.text.secondary
+              }[statusPresentation.tone];
 
               const unitName = unit.name || unit.Name || `Unit ${idx + 1}`;
-              const firstLetter = unitName.charAt(0).toUpperCase();
-
-              const dotColor = isLate
-                ? theme.palette.error.main
-                : isPaid
-                ? theme.palette.success.main
-                : theme.palette.warning.main;
-
-              const statusChipLabel = isLate ? 'late' : isPaid ? 'on time' : 'vacant';
-              const statusChipColor = isLate ? 'error' : isPaid ? 'success' : 'warning';
 
               const tenants = lease?.tenants || lease?.Tenants || [];
               const primaryTenant = tenants[0];
@@ -155,25 +149,44 @@ export default function PropertyUnitsAtAGlance({ property, propertyId }) {
                       '&:hover': { bgcolor: (t) => alpha(t.palette.action.hover, t.palette.mode === 'dark' ? 0.5 : 0.7) }
                     }}
                   >
-                    {/* Unit icon */}
-                    <Box sx={{ width: 40, height: 40, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <img src={unitIcon} alt="unit" style={{ width: 32, height: 32, objectFit: 'contain', opacity: 0.7 }} />
+                    {/* Unit identity */}
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 2,
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'primary.main',
+                        bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.16 : 0.07),
+                        border: (t) => `1px solid ${alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.32 : 0.14)}`
+                      }}
+                    >
+                      <ApartmentOutlined style={{ fontSize: 20 }} />
                     </Box>
 
-                    {/* Unit name + status chip + specs */}
+                    {/* Unit name, status, and specs */}
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.2 }}>
-                        <Typography fontWeight={700} sx={{ fontSize: '0.88rem' }}>{unitName}</Typography>
-                        <Chip
-                          label={statusChipLabel}
-                          size="small"
-                          color={statusChipColor}
-                          sx={{ height: 18, fontSize: '0.62rem', fontWeight: 700, '& .MuiChip-label': { px: 0.6 }, flexShrink: 0 }}
-                        />
-                      </Stack>
-                      <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }} noWrap>
-                        {specParts.join(' · ') || '—'}
+                      <Typography fontWeight={700} sx={{ fontSize: '0.9rem', lineHeight: 1.25, mb: 0.45 }} noWrap>
+                        {unitName}
                       </Typography>
+                      <Stack direction="row" alignItems="center" spacing={0.7} sx={{ minWidth: 0 }}>
+                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: statusColor, flexShrink: 0 }} />
+                        <Typography sx={{ fontSize: '0.7rem', color: statusColor, fontWeight: 700, flexShrink: 0 }}>
+                          {statusPresentation.label}
+                        </Typography>
+                        {specParts.length > 0 && (
+                          <>
+                            <Typography aria-hidden="true" sx={{ fontSize: '0.68rem', color: 'text.disabled' }}>·</Typography>
+                            <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }} noWrap>
+                              {specParts.join(' · ')}
+                            </Typography>
+                          </>
+                        )}
+                      </Stack>
                     </Box>
 
                     {/* Tenant */}
@@ -215,27 +228,32 @@ export default function PropertyUnitsAtAGlance({ property, propertyId }) {
                       )}
                     </Box>
 
-                    {/* Actions — pushed to far right */}
-                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0, ml: 'auto' }}>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        endIcon={<ArrowRightOutlined />}
-                        onClick={() => setSelectedUnit(unit)}
-                        sx={{
-                          textTransform: 'none',
-                          fontWeight: 600,
-                          borderRadius: 1.5,
-                          fontSize: '0.78rem',
-                          px: 1.5
-                        }}
-                      >
-                        Open
-                      </Button>
-                      <IconButton size="small" sx={{ color: 'text.disabled' }}>
-                        <MoreOutlined style={{ fontSize: 15 }} />
-                      </IconButton>
-                    </Stack>
+                    {/* Action */}
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      endIcon={<ArrowRightOutlined />}
+                      onClick={() => setSelectedUnit(unit)}
+                      aria-label={`View ${unitName}`}
+                      sx={{
+                        flexShrink: 0,
+                        ml: 'auto',
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        borderRadius: 1.5,
+                        fontSize: '0.76rem',
+                        px: 1.4,
+                        color: 'primary.main',
+                        borderColor: (t) => alpha(t.palette.primary.main, 0.28),
+                        bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.08 : 0.025),
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          bgcolor: (t) => alpha(t.palette.primary.main, 0.08)
+                        }
+                      }}
+                    >
+                      View
+                    </Button>
                   </Box>
                 </Box>
               );

@@ -26,6 +26,9 @@ import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import { bankAccountAPI } from 'api';
 import useFetchProperties from 'hooks/useFetchProperties';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import { Grid, Card, CardContent } from '@mui/material';
 
 function DemoStripePaymentsPreview() {
@@ -150,6 +153,12 @@ export default function PaymentsSettings() {
   const theme = useTheme();
   const { user } = useAuth();
   const { properties } = useFetchProperties();
+  const {
+    canInvoke: rentCanInvoke,
+    presentation: rentPresentation,
+    isLoading: rentReadinessLoading,
+    error: rentReadinessError
+  } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [accountStatus, setAccountStatus] = useState(null);
@@ -166,8 +175,10 @@ export default function PaymentsSettings() {
   const isDemo = user?.isDemo === true || user?.IsDemo === true;
 
   useEffect(() => {
-    if (isDemo) {
+    if (isDemo || rentReadinessLoading || rentReadinessError || !rentCanInvoke) {
       setCheckingStatus(false);
+      setShowOnboarding(false);
+      setStripeConnectInstance(null);
       return;
     }
 
@@ -189,7 +200,7 @@ export default function PaymentsSettings() {
         fetchBankAccounts();
       }, 1000);
     }
-  }, [user, isDemo]);
+  }, [user, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError]);
 
   const fetchBankAccounts = async () => {
     try {
@@ -213,6 +224,11 @@ export default function PaymentsSettings() {
 
   // Refresh account status when onboarding modal closes
   useEffect(() => {
+    if (!rentCanInvoke) {
+      prevShowOnboardingRef.current = false;
+      return;
+    }
+
     // Check if modal transitioned from open to closed
     if (prevShowOnboardingRef.current && !showOnboarding && stripeConnectInstance) {
       // Modal was just closed, refresh status to check if account was connected
@@ -225,7 +241,7 @@ export default function PaymentsSettings() {
     
     // Update ref for next render
     prevShowOnboardingRef.current = showOnboarding;
-  }, [showOnboarding, stripeConnectInstance]);
+  }, [showOnboarding, stripeConnectInstance, rentCanInvoke]);
 
   const fetchPublishableKey = async () => {
     try {
@@ -558,6 +574,19 @@ export default function PaymentsSettings() {
       return <Chip icon={<ExclamationCircleOutlined />} label="Not Connected" color="default" size="small" sx={{ fontWeight: 600 }} />;
     }
   };
+
+  if (!rentCanInvoke) {
+    return (
+      <Box>
+        <FeatureReadinessNotice
+          title="Online rent collection"
+          presentation={rentPresentation}
+          isLoading={rentReadinessLoading}
+          error={rentReadinessError}
+        />
+      </Box>
+    );
+  }
 
   if (isDemo) {
     return <DemoStripePaymentsPreview />;

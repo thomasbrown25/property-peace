@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useSubscription } from 'hooks/useSubscription';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Grid,
   Box,
@@ -64,22 +63,18 @@ const formatDateDisplay = (dateStr) => {
 
 export default function FinancialReports() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const hasPremiumAccess = planName === 'premium' || planName.includes('lifetime');
+
   const selectedProperty = useSelector(selectProperty);
   const theme = useTheme();
 
-  useEffect(() => {
-    if (!subscriptionLoading && !hasPremiumAccess) {
-      navigate('/landlord/reports');
-    }
-  }, [hasPremiumAccess, subscriptionLoading, navigate]);
+
   const [searchParams] = useSearchParams();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [warning, setWarning] = useState(null);
+  const [activityStatusKnown, setActivityStatusKnown] = useState(false);
+  const requestSequence = useRef(0);
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
     date.setMonth(date.getMonth() - 6);
@@ -120,88 +115,53 @@ export default function FinancialReports() {
   const fetchData = async () => {
     if (!landlordId) return;
 
+    const requestId = ++requestSequence.current;
     setLoading(true);
     setError(null);
+    setWarning(null);
+    setActivityStatusKnown(false);
 
     try {
-      const [
-        reportRes,
-        summaryRes,
-        categoryRes,
-        profitabilityRes,
-        yoyRes,
-        incomeRes,
-        trendsRes,
-        rentRes
-      ] = await Promise.all([
-        expenseAPI.getExpenseReport(landlordId, filters),
-        expenseAPI.getExpenseReportSummary(landlordId, filters),
-        expenseAPI.getExpenseReportByCategory(landlordId, filters),
-        expenseAPI.getPropertyProfitability(landlordId, { propertyId: filters.propertyId, startDate: filters.startDate, endDate: filters.endDate }),
-        expenseAPI.getYearOverYearComparison(landlordId, { propertyId: filters.propertyId, year1, year2 }),
-        expenseAPI.getIncomeByYear(landlordId, { propertyId: filters.propertyId, year1, year2 }),
+      const results = await Promise.allSettled([
+        expenseAPI.getExpenseReport(filters),
+        expenseAPI.getExpenseReportSummary(filters),
+        expenseAPI.getExpenseReportByCategory(filters),
+        expenseAPI.getPropertyProfitability({ propertyId: filters.propertyId, startDate: filters.startDate, endDate: filters.endDate }),
+        expenseAPI.getYearOverYearComparison({ propertyId: filters.propertyId, year1, year2 }),
+        expenseAPI.getIncomeByYear({ propertyId: filters.propertyId, year1, year2 }),
         expenseAPI.getExpenseTrends({ propertyId: filters.propertyId, startDate: filters.startDate, endDate: filters.endDate, groupBy: 'month' }),
-        axiosServices.get('/api/rent-collection', { params: { ...(filters.propertyId ? { propertyId: filters.propertyId } : {}) } }).catch(() => null)
+        axiosServices.get('/api/rent-collection', { params: { ...(filters.propertyId ? { propertyId: filters.propertyId } : {}) } })
       ]);
 
-      if (reportRes?.data?.data !== undefined) {
-        setExpenseReport(reportRes.data.data || []);
-      } else if (Array.isArray(reportRes?.data)) {
-        setExpenseReport(reportRes.data);
-      }
+      if (requestId !== requestSequence.current) return;
 
-      if (summaryRes?.data?.data !== undefined) {
-        setSummary(summaryRes.data.data);
-      } else if (summaryRes?.data !== undefined && !Array.isArray(summaryRes.data)) {
-        setSummary(summaryRes.data);
-      }
+      const labels = ['expense detail', 'expense summary', 'category breakdown', 'property profitability', 'year comparison', 'income comparison', 'expense trends', 'rent collection'];
+      const failedLabels = results.flatMap((result, index) => result.status === 'rejected' ? [labels[index]] : []);
+      setActivityStatusKnown(results.slice(0, 3).every((result) => result.status === 'fulfilled'));
+      if (failedLabels.length === results.length) throw results[0].reason;
+      if (failedLabels.length) setWarning(`Some report sections could not be refreshed: ${failedLabels.join(', ')}. Available sections are shown.`);
 
-      if (categoryRes?.data?.data !== undefined) {
-        setByCategory(categoryRes.data.data || []);
-      } else if (Array.isArray(categoryRes?.data)) {
-        setByCategory(categoryRes.data);
-      }
+      const value = (index) => results[index].status === 'fulfilled' ? results[index].value : null;
+      const [reportRes, summaryRes, categoryRes, profitabilityRes, yoyRes, incomeRes, trendsRes, rentRes] = results.map((_, index) => value(index));
 
-      if (profitabilityRes?.data?.data !== undefined) {
-        setProfitability(profitabilityRes.data.data || []);
-      } else if (Array.isArray(profitabilityRes?.data)) {
-        setProfitability(profitabilityRes.data);
-      }
-
-      if (yoyRes?.data?.data !== undefined) {
-        setYoyComparison(yoyRes.data.data || []);
-      } else if (Array.isArray(yoyRes?.data)) {
-        setYoyComparison(yoyRes.data);
-      }
-
-      if (incomeRes?.data?.data !== undefined) {
-        setYoyIncome(incomeRes.data.data || []);
-      } else if (Array.isArray(incomeRes?.data)) {
-        setYoyIncome(incomeRes.data);
-      } else {
-        setYoyIncome([]);
-      }
-
-      if (trendsRes?.data?.data !== undefined) {
-        setExpenseTrends(trendsRes.data.data || []);
-      } else if (Array.isArray(trendsRes?.data)) {
-        setExpenseTrends(trendsRes.data);
-      }
-
-      if (rentRes?.data?.data) {
-        setRentSummary(rentRes.data.data);
-      } else if (rentRes?.data && !Array.isArray(rentRes.data)) {
-        setRentSummary(rentRes.data);
-      }
+      setExpenseReport(reportRes?.data?.data ?? (Array.isArray(reportRes?.data) ? reportRes.data : []));
+      setSummary(summaryRes?.data?.data ?? (summaryRes?.data !== undefined && !Array.isArray(summaryRes.data) ? summaryRes.data : null));
+      setByCategory(categoryRes?.data?.data ?? (Array.isArray(categoryRes?.data) ? categoryRes.data : []));
+      setProfitability(profitabilityRes?.data?.data ?? (Array.isArray(profitabilityRes?.data) ? profitabilityRes.data : []));
+      setYoyComparison(yoyRes?.data?.data ?? (Array.isArray(yoyRes?.data) ? yoyRes.data : []));
+      setYoyIncome(incomeRes?.data?.data ?? (Array.isArray(incomeRes?.data) ? incomeRes.data : []));
+      setExpenseTrends(trendsRes?.data?.data ?? (Array.isArray(trendsRes?.data) ? trendsRes.data : []));
+      setRentSummary(rentRes?.data?.data ?? (rentRes?.data && !Array.isArray(rentRes.data) ? rentRes.data : null));
 
       if (reportRes?.success === false || summaryRes?.success === false) {
         setError(reportRes?.message || summaryRes?.message || 'Failed to load reports');
       }
     } catch (err) {
+      if (requestId !== requestSequence.current) return;
       console.error('Error fetching reports:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to load reports. Please check your connection and try again.');
+      setError(err?.response?.data?.message || err?.message || 'Failed to load reports. Please check your connection and try again.');
     } finally {
-      setLoading(false);
+      if (requestId === requestSequence.current) setLoading(false);
     }
   };
 
@@ -330,11 +290,14 @@ export default function FinancialReports() {
             variant="outlined"
             startIcon={<DownloadOutlined />}
             onClick={(e) => setExportMenuAnchor(e.currentTarget)}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(exportMenuAnchor)}
+            aria-controls={exportMenuAnchor ? 'financial-export-menu' : undefined}
             sx={{ textTransform: 'none', borderRadius: 1.5 }}
           >
             Export
           </Button>
-          <Menu anchorEl={exportMenuAnchor} open={Boolean(exportMenuAnchor)} onClose={() => setExportMenuAnchor(null)}>
+          <Menu id="financial-export-menu" anchorEl={exportMenuAnchor} open={Boolean(exportMenuAnchor)} onClose={() => setExportMenuAnchor(null)}>
             <MenuItem onClick={() => setExportMenuAnchor(null)}>
               <CSVLink data={csvData} headers={csvHeaders} filename={`expense-report-${startDate}-to-${endDate}.csv`} style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center' }}>
                 <FileExcelOutlined style={{ marginRight: 8 }} />Export CSV
@@ -369,7 +332,7 @@ export default function FinancialReports() {
           inputProps={{ style: { height: 17, fontSize: '0.8rem' } }}
         />
         <FormControl size="small" sx={{ flex: 1, minWidth: 150, ...noLabelBg }}>
-          <Select displayEmpty value={category} onChange={(e) => setCategory(e.target.value)} sx={{ height: 34, fontSize: '0.8rem' }}>
+          <Select inputProps={{ 'aria-label': 'Expense category' }} displayEmpty value={category} onChange={(e) => setCategory(e.target.value)} sx={{ height: 34, fontSize: '0.8rem' }}>
             <MenuItem value="all">All Categories</MenuItem>
             {EXPENSE_CATEGORIES.map((cat) => (
               <MenuItem key={cat} value={cat}>{cat}</MenuItem>
@@ -384,8 +347,19 @@ export default function FinancialReports() {
         </Box>
       </Box>
 
-      {loading && <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>}
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {loading && (
+        <Box role="status" aria-live="polite" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, p: 4 }}>
+          <CircularProgress size={24} />
+          <Typography color="text.secondary">Loading financial reports…</Typography>
+        </Box>
+      )}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} action={<Button color="inherit" onClick={fetchData}>Try again</Button>}>
+          <Typography fontWeight={700}>Unable to load financial reports</Typography>
+          <Typography variant="body2">{error}</Typography>
+        </Alert>
+      )}
+      {warning && !error && <Alert severity="warning" sx={{ mb: 3 }}>{warning}</Alert>}
 
       {/* KPI cards */}
       {!loading && !error && (profitability.length > 0 || summary) && (
@@ -433,11 +407,11 @@ export default function FinancialReports() {
         </Box>
       )}
 
-      {!loading && !error && (!summary || (expenseReport.length === 0 && byCategory.length === 0)) && (
+      {!loading && !error && activityStatusKnown && (!summary || (expenseReport.length === 0 && byCategory.length === 0)) && (
         <Alert severity="info" sx={{ mb: 3 }}>
           {startDate && endDate
-            ? `No expenses found for ${formatDateDisplay(startDate)} – ${formatDateDisplay(endDate)}. Try adjusting your filters or date range.`
-            : 'No expenses found for the selected filters. Try adjusting your property, category, or date range.'}
+            ? `No financial activity found for ${formatDateDisplay(startDate)} – ${formatDateDisplay(endDate)}. No totals or charts are shown because the report returned no records. Try adjusting your filters or date range.`
+            : 'No financial activity found for the selected filters. No totals or charts are shown because the report returned no records.'}
         </Alert>
       )}
 

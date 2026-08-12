@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 // material-ui
 import {
-  Box, Button, Divider, Grid, IconButton,
+  Box, Button, Divider, Grid, IconButton, Alert,
   Stack, Toolbar, Typography, alpha, useTheme,
   Stepper, Step, StepLabel, StepConnector, stepConnectorClasses, styled,
   FormControlLabel, Switch, Chip, TextField
@@ -175,18 +175,36 @@ export default function LeaseAddDrawer() {
   const [createdLease, setCreatedLease] = useState(null);
   const [submittingAction, setSubmittingAction] = useState(null);
 
-  // Reset on close; pre-fill property+unit on open
+  // Reset on close; pre-fill property+unit and approved application fields on open.
   useEffect(() => {
     if (!drawer.isOpenLeaseAdd) {
       setStep(STEP_PROPERTY);
       setStepError('');
       setCreatedLease(null);
+      formik.resetForm({ values: buildInitialValues(selectedProperty) });
     } else {
-      if (drawer.leaseAddProperty) {
-        formik.setFieldValue('propertyId', Number(drawer.leaseAddProperty.id ?? drawer.leaseAddProperty.Id));
+      const context = drawer.leaseAddApplicationContext;
+      const propertyId = Number(drawer.leaseAddProperty?.id ?? drawer.leaseAddProperty?.Id);
+      const unitId = Number(drawer.leaseAddUnitId);
+      const hasSafeApplicationContext = Number.isSafeInteger(context?.applicationId) && context.applicationId > 0
+        && context.propertyId === propertyId
+        && context.unitId === unitId
+        && Number.isSafeInteger(propertyId) && propertyId > 0
+        && Number.isSafeInteger(unitId) && unitId > 0;
+
+      if (drawer.leaseAddProperty && Number.isSafeInteger(propertyId) && propertyId > 0) {
+        formik.setFieldValue('propertyId', propertyId);
       }
-      if (drawer.leaseAddUnitId) {
-        formik.setFieldValue('unitId', String(drawer.leaseAddUnitId));
+      if (Number.isSafeInteger(unitId) && unitId > 0) {
+        formik.setFieldValue('unitId', String(unitId));
+      }
+      if (hasSafeApplicationContext) {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(context.desiredMoveInDate || '')) {
+          formik.setFieldValue('leaseStartDate', context.desiredMoveInDate);
+        }
+        if (typeof context.rentAmount === 'number' && Number.isFinite(context.rentAmount) && context.rentAmount > 0) {
+          formik.setFieldValue('rentAmount', context.rentAmount);
+        }
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,14 +288,28 @@ export default function LeaseAddDrawer() {
       if (user?.id) await dispatch(getProperties());
 
       if (isDraft) {
-        openSnackbar({ open: true, message: 'Lease draft saved.', variant: 'alert', alert: { color: 'success' } });
+        openSnackbar({
+          open: true,
+          message: drawer.leaseAddApplicationContext
+            ? 'Lease draft saved. The applicant is not assigned as a tenant yet.'
+            : 'Lease draft saved.',
+          variant: 'alert',
+          alert: { color: 'success' }
+        });
         resetForm();
         drawer.closeLeaseAddDrawer();
       } else if (response.data?.success && response.data?.data) {
         setCreatedLease(response.data.data);
         setStep(STEP_SUCCESS);
       } else {
-        openSnackbar({ open: true, message: 'Lease added successfully.', variant: 'alert', alert: { color: 'success' } });
+        openSnackbar({
+          open: true,
+          message: drawer.leaseAddApplicationContext
+            ? 'Lease added successfully. Assign the approved applicant as a tenant next.'
+            : 'Lease added successfully.',
+          variant: 'alert',
+          alert: { color: 'success' }
+        });
         resetForm();
         drawer.closeLeaseAddDrawer();
       }
@@ -311,6 +343,12 @@ export default function LeaseAddDrawer() {
   });
 
   const { values, errors, touched, handleSubmit, isSubmitting, setFieldValue } = formik;
+  const leaseApplicationContext = useMemo(() => {
+    const context = drawer.leaseAddApplicationContext;
+    if (!Number.isSafeInteger(context?.applicationId) || context.applicationId <= 0) return null;
+    if (context.propertyId !== Number(values.propertyId) || context.unitId !== Number(values.unitId)) return null;
+    return context;
+  }, [drawer.leaseAddApplicationContext, values.propertyId, values.unitId]);
 
   const handleSaveDraft = () => {
     if (!values.propertyId || isSubmitting) return;
@@ -342,7 +380,9 @@ export default function LeaseAddDrawer() {
       }
       const units = currentProperty.units || currentProperty.Units || [];
       const currentUnit = units.find((u) => String(u.id ?? u.Id) === String(values.unitId));
-      if (!currentUnit) setFieldValue('unitId', '');
+      const applicationUnitMatches = drawer.leaseAddApplicationContext?.propertyId === Number(values.propertyId)
+        && drawer.leaseAddApplicationContext?.unitId === Number(values.unitId);
+      if (!currentUnit && !applicationUnitMatches) setFieldValue('unitId', '');
     }
   }, [currentProperty, setFieldValue, values.unitId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -385,20 +425,23 @@ export default function LeaseAddDrawer() {
   const handleSuccessAction = (action) => {
     const finalPropertyId = Number(values.propertyId);
     const finalUnitId = Number(values.unitId) || null;
-    const lid = createdLease?.id;
+    const lid = createdLease?.id ?? createdLease?.Id;
+    const applicationId = leaseApplicationContext?.applicationId ?? null;
+    const navigationState = applicationId ? { applicationId } : undefined;
 
     if (action === 'createAgreement') {
       drawer.closeLeaseAddDrawer();
       if (lid) {
-        const q = `leaseId=${lid}&propertyId=${finalPropertyId}${finalUnitId ? `&unitId=${finalUnitId}` : ''}`;
-        navigate(`/landlord/leases/build-lease-agreement?${q}`);
+        const q = `leaseId=${lid}&propertyId=${finalPropertyId}${finalUnitId ? `&unitId=${finalUnitId}` : ''}${applicationId ? `&applicationId=${applicationId}` : ''}`;
+        navigate(`/landlord/leases/build-lease-agreement?${q}`, { state: navigationState });
       } else {
-        navigate('/landlord/leases/builder');
+        navigate(applicationId ? `/landlord/leases/builder?applicationId=${applicationId}` : '/landlord/leases/builder', { state: navigationState });
       }
     } else if (action === 'uploadAgreement') {
       drawer.closeLeaseAddDrawer();
-      navigate(`/landlord/property/${finalPropertyId}?tab=documents`);
+      navigate(`/landlord/property/${finalPropertyId}?tab=documents${applicationId ? `&applicationId=${applicationId}` : ''}`, { state: navigationState });
     } else if (action === 'createAnother') {
+      drawer.openLeaseAddDrawer();
       formik.resetForm();
       setCreatedLease(null);
       setStep(STEP_PROPERTY);
@@ -411,6 +454,12 @@ export default function LeaseAddDrawer() {
     if (step === STEP_PROPERTY) {
       return (
         <Stack spacing={3}>
+          {leaseApplicationContext && (
+            <Alert severity="info">
+              Creating this lease for <strong>{leaseApplicationContext.applicantName || 'the approved applicant'}</strong>
+              {leaseApplicationContext.applicantEmail ? ` (${leaseApplicationContext.applicantEmail})` : ''}. Applicant details are carried forward for reference only; no tenant is assigned automatically.
+            </Alert>
+          )}
           <Stack spacing={0.75}>
             <Typography variant="caption" fontWeight={600} color="text.secondary">
               Property / Unit *
@@ -874,9 +923,14 @@ export default function LeaseAddDrawer() {
           <Typography variant="h5" fontWeight={700} gutterBottom>
             Lease created!
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: leaseApplicationContext ? 2 : 4 }}>
             {createdLease?.name || currentProperty?.name || 'Your lease has been created successfully.'}
           </Typography>
+          {leaseApplicationContext && (
+            <Alert severity="warning" sx={{ mb: 3, textAlign: 'left' }}>
+              <strong>{leaseApplicationContext.applicantName || 'The approved applicant'} is not a tenant on this lease yet.</strong> Assign the applicant as a tenant before sending an agreement.
+            </Alert>
+          )}
 
           <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
             What would you like to do next?

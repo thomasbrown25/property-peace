@@ -132,7 +132,7 @@ const BENEFITS = [
   'Answers backed by official government statutes',
   'Covers evictions, deposits, notices, habitability & more',
   'All 50 US states supported',
-  'Conversational Percy AI — no legal jargon',
+  'Conversational Percy Pilot — no legal jargon',
   'Included with Premium at no extra cost',
   'Always up to date with current law',
 ];
@@ -202,7 +202,7 @@ export default function LeaseShieldPage() {
               className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-[#737373] md:text-xl lg:mx-0"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              LeaseShield is a Percy AI legal assistant that answers your landlord-tenant questions using only official government statutes — so you always have a defensible, sourced answer.
+              LeaseShield is a Percy Pilot legal assistant that answers your landlord-tenant questions using only official government statutes — so you always have a defensible, sourced answer.
             </p>
             <div className="mx-auto grid max-w-[22rem] grid-cols-2 justify-center gap-2.5 sm:flex sm:max-w-none sm:flex-row sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
               <Link
@@ -411,7 +411,7 @@ export default function LeaseShieldPage() {
               className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-none font-bold hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] transition-colors text-base shadow-sm"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Start free trial
+              Start Free
               <FiArrowRight className="w-4 h-4" />
             </Link>
             <Link

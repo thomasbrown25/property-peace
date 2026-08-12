@@ -38,6 +38,10 @@ import { selectSelectedListing, selectListingLoading } from 'store/listing/listi
 import { formatCurrency } from 'utils/formatters';
 import { useSubscription } from 'hooks/useSubscription';
 import RentEstimateCard from 'components/RentEstimateCard';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import LeasingPipelinePanel from 'components/leasing-pipeline/LeasingPipelinePanel';
 
 const softCardSx = (theme) => ({
   border: `1px solid ${alpha(theme.palette.primary.main, 0.08)}`,
@@ -181,6 +185,7 @@ export default function ListingDetailPage() {
   const { subscription } = useSubscription();
   const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
   const isPremium = planName === 'premium' || planName.includes('lifetime');
+  const { presentation: syndicationReadiness } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
 
   useEffect(() => {
     if (id) dispatch(getListingById(parseInt(id, 10)));
@@ -240,6 +245,10 @@ export default function ListingDetailPage() {
           ]}
         />
       </AnimateIn>
+
+      <Box sx={{ mb: 3 }}>
+        <LeasingPipelinePanel resourceType="listing" resourceId={id} />
+      </Box>
 
       <AnimateIn direction="bottom" delay={200} distance={120}>
         <Box
@@ -643,6 +652,7 @@ export default function ListingDetailPage() {
             <AnimateIn direction="bottom" delay={650} distance={120}>
               <SectionCard title="Listing Control Center" subtitle="Status, publishing, and syndication." icon={<GlobalOutlined />}>
                 <Stack spacing={2}>
+                  <FeatureReadinessNotice presentation={syndicationReadiness} featureName="Listing syndication" />
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Typography variant="body2" color="text.secondary">
                       Status
@@ -662,14 +672,14 @@ export default function ListingDetailPage() {
                   <Divider />
                   {[
                     ['Listing website', listing.syndicateToListingWebsite],
-                    ['Free sites', listing.syndicateToFreeSites],
-                    ['Premium sites', listing.syndicateToPremiumSites]
+                    ['Core external distribution', listing.syndicateToFreeSites],
+                    ['Extended external distribution', listing.syndicateToPremiumSites]
                   ].map(([label, enabled]) => (
                     <Stack key={label} direction="row" justifyContent="space-between" alignItems="center">
                       <Typography variant="body2" color="text.secondary">
                         {label}
                       </Typography>
-                      <Chip size="small" label={enabled ? 'On' : 'Off'} color={enabled ? 'success' : 'default'} variant="outlined" />
+                      <Chip size="small" label={!syndicationReadiness.canInvoke ? syndicationReadiness.title : enabled ? 'On' : 'Off'} color={syndicationReadiness.canInvoke && enabled ? 'success' : 'default'} variant="outlined" />
                     </Stack>
                   ))}
                 </Stack>

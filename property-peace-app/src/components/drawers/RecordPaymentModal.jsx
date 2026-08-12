@@ -36,6 +36,7 @@ import { selectLease } from 'store/lease/lease.selector';
 import PropertySelect from 'components/PropertySelect';
 import UnitSelect from 'components/UnitSelect';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 // Helper function to format date as local string (YYYY-MM-DDTHH:mm:ss)
 const formatLocalDateTime = (date) => {
@@ -93,11 +94,7 @@ export default function RecordPaymentModal({ open, onClose, onSuccess }) {
     const record = rentRecords.find((r) => r.leaseId === selectedLease.id);
     if (record) {
       setRentRecord(record);
-      // Update payment amount to total due when rent record is found
-      const monthlyDue = record.rentAmount || record.RentAmount || 0;
-      const overdue = record.overdueAmount || record.OverdueAmount || 0;
-      const totalDue = monthlyDue + overdue;
-      setAmount(totalDue);
+      setAmount(normalizeRentBalance(record).rentDue);
     } else {
       setRentRecord(null);
     }
@@ -124,10 +121,7 @@ export default function RecordPaymentModal({ open, onClose, onSuccess }) {
     onClose();
   };
 
-  // Calculate payment summary values
-  const monthlyDue = rentRecord?.rentAmount || rentRecord?.RentAmount || 0;
-  const overdue = rentRecord?.overdueAmount || rentRecord?.OverdueAmount || 0;
-  const totalDue = monthlyDue + overdue;
+  const { rentDue: totalDue, rentDueIsOverdue } = normalizeRentBalance(rentRecord);
 
   // Format property display
   const propertyDisplay = useMemo(() => {
@@ -297,25 +291,16 @@ export default function RecordPaymentModal({ open, onClose, onSuccess }) {
               ) : (
                 <Stack spacing={2}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
-                    <Typography variant="body2" color="text.secondary">
-                      Monthly Due
-                    </Typography>
-                    <Typography variant="body1" fontWeight={500} color="text.primary">
-                      {formatCurrency(monthlyDue)}
-                    </Typography>
-                  </Stack>
-                  <Divider sx={{ my: 0.5 }} />
-                  <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Stack direction="row" spacing={1} alignItems="center">
                       <Typography variant="body2" color="text.secondary">
-                        Overdue Amount
+                        Rent Due
                       </Typography>
-                      {overdue > 0 && (
+                      {rentDueIsOverdue && (
                         <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
                       )}
                     </Stack>
-                    <Typography variant="body1" fontWeight={600} color={overdue > 0 ? 'error.main' : 'text.primary'}>
-                      {formatCurrency(overdue)}
+                    <Typography variant="body1" fontWeight={600} color={rentDueIsOverdue ? 'error.main' : 'text.primary'}>
+                      {formatCurrency(totalDue)}
                     </Typography>
                   </Stack>
                   <Divider sx={{ my: 0.5 }} />
@@ -335,7 +320,7 @@ export default function RecordPaymentModal({ open, onClose, onSuccess }) {
                     <Typography
                       variant="h6"
                       fontWeight={700}
-                      color={overdue > 0 ? 'error.main' : 'success.main'}
+                      color={rentDueIsOverdue ? 'error.main' : 'success.main'}
                       sx={{
                         fontSize: '1.5rem'
                       }}

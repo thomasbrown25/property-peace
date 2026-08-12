@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 const STORAGE_KEYS = {
   SERVICE_TOKEN: 'serviceToken',
@@ -7,103 +8,76 @@ const STORAGE_KEYS = {
 } as const;
 
 class StorageService {
-  // Token operations
   async getToken(): Promise<string | null> {
     try {
-      return await AsyncStorage.getItem(STORAGE_KEYS.SERVICE_TOKEN);
-    } catch (error) {
-      console.error('Error getting token:', error);
+      const secureToken = await SecureStore.getItemAsync(STORAGE_KEYS.SERVICE_TOKEN);
+      if (secureToken) return secureToken;
+
+      const legacyToken = await AsyncStorage.getItem(STORAGE_KEYS.SERVICE_TOKEN);
+      if (legacyToken) {
+        await SecureStore.setItemAsync(STORAGE_KEYS.SERVICE_TOKEN, legacyToken);
+        await AsyncStorage.removeItem(STORAGE_KEYS.SERVICE_TOKEN);
+      }
+      return legacyToken;
+    } catch {
       return null;
     }
   }
 
   async setToken(token: string): Promise<void> {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.SERVICE_TOKEN, token);
-    } catch (error) {
-      console.error('Error setting token:', error);
-      throw error;
-    }
+    await SecureStore.setItemAsync(STORAGE_KEYS.SERVICE_TOKEN, token);
+    await AsyncStorage.removeItem(STORAGE_KEYS.SERVICE_TOKEN);
   }
 
   async removeToken(): Promise<void> {
-    try {
-      await AsyncStorage.removeItem(STORAGE_KEYS.SERVICE_TOKEN);
-    } catch (error) {
-      console.error('Error removing token:', error);
-      throw error;
-    }
+    await Promise.all([
+      SecureStore.deleteItemAsync(STORAGE_KEYS.SERVICE_TOKEN),
+      AsyncStorage.removeItem(STORAGE_KEYS.SERVICE_TOKEN),
+    ]);
   }
 
-  // User operations
-  async getUser<T = any>(): Promise<T | null> {
+  async getUser<T = unknown>(): Promise<T | null> {
     try {
       const userJson = await AsyncStorage.getItem(STORAGE_KEYS.USER);
       return userJson ? JSON.parse(userJson) : null;
-    } catch (error) {
-      console.error('Error getting user:', error);
+    } catch {
       return null;
     }
   }
 
-  async setUser<T = any>(user: T): Promise<void> {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-    } catch (error) {
-      console.error('Error setting user:', error);
-      throw error;
-    }
+  async setUser<T = unknown>(user: T): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
   }
 
   async removeUser(): Promise<void> {
-    try {
-      await AsyncStorage.removeItem(STORAGE_KEYS.USER);
-    } catch (error) {
-      console.error('Error removing user:', error);
-      throw error;
-    }
+    await AsyncStorage.removeItem(STORAGE_KEYS.USER);
   }
 
-  // Organization operations
   async getCurrentOrganizationId(): Promise<string | null> {
     try {
       return await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_ORGANIZATION_ID);
-    } catch (error) {
-      console.error('Error getting organization ID:', error);
+    } catch {
       return null;
     }
   }
 
   async setCurrentOrganizationId(organizationId: string): Promise<void> {
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_ORGANIZATION_ID, organizationId);
-    } catch (error) {
-      console.error('Error setting organization ID:', error);
-      throw error;
-    }
+    await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_ORGANIZATION_ID, organizationId);
   }
 
   async removeCurrentOrganizationId(): Promise<void> {
-    try {
-      await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_ORGANIZATION_ID);
-    } catch (error) {
-      console.error('Error removing organization ID:', error);
-      throw error;
-    }
+    await AsyncStorage.removeItem(STORAGE_KEYS.CURRENT_ORGANIZATION_ID);
   }
 
-  // Clear all auth data
   async clearAuthData(): Promise<void> {
-    try {
-      await AsyncStorage.multiRemove([
+    await Promise.all([
+      SecureStore.deleteItemAsync(STORAGE_KEYS.SERVICE_TOKEN),
+      AsyncStorage.multiRemove([
         STORAGE_KEYS.SERVICE_TOKEN,
         STORAGE_KEYS.USER,
         STORAGE_KEYS.CURRENT_ORGANIZATION_ID,
-      ]);
-    } catch (error) {
-      console.error('Error clearing auth data:', error);
-      throw error;
-    }
+      ]),
+    ]);
   }
 }
 

@@ -21,7 +21,7 @@ namespace brownstone_hub_api.Repositories.Applications
                 // Set submitted date if status is Submitted
                 if (application.Status == EApplicationStatus.Submitted)
                 {
-                    entity.SubmittedAt = DateTime.Now;
+                    entity.SubmittedAt = DateTime.UtcNow;
                 }
                 
                 // Set LandlordId
@@ -89,6 +89,14 @@ namespace brownstone_hub_api.Repositories.Applications
                 throw;
             }
         }
+
+        public Task<bool?> IsApplicationOwnedByLandlordAndOrganization(long id, long landlordId, long organizationId) =>
+            _context.RentalApplications
+                .AsNoTracking()
+                .Where(application => application.Id == id)
+                .Select(application => (bool?)(application.LandlordId == landlordId &&
+                    application.OrganizationId == organizationId))
+                .SingleOrDefaultAsync();
 
         public async Task<List<LoadRentalApplicationDto>> GetApplicationsByLandlordId(long landlordId)
         {
@@ -216,7 +224,7 @@ namespace brownstone_hub_api.Repositories.Applications
                 // Set submitted date if transitioning to Submitted
                 if (application.Status.Value == EApplicationStatus.Submitted && oldStatus != EApplicationStatus.Submitted)
                 {
-                    entity.SubmittedAt = DateTime.Now;
+                    entity.SubmittedAt = DateTime.UtcNow;
                 }
                 
                 // Set reviewed date if transitioning to Approved or Rejected
@@ -234,7 +242,7 @@ namespace brownstone_hub_api.Repositories.Applications
             if (!string.IsNullOrEmpty(application.Email)) entity.Email = application.Email;
             if (application.PhoneNumber != null) entity.PhoneNumber = application.PhoneNumber;
             if (application.DateOfBirth.HasValue) entity.DateOfBirth = application.DateOfBirth;
-            if (application.Ssn != null) entity.Ssn = application.Ssn;
+
             if (application.CurrentAddress != null) entity.CurrentAddress = application.CurrentAddress;
             if (application.CurrentCity != null) entity.CurrentCity = application.CurrentCity;
             if (application.CurrentState != null) entity.CurrentState = application.CurrentState;
@@ -260,22 +268,6 @@ namespace brownstone_hub_api.Repositories.Applications
             if (application.ConvertedToTenantId.HasValue) entity.ConvertedToTenantId = application.ConvertedToTenantId;
             if (application.ConvertedToLeaseId.HasValue) entity.ConvertedToLeaseId = application.ConvertedToLeaseId;
             
-            // Update background check fields
-            if (application.BackgroundCheckRequested.HasValue) entity.BackgroundCheckRequested = application.BackgroundCheckRequested.Value;
-            if (application.BackgroundCheckRequestedAt.HasValue) entity.BackgroundCheckRequestedAt = application.BackgroundCheckRequestedAt.Value;
-            if (application.BackgroundCheckProvider != null) entity.BackgroundCheckProvider = application.BackgroundCheckProvider;
-            if (application.BackgroundCheckRequestId != null) entity.BackgroundCheckRequestId = application.BackgroundCheckRequestId;
-            if (application.BackgroundCheckStatus != null) entity.BackgroundCheckStatus = application.BackgroundCheckStatus;
-            if (application.BackgroundCheckCompletedAt.HasValue) entity.BackgroundCheckCompletedAt = application.BackgroundCheckCompletedAt.Value;
-            if (application.CreditScore.HasValue) entity.CreditScore = application.CreditScore.Value;
-            if (application.PassedCreditCheck.HasValue) entity.PassedCreditCheck = application.PassedCreditCheck.Value;
-            if (application.PassedCriminalCheck.HasValue) entity.PassedCriminalCheck = application.PassedCriminalCheck.Value;
-            if (application.PassedEvictionCheck.HasValue) entity.PassedEvictionCheck = application.PassedEvictionCheck.Value;
-            if (application.PassedIncomeVerification.HasValue) entity.PassedIncomeVerification = application.PassedIncomeVerification.Value;
-            if (application.BackgroundCheckReportUrl != null) entity.BackgroundCheckReportUrl = application.BackgroundCheckReportUrl;
-            if (application.BackgroundCheckSummary != null) entity.BackgroundCheckSummary = application.BackgroundCheckSummary;
-            if (application.BackgroundCheckOverallPass.HasValue) entity.BackgroundCheckOverallPass = application.BackgroundCheckOverallPass.Value;
-            if (application.BackgroundCheckRejectionReason != null) entity.BackgroundCheckRejectionReason = application.BackgroundCheckRejectionReason;
 
             entity.UpdatedAt = DateTime.Now;
 
@@ -439,21 +431,7 @@ namespace brownstone_hub_api.Repositories.Applications
                 OrganizationId = application.OrganizationId,
                 PdfBlobName = application.PdfBlobName,
                 PdfBlobUrl = application.PdfBlobUrl,
-                BackgroundCheckRequested = application.BackgroundCheckRequested,
-                BackgroundCheckRequestedAt = application.BackgroundCheckRequestedAt,
-                BackgroundCheckProvider = application.BackgroundCheckProvider,
-                BackgroundCheckRequestId = application.BackgroundCheckRequestId,
-                BackgroundCheckStatus = application.BackgroundCheckStatus,
-                BackgroundCheckCompletedAt = application.BackgroundCheckCompletedAt,
-                CreditScore = application.CreditScore,
-                PassedCreditCheck = application.PassedCreditCheck,
-                PassedCriminalCheck = application.PassedCriminalCheck,
-                PassedEvictionCheck = application.PassedEvictionCheck,
-                PassedIncomeVerification = application.PassedIncomeVerification,
-                BackgroundCheckReportUrl = application.BackgroundCheckReportUrl,
-                BackgroundCheckSummary = application.BackgroundCheckSummary,
-                BackgroundCheckOverallPass = application.BackgroundCheckOverallPass,
-                BackgroundCheckRejectionReason = application.BackgroundCheckRejectionReason,
+
                 IsLandlordEntered = application.IsLandlordEntered,
                 CreatedAt = application.CreatedAt,
                 UpdatedAt = application.UpdatedAt

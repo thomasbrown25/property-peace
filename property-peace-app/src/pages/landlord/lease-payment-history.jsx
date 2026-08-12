@@ -39,6 +39,7 @@ import PaymentModal from 'components/drawers/PaymentModal';
 import PaymentHistoryTable from 'sections/landlord/rent-collection/PaymentHistoryTable';
 import axiosServices from 'utils/axios';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 export default function LeasePaymentHistory() {
   const { leaseId } = useParams();
@@ -184,24 +185,10 @@ export default function LeasePaymentHistory() {
     fetchDeposits();
   }, [fetchDeposits]);
 
-  // Calculate balance due and overdue
-  const balanceDue = useMemo(() => {
-    if (!rentRecord) return 0;
-    if (rentRecord.amountDueNow != null && rentRecord.amountDueNow !== undefined) {
-      return rentRecord.amountDueNow;
-    }
-    const currentDue = rentRecord.rentAmount || 0;
-    const overdue = rentRecord.overdueAmount || 0;
-    return currentDue + overdue;
-  }, [rentRecord]);
-
-  const overdueAmount = useMemo(() => {
-    return rentRecord?.overdueAmount || 0;
-  }, [rentRecord]);
-
-  const isOverdue = useMemo(() => {
-    return rentRecord?.status === 'overdue' || overdueAmount > 0;
-  }, [rentRecord, overdueAmount]);
+  const { rentDue: balanceDue, overdueAmount, rentDueIsOverdue: isOverdue } = useMemo(
+    () => normalizeRentBalance(rentRecord),
+    [rentRecord]
+  );
 
   // Check if deposit has been paid
   const depositPaid = useMemo(() => {

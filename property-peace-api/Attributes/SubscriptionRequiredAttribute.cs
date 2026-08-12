@@ -36,7 +36,7 @@ namespace brownstone_hub_api.Attributes
                     { 
                         Message = "An active subscription is required",
                         RequiresSubscription = true,
-                        CanStartTrial = status.Subscription == null
+                        CanStartTrial = false
                     })
                     {
                         StatusCode = 403

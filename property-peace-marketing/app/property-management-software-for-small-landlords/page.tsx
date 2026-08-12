@@ -26,7 +26,7 @@ const config: NicheLandingPageConfig = {
     { title: 'Lease and financial tools', description: 'Keep leases, documents, expenses, and reports connected to the right property and tenant.' },
   ],
   workflowTitle: 'A simpler operating system for rentals',
-  workflowSteps: ['Add properties and units.', 'Connect tenants, leases, rent details, and documents.', 'Track daily landlord work from the dashboard.', 'Use reports and Percy AI summaries to understand what is happening across the portfolio.'],
+  workflowSteps: ['Add properties and units.', 'Connect tenants, leases, rent details, and documents.', 'Track daily landlord work from the dashboard.', 'Use reports and Percy Pilot summaries to understand what is happening across the portfolio.'],
   faq: [
     { question: 'Is Property Peace for property managers or landlords?', answer: 'Property Peace is focused on independent landlords and small rental owners. It can support growing portfolios, but the product language and workflows are intentionally landlord-first.' },
     { question: 'What unit count is Property Peace best for?', answer: 'The sweet spot is about 1–50 units: enough complexity to need software, but not so much that you need enterprise property-management tools.' },

@@ -33,6 +33,8 @@ import CheckCircleOutlined from '@ant-design/icons/CheckCircleOutlined';
 import CloseOutlined from '@ant-design/icons/CloseOutlined';
 import { useModal } from 'contexts/ModalContext';
 import { formatCurrency } from 'utils/formatters';
+import { getTenantPaymentSubmissionCopy } from 'utils/paymentSafety';
+import { normalizeRentBalance } from 'utils/rentBalance';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
@@ -112,14 +114,8 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-  // derive amounts from rent record - handle both camelCase and PascalCase
-  // For deposits and fees, use the rentAmount as the amount
-  const overdue = rent?.isDeposit || rent?.isFee ? 0 : rent?.overdueAmount || rent?.OverdueAmount || 0;
-  const amountDueNow = rent?.amountDueNow ?? rent?.AmountDueNow;
-  const monthlyDue = rent?.isDeposit || rent?.isFee ? 0 : amountDueNow != null ? Math.max(amountDueNow - overdue, 0) : rent?.rentAmount || rent?.RentAmount || 0;
-  // Total due = backend AmountDueNow when available so paid-up leases show $0 until the 15-day rent visibility window.
-  // For deposits and fees, total due is just the amount
-  const totalDue = rent?.isDeposit || rent?.isFee ? rent?.rentAmount || rent?.RentAmount || 0 : amountDueNow != null ? amountDueNow : overdue + monthlyDue;
+  const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rent);
+  const totalDue = rent?.isDeposit || rent?.isFee ? rent?.rentAmount || rent?.RentAmount || 0 : rentDue;
 
   // Format property display
   const propertyDisplay =
@@ -301,25 +297,16 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
             {!rent?.isDeposit && !rent?.isFee && (
               <>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
-                  <Typography variant="body2" color="text.secondary">
-                    Monthly Due
-                  </Typography>
-                  <Typography variant="body1" fontWeight={500} color="text.primary">
-                    {formatCurrency(monthlyDue)}
-                  </Typography>
-                </Stack>
-                <Divider sx={{ my: 0.5 }} />
-                <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Stack direction="row" spacing={1} alignItems="center">
                     <Typography variant="body2" color="text.secondary">
-                      Overdue Amount
+                      Rent Due
                     </Typography>
-                    {overdue > 0 && (
+                    {rentDueIsOverdue && (
                       <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
                     )}
                   </Stack>
-                  <Typography variant="body1" fontWeight={600} color={overdue > 0 ? 'error.main' : 'text.primary'}>
-                    {formatCurrency(overdue)}
+                  <Typography variant="body1" fontWeight={600} color={rentDueIsOverdue ? 'error.main' : 'text.primary'}>
+                    {formatCurrency(rentDue)}
                   </Typography>
                 </Stack>
                 <Divider sx={{ my: 0.5 }} />
@@ -341,7 +328,7 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
               <Typography
                 variant="h6"
                 fontWeight={700}
-                color={rent?.isDeposit ? 'warning.main' : overdue > 0 ? 'error.main' : 'success.main'}
+                color={rent?.isDeposit ? 'warning.main' : rentDueIsOverdue ? 'error.main' : 'success.main'}
                 sx={{
                   fontSize: '1.5rem'
                 }}
@@ -620,16 +607,12 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
   const normalizedPropertyType = String(rent?.propertyType || rent?.PropertyType || '').toLowerCase().replace(/[^a-z0-9]/g, '');
   const normalizedUnitName = String(unitName).toLowerCase().replace(/[^a-z0-9]/g, '');
   const isSingleFamily = normalizedPropertyType === 'singlefamily' || normalizedUnitName === 'unit1';
-  const overdue = rent?.isFee ? 0 : rent?.overdueAmount || rent?.OverdueAmount || 0;
-  const amountDueNow = rent?.amountDueNow ?? rent?.AmountDueNow;
-  const monthlyDue = rent?.isFee ? 0 : amountDueNow != null ? Math.max(amountDueNow - overdue, 0) : rent?.rentAmount || rent?.RentAmount || 0;
+  const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rent);
   const totalDue = isTotalPayment
     ? (rent?.totalAmountDue ?? 0)
     : rent?.isFee
       ? rent?.rentAmount || rent?.RentAmount || 0
-      : amountDueNow != null
-        ? amountDueNow
-        : overdue + monthlyDue;
+      : rentDue;
   const numericAmount = Number(amount || 0);
   const amountExceedsDue = totalDue > 0 && numericAmount > totalDue;
   const canEditAmount = typeof setAmount === 'function';
@@ -732,25 +715,16 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
         {!rent?.isDeposit && !rent?.isFee && !isTotalPayment && (
           <>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                Monthly Due
-              </Typography>
-              <Typography variant="body1" fontWeight={500} color="text.primary">
-                {formatCurrency(monthlyDue)}
-              </Typography>
-            </Stack>
-            <Divider sx={{ my: 0.5 }} />
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="body2" color="text.secondary">
-                  Overdue Amount
+                  Rent Due
                 </Typography>
-                {overdue > 0 && (
+                {rentDueIsOverdue && (
                   <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
                 )}
               </Stack>
-              <Typography variant="body1" fontWeight={600} color={overdue > 0 ? 'error.main' : 'text.primary'}>
-                {formatCurrency(overdue)}
+              <Typography variant="body1" fontWeight={600} color={rentDueIsOverdue ? 'error.main' : 'text.primary'}>
+                {formatCurrency(rentDue)}
               </Typography>
             </Stack>
             <Divider sx={{ my: 0.5 }} />
@@ -768,7 +742,7 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
           <Typography
             variant="h6"
             fontWeight={700}
-            color={rent?.isDeposit ? 'warning.main' : overdue > 0 ? 'error.main' : 'success.main'}
+            color={rent?.isDeposit ? 'warning.main' : rentDueIsOverdue ? 'error.main' : 'success.main'}
             sx={{ fontSize: '1.5rem' }}
           >
             {formatCurrency(totalDue)}
@@ -849,6 +823,8 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
 }
 
 function TenantPaymentSubmitted({ payment, onClose }) {
+  const copy = getTenantPaymentSubmissionCopy(payment);
+
   return (
     <>
       <Box sx={{ px: 4, py: 5 }}>
@@ -858,22 +834,25 @@ function TenantPaymentSubmitted({ payment, onClose }) {
               width: 88,
               height: 88,
               borderRadius: '50%',
-              bgcolor: (theme) => alpha(theme.palette.success.main, 0.12),
-              color: 'success.main',
+              bgcolor: (theme) => alpha(theme.palette.info.main, 0.12),
+              color: 'info.main',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.success.main, 0.22)}`
+              boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.info.main, 0.18)}`
             }}
           >
-            <CheckCircleOutlined style={{ fontSize: 54 }} />
+            <DollarOutlined style={{ fontSize: 48 }} />
           </Box>
           <Box>
             <Typography variant="h4" fontWeight={800} sx={{ mb: 1 }}>
-              Payment submitted
+              {copy.title}
             </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Your payment for {formatCurrency(payment?.amount || 0)} has been submitted.
+            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 520, lineHeight: 1.65 }}>
+              {copy.message}
+            </Typography>
+            <Typography variant="body2" fontWeight={700} color="text.primary" sx={{ mt: 2 }}>
+              Amount submitted: {formatCurrency(payment?.amount || 0)}
             </Typography>
           </Box>
         </Stack>
@@ -882,7 +861,7 @@ function TenantPaymentSubmitted({ payment, onClose }) {
         <Button onClick={onClose} variant="outlined" color="inherit" sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}>
           Close
         </Button>
-        <Button onClick={onClose} variant="contained" color="success" sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 700 }}>
+        <Button onClick={onClose} variant="contained" color="primary" sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 700 }}>
           Done
         </Button>
       </DialogActions>
@@ -902,16 +881,12 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
   const paymentOperationIdRef = useRef(crypto.randomUUID());
 
   const isTotalPayment = rent?.isTotalPayment === true;
-  const overdue = rent?.isFee ? 0 : rent?.overdueAmount || rent?.OverdueAmount || 0;
-  const amountDueNow = rent?.amountDueNow ?? rent?.AmountDueNow;
-  const monthlyDue = rent?.isFee ? 0 : amountDueNow != null ? Math.max(amountDueNow - overdue, 0) : rent?.rentAmount || rent?.RentAmount || 0;
+  const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rent);
   const totalDue = isTotalPayment
     ? (rent?.totalAmountDue ?? 0)
     : rent?.isFee
       ? rent?.rentAmount || rent?.RentAmount || 0
-      : amountDueNow != null
-        ? amountDueNow
-        : overdue + monthlyDue;
+      : rentDue;
   const propertyDisplay = isTotalPayment
     ? rent?.unitName
       ? `${rent?.propertyName || ''} – ${rent?.unitName}`.trim()

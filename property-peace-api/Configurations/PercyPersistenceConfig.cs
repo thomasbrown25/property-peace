@@ -58,13 +58,36 @@ namespace brownstone_hub_api.Configurations
         {
             b.ToTable("AuditRecords", "percy");
             b.HasKey(x => x.Id);
+            b.Property(x => x.EventKey).HasMaxLength(200).IsRequired();
             b.Property(x => x.EventType).HasMaxLength(100).IsRequired();
             b.Property(x => x.Outcome).HasMaxLength(40).IsRequired();
             b.Property(x => x.Detail).HasMaxLength(2000).IsRequired();
             b.HasIndex(x => new { x.OrganizationId, x.UserId, x.CreatedAt });
             b.HasIndex(x => new { x.ConfirmationId, x.CreatedAt });
+            b.HasIndex(x => x.EventKey).IsUnique();
             b.HasOne(x => x.Organization).WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
             b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        }
+    }
+
+    public class PercyChatOperationConfig : IEntityTypeConfiguration<PercyChatOperation>
+    {
+        public void Configure(EntityTypeBuilder<PercyChatOperation> b)
+        {
+            b.ToTable("ChatOperations", "percy");
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ClientRequestId).HasMaxLength(128).IsRequired();
+            b.Property(x => x.RequestHash).HasMaxLength(64).IsRequired();
+            b.Property(x => x.Status).HasMaxLength(24).IsRequired();
+            b.Property(x => x.CompletedResponseJson).HasColumnType("nvarchar(max)");
+            b.Property(x => x.Version).IsRowVersion();
+            b.HasIndex(x => new { x.OrganizationId, x.UserId, x.ClientRequestId }).IsUnique();
+            b.HasIndex(x => new { x.Status, x.LeaseExpiresAt });
+            b.HasOne(x => x.Organization).WithMany().HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(x => x.Conversation).WithMany().HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(x => x.UserMessage).WithMany().HasForeignKey(x => x.UserMessageId).OnDelete(DeleteBehavior.Restrict);
+            b.HasOne(x => x.AssistantMessage).WithMany().HasForeignKey(x => x.AssistantMessageId).OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useSubscription } from 'hooks/useSubscription';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -32,16 +31,7 @@ import { selectProperty } from 'store/property/property.selector';
 export default function OccupancyReport() {
   const { user } = useAuth();
   const theme = useTheme();
-  const navigate = useNavigate();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const hasPremiumAccess = planName === 'premium' || planName.includes('lifetime');
 
-  useEffect(() => {
-    if (!subscriptionLoading && !hasPremiumAccess) {
-      navigate('/landlord/reports');
-    }
-  }, [hasPremiumAccess, subscriptionLoading, navigate]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [exportLoading, setExportLoading] = useState(false);
   const selectedProperty = useSelector(selectProperty);

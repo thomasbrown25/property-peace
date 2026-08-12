@@ -66,23 +66,7 @@ namespace brownstone_hub_api.Dtos.Application
         public string? PdfBlobName { get; set; }
         public string? PdfBlobUrl { get; set; }
         
-        // Background Check Information
-        public bool? BackgroundCheckRequested { get; set; }
-        public DateTime? BackgroundCheckRequestedAt { get; set; }
-        public string? BackgroundCheckProvider { get; set; }
-        public string? BackgroundCheckRequestId { get; set; }
-        public string? BackgroundCheckStatus { get; set; }
-        public DateTime? BackgroundCheckCompletedAt { get; set; }
-        public int? CreditScore { get; set; }
-        public bool? PassedCreditCheck { get; set; }
-        public bool? PassedCriminalCheck { get; set; }
-        public bool? PassedEvictionCheck { get; set; }
-        public bool? PassedIncomeVerification { get; set; }
-        public string? BackgroundCheckReportUrl { get; set; }
-        public string? BackgroundCheckSummary { get; set; }
-        public bool? BackgroundCheckOverallPass { get; set; }
-        public string? BackgroundCheckRejectionReason { get; set; }
-        
+
         // Application Source
         public bool IsLandlordEntered { get; set; } // True if application was manually entered by landlord
         

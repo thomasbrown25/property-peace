@@ -90,7 +90,7 @@ namespace brownstone_hub_api.Repositories.Units
             }
         }
 
-        public async Task<LoadUnitDto> AddUnit(UpdateUnitDto newUnit, long propertyId, long? organizationId = null)
+        public async Task<LoadUnitDto> AddUnit(UpdateUnitDto newUnit, long propertyId, long? organizationId = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -104,7 +104,7 @@ namespace brownstone_hub_api.Repositories.Units
                     query = query.Where(p => p.OrganizationId == organizationId.Value);
                 }
 
-                var property = await query.FirstOrDefaultAsync();
+                var property = await query.FirstOrDefaultAsync(cancellationToken);
 
                 if (property == null)
                 {
@@ -116,7 +116,7 @@ namespace brownstone_hub_api.Repositories.Units
                 var existingUnit = await _context.Units
                     .FirstOrDefaultAsync(u => u.PropertyId == propertyId && 
                                              u.Name == newUnit.Name &&
-                                             (organizationId == null || u.OrganizationId == organizationId));
+                                             (organizationId == null || u.OrganizationId == organizationId), cancellationToken);
 
                 if (existingUnit != null)
                 {
@@ -124,11 +124,15 @@ namespace brownstone_hub_api.Repositories.Units
                     // Use UpdateUnit method which properly handles updates without modifying the Id
                     newUnit.Id = existingUnit.Id;
                     newUnit.PropertyId = propertyId;
-                    return await UpdateUnit(newUnit);
+                    var mutationOrganizationId = organizationId ?? property.OrganizationId
+                        ?? throw new InvalidOperationException("Organization scope is required to update an existing unit.");
+                    return await UpdateUnitForMutationAsync(newUnit, mutationOrganizationId, cancellationToken)
+                        ?? throw new KeyNotFoundException($"Unit with ID {existingUnit.Id} not found.");
                 }
 
                 // No existing unit found, create a new one
                 var unit = _mapper.Map<Unit>(newUnit);
+                unit.Id = 0; // Caller-provided IDs never control creation/update classification.
                 unit.PropertyId = propertyId;
                 unit.IsOccupied = false; // Always start vacant; only lease operations set this to true
 
@@ -136,9 +140,13 @@ namespace brownstone_hub_api.Repositories.Units
                 unit.OrganizationId = organizationId ?? property.OrganizationId;
 
                 _context.Units.Add(unit);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(cancellationToken);
 
                 return _mapper.Map<LoadUnitDto>(unit);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -147,7 +155,7 @@ namespace brownstone_hub_api.Repositories.Units
             }
         }
 
-        public async Task<List<LoadUnitDto>> BulkCreateUnits(BulkCreateUnitsDto bulkCreateDto, long? organizationId = null)
+        public async Task<List<LoadUnitDto>> BulkCreateUnits(BulkCreateUnitsDto bulkCreateDto, long? organizationId = null, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -161,7 +169,7 @@ namespace brownstone_hub_api.Repositories.Units
                     query = query.Where(p => p.OrganizationId == organizationId.Value);
                 }
 
-                var property = await query.FirstOrDefaultAsync();
+                var property = await query.FirstOrDefaultAsync(cancellationToken);
 
                 if (property == null)
                 {
@@ -210,10 +218,14 @@ namespace brownstone_hub_api.Repositories.Units
 
                 // Use AddRange for bulk insert (best performance)
                 _context.Units.AddRange(units);
-                await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync(cancellationToken);
 
                 // Return the created units as DTOs
                 return _mapper.Map<List<LoadUnitDto>>(units);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -314,6 +326,68 @@ namespace brownstone_hub_api.Repositories.Units
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error updating unit {updateUnitDto.Id}");
+                throw new Exception($"Error updating unit {updateUnitDto.Id}", ex);
+            }
+        }
+
+        public async Task<LoadUnitDto?> GetUnitByIdForMutationAsync(
+            long id,
+            long organizationId,
+            CancellationToken cancellationToken = default)
+        {
+            var unit = await _context.Units
+                .AsNoTracking()
+                .Where(u => u.Id == id &&
+                            u.OrganizationId == organizationId &&
+                            u.Property.OrganizationId == organizationId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            return unit is null ? null : _mapper.Map<LoadUnitDto>(unit);
+        }
+
+        public async Task<LoadUnitDto?> UpdateUnitForMutationAsync(
+            UpdateUnitDto updateUnitDto,
+            long organizationId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var unit = await _context.Units
+                    .Include(u => u.Amenities)
+                    .Include(u => u.IncludedUtility)
+                    .Where(u => u.Id == updateUnitDto.Id &&
+                                u.OrganizationId == organizationId &&
+                                u.Property.OrganizationId == organizationId)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (unit is null)
+                {
+                    return null;
+                }
+
+                unit.Amenities ??= [];
+                if (unit.Amenities.Count != 0)
+                {
+                    _context.Amenities.RemoveRange(unit.Amenities);
+                }
+
+                unit.Amenities = _mapper.Map<List<Amenity>>(updateUnitDto.Amenities);
+                var preservedPropertyId = unit.PropertyId;
+                var preservedIsOccupied = unit.IsOccupied;
+                _mapper.Map(updateUnitDto, unit);
+                unit.PropertyId = preservedPropertyId;
+                unit.IsOccupied = preservedIsOccupied;
+                _context.Units.Update(unit);
+                await _context.SaveChangesAsync(cancellationToken);
+
+                return _mapper.Map<LoadUnitDto>(unit);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating scoped unit {UnitId}", updateUnitDto.Id);
                 throw new Exception($"Error updating unit {updateUnitDto.Id}", ex);
             }
         }

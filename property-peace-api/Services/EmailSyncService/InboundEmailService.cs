@@ -1,4 +1,7 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Message;
@@ -26,8 +29,12 @@ namespace brownstone_hub_api.Services.EmailSyncService
         private readonly IHubContext<ConversationHub> _conversationHub = conversationHub;
         private readonly ILogger<InboundEmailService> _logger = logger;
 
-        public async Task<bool> HandleInboundAsync(string fromEmail, string toEmail, string? subject, string? textBody, string? htmlBody, CancellationToken cancellationToken = default)
+        public async Task<bool> HandleInboundAsync(string fromEmail, string toEmail, string? subject, string? textBody,
+            string? htmlBody, string providerEventId, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(providerEventId) || providerEventId.Length > 160)
+                throw new ArgumentException("A bounded provider event ID is required.", nameof(providerEventId));
+
             var normalizedFrom = NormalizeEmail(fromEmail);
             if (string.IsNullOrWhiteSpace(normalizedFrom))
             {
@@ -38,14 +45,14 @@ namespace brownstone_hub_api.Services.EmailSyncService
             var body = NormalizeBody(textBody, htmlBody);
             if (string.IsNullOrWhiteSpace(body))
             {
-                _logger.LogWarning("Inbound email from {From} had no usable body", normalizedFrom);
+                _logger.LogWarning("Inbound email had no usable body");
                 return false;
             }
 
             var senderUserId = await ResolveSenderUserIdAsync(normalizedFrom, cancellationToken);
             if (!senderUserId.HasValue)
             {
-                _logger.LogWarning("Inbound email from {From} did not match a Property Peace user or tenant", normalizedFrom);
+                _logger.LogWarning("Inbound email sender did not match a Property Peace user or tenant");
                 return false;
             }
 
@@ -59,10 +66,17 @@ namespace brownstone_hub_api.Services.EmailSyncService
             var savedMessage = await _messageRepository.AddMessage(new AddMessageDto
             {
                 ConversationId = conversation.Id,
-                Content = body
+                Content = body,
+                Channel = "email",
+                ClientRequestId = $"email-inbound:{providerEventId.Trim()}",
+                TrustedProviderPayloadHash = ComputeProviderPayloadHash(
+                    normalizedFrom, toEmail, subject, textBody, htmlBody)
             }, senderUserId.Value);
 
-            _logger.LogInformation("Inbound email from {From} routed to conversation {ConversationId}", normalizedFrom, conversation.Id);
+            if (savedMessage.WasReplayed)
+                return true;
+
+            _logger.LogInformation("Inbound email from user {UserId} routed to conversation {ConversationId}", senderUserId.Value, conversation.Id);
 
             try
             {
@@ -198,6 +212,20 @@ namespace brownstone_hub_api.Services.EmailSyncService
             if (string.IsNullOrWhiteSpace(raw)) return string.Empty;
             var match = EmailRegex().Match(raw);
             return match.Success ? match.Value.Trim().ToLowerInvariant() : raw.Trim().ToLowerInvariant();
+        }
+
+        private static string ComputeProviderPayloadHash(string fromEmail, string? toEmail, string? subject,
+            string? textBody, string? htmlBody)
+        {
+            var canonical = JsonSerializer.Serialize(new
+            {
+                From = fromEmail,
+                To = toEmail?.Trim().ToLowerInvariant(),
+                Subject = subject?.Trim(),
+                Text = textBody?.Trim(),
+                Html = htmlBody?.Trim()
+            });
+            return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))).ToLowerInvariant();
         }
 
         [GeneratedRegex(@"(?:PP-C|conversation-|c)(\d+)", RegexOptions.IgnoreCase)]

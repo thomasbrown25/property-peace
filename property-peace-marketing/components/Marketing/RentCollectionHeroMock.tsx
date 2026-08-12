@@ -15,7 +15,7 @@ const steps = [
   },
   {
     label: 'Reminder sent',
-    caption: 'Send a friendly rent reminder by email or SMS from the same workflow.',
+    caption: 'Send by email; Premium includes one SMS number, with activation and configuration required.',
     callout: 'Reminder ready',
   },
   {

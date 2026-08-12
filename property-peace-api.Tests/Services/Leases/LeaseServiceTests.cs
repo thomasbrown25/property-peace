@@ -6,6 +6,8 @@ using brownstone_hub_api.Dtos.Tenant;
 using brownstone_hub_api.Repositories.Leases;
 using brownstone_hub_api.Repositories.Properties;
 using brownstone_hub_api.Services.LeaseService;
+using brownstone_hub_api.Services.UserContextService;
+using brownstone_hub_api.Dtos.User;
 using brownstone_hub_api.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
@@ -22,6 +24,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         private readonly Mock<ILeaseRepository> _leaseRepo = new();
         private readonly Mock<IPropertyRepository> _propertyRepo = new();
         private readonly Mock<IHttpContextAccessor> _httpContext = new();
+        private readonly Mock<IUserContextService> _userContext = new();
         private readonly IMapper _mapper = MapperFactory.Create();
         private readonly LeaseService _sut;
 
@@ -39,7 +42,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
                 configuration: null,
                 notificationService: null,
                 userService: null,
-                userContextService: null,
+                userContextService: _userContext.Object,
                 dataContext: null,
                 paymentRepository: null,
                 paymentService: null,
@@ -55,6 +58,15 @@ namespace brownstone_hub_api.Tests.Services.Leases
             var ctx = new DefaultHttpContext();
             ctx.Items["OrganizationId"] = orgId;
             _httpContext.Setup(h => h.HttpContext).Returns(ctx);
+            _userContext.Setup(service => service.GetCurrentUserAsync()).ReturnsAsync(new LoadUserDto
+            {
+                Id = 5,
+                Firstname = "Current",
+                Lastname = "Landlord",
+                Email = "current.landlord@example.com",
+                CurrentOrganizationId = orgId,
+                Organizations = [new OrganizationInfoDto { Id = orgId, Name = "Current org", Role = "Owner" }]
+            });
         }
 
         private static LoadLeaseDto MakeLeaseDto(long id = 1) => new() { Id = id, IsActive = true };
@@ -82,9 +94,36 @@ namespace brownstone_hub_api.Tests.Services.Leases
         // ── AddOrUpdateLease ──────────────────────────────────────────────────────
 
         [Fact]
+        public async Task AddOrUpdateLease_FailsClosed_WhenOrganizationContextIsAbsent()
+        {
+            var result = await _sut.AddOrUpdateLease(MakeUpdateLeaseDto());
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(400);
+            _propertyRepo.Verify(r => r.GetPropertyById(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
+            _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task AddOrUpdateLease_RejectsForeignOrganizationPropertyAndUnit()
+        {
+            SetOrgContext(10);
+            _propertyRepo.Setup(r => r.GetPropertyById(77, 10)).ReturnsAsync((LoadPropertyDto?)null);
+
+            var result = await _sut.AddOrUpdateLease(MakeUpdateLeaseDto(77, 88));
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(404);
+            _propertyRepo.Verify(r => r.GetPropertyById(77, 10), Times.Once);
+            _propertyRepo.Verify(r => r.GetPropertyById(77), Times.Never);
+            _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
+        }
+
+        [Fact]
         public async Task AddOrUpdateLease_ReturnsError_WhenPropertyNotFound()
         {
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync((LoadPropertyDto?)null);
+            SetOrgContext(10);
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync((LoadPropertyDto?)null);
 
             var result = await _sut.AddOrUpdateLease(MakeUpdateLeaseDto());
 
@@ -96,7 +135,8 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task AddOrUpdateLease_ReturnsError_WhenUnitNotFoundInProperty()
         {
             var property = new LoadPropertyDto { Id = 1, Name = "Test", Units = [] }; // no units
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(property);
+            SetOrgContext(10);
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(property);
 
             var result = await _sut.AddOrUpdateLease(MakeUpdateLeaseDto(unitId: 99));
 
@@ -108,7 +148,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task AddOrUpdateLease_CreatesNewLease_WhenNoExistingLease()
         {
             SetOrgContext(10);
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.GetLease(1, 10L)).ReturnsAsync((LoadLeaseDto)null!);
             _leaseRepo.Setup(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L))
                       .ReturnsAsync(MakeLeaseDto(1));
@@ -126,7 +166,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task AddOrUpdateLease_NormalizesMonthToMonthEndDateFromStartDate()
         {
             SetOrgContext(10);
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.GetLease(1, 10L)).ReturnsAsync((LoadLeaseDto)null!);
             _leaseRepo.Setup(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L))
                       .ReturnsAsync(MakeLeaseDto(1));
@@ -149,7 +189,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task AddOrUpdateLease_DoesNotRewindRenewedMonthToMonthEndDateDuringUpdate()
         {
             SetOrgContext(10);
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.GetLeaseById(5, 10L)).ReturnsAsync(new LoadLeaseDto
             {
                 Id = 5,
@@ -178,7 +218,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task AddOrUpdateLease_AllowsDraftWithMissingLeaseDetails()
         {
             SetOrgContext(10);
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.GetLease(1, 10L)).ReturnsAsync((LoadLeaseDto)null!);
             _leaseRepo.Setup(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L))
                       .ReturnsAsync(new LoadLeaseDto { Id = 42, IsActive = false });
@@ -211,7 +251,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task AddOrUpdateLease_RejectsNonDraftWithMissingLeaseDetails()
         {
             SetOrgContext(10);
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             var incomplete = new UpdateLeaseDto
             {
                 PropertyId = 1,
@@ -231,7 +271,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task AddOrUpdateLease_UpdatesExistingLease_WhenLeaseAlreadyExists()
         {
             SetOrgContext(10);
-            _propertyRepo.Setup(r => r.GetPropertyById(1)).ReturnsAsync(MakePropertyWithUnit());
+            _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.GetLease(1, 10L)).ReturnsAsync(MakeLeaseDto(1));
             _leaseRepo.Setup(r => r.UpdateLease(It.IsAny<UpdateLeaseDto>())).ReturnsAsync(MakeLeaseDto(1));
 
@@ -244,6 +284,25 @@ namespace brownstone_hub_api.Tests.Services.Leases
 
         // ── Signature tenant validation ───────────────────────────────────────────
 
+        [Fact]
+        public async Task SignLandlordOnly_IgnoresConflictingClientIdentityAndUsesAuthenticatedMember()
+        {
+            SetOrgContext(10);
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
+            var request = new SendLeaseForSignatureDto
+            {
+                LeaseId = 1,
+                LandlordEmail = "attacker@example.com",
+                LandlordName = "Attacker"
+            };
+
+            var result = await _sut.SignLandlordOnlyAsync(1, request, "https://example.test", CancellationToken.None);
+
+            result.StatusCode.Should().Be(400); // no document service in this focused unit test
+            request.LandlordEmail.Should().Be("current.landlord@example.com");
+            request.LandlordName.Should().Be("Current Landlord");
+        }
+
         [Theory]
         [InlineData("missing")]
         [InlineData("extra")]
@@ -251,7 +310,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task SendLeaseForSignature_RejectsSignerSetThatDoesNotExactlyMatchLease(string variation)
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
             var signers = variation switch
             {
                 "missing" => new List<TenantSignerDto> { Signer(10, "one@example.com", "One Tenant") },
@@ -269,7 +328,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
             };
 
             var result = await _sut.SendLeaseForSignatureAsync(1,
-                new SendLeaseForSignatureDto { TenantSigners = signers }, 5, 10);
+                new SendLeaseForSignatureDto { LeaseId = 1, TenantSigners = signers }, 5, 10, CancellationToken.None);
 
             result.Success.Should().BeFalse();
             result.StatusCode.Should().Be(400);
@@ -280,7 +339,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task SendLeaseForSignature_RejectsIdentityMismatch()
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
             var request = new SendLeaseForSignatureDto
             {
                 TenantSigners =
@@ -290,7 +349,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
                 ]
             };
 
-            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10);
+            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10, CancellationToken.None);
 
             result.Success.Should().BeFalse();
             result.StatusCode.Should().Be(400);
@@ -301,9 +360,11 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task SendLeaseForSignature_NormalizesIdentityAndOrdersSignersByTenantId()
         {
             SetOrgContext(10);
-            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(LeaseWithTenants());
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10, It.IsAny<CancellationToken>())).ReturnsAsync(LeaseWithTenants());
             var request = new SendLeaseForSignatureDto
             {
+                LandlordEmail = "attacker@example.com",
+                LandlordName = "Attacker",
                 TenantSigners =
                 [
                     Signer(20, " TWO@example.com ", " two   tenant "),
@@ -311,10 +372,12 @@ namespace brownstone_hub_api.Tests.Services.Leases
                 ]
             };
 
-            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10);
+            var result = await _sut.SendLeaseForSignatureAsync(1, request, 5, 10, CancellationToken.None);
 
             // This test has no document service, so it stops after signer normalization.
             result.StatusCode.Should().Be(400);
+            request.LandlordEmail.Should().Be("current.landlord@example.com");
+            request.LandlordName.Should().Be("Current Landlord");
             request.TenantSigners.Select(s => s.TenantId).Should().Equal(10, 20);
             request.TenantSigners.Select(s => s.Email).Should().Equal("one@example.com", "two@example.com");
             request.TenantSigners.Select(s => s.Name).Should().Equal("One Tenant", "Two Tenant");
@@ -436,6 +499,7 @@ namespace brownstone_hub_api.Tests.Services.Leases
         public async Task CompleteDraft_ReturnsSuccess_WhenLeaseExists()
         {
             SetOrgContext(10);
+            _leaseRepo.Setup(r => r.GetLeaseById(1, 10)).ReturnsAsync(MakeLeaseDto(1));
             _leaseRepo.Setup(r => r.CompleteDraft(1, 10)).ReturnsAsync(MakeLeaseDto(1));
 
             var result = await _sut.CompleteDraft(1);

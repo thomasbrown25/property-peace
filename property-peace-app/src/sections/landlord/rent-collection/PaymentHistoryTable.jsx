@@ -32,6 +32,7 @@ import {
   DeleteOutlined
 } from '@ant-design/icons';
 import { formatCurrency } from 'utils/formatters';
+import { canManuallyManagePayment } from 'utils/paymentSafety';
 import moment from 'moment';
 import MainCard from 'components/MainCard';
 import { useState, useMemo } from 'react';
@@ -146,8 +147,8 @@ export default function PaymentHistoryTable({ payments, deposits = [], onPayment
     }
   };
 
-  // Deposits are displayed for context, but only payment rows can be edited/deleted here.
-  const canEditOrDeletePayment = (payment) => payment?.type === 'payment';
+  // Provider-recorded payments are immutable here; corrections flow through refunds, disputes, returns, and reconciliation.
+  const canEditOrDeletePayment = (payment) => canManuallyManagePayment(payment);
 
   const getPaymentStatusChip = (statusValue) => {
     const status = statusValue || 'Completed';
@@ -309,7 +310,7 @@ export default function PaymentHistoryTable({ payments, deposits = [], onPayment
                     })()}
                   </TableCell>
                   <TableCell align="right">
-                    {canEditOrDeletePayment(t) && (
+                    {canEditOrDeletePayment(t) ? (
                       <IconButton
                         size="small"
                         onClick={(event) => handleActionsClick(event, t)}
@@ -318,7 +319,11 @@ export default function PaymentHistoryTable({ payments, deposits = [], onPayment
                       >
                         <MoreOutlined style={{ fontSize: 16 }} />
                       </IconButton>
-                    )}
+                    ) : t.type === 'payment' ? (
+                      <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                        Provider managed
+                      </Typography>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))

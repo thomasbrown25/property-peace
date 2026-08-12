@@ -1,6 +1,9 @@
 import { Box, Grid, Typography, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import PlanCard from './PlanCard';
 import { useState, useEffect } from 'react';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 const TENANT_FEATURES = {
   free: [
@@ -21,6 +24,7 @@ const TENANT_FEATURES = {
 export default function PricingTable({ plans = [], currentPlanId, currentBillingCycle, onSelectPlan, loading = false, isTenant = false }) {
   // Initialize billing cycle to match current subscription, or default to Monthly
   const [billingCycle, setBillingCycle] = useState(currentBillingCycle || 'Monthly');
+  const { presentation: rentReadiness } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
 
   // Sync billing cycle when subscription changes
   useEffect(() => {
@@ -62,6 +66,12 @@ export default function PricingTable({ plans = [], currentPlanId, currentBilling
         </ToggleButtonGroup>
       </Box>
 
+      {!isTenant && (
+        <Box sx={{ mb: 3 }}>
+          <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection availability" />
+        </Box>
+      )}
+
       <Grid container spacing={3}>
         {displayPlans.map((plan, index) => {
           // Check both plan ID and billing cycle to determine if it's the current plan
@@ -79,6 +89,7 @@ export default function PricingTable({ plans = [], currentPlanId, currentBilling
                 disabled={loading}
                 hasActiveSubscription={hasActiveSubscription}
                 isTenant={isTenant}
+                rentReadiness={rentReadiness}
                 tenantFeatures={isTenant
                   ? (plan.name?.toLowerCase().includes('premium') ? TENANT_FEATURES.premium : TENANT_FEATURES.free)
                   : null}

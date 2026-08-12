@@ -20,6 +20,7 @@ import { useState } from 'react';
 import { useSubscriptionStatus } from 'hooks/useSubscription';
 import { useTheme } from '@mui/material/styles';
 import { openSnackbar } from 'api/snackbar';
+import { canManagePaidBilling, getPlanPricePresentation } from 'utils/subscriptionPresentation';
 
 export default function CurrentPlan({ subscription, loading, onUpdate }) {
   const { cancel, resume, pause, resumePaused, loading: actionLoading } = useSubscriptionActions();
@@ -91,7 +92,7 @@ export default function CurrentPlan({ subscription, loading, onUpdate }) {
   const isCancelled = subscription?.status === 'Cancelled';
   const isPaused = subscription?.status === 'Paused';
   const isPaymentPending = subscription?.status === 'PaymentPending';
-  const showMenu = subscription && !isFreePlan && !isTrial && !isCancelled;
+  const showMenu = canManagePaidBilling(subscription) && !isCancelled;
 
   const getStatusConfig = () => {
     if (!subscription) return { color: 'default', icon: null, label: 'No Plan' };
@@ -106,8 +107,8 @@ export default function CurrentPlan({ subscription, loading, onUpdate }) {
   };
 
   const statusConfig = getStatusConfig();
-  const planName = !subscription ? 'No Plan' : isTrial ? 'Free Trial' : isFreePlan ? 'Free' : subscription.plan?.name || 'Unknown';
-  const monthlyPrice = subscription?.plan?.monthlyPrice ?? 0;
+  const planName = !subscription ? 'No Plan' : isTrial ? 'Legacy trial' : isFreePlan ? 'Free' : subscription.plan?.name || 'Unknown';
+  const pricePresentation = getPlanPricePresentation(subscription?.plan, subscription?.billingCycle);
   const sinceDate = subscription?.createdAt
     ? new Date(subscription.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null;
@@ -169,7 +170,9 @@ export default function CurrentPlan({ subscription, loading, onUpdate }) {
 
       {/* Price + since date */}
       <Typography variant="body2" color="text.secondary">
-        ${monthlyPrice.toFixed(2)}/mo{sinceDate ? ` · since ${sinceDate}` : ''}
+        ${pricePresentation.amount.toFixed(2)}{pricePresentation.cadence}
+        {pricePresentation.supportingText ? ` · ${pricePresentation.supportingText}` : ''}
+        {sinceDate ? ` · since ${sinceDate}` : ''}
       </Typography>
 
       {/* Alerts for special states */}

@@ -1,6 +1,7 @@
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.StripeRentPayments;
+using brownstone_hub_api.Services.ActivationFunnel;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -390,6 +391,30 @@ public sealed class StripeRentPaymentFlowTests
     }
 
     [Fact]
+    public async Task MarkSucceededAsync_HeldReplayRepairsMissingActivationUsingPersistedSuccessTime()
+    {
+        await using var context = CreateContext();
+        await SeedLeaseAsync(context, 1, 2);
+        await SeedLeaseDestinationAsync(context, 1, 2, "acct_landlord");
+        var payment = NewPayment("pi_activation_repair");
+        var persistedSuccess = new DateTimeOffset(2026, 8, 10, 14, 5, 0, TimeSpan.Zero);
+        payment.Status = StripeRentPaymentStatus.Held;
+        payment.HeldAt = persistedSuccess;
+        payment.StripeChargeId = "ch_activation_repair";
+        payment.PaymentMethodType = "card";
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var service = CreateService(context, Mock.Of<IStripeRentGateway>(), true);
+
+        await service.MarkSucceededAsync(new StripeRentPaymentSucceeded(
+            payment.PaymentIntentId, payment.StripeChargeId, "card", persistedSuccess.AddHours(2)));
+
+        var occurrence = await context.ActivationMilestoneOccurrences.SingleAsync();
+        occurrence.OccurredAtUtc.Should().Be(persistedSuccess.UtcDateTime);
+        occurrence.SourceEventId.Should().Be(payment.Id.ToString());
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenPaymentsSwitchMissing_FailsClosedWithoutCallingStripe()
     {
         await using var context = CreateContext(); var gateway = new Mock<IStripeRentGateway>();
@@ -466,7 +491,8 @@ public sealed class StripeRentPaymentFlowTests
             risk = permissiveRisk.Object;
         }
         return new(context, gateway, risk, new ConfigurationBuilder().AddInMemoryCollection(values).Build(),
-            time ?? TimeProvider.System, Mock.Of<ILogger<StripeRentPaymentService>>());
+            time ?? TimeProvider.System, Mock.Of<ILogger<StripeRentPaymentService>>(),
+            new ActivationOccurrenceRecorder(context, time ?? TimeProvider.System));
     }
 
     internal static DataContext CreateContext(string? databaseName = null) => new(new DbContextOptionsBuilder<DataContext>()

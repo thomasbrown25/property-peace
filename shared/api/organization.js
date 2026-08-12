@@ -42,12 +42,6 @@ export class OrganizationAPI {
     });
   }
 
-  async updateAgentSettings({ isMaintenanceAgentEnabled, isCollectionsAgentEnabled }) {
-    return this.client.patch('/api/organization/agent-settings', {
-      isMaintenanceAgentEnabled,
-      isCollectionsAgentEnabled
-    });
-  }
 }
 
 export default OrganizationAPI;

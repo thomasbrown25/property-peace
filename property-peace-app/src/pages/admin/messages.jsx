@@ -50,6 +50,7 @@ import { selectMessages, selectMessageLoading, selectMessageError, selectCurrent
 import useSignalRConversations from 'hooks/useSignalRConversations';
 import { openSnackbar } from 'api/snackbar';
 import AdminSupportWorkspace from 'sections/admin/support/AdminSupportWorkspace';
+import { getSendAttempt } from 'utils/clientRequestId';
 
 // ==============================|| ADMIN MESSAGES PAGE ||============================== //
 
@@ -88,6 +89,7 @@ export default function AdminMessages() {
   // Refs
   const messagesContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const sendAttemptRef = useRef(null);
 
 
   const loadConversations = useCallback(async () => {
@@ -178,17 +180,23 @@ export default function AdminMessages() {
       return;
     }
 
+    const content = messageInput.trim();
+    const attempt = getSendAttempt(sendAttemptRef.current, selectedConversation.id, content);
+    sendAttemptRef.current = attempt;
+
     try {
       setSendingMessage(true);
 
       const result = await dispatch(
         addMessage({
           conversationId: selectedConversation.id,
-          content: messageInput.trim()
+          content,
+          clientRequestId: attempt.clientRequestId
         })
       );
 
       if (result.success) {
+        sendAttemptRef.current = null;
         setMessageInput('');
         loadConversations(); // Reload to update last message
 

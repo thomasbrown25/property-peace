@@ -3,26 +3,34 @@
     "name": "Property Peace",
     "slug": "property-peace-mobile",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#082f58"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.propertypeace.mobile"
+      "supportsTablet": false,
+      "bundleIdentifier": "com.propertypeace.mobile",
+      "buildNumber": "1",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take photos or videos that document a maintenance issue in your home.",
+        "NSPhotoLibraryUsageDescription": "Choose photos or videos that document a maintenance issue in your home."
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#082f58"
       },
       "package": "com.propertypeace.mobile"
     },
@@ -30,6 +38,24 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "propertypeace",
-    "plugins": []
+    "plugins": [
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Use Face ID to unlock your Property Peace account on this device."
+        }
+      ],
+      "expo-apple-authentication",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos or videos that document a maintenance issue in your home.",
+          "cameraPermission": "Take photos or videos that document a maintenance issue in your home.",
+          "microphonePermission": "Record audio while taking a maintenance video."
+        }
+      ],
+      "expo-font"
+    ]
   }
 }

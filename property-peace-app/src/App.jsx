@@ -22,7 +22,6 @@ import { OrganizationProvider } from 'contexts/OrganizationContext';
 
 import { DrawerProvider } from 'contexts/DrawerContext';
 import { ModalProvider } from 'contexts/ModalContext';
-import { AICopilotProvider } from 'contexts/AICopilotContext';
 import { LeaseProvider } from 'contexts/LeaseContext';
 import { DashboardLoadingProvider } from 'contexts/DashboardLoadingContext';
 import { TriggerSummaryProvider } from 'contexts/TriggerSummaryContext';
@@ -43,8 +42,7 @@ export default function App() {
           <TokenExpirationChecker />
           <ModalProvider>
             <DrawerProvider>
-              <AICopilotProvider>
-                <LeaseProvider>
+              <LeaseProvider>
                   <TriggerSummaryProvider>
                     <DashboardLoadingProvider>
                       <Notistack>
@@ -56,8 +54,7 @@ export default function App() {
                       </Notistack>
                     </DashboardLoadingProvider>
                   </TriggerSummaryProvider>
-                </LeaseProvider>
-              </AICopilotProvider>
+              </LeaseProvider>
             </DrawerProvider>
           </ModalProvider>
         </Provider>

@@ -13,9 +13,19 @@ namespace brownstone_hub_api.Configurations
         {
             b.ToTable("MaintenanceRequests", "maintenance");
             b.HasKey(m => m.Id);
+            b.Property(m => m.RowVersion).IsRowVersion();
 
             b.Property(m => m.Status).HasConversion<string>().IsRequired();
             b.Property(m => m.Priority).HasConversion<string>().IsRequired();
+            b.Property(m => m.Urgency).HasConversion<string>().HasMaxLength(20).HasDefaultValue(MaintenanceUrgency.Routine).IsRequired();
+            b.Property(m => m.LocationDetails).HasMaxLength(500);
+            b.Property(m => m.StructuredIntakeJson).HasMaxLength(8000);
+            b.Property(m => m.TriagePolicyVersion).HasMaxLength(50);
+            b.Property(m => m.LandlordSummary).HasMaxLength(2000);
+            b.Property(m => m.MissingInformationJson).HasMaxLength(2000);
+            b.Property(m => m.ResolutionCycle).HasDefaultValue(1);
+            b.HasIndex(m => m.SubmittedByUserId);
+            b.HasIndex(m => m.SubmittedUnderLeaseId);
 
             // If you want DB-side defaults; for SQL Server prefer UTC
             b.Property(m => m.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
@@ -49,6 +59,7 @@ namespace brownstone_hub_api.Configurations
             b.HasIndex(m => new { m.PropertyId, m.Status });
             b.HasIndex(m => m.VendorId);
             b.HasIndex(m => m.OrganizationId);
+            b.HasIndex(m => new { m.OrganizationId, m.Urgency, m.ActionByUtc });
             b.HasIndex(m => m.OrderNumber).IsUnique(false); // Allow duplicates but enable fast lookups
         }
     }

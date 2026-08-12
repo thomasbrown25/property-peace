@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState, useMemo } from 'react';
-import { getAllBlogPosts } from '@/lib/blog-posts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiArrowRight, FiCalendar, FiRss, FiBookOpen, FiZap, FiCheckCircle } from 'react-icons/fi';
 
@@ -19,8 +18,16 @@ function categoryColor(cat: string) {
   return CATEGORY_COLORS[cat] ?? '#16a34a';
 }
 
-export default function BlogPageClient() {
-  const posts = getAllBlogPosts();
+interface PublishedBlogSummary {
+  slug: string;
+  title: string;
+  description: string;
+  date: string;
+  author: string;
+  category: string;
+}
+
+export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[] }) {
   const [activeCategory, setActiveCategory] = useState('All');
 
   const categories = useMemo(
@@ -236,12 +243,12 @@ export default function BlogPageClient() {
                           Managing rentals while reading these guides?
                         </h2>
                         <p className="max-w-2xl text-[#516A80] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
-                          Property Peace helps independent landlords collect rent, manage leases, track maintenance, and stay organized without rebuilding another spreadsheet.
+                          Property Peace helps independent landlords track rent records, manage leases, track maintenance, and stay organized without rebuilding another spreadsheet.
                         </p>
                       </div>
                       <div className="rounded-2xl bg-white p-5 shadow-[0_14px_34px_rgba(10,45,82,0.08)]">
                         <ul className="mb-5 space-y-3 text-sm text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Free for up to 2 units</li>
+                          <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Free for up to 5 units</li>
                           <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Built for landlords with 1–50 units</li>
                           <li className="flex gap-2"><FiCheckCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />Rent, leases, tenants, and maintenance together</li>
                         </ul>

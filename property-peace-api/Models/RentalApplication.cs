@@ -28,7 +28,7 @@ namespace brownstone_hub_api.Models
         public string Email { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public DateTime? DateOfBirth { get; set; }
-        public string? Ssn { get; set; } // Encrypted/stored securely
+
         public string? CurrentAddress { get; set; }
         public string? CurrentCity { get; set; }
         public string? CurrentState { get; set; }
@@ -77,25 +77,7 @@ namespace brownstone_hub_api.Models
         public string? PdfBlobName { get; set; } // Blob name for generated PDF
         public string? PdfBlobUrl { get; set; } // URL to generated PDF
         
-        // Background Check Information
-        public bool? BackgroundCheckRequested { get; set; } // Whether background check has been requested
-        public DateTime? BackgroundCheckRequestedAt { get; set; }
-        public string? BackgroundCheckProvider { get; set; } // "RentSpree", "TransUnion", etc.
-        public string? BackgroundCheckRequestId { get; set; } // External ID from screening provider
-        public string? BackgroundCheckStatus { get; set; } // "pending", "in_progress", "completed", "failed"
-        public DateTime? BackgroundCheckCompletedAt { get; set; }
-        
-        // Background Check Results
-        public int? CreditScore { get; set; }
-        public bool? PassedCreditCheck { get; set; }
-        public bool? PassedCriminalCheck { get; set; }
-        public bool? PassedEvictionCheck { get; set; }
-        public bool? PassedIncomeVerification { get; set; }
-        public string? BackgroundCheckReportUrl { get; set; } // URL to full report
-        public string? BackgroundCheckSummary { get; set; } // JSON summary of results
-        public bool? BackgroundCheckOverallPass { get; set; } // Overall pass/fail based on criteria
-        public string? BackgroundCheckRejectionReason { get; set; } // If failed, reason for failure
-        
+
         // Application Source
         public bool IsLandlordEntered { get; set; } = false; // True if application was manually entered by landlord, false if tenant submitted
         

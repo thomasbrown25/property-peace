@@ -14,8 +14,10 @@ namespace brownstone_hub_api.Services.ESignatureService
         public Task<ServiceResponse<SignatureEnvelopeDto>> SendForSignature(
             SendLeaseForSignatureDto request,
             byte[] documentBytes,
-            string documentName)
+            string documentName,
+            CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogWarning("ESignatureService.SendForSignature called - stub implementation. DocuSign integration needed.");
 
             // TODO: Implement DocuSign integration
@@ -26,8 +28,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 statusCode: 501));
         }
 
-        public Task<ServiceResponse<SignatureStatusDto>> GetSignatureStatus(string envelopeId)
+        public Task<ServiceResponse<SignatureStatusDto>> GetSignatureStatus(string envelopeId, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogWarning("ESignatureService.GetSignatureStatus called - stub implementation.");
 
             return Task.FromResult(ServiceResponse<SignatureStatusDto>.CreateError(
@@ -36,8 +39,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 statusCode: 501));
         }
 
-        public Task<ServiceResponse<byte[]>> GetSignedDocument(string envelopeId)
+        public Task<ServiceResponse<byte[]>> GetSignedDocument(string envelopeId, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogWarning("ESignatureService.GetSignedDocument called - stub implementation.");
 
             return Task.FromResult(ServiceResponse<byte[]>.CreateError(
@@ -46,8 +50,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 statusCode: 501));
         }
 
-        public Task<ServiceResponse<bool>> CancelSignature(string envelopeId, string? reason = null)
+        public Task<ServiceResponse<bool>> CancelSignature(string envelopeId, string? reason, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogWarning("ESignatureService.CancelSignature called - stub implementation.");
 
             return Task.FromResult(ServiceResponse<bool>.CreateError(
@@ -56,8 +61,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 statusCode: 501));
         }
 
-        public Task<ServiceResponse<bool>> ResendSignatureRequest(string envelopeId)
+        public Task<ServiceResponse<bool>> ResendSignatureRequest(string envelopeId, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogWarning("ESignatureService.ResendSignatureRequest called - stub implementation.");
 
             return Task.FromResult(ServiceResponse<bool>.CreateError(
@@ -66,8 +72,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 statusCode: 501));
         }
 
-        public Task<ServiceResponse<string>> GetEmbeddedSigningUrl(string envelopeId, string recipientEmail, string recipientName, string returnUrl)
+        public Task<ServiceResponse<string>> GetEmbeddedSigningUrl(string envelopeId, string recipientEmail, string recipientName, string returnUrl, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _logger.LogWarning("ESignatureService.GetEmbeddedSigningUrl called - stub implementation.");
 
             return Task.FromResult(ServiceResponse<string>.CreateError(

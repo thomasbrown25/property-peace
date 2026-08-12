@@ -26,6 +26,7 @@ import { subscriptionAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import OrphanedSubscriptionModal from 'components/subscription/OrphanedSubscriptionModal';
+import { canManagePaidBilling, shouldStartCheckoutForPlanChange } from 'utils/subscriptionPresentation';
 
 export default function SubscriptionSettings() {
   const theme = useTheme();
@@ -102,10 +103,6 @@ export default function SubscriptionSettings() {
       setOrphanedModalOpen(true);
       return;
     }
-    if (subscription && subscription.status === 'Trial') {
-      await handleCreateCheckoutSession(plan, billingCycle);
-      return;
-    }
     if (subscription && subscription.status === 'PaymentPending') {
       openSnackbar({ open: true, message: 'Your payment is being processed. Please wait before making changes.', variant: 'alert', alert: { color: 'warning' } });
       return;
@@ -113,7 +110,7 @@ export default function SubscriptionSettings() {
     const isFreePlan = subscription?.plan?.name?.toLowerCase() === 'free';
     const canReactivate = isFreePlan && subscription?.cancelAtPeriodEnd;
 
-    if (!subscription || subscription.status !== 'Active' || (isFreePlan && !canReactivate)) {
+    if (shouldStartCheckoutForPlanChange(subscription)) {
       await handleCreateCheckoutSession(plan, billingCycle);
       return;
     }
@@ -280,7 +277,7 @@ export default function SubscriptionSettings() {
               Plan &amp; billing
             </Typography>
             <Typography variant="h3" sx={{ color: '#fff', fontWeight: 800, mt: 0.25 }}>
-              {subscription?.status === 'Trial' ? 'Free Trial' : subscription?.plan?.name || 'Choose your plan'}
+              {subscription?.status === 'Trial' ? 'Legacy trial' : subscription?.plan?.name || 'Choose your plan'}
             </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.72)', mt: 0.75, maxWidth: 560 }}>
               Manage the plan for {currentOrganization?.name}, monitor portfolio usage, and keep billing details in one place.
@@ -288,7 +285,7 @@ export default function SubscriptionSettings() {
           </Box>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} sx={{ flexShrink: 0 }}>
-            {subscription && (
+            {canManagePaidBilling(subscription) && (
               <Button
                 variant="contained"
                 color="success"
@@ -421,7 +418,7 @@ export default function SubscriptionSettings() {
                   Payment Method
                 </Typography>
                 <Box sx={{ mt: 1.5 }}>
-                  {subscription ? (
+                  {canManagePaidBilling(subscription) ? (
                     <Button
                       variant="outlined"
                       size="small"
@@ -434,7 +431,7 @@ export default function SubscriptionSettings() {
                     </Button>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
-                      No payment method on file.
+                      No provider-managed payment method on file.
                     </Typography>
                   )}
                 </Box>

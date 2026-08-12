@@ -47,7 +47,10 @@ import {
   DownOutlined
 } from '@ant-design/icons';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import { useSearchParams } from 'react-router-dom';
+import { useSWRConfig } from 'swr';
 import useAuth from 'hooks/useAuth';
+import { useOrganization } from 'contexts/OrganizationContext';
 import { formatDate, formatCurrency } from 'utils/formatters';
 import { applicationAPI, applicationInviteAPI } from 'api';
 import { openSnackbar } from 'api/snackbar';
@@ -55,13 +58,21 @@ import useFetchProperties from 'hooks/useFetchProperties';
 import PropertySelect from 'components/PropertySelect';
 import UnitSelect from 'components/UnitSelect';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectProperty } from 'store/property/property.selector';
+import { selectProperty, selectProperties } from 'store/property/property.selector';
 import { setProperty } from 'store/property/property.action';
 import { selectUnit } from 'store/unit/unit.selector';
 import { setUnit } from 'store/unit/unit.action';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import { useDrawer } from 'contexts/DrawerContext';
 import ApplicationAddDrawer from 'components/drawers/ApplicationAddDrawer';
+import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import LeasingPipelinePanel from 'components/leasing-pipeline/LeasingPipelinePanel';
+import ConversationTimelinePanel from 'components/conversation/ConversationTimelinePanel';
+import { buildApprovedApplicationLeaseContext, isLeasingPipelineKeyForTenant } from 'utils/leasingPipeline';
+import { createApplicationRequestGuard, getPositiveApplicationId, makeApplicationLoadScope } from 'utils/applicationCollection';
 
 // Application Status Options
 const APPLICATION_STATUSES = [
@@ -241,12 +252,19 @@ function ApplicationRow({ application, getStatusChip, onView, onStatus, onResend
 
 export default function ApplicationsPage({ hideHeader = false }) {
   const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
+  const { mutate } = useSWRConfig();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedApplicationId = searchParams.get('applicationId');
+  const deepLinkedApplicationId = getPositiveApplicationId(requestedApplicationId);
   const dispatch = useDispatch();
   const selectedProperty = useSelector(selectProperty);
+  const properties = useSelector(selectProperties);
   const selectedUnit = useSelector(selectUnit);
   useFetchProperties();
   const drawer = useDrawer();
   const theme = useTheme();
+  const { presentation: screeningReadiness } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
 
   // Collection view state
   const [search, setSearch] = useState('');
@@ -255,9 +273,13 @@ export default function ApplicationsPage({ hideHeader = false }) {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [successfulLoad, setSuccessfulLoad] = useState(null);
   const [selectedApplication, setSelectedApplication] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [applicationNotFound, setApplicationNotFound] = useState(false);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusApplicationId, setStatusApplicationId] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [applicationToDelete, setApplicationToDelete] = useState(null);
   const [page, setPage] = useState(1);
@@ -268,8 +290,41 @@ export default function ApplicationsPage({ hideHeader = false }) {
     reviewNotes: ''
   });
   const [backgroundCheckLoading, setBackgroundCheckLoading] = useState(false);
-  const [upcomingFeatureDialogOpen, setUpcomingFeatureDialogOpen] = useState(false);
   const previousPropertyId = useRef(selectedProperty?.id ?? null);
+  const requestGuardRef = useRef(createApplicationRequestGuard());
+  const userId = user?.id ?? user?.Id;
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id ?? user?.organizationId ?? user?.OrganizationId;
+  const selectedPropertyId = selectedProperty?.id ?? selectedProperty?.Id ?? null;
+  const currentLoadScope = useMemo(
+    () => makeApplicationLoadScope({ userId, organizationId, propertyId: selectedPropertyId }),
+    [organizationId, selectedPropertyId, userId]
+  );
+  const currentLoadScopeRef = useRef(currentLoadScope);
+  currentLoadScopeRef.current = currentLoadScope;
+  const hasSuccessfulCurrentScope = successfulLoad?.scopeKey === currentLoadScope.scopeKey;
+  const scopedApplications = hasSuccessfulCurrentScope ? applications : [];
+  const scopedProperties = hasSuccessfulCurrentScope ? properties : [];
+
+  const invalidateApplicationPipeline = useCallback(async (applicationId, { deleted = false } = {}) => {
+    const canonicalProbe = ['/api/leasing-pipeline', userId, organizationId, 'application', 1, null];
+    if (!isLeasingPipelineKeyForTenant(canonicalProbe, userId, organizationId)) return;
+
+    const tenantKeyPredicate = (key) => isLeasingPipelineKeyForTenant(key, userId, organizationId);
+    const revalidationPredicate = (key) => tenantKeyPredicate(key) && !(
+      deleted
+      && key[3] === 'application'
+      && key[4] === applicationId
+    );
+
+    // A lifecycle mutation changes application, listing, and property projections. Empty the
+    // entire exact-tenant cache before any mounted projection is allowed to fetch again.
+    await mutate(tenantKeyPredicate, undefined, { revalidate: false, populateCache: true });
+    try {
+      await mutate(revalidationPredicate);
+    } catch {
+      // Cleared entries stay fail-closed; mounted panels expose their normal retry state.
+    }
+  }, [mutate, organizationId, userId]);
 
   // Reset property selection on mount
   useEffect(() => {
@@ -288,52 +343,93 @@ export default function ApplicationsPage({ hideHeader = false }) {
   }, [dispatch, selectedProperty?.id]);
 
   const loadApplications = useCallback(async () => {
-    if (!user?.id) {
-      // If user is not available yet, keep loading state
-      setLoading(true);
-      return;
-    }
-    
+    const loadScope = makeApplicationLoadScope({ userId, organizationId, propertyId: selectedPropertyId });
+    const request = requestGuardRef.current.begin(loadScope);
+
+    // Clear every resolvable collection/detail marker before transport starts. Advancing the
+    // guard first also makes all prior success and failure continuations inert.
+    setApplications([]);
+    setSelectedApplication(null);
+    setViewDialogOpen(false);
+    setStatusDialogOpen(false);
+    setStatusApplicationId(null);
+    setApplicationNotFound(false);
+    setSuccessfulLoad(null);
+    setLoadError(null);
+    setHasLoaded(false);
     setLoading(true);
+
+    if (!userId) return;
+
     try {
-      let response;
-      if (selectedProperty?.id) {
-        response = await applicationAPI.getApplicationsByProperty(selectedProperty.id);
-      } else {
-        response = await applicationAPI.getApplicationsByLandlord(user.id);
+      const response = selectedPropertyId
+        ? await applicationAPI.getApplicationsByProperty(selectedPropertyId)
+        : await applicationAPI.getApplicationsByLandlord(userId);
+      if (!requestGuardRef.current.isCurrent(request, currentLoadScopeRef.current)) return;
+
+      if (!response?.success || (response.data != null && !Array.isArray(response.data))) {
+        const message = response?.message || 'Failed to load applications';
+        setApplications([]);
+        setSuccessfulLoad(null);
+        setLoadError(message);
+        setHasLoaded(true);
+        openSnackbar({ open: true, message, variant: 'alert', alert: { color: 'error' } });
+        return;
       }
-      
-      if (response.success) {
-        setApplications(response.data || []);
-      } else {
-        openSnackbar({
-          open: true,
-          message: response.message || 'Failed to load applications',
-          variant: 'alert',
-          alert: { color: 'error' }
-        });
-      }
+
+      setApplications(response.data || []);
+      setSuccessfulLoad({ generation: request.generation, scopeKey: request.scopeKey });
+      setLoadError(null);
       setHasLoaded(true);
     } catch (error) {
+      if (!requestGuardRef.current.isCurrent(request, currentLoadScopeRef.current)) return;
       console.error('Error loading applications:', error);
-      openSnackbar({
-        open: true,
-        message: 'Error loading applications',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
+      setApplications([]);
+      setSelectedApplication(null);
+      setViewDialogOpen(false);
+      setSuccessfulLoad(null);
+      setLoadError('Error loading applications');
       setHasLoaded(true);
+      openSnackbar({ open: true, message: 'Error loading applications', variant: 'alert', alert: { color: 'error' } });
     } finally {
-      setLoading(false);
+      if (requestGuardRef.current.isCurrent(request, currentLoadScopeRef.current)) setLoading(false);
     }
-  }, [user?.id, selectedProperty?.id]);
+  }, [organizationId, selectedPropertyId, userId]);
 
-  // Load applications on mount and when property changes
+  // Calling this unconditionally also advances/clears the guard when canonical identity disappears.
   useEffect(() => {
-    if (user?.id) {
-      loadApplications();
-    }
+    loadApplications();
   }, [loadApplications]);
+
+  // A deep link may open only the exact record returned by an explicitly successful current-scope generation.
+  useEffect(() => {
+    if (successfulLoad?.scopeKey !== currentLoadScope.scopeKey || !hasLoaded || loading || loadError) return;
+    if (requestedApplicationId == null) return;
+
+    const removeInvalidQuery = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('applicationId');
+      setSearchParams(next, { replace: true });
+    };
+    if (deepLinkedApplicationId == null) {
+      setSelectedApplication(null);
+      setViewDialogOpen(false);
+      setApplicationNotFound(true);
+      removeInvalidQuery();
+      return;
+    }
+    const exactApplication = scopedApplications.find((application) => Number(application.id ?? application.Id) === deepLinkedApplicationId);
+    if (!exactApplication) {
+      setSelectedApplication(null);
+      setViewDialogOpen(false);
+      setApplicationNotFound(true);
+      removeInvalidQuery();
+      return;
+    }
+    setApplicationNotFound(false);
+    setSelectedApplication(exactApplication);
+    setViewDialogOpen(true);
+  }, [currentLoadScope.scopeKey, deepLinkedApplicationId, hasLoaded, loadError, loading, requestedApplicationId, scopedApplications, searchParams, setSearchParams, successfulLoad]);
 
   // Reload applications when drawer closes (after invite/application is created)
   useEffect(() => {
@@ -351,7 +447,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
     const query = search.trim().toLowerCase();
     const selectedUnitId = selectedUnit?.id ?? selectedUnit?.Id;
     const selectedUnitName = selectedUnit?.name ?? selectedUnit?.Name ?? selectedUnit?.unitNumber ?? selectedUnit?.UnitNumber;
-    const filtered = applications.filter((application) => {
+    const filtered = scopedApplications.filter((application) => {
       const status = normalizeStatus(application.status);
       const searchable = [application.firstName, application.lastName, application.email, application.propertyName, application.unitName].filter(Boolean).join(' ').toLowerCase();
       const applicationUnitId = application.unitId ?? application.UnitId;
@@ -368,7 +464,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
       if (sort === 'moveIn') return (parseApplicationDate(a.desiredMoveInDate)?.getTime() || Number.MAX_SAFE_INTEGER) - (parseApplicationDate(b.desiredMoveInDate)?.getTime() || Number.MAX_SAFE_INTEGER);
       return (parseApplicationDate(b.createdAt)?.getTime() || 0) - (parseApplicationDate(a.createdAt)?.getTime() || 0);
     });
-  }, [applications, search, selectedUnit, sort, statusFilter]);
+  }, [scopedApplications, search, selectedUnit, sort, statusFilter]);
 
   const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
   const currentPage = Math.min(page, Math.max(totalPages, 1));
@@ -395,32 +491,89 @@ export default function ApplicationsPage({ hideHeader = false }) {
     dispatch(setUnit(null));
   }, [dispatch]);
 
+  const handleCreateLease = useCallback(() => {
+    const selectedApplicationId = Number(selectedApplication?.id ?? selectedApplication?.Id);
+    const currentScopedApplication = hasSuccessfulCurrentScope &&
+      Number.isSafeInteger(selectedApplicationId) && selectedApplicationId > 0 &&
+      scopedApplications.find((application) => Number(application?.id ?? application?.Id) === selectedApplicationId);
+    const handoff = currentScopedApplication
+      ? buildApprovedApplicationLeaseContext(currentScopedApplication, scopedProperties)
+      : null;
+    if (!handoff) {
+      openSnackbar({
+        open: true,
+        message: 'A lease can only be created from an approved application with a valid property and unit.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+      return;
+    }
+    setViewDialogOpen(false);
+    drawer.openLeaseAddDrawer(
+      handoff.applicationContext.unitId,
+      handoff.property,
+      handoff.applicationContext
+    );
+  }, [drawer, hasSuccessfulCurrentScope, scopedApplications, scopedProperties, selectedApplication]);
+
   // Calculate overview stats
   const overviewStats = useMemo(() => {
-    const total = applications.length;
-    const pending = applications.filter(a => {
+    const total = scopedApplications.length;
+    const pending = scopedApplications.filter(a => {
       const status = normalizeStatus(a.status);
       return status === 8 || status === 1 || status === 2; // Pending, Submitted, Under Review
     }).length;
-    const approved = applications.filter(a => normalizeStatus(a.status) === 3).length;
-    const rejected = applications.filter(a => normalizeStatus(a.status) === 4).length;
+    const approved = scopedApplications.filter(a => normalizeStatus(a.status) === 3).length;
+    const rejected = scopedApplications.filter(a => normalizeStatus(a.status) === 4).length;
     return { total, pending, approved, rejected };
-  }, [applications]);
+  }, [scopedApplications]);
 
   // Handle view application
   const handleViewApplication = async (application) => {
+    const applicationId = Number(application?.id ?? application?.Id);
+    if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return;
+    setApplicationNotFound(false);
     setSelectedApplication(application);
     setViewDialogOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.set('applicationId', String(applicationId));
+    setSearchParams(next, { replace: true });
     
     // Load background check status if available
     if (application.backgroundCheckRequested) {
-      await loadBackgroundCheckStatus(application.id);
+      await loadBackgroundCheckStatus(applicationId);
     }
   };
 
-  // Request background check - show upcoming feature modal
-  const handleRequestBackgroundCheck = () => {
-    setUpcomingFeatureDialogOpen(true);
+  const handleCloseApplicationDialog = () => {
+    setViewDialogOpen(false);
+    setSelectedApplication(null);
+    setApplicationNotFound(false);
+    const next = new URLSearchParams(searchParams);
+    next.delete('applicationId');
+    setSearchParams(next, { replace: true });
+  };
+
+  const handleRequestBackgroundCheck = async (applicationIdValue) => {
+    const applicationId = Number(applicationIdValue);
+    if (!screeningReadiness.canInvoke || !Number.isSafeInteger(applicationId) || applicationId <= 0) return;
+    setBackgroundCheckLoading(true);
+    try {
+      const response = await applicationAPI.requestBackgroundCheck(applicationId);
+      if (!response?.success) throw new Error(response?.message || 'Unable to request tenant screening.');
+      await invalidateApplicationPipeline(applicationId);
+      setSelectedApplication((current) => Number(current?.id ?? current?.Id) === applicationId ? { ...current, backgroundCheckRequested: true, backgroundCheckStatus: 'pending' } : current);
+      openSnackbar({ open: true, message: 'Tenant screening requested.', variant: 'alert', alert: { color: 'success' } });
+    } catch (error) {
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || error?.message || 'Unable to request tenant screening.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+    } finally {
+      setBackgroundCheckLoading(false);
+    }
   };
 
   // Load background check status
@@ -472,7 +625,10 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
   // Handle status update
   const handleStatusUpdate = (application) => {
+    const applicationId = Number(application?.id ?? application?.Id);
+    if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return;
     setSelectedApplication(application);
+    setStatusApplicationId(applicationId);
     setStatusUpdate({
       status: normalizeStatus(application.status),
       rejectionReason: application.rejectionReason || '',
@@ -482,17 +638,19 @@ export default function ApplicationsPage({ hideHeader = false }) {
   };
 
   const handleSaveStatusUpdate = async () => {
-    if (!selectedApplication?.id || statusUpdate.status === null || statusUpdate.status === '') return;
+    const applicationId = Number(statusApplicationId);
+    if (!Number.isSafeInteger(applicationId) || applicationId <= 0 || statusUpdate.status === null || statusUpdate.status === '') return;
 
     try {
       const response = await applicationAPI.updateApplicationStatus(
-        selectedApplication.id,
+        applicationId,
         statusUpdate.status,
         statusUpdate.rejectionReason || null,
         statusUpdate.reviewNotes || null
       );
 
       if (response.success) {
+        await invalidateApplicationPipeline(applicationId);
         openSnackbar({
           open: true,
           message: 'Application status updated successfully',
@@ -521,18 +679,20 @@ export default function ApplicationsPage({ hideHeader = false }) {
   };
 
   // Handle direct approval
-  const handleApprove = async () => {
-    if (!selectedApplication?.id) return;
+  const handleApprove = async (applicationIdValue) => {
+    const applicationId = Number(applicationIdValue);
+    if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return;
 
     try {
       const response = await applicationAPI.updateApplicationStatus(
-        selectedApplication.id,
+        applicationId,
         3, // Approved status
         null,
         null
       );
 
       if (response.success) {
+        await invalidateApplicationPipeline(applicationId);
         openSnackbar({
           open: true,
           message: 'Application approved successfully',
@@ -541,8 +701,8 @@ export default function ApplicationsPage({ hideHeader = false }) {
         });
         setStatusDialogOpen(false);
         loadApplications();
-        // Also close the view dialog if open
-        setViewDialogOpen(false);
+        // Also close the view dialog if open and clear its deep-link state.
+        handleCloseApplicationDialog();
       } else {
         openSnackbar({
           open: true,
@@ -570,12 +730,14 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
   // Handle resend invite for pending applications
   const handleResendInvite = async (application) => {
-    if (!application?.id) return;
+    const applicationId = Number(application?.id ?? application?.Id);
+    if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return;
 
     try {
-      const response = await applicationInviteAPI.resendApplicationInviteByApplicationId(application.id);
+      const response = await applicationInviteAPI.resendApplicationInviteByApplicationId(applicationId);
       
       if (response.success) {
+        await invalidateApplicationPipeline(applicationId);
         openSnackbar({
           open: true,
           message: 'Application invite resent successfully',
@@ -602,11 +764,13 @@ export default function ApplicationsPage({ hideHeader = false }) {
   };
 
   const handleConfirmDelete = async () => {
-    if (!applicationToDelete?.id) return;
+    const applicationId = Number(applicationToDelete?.id ?? applicationToDelete?.Id);
+    if (!Number.isSafeInteger(applicationId) || applicationId <= 0) return;
 
     try {
-      const response = await applicationAPI.deleteApplication(applicationToDelete.id);
+      const response = await applicationAPI.deleteApplication(applicationId);
       if (response.success) {
+        await invalidateApplicationPipeline(applicationId, { deleted: true });
         openSnackbar({
           open: true,
           message: 'Application deleted successfully',
@@ -729,6 +893,12 @@ export default function ApplicationsPage({ hideHeader = false }) {
         </>
       )}
 
+      {applicationNotFound && (
+        <Alert severity="warning" onClose={() => setApplicationNotFound(false)} sx={{ mb: 2 }}>
+          The requested application was not found or is not available to this account.
+        </Alert>
+      )}
+
       {/* Summary Cards */}
       <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="All applications" value={overviewStats.total} helper="Across the selected property" icon={<FileTextOutlined />} color={theme.palette.primary.main} active={statusFilter === 'all'} onClick={() => setStatusFilter('all')} /></Grid>
@@ -737,7 +907,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
         <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Rejected" value={overviewStats.rejected} helper="Applications not moving forward" icon={<CloseCircleOutlined />} color={theme.palette.error.main} active={statusFilter === '4'} onClick={() => setStatusFilter((value) => value === '4' ? 'all' : '4')} /></Grid>
       </Grid>
 
-      <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
+      <Box aria-busy={loading} sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
         <Box sx={{ p: { xs: 1.5, md: 2 } }}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
             <OutlinedInput
@@ -759,7 +929,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 '&::-webkit-scrollbar': { display: 'none' }
               }}
             >
-              {hideHeader && applications.length > 0 && <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openApplicationAddDrawer()} sx={{ minWidth: 155, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>New application</Button>}
+              {hideHeader && scopedApplications.length > 0 && <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openApplicationAddDrawer()} sx={{ minWidth: 155, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>New application</Button>}
               <Box sx={{ minWidth: 180 }}><PropertySelect width="100%" label={null} placeholder="All properties" /></Box>
               <Box sx={{ minWidth: 150 }}><UnitSelect width="100%" label={null} placeholder="All units" /></Box>
               <Select
@@ -787,7 +957,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
             </Stack>
           </Stack>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
-            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>{filteredApplications.length} of {applications.length} applications</Typography>
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>{filteredApplications.length} of {scopedApplications.length} applications</Typography>
             {(search || statusFilter !== 'all' || selectedProperty || selectedUnit || sort !== 'newest') && <Button size="small" onClick={resetFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
           </Stack>
         </Box>
@@ -796,8 +966,10 @@ export default function ApplicationsPage({ hideHeader = false }) {
           {['Applicant', 'Property / unit', 'Status', 'Submitted', 'Move-in', ''].map((label) => <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>)}
         </Box>
         {loading && !hasLoaded ? (
-          <Stack alignItems="center" spacing={1} sx={{ py: 7 }}><CircularProgress size={26} /><Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading applications…</Typography></Stack>
-        ) : applications.length === 0 ? (
+          <Stack role="status" aria-live="polite" alignItems="center" spacing={1} sx={{ py: 7 }}><CircularProgress size={26} /><Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading applications…</Typography></Stack>
+        ) : loadError ? (
+          <Stack role="alert" alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}><Typography variant="h6" fontWeight={700}>Applications unavailable</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>{loadError}</Typography><Button variant="outlined" onClick={loadApplications}>Retry</Button></Stack>
+        ) : scopedApplications.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}><Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}><FileTextOutlined /></Avatar><Typography variant="h5" fontWeight={700}>Create your first application</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>Invite an applicant and track their rental application from submission through a final decision.</Typography><Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openApplicationAddDrawer()} sx={{ textTransform: 'none', fontWeight: 700 }}>New application</Button></Stack>
         ) : filteredApplications.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}><Typography variant="h6" fontWeight={700}>No applications match this view</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>Try another search or reset the application filters.</Typography><Button variant="outlined" onClick={resetFilters} sx={{ textTransform: 'none' }}>Reset filters</Button></Stack>
@@ -824,8 +996,8 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
       {/* View Application Dialog */}
       <Dialog
-        open={viewDialogOpen}
-        onClose={() => setViewDialogOpen(false)}
+        open={viewDialogOpen && hasSuccessfulCurrentScope}
+        onClose={handleCloseApplicationDialog}
         maxWidth="md"
         fullWidth
       >
@@ -833,6 +1005,15 @@ export default function ApplicationsPage({ hideHeader = false }) {
           Application Details - {selectedApplication?.firstName} {selectedApplication?.lastName}
         </DialogTitle>
         <DialogContent sx={{ pb: 4 }}>
+          {selectedApplication && (
+            <Box sx={{ mt: 1, mb: 2 }}>
+              <LeasingPipelinePanel resourceType="application" resourceId={selectedApplication?.id ?? selectedApplication?.Id} onCreateLease={handleCreateLease} />
+              <ConversationTimelinePanel
+                contextKind="rentalApplication"
+                contextId={selectedApplication?.id ?? selectedApplication?.Id}
+              />
+            </Box>
+          )}
           {selectedApplication && (
             <Grid container spacing={3} sx={{ mt: 1 }}>
               <Grid size={{ xs: 12 }}>
@@ -940,6 +1121,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
               {/* Background Check Section */}
               <Grid size={{ xs: 12 }}>
                 <Divider sx={{ my: 2 }} />
+                <FeatureReadinessNotice presentation={screeningReadiness} featureName="Tenant screening" />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="subtitle2" color="text.secondary">
                     Background Check
@@ -967,8 +1149,8 @@ export default function ApplicationsPage({ hideHeader = false }) {
                         <Button
                           variant="contained"
                           startIcon={<FileTextOutlined />}
-                          onClick={handleRequestBackgroundCheck}
-                          disabled={backgroundCheckLoading || !selectedApplication.firstName || !selectedApplication.lastName || !selectedApplication.email}
+                          onClick={() => handleRequestBackgroundCheck(selectedApplication?.id ?? selectedApplication?.Id)}
+                          disabled={backgroundCheckLoading || !screeningReadiness.canInvoke || !selectedApplication.firstName || !selectedApplication.lastName || !selectedApplication.email}
                         >
                           {backgroundCheckLoading ? 'Requesting...' : 'Request Background Check'}
                         </Button>
@@ -1231,7 +1413,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
               useFlexGap
               sx={{ flexWrap: 'wrap', justifyContent: 'flex-end', width: { xs: '100%', md: 'auto' } }}
             >
-              <Button onClick={() => setViewDialogOpen(false)}>Close</Button>
+              <Button onClick={handleCloseApplicationDialog}>Close</Button>
               {/* Show resend button for pending applications */}
               {selectedApplication && normalizeStatus(selectedApplication.status) === 8 && (
                 <Button
@@ -1249,7 +1431,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 <Button
                   variant="contained"
                   color="success"
-                  onClick={handleApprove}
+                  onClick={() => handleApprove(selectedApplication?.id ?? selectedApplication?.Id)}
                   disabled={!selectedApplication?.id}
                 >
                   Approve
@@ -1258,8 +1440,9 @@ export default function ApplicationsPage({ hideHeader = false }) {
               <Button
                 variant="contained"
                 onClick={() => {
-                  setViewDialogOpen(false);
-                  handleStatusUpdate(selectedApplication);
+                  const application = selectedApplication;
+                  handleCloseApplicationDialog();
+                  handleStatusUpdate(application);
                 }}
               >
                 Update Status
@@ -1325,7 +1508,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
             <Button
               variant="contained"
               color="success"
-              onClick={handleApprove}
+              onClick={() => handleApprove(statusApplicationId)}
               disabled={!selectedApplication?.id}
             >
               Approve
@@ -1350,34 +1533,9 @@ export default function ApplicationsPage({ hideHeader = false }) {
         message={`Are you sure you want to delete the application for ${applicationToDelete?.firstName} ${applicationToDelete?.lastName}? This action cannot be undone.`}
       />
 
-      {/* Upcoming Feature Dialog */}
-      <Dialog
-        open={upcomingFeatureDialogOpen}
-        onClose={() => setUpcomingFeatureDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Background Check - Coming Soon</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <Alert severity="info">
-              Background check functionality is an upcoming feature that hasn't been implemented yet.
-            </Alert>
-            <Typography variant="body2" color="text.secondary">
-              We're working on integrating background check services to help you screen applicants more efficiently. 
-              This feature will be available in a future update.
-            </Typography>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUpcomingFeatureDialogOpen(false)} variant="contained">
-            Got it
-          </Button>
-        </DialogActions>
-      </Dialog>
 
-      {/* Application Add Drawer */}
       <ApplicationAddDrawer />
+      <LeaseAddDrawer />
     </Box>
   );
 }

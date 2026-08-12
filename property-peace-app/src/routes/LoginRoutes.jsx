@@ -2,6 +2,7 @@ import { lazy } from 'react';
 
 // project imports
 import AuthLayout from 'layout/Auth';
+import SecureApplicantLayout from 'layout/SecureApplicant';
 import Loadable from 'components/Loadable';
 import { APP_AUTH, AuthProvider } from 'config';
 
@@ -25,6 +26,7 @@ const TenantInvitePersonalInfo = Loadable(lazy(() => import('pages/tenant/invite
 const TenantInviteSettingUp = Loadable(lazy(() => import('pages/tenant/invite-setting-up')));
 const TenantInviteSuccess = Loadable(lazy(() => import('pages/tenant/invite-success')));
 const ApplicationFormPage = Loadable(lazy(() => import('pages/apply/ApplicationFormPage')));
+const ApplicantScreeningPage = Loadable(lazy(() => import('pages/apply/ApplicantScreeningPage')));
 
 // organization auth
 const OrganizationInviteAccept = Loadable(lazy(() => import('pages/organization/invite-accept')));
@@ -73,6 +75,14 @@ const LoginRoutes = {
   path: '/',
   children: [
     {
+      path: 'screening',
+      element: <SecureApplicantLayout />,
+      children: [
+        { index: true, element: <ApplicantScreeningPage /> },
+        { path: ':token', element: <ApplicantScreeningPage /> }
+      ]
+    },
+    {
       path: '/',
       element: <AuthLayout />,
       children: [
@@ -116,6 +126,7 @@ const LoginRoutes = {
             { path: ':token', element: <ApplicationFormPage /> }
           ]
         },
+
         {
           path: 'organization',
           children: [

@@ -4,6 +4,7 @@ using brownstone_hub_api.Repositories.Payments;
 using brownstone_hub_api.Services.AccountMappingService;
 using brownstone_hub_api.Services.GeneralLedgerService;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Services.PaymentService
@@ -13,7 +14,9 @@ namespace brownstone_hub_api.Services.PaymentService
         IAccountMappingService accountMappingService,
         IGeneralLedgerService generalLedgerService,
         DataContext dataContext,
-        ILogger<PaymentService> logger) : IPaymentService
+        ILogger<PaymentService> logger,
+        IActivationOccurrenceRecorder? activationRecorder = null,
+        TimeProvider? timeProvider = null) : IPaymentService
     {
         private readonly IPaymentRepository _paymentRepository = paymentRepository;
         private readonly IAccountMappingService _accountMappingService = accountMappingService;
@@ -88,6 +91,61 @@ namespace brownstone_hub_api.Services.PaymentService
             return response;
         }
 
+        public async Task<ServiceResponse<List<LoadPaymentDto>>> AddManualPayment(AddPaymentDto newPayment, long organizationId)
+        {
+            var authorized = await _dataContext.Leases.AsNoTracking().AnyAsync(l =>
+                l.Id == newPayment.LeaseId && !l.IsDeleted && l.Unit.Property.OrganizationId == organizationId);
+            if (!authorized)
+                return new ServiceResponse<List<LoadPaymentDto>>
+                {
+                    Success = false, StatusCode = 403, Message = "Access denied to this lease"
+                };
+
+            await using var transaction = _dataContext.Database.IsRelational()
+                ? await _dataContext.Database.BeginTransactionAsync()
+                : null;
+            try
+            {
+                // This boundary is authoritative for manual rent records. Never trust caller-provided
+                // provider provenance, lifecycle state, or backdated occurrence time.
+                newPayment.Method = "Manual Entry";
+                newPayment.Status = "Completed";
+                newPayment.StripePaymentIntentId = null;
+                newPayment.StripePaymentMethodId = null;
+                var response = await AddPayment(newPayment);
+                if (!response.Success)
+                {
+                    if (transaction is not null) await transaction.RollbackAsync();
+                    return response;
+                }
+
+                if (newPayment.Amount > 0 && newPayment.FeeId is null && newPayment.DepositId is null &&
+                    response.Data is { Count: > 0 } && activationRecorder is not null)
+                {
+                    var createdPaymentId = response.Data.Max(x => x.Id);
+                    var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+                    await activationRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                        organizationId,
+                        ActivationMilestones.FirstRentRecordedOrPaid,
+                        $"lease:{newPayment.LeaseId}",
+                        now,
+                        SourceEventType: "manual_payment",
+                        SourceEventId: createdPaymentId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ActorUserId: newPayment.CreatedByUserId > 0 ? newPayment.CreatedByUserId : null));
+                }
+
+                if (transaction is not null) await transaction.CommitAsync();
+                return response;
+            }
+            catch (Exception ex)
+            {
+                if (transaction is not null) await transaction.RollbackAsync();
+                _logger.LogError(ex, "Manual payment and activation occurrence transaction failed");
+                return ServiceResponse<List<LoadPaymentDto>>.CreateError(
+                    "Manual payment unavailable", statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+        }
+
         public async Task<ServiceResponse<LoadPaymentDto>> UpdatePayment(long paymentId, UpdatePaymentDto updatePayment, long organizationId)
         {
             var response = new ServiceResponse<LoadPaymentDto>();
@@ -106,6 +164,15 @@ namespace brownstone_hub_api.Services.PaymentService
                     response.Success = false;
                     response.Message = "Payment not found";
                     response.StatusCode = 404;
+                    return response;
+                }
+
+                if (!string.IsNullOrWhiteSpace(paymentBeforeUpdate.StripePaymentIntentId)
+                    || !string.IsNullOrWhiteSpace(paymentBeforeUpdate.StripeChargeId))
+                {
+                    response.Success = false;
+                    response.Message = "Provider-recorded online payments cannot be manually edited. Refund, dispute, return, and reconciliation state must come from the payment provider workflow.";
+                    response.StatusCode = 409;
                     return response;
                 }
 
@@ -189,6 +256,20 @@ namespace brownstone_hub_api.Services.PaymentService
             var response = new ServiceResponse<bool>();
             try
             {
+                var providerRecorded = await _dataContext.Payments
+                    .AsNoTracking()
+                    .Where(p => p.Id == paymentId)
+                    .Select(p => !string.IsNullOrWhiteSpace(p.StripePaymentIntentId)
+                        || !string.IsNullOrWhiteSpace(p.StripeChargeId))
+                    .SingleOrDefaultAsync();
+                if (providerRecorded)
+                {
+                    response.Success = false;
+                    response.Message = "Provider-recorded online payments cannot be manually deleted. Refund, dispute, return, and reconciliation state must come from the payment provider workflow.";
+                    response.StatusCode = 409;
+                    return response;
+                }
+
                 var result = await _paymentRepository.DeletePayment(paymentId, userId);
                 response.Data = result;
             }
@@ -219,6 +300,55 @@ namespace brownstone_hub_api.Services.PaymentService
                 response.Success = false;
                 response.Message = ex.Message;
             }
+            return response;
+        }
+
+        public async Task<ServiceResponse<List<LoadPaymentDto>>> GetPaymentsByLeaseId(long leaseId, long organizationId)
+        {
+            var authorized = await _dataContext.Leases.AsNoTracking().AnyAsync(l =>
+                l.Id == leaseId && !l.IsDeleted && l.Unit.Property.OrganizationId == organizationId);
+            if (!authorized)
+                return new ServiceResponse<List<LoadPaymentDto>>
+                {
+                    Success = false, StatusCode = 403, Message = "Access denied to this lease"
+                };
+
+            return await GetPaymentsByLeaseId(leaseId);
+        }
+
+        public async Task<ServiceResponse<List<TenantLeasePaymentHistoryItemDto>>> GetTenantLeasePaymentHistory(long leaseId, long tenantUserId)
+        {
+            var response = new ServiceResponse<List<TenantLeasePaymentHistoryItemDto>>();
+            try
+            {
+                var organizationId = await _dataContext.TenantLeases
+                    .AsNoTracking()
+                    .Where(tl => tl.LeaseId == leaseId
+                        && tl.Tenant.UserId == tenantUserId
+                        && !tl.Tenant.IsDeleted
+                        && !tl.Lease.IsDeleted
+                        && tl.Tenant.OrganizationId.HasValue
+                        && tl.Tenant.OrganizationId == tl.Lease.Unit.Property.OrganizationId)
+                    .Select(tl => tl.Tenant.OrganizationId)
+                    .SingleOrDefaultAsync();
+
+                if (!organizationId.HasValue)
+                {
+                    response.Success = false;
+                    response.Message = "Access denied to this lease payment history";
+                    response.StatusCode = 403;
+                    return response;
+                }
+
+                response.Data = await _paymentRepository.GetTenantLeasePaymentHistory(
+                    leaseId, tenantUserId, organizationId.Value);
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+            }
+
             return response;
         }
 

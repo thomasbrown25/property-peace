@@ -6,6 +6,8 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Services.LeaseService;
 using brownstone_hub_api.Services.ESignatureService;
+using brownstone_hub_api.Config;
+using brownstone_hub_api.Filters;
 using brownstone_hub_api.Services.TenantDocumentService;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Services.AzureBlobService;
@@ -50,6 +52,16 @@ namespace brownstone_hub_api.Controllers
         private readonly IConfiguration _configuration = configuration;
         private const string SignedDocumentsContainerName = "signed-documents";
 
+        private async Task<bool> RequireLeaseManagementPermissionAsync(CancellationToken cancellationToken)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            var userId = HttpContext.Items.TryGetValue("UserId", out var userIdObject) && userIdObject is long id ? id : 0;
+            return userId > 0 && await _dataContext.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == userId && member.OrganizationId == organizationId && member.IsActive
+                && (member.Role == "Owner" || member.Role == "Admin"
+                    || member.Role == "Manager" && member.CanManageLeases), cancellationToken);
+        }
+
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost]
         public async Task<IActionResult> AddOrUpdateLease(UpdateLeaseDto lease)
@@ -79,7 +91,7 @@ namespace brownstone_hub_api.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending lease added notification for lease {LeaseId} to tenant {TenantId}", leaseId, tenantId);
-                return StatusCode(500, new { success = false, message = "Failed to send notification", error = ex.Message });
+                return StatusCode(500, new { success = false, message = "Failed to send notification" });
             }
         }
 
@@ -104,7 +116,18 @@ namespace brownstone_hub_api.Controllers
         [HttpPatch("{leaseId}/agreement")]
         public async Task<IActionResult> UpdateLeaseAgreement(long leaseId, [FromBody] UpdateLeaseAgreementDto dto)
         {
-            var agreement = await _dataContext.LeaseAgreements.FirstOrDefaultAsync(la => la.LeaseId == leaseId);
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            var userId = HttpContext.Items.TryGetValue("UserId", out var userIdObject) && userIdObject is long id ? id : 0;
+            var canManageLeases = userId > 0 && await _dataContext.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == userId && member.OrganizationId == organizationId && member.IsActive
+                && (member.Role == "Owner" || member.Role == "Admin"
+                    || member.Role == "Manager" && member.CanManageLeases));
+            if (!canManageLeases) return Forbid();
+
+            var agreement = await _dataContext.LeaseAgreements
+                .FirstOrDefaultAsync(la => la.LeaseId == leaseId && !la.Lease.IsDeleted
+                    && la.Lease.Unit.Property.OrganizationId == organizationId
+                    && (!la.Lease.OrganizationId.HasValue || la.Lease.OrganizationId == organizationId));
             if (agreement == null)
                 return NotFound(new { Message = "Lease agreement not found" });
 
@@ -354,15 +377,17 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/sign-landlord")]
-        public async Task<IActionResult> SignLandlordOnly(long leaseId, [FromBody] SendLeaseForSignatureDto request)
+        [RequireFeatureReady(FeatureKeys.ESignature)]
+        public async Task<IActionResult> SignLandlordOnly(long leaseId, [FromBody] SendLeaseForSignatureDto request, CancellationToken cancellationToken)
         {
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
             if (leaseId != request.LeaseId)
                 return BadRequest(new { Message = "Lease ID mismatch" });
 
             var frontendBaseUrl = _configuration["FrontendBaseUrl"] ?? 
                 (Request.IsHttps ? $"https://{Request.Host}" : $"http://{Request.Host}");
             
-            var response = await _leaseService.SignLandlordOnlyAsync(leaseId, request, frontendBaseUrl);
+            var response = await _leaseService.SignLandlordOnlyAsync(leaseId, request, frontendBaseUrl, cancellationToken);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -372,8 +397,10 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/send-for-signature")]
-        public async Task<IActionResult> SendLeaseForSignature(long leaseId, [FromBody] SendLeaseForSignatureDto request)
+        [RequireFeatureReady(FeatureKeys.ESignature)]
+        public async Task<IActionResult> SendLeaseForSignature(long leaseId, [FromBody] SendLeaseForSignatureDto request, CancellationToken cancellationToken)
         {
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
             if (leaseId != request.LeaseId)
                 return BadRequest(new { Message = "Lease ID mismatch" });
 
@@ -396,7 +423,7 @@ namespace brownstone_hub_api.Controllers
             // Get organization ID from context
             var organizationId = this.GetCurrentOrganizationId();
 
-            var response = await _leaseService.SendLeaseForSignatureAsync(leaseId, request, landlordId.Value, organizationId);
+            var response = await _leaseService.SendLeaseForSignatureAsync(leaseId, request, landlordId.Value, organizationId, cancellationToken);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -406,7 +433,8 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{leaseId}/signature-status")]
-        public async Task<IActionResult> GetLeaseSignatureStatus(long leaseId)
+        [RequireFeatureReady(FeatureKeys.ESignature)]
+        public async Task<IActionResult> GetLeaseSignatureStatus(long leaseId, CancellationToken cancellationToken)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);
             if (!leaseResponse.Success || leaseResponse.Data == null)
@@ -416,7 +444,7 @@ namespace brownstone_hub_api.Controllers
             if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
                 return BadRequest(new { Message = "Lease has not been sent for signature" });
 
-            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement?.DocuSignEnvelopeId);
+            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement.DocuSignEnvelopeId, cancellationToken);
             if (!statusResponse.Success)
                 return StatusCode(statusResponse.StatusCode, new
                 {
@@ -429,17 +457,11 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/cancel-signature")]
-        public async Task<IActionResult> CancelLeaseSignature(long leaseId, [FromBody] string? reason = null)
+        [RequireFeatureReady(FeatureKeys.ESignature)]
+        public async Task<IActionResult> CancelLeaseSignature(long leaseId, [FromBody] string? reason, CancellationToken cancellationToken)
         {
-            var leaseResponse = await _leaseService.GetLeaseById(leaseId);
-            if (!leaseResponse.Success || leaseResponse.Data == null)
-                return NotFound(new { Message = "Lease not found" });
-
-            var lease = leaseResponse.Data;
-            if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
-                return BadRequest(new { Message = "Lease has not been sent for signature" });
-
-            var cancelResponse = await _eSignatureService.CancelSignature(lease.LeaseAgreement?.DocuSignEnvelopeId, reason);
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
+            var cancelResponse = await _leaseService.CancelLeaseSignatureAsync(leaseId, reason, cancellationToken);
             if (!cancelResponse.Success)
                 return StatusCode(cancelResponse.StatusCode, new
                 {
@@ -452,12 +474,14 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/sync-signature-status")]
-        public async Task<IActionResult> SyncSignatureStatus(long leaseId)
+        [RequireFeatureReady(FeatureKeys.ESignature)]
+        public async Task<IActionResult> SyncSignatureStatus(long leaseId, CancellationToken cancellationToken)
         {
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
             var landlordEmail = User?.FindFirst(ClaimTypes.Email)?.Value ?? 
                               User?.FindFirst("email")?.Value;
 
-            var response = await _leaseService.SyncLeaseSignatureStatusAsync(leaseId, landlordEmail);
+            var response = await _leaseService.SyncLeaseSignatureStatusAsync(leaseId, landlordEmail, cancellationToken);
             
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -472,7 +496,8 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{leaseId}/signing-url")]
-        public async Task<IActionResult> GetLandlordSigningUrl(long leaseId)
+        [RequireFeatureReady(FeatureKeys.ESignature)]
+        public async Task<IActionResult> GetLandlordSigningUrl(long leaseId, CancellationToken cancellationToken)
         {
             var leaseResponse = await _leaseService.GetLeaseById(leaseId);
             if (!leaseResponse.Success || leaseResponse.Data == null)
@@ -483,7 +508,7 @@ namespace brownstone_hub_api.Controllers
                 return BadRequest(new { Message = "Lease has not been sent for signature" });
 
             // Get signature status to check if already signed
-            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement?.DocuSignEnvelopeId);
+            var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement.DocuSignEnvelopeId, cancellationToken);
             if (!statusResponse.Success)
                 return StatusCode(statusResponse.StatusCode, new
                 {
@@ -513,17 +538,11 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{leaseId}/resend-signature")]
-        public async Task<IActionResult> ResendLeaseSignature(long leaseId)
+        [RequireFeatureReady(FeatureKeys.ESignature)]
+        public async Task<IActionResult> ResendLeaseSignature(long leaseId, CancellationToken cancellationToken)
         {
-            var leaseResponse = await _leaseService.GetLeaseById(leaseId);
-            if (!leaseResponse.Success || leaseResponse.Data == null)
-                return NotFound(new { Message = "Lease not found" });
-
-            var lease = leaseResponse.Data;
-            if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
-                return BadRequest(new { Message = "Lease has not been sent for signature" });
-
-            var resendResponse = await _eSignatureService.ResendSignatureRequest(lease.LeaseAgreement?.DocuSignEnvelopeId);
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
+            var resendResponse = await _leaseService.ResendLeaseSignatureAsync(leaseId, cancellationToken);
             if (!resendResponse.Success)
                 return StatusCode(resendResponse.StatusCode, new
                 {

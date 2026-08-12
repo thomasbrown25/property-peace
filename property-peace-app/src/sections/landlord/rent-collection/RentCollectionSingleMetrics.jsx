@@ -2,6 +2,7 @@ import { Grid, Stack, Typography, Box, useTheme, alpha } from '@mui/material';
 import { DollarOutlined, AlertOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { formatCurrency } from 'utils/formatters';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 const MetricCard = ({ icon, label, value, color, subtitle }) => {
   const theme = useTheme();
@@ -74,6 +75,7 @@ const MetricCard = ({ icon, label, value, color, subtitle }) => {
 
 export default function RentCollectionSingleMetrics({ rent, collectedLifetime, outstanding }) {
   const theme = useTheme();
+  const { overdueAmount } = normalizeRentBalance(rent);
 
   return (
     <Grid container spacing={3}>
@@ -90,7 +92,7 @@ export default function RentCollectionSingleMetrics({ rent, collectedLifetime, o
         <MetricCard
           icon={AlertOutlined}
           label="Overdue"
-          value={formatCurrency(rent?.overdueAmount || 0)}
+          value={formatCurrency(overdueAmount)}
           color={theme.palette.error.main}
           subtitle="Requires attention"
         />

@@ -3,6 +3,7 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.EmailService;
 using Microsoft.EntityFrameworkCore;
 using brownstone_hub_api.Dtos;
+using System.Security.Cryptography;
 
 namespace brownstone_hub_api.Services.EmailVerificationService
 {
@@ -11,28 +12,32 @@ namespace brownstone_hub_api.Services.EmailVerificationService
         private readonly DataContext _context;
         private readonly IEmailService _emailService;
         private readonly ILogger<EmailVerificationService> _logger;
+        private readonly string _proofSecret;
 
         public EmailVerificationService(
             DataContext context,
             IEmailService emailService,
-            ILogger<EmailVerificationService> logger)
+            ILogger<EmailVerificationService> logger,
+            IConfiguration configuration)
         {
             _context = context;
             _emailService = emailService;
             _logger = logger;
+            _proofSecret = configuration["JwtSettings:SecretKey"]
+                ?? throw new InvalidOperationException("JwtSettings:SecretKey is required for email verification proofs.");
         }
 
         public async Task<ServiceResponse<string>> SendVerificationCodeAsync(string email)
         {
             try
             {
-                // Generate 6-digit code
-                var random = new Random();
-                var code = random.Next(100000, 999999).ToString();
+                var canonicalEmail = EmailVerificationProof.CanonicalizeEmail(email);
+                var nowUtc = DateTime.UtcNow;
+                var code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
                 // Invalidate any existing codes for this email
                 var existingCodes = await _context.EmailVerifications
-                    .Where(e => e.Email == email && !e.IsVerified && e.ExpiresAt > DateTime.Now)
+                    .Where(e => e.Email == canonicalEmail && !e.IsVerified && e.ExpiresAt > nowUtc)
                     .ToListAsync();
 
                 foreach (var existingCode in existingCodes)
@@ -43,10 +48,10 @@ namespace brownstone_hub_api.Services.EmailVerificationService
                 // Create new verification code
                 var verification = new EmailVerification
                 {
-                    Email = email.ToLower().Trim(),
+                    Email = canonicalEmail,
                     Code = code,
-                    CreatedAt = DateTime.Now,
-                    ExpiresAt = DateTime.Now.AddMinutes(10), // Code expires in 10 minutes
+                    CreatedAt = nowUtc,
+                    ExpiresAt = nowUtc.AddMinutes(10), // Code expires in 10 minutes
                     IsVerified = false
                 };
 
@@ -84,36 +89,39 @@ namespace brownstone_hub_api.Services.EmailVerificationService
             }
         }
 
-        public async Task<ServiceResponse<bool>> VerifyCodeAsync(string email, string code)
+        public async Task<ServiceResponse<string>> VerifyCodeAsync(string email, string code)
         {
             try
             {
+                var canonicalEmail = EmailVerificationProof.CanonicalizeEmail(email);
+                var nowUtc = DateTime.UtcNow;
                 var verification = await _context.EmailVerifications
-                    .Where(e => e.Email == email.ToLower().Trim() && e.Code == code && !e.IsVerified)
+                    .Where(e => e.Email == canonicalEmail && e.Code == code && !e.IsVerified)
                     .OrderByDescending(e => e.CreatedAt)
                     .FirstOrDefaultAsync();
 
                 if (verification == null)
                 {
-                    return ServiceResponse<bool>.CreateError("Invalid verification code", "The code you entered is incorrect or has already been used.");
+                    return ServiceResponse<string>.CreateError("Invalid verification code", "The code you entered is incorrect or has already been used.");
                 }
 
-                if (verification.ExpiresAt < DateTime.Now)
+                if (verification.ExpiresAt < nowUtc)
                 {
-                    return ServiceResponse<bool>.CreateError("Verification code expired", "The code has expired. Please request a new one.");
+                    return ServiceResponse<string>.CreateError("Verification code expired", "The code has expired. Please request a new one.");
                 }
 
-                // Mark as verified
                 verification.IsVerified = true;
-                verification.VerifiedAt = DateTime.Now;
+                verification.VerifiedAt = nowUtc;
+                verification.ExpiresAt = nowUtc.AddMinutes(10);
                 await _context.SaveChangesAsync();
 
-                return ServiceResponse<bool>.CreateSuccess(true, "Email verified successfully");
+                var proof = EmailVerificationProof.Create(verification.Id, canonicalEmail, nowUtc, _proofSecret);
+                return ServiceResponse<string>.CreateSuccess(proof, "Email verified successfully");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error verifying code for {Email}", email);
-                return ServiceResponse<bool>.CreateError("Error verifying code", ex.Message);
+                return ServiceResponse<string>.CreateError("Error verifying code", "Unable to verify the email code.");
             }
         }
     }

@@ -7,6 +7,7 @@ namespace brownstone_hub_api.Models
         public long UserId { get; set; }
         public long? ConversationId { get; set; }
         public long? ConfirmationId { get; set; }
+        public string EventKey { get; set; } = string.Empty;
         public string EventType { get; set; } = string.Empty;
         public string Outcome { get; set; } = string.Empty;
         public string Detail { get; set; } = string.Empty;

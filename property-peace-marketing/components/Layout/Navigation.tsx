@@ -97,7 +97,7 @@ export default function Navigation() {
           slug: 'tenant-communication',
           title: 'Tenant Communication',
           icon: FiMessageCircle,
-          description: 'In-app, email, and SMS notifications with customizable preferences.'
+          description: 'In-app and email notifications; SMS depends on supported messaging configuration.'
         },
         {
           slug: 'real-time-communication',
@@ -114,7 +114,7 @@ export default function Navigation() {
           slug: 'lease-management',
           title: 'Lease Management',
           icon: FiFile,
-          description: 'Create, send, and sign leases digitally with DocuSign integration.'
+          description: 'Create, organize, and track lease records. Integrated e-signature is not currently available.'
         },
         {
           slug: 'lease-shield',
@@ -135,9 +135,9 @@ export default function Navigation() {
       features: [
         {
           slug: 'payment-processing',
-          title: 'Payment Processing',
+          title: 'Online Payments Roadmap',
           icon: FiCreditCard,
-          description: 'Accept online payments with Stripe integration. Automated reminders.'
+          description: 'Not currently available. Rent tracking and reminder workflows are live.'
         },
         {
           slug: 'rent-collection',
@@ -182,7 +182,7 @@ export default function Navigation() {
       features: [
         {
           slug: 'ai-summaries',
-          title: 'Percy AI Summaries',
+          title: 'Percy Pilot Summaries',
           icon: FiActivity,
           description: 'Instant plain-English summaries of your entire portfolio — rent, maintenance, and leases.'
         },
@@ -320,12 +320,12 @@ export default function Navigation() {
             }`}>
               Pricing
             </Link>
-            <Link href="/blog" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
+            <Link href="/resources" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
               transparent
                 ? 'text-primary-main hover:text-primary-hover hover:border-primary-main/30'
                 : 'text-white/80 hover:text-white hover:border-white/30'
             }`}>
-              Blog
+              Resources
             </Link>
           </div>
 
@@ -521,14 +521,14 @@ export default function Navigation() {
                     </span>
                   </Link>
                   <Link
-                    href="/blog"
+                    href="/resources"
                     className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-white"
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/80"><FiFileText className="h-4 w-4" /></span>
                     <span className="min-w-0">
-                      <span className="block text-[15px] font-semibold">Blog</span>
-                      <span className="block text-xs text-white/50">Guides for small landlords</span>
+                      <span className="block text-[15px] font-semibold">Resources</span>
+                      <span className="block text-xs text-white/50">Guides and practical checklists</span>
                     </span>
                   </Link>
                 </nav>

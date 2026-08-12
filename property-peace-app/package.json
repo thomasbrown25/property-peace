@@ -94,6 +94,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:lease-dates": "node --experimental-default-type=module --test src/utils/leaseDates.test.js",
+    "test:percy": "node --experimental-default-type=module --test src/architecture/browserPercyBoundary.test.mjs src/architecture/productConsolidation.test.mjs src/hooks/organizationSummaryRequestLifecycle.test.js src/utils/aiCenterScope.test.js src/utils/expenseCategorization.test.js src/utils/percyChatRequestAttempt.test.js src/utils/percySources.test.js src/utils/portfolioSummaryGeneration.test.js src/utils/portfolioSummaryScope.test.js",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
     "prettier": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\""

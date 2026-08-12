@@ -28,22 +28,42 @@ namespace brownstone_hub_api.Services.OrganizationMemberService
             _logger = logger;
         }
 
-        public async Task<ServiceResponse<LoadOrganizationMemberDto>> AddMemberAsync(AddOrganizationMemberDto dto, long invitedByUserId)
+        public async Task<ServiceResponse<LoadOrganizationMemberDto>> AddMemberAsync(AddOrganizationMemberDto dto, long selectedOrganizationId, long invitedByUserId)
         {
             try
             {
+                if (selectedOrganizationId <= 0 || dto.OrganizationId != selectedOrganizationId)
+                {
+                    return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "Organization access denied.", "", 403);
+                }
+
+                var allowedRoles = new[] { "Owner", "Manager", "Viewer" };
+                var canonicalRole = allowedRoles.FirstOrDefault(role => string.Equals(role, dto.Role, StringComparison.OrdinalIgnoreCase));
+                if (canonicalRole == null)
+                {
+                    return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Invalid role", "Role must be Owner, Manager, or Viewer.", "", 400);
+                }
+                dto.Role = canonicalRole;
+
                 // Verify organization exists
                 var organization = await _organizationRepository.GetOrganizationByIdAsync(dto.OrganizationId);
-                if (organization == null)
+                if (organization == null || !organization.IsActive || organization.IsDeleted)
                 {
                     return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Organization not found", "The specified organization does not exist.");
                 }
 
                 // Check if inviter has permission
                 var inviterMember = await _memberRepository.GetMemberAsync(dto.OrganizationId, invitedByUserId);
-                if (inviterMember == null || (!inviterMember.CanManageMembers && inviterMember.Role != "Owner"))
+                if (inviterMember == null || !inviterMember.IsActive ||
+                    inviterMember.OrganizationId != dto.OrganizationId || inviterMember.UserId != invitedByUserId ||
+                    (!inviterMember.CanManageMembers && !string.Equals(inviterMember.Role, "Owner", StringComparison.OrdinalIgnoreCase)))
                 {
                     return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "You do not have permission to add members.", "", 403);
+                }
+
+                if (dto.Role == "Owner" && !string.Equals(inviterMember.Role, "Owner", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "Only an active organization owner can add another owner.", "", 403);
                 }
 
                 // Check if user is already a member
@@ -79,7 +99,7 @@ namespace brownstone_hub_api.Services.OrganizationMemberService
             }
         }
 
-        public async Task<ServiceResponse<LoadOrganizationMemberDto>> UpdateMemberAsync(UpdateOrganizationMemberDto dto, long userId)
+        public async Task<ServiceResponse<LoadOrganizationMemberDto>> UpdateMemberAsync(UpdateOrganizationMemberDto dto, long selectedOrganizationId, long userId)
         {
             try
             {
@@ -89,9 +109,22 @@ namespace brownstone_hub_api.Services.OrganizationMemberService
                     return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Member not found", "The specified member does not exist.");
                 }
 
+                if (selectedOrganizationId <= 0 || member.OrganizationId != selectedOrganizationId)
+                {
+                    return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "Organization access denied.", "", 403);
+                }
+
+                var organization = await _organizationRepository.GetOrganizationByIdAsync(member.OrganizationId);
+                if (organization == null || !organization.IsActive || organization.IsDeleted)
+                {
+                    return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "You do not have permission to update members.", "", 403);
+                }
+
                 // Check if user has permission to update members
                 var requestingMember = await _memberRepository.GetMemberAsync(member.OrganizationId, userId);
-                if (requestingMember == null || (!requestingMember.CanManageMembers && requestingMember.Role != "Owner"))
+                if (requestingMember == null || !requestingMember.IsActive ||
+                    requestingMember.OrganizationId != member.OrganizationId || requestingMember.UserId != userId ||
+                    (!requestingMember.CanManageMembers && !string.Equals(requestingMember.Role, "Owner", StringComparison.OrdinalIgnoreCase)))
                 {
                     return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "You do not have permission to update members.", "", 403);
                 }
@@ -104,7 +137,8 @@ namespace brownstone_hub_api.Services.OrganizationMemberService
                 }
                 dto.Role = canonicalRole;
 
-                if ((member.Role == "Owner" || dto.Role == "Owner") && requestingMember.Role != "Owner")
+                if ((string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase) || dto.Role == "Owner") &&
+                    !string.Equals(requestingMember.Role, "Owner", StringComparison.OrdinalIgnoreCase))
                 {
                     return ServiceResponse<LoadOrganizationMemberDto>.CreateError("Unauthorized", "Only an organization owner can grant or change owner access.", "", 403);
                 }

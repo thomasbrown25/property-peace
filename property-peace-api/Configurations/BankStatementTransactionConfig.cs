@@ -26,7 +26,9 @@ namespace brownstone_hub_api.Configurations
                 .OnDelete(DeleteBehavior.SetNull);
 
             builder.HasIndex(e => e.BankStatementId);
-            builder.HasIndex(e => e.MatchedLedgerEntryId);
+            builder.HasIndex(e => e.MatchedLedgerEntryId)
+                .IsUnique()
+                .HasFilter("[MatchedLedgerEntryId] IS NOT NULL");
             builder.HasIndex(e => e.TransactionDate);
             builder.HasIndex(e => e.IsMatched);
         }

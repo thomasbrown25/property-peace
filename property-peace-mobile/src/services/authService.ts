@@ -1,7 +1,7 @@
 import { jwtDecode } from 'jwt-decode';
 import storageService from './storageService';
 import apiClient from './apiClient';
-import config from '../config';
+import { AuthResult, normalizeAuthResult } from './mfaChallenge';
 
 export interface LoginCredentials {
   email: string;
@@ -29,26 +29,39 @@ export interface User {
 
 export interface AuthResponse {
   success: boolean;
-  data: User;
+  data?: User;
   message?: string;
+  mfaRequired?: boolean;
+  mfa?: {
+    challengeId?: string;
+    method?: string | number;
+    maskedPhone?: string | null;
+    expiresAt?: string;
+  };
 }
 
 class AuthService {
-  async login(credentials: LoginCredentials): Promise<User> {
+  private async completeAuthentication(user: User): Promise<User> {
+    if (!user.jwtToken) {
+      throw new Error('The server did not return a valid sign-in session.');
+    }
+
+    await storageService.setToken(user.jwtToken);
+    await storageService.setUser(user);
+    if (user.currentOrganizationId) {
+      await storageService.setCurrentOrganizationId(String(user.currentOrganizationId));
+    }
+    return user;
+  }
+
+  async login(credentials: LoginCredentials): Promise<AuthResult<User>> {
     try {
       const response = await apiClient.post<AuthResponse>('/api/user/login', credentials);
-      const user = response?.data;
-
-      if (user?.jwtToken) {
-        await storageService.setToken(user.jwtToken);
-        await storageService.setUser(user);
-        if (user.currentOrganizationId) {
-          await storageService.setCurrentOrganizationId(String(user.currentOrganizationId));
-        }
-        return user;
+      const result = normalizeAuthResult(response);
+      if (result.kind === 'challenge') {
+        return result;
       }
-
-      throw new Error('Login failed: No token received');
+      return { kind: 'authenticated', user: await this.completeAuthentication(result.user) };
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(error?.message || 'Login failed. Please check your credentials.');
@@ -160,7 +173,26 @@ class AuthService {
     }
   }
 
-  async googleLogin(idToken?: string, accessToken?: string, registrationCode?: string): Promise<User> {
+  async appleLogin(params: {
+    identityToken: string;
+    nonce: string;
+    firstName?: string;
+    lastName?: string;
+    timezone?: string;
+  }): Promise<AuthResult<User>> {
+    try {
+      const response = await apiClient.post<AuthResponse & { isNewUser?: boolean }>('/api/user/apple-login', params);
+      const result = normalizeAuthResult(response);
+      if (result.kind === 'challenge') {
+        return result;
+      }
+      return { kind: 'authenticated', user: await this.completeAuthentication(result.user) };
+    } catch (error: any) {
+      throw new Error(error?.message || 'Sign in with Apple failed. Please try again.');
+    }
+  }
+
+  async googleLogin(idToken?: string, accessToken?: string, registrationCode?: string): Promise<AuthResult<User>> {
     try {
       // Ensure at least one token is provided
       if (!idToken && !accessToken) {
@@ -173,48 +205,12 @@ class AuthService {
       if (accessToken) requestBody.accessToken = accessToken;
       if (registrationCode) requestBody.registrationCode = registrationCode;
 
-      console.log('🔐 Google Login - Preparing request:', { 
-        hasIdToken: !!idToken, 
-        idTokenLength: idToken?.length || 0,
-        hasAccessToken: !!accessToken,
-        accessTokenLength: accessToken?.length || 0,
-        hasRegistrationCode: !!registrationCode,
-        apiUrl: config.API_URL,
-        requestBody: JSON.stringify(requestBody),
-      });
-
-      // Test backend connectivity first
-      try {
-        const healthCheck = await fetch(`${config.API_URL}health`);
-        console.log('🔵 Backend health check:', healthCheck.status);
-      } catch (healthError) {
-        console.error('❌ Backend not reachable:', healthError);
-        throw new Error(`Cannot connect to backend at ${config.API_URL}. Make sure the backend is running and accessible from your device.`);
-      }
-
       const response = await apiClient.post<AuthResponse & { isNewUser?: boolean }>('/api/user/google-login', requestBody);
-      
-      console.log('✅ Google Login - Response received:', {
-        hasResponse: !!response,
-        responseKeys: response ? Object.keys(response) : [],
-        hasData: !!response?.data,
-        dataKeys: response?.data ? Object.keys(response.data) : [],
-        nestedData: !!response?.data?.data,
-      });
-      
-      // Handle nested response structure: response.data.data
-      const user = response?.data?.data || response?.data;
-
-      if (user?.jwtToken) {
-        await storageService.setToken(user.jwtToken);
-        await storageService.setUser(user);
-        if (user.currentOrganizationId) {
-          await storageService.setCurrentOrganizationId(String(user.currentOrganizationId));
-        }
-        return user;
+      const result = normalizeAuthResult(response);
+      if (result.kind === 'challenge') {
+        return result;
       }
-
-      throw new Error('Google login failed: No token received');
+      return { kind: 'authenticated', user: await this.completeAuthentication(result.user) };
     } catch (error: any) {
       console.error('Google login error:', error);
       // Extract more detailed error message
@@ -223,6 +219,19 @@ class AuthService {
                           error?.message || 
                           'Google login failed. Please try again.';
       throw new Error(errorMessage);
+    }
+  }
+
+  async verifyMfaLogin(challengeId: string, code: string): Promise<User> {
+    try {
+      const response = await apiClient.post<AuthResponse>('/api/mfa/login/verify', { challengeId, code });
+      const result = normalizeAuthResult(response);
+      if (result.kind !== 'authenticated') {
+        throw new Error('Multi-factor verification did not return a valid sign-in session.');
+      }
+      return await this.completeAuthentication(result.user);
+    } catch (error: any) {
+      throw new Error(error?.message || 'That security code could not be verified.');
     }
   }
 }

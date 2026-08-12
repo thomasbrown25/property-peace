@@ -368,6 +368,9 @@ namespace brownstone_hub_api.Controllers
                 case "charge.dispute.created":
                     await _webhookService.HandleChargeDisputeCreatedAsync(stripeEvent);
                     break;
+                case "charge.dispute.closed":
+                    await _webhookService.HandleChargeDisputeClosedAsync(stripeEvent);
+                    break;
                 case "charge.refunded":
                     await _webhookService.HandleChargeRefundedAsync(stripeEvent);
                     break;

@@ -773,7 +773,8 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                                 // Add announcement as a message in the tenant-landlord conversation
                                 try
                                 {
-                                    var conversation = await _conversationRepository.GetOrCreateTenantLandlordConversation(tenantUserId);
+                                    var conversation = await _conversationRepository.GetOrCreateTenantLandlordConversation(
+                                        tenantUserId, primaryOrganizationId.Value);
                                     if (conversation != null && conversation.Id > 0)
                                     {
                                         _logger.LogInformation("Adding announcement message to conversation {ConversationId} for tenant {TenantUserId}. Landlord ID: {LandlordId}, Current User ID: {CurrentUserId}", 
@@ -1458,7 +1459,8 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                                 // Add announcement as a message in the tenant-landlord conversation
                                 try
                                 {
-                                    var conversation = await _conversationRepository.GetOrCreateTenantLandlordConversation(tenantUserId);
+                                    var conversation = await _conversationRepository.GetOrCreateTenantLandlordConversation(
+                                        tenantUserId, announcement.OrganizationId);
                                     if (conversation != null && conversation.Id > 0)
                                     {
                                         var messageDto = new AddMessageDto

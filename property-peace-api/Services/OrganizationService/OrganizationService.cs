@@ -197,18 +197,35 @@ namespace brownstone_hub_api.Services.OrganizationService
             }
         }
 
-        public async Task<ServiceResponse<LoadOrganizationDto>> GetOrganizationByIdAsync(long organizationId)
+        public async Task<ServiceResponse<LoadOrganizationDto>> GetOrganizationByIdAsync(
+            long organizationId,
+            long selectedOrganizationId,
+            long userId)
         {
             try
             {
-                var organization = await _organizationRepository.GetOrganizationByIdWithMembersAsync(organizationId);
-                if (organization == null)
+                if (organizationId <= 0 || selectedOrganizationId <= 0 || organizationId != selectedOrganizationId)
                 {
-                    return ServiceResponse<LoadOrganizationDto>.CreateError("Organization not found", "The specified organization does not exist.");
+                    return OrganizationReadDenied();
                 }
 
-                // Get userId from current user context if available
-                var orgDto = await MapToLoadDtoAsync(organization);
+                // The service is a security boundary: selected-id equality alone is not authority.
+                var member = await _memberRepository.GetMemberAsync(organizationId, userId);
+                if (member == null || !member.IsActive ||
+                    member.OrganizationId != organizationId || member.UserId != userId ||
+                    (!string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase) &&
+                     !string.Equals(member.Role, "Manager", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return OrganizationReadDenied();
+                }
+
+                var organization = await _organizationRepository.GetOrganizationByIdWithMembersAsync(organizationId);
+                if (organization == null || !organization.IsActive || organization.IsDeleted)
+                {
+                    return OrganizationReadDenied();
+                }
+
+                var orgDto = await MapToLoadDtoAsync(organization, userId);
                 return ServiceResponse<LoadOrganizationDto>.CreateSuccess(orgDto);
             }
             catch (Exception ex)
@@ -218,12 +235,28 @@ namespace brownstone_hub_api.Services.OrganizationService
             }
         }
 
+        private static ServiceResponse<LoadOrganizationDto> OrganizationReadDenied()
+        {
+            return ServiceResponse<LoadOrganizationDto>.CreateError(
+                "Organization access denied",
+                "The requested organization is not available.",
+                "",
+                403,
+                suppressDetailedErrors: true);
+        }
+
         public async Task<ServiceResponse<LoadOrganizationDto>> GetCurrentUserOrganizationAsync(long userId)
         {
             try
             {
                 var organization = await _organizationRepository.GetCurrentUserOrganizationAsync(userId);
                 if (organization == null)
+                {
+                    return ServiceResponse<LoadOrganizationDto>.CreateError("No active organization", "User does not have an active organization.");
+                }
+
+                var member = await _memberRepository.GetMemberAsync(organization.Id, userId);
+                if (!HasExactActiveMembership(organization, member, userId))
                 {
                     return ServiceResponse<LoadOrganizationDto>.CreateError("No active organization", "User does not have an active organization.");
                 }
@@ -247,6 +280,17 @@ namespace brownstone_hub_api.Services.OrganizationService
 
                 foreach (var org in organizations)
                 {
+                    if (!org.IsActive || org.IsDeleted)
+                    {
+                        continue;
+                    }
+
+                    var member = await _memberRepository.GetMemberAsync(org.Id, userId);
+                    if (!HasExactActiveMembership(org, member, userId))
+                    {
+                        continue;
+                    }
+
                     orgDtos.Add(await MapToLoadDtoAsync(org, userId));
                 }
 
@@ -306,40 +350,128 @@ namespace brownstone_hub_api.Services.OrganizationService
             }
         }
 
-        public async Task<ServiceResponse<bool>> DeleteOrganizationAsync(long organizationId, long userId)
+        public async Task<ServiceResponse<bool>> DeleteOrganizationAsync(
+            long organizationId,
+            long selectedOrganizationId,
+            long userId)
         {
+            if (organizationId <= 0 || selectedOrganizationId <= 0 || organizationId != selectedOrganizationId)
+            {
+                return DeleteDenied();
+            }
+
             try
             {
+                // Fast fail before opening a transaction; authority is queried again from the
+                // tracked database immediately before destructive work.
                 var organization = await _organizationRepository.GetOrganizationByIdAsync(organizationId);
-                if (organization == null)
+                var member = await _memberRepository.GetMemberAsync(organizationId, userId);
+                if (!HasExactActiveOwnerAuthority(organization, member, organizationId, userId))
                 {
-                    return ServiceResponse<bool>.CreateError("Organization not found", "The specified organization does not exist.");
+                    return DeleteDenied();
                 }
 
-                // Only owner can delete (if organization has an owner)
-                if (organization.OwnerId.HasValue && organization.OwnerId.Value != userId)
+                await using var transaction = _dataContext.Database.IsRelational()
+                    ? await _dataContext.Database.BeginTransactionAsync()
+                    : null;
+
+                var persistedOrganization = await _dataContext.Organizations
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(o => o.Id == organizationId);
+                var persistedOwner = await _dataContext.OrganizationMembers
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(m => m.OrganizationId == organizationId && m.UserId == userId);
+
+                if (!HasExactActiveOwnerAuthority(persistedOrganization, persistedOwner, organizationId, userId))
                 {
-                    return ServiceResponse<bool>.CreateError("Unauthorized", "Only the organization owner can delete the organization.", "", 403);
+                    return DeleteDenied();
                 }
 
-                _logger.LogWarning("Starting complete hard delete for organization {OrganizationId} ({Name}) by user {UserId}", 
-                    organizationId, organization.Name, userId);
+                // A paid/persisted Stripe subscription cannot be atomically cancelled with the
+                // database delete. Refuse before touching data rather than risk partial deletion
+                // or silently continuing after an external cancellation failure.
+                var subscriptionIds = await _dataContext.Subscriptions
+                    .Where(s => s.OrganizationId == organizationId)
+                    .Select(s => s.Id)
+                    .ToListAsync();
+                if (persistedOrganization!.SubscriptionId.HasValue)
+                {
+                    subscriptionIds.Add(persistedOrganization.SubscriptionId.Value);
+                }
+                subscriptionIds = subscriptionIds.Distinct().ToList();
 
-                // Hard delete all related data
+                var sharedSubscriptions = new List<(Models.Subscription Subscription, Organization Survivor)>();
+                foreach (var subscriptionId in subscriptionIds)
+                {
+                    var subscription = await _dataContext.Subscriptions.SingleOrDefaultAsync(s => s.Id == subscriptionId);
+                    if (subscription == null)
+                    {
+                        continue;
+                    }
+
+                    var survivingOrganization = await _dataContext.Organizations
+                        .Where(o => o.Id != organizationId && o.SubscriptionId == subscriptionId &&
+                            o.IsActive && !o.IsDeleted)
+                        .OrderBy(o => o.Id)
+                        .FirstOrDefaultAsync();
+
+                    if (survivingOrganization != null)
+                    {
+                        sharedSubscriptions.Add((subscription, survivingOrganization));
+                        continue;
+                    }
+
+                    // Deleting an unshared subscription (whether free or paid) is billing work.
+                    // It cannot be made atomic with this destructive operation, so fail closed
+                    // before mutating any tracked entity.
+                    return SubscriptionDeletionConflict();
+                }
+
+                foreach (var (subscription, survivor) in sharedSubscriptions)
+                {
+                    // Preserve shared billing data. If the deleted org was the legacy primary
+                    // FK, move that pointer to a surviving organization; never cancel or delete.
+                    if (subscription.OrganizationId == organizationId)
+                    {
+                        subscription.OrganizationId = survivor.Id;
+                    }
+                }
+
+                // Persist any shared-subscription re-parenting inside the same transaction so the
+                // hard-delete query cannot select it by the old primary organization id.
+                await _dataContext.SaveChangesAsync();
+
+                // Revalidate persisted authority at the last possible point before destructive
+                // persistence. A failed check rolls back any subscription re-parenting above.
+                var destructiveOrganization = await _dataContext.Organizations
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(o => o.Id == organizationId);
+                var destructiveOwner = await _dataContext.OrganizationMembers
+                    .AsNoTracking()
+                    .SingleOrDefaultAsync(m => m.OrganizationId == organizationId && m.UserId == userId);
+                if (!HasExactActiveOwnerAuthority(destructiveOrganization, destructiveOwner, organizationId, userId))
+                {
+                    return DeleteDenied();
+                }
+
+                _logger.LogWarning("Starting complete hard delete for organization {OrganizationId} ({Name}) by user {UserId}",
+                    organizationId, persistedOrganization.Name, userId);
+
                 await HardDeleteOrganizationCompletely(organizationId);
 
-                // Clear CurrentOrganizationId for all users who had this organization
                 var usersWithOrg = await _dataContext.Users
                     .Where(u => u.CurrentOrganizationId == organizationId)
                     .ToListAsync();
-                
                 foreach (var user in usersWithOrg)
                 {
                     user.CurrentOrganizationId = null;
-                    _logger.LogInformation("Cleared CurrentOrganizationId for user {UserId}", user.Id);
                 }
-                
                 await _dataContext.SaveChangesAsync();
+
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
 
                 _logger.LogInformation("Successfully deleted organization {OrganizationId} and all related data", organizationId);
                 return ServiceResponse<bool>.CreateSuccess(true, "Organization and all related data deleted successfully");
@@ -347,8 +479,53 @@ namespace brownstone_hub_api.Services.OrganizationService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting organization {OrganizationId}", organizationId);
-                return ServiceResponse<bool>.CreateError("Error deleting organization", ex.Message);
+                return ServiceResponse<bool>.CreateError(
+                    "Organization deletion failed",
+                    "The organization could not be deleted. No changes were applied.",
+                    "",
+                    500,
+                    suppressDetailedErrors: true);
             }
+        }
+
+        private static bool HasExactActiveOwnerAuthority(
+            Organization? organization,
+            OrganizationMember? member,
+            long organizationId,
+            long userId)
+        {
+            return organization is { IsActive: true, IsDeleted: false } && organization.Id == organizationId &&
+                member is { IsActive: true } && member.OrganizationId == organizationId && member.UserId == userId &&
+                string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool HasExactActiveMembership(
+            Organization organization,
+            OrganizationMember? member,
+            long userId)
+        {
+            return organization is { IsActive: true, IsDeleted: false } &&
+                member is { IsActive: true } && member.OrganizationId == organization.Id && member.UserId == userId;
+        }
+
+        private static ServiceResponse<bool> SubscriptionDeletionConflict()
+        {
+            return ServiceResponse<bool>.CreateError(
+                "Organization deletion unavailable",
+                "Billing must be resolved before this organization can be deleted.",
+                "",
+                409,
+                suppressDetailedErrors: true);
+        }
+
+        private static ServiceResponse<bool> DeleteDenied()
+        {
+            return ServiceResponse<bool>.CreateError(
+                "Organization deletion denied",
+                "The organization cannot be deleted by this user.",
+                "",
+                403,
+                suppressDetailedErrors: true);
         }
 
         private async Task HardDeleteOrganizationCompletely(long organizationId)
@@ -374,37 +551,8 @@ namespace brownstone_hub_api.Services.OrganizationService
                 .Where(s => s.OrganizationId == organizationId)
                 .ToListAsync();
             
-            // Cancel Stripe subscriptions before deleting from database
-            foreach (var subscription in subscriptions)
-            {
-                if (!string.IsNullOrEmpty(subscription.StripeSubscriptionId) && _stripeService != null)
-                {
-                    try
-                    {
-                        _logger.LogInformation("Cancelling Stripe subscription {StripeSubscriptionId} for organization {OrganizationId} during organization deletion", 
-                            subscription.StripeSubscriptionId, organizationId);
-                        
-                        // Cancel immediately (not at period end) since we're deleting the organization
-                        var cancelResponse = await _stripeService.CancelSubscriptionAsync(subscription.StripeSubscriptionId, cancelAtPeriodEnd: false);
-                        
-                        if (cancelResponse.Success)
-                        {
-                            _logger.LogInformation("Successfully cancelled Stripe subscription {StripeSubscriptionId}", subscription.StripeSubscriptionId);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Failed to cancel Stripe subscription {StripeSubscriptionId}: {Message}. Continuing with deletion.", 
-                                subscription.StripeSubscriptionId, cancelResponse.Message);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error cancelling Stripe subscription {StripeSubscriptionId} for organization {OrganizationId}. Continuing with deletion.", 
-                            subscription.StripeSubscriptionId, organizationId);
-                        // Continue with deletion even if Stripe cancellation fails
-                    }
-                }
-            }
+            // Shared subscriptions have already been re-parented. Any unshared subscription
+            // causes deletion to fail closed before this method is entered.
             
             // Delete all subscription history for these subscriptions
             var subscriptionIds = subscriptions.Select(s => s.Id).ToList();
@@ -948,11 +1096,6 @@ namespace brownstone_hub_api.Services.OrganizationService
 
         private async Task<LoadOrganizationDto> MapToLoadDtoAsync(Organization organization, long? userId = null)
         {
-            User? owner = null;
-            if (organization.OwnerId.HasValue)
-            {
-                owner = await _userRepository.GetUser(organization.OwnerId.Value);
-            }
             var memberCount = organization.Members?.Count(m => m.IsActive) ?? 0;
 
             // Get property count
@@ -962,12 +1105,23 @@ namespace brownstone_hub_api.Services.OrganizationService
                 propertyCount = organization.Properties.Count(p => !p.IsDeleted);
             }
 
-            // Get user's role in this organization if userId is provided
+            // Resolve the caller's exact active membership before loading or returning sensitive metadata.
             string? userRole = null;
+            var canViewSensitiveOrganizationMetadata = false;
             if (userId.HasValue)
             {
                 var member = await _memberRepository.GetMemberAsync(organization.Id, userId.Value);
                 userRole = member?.Role;
+                canViewSensitiveOrganizationMetadata = member != null && member.IsActive &&
+                    member.OrganizationId == organization.Id && member.UserId == userId.Value &&
+                    (string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(member.Role, "Manager", StringComparison.OrdinalIgnoreCase));
+            }
+
+            User? owner = null;
+            if (canViewSensitiveOrganizationMetadata && organization.OwnerId.HasValue)
+            {
+                owner = await _userRepository.GetUser(organization.OwnerId.Value);
             }
 
             return new LoadOrganizationDto
@@ -977,9 +1131,9 @@ namespace brownstone_hub_api.Services.OrganizationService
                 Description = organization.Description,
                 OwnerId = organization.OwnerId,
                 OwnerName = owner != null ? $"{owner.FirstName} {owner.LastName}" : string.Empty,
-                OwnerEmail = owner?.Email ?? string.Empty,
-                SubscriptionId = organization.SubscriptionId,
-                StripeCustomerId = organization.StripeCustomerId,
+                OwnerEmail = canViewSensitiveOrganizationMetadata ? owner?.Email ?? string.Empty : string.Empty,
+                SubscriptionId = canViewSensitiveOrganizationMetadata ? organization.SubscriptionId : null,
+                StripeCustomerId = canViewSensitiveOrganizationMetadata ? organization.StripeCustomerId : null,
                 IsActive = organization.IsActive,
                 CreatedAt = organization.CreatedAt,
                 UpdatedAt = organization.UpdatedAt,

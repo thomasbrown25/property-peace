@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { activationModeStorage, readActivationModePreference } from 'utils/activationModePreference';
 
 // material-ui
 import { Divider, Grid, Link, Stack, Fade, Menu, MenuItem, Tooltip, IconButton, Collapse } from '@mui/material';
 import { Box, Typography } from '@mui/material';
 import { Grow } from '@mui/material';
-import OnboardingWizard from 'components/onboarding/OnboardingWizard';
 import OrphanedSubscriptionModal from 'components/subscription/OrphanedSubscriptionModal';
 import AnimateIn from 'components/AnimateIn';
 
@@ -19,7 +20,6 @@ import DashboardHeader from 'sections/landlord/dashboard/DashboardHeader';
 import TodaysPriorities from 'sections/landlord/dashboard/TodaysPriorities';
 import UrgentMessages from 'sections/landlord/dashboard/UrgentMessages';
 import PropertyProfitability from 'sections/landlord/dashboard/PropertyProfitability';
-import AICopilot from 'sections/landlord/dashboard/AICopilot';
 import PortfolioHealthSummary from 'sections/landlord/dashboard/PortfolioHealthSummary';
 import MoneySummary from 'sections/landlord/dashboard/MoneySummary';
 import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
@@ -43,7 +43,6 @@ import { selectTotalExpenses } from 'store/expense/expense.selector';
 import { selectDashboardLoading, selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import LeaseViewDrawer from 'components/drawers/LeaseViewDrawer';
 import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
-import SendRentReminderDrawer from 'components/drawers/SendRentReminderDrawer';
 import useFetchDashboardSummary from 'hooks/useFetchDashboard';
 import useFetchAllTenants from 'hooks/useFetchAllTenants';
 import useFetchAllPayments from 'hooks/useFetchAllPayments';
@@ -53,7 +52,7 @@ import { getRentCollection } from 'store/rent-collection/rent-collection.action'
 import useFetchExpenses from 'hooks/useFetchExpenses';
 import useFetchNotifications from 'hooks/useFetchNotifications';
 import useLandlordSetupSteps from 'hooks/useLandlordSetupSteps';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { expenseAPI } from 'api';
 import { useSubscription, useSubscriptionPlans, useSubscriptionStatus } from 'hooks/useSubscription';
 import { subscriptionAPI } from 'api';
@@ -61,16 +60,18 @@ import { openSnackbar } from 'api/snackbar';
 import axiosServices from 'utils/axios';
 import { alpha, useTheme, Button, useMediaQuery } from '@mui/material';
 import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
+import { normalizeRentBalance } from 'utils/rentBalance';
 import { WarningOutlined, DollarCircleOutlined, RocketOutlined, ThunderboltOutlined, SettingOutlined, HomeOutlined, WalletOutlined, UnorderedListOutlined, ToolOutlined, FileTextOutlined, BarChartOutlined, MessageOutlined, DollarOutlined, DownOutlined } from '@ant-design/icons';
 
 // ==============================|| LANDLORD - DASHBOARD ||============================== //
 
 export default function Dashboard() {
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
   const drawer = useDrawer();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+
 
   // Get rent collection data from Redux store
   const rentCollectionState = useSelector((state) => state.rentCollection);
@@ -112,15 +113,8 @@ export default function Dashboard() {
   const allMaintenanceRequests = dashboardSummaryData?.maintenanceRequests?.maintenanceRequests || [];
   const headerSummaryText = useMemo(() => {
     let attentionCount = 0;
-    // Count overdue units (backend-computed status)
-    if (properties?.length) {
-      properties.forEach((p) => {
-        (p.units || p.Units || []).forEach((u) => {
-          const unitStatus = (u.status || u.Status || '').toLowerCase();
-          if (unitStatus === 'overdue') attentionCount++;
-        });
-      });
-    }
+    // Count the canonical grace-aware rent obligations rather than the persisted unit status.
+    attentionCount += (rentRecords || []).filter((record) => normalizeRentBalance(record).rentDueIsOverdue).length;
     // Count high/medium maintenance
     attentionCount += allMaintenanceRequests.filter(
       (r) => ['high', 'medium'].includes((r.priority || '').toLowerCase()) && isOpenMaintenanceRequest(r)
@@ -141,7 +135,7 @@ export default function Dashboard() {
     }
     if (attentionCount === 0) return null;
     return `${attentionCount} thing${attentionCount !== 1 ? 's' : ''} need your attention today`;
-  }, [properties, allMaintenanceRequests]);
+  }, [properties, allMaintenanceRequests, rentRecords]);
 
   const dashboardStats = useMemo(() => {
     const propertyCount = properties?.length || 0;
@@ -226,10 +220,9 @@ export default function Dashboard() {
   // Get user ID (handle both Id and id for compatibility)
   const userId = user?.Id || user?.id;
 
-  // Onboarding wizard state
-  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
-  const [setupTasksOpen, setSetupTasksOpen] = useState(false);
-  const setupState = useLandlordSetupSteps(() => setSetupTasksOpen(false));
+  const setupOrganizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
+  const setupMode = readActivationModePreference(activationModeStorage(typeof window === 'undefined' ? null : window), setupOrganizationId);
+  const setupState = useLandlordSetupSteps({ mode: setupMode });
   
   // Add tenant dialog state
   const [addTenantDialogOpen, setAddTenantDialogOpen] = useState(false);
@@ -245,7 +238,6 @@ export default function Dashboard() {
   const [createMenuAnchor, setCreateMenuAnchor] = useState(null);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
   const [addExpenseDrawerOpen, setAddExpenseDrawerOpen] = useState(false);
-  const [rentReminderOpen, setRentReminderOpen] = useState(false);
   
   // Register with TriggerSummaryContext so bottom nav Plus menu can trigger Generate Summary
   useEffect(() => {
@@ -263,22 +255,6 @@ export default function Dashboard() {
     setFadeIn(true);
   }, []);
 
-  // Check if user has seen onboarding wizard on first login
-  useEffect(() => {
-    if (user?.Id || user?.id) {
-      // Check HasSeenTutorial from user object (handle both case variations)
-      const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-      
-      if (!hasSeenTutorial) {
-        // Small delay to ensure dashboard is loaded
-        const timer = setTimeout(() => {
-          setShowOnboardingWizard(true);
-        }, 1000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [user, userId]);
-
 
   // Check if subscription is orphaned and show modal (but not during trial)
   useEffect(() => {
@@ -287,30 +263,6 @@ export default function Dashboard() {
     }
   }, [subscription, subLoading]);
 
-  // Handle lease completion - reopen wizard if tutorial not seen
-  useEffect(() => {
-    const leaseCompleted = searchParams.get('leaseCompleted');
-    if (leaseCompleted === 'true') {
-      const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-      if (!hasSeenTutorial) {
-        // Remove query parameter
-        setSearchParams({});
-        // Refresh properties to get updated lease data
-        propertiesRefetch();
-        // Small delay to ensure data is loaded, then reopen wizard
-        setTimeout(() => {
-          setShowOnboardingWizard(true);
-        }, 500);
-      } else {
-        // Remove query parameter
-        setSearchParams({});
-      }
-    }
-  }, [searchParams, setSearchParams, user, propertiesRefetch]);
-
-  const handleOnboardingWizardClose = () => {
-    setShowOnboardingWizard(false);
-  };
 
   // Function to fetch profitability data
   const fetchProfitabilityData = async (startDate, endDate) => {
@@ -492,10 +444,10 @@ export default function Dashboard() {
     },
     {
       icon: <MessageOutlined style={{ fontSize: 18 }} />,
-      label: 'Rent Reminder',
-      sub: 'Send a nudge',
+      label: 'Rent Collection',
+      sub: 'Review balances',
       color: theme.palette.info.main,
-      onClick: () => setRentReminderOpen(true)
+      onClick: () => navigate('/landlord/rent-collection')
     }
   ];
 
@@ -504,6 +456,10 @@ export default function Dashboard() {
     action.onClick();
   };
 
+  const showSetupCard = setupState.loading
+    || Boolean(setupState.error)
+    || !setupState.viewModel.available
+    || setupState.viewModel.progress.completed < setupState.viewModel.progress.total;
 
   return (
     <>
@@ -541,6 +497,12 @@ export default function Dashboard() {
             </Box>
           </AnimateIn>
         </Grid>
+
+        {showSetupCard && (
+          <Grid size={12}>
+            <FinishSetup setup={setupState} />
+          </Grid>
+        )}
 
         {/* Main dashboard columns */}
         <Grid size={12}>
@@ -845,10 +807,10 @@ export default function Dashboard() {
             View Rent Collection
           </Box>
         </MenuItem>
-        <MenuItem onClick={() => { handleCreateMenuClose(); navigate('/landlord/reports'); }} sx={{ py: 1.25, px: 2 }}>
+        <MenuItem onClick={() => { handleCreateMenuClose(); navigate('/landlord/accounting/tax-center'); }} sx={{ py: 1.25, px: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <BarChartOutlined style={{ fontSize: 16, color: '#fff' }} />
-            Generate Report
+            Open Tax Center
           </Box>
         </MenuItem>
       </Menu>
@@ -865,35 +827,11 @@ export default function Dashboard() {
       <AddTenantDialog 
         open={addTenantDialogOpen}
         onClose={() => setAddTenantDialogOpen(false)}
-        onSuccess={(tenant, shouldReopenWizard) => {
+        onSuccess={() => {
           // Refresh data after tenant is added
           propertiesRefetch();
           refetchDashboardSummary();
-          
-          // Reopen wizard if user hasn't seen tutorial
-          if (shouldReopenWizard) {
-            const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-            if (!hasSeenTutorial) {
-              // Small delay to ensure tenant is saved and UI updates
-              setTimeout(() => {
-                setShowOnboardingWizard(true);
-              }, 500);
-            }
-          }
         }}
-      />
-      <OnboardingWizard 
-        open={showOnboardingWizard}
-        onClose={handleOnboardingWizardClose}
-        onStartSetupTasks={() => setSetupTasksOpen(true)}
-        steps={setupState.steps}
-      />
-      <FinishSetup
-        open={setupTasksOpen}
-        onOpen={() => setSetupTasksOpen(true)}
-        onClose={() => setSetupTasksOpen(false)}
-        steps={setupState.steps}
-        showButton={false}
       />
       
       {/* Orphaned Subscription Modal */}
@@ -904,15 +842,6 @@ export default function Dashboard() {
         subscription={subscription}
         loading={checkoutLoading}
       />
-      
-      
-      {/* Send Rent Reminder Drawer */}
-      <SendRentReminderDrawer
-        open={rentReminderOpen}
-        onClose={() => setRentReminderOpen(false)}
-        rentRecords={rentRecords}
-      />
-
       {/* Add Expense Drawer */}
       <ExpenseAddDrawer
         open={addExpenseDrawerOpen}
@@ -955,10 +884,10 @@ export default function Dashboard() {
           >
             <WarningOutlined style={{ fontSize: 64, color: theme.palette.error.main, marginBottom: 16 }} />
             <Typography variant="h4" fontWeight={700} gutterBottom>
-              Trial Expired
+              Legacy trial ended
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Your free trial has ended. Please select a subscription plan to continue using Property Peace.
+              Choose the permanent Free plan or Premium to continue using Property Peace.
             </Typography>
             <Button
               variant="contained"

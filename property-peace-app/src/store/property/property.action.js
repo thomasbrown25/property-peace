@@ -57,7 +57,7 @@ export const addOrUpdateProperty =
 let _propertiesFetchPending = false;
 
 export const getProperties = () => async (dispatch) => {
-  if (_propertiesFetchPending) return;
+  if (_propertiesFetchPending) return { success: true, pending: true };
   _propertiesFetchPending = true;
   try {
     dispatch({ type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_START });
@@ -68,12 +68,14 @@ export const getProperties = () => async (dispatch) => {
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_SUCCESS,
       payload: response.data.data
     });
+    return { success: true };
   } catch (error) {
     console.log(error, error.message);
     dispatch({
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_FAILED,
       payload: error?.response?.data?.errors || error?.message
     });
+    return { success: false };
   } finally {
     _propertiesFetchPending = false;
   }

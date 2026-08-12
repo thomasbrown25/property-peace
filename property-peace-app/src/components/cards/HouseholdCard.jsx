@@ -4,6 +4,7 @@ import { HomeOutlined, DollarOutlined, EditOutlined, UserOutlined } from '@ant-d
 import { formatCurrency } from 'utils/formatters';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { useNavigate } from 'react-router';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 /**
  * HouseholdCard Component
@@ -21,9 +22,13 @@ export default function HouseholdCard({ property, tenants = [], onViewLease, onE
   const propertyDisplay = isSingleUnitPortfolio ? propertyDisplayName : `${propertyDisplayName} – ${property.unitName}`;
 
   const balanceDue = useMemo(() => {
-    if (!rentRecords?.overdueAmount) return 0;
-    return rentRecords.overdueAmount;
-  }, [rentRecords]);
+    const records = Array.isArray(rentRecords) ? rentRecords : rentRecords ? [rentRecords] : [];
+    const record = records.find((item) =>
+      Number(item.propertyId ?? item.PropertyId) === Number(property?.id) &&
+      (!property?.unitId || Number(item.unitId ?? item.UnitId) === Number(property.unitId))
+    );
+    return normalizeRentBalance(record).rentDue;
+  }, [rentRecords, property?.id, property?.unitId]);
 
   return (
     <Paper

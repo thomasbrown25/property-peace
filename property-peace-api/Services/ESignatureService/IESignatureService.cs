@@ -18,34 +18,35 @@ namespace brownstone_hub_api.Services.ESignatureService
         Task<ServiceResponse<SignatureEnvelopeDto>> SendForSignature(
             SendLeaseForSignatureDto request,
             byte[] documentBytes,
-            string documentName);
+            string documentName,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Get the status of a signature envelope
         /// </summary>
         /// <param name="envelopeId">Envelope/envelope ID from the e-signature provider</param>
         /// <returns>Current status and signing URLs</returns>
-        Task<ServiceResponse<SignatureStatusDto>> GetSignatureStatus(string envelopeId);
+        Task<ServiceResponse<SignatureStatusDto>> GetSignatureStatus(string envelopeId, CancellationToken cancellationToken);
 
         /// <summary>
         /// Get the signed document from the e-signature provider
         /// </summary>
         /// <param name="envelopeId">Envelope/envelope ID</param>
         /// <returns>Signed document bytes</returns>
-        Task<ServiceResponse<byte[]>> GetSignedDocument(string envelopeId);
+        Task<ServiceResponse<byte[]>> GetSignedDocument(string envelopeId, CancellationToken cancellationToken);
 
         /// <summary>
         /// Cancel a signature request
         /// </summary>
         /// <param name="envelopeId">Envelope/envelope ID</param>
         /// <param name="reason">Reason for cancellation</param>
-        Task<ServiceResponse<bool>> CancelSignature(string envelopeId, string? reason = null);
+        Task<ServiceResponse<bool>> CancelSignature(string envelopeId, string? reason, CancellationToken cancellationToken);
 
         /// <summary>
         /// Resend signature request to signers
         /// </summary>
         /// <param name="envelopeId">Envelope/envelope ID</param>
-        Task<ServiceResponse<bool>> ResendSignatureRequest(string envelopeId);
+        Task<ServiceResponse<bool>> ResendSignatureRequest(string envelopeId, CancellationToken cancellationToken);
 
         /// <summary>
         /// Get embedded signing URL for a recipient (allows signing directly in the app)
@@ -55,7 +56,7 @@ namespace brownstone_hub_api.Services.ESignatureService
         /// <param name="recipientName">Name of the recipient</param>
         /// <param name="returnUrl">URL to redirect to after signing</param>
         /// <returns>Embedded signing URL</returns>
-        Task<ServiceResponse<string>> GetEmbeddedSigningUrl(string envelopeId, string recipientEmail, string recipientName, string returnUrl);
+        Task<ServiceResponse<string>> GetEmbeddedSigningUrl(string envelopeId, string recipientEmail, string recipientName, string returnUrl, CancellationToken cancellationToken);
     }
 
     /// <summary>

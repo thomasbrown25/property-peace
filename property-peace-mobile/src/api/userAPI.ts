@@ -41,7 +41,7 @@ class UserAPI {
   }
 
   async deleteAccount(): Promise<void> {
-    await this.client.delete('/api/user/user');
+    await this.client.delete('/api/user');
   }
 }
 

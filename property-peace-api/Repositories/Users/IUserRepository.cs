@@ -33,6 +33,7 @@ namespace brownstone_hub_api.Repositories.Users
         Task<bool> UpdateStripeCustomerIdAsync(long? userId, string customerId);
         Task<bool> UpdateSubscriptionIdAsync(long? userId, long subscriptionId);
         Task<LoadUserDto?> GetUserByGoogleIdAsync(string googleId);
+        Task<LoadUserDto?> GetUserByAppleIdAsync(string appleId);
         Task<LoadUserDto?> GetUserByEmailAsync(string email);
         Task<LoadUserDto?> UpdateUserAccountInfo(long userId, UpdateUserDto updateUserDto);
         Task<List<LoadUserDto>> GetAllUsers(bool includeDeleted = false);

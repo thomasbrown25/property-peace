@@ -70,3 +70,20 @@ export const getAllUrgentMessageDetails = async () => {
   const response = await axiosServices.get('/api/Conversation/urgent-messages/all');
   return response.data;
 };
+
+const unwrap = (response) => response.data?.data;
+
+export const discoverGroupParticipants = async (organizationId) =>
+  unwrap(await axiosServices.get('/api/Conversation/groups/participants', { params: { organizationId } })) || [];
+
+export const createGroupConversation = async (request) =>
+  unwrap(await axiosServices.post('/api/Conversation/groups', request));
+
+export const addGroupParticipant = async (conversationId, participantUserId) =>
+  unwrap(await axiosServices.post(`/api/Conversation/groups/${conversationId}/participants/${participantUserId}`));
+
+export const removeGroupParticipant = async (conversationId, participantUserId) =>
+  unwrap(await axiosServices.delete(`/api/Conversation/groups/${conversationId}/participants/${participantUserId}`));
+
+export const leaveGroupConversation = async (conversationId) =>
+  unwrap(await axiosServices.post(`/api/Conversation/groups/${conversationId}/leave`));

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   Alert,
@@ -23,7 +23,6 @@ import {
   CheckCircleFilled,
   CrownOutlined,
   InfoCircleOutlined,
-  MessageOutlined,
   MobileOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -32,7 +31,11 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { organizationSmsNumberAPI } from 'api/organizationSmsNumber';
-import { useSubscription } from 'hooks/useSubscription';
+import useEntitlement from 'hooks/useEntitlement';
+import { DEDICATED_SMS_NUMBER_SETUP_FEATURE } from 'utils/entitlements';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 const US_STATES = [
   { code: 'AL', label: 'Alabama' }, { code: 'AK', label: 'Alaska' }, { code: 'AZ', label: 'Arizona' }, { code: 'AR', label: 'Arkansas' },
@@ -65,7 +68,8 @@ const getApiErrorMessage = (err, fallback) =>
 export default function SmsNumberSettings() {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { subscription } = useSubscription();
+  const { presentation: setupEntitlement } = useEntitlement(DEDICATED_SMS_NUMBER_SETUP_FEATURE);
+  const { presentation: smsReadiness } = useFeatureReadiness(FEATURE_KEYS.dedicatedSmsNumber);
 
   const [status, setStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -79,13 +83,9 @@ export default function SmsNumberSettings() {
   const [purchasing, setPurchasing] = useState(false);
   const [error, setError] = useState('');
 
-  const hasPremiumSubscription = useMemo(() => {
-    const planName = String(subscription?.plan?.name || subscription?.Plan?.Name || '').toLowerCase();
-    const billingCycle = String(subscription?.billingCycle || subscription?.BillingCycle || '').toLowerCase();
-    return planName === 'premium' || planName.includes('lifetime') || billingCycle === 'lifetime' || subscription?.cancelAtPeriodEnd === true || subscription?.CancelAtPeriodEnd === true;
-  }, [subscription]);
-
-  const hasPremiumAccess = Boolean(status?.hasPremiumAccess || hasPremiumSubscription);
+  // Plan eligibility comes only from the centralized setup entitlement. Provider readiness is
+  // presented independently and only controls operational provisioning actions.
+  const hasPremiumAccess = setupEntitlement.canInvoke && status?.hasPremiumAccess === true;
   const hasActiveNumber = Boolean(status?.hasActiveNumber);
   const visibleNumbers = selectedNumber ? numbers.filter((number) => number.phoneNumber === selectedNumber.phoneNumber) : numbers;
 
@@ -104,11 +104,12 @@ export default function SmsNumberSettings() {
   };
 
   useEffect(() => {
-    loadStatus();
-  }, []);
+    if (setupEntitlement.canInvoke) loadStatus();
+    else setLoadingStatus(false);
+  }, [setupEntitlement.canInvoke]);
 
   useEffect(() => {
-    if (!state?.code || !hasPremiumAccess || hasActiveNumber) return undefined;
+    if (!state?.code || !hasPremiumAccess || !smsReadiness.canInvoke || hasActiveNumber) return undefined;
 
     let cancelled = false;
     setLoadingCodes(true);
@@ -134,7 +135,7 @@ export default function SmsNumberSettings() {
     return () => {
       cancelled = true;
     };
-  }, [state?.code, hasPremiumAccess, hasActiveNumber]);
+  }, [state?.code, hasPremiumAccess, smsReadiness.canInvoke, hasActiveNumber]);
 
   const searchNumbers = async () => {
     setError('');
@@ -175,6 +176,7 @@ export default function SmsNumberSettings() {
 
   return (
     <Stack spacing={2.5}>
+      <FeatureReadinessNotice presentation={smsReadiness} featureName="Dedicated SMS number" />
       <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
         <CardContent>
           <Stack spacing={1.5}>
@@ -182,7 +184,7 @@ export default function SmsNumberSettings() {
               <Box>
                 <Typography variant="h5" fontWeight={800}>SMS Number Settings</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Manage the dedicated Property Peace texting number tenants use to reach your organization.
+                  Manage the dedicated number used for supported organization SMS sending.
                 </Typography>
               </Box>
               <Button startIcon={<ReloadOutlined />} onClick={loadStatus} disabled={loadingStatus} sx={{ textTransform: 'none' }}>
@@ -199,8 +201,8 @@ export default function SmsNumberSettings() {
             ) : (
               <Alert severity={hasPremiumAccess ? 'info' : 'warning'} icon={hasPremiumAccess ? <InfoCircleOutlined /> : <CrownOutlined />}>
                 {hasPremiumAccess
-                  ? 'Choose one dedicated number for this organization. Tenant replies will route back into Property Peace conversations.'
-                  : 'Dedicated SMS numbers are included with Premium. Upgrade to choose a professional texting number for tenant communication.'}
+                  ? 'One dedicated organization SMS number is included. Choose and activate it before sending tenant text messages.'
+                  : 'One dedicated organization SMS number is included with eligible Premium and Lifetime plans. Upgrade if needed, then activate and configure the number before sending SMS.'}
               </Alert>
             )}
           </Stack>
@@ -211,10 +213,10 @@ export default function SmsNumberSettings() {
         <Card elevation={0} sx={{ borderRadius: 2.5, border: '1px solid', borderColor: alpha(theme.palette.primary.main, 0.2), bgcolor: alpha(theme.palette.primary.main, 0.055) }}>
           <CardContent>
             <Stack spacing={1.5} alignItems="flex-start">
-              <Chip icon={<CrownOutlined />} label="Premium feature" color="primary" sx={{ fontWeight: 800 }} />
-              <Typography variant="h6" fontWeight={800}>Included with Premium</Typography>
+              <Chip icon={<CrownOutlined />} label="Premium eligibility required" color="primary" sx={{ fontWeight: 800 }} />
+              <Typography variant="h6" fontWeight={800}>One dedicated SMS number is included</Typography>
               <Typography variant="body2" color="text.secondary">
-                Upgrade to Premium to choose one Property Peace number for tenant texts. Tenants text normally, and replies stay organized in your app inbox.
+                Eligible Premium and Lifetime organizations include one dedicated SMS number at no additional add-on charge. Activation and configuration are required before sending SMS.
               </Typography>
               <Button variant="contained" onClick={() => navigate('/landlord/settings?tab=subscription')} sx={{ textTransform: 'none' }}>
                 Upgrade to Premium
@@ -240,14 +242,14 @@ export default function SmsNumberSettings() {
               </Stack>
               <Divider />
               <Alert severity="info">
-                V1 supports one active SMS number per organization. Number release/replacement controls should stay behind support/admin review so we do not accidentally break tenant routing.
+                V1 supports one active SMS number per organization. Number release and replacement remain support/admin operations.
               </Alert>
             </Stack>
           </CardContent>
         </Card>
       )}
 
-      {hasPremiumAccess && !hasActiveNumber && (
+      {hasPremiumAccess && smsReadiness.canInvoke && !hasActiveNumber && (
         <Card elevation={0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2.5 }}>
           <CardContent>
             <Stack spacing={2}>
@@ -320,8 +322,7 @@ export default function SmsNumberSettings() {
           <Stack spacing={1.5}>
             <Typography variant="h6" fontWeight={800}>What this controls</Typography>
             {[
-              ['Tenant texting number', 'This is the number tenants see for SMS replies and dashboard quick-text actions.', <MobileOutlined />],
-              ['Inbox routing', 'Inbound texts route by the dedicated number and tenant phone into the right Property Peace conversation.', <MessageOutlined />],
+              ['Organization SMS number', 'This is the configured number used for supported organization SMS sending.', <MobileOutlined />],
               ['Organization ownership', 'The number belongs to the organization, not one individual landlord user.', <SafetyOutlined />]
             ].map(([title, body, icon]) => (
               <Stack key={title} direction="row" spacing={1.25} alignItems="flex-start" sx={{ p: 1.25, borderRadius: 2, bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.06 : 0.035) }}>

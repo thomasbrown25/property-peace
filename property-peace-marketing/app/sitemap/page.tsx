@@ -22,6 +22,7 @@ const sitemapSections = [
       { href: "/listings", label: "Rental Listing Software" },
       { href: "/features", label: "All Features" },
       { href: "/pricing", label: "Pricing" },
+      { href: "/resources", label: "Landlord Resource Center" },
       { href: "/blog", label: "Blog" },
       { href: "/contact-us", label: "Contact" },
       { href: "/demo", label: "Watch Demo" },
@@ -30,15 +31,15 @@ const sitemapSections = [
   {
     title: "Maintenance Requests",
     links: [
-      { href: "/maintenance/ai-maintenance", label: "Percy AI Maintenance Management" },
+      { href: "/maintenance/ai-maintenance", label: "Percy Pilot Maintenance Management" },
       { href: "/maintenance/in-app-messaging", label: "In-App Messaging" },
     ],
   },
   {
     title: "Lease Agreements",
     links: [
-      { href: "/lease/ai-lease-creation", label: "Percy AI Lease Creation" },
-      { href: "/lease/e-sign-docusign", label: "E-Sign for DocuSign" },
+      { href: "/lease/ai-lease-creation", label: "Percy Pilot Lease Creation" },
+      { href: "/lease/e-sign-docusign", label: "E-Signature Roadmap" },
       { href: "/lease/online-condition-reports", label: "Online Condition Reports" },
     ],
   },
@@ -54,7 +55,10 @@ const sitemapSections = [
   {
     title: "Resources",
     links: [
+      { href: "/resources", label: "Landlord Resource Center" },
+      { href: "/blog", label: "All Landlord Articles" },
       { href: "/help-center", label: "Help Center" },
+      { href: "/faq", label: "Frequently Asked Questions" },
       { href: "/landlord-software", label: "Landlord Software" },
       { href: "/free-landlord-software", label: "Free Landlord Software" },
       { href: "/property-management-software-for-small-landlords", label: "Property Management Software for Small Landlords" },

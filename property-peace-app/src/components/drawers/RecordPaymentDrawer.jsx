@@ -16,6 +16,7 @@ import PaymentLeaseConfirmation from 'sections/payment-recording/PaymentLeaseCon
 import PaymentEntryForm from 'sections/payment-recording/PaymentEntryForm';
 import axiosServices from 'utils/axios';
 import useAuth from 'hooks/useAuth';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 const STEPS = ['Who paid?', 'Confirm Lease', 'Payment Details'];
 const DRAWER_WIDTH = 520;
@@ -129,7 +130,12 @@ export default function RecordPaymentDrawer({ onSuccess }) {
   };
 
   const handleRecordAnother = () => {
-    const amountDueNow = latestRentRecord?.amountDueNow ?? latestRentRecord?.AmountDueNow ?? 0;
+    const { rentDue } = normalizeRentBalance(latestRentRecord);
+    const fees = latestRentRecord?.unpaidFees ?? latestRentRecord?.UnpaidFees ?? [];
+    const amountDueNow = rentDue + fees.reduce(
+      (sum, fee) => sum + Number(fee.amountDue ?? fee.AmountDue ?? fee.amount ?? fee.Amount ?? 0),
+      0
+    );
 
     setActiveStep(selectedLease ? 2 : 0);
     setIsComplete(false);

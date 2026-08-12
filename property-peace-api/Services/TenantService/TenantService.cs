@@ -9,11 +9,13 @@ using brownstone_hub_api.Repositories.Properties;
 using brownstone_hub_api.Services.UnitService;
 using brownstone_hub_api.Services.NotificationService;
 using brownstone_hub_api.Repositories.Users;
+using brownstone_hub_api.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 
 namespace brownstone_hub_api.Services.TenantService
 {
-    public class TenantService(ITenantRepository tenantRepository, IUnitRepository unitRepository, IUnitService unitService, IPropertyRepository propertyRepository, INotificationService notificationService, IUserRepository userRepository, IHttpContextAccessor httpContextAccessor, ILogger<TenantService> logger) : ITenantService
+    public class TenantService(ITenantRepository tenantRepository, IUnitRepository unitRepository, IUnitService unitService, IPropertyRepository propertyRepository, INotificationService notificationService, IUserRepository userRepository, IHttpContextAccessor httpContextAccessor, ILogger<TenantService> logger, DataContext dataContext) : ITenantService
     {
         private readonly ITenantRepository _tenantRepository = tenantRepository;
         private readonly IUnitRepository _unitRepository = unitRepository;
@@ -23,6 +25,7 @@ namespace brownstone_hub_api.Services.TenantService
         private readonly IUserRepository _userRepository = userRepository;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly ILogger<TenantService> _logger = logger;
+        private readonly DataContext _dataContext = dataContext;
 
         private long? GetOrganizationIdFromContext()
         {
@@ -31,6 +34,16 @@ namespace brownstone_hub_api.Services.TenantService
                 return orgId;
             }
             return null;
+        }
+
+        private async Task<bool> CanManageTenantsAsync(long organizationId)
+        {
+            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("UserId", out var userIdObject) != true || userIdObject is not long userId)
+                return false;
+            return await _dataContext.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == userId && member.OrganizationId == organizationId && member.IsActive
+                && member.Organization.IsActive && !member.Organization.IsDeleted
+                && (member.Role == "Owner" || member.Role == "Manager" && member.CanManageTenants));
         }
 
         public async Task<ServiceResponse<LoadTenantDto>> AddOrUpdateTenant(AddTenantDto tenant)
@@ -49,26 +62,37 @@ namespace brownstone_hub_api.Services.TenantService
                     );
                 }
 
+                if (!await CanManageTenantsAsync(organizationId.Value))
+                    return ServiceResponse<LoadTenantDto>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
+
                 LoadTenantDto newTenant;
 
-                // When adding to a unit (UnitId set), infer LeaseId from that unit's lease so they get linked. Imported/new tenants (no UnitId, no LeaseId) stay org-only.
-                if (!tenant.LeaseId.HasValue && tenant.UnitId.HasValue)
+                // Validate relationship IDs inside the selected organization. A lease cannot be attached without its scoped unit.
+                if (tenant.LeaseId.HasValue && !tenant.UnitId.HasValue)
+                    return ServiceResponse<LoadTenantDto>.CreateError("A unit is required when assigning a lease", statusCode: 400);
+
+                if (tenant.UnitId.HasValue)
                 {
-                    var unit = await _unitRepository.GetUnitById(tenant.UnitId.Value);
+                    var requestedLeaseId = tenant.LeaseId;
+                    var unit = await _unitRepository.GetUnitById(tenant.UnitId.Value, organizationId.Value);
                     if (unit == null)
                     {
                         return ServiceResponse<LoadTenantDto>.CreateError("Invalid unit ID", "The specified unit does not exist.");
                     }
-                    if (unit.Lease != null)
-                    {
-                        tenant.LeaseId = unit.Lease.Id;
-                    }
+                    if (requestedLeaseId.HasValue && unit.Lease?.Id != requestedLeaseId.Value)
+                        return ServiceResponse<LoadTenantDto>.CreateError("The selected lease does not belong to the selected unit", statusCode: 400);
+                    tenant.LeaseId = unit.Lease?.Id;
                 }
 
                 // Set OrganizationId on the tenant DTO
                 tenant.OrganizationId = organizationId.Value;
 
-                var existingTenant = tenant.Id.HasValue ? await _tenantRepository.GetTenantById(tenant.Id.Value) : null;
+                var existingTenant = tenant.Id.HasValue ? await _tenantRepository.GetTenantById(tenant.Id.Value, organizationId.Value) : null;
+                if (tenant.Id.HasValue && existingTenant == null)
+                    return ServiceResponse<LoadTenantDto>.CreateError("Tenant not found", statusCode: 404);
+                if (tenant.UserId.HasValue && tenant.UserId != existingTenant?.UserId)
+                    return ServiceResponse<LoadTenantDto>.CreateError("User accounts can only be connected through an accepted tenant invite", statusCode: 400);
+                tenant.UserId = existingTenant?.UserId;
                 var isNewTenant = existingTenant == null;
 
                 // Note: We allow creating placeholder tenants (UserId = null) even if a tenant with that email exists
@@ -82,11 +106,6 @@ namespace brownstone_hub_api.Services.TenantService
                 else
                 {
                     newTenant = await _tenantRepository.AddTenant(tenant);
-                }
-
-                if (tenant.UserId.HasValue)
-                {
-                    await _userRepository.UpdateCurrentOrganizationIdAsync(tenant.UserId.Value, organizationId.Value);
                 }
 
                 // Create notification for new tenant
@@ -126,7 +145,7 @@ namespace brownstone_hub_api.Services.TenantService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding tenant");
-                return ServiceResponse<LoadTenantDto>.CreateError("An error occurred while adding the tenant", ex.Message, ex.InnerException?.Message);
+                return ServiceResponse<LoadTenantDto>.CreateError("An error occurred while adding the tenant");
             }
         }
 
@@ -134,7 +153,10 @@ namespace brownstone_hub_api.Services.TenantService
         {
             try
             {
-                var tenants = await _tenantRepository.GetTenantsByLeaseId(leaseId);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<List<LoadTenantDto>>.CreateError("Organization context is required", statusCode: 403);
+                var tenants = await _tenantRepository.GetTenantsByLeaseId(leaseId, organizationId.Value);
 
                 return ServiceResponse<List<LoadTenantDto>>.CreateSuccess(
                     tenants,
@@ -144,7 +166,7 @@ namespace brownstone_hub_api.Services.TenantService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving tenants by landlord ID");
-                return ServiceResponse<List<LoadTenantDto>>.CreateError("An error occurred while retrieving tenants", ex.Message, ex.InnerException?.Message);
+                return ServiceResponse<List<LoadTenantDto>>.CreateError("An error occurred while retrieving tenants");
             }
         }
 
@@ -152,7 +174,10 @@ namespace brownstone_hub_api.Services.TenantService
         {
             try
             {
-                var tenant = await _tenantRepository.GetTenantById(id);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadTenantDto>.CreateError("Organization context is required", statusCode: 403);
+                var tenant = await _tenantRepository.GetTenantById(id, organizationId.Value);
 
                 return new ServiceResponse<LoadTenantDto>
                 {
@@ -163,11 +188,7 @@ namespace brownstone_hub_api.Services.TenantService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving tenant with ID {Id}", id);
-                return ServiceResponse<LoadTenantDto>.CreateError(
-                   "Error retrieving tenant",
-                   ex.Message,
-                   ex.InnerException?.Message
-               );
+                return ServiceResponse<LoadTenantDto>.CreateError("Error retrieving tenant");
             }
         }
 
@@ -191,7 +212,7 @@ namespace brownstone_hub_api.Services.TenantService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving tenants by landlord ID");
-                return ServiceResponse<List<LoadTenantDto>>.CreateError("An error occurred while retrieving tenants", ex.Message, ex.InnerException?.Message);
+                return ServiceResponse<List<LoadTenantDto>>.CreateError("An error occurred while retrieving tenants");
             }
         }
 
@@ -209,7 +230,7 @@ namespace brownstone_hub_api.Services.TenantService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving tenants by organization ID {OrganizationId}", organizationId);
-                return ServiceResponse<List<LoadTenantDto>>.CreateError("An error occurred while retrieving tenants", ex.Message, ex.InnerException?.Message);
+                return ServiceResponse<List<LoadTenantDto>>.CreateError("An error occurred while retrieving tenants");
             }
         }
 
@@ -218,7 +239,12 @@ namespace brownstone_hub_api.Services.TenantService
             try
             {
                 // Get tenant with all related data before removal
-                var tenant = await _tenantRepository.GetTenantById(id);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadTenantDto>.CreateError("Organization context is required", statusCode: 403);
+                if (!await CanManageTenantsAsync(organizationId.Value))
+                    return ServiceResponse<LoadTenantDto>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
+                var tenant = await _tenantRepository.GetTenantById(id, organizationId.Value);
                 if (tenant == null)
                 {
                     return ServiceResponse<LoadTenantDto>.CreateError(
@@ -233,7 +259,7 @@ namespace brownstone_hub_api.Services.TenantService
                 // Perform tenant removal (this will handle cascading deletes for TenantInvites via DB config)
                 // TenantDocuments and Conversations are preserved per user requirement
                 var removedTenant = await _tenantRepository.DeleteTenant(id);
-                
+
                 if (removedTenant == null)
                 {
                     return ServiceResponse<LoadTenantDto>.CreateError(
@@ -251,11 +277,7 @@ namespace brownstone_hub_api.Services.TenantService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing tenant with ID {Id}", id);
-                return ServiceResponse<LoadTenantDto>.CreateError(
-                    "Error removing tenant",
-                    ex.Message,
-                    ex.InnerException?.Message
-                );
+                return ServiceResponse<LoadTenantDto>.CreateError("Error removing tenant");
             }
         }
 
@@ -280,8 +302,8 @@ namespace brownstone_hub_api.Services.TenantService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking email existence for {Email}", email);
-                return ServiceResponse<bool>.CreateError("Error checking email existence", ex.Message);
+                _logger.LogError(ex, "Error checking tenant email existence");
+                return ServiceResponse<bool>.CreateError("Error checking email existence");
             }
         }
 
@@ -294,19 +316,22 @@ namespace brownstone_hub_api.Services.TenantService
                     return ServiceResponse<LoadTenantDto>.CreateError("Email is required");
                 }
 
-                var tenant = await _tenantRepository.GetTenantByEmail(email);
-                
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadTenantDto>.CreateError("Organization context is required", statusCode: 403);
+                var tenant = await _tenantRepository.GetTenantByEmail(email, organizationId.Value);
+
                 if (tenant == null)
                 {
-                    return ServiceResponse<LoadTenantDto>.CreateError("Tenant not found", $"No tenant found with email {email}");
+                    return ServiceResponse<LoadTenantDto>.CreateError("Tenant not found");
                 }
 
                 return ServiceResponse<LoadTenantDto>.CreateSuccess(tenant);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting tenant by email {Email}", email);
-                return ServiceResponse<LoadTenantDto>.CreateError("Error getting tenant", ex.Message);
+                _logger.LogError(ex, "Error getting tenant by email");
+                return ServiceResponse<LoadTenantDto>.CreateError("Error getting tenant");
             }
         }
     }

@@ -33,7 +33,7 @@ const config: NicheLandingPageConfig = {
     { question: 'Is this only for large property managers?', answer: 'No. Property Peace is intentionally built for small landlords and independent rental owners who need maintenance organization without enterprise complexity.' },
   ],
   relatedLinks: [
-    { href: '/maintenance/ai-maintenance', label: 'Percy AI maintenance management' },
+    { href: '/maintenance/ai-maintenance', label: 'Percy Pilot maintenance management' },
     { href: '/maintenance/in-app-messaging', label: 'Maintenance messaging' },
     { href: '/features/maintenance-tracking', label: 'Maintenance tracking feature' },
     { href: '/pricing', label: 'Pricing' },

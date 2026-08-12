@@ -20,24 +20,27 @@ namespace brownstone_hub_api.Services.RentEstimateService
         private readonly RentcastSettings _settings = settings.Value;
         private readonly ILogger<RentEstimateService> _logger = logger;
 
-        public async Task<RentEstimateDto?> GetRentEstimateAsync(long propertyId, long? unitId, bool forceRefresh = false, CancellationToken cancellationToken = default)
+        public async Task<RentEstimateResult> GetRentEstimateAsync(long propertyId, long? unitId, long organizationId, bool forceRefresh = false, CancellationToken cancellationToken = default)
         {
+            if (propertyId <= 0 || organizationId <= 0 || (unitId.HasValue && unitId.Value <= 0))
+                return RentEstimateResult.InvalidInput();
+
             // If no unitId provided, fall back to the first unit for the property
             var unit = unitId.HasValue && unitId.Value > 0
                 ? await _context.Units
                     .Include(u => u.Property)
-                    .FirstOrDefaultAsync(u => u.Id == unitId.Value && u.PropertyId == propertyId, cancellationToken)
+                    .FirstOrDefaultAsync(u => u.Id == unitId.Value && u.PropertyId == propertyId && u.Property.OrganizationId == organizationId, cancellationToken)
                 : await _context.Units
                     .Include(u => u.Property)
-                    .FirstOrDefaultAsync(u => u.PropertyId == propertyId, cancellationToken);
+                    .FirstOrDefaultAsync(u => u.PropertyId == propertyId && u.Property.OrganizationId == organizationId, cancellationToken);
 
             if (unit?.Property == null)
-                return null;
+                return RentEstimateResult.NotFound();
 
             var property = unit.Property;
 
             if (string.IsNullOrWhiteSpace(property.StreetAddress) || string.IsNullOrWhiteSpace(property.State))
-                return null;
+                return RentEstimateResult.InvalidInput();
 
             var cacheKey = BuildCacheKey(property.StreetAddress, property.City, property.State, property.ZipCode,
                 unit.Bedrooms, unit.Baths, unit.SquareFeet, property.PropertyType.ToString());
@@ -49,15 +52,15 @@ namespace brownstone_hub_api.Services.RentEstimateService
             if (!forceRefresh && cached != null && cached.ExpiresAt > DateTime.UtcNow)
             {
                 if (cached.IsError)
-                    return null;
+                    return RentEstimateResult.ProviderUnavailable();
 
-                return MapFromCache(cached);
+                return RentEstimateResult.Success(MapFromCache(cached));
             }
 
             if (!_settings.IsEnabled || string.IsNullOrWhiteSpace(_settings.ApiKey))
             {
                 _logger.LogWarning("Rentcast is disabled or ApiKey is not configured.");
-                return null;
+                return RentEstimateResult.ProviderUnavailable();
             }
 
             // Call Rentcast API
@@ -75,14 +78,14 @@ namespace brownstone_hub_api.Services.RentEstimateService
                     // Don't cache 429 (rate limit); cache other errors briefly
                     if ((int)response.StatusCode != 429)
                         await UpsertCacheAsync(cached, cacheKey, property, unit, null, true, $"HTTP {(int)response.StatusCode}", cancellationToken);
-                    return null;
+                    return RentEstimateResult.ProviderUnavailable();
                 }
 
                 var json = await response.Content.ReadAsStringAsync(cancellationToken);
                 var apiResult = JsonSerializer.Deserialize<RentcastApiResponseDto>(json);
 
                 if (apiResult == null)
-                    return null;
+                    return RentEstimateResult.ProviderUnavailable();
 
                 var comparablesJson = apiResult.Comparables != null
                     ? JsonSerializer.Serialize(apiResult.Comparables)
@@ -90,7 +93,7 @@ namespace brownstone_hub_api.Services.RentEstimateService
 
                 var entry = await UpsertCacheAsync(cached, cacheKey, property, unit, apiResult, false, null, cancellationToken, comparablesJson);
 
-                return new RentEstimateDto
+                return RentEstimateResult.Success(new RentEstimateDto
                 {
                     RentEstimate = apiResult.Rent,
                     RentRangeLow = apiResult.RentRangeLow,
@@ -98,12 +101,16 @@ namespace brownstone_hub_api.Services.RentEstimateService
                     Comparables = MapComparables(apiResult.Comparables),
                     IsFromCache = false,
                     CachedAt = entry.CreatedAt
-                };
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error calling Rentcast API for unit {UnitId}", unitId);
-                return null;
+                return RentEstimateResult.ProviderUnavailable();
             }
         }
 

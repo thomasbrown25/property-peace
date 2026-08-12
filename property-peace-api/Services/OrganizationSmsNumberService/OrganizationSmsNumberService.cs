@@ -1,8 +1,9 @@
 using brownstone_hub_api.Dtos.OrganizationSmsNumber;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Policy;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.OrganizationSmsNumbers;
-using brownstone_hub_api.Repositories.Users;
-using brownstone_hub_api.Services.SubscriptionService;
+using System.Globalization;
 
 namespace brownstone_hub_api.Services.OrganizationSmsNumberService
 {
@@ -17,19 +18,19 @@ namespace brownstone_hub_api.Services.OrganizationSmsNumberService
 
     public class OrganizationSmsNumberService(
         IOrganizationSmsNumberRepository smsNumberRepository,
-        IUserRepository userRepository,
-        IFeatureGateService featureGateService,
+        IHttpContextAccessor httpContextAccessor,
+        IEntitlementDecisionService entitlementDecisionService,
         ITwilioPhoneNumberService twilioPhoneNumberService) : IOrganizationSmsNumberService
     {
         private readonly IOrganizationSmsNumberRepository _smsNumberRepository = smsNumberRepository;
-        private readonly IUserRepository _userRepository = userRepository;
-        private readonly IFeatureGateService _featureGateService = featureGateService;
+        private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly IEntitlementDecisionService _entitlementDecisionService = entitlementDecisionService;
         private readonly ITwilioPhoneNumberService _twilioPhoneNumberService = twilioPhoneNumberService;
 
         public async Task<OrganizationSmsNumberStatusDto> GetStatusAsync()
         {
-            var (userId, orgId) = await GetCurrentContextAsync();
-            var hasPremiumAccess = await _featureGateService.HasFeatureAccessAsync(userId, "DedicatedSmsNumber");
+            var (userId, orgId) = GetCurrentContext();
+            var hasPremiumAccess = await HasSetupEntitlementAsync(userId, orgId);
             var activeNumber = await _smsNumberRepository.GetActivePrimaryAsync(orgId);
             return MapStatus(activeNumber, hasPremiumAccess);
         }
@@ -47,10 +48,10 @@ namespace brownstone_hub_api.Services.OrganizationSmsNumberService
 
         public async Task<List<AvailableSmsNumberDto>> SearchAsync(SearchSmsNumbersRequestDto request, CancellationToken cancellationToken = default)
         {
-            var (userId, _) = await GetCurrentContextAsync();
-            if (!await _featureGateService.HasFeatureAccessAsync(userId, "DedicatedSmsNumber"))
+            var (userId, orgId) = GetCurrentContext();
+            if (!await HasSetupEntitlementAsync(userId, orgId, cancellationToken))
             {
-                throw new UnauthorizedAccessException("Dedicated SMS numbers are included with Premium.");
+                throw new UnauthorizedAccessException("Dedicated SMS numbers are included with eligible Premium and Lifetime organizations.");
             }
 
             ValidateStateAndAreaCode(request.State, request.AreaCode);
@@ -59,11 +60,11 @@ namespace brownstone_hub_api.Services.OrganizationSmsNumberService
 
         public async Task<OrganizationSmsNumberStatusDto> PurchaseAsync(PurchaseSmsNumberDto request, string smsWebhookUrl, CancellationToken cancellationToken = default)
         {
-            var (userId, orgId) = await GetCurrentContextAsync();
-            var hasPremiumAccess = await _featureGateService.HasFeatureAccessAsync(userId, "DedicatedSmsNumber");
+            var (userId, orgId) = GetCurrentContext();
+            var hasPremiumAccess = await HasSetupEntitlementAsync(userId, orgId);
             if (!hasPremiumAccess)
             {
-                throw new UnauthorizedAccessException("Dedicated SMS numbers are included with Premium.");
+                throw new UnauthorizedAccessException("Dedicated SMS numbers are included with eligible Premium and Lifetime organizations.");
             }
 
             ValidateStateAndAreaCode(request.State, request.AreaCode);
@@ -97,8 +98,22 @@ namespace brownstone_hub_api.Services.OrganizationSmsNumberService
 
         public async Task<OrganizationSmsNumberStatusDto> RefreshStatusAsync(long id, CancellationToken cancellationToken = default)
         {
-            var (userId, orgId) = await GetCurrentContextAsync();
-            var hasPremiumAccess = await _featureGateService.HasFeatureAccessAsync(userId, "DedicatedSmsNumber");
+            var (userId, orgId) = GetCurrentContext();
+            bool hasPremiumAccess;
+            try
+            {
+                hasPremiumAccess = await HasSetupEntitlementAsync(userId, orgId, cancellationToken);
+            }
+            catch (Exception)
+            {
+                hasPremiumAccess = false;
+            }
+
+            if (!hasPremiumAccess)
+            {
+                throw new UnauthorizedAccessException("Dedicated SMS numbers are included with eligible Premium and Lifetime organizations.");
+            }
+
             var number = await _smsNumberRepository.GetActivePrimaryAsync(orgId);
             if (number == null || number.Id != id)
             {
@@ -115,11 +130,31 @@ namespace brownstone_hub_api.Services.OrganizationSmsNumberService
             return MapStatus(number, hasPremiumAccess);
         }
 
-        private async Task<(long UserId, long OrganizationId)> GetCurrentContextAsync()
+        private (long UserId, long OrganizationId) GetCurrentContext()
         {
-            var user = await _userRepository.GetCurrentUser() ?? throw new UnauthorizedAccessException("User is not authenticated.");
-            var orgId = user.CurrentOrganizationId ?? throw new InvalidOperationException("No active organization selected.");
-            return (user.Id, orgId);
+            var context = _httpContextAccessor.HttpContext ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            if (!TryGetPositiveId(context.Items["UserId"], out var userId))
+                throw new UnauthorizedAccessException("User is not authenticated.");
+            if (!TryGetPositiveId(context.Items["OrganizationId"], out var orgId))
+                throw new InvalidOperationException("No active organization selected.");
+            return (userId, orgId);
+        }
+
+        private async Task<bool> HasSetupEntitlementAsync(long userId, long organizationId, CancellationToken cancellationToken = default)
+        {
+            var decision = await _entitlementDecisionService.DecideAsync(
+                new EntitlementDecisionRequest(
+                    userId.ToString(CultureInfo.InvariantCulture),
+                    organizationId,
+                    FeatureKeys.DedicatedSmsNumberSetup),
+                cancellationToken);
+            return decision.IsAllowed;
+        }
+
+        private static bool TryGetPositiveId(object? value, out long id)
+        {
+            id = value switch { long longValue => longValue, int intValue => intValue, _ => 0 };
+            return id > 0;
         }
 
         private static OrganizationSmsNumberStatusDto MapStatus(OrganizationSmsNumber? number, bool hasPremiumAccess)

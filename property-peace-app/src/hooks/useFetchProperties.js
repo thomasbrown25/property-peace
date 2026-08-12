@@ -12,15 +12,19 @@ export default function useFetchProperties() {
   const properties = useSelector(selectProperties);
   const loadedAt = useSelector(selectPropertiesLoadedAt);
   const [isLoading, setIsLoading] = useState(false);
+  const [propertiesError, setPropertiesError] = useState(false);
 
   const propertiesRefetch = useCallback(async () => {
     if (!user?.id) return;
     try {
       setIsLoading(true);
+      setPropertiesError(false);
       // OrganizationId is sent via X-Organization-Id header
-      await dispatch(getProperties());
+      const result = await dispatch(getProperties());
+      if (result?.success === false) setPropertiesError(true);
     } catch (err) {
       console.error('Failed to fetch properties:', err);
+      setPropertiesError(true);
     } finally {
       setIsLoading(false);
     }
@@ -32,5 +36,5 @@ export default function useFetchProperties() {
     propertiesRefetch();
   }, [isLoggedIn, user?.id, loadedAt, propertiesRefetch]);
 
-  return { properties, propertiesRefetch, isLoading };
+  return { properties, propertiesRefetch, isLoading, propertiesError, propertiesLoadedAt: loadedAt };
 }

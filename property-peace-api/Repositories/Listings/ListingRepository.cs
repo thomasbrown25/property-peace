@@ -122,9 +122,14 @@ namespace brownstone_hub_api.Repositories.Listings
                     .Include(l => l.ListingFeatures)
                     .FirstOrDefaultAsync(l => l.Id == listingDto.Id) ?? throw new KeyNotFoundException("Listing not found");
 
+                // Preserve the first authoritative publication time across later updates and replay.
+                var wasActive = existingListing.Status == EListingStatus.Active;
+
                 // Update basic properties
                 if (listingDto.Status.HasValue)
                     existingListing.Status = listingDto.Status.Value;
+                if (!wasActive && existingListing.Status == EListingStatus.Active)
+                    existingListing.PublishedAt ??= DateTime.UtcNow;
                 if (listingDto.SquareFeet.HasValue)
                     existingListing.SquareFeet = listingDto.SquareFeet;
                 if (listingDto.MonthlyRent.HasValue)
@@ -374,6 +379,7 @@ namespace brownstone_hub_api.Repositories.Listings
             {
                 var listing = await _context.Listings
                     .Where(l => l.Status == EListingStatus.Active &&
+                        l.SyndicateToListingWebsite != false &&
                         (l.CustomListingUrl == normalized || l.CustomListingUrl == "/" + normalized))
                     .Include(l => l.Property)
                     .Include(l => l.Unit)
@@ -467,7 +473,7 @@ namespace brownstone_hub_api.Repositories.Listings
             try
             {
                 var listings = await _context.Listings
-                    .Where(l => l.Status == EListingStatus.Active)
+                    .Where(l => l.Status == EListingStatus.Active && l.SyndicateToListingWebsite != false)
                     .Include(l => l.Property)
                     .Include(l => l.Unit)
                     .Include(l => l.Images)
@@ -603,6 +609,7 @@ namespace brownstone_hub_api.Repositories.Listings
             dto.CustomListingUrl = listing.CustomListingUrl ?? "";
             dto.ExpiresAt = listing.ExpiresAt ?? DateTime.Now.AddDays(30);
             dto.OrganizationId = listing.OrganizationId ?? 0;
+            dto.PublishedAt = listing.PublishedAt;
             dto.UpdatedAt = listing.UpdatedAt ?? listing.CreatedAt;
 
             // Map property info

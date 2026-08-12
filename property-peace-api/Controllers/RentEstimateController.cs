@@ -1,7 +1,7 @@
-using System.Security.Claims;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Enforcement;
+using brownstone_hub_api.Entitlements.Policy;
 using brownstone_hub_api.Services.RentEstimateService;
-using brownstone_hub_api.Services.SubscriptionService;
-using brownstone_hub_api.Services.UserService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,67 +12,97 @@ namespace brownstone_hub_api.Controllers
     [Authorize(Roles = "Landlord,Admin")]
     public class RentEstimateController(
         IRentEstimateService rentEstimateService,
-        IUserService userService,
-        IFeatureGateService featureGateService,
+        IEntitlementDecisionService entitlementDecisionService,
+        IEntitlementResourceOrganizationResolver resourceOrganizationResolver,
         ILogger<RentEstimateController> logger) : ControllerBase
     {
         private readonly IRentEstimateService _rentEstimateService = rentEstimateService;
-        private readonly IUserService _userService = userService;
-        private readonly IFeatureGateService _featureGateService = featureGateService;
+        private readonly IEntitlementDecisionService _entitlementDecisionService = entitlementDecisionService;
+        private readonly IEntitlementResourceOrganizationResolver _resourceOrganizationResolver = resourceOrganizationResolver;
         private readonly ILogger<RentEstimateController> _logger = logger;
 
-        private async Task<long> GetUserIdAsync()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(userIdClaim) && long.TryParse(userIdClaim, out var userId))
-                return userId;
-
-            var email = User.FindFirst("sub")?.Value
-                ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                ?? User.FindFirst(ClaimTypes.Name)?.Value;
-            if (!string.IsNullOrEmpty(email))
-            {
-                try
-                {
-                    var userResponse = await _userService.GetUserByEmailAsync(email);
-                    return userResponse.Success && userResponse.Data != null ? userResponse.Data.Id : 0;
-                }
-                catch { return 0; }
-            }
-            return 0;
-        }
-
         /// <summary>
-        /// GET /api/rent-estimate?propertyId=1&unitId=2&forceRefresh=true
-        /// Returns a rent estimate for the given unit, sourced from Rentcast (with caching).
-        /// Requires Premium subscription. Cached estimates are reused for 3 months unless forceRefresh is true.
+        /// GET /api/rent-estimate?propertyId=1&amp;unitId=2&amp;forceRefresh=true
+        /// Returns a rent estimate for the selected organization's property.
+        /// Subscription entitlement and Rentcast operational readiness are separate fail-closed decisions.
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetRentEstimate([FromQuery] long propertyId, [FromQuery] long? unitId, [FromQuery] bool forceRefresh, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetRentEstimate(
+            [FromQuery] long propertyId,
+            [FromQuery] long? unitId,
+            [FromQuery] bool forceRefresh,
+            CancellationToken cancellationToken)
         {
-            var userId = await GetUserIdAsync();
-            if (userId == 0) return Unauthorized();
-
-            var hasAccess = await _featureGateService.HasFeatureAccessAsync(userId, "RentEstimate");
-            if (!hasAccess)
-                return StatusCode(403, new { success = false, message = "Rent Estimate is a Premium feature. Upgrade your subscription to access it." });
+            if (!TryTrustedScope(out var userId, out var organizationId, out var scopeDenial))
+                return scopeDenial!;
 
             if (propertyId <= 0)
                 return BadRequest(new { success = false, message = "propertyId is required." });
 
+            var resourceOrganizationId = await _resourceOrganizationResolver
+                .GetPropertyOrganizationIdAsync(propertyId, cancellationToken);
+            if (!resourceOrganizationId.HasValue)
+                return NotFound(new { success = false, message = "Property not found." });
+
+            var decision = await _entitlementDecisionService.DecideAsync(
+                EntitlementEnforcement.Request(
+                    userId,
+                    organizationId,
+                    FeatureKeys.RentEstimate,
+                    resourceOrganizationId),
+                cancellationToken);
+            if (!EntitlementEnforcement.IsAllowed(FeatureKeys.RentEstimate, decision))
+                return EntitlementEnforcement.Denied(FeatureKeys.RentEstimate, decision);
+
             try
             {
-                var result = await _rentEstimateService.GetRentEstimateAsync(propertyId, unitId, forceRefresh, cancellationToken);
-                if (result == null)
-                    return NotFound(new { success = false, message = "Could not retrieve a rent estimate for this unit. Verify the property address is complete." });
+                var result = await _rentEstimateService.GetRentEstimateAsync(
+                    propertyId,
+                    unitId,
+                    organizationId,
+                    forceRefresh,
+                    cancellationToken);
 
-                return Ok(new { success = true, data = result });
+                return result.Outcome switch
+                {
+                    RentEstimateOutcome.Success when result.Data is not null => Ok(new { success = true, data = result.Data }),
+                    RentEstimateOutcome.InvalidInput => BadRequest(new { success = false, code = "invalid-input", message = "The property or unit does not have valid rent-estimate inputs." }),
+                    RentEstimateOutcome.NotFound => NotFound(new { success = false, code = "not-found", message = "The property or unit was not found." }),
+                    _ => StatusCode(StatusCodes.Status503ServiceUnavailable, new { success = false, code = "provider-unavailable", message = "Rent estimates are temporarily unavailable. Try again later." })
+                };
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching rent estimate for property {PropertyId}, unit {UnitId}", propertyId, unitId);
-                return StatusCode(500, new { success = false, message = "An error occurred while fetching the rent estimate." });
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { success = false, code = "provider-unavailable", message = "Rent estimates are temporarily unavailable. Try again later." });
             }
+        }
+
+        private bool TryTrustedScope(out long userId, out long organizationId, out IActionResult? denial)
+        {
+            userId = HttpContext.Items["UserId"] switch
+            {
+                long value when value > 0 => value,
+                int value when value > 0 => value,
+                _ => 0
+            };
+            organizationId = HttpContext.Items["OrganizationId"] switch
+            {
+                long value when value > 0 => value,
+                int value when value > 0 => value,
+                _ => 0
+            };
+
+            denial = userId <= 0
+                ? EntitlementEnforcement.MissingUser(FeatureKeys.RentEstimate)
+                : organizationId <= 0
+                    ? EntitlementEnforcement.MissingOrganization(FeatureKeys.RentEstimate)
+                    : null;
+            return denial is null;
         }
     }
 }

@@ -15,6 +15,8 @@ namespace brownstone_hub_api.Models
         
         // Participant metadata
         public bool IsAdmin { get; set; } = false; // For group chat admins
+        // Prevent a newly-added staff participant from acquiring historical staff-only events.
+        public long? StaffVisibilityFromSequence { get; set; }
         public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LeftAt { get; set; } // If participant left the conversation
         public bool IsDeleted { get; set; } = false;

@@ -49,6 +49,9 @@ import listingAIApi from 'api/listingAI';
 import listingApi from 'api/listing';
 import { getRentEstimate } from 'api/rentEstimate';
 import { formatPhoneInput } from 'utils/formatters';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 
 // ── Step constants ────────────────────────────────────────────────────────────
 const STEP_PROPERTY            = 0;
@@ -115,7 +118,7 @@ const getIdArray = (items) => (items || [])
   .map((item) => getValue(item, 'id', 'Id'))
   .filter(Boolean);
 
-function buildFormDataFromDraft(draft) {
+function buildFormDataFromDraft(draft, screeningCanInvoke = false) {
   const applicationFee = getValue(draft, 'applicationFee', 'ApplicationFee');
   const incomeVerificationCost = getValue(draft, 'incomeVerificationCost', 'IncomeVerificationCost');
   const dateAvailable = getValue(draft, 'dateAvailable', 'DateAvailable');
@@ -136,10 +139,10 @@ function buildFormDataFromDraft(draft) {
     acceptOnlineApplications: getValue(draft, 'acceptOnlineApplications', 'AcceptOnlineApplications') ?? true,
     applicationFeeRequired: getValue(draft, 'applicationFeeRequired', 'ApplicationFeeRequired') || false,
     applicationFee: applicationFee != null ? String(applicationFee) : '0.00',
-    requireScreening: getValue(draft, 'requireScreening', 'RequireScreening') ?? true,
-    screeningType: getValue(draft, 'screeningType', 'ScreeningType') || 'Essential',
-    requireIncomeVerification: getValue(draft, 'requireIncomeVerification', 'RequireIncomeVerification') || false,
-    incomeVerificationCost: incomeVerificationCost != null ? String(incomeVerificationCost) : '12.00',
+    requireScreening: screeningCanInvoke && Boolean(getValue(draft, 'requireScreening', 'RequireScreening') ?? true),
+    screeningType: screeningCanInvoke ? (getValue(draft, 'screeningType', 'ScreeningType') || 'Essential') : '',
+    requireIncomeVerification: screeningCanInvoke && Boolean(getValue(draft, 'requireIncomeVerification', 'RequireIncomeVerification')),
+    incomeVerificationCost: screeningCanInvoke && incomeVerificationCost != null ? String(incomeVerificationCost) : '',
     listingContactId: getValue(draft, 'listingContactId', 'ListingContactId') || null,
     listingContactName: getValue(draft, 'listingContactName', 'ListingContactName') || '',
     listingContactPhone: getValue(draft, 'listingContactPhone', 'ListingContactPhone') || '',
@@ -160,8 +163,8 @@ const EMPTY_FORM = {
   yearBuilt: '', dateAvailable: '', minLeaseDuration: '', maxLeaseDuration: '',
   petsAllowed: false, marketingDescription: '', videoTourUrl: '',
   acceptOnlineApplications: true, applicationFeeRequired: false, applicationFee: '0.00',
-  requireScreening: true, screeningType: 'Essential', requireIncomeVerification: false,
-  incomeVerificationCost: '12.00', listingContactId: null, listingContactName: '',
+  requireScreening: false, screeningType: '', requireIncomeVerification: false,
+  incomeVerificationCost: '', listingContactId: null, listingContactName: '',
   listingContactPhone: '', listingContactEmail: '', syndicateToListingWebsite: true,
   syndicateToFreeSites: false, syndicateToPremiumSites: false,
   basicAmenityIds: [], defaultAmenityIds: [], customAmenityIds: [],
@@ -179,6 +182,18 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
   const selectedUnit = useSelector(selectUnit);
   const currentUser = useSelector(selectCurrentUser);
   const listings = useSelector(selectListings);
+  const {
+    canInvoke: syndicationCanInvoke,
+    presentation: syndicationPresentation,
+    isLoading: syndicationReadinessLoading,
+    error: syndicationReadinessError
+  } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
+  const {
+    canInvoke: screeningCanInvoke,
+    presentation: screeningPresentation,
+    isLoading: screeningReadinessLoading,
+    error: screeningReadinessError
+  } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
 
   useEffect(() => {
     dispatch(getListings());
@@ -210,6 +225,17 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
   const [draftListingId, setDraftListingId] = useState(draftListing?.id || null);
 
   const [formData, setFormData] = useState(EMPTY_FORM);
+
+  useEffect(() => {
+    if (screeningCanInvoke) return;
+    setFormData((prev) => ({
+      ...prev,
+      requireScreening: false,
+      screeningType: '',
+      requireIncomeVerification: false,
+      incomeVerificationCost: ''
+    }));
+  }, [screeningCanInvoke]);
 
   // Media
   const [coverPhoto, setCoverPhoto] = useState(null);
@@ -254,12 +280,12 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
   useEffect(() => {
     if (draftListing) {
       setDraftListingId(draftListing.id);
-      setFormData(buildFormDataFromDraft(draftListing));
+      setFormData(buildFormDataFromDraft(draftListing, screeningCanInvoke));
       setExistingImages(draftListing.images || []);
       const saved = localStorage.getItem(DRAFT_STEP_KEY(draftListing.id));
       setActiveStep(saved ? Math.min(parseInt(saved), steps.length - 1) : 1);
     }
-  }, [draftListing]);
+  }, [draftListing, screeningCanInvoke]);
 
   // ── Pre-fill contact from currentUser (new listings only, not drafts) ────
   useEffect(() => {
@@ -301,7 +327,7 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
 
     dispatch(setUnit(draftUnit || null));
     setDraftListingId(draftId || null);
-    setFormData(buildFormDataFromDraft(hydratedDraft));
+    setFormData(buildFormDataFromDraft(hydratedDraft, screeningCanInvoke));
     setExistingImages(getValue(hydratedDraft, 'images', 'Images') || []);
     setCoverPhoto(null);
     setGalleryPhotos([]);
@@ -434,19 +460,19 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
           acceptOnlineApplications: formData.acceptOnlineApplications,
           applicationFeeRequired: formData.applicationFeeRequired,
           applicationFee: formData.applicationFeeRequired ? parseFloat(formData.applicationFee) : 0,
-          requireScreening: formData.requireScreening,
-          screeningType: formData.screeningType,
-          requireIncomeVerification: formData.requireIncomeVerification,
-          incomeVerificationCost: formData.requireIncomeVerification ? parseFloat(formData.incomeVerificationCost) : 0
+          requireScreening: screeningCanInvoke && Boolean(formData.requireScreening),
+          screeningType: screeningCanInvoke && formData.requireScreening ? (formData.screeningType || 'Essential') : null,
+          requireIncomeVerification: screeningCanInvoke && Boolean(formData.requireIncomeVerification),
+          incomeVerificationCost: screeningCanInvoke && formData.requireIncomeVerification ? parseFloat(formData.incomeVerificationCost) : 0
         };
       case STEP_CONTACT_SYNDICATION:
         return {
           listingContactName: formData.listingContactName || null,
           listingContactPhone: formData.listingContactPhone || null,
           listingContactEmail: formData.listingContactEmail || null,
-          syndicateToListingWebsite: formData.syndicateToListingWebsite,
-          syndicateToFreeSites: formData.syndicateToFreeSites,
-          syndicateToPremiumSites: formData.syndicateToPremiumSites
+          syndicateToListingWebsite: Boolean(formData.syndicateToListingWebsite),
+          syndicateToFreeSites: syndicationCanInvoke && Boolean(formData.syndicateToFreeSites),
+          syndicateToPremiumSites: syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites),
         };
       default:
         return {};
@@ -1136,39 +1162,49 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
               <Divider />
 
               {/* Screening */}
+              <FeatureReadinessNotice
+                title="Tenant screening"
+                presentation={screeningPresentation}
+                isLoading={screeningReadinessLoading}
+                error={screeningReadinessError}
+              />
               <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ letterSpacing: '0.08em' }}>
                 Background Screening
               </Typography>
 
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                  variant={formData.screeningType === 'Essential' ? 'contained' : 'outlined'}
-                  onClick={() => setFormData(prev => ({ ...prev, screeningType: 'Essential' }))}
-                  sx={{ textTransform: 'none' }}
-                >
-                  Essential coverage ($40.00)
-                </Button>
-                <Button
-                  variant={formData.screeningType === 'Premium' ? 'contained' : 'outlined'}
-                  onClick={() => setFormData(prev => ({ ...prev, screeningType: 'Premium' }))}
-                  sx={{ textTransform: 'none' }}
-                >
-                  Premium coverage (+$5.00)
-                </Button>
-              </Box>
+              {screeningCanInvoke && (
+                <>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                    <Button
+                      variant={formData.screeningType === 'Essential' ? 'contained' : 'outlined'}
+                      onClick={() => setFormData(prev => ({ ...prev, requireScreening: true, screeningType: 'Essential' }))}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Essential coverage ($40.00)
+                    </Button>
+                    <Button
+                      variant={formData.screeningType === 'Premium' ? 'contained' : 'outlined'}
+                      onClick={() => setFormData(prev => ({ ...prev, requireScreening: true, screeningType: 'Premium' }))}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      Premium coverage (+$5.00)
+                    </Button>
+                  </Box>
 
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="subtitle2" fontWeight={600}>
-                  Require income &amp; employment verification
-                </Typography>
-                <Button
-                  variant={formData.requireIncomeVerification ? 'contained' : 'outlined'}
-                  onClick={() => setFormData(prev => ({ ...prev, requireIncomeVerification: !prev.requireIncomeVerification }))}
-                  sx={{ textTransform: 'none' }}
-                >
-                  {formData.requireIncomeVerification ? 'Required ($12.00)' : 'Not Required'}
-                </Button>
-              </Box>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="subtitle2" fontWeight={600}>
+                      Require income &amp; employment verification
+                    </Typography>
+                    <Button
+                      variant={formData.requireIncomeVerification ? 'contained' : 'outlined'}
+                      onClick={() => setFormData(prev => ({ ...prev, requireIncomeVerification: !prev.requireIncomeVerification, incomeVerificationCost: prev.requireIncomeVerification ? '' : '12.00' }))}
+                      sx={{ textTransform: 'none' }}
+                    >
+                      {formData.requireIncomeVerification ? 'Required ($12.00)' : 'Not Required'}
+                    </Button>
+                  </Box>
+                </>
+              )}
             </Stack>
 
             <NavButtons />
@@ -1210,29 +1246,44 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
               <Divider />
 
               <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ letterSpacing: '0.08em' }}>
-                Syndication
+                Publishing
               </Typography>
-              {/* Listing Website — always on */}
+              {/* Listing Website */}
               <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Box>
                     <Typography variant="subtitle1" fontWeight={600}>Listing Website</Typography>
                     <Typography variant="body2" color="text.secondary">Your custom listing website</Typography>
                   </Box>
-                  <Chip label="Always On" color="success" size="small" />
+                  <Chip
+                    label="Available"
+                    color="success"
+                    size="small"
+                  />
                 </Stack>
               </Box>
 
-              {/* Free syndication — coming soon */}
+              <Typography variant="overline" color="text.secondary" fontWeight={700} sx={{ letterSpacing: '0.08em' }}>
+                External distribution
+              </Typography>
+
+              <FeatureReadinessNotice
+                title="External listing syndication"
+                presentation={syndicationPresentation}
+                isLoading={syndicationReadinessLoading}
+                error={syndicationReadinessError}
+              />
+
+              {/* Core external distribution — provider network pending */}
               <Tooltip title="Coming soon" placement="top">
                 <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, opacity: 0.5, cursor: 'not-allowed' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="subtitle1" fontWeight={600}>Free Syndication</Typography>
+                        <Typography variant="subtitle1" fontWeight={600}>Core External Distribution</Typography>
                         <Chip label="Coming Soon" size="small" icon={<ClockCircleOutlined style={{ fontSize: 11 }} />} sx={{ height: 20, fontSize: '0.65rem' }} />
                       </Stack>
-                      <Typography variant="body2" color="text.secondary">TenantCloud, Rentler, Realtor.com, Apartments.com</Typography>
+                      <Typography variant="body2" color="text.secondary">Free includes one active external vacancy when syndication launches.</Typography>
                     </Box>
                     <Button variant="outlined" disabled sx={{ textTransform: 'none', pointerEvents: 'none' }}>
                       Disabled
@@ -1241,17 +1292,17 @@ export default function ListingAddWorkflow({ onClose, draftListing = null } = {}
                 </Box>
               </Tooltip>
 
-              {/* Premium syndication — coming soon */}
+              {/* Extended external distribution — provider network pending */}
               <Tooltip title="Coming soon" placement="top">
                 <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1, opacity: 0.5, cursor: 'not-allowed' }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center">
                     <Box>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="subtitle1" fontWeight={600}>Premium Syndication</Typography>
+                        <Typography variant="subtitle1" fontWeight={600}>Extended External Distribution</Typography>
                         <Chip label="Coming Soon" size="small" icon={<ClockCircleOutlined style={{ fontSize: 11 }} />} sx={{ height: 20, fontSize: '0.65rem' }} />
                       </Stack>
-                      <Typography variant="body2" color="text.secondary">Zillow, Rent.com, Redfin, Apartment Guide, Zumper, Trulia, HotPads</Typography>
-                      <Typography variant="body2" color="text.disabled" sx={{ mt: 0.5 }}>$30.00</Typography>
+                      <Typography variant="body2" color="text.secondary">Premium and Lifetime include multiple active external vacancies when syndication launches.</Typography>
+                      <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>Supported destinations will be confirmed before launch.</Typography>
                     </Box>
                     <Button variant="outlined" disabled sx={{ textTransform: 'none', pointerEvents: 'none' }}>
                       Disabled

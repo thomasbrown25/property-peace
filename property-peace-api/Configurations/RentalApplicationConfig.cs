@@ -26,8 +26,6 @@ namespace brownstone_hub_api.Configurations
             builder.Property(ra => ra.PhoneNumber)
                 .HasMaxLength(20);
 
-            builder.Property(ra => ra.Ssn)
-                .HasMaxLength(20); // Encrypted SSN
 
             builder.Property(ra => ra.CurrentAddress)
                 .HasMaxLength(500);
@@ -56,24 +54,6 @@ namespace brownstone_hub_api.Configurations
             builder.Property(ra => ra.AdditionalNotes)
                 .HasColumnType("nvarchar(max)");
 
-            // Background Check fields
-            builder.Property(ra => ra.BackgroundCheckProvider)
-                .HasMaxLength(50);
-
-            builder.Property(ra => ra.BackgroundCheckRequestId)
-                .HasMaxLength(200);
-
-            builder.Property(ra => ra.BackgroundCheckStatus)
-                .HasMaxLength(50);
-
-            builder.Property(ra => ra.BackgroundCheckReportUrl)
-                .HasMaxLength(1000);
-
-            builder.Property(ra => ra.BackgroundCheckSummary)
-                .HasColumnType("nvarchar(max)");
-
-            builder.Property(ra => ra.BackgroundCheckRejectionReason)
-                .HasMaxLength(1000);
 
             // Relationships
             builder.HasOne(ra => ra.Property)

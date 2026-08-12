@@ -78,6 +78,35 @@ const pages = [
         icon: icons.MessageOutlined
       },
       {
+        id: 'money-center',
+        title: 'Money Center',
+        type: 'collapse',
+        icon: icons.DollarCircleOutlined,
+        children: [
+          {
+            id: 'money',
+            title: 'Money',
+            type: 'item',
+            url: '/landlord/money',
+            icon: icons.DollarCircleOutlined
+          },
+          {
+            id: 'rent-collection',
+            title: 'Rent Collection',
+            type: 'item',
+            url: '/landlord/rent-collection',
+            icon: icons.DollarCircleOutlined
+          }
+        ]
+      },
+      {
+        id: 'leads',
+        title: 'Leads & Showings',
+        type: 'item',
+        url: '/landlord/leads',
+        icon: icons.FormOutlined
+      },
+      {
         id: 'portfolio',
         title: 'Portfolio',
         type: 'collapse',
@@ -127,6 +156,13 @@ const pages = [
             icon: icons.FormOutlined
           },
           {
+            id: 'screenings',
+            title: 'Screenings',
+            type: 'item',
+            url: '/landlord/screenings',
+            icon: icons.SafetyCertificateOutlined
+          },
+          {
             id: 'listings',
             title: 'Listings',
             type: 'item',
@@ -143,18 +179,11 @@ const pages = [
         ]
       },
       {
-        id: 'financials',
-        title: 'Financials',
+        id: 'accounting',
+        title: 'Accounting',
         type: 'collapse',
         icon: icons.FundOutlined,
         children: [
-          {
-            id: 'expenses',
-            title: 'Expenses',
-            type: 'item',
-            url: '/landlord/expenses',
-            icon: icons.FallOutlined
-          },
           {
             id: 'payments',
             title: 'Payments',
@@ -163,6 +192,14 @@ const pages = [
             icon: icons.ArrowUpOutlined
           },
           {
+            id: 'expenses',
+            title: 'Expenses',
+            type: 'item',
+            url: '/landlord/expenses',
+            icon: icons.FallOutlined
+          },
+
+          {
             id: 'ledger',
             title: 'Ledger',
             type: 'item',
@@ -170,7 +207,14 @@ const pages = [
             icon: icons.FormOutlined
           },
           {
-            id: 'reports',
+            id: 'tax-center',
+            title: 'Tax Center',
+            type: 'item',
+            url: '/landlord/money/tax-center',
+            icon: icons.AuditOutlined
+          },
+          {
+            id: 'reports-analytics',
             title: 'Reports & Analytics',
             type: 'item',
             url: '/landlord/reports',

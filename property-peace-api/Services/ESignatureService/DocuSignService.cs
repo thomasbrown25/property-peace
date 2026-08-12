@@ -32,7 +32,7 @@ namespace brownstone_hub_api.Services.ESignatureService
         /// <summary>
         /// Get authenticated DocuSign API client
         /// </summary>
-        private async Task<ApiClient> GetAuthenticatedClientAsync()
+        private async Task<ApiClient> GetAuthenticatedClientAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -47,7 +47,7 @@ namespace brownstone_hub_api.Services.ESignatureService
                 }
                 else if (!string.IsNullOrEmpty(_settings.PrivateKeyPath) && System.IO.File.Exists(_settings.PrivateKeyPath))
                 {
-                    privateKey = await System.IO.File.ReadAllTextAsync(_settings.PrivateKeyPath);
+                    privateKey = await System.IO.File.ReadAllTextAsync(_settings.PrivateKeyPath, cancellationToken);
                 }
                 else
                 {
@@ -57,12 +57,15 @@ namespace brownstone_hub_api.Services.ESignatureService
                 // Request JWT token
                 // Convert private key string to Stream
                 using var privateKeyStream = new MemoryStream(Encoding.UTF8.GetBytes(privateKey));
+                // The DocuSign SDK exposes only a synchronous authentication call.
+                cancellationToken.ThrowIfCancellationRequested();
                 var authToken = apiClient.RequestJWTUserToken(
                     _settings.IntegrationKey,
                     _settings.UserId,
                     _settings.AuthServer,
                     privateKeyStream,
                     _settings.JwtExpirationSeconds);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (authToken == null || string.IsNullOrEmpty(authToken.access_token))
                 {
@@ -76,14 +79,15 @@ namespace brownstone_hub_api.Services.ESignatureService
                 // Use indexer to overwrite if key already exists (prevents "key already existed" error)
                 apiClient.Configuration.DefaultHeader["Authorization"] = $"Bearer {authToken.access_token}";
 
-                _logger.LogInformation("DocuSign API client initialized with base path: {BasePath}", _settings.ApiBaseUrl);
-
                 return apiClient;
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error authenticating with DocuSign. ApiBaseUrl: {ApiBaseUrl}, AuthServer: {AuthServer}",
-                    _settings.ApiBaseUrl, _settings.AuthServer);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("DocuSign authentication failed for account {AccountId}", _settings.AccountId);
                 throw;
             }
         }
@@ -91,11 +95,12 @@ namespace brownstone_hub_api.Services.ESignatureService
         public async Task<ServiceResponse<SignatureEnvelopeDto>> SendForSignature(
             SendLeaseForSignatureDto request,
             byte[] documentBytes,
-            string documentName)
+            string documentName,
+            CancellationToken cancellationToken)
         {
             try
             {
-                var apiClient = await GetAuthenticatedClientAsync();
+                var apiClient = await GetAuthenticatedClientAsync(cancellationToken);
                 var envelopesApi = new EnvelopesApi(apiClient);
 
                 // Keep all envelope construction, including expiration and signer tabs, in the
@@ -103,7 +108,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 var envelope = DocuSignEnvelopeFactory.Create(request, documentBytes, documentName);
 
                 // Create envelope
+                cancellationToken.ThrowIfCancellationRequested();
                 var envelopeSummary = envelopesApi.CreateEnvelope(_settings.AccountId, envelope);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (string.IsNullOrEmpty(envelopeSummary.EnvelopeId))
                 {
@@ -122,12 +129,18 @@ namespace brownstone_hub_api.Services.ESignatureService
                         {
                             Status = "sent"
                         };
+                        cancellationToken.ThrowIfCancellationRequested();
                         envelopesApi.Update(_settings.AccountId, envelopeSummary.EnvelopeId, envelopeUpdate);
+                        cancellationToken.ThrowIfCancellationRequested();
                         _logger.LogInformation("Updated envelope {EnvelopeId} status to 'sent' for embedded signing", envelopeSummary.EnvelopeId);
                     }
-                    catch (Exception ex)
+                    catch (OperationCanceledException)
                     {
-                        _logger.LogWarning(ex, "Could not update envelope status to 'sent' for embedded signing. This may cause issues getting the embedded URL.");
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        _logger.LogWarning("DocuSign envelope status update failed for envelope {EnvelopeId}", envelopeSummary.EnvelopeId);
                     }
                 }
 
@@ -145,15 +158,21 @@ namespace brownstone_hub_api.Services.ESignatureService
 
                     try
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         var viewUrl = envelopesApi.CreateRecipientView(_settings.AccountId, envelopeSummary.EnvelopeId, recipientViewRequest);
+                        cancellationToken.ThrowIfCancellationRequested();
                         if (!string.IsNullOrEmpty(viewUrl?.Url))
                         {
                             signerUrls[request.LandlordEmail] = viewUrl.Url;
                         }
                     }
-                    catch (Exception ex)
+                    catch (OperationCanceledException)
                     {
-                        _logger.LogWarning(ex, "Could not generate signing URL for landlord {Email}", request.LandlordEmail);
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        _logger.LogWarning("DocuSign recipient view creation failed for envelope {EnvelopeId}", envelopeSummary.EnvelopeId);
                     }
                 }
 
@@ -173,24 +192,30 @@ namespace brownstone_hub_api.Services.ESignatureService
 
                 return ServiceResponse<SignatureEnvelopeDto>.CreateSuccess(result, "Lease sent for signature successfully");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error sending document for signature via DocuSign");
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("DocuSign send failed for lease {LeaseId}", request.LeaseId);
                 return ServiceResponse<SignatureEnvelopeDto>.CreateError(
-                    "Error sending document for signature",
-                    ex.Message,
-                    ex.InnerException?.Message);
+                    "External e-signature service unavailable",
+                    "The e-signature provider could not complete the request.",
+                    statusCode: 502);
             }
         }
 
-        public async Task<ServiceResponse<SignatureStatusDto>> GetSignatureStatus(string envelopeId)
+        public async Task<ServiceResponse<SignatureStatusDto>> GetSignatureStatus(string envelopeId, CancellationToken cancellationToken)
         {
             try
             {
-                var apiClient = await GetAuthenticatedClientAsync();
+                var apiClient = await GetAuthenticatedClientAsync(cancellationToken);
                 var envelopesApi = new EnvelopesApi(apiClient);
 
+                cancellationToken.ThrowIfCancellationRequested();
                 var envelope = envelopesApi.GetEnvelope(_settings.AccountId, envelopeId);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (envelope == null)
                 {
@@ -203,7 +228,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 var signerStatuses = new Dictionary<string, SignerStatusDto>();
 
                 // Get recipient statuses
+                cancellationToken.ThrowIfCancellationRequested();
                 var recipients = envelopesApi.ListRecipients(_settings.AccountId, envelopeId);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (recipients?.Signers != null)
                 {
                     foreach (var signer in recipients.Signers)
@@ -221,40 +248,56 @@ namespace brownstone_hub_api.Services.ESignatureService
                     }
                 }
 
-                var result = new SignatureStatusDto
-                {
-                    EnvelopeId = envelopeId,
-                    Status = envelope.Status?.ToLower() ?? "unknown",
-                    SignerStatuses = signerStatuses,
-                    CompletedAt = !string.IsNullOrEmpty(envelope.CompletedDateTime) && DateTime.TryParse(envelope.CompletedDateTime, out var completedDate)
-                        ? completedDate
-                        : null,
-                    ExpiresAt = !string.IsNullOrEmpty(envelope.ExpireDateTime) && DateTime.TryParse(envelope.ExpireDateTime, out var expireDate)
-                        ? expireDate
-                        : null
-                };
+                var result = AdaptSignatureStatus(envelope, signerStatuses);
 
                 return ServiceResponse<SignatureStatusDto>.CreateSuccess(result);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error getting DocuSign envelope status for {EnvelopeId}", envelopeId);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("DocuSign status lookup failed for envelope {EnvelopeId}", envelopeId);
                 return ServiceResponse<SignatureStatusDto>.CreateError(
-                    "Error retrieving signature status",
-                    ex.Message,
-                    ex.InnerException?.Message);
+                    "External e-signature service unavailable",
+                    "The e-signature provider could not complete the request.",
+                    statusCode: 502);
             }
         }
 
-        public async Task<ServiceResponse<byte[]>> GetSignedDocument(string envelopeId)
+        private static SignatureStatusDto AdaptSignatureStatus(
+            Envelope envelope,
+            Dictionary<string, SignerStatusDto> signerStatuses)
+        {
+            var authoritativeEnvelopeId = ESignatureEnvelopeId.RequireCanonical(envelope.EnvelopeId);
+            return new SignatureStatusDto
+            {
+                EnvelopeId = authoritativeEnvelopeId,
+                Status = envelope.Status?.ToLowerInvariant() ?? "unknown",
+                SignerStatuses = signerStatuses,
+                CompletedAt = !string.IsNullOrEmpty(envelope.CompletedDateTime) &&
+                    DateTime.TryParse(envelope.CompletedDateTime, out var completedDate)
+                        ? completedDate
+                        : null,
+                ExpiresAt = !string.IsNullOrEmpty(envelope.ExpireDateTime) &&
+                    DateTime.TryParse(envelope.ExpireDateTime, out var expireDate)
+                        ? expireDate
+                        : null
+            };
+        }
+
+        public async Task<ServiceResponse<byte[]>> GetSignedDocument(string envelopeId, CancellationToken cancellationToken)
         {
             try
             {
-                var apiClient = await GetAuthenticatedClientAsync();
+                var apiClient = await GetAuthenticatedClientAsync(cancellationToken);
                 var envelopesApi = new EnvelopesApi(apiClient);
 
                 // Get the combined document (all pages with signatures)
+                cancellationToken.ThrowIfCancellationRequested();
                 var document = envelopesApi.GetDocument(_settings.AccountId, envelopeId, "combined");
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (document == null)
                 {
@@ -266,26 +309,30 @@ namespace brownstone_hub_api.Services.ESignatureService
 
                 // Read the stream to bytes
                 using var memoryStream = new MemoryStream();
-                await document.CopyToAsync(memoryStream);
+                await document.CopyToAsync(memoryStream, cancellationToken);
                 var documentBytes = memoryStream.ToArray();
 
                 return ServiceResponse<byte[]>.CreateSuccess(documentBytes);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error retrieving signed document for envelope {EnvelopeId}", envelopeId);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("DocuSign document download failed for envelope {EnvelopeId}", envelopeId);
                 return ServiceResponse<byte[]>.CreateError(
-                    "Error retrieving signed document",
-                    ex.Message,
-                    ex.InnerException?.Message);
+                    "External e-signature service unavailable",
+                    "The e-signature provider could not complete the request.",
+                    statusCode: 502);
             }
         }
 
-        public async Task<ServiceResponse<bool>> CancelSignature(string envelopeId, string? reason = null)
+        public async Task<ServiceResponse<bool>> CancelSignature(string envelopeId, string? reason, CancellationToken cancellationToken)
         {
             try
             {
-                var apiClient = await GetAuthenticatedClientAsync();
+                var apiClient = await GetAuthenticatedClientAsync(cancellationToken);
                 var envelopesApi = new EnvelopesApi(apiClient);
 
                 var envelopeUpdate = new Envelope
@@ -294,31 +341,39 @@ namespace brownstone_hub_api.Services.ESignatureService
                     VoidedReason = reason ?? "Cancelled by landlord"
                 };
 
+                cancellationToken.ThrowIfCancellationRequested();
                 envelopesApi.Update(_settings.AccountId, envelopeId, envelopeUpdate);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 _logger.LogInformation("Successfully voided DocuSign envelope {EnvelopeId}", envelopeId);
 
                 return ServiceResponse<bool>.CreateSuccess(true, "Signature request cancelled successfully");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error cancelling DocuSign envelope {EnvelopeId}", envelopeId);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("DocuSign cancellation failed for envelope {EnvelopeId}", envelopeId);
                 return ServiceResponse<bool>.CreateError(
-                    "Error cancelling signature request",
-                    ex.Message,
-                    ex.InnerException?.Message);
+                    "External e-signature service unavailable",
+                    "The e-signature provider could not complete the request.",
+                    statusCode: 502);
             }
         }
 
-        public async Task<ServiceResponse<bool>> ResendSignatureRequest(string envelopeId)
+        public async Task<ServiceResponse<bool>> ResendSignatureRequest(string envelopeId, CancellationToken cancellationToken)
         {
             try
             {
-                var apiClient = await GetAuthenticatedClientAsync();
+                var apiClient = await GetAuthenticatedClientAsync(cancellationToken);
                 var envelopesApi = new EnvelopesApi(apiClient);
 
                 // Get current envelope to verify it exists
+                cancellationToken.ThrowIfCancellationRequested();
                 var envelope = envelopesApi.GetEnvelope(_settings.AccountId, envelopeId);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (envelope == null)
                 {
                     return ServiceResponse<bool>.CreateError(
@@ -328,7 +383,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                 }
 
                 // Get recipients to resend to
+                cancellationToken.ThrowIfCancellationRequested();
                 var recipients = envelopesApi.ListRecipients(_settings.AccountId, envelopeId);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (recipients?.Signers == null || !recipients.Signers.Any())
                 {
                     return ServiceResponse<bool>.CreateError(
@@ -362,7 +419,9 @@ namespace brownstone_hub_api.Services.ESignatureService
                     Notification = notification
                 };
 
+                cancellationToken.ThrowIfCancellationRequested();
                 envelopesApi.Update(_settings.AccountId, envelopeId, envelopeUpdate);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // Additionally, use the UpdateRecipients method to trigger resend emails
                 // This is the recommended way to resend in DocuSign
@@ -381,31 +440,39 @@ namespace brownstone_hub_api.Services.ESignatureService
                 // Use UpdateRecipients to trigger resend
                 // Note: The ResendEnvelope option may not be available in all SDK versions
                 // As an alternative, we can use the notification update which we already did above
+                cancellationToken.ThrowIfCancellationRequested();
                 envelopesApi.UpdateRecipients(_settings.AccountId, envelopeId, recipientsUpdate);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 _logger.LogInformation("Successfully triggered resend for DocuSign envelope {EnvelopeId}", envelopeId);
 
                 return ServiceResponse<bool>.CreateSuccess(true, "Signature request resent successfully to all recipients");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error resending DocuSign envelope {EnvelopeId}", envelopeId);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("DocuSign resend failed for envelope {EnvelopeId}", envelopeId);
                 return ServiceResponse<bool>.CreateError(
-                    "Error resending signature request",
-                    ex.Message,
-                    ex.InnerException?.Message);
+                    "External e-signature service unavailable",
+                    "The e-signature provider could not complete the request.",
+                    statusCode: 502);
             }
         }
 
-        public async Task<ServiceResponse<string>> GetEmbeddedSigningUrl(string envelopeId, string recipientEmail, string recipientName, string returnUrl)
+        public async Task<ServiceResponse<string>> GetEmbeddedSigningUrl(string envelopeId, string recipientEmail, string recipientName, string returnUrl, CancellationToken cancellationToken)
         {
             try
             {
-                var apiClient = await GetAuthenticatedClientAsync();
+                var apiClient = await GetAuthenticatedClientAsync(cancellationToken);
                 var envelopesApi = new EnvelopesApi(apiClient);
 
                 // Check envelope status - it must be "sent" to get embedded signing URL
+                cancellationToken.ThrowIfCancellationRequested();
                 var envelope = envelopesApi.GetEnvelope(_settings.AccountId, envelopeId);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (envelope?.Status?.ToLower() == "created")
                 {
                     // Update envelope to "sent" status (required for embedded signing)
@@ -416,12 +483,18 @@ namespace brownstone_hub_api.Services.ESignatureService
                         {
                             Status = "sent"
                         };
-                        envelopesApi.Update(_settings.AccountId, envelopeId, envelopeUpdate);
+                        cancellationToken.ThrowIfCancellationRequested();
+                envelopesApi.Update(_settings.AccountId, envelopeId, envelopeUpdate);
+                cancellationToken.ThrowIfCancellationRequested();
                         _logger.LogInformation("Updated envelope {EnvelopeId} status from 'created' to 'sent' for embedded signing", envelopeId);
                     }
-                    catch (Exception ex)
+                    catch (OperationCanceledException)
                     {
-                        _logger.LogWarning(ex, "Could not update envelope {EnvelopeId} status to 'sent'. This may cause issues getting the embedded URL.", envelopeId);
+                        throw;
+                    }
+                    catch (Exception)
+                    {
+                        _logger.LogWarning("DocuSign envelope status update failed for envelope {EnvelopeId}", envelopeId);
                     }
                 }
 
@@ -436,11 +509,12 @@ namespace brownstone_hub_api.Services.ESignatureService
                     ClientUserId = recipientEmail // Must match the ClientUserId used when creating the signer in the envelope
                 };
 
-                _logger.LogInformation("Requesting embedded signing URL for envelope {EnvelopeId}, recipient {Email}, ClientUserId {ClientUserId}",
-                    envelopeId, recipientEmail, recipientEmail);
+                _logger.LogInformation("Requesting DocuSign embedded signing URL for envelope {EnvelopeId}", envelopeId);
 
                 // Create the recipient view (embedded signing URL)
+                cancellationToken.ThrowIfCancellationRequested();
                 var viewUrl = envelopesApi.CreateRecipientView(_settings.AccountId, envelopeId, recipientViewRequest);
+                cancellationToken.ThrowIfCancellationRequested();
 
                 if (string.IsNullOrEmpty(viewUrl?.Url))
                 {
@@ -449,19 +523,21 @@ namespace brownstone_hub_api.Services.ESignatureService
                         "DocuSign did not return a signing URL");
                 }
 
-                _logger.LogInformation("Successfully generated embedded signing URL for envelope {EnvelopeId}, recipient {Email}",
-                    envelopeId, recipientEmail);
+                _logger.LogInformation("Generated DocuSign embedded signing URL for envelope {EnvelopeId}", envelopeId);
 
                 return ServiceResponse<string>.CreateSuccess(viewUrl.Url, "Embedded signing URL generated successfully");
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error generating embedded signing URL for envelope {EnvelopeId}, recipient {Email}",
-                    envelopeId, recipientEmail);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("DocuSign embedded signing URL creation failed for envelope {EnvelopeId}", envelopeId);
                 return ServiceResponse<string>.CreateError(
-                    "Error generating embedded signing URL",
-                    ex.Message,
-                    ex.InnerException?.Message);
+                    "External e-signature service unavailable",
+                    "The e-signature provider could not complete the request.",
+                    statusCode: 502);
             }
         }
     }

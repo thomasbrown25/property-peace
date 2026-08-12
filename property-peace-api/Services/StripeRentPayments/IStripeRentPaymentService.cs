@@ -58,6 +58,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task MarkCanceledAsync(string paymentIntentId, string reason, CancellationToken cancellationToken = default);
         Task MarkBlockedAsync(string? paymentIntentId, string? stripeChargeId, StripeRentPaymentBlockKind kind,
             string eventObjectId, string reason, long? blockedAmountCents = null, CancellationToken cancellationToken = default);
+        Task ReconcileRefundExposureAsync(string paymentIntentId, string stripeChargeId, string refundId,
+            string reason, long authoritativeRefundedAmountCents, CancellationToken cancellationToken = default);
         Task<int> ProcessEligibleTransfersAsync(CancellationToken cancellationToken = default);
     }
 

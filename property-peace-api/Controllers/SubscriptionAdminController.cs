@@ -185,7 +185,7 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var response = await _planService.GetAllPlansAsync();
+                var response = await _planService.GetAdminPlansAsync();
                 if (!response.Success)
                 {
                     return StatusCode(response.StatusCode, response);

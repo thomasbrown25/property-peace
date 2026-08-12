@@ -4,16 +4,86 @@ import { FiFile } from "react-icons/fi";
 import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/lease/e-sign-docusign/', {
-  title: "DocuSign E-Signatures for Leases | Property Peace",
-  description: "Send leases for DocuSign e-signature, track signing status, and store completed lease documents in Property Peace.",
-  keywords: "DocuSign lease signing, electronic lease signing, e-sign leases, digital lease management",
+  title: "E-Signature Integration Roadmap | Property Peace",
+  description: "Integrated DocuSign and in-product e-signature workflows are not currently available. Use Property Peace to organize lease records and completed documents.",
+  keywords: "lease document management, e-signature roadmap, lease records, landlord lease software",
   alternates: { canonical: "/lease/e-sign-docusign" },
-  openGraph: { title: "DocuSign E-Signatures for Leases | Property Peace", description: "Send leases for DocuSign e-signature, track signing status, and store completed lease documents in Property Peace.", type: "website", url: "/lease/e-sign-docusign" },
-  twitter: { card: "summary_large_image", title: "DocuSign E-Signatures for Leases | Property Peace", description: "Send leases for DocuSign e-signature, track signing status, and store completed lease documents in Property Peace." },
+  openGraph: {
+    title: "E-Signature Integration Roadmap | Property Peace",
+    description: "Integrated e-signature is not currently available. Organize lease records and completed documents today.",
+    type: "website",
+    url: "/lease/e-sign-docusign",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "E-Signature Integration Roadmap | Property Peace",
+    description: "Integrated e-signature is not currently available. Organize lease records and completed documents today.",
+  },
+  robots: { index: false, follow: true },
 });
 
 export default function Page() {
   return <FeatureLandingPage icon={FiFile} {...page} />;
 }
 
-const page = {'canonicalPath': '/lease/e-sign-docusign', 'categoryLabel': 'Lease Management', 'categoryHref': '/features/lease-management', 'eyebrow': 'Lease signing feature', 'title': 'E-Sign Leases with DocuSign', 'subtitle': 'Send lease documents for trusted digital signature, track signing progress, and keep final leases organized with the property record.', 'primaryCta': 'Send a Lease for Signing', 'trustItems': ['No credit card required', 'Free for up to 2 units', 'Built for 1–50 units'], 'problemTitle': 'Paper leases slow everything down', 'problemPoints': ['Printing, scanning, and emailing signature pages creates delays.', 'It is easy to lose track of who has signed and who still needs a reminder.', 'Final signed copies end up buried in inboxes instead of property records.'], 'solutionTitle': 'Digital signing keeps renewals moving', 'solutionPoints': ['Send leases electronically through DocuSign workflows.', 'Track envelope and signature status from the lease record.', 'Store completed signed documents with the tenant and property.'], 'steps': [{'title': 'Prepare the document', 'body': 'Start from your lease draft or uploaded lease file.'}, {'title': 'Send for signature', 'body': 'Route the lease to tenants through DocuSign.'}, {'title': 'Track and store', 'body': 'See signature status and keep the completed lease in Property Peace.'}], 'featureTitle': 'E-signing features', 'features': ['DocuSign integration', 'Digital lease envelope tracking', 'Signature status visibility', 'Automatic reminder workflow support', 'Completed document storage', 'Lease renewal organization'], 'outcomeTitle': 'Faster signing, cleaner records', 'outcomes': ['Reduce delays caused by printing and scanning.', 'Know exactly where each lease stands.', 'Keep signed copies connected to the property and tenant.', 'Make renewals easier to manage.'], 'related': [{'label': 'AI lease creation', 'href': '/lease/ai-lease-creation', 'description': 'Draft leases before sending for signature.'}, {'label': 'Lease management', 'href': '/features/lease-management', 'description': 'Manage lease documents, terms, and expirations.'}, {'label': 'Document management', 'href': '/features/document-management', 'description': 'Store leases and property files securely.'}], 'faqs': [{'question': 'Does Property Peace use DocuSign?', 'answer': 'Yes. Lease signing is designed around DocuSign electronic signature workflows.'}, {'question': 'Can I track who has signed?', 'answer': 'Yes. Signature status tracking helps you see what is complete and what still needs attention.'}, {'question': 'Are signed leases stored after completion?', 'answer': 'Yes. Completed documents can be stored with the lease, tenant, and property records.'}], 'disclaimer': 'Electronic signature requirements can vary by document and jurisdiction. Confirm your lease workflow meets your local requirements.'};
+const page = {
+  canonicalPath: '/lease/e-sign-docusign',
+  categoryLabel: 'Lease Management',
+  categoryHref: '/features/lease-management',
+  eyebrow: 'Integration roadmap',
+  title: 'E-Signature Integration Is Not Currently Available',
+  subtitle: 'Property Peace can organize lease records and completed documents today. Integrated DocuSign and in-product e-signature workflows remain on the roadmap.',
+  primaryCta: 'Manage Lease Records',
+  trustItems: ['Availability stated clearly', 'Free for up to 5 units', 'Built for 1–50 units'],
+  problemTitle: 'Signing and recordkeeping are separate today',
+  problemPoints: [
+    'Property Peace does not currently send documents to DocuSign.',
+    'Property Peace does not currently provide an in-product electronic signature workflow.',
+    'Landlords still need a clear place for lease dates, renewals, and completed documents.',
+  ],
+  solutionTitle: 'Use the live lease-management tools now',
+  solutionPoints: [
+    'Create and organize lease records in Property Peace.',
+    'Use your preferred signing provider outside Property Peace.',
+    'Store the completed document with the relevant property and tenant records.',
+  ],
+  steps: [
+    { title: 'Prepare the lease', body: 'Create or upload the lease document and keep its dates organized.' },
+    { title: 'Sign separately', body: 'Use your preferred external signing process; no integrated signing is currently available.' },
+    { title: 'Store the result', body: 'Keep the completed lease connected to your Property Peace records.' },
+  ],
+  featureTitle: 'Available lease-management tools',
+  features: [
+    'Lease record organization',
+    'Document storage',
+    'Lease date tracking',
+    'Expiration and renewal workflows',
+    'Property and tenant associations',
+    'E-signature integration roadmap',
+  ],
+  outcomeTitle: 'Clear records without a false integration promise',
+  outcomes: [
+    'Keep lease information in one place.',
+    'Track important dates and renewals.',
+    'Store completed copies with the correct records.',
+    'Know that integrated e-signature is not currently available.',
+  ],
+  faqs: [
+    {
+      question: 'Can Property Peace send leases through DocuSign today?',
+      answer: 'No. Integrated DocuSign and in-product electronic signature workflows are not currently available.'
+    },
+    {
+      question: 'What lease tools are available now?',
+      answer: 'You can organize lease records, track important dates, and store completed documents with the relevant property and tenant records.'
+    },
+    {
+      question: 'How should I collect signatures?',
+      answer: 'Use your preferred external signing process, then store the completed document in Property Peace.'
+    }
+  ],
+  related: [
+    { label: 'Lease management', href: '/features/lease-management', description: 'Explore currently available lease-record tools.' },
+    { label: 'Document management', href: '/features/document-management', description: 'Keep property documents organized.' },
+  ],
+};

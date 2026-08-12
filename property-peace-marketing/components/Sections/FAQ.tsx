@@ -23,8 +23,8 @@ const faqs = [
     answer: 'Yes. You can keep income, expenses, receipts, and reports tied to the right rental property so tax-time cleanup is easier.',
   },
   {
-    question: 'Can I easily transfer all of my data to Property Peace?',
-    answer: 'Yes. Property Peace includes Percy import tools that automatically map your spreadsheet columns, making it easy to bring over tenants, properties, leases, rent history, expenses, and other rental data without rebuilding everything by hand.',
+    question: 'Can I import properties into Property Peace?',
+    answer: 'Property Peace includes a product importer for properties and basic units. Percy does not run imports, and tenants, leases, rent history, expenses, and communications are not included in the current import workflow.',
   },
   {
     question: 'Can I cancel anytime?',
@@ -112,6 +112,7 @@ export default function FAQ() {
                     {faq.question}
                   </span>
                   <span
+                    aria-hidden="true"
                     className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600 transition-transform duration-300 ${
                       isOpen ? 'rotate-180' : ''
                     }`}

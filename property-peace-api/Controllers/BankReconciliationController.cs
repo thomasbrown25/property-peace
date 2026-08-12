@@ -1,4 +1,6 @@
+using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Dtos.BankReconciliation;
+using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Services.BankReconciliationService;
 using brownstone_hub_api.Services.OrganizationService;
 using brownstone_hub_api.Services.UserService;
@@ -10,6 +12,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/bank-reconciliation")]
     [Authorize(Roles = "Landlord,Admin")]
+    [RequireOrganizationRole("Owner", "Manager")]
     public class BankReconciliationController : ControllerBase
     {
         private readonly IBankReconciliationService _bankReconciliationService;
@@ -33,29 +36,19 @@ namespace brownstone_hub_api.Controllers
         /// Upload bank statement
         /// </summary>
         [HttpPost("upload")]
+        [RequestSizeLimit(5_242_880)]
         public async Task<IActionResult> UploadBankStatement([FromBody] UploadBankStatementDto statementDto)
         {
             try
             {
-                var userIdResponse = await _userService.GetCurrentUserIdAsync();
-                if (!userIdResponse.Success || !userIdResponse.Data.HasValue)
-                {
-                    return Unauthorized(new { Message = "User not found" });
-                }
-
-                var userId = userIdResponse.Data.Value;
-                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId);
-                if (!userOrgResponse.Success || userOrgResponse.Data == null)
-                {
-                    return NotFound(new { Message = "Organization not found" });
-                }
-
-                var organizationId = userOrgResponse.Data.Id;
-                var response = await _bankReconciliationService.UploadBankStatementAsync(organizationId, statementDto);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+                var response = await _bankReconciliationService.UploadBankStatementAsync(organizationId.Value, statementDto);
 
                 if (!response.Success)
                 {
-                    return BadRequest(response);
+                    return StatusCode(response.StatusCode, response);
                 }
 
                 return Ok(response);
@@ -75,21 +68,10 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var userIdResponse = await _userService.GetCurrentUserIdAsync();
-                if (!userIdResponse.Success || !userIdResponse.Data.HasValue)
-                {
-                    return Unauthorized(new { Message = "User not found" });
-                }
-
-                var userId = userIdResponse.Data.Value;
-                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId);
-                if (!userOrgResponse.Success || userOrgResponse.Data == null)
-                {
-                    return NotFound(new { Message = "Organization not found" });
-                }
-
-                var organizationId = userOrgResponse.Data.Id;
-                var response = await _bankReconciliationService.GetUnmatchedTransactionsAsync(organizationId, bankStatementId);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+                var response = await _bankReconciliationService.GetUnmatchedTransactionsAsync(organizationId.Value, bankStatementId);
 
                 if (!response.Success)
                 {
@@ -113,21 +95,10 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var userIdResponse = await _userService.GetCurrentUserIdAsync();
-                if (!userIdResponse.Success || !userIdResponse.Data.HasValue)
-                {
-                    return Unauthorized(new { Message = "User not found" });
-                }
-
-                var userId = userIdResponse.Data.Value;
-                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId);
-                if (!userOrgResponse.Success || userOrgResponse.Data == null)
-                {
-                    return NotFound(new { Message = "Organization not found" });
-                }
-
-                var organizationId = userOrgResponse.Data.Id;
-                var response = await _bankReconciliationService.GetUnmatchedLedgerEntriesAsync(organizationId, startDate, endDate);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+                var response = await _bankReconciliationService.GetUnmatchedLedgerEntriesAsync(organizationId.Value, startDate, endDate);
 
                 if (!response.Success)
                 {
@@ -151,7 +122,11 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var response = await _bankReconciliationService.MatchTransactionAsync(matchDto.BankTransactionId, matchDto.LedgerEntryId);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+
+                var response = await _bankReconciliationService.MatchTransactionAsync(organizationId.Value, matchDto.BankTransactionId, matchDto.LedgerEntryId);
 
                 if (!response.Success)
                 {
@@ -175,7 +150,11 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var response = await _bankReconciliationService.UnmatchTransactionAsync(unmatchDto.BankTransactionId);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+
+                var response = await _bankReconciliationService.UnmatchTransactionAsync(organizationId.Value, unmatchDto.BankTransactionId);
 
                 if (!response.Success)
                 {
@@ -199,7 +178,11 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var response = await _bankReconciliationService.DeleteTransactionAsync(transactionId);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+
+                var response = await _bankReconciliationService.DeleteTransactionAsync(organizationId.Value, transactionId);
 
                 if (!response.Success)
                 {
@@ -223,7 +206,11 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var response = await _bankReconciliationService.GetReconciliationReportAsync(statementId);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+
+                var response = await _bankReconciliationService.GetReconciliationReportAsync(organizationId.Value, statementId);
 
                 if (!response.Success)
                 {
@@ -247,21 +234,10 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                var userIdResponse = await _userService.GetCurrentUserIdAsync();
-                if (!userIdResponse.Success || !userIdResponse.Data.HasValue)
-                {
-                    return Unauthorized(new { Message = "User not found" });
-                }
-
-                var userId = userIdResponse.Data.Value;
-                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId);
-                if (!userOrgResponse.Success || userOrgResponse.Data == null)
-                {
-                    return NotFound(new { Message = "Organization not found" });
-                }
-
-                var organizationId = userOrgResponse.Data.Id;
-                var response = await _bankReconciliationService.ClearUnmatchedTransactionsAsync(organizationId);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+                var response = await _bankReconciliationService.ClearUnmatchedTransactionsAsync(organizationId.Value);
                 if (!response.Success)
                 {
                     return BadRequest(response);
@@ -290,7 +266,11 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 var userId = userIdResponse.Data.Value;
-                var response = await _bankReconciliationService.ReconcileStatementAsync(reconcileDto.BankStatementId, userId, reconcileDto.Notes);
+                var organizationId = GetRequestOrganizationId();
+                if (!organizationId.HasValue)
+                    return OrganizationContextRequired();
+
+                var response = await _bankReconciliationService.ReconcileStatementAsync(organizationId.Value, reconcileDto.BankStatementId, userId, reconcileDto.Notes);
 
                 if (!response.Success)
                 {
@@ -305,6 +285,15 @@ namespace brownstone_hub_api.Controllers
                 return StatusCode(500, new { Message = "An error occurred while reconciling statement" });
             }
         }
+
+        private long? GetRequestOrganizationId()
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            return organizationId is > 0 ? organizationId : null;
+        }
+
+        private IActionResult OrganizationContextRequired() =>
+            StatusCode(StatusCodes.Status403Forbidden, new { Message = "Organization context is required" });
     }
 
     public class MatchTransactionDto

@@ -1,5 +1,6 @@
 using AutoMapper;
 using AutoMapper.Internal;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace brownstone_hub_api.Tests.Security;
@@ -10,7 +11,9 @@ public sealed class AutoMapperRecursionSecurityTests
     public void ProductionProfile_BoundsEveryMapDepth()
     {
         var productionAssembly = typeof(AutoMapperProfile).Assembly;
-        var configuration = new MapperConfiguration(cfg => cfg.AddMaps(productionAssembly));
+        var configuration = new MapperConfiguration(
+            cfg => cfg.AddMaps(productionAssembly),
+            NullLoggerFactory.Instance);
 
         var typeMaps = configuration.Internal().GetAllTypeMaps();
 

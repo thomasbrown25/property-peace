@@ -8,7 +8,6 @@ import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import LeaseBuilderWizard from 'sections/lease-builder/LeaseBuilderWizard';
 import { openSnackbar } from 'api/snackbar';
-import useAuth from 'hooks/useAuth';
 
 // ==============================|| LEASE BUILDER PAGE ||============================== //
 
@@ -16,24 +15,14 @@ export default function LeaseBuilderPage() {
   const { leaseId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
 
   // Get property and unit IDs from URL parameters
   const initialPropertyId = searchParams.get('propertyId') ? parseInt(searchParams.get('propertyId')) : null;
   const initialUnitId = searchParams.get('unitId') ? parseInt(searchParams.get('unitId')) : null;
 
-  const handleComplete = (leaseId) => {
+  const handleComplete = (completedLeaseId) => {
     openSnackbar('success', 'Lease generated and finalized successfully');
-    
-    // Check if user hasn't seen tutorial - if so, navigate back to dashboard to reopen wizard
-    const hasSeenTutorial = user?.HasSeenTutorial || user?.hasSeenTutorial || false;
-    if (!hasSeenTutorial) {
-      // Navigate to dashboard with a flag to reopen wizard
-      navigate('/landlord/dashboard?leaseCompleted=true');
-    } else {
-      // Navigate to the newly created lease page using the leaseId from finalization
-      navigate(`/landlord/leases/${leaseId}`);
-    }
+    navigate(`/landlord/leases/${completedLeaseId}`);
   };
 
   return (

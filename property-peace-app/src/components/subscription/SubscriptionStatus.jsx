@@ -84,7 +84,7 @@ export default function SubscriptionStatus({ status }) {
             {subscription.status === 'Trial' ? (
               <Box sx={{ mb: 2 }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Free Trial
+                  Legacy trial
                 </Typography>
                 {isTrialActive && trialDaysRemaining !== null && (
                   <Typography variant="body2" color="text.secondary">
@@ -94,7 +94,7 @@ export default function SubscriptionStatus({ status }) {
                   </Typography>
                 )}
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Select a plan to continue after your trial ends
+                  Choose the permanent Free plan or Premium before this legacy trial ends
                 </Typography>
               </Box>
             ) : subscription.status === 'PaymentPending' ? (

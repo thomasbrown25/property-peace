@@ -4,11 +4,12 @@ import { MailOutlined, PhoneOutlined, ArrowRightOutlined } from '@ant-design/ico
 import MainCard from 'components/MainCard';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { formatPhone } from 'utils/formatters';
+import { formatCurrency, formatPhone } from 'utils/formatters';
 import TenantMessageDrawer from 'components/drawers/TenantMessageDrawer';
+import { normalizeRentBalance } from 'utils/rentBalance';
 import { darkModeActionButtonSx, propertyAccentCardSx } from './propertyAccentSx';
 
-export default function PropertyCurrentTenant({ property }) {
+export default function PropertyCurrentTenant({ property, rentRecords = [] }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [messageDrawerOpen, setMessageDrawerOpen] = useState(false);
@@ -42,13 +43,13 @@ export default function PropertyCurrentTenant({ property }) {
     ? `Tenant since ${format(parseISO(leaseStart), 'MMM yyyy')}`
     : 'Active tenant';
 
-  // Payment status — check overdueAmount on lease
-  const overdueAmount = lease?.overdueAmount || lease?.OverdueAmount || 0;
-  const isOnTime = !overdueAmount || overdueAmount === 0;
-
-  const unitStatus = (firstUnit?.status || firstUnit?.Status || '').toLowerCase();
-  const statusLabel = unitStatus === 'overdue' ? 'overdue' : 'on time';
-  const statusColor = unitStatus === 'overdue' ? 'error' : 'success';
+  const leaseId = lease?.id ?? lease?.Id;
+  const rentRecord = rentRecords.find((record) =>
+    String(record?.leaseId ?? record?.LeaseId) === String(leaseId)
+  );
+  const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rentRecord);
+  const statusLabel = rentDueIsOverdue ? `${formatCurrency(rentDue)} overdue` : 'on time';
+  const statusColor = rentDueIsOverdue ? 'error' : 'success';
 
   return (
     <MainCard

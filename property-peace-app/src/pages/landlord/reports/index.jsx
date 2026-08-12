@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   alpha,
   Avatar,
@@ -25,14 +25,17 @@ import {
   FileTextOutlined,
   HomeOutlined,
   LockOutlined,
+  ReloadOutlined,
   RocketOutlined,
   SearchOutlined,
+  SettingOutlined,
   TrophyOutlined,
   UserOutlined
 } from '@ant-design/icons';
 import AnimateIn from 'components/AnimateIn';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
-import { useSubscription } from 'hooks/useSubscription';
+import useEntitlement from 'hooks/useEntitlement';
+import { ADVANCED_REPORTING_FEATURE } from 'utils/entitlements';
 
 const NAVY = '#061e35';
 const GREEN = '#22c55e';
@@ -112,6 +115,46 @@ const REPORTS = [
     eyebrow: 'Team efficiency'
   },
   {
+    id: 'units-per-client',
+    title: 'Units Per Client',
+    description: 'Compare portfolio concentration and managed unit counts across property-owner relationships.',
+    icon: <HomeOutlined />,
+    color: '#0f766e',
+    route: '/landlord/reports/units-per-client',
+    group: 'Operations',
+    eyebrow: 'Client concentration'
+  },
+  {
+    id: 'client-churn',
+    title: 'Client Churn',
+    description: 'Review client retention patterns and identify changes in managed relationships over time.',
+    icon: <UserOutlined />,
+    color: '#be123c',
+    route: '/landlord/reports/client-churn',
+    group: 'Operations',
+    eyebrow: 'Retention trend'
+  },
+  {
+    id: 'closing-rate',
+    title: 'Closing Rate',
+    description: 'Understand how consistently qualified leasing opportunities become signed leases.',
+    icon: <CheckCircleOutlined />,
+    color: '#15803d',
+    route: '/landlord/reports/closing-rate',
+    group: 'Operations',
+    eyebrow: 'Leasing conversion'
+  },
+  {
+    id: 'nps-client',
+    title: 'Client NPS Score',
+    description: 'Monitor property-owner satisfaction and likelihood to recommend your management services.',
+    icon: <TrophyOutlined />,
+    color: '#6d28d9',
+    route: '/landlord/reports/nps-client',
+    group: 'Experience',
+    eyebrow: 'Client sentiment'
+  },
+  {
     id: 'nps-tenant',
     title: 'Tenant NPS Score',
     description: 'Monitor resident satisfaction and their likelihood to recommend their rental experience.',
@@ -125,7 +168,15 @@ const REPORTS = [
 
 const FILTERS = ['All reports', 'Money & tax', 'Portfolio', 'Operations', 'Experience'];
 
-function Hero({ locked }) {
+const ACCESS_LABELS = {
+  allowed: 'Reporting access active',
+  upgrade: 'Premium workspace',
+  setup: 'Setup required',
+  unauthorized: 'Access restricted',
+  unavailable: 'Access unavailable'
+};
+
+function Hero({ locked, showUpgrade, presentationKind }) {
   const navigate = useNavigate();
 
   return (
@@ -157,7 +208,7 @@ function Hero({ locked }) {
             <Chip
               size="small"
               icon={locked ? <LockOutlined /> : <CheckCircleOutlined />}
-              label={locked ? 'Premium workspace' : 'Premium active'}
+              label={ACCESS_LABELS[presentationKind] || ACCESS_LABELS.unavailable}
               sx={{ bgcolor: alpha('#fff', 0.12), color: '#fff', '& .MuiChip-icon': { color: locked ? '#fbbf24' : GREEN } }}
             />
             <Chip size="small" label={`${REPORTS.length} live reports`} sx={{ bgcolor: alpha('#fff', 0.08), color: alpha('#fff', 0.82) }} />
@@ -171,22 +222,22 @@ function Hero({ locked }) {
         </Box>
 
         <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1.25} sx={{ width: { xs: '100%', sm: 'auto' }, position: 'relative', zIndex: 1 }}>
-          {locked ? (
+          {locked && showUpgrade ? (
             <Button
               variant="contained"
               startIcon={<RocketOutlined />}
               onClick={() => navigate('/landlord/settings?tab=subscription')}
-              sx={{ bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
+              sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
             >
-              Upgrade to Premium
+              View subscription
             </Button>
-          ) : (
+          ) : !locked ? (
             <>
               <Button
                 variant="contained"
                 startIcon={<FileDoneOutlined />}
                 onClick={() => navigate('/landlord/reports/tax')}
-                sx={{ bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
+                sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
               >
                 Open tax workspace
               </Button>
@@ -194,12 +245,12 @@ function Hero({ locked }) {
                 variant="outlined"
                 endIcon={<ArrowRightOutlined />}
                 onClick={() => navigate('/landlord/reports/financial')}
-                sx={{ color: '#fff', borderColor: alpha('#fff', 0.32), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) } }}
+                sx={{ minHeight: 44, color: '#fff', borderColor: alpha('#fff', 0.32), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) } }}
               >
                 View financials
               </Button>
             </>
-          )}
+          ) : null}
         </Stack>
       </Stack>
     </Box>
@@ -216,6 +267,7 @@ function FeaturedReport({ report, locked }) {
       type="button"
       onClick={() => !locked && navigate(report.route)}
       disabled={locked}
+      aria-disabled={locked}
       sx={{
         width: '100%',
         height: '100%',
@@ -259,21 +311,21 @@ function ReportCard({ report, locked }) {
 
   return (
     <Box
-      role="link"
-      tabIndex={locked ? -1 : 0}
+      component="button"
+      type="button"
       onClick={() => !locked && navigate(report.route)}
-      onKeyDown={(event) => {
-        if (!locked && (event.key === 'Enter' || event.key === ' ')) {
-          event.preventDefault();
-          navigate(report.route);
-        }
-      }}
+      disabled={locked}
+      aria-disabled={locked}
       sx={{
+        width: '100%',
         p: { xs: 1.75, md: 2 },
         height: '100%',
         borderRadius: 2.25,
         border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
         bgcolor: 'background.paper',
+        color: 'text.primary',
+        textAlign: 'left',
+        font: 'inherit',
         cursor: locked ? 'default' : 'pointer',
         boxShadow: `0 3px 16px ${alpha(NAVY, 0.04)}`,
         transition: 'border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease',
@@ -346,7 +398,7 @@ function ReportLibrary({ locked }) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search reports"
             startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
-            sx={{ width: { xs: '100%', md: 270 }, bgcolor: 'background.paper' }}
+            sx={{ width: { xs: '100%', md: 270 }, minHeight: 44, bgcolor: 'background.paper' }}
           />
         </Stack>
 
@@ -360,6 +412,7 @@ function ReportLibrary({ locked }) {
                 clickable
                 onClick={() => setFilter(item)}
                 sx={{
+                  minHeight: 44,
                   flexShrink: 0,
                   fontWeight: 650,
                   bgcolor: active ? NAVY : 'background.paper',
@@ -386,23 +439,83 @@ function ReportLibrary({ locked }) {
           <SearchOutlined style={{ fontSize: 28, color: theme.palette.text.disabled }} />
           <Typography fontWeight={700} sx={{ mt: 1.5 }}>No reports match your search</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Try another keyword or choose a different topic.</Typography>
-          <Button size="small" onClick={() => { setQuery(''); setFilter('All reports'); }} sx={{ mt: 1.5 }}>Clear filters</Button>
+          <Button size="small" onClick={() => { setQuery(''); setFilter('All reports'); }} sx={{ mt: 1.5, minHeight: 44 }}>Clear filters</Button>
         </Box>
       )}
     </Stack>
   );
 }
 
-export default function ReportsDashboard() {
-  const { subscription, loading: subscriptionLoading } = useSubscription();
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const hasPremiumAccess = planName === 'premium' || planName.includes('lifetime');
+function AccessNotice({ kind, refresh }) {
+  const setup = kind === 'setup';
+  const unauthorized = kind === 'unauthorized';
+  const unavailable = kind === 'unavailable';
+  const upgrade = kind === 'upgrade';
 
-  if (subscriptionLoading) {
+  const content = setup
+    ? {
+        title: 'Finish setting up your organization',
+        message: 'Reporting needs an active organization before portfolio data can be loaded securely.'
+      }
+    : unauthorized
+      ? {
+          title: 'You do not have access to reporting',
+          message: 'Ask an organization owner or administrator to review your reporting access. No billing changes are needed.'
+        }
+      : unavailable
+        ? {
+            title: 'Reporting access cannot be confirmed',
+            message: 'Reports remain safely unavailable while access is checked. Try again, and contact support if the problem continues.'
+          }
+        : {
+            title: 'Preview the complete analytics workspace',
+            message: 'Premium unlocks every report below, including financial exports, tax preparation views, and portfolio trends.'
+          };
+
+  return (
+    <Box aria-live="polite" sx={{ px: { xs: 2, md: 2.5 }, py: 1.75, borderRadius: 2.25, border: `1px solid ${alpha(GREEN, 0.24)}`, bgcolor: alpha(GREEN, 0.055) }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" fontWeight={750}>{content.title}</Typography>
+          <Typography variant="caption" color="text.secondary">{content.message}</Typography>
+        </Box>
+        {setup && (
+          <Button component={RouterLink} to="/landlord/setup" variant="contained" startIcon={<SettingOutlined />} sx={{ minHeight: 44 }}>
+            Continue setup
+          </Button>
+        )}
+        {unavailable && (
+          <Button type="button" variant="outlined" startIcon={<ReloadOutlined />} onClick={refresh} sx={{ minHeight: 44 }}>
+            Try again
+          </Button>
+        )}
+        {upgrade && (
+          <Button component={RouterLink} to="/landlord/settings?tab=subscription" variant="contained" startIcon={<RocketOutlined />} sx={{ minHeight: 44 }}>
+            View subscription
+          </Button>
+        )}
+      </Stack>
+    </Box>
+  );
+}
+
+export default function ReportsDashboard() {
+  const { presentation, canInvoke, refresh } = useEntitlement(ADVANCED_REPORTING_FEATURE);
+  const locked = !canInvoke;
+  const showUpgrade = presentation.kind === 'upgrade';
+  const showSetup = presentation.kind === 'setup';
+  const showUnauthorized = presentation.kind === 'unauthorized';
+  const showUnavailable = presentation.kind === 'unavailable';
+  const showAccessNotice = showUpgrade || showSetup || showUnauthorized || showUnavailable;
+
+  if (presentation.kind === 'loading') {
     return (
       <Box>
         <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Reports & Analytics' }]} />
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}><CircularProgress /></Box>
+        <Box aria-live="polite" aria-busy="true" sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <CircularProgress aria-label="Checking reporting access" />
+          <Typography color="text.secondary">Checking your reporting access…</Typography>
+        </Box>
       </Box>
     );
   }
@@ -415,27 +528,17 @@ export default function ReportsDashboard() {
 
       <Stack spacing={3}>
         <AnimateIn direction="bottom" delay={180} distance={80}>
-          <Hero locked={!hasPremiumAccess} />
+          <Hero locked={locked} showUpgrade={showUpgrade} presentationKind={presentation.kind} />
         </AnimateIn>
 
-        {!hasPremiumAccess && (
+        {showAccessNotice && (
           <AnimateIn direction="bottom" delay={240} distance={80}>
-            <Box sx={{ px: { xs: 2, md: 2.5 }, py: 1.75, borderRadius: 2.25, border: `1px solid ${alpha(GREEN, 0.24)}`, bgcolor: alpha(GREEN, 0.055) }}>
-              <Stack direction="row" spacing={1.25} alignItems="flex-start">
-                <RocketOutlined style={{ color: '#16a34a', fontSize: 18, marginTop: 2 }} />
-                <Box>
-                  <Typography variant="body2" fontWeight={750}>Preview the complete analytics workspace</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Premium unlocks every report below, including financial exports, tax preparation views, portfolio trends, and operating benchmarks.
-                  </Typography>
-                </Box>
-              </Stack>
-            </Box>
+            <AccessNotice kind={presentation.kind} refresh={refresh} />
           </AnimateIn>
         )}
 
         <AnimateIn direction="bottom" delay={300} distance={80}>
-          <ReportLibrary locked={!hasPremiumAccess} />
+          <ReportLibrary locked={locked} />
         </AnimateIn>
       </Stack>
     </Box>

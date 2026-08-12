@@ -4,6 +4,7 @@ using brownstone_hub_api.Dtos.Tax;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Repositories.Expenses;
 using brownstone_hub_api.Repositories.Payments;
+using System.Globalization;
 using System.Text;
 
 namespace brownstone_hub_api.Services.TaxReportService
@@ -17,15 +18,23 @@ namespace brownstone_hub_api.Services.TaxReportService
         private readonly IPaymentRepository _paymentRepository = paymentRepository;
         private readonly ILogger<TaxReportService> _logger = logger;
 
-        public async Task<ServiceResponse<TaxYearReportDto>> GetTaxYearReport(long landlordId, int year)
+        public async Task<ServiceResponse<TaxYearReportDto>> GetTaxYearReport(long organizationId, int year)
         {
             try
             {
                 var (startDate, endDate) = GetYearRange(year);
-                var expenses = await _expenseRepository.GetExpensesByLandlordId(landlordId, null, startDate, endDate, null);
-                var deductibleExpenses = expenses.Where(e => e.IsTaxDeductible).ToList();
+                var expenses = await _expenseRepository.GetExpensesByOrganizationId(
+                    organizationId,
+                    propertyId: null,
+                    unitId: null,
+                    startDate: null,
+                    endDate: null,
+                    category: null,
+                    vendorId: null);
+                var deductibleExpenses = GetCashBasisExpenses(expenses, startDate, endDate)
+                    .Where(e => e.IsTaxDeductible).ToList();
 
-                var payments = await GetYearPayments(landlordId, startDate, endDate);
+                var payments = await GetYearPayments(organizationId, startDate, endDate);
                 var rentPayments = payments.Where(IsRentIncomePayment).ToList();
                 var feePayments = payments.Where(IsFeeIncomePayment).ToList();
                 var depositPayments = payments.Where(p => p.DepositId.HasValue).ToList();
@@ -57,6 +66,7 @@ namespace brownstone_hub_api.Services.TaxReportService
                     DepositsNeedingReview = depositPayments.Sum(p => p.Amount),
                     TotalExpenses = totalExpenses,
                     NetIncome = netIncome,
+                    AccountingBasis = "cash",
                     CategorySummaries = categorySummaries,
                     DeductibleExpenses = deductibleExpenses.Select(ToTaxDeductibleExpenseDto).ToList(),
                     StartDate = startDate,
@@ -72,7 +82,7 @@ namespace brownstone_hub_api.Services.TaxReportService
             }
         }
 
-        public async Task<ServiceResponse<List<TaxCategorySummaryDto>>> GetTaxCategorySummary(long landlordId, int? year = null)
+        public async Task<ServiceResponse<List<TaxCategorySummaryDto>>> GetTaxCategorySummary(long organizationId, int? year = null)
         {
             try
             {
@@ -84,8 +94,16 @@ namespace brownstone_hub_api.Services.TaxReportService
                     (startDate, endDate) = GetYearRange(year.Value);
                 }
 
-                var expenses = await _expenseRepository.GetExpensesByLandlordId(landlordId, null, startDate, endDate, null);
-                var deductibleExpenses = expenses.Where(e => e.IsTaxDeductible).ToList();
+                var expenses = await _expenseRepository.GetExpensesByOrganizationId(
+                    organizationId,
+                    propertyId: null,
+                    unitId: null,
+                    startDate: null,
+                    endDate: null,
+                    category: null,
+                    vendorId: null);
+                var deductibleExpenses = GetCashBasisExpenses(expenses, startDate, endDate)
+                    .Where(e => e.IsTaxDeductible).ToList();
 
                 var summaries = deductibleExpenses
                     .GroupBy(e => e.TaxCategory ?? ETaxCategory.None)
@@ -110,7 +128,7 @@ namespace brownstone_hub_api.Services.TaxReportService
         }
 
         public async Task<ServiceResponse<List<TaxDeductibleExpenseDto>>> GetTaxDeductibleExpenses(
-            long landlordId,
+            long organizationId,
             int? year = null,
             DateTime? startDate = null,
             DateTime? endDate = null)
@@ -125,8 +143,15 @@ namespace brownstone_hub_api.Services.TaxReportService
                     (actualStartDate, actualEndDate) = GetYearRange(year.Value);
                 }
 
-                var expenses = await _expenseRepository.GetExpensesByLandlordId(landlordId, null, actualStartDate, actualEndDate, null);
-                var expenseDtos = expenses
+                var expenses = await _expenseRepository.GetExpensesByOrganizationId(
+                    organizationId,
+                    propertyId: null,
+                    unitId: null,
+                    startDate: null,
+                    endDate: null,
+                    category: null,
+                    vendorId: null);
+                var expenseDtos = GetCashBasisExpenses(expenses, actualStartDate, actualEndDate)
                     .Where(e => e.IsTaxDeductible)
                     .Select(ToTaxDeductibleExpenseDto)
                     .OrderByDescending(e => e.ExpenseDate)
@@ -141,13 +166,21 @@ namespace brownstone_hub_api.Services.TaxReportService
             }
         }
 
-        public async Task<ServiceResponse<List<Form1099Dto>>> GetForm1099Data(long landlordId, int year)
+        public async Task<ServiceResponse<List<Form1099Dto>>> GetForm1099Data(long organizationId, int year)
         {
             try
             {
                 var (startDate, endDate) = GetYearRange(year);
-                var expenses = await _expenseRepository.GetExpensesByLandlordId(landlordId, null, startDate, endDate, null);
-                var eligibleExpenses = expenses.Where(IsPotential1099Expense).ToList();
+                var expenses = await _expenseRepository.GetExpensesByOrganizationId(
+                    organizationId,
+                    propertyId: null,
+                    unitId: null,
+                    startDate: null,
+                    endDate: null,
+                    category: null,
+                    vendorId: null);
+                var eligibleExpenses = GetCashBasisExpenses(expenses, startDate, endDate)
+                    .Where(IsPotential1099Expense).ToList();
 
                 var form1099Data = eligibleExpenses
                     .GroupBy(e => new
@@ -163,7 +196,7 @@ namespace brownstone_hub_api.Services.TaxReportService
                         Year = year,
                         VendorId = g.Key.VendorId,
                         VendorName = g.Key.VendorName,
-                        VendorTaxId = g.Key.VendorTaxId,
+                        VendorTaxId = MaskTin(g.Key.VendorTaxId),
                         VendorAddress = g.Key.VendorAddress,
                         Requires1099 = g.Key.VendorRequires1099,
                         MissingTaxId = string.IsNullOrWhiteSpace(g.Key.VendorTaxId),
@@ -175,7 +208,7 @@ namespace brownstone_hub_api.Services.TaxReportService
                             ExpenseId = e.Id,
                             Description = e.Name,
                             Amount = GetDeductibleAmount(e),
-                            ExpenseDate = e.ExpenseDate,
+                            ExpenseDate = GetExpenseAccountingDate(e),
                             PropertyName = e.PropertyName ?? "Unknown"
                         }).OrderBy(e => e.ExpenseDate).ToList()
                     })
@@ -192,15 +225,34 @@ namespace brownstone_hub_api.Services.TaxReportService
             }
         }
 
-        public async Task<ServiceResponse<TaxReadinessDto>> GetTaxReadiness(long landlordId, int year)
+        private static string? MaskTin(string? tin)
+        {
+            if (string.IsNullOrWhiteSpace(tin)) return null;
+
+            var digits = new string(tin.Where(char.IsDigit).ToArray());
+            if (digits.Length == 0) return "***-**-****";
+            if (digits.Length < 4) return "***-**-****";
+
+            return $"***-**-{digits[^4..]}";
+        }
+
+        public async Task<ServiceResponse<TaxReadinessDto>> GetTaxReadiness(long organizationId, int year)
         {
             try
             {
                 var (startDate, endDate) = GetYearRange(year);
-                var expenses = await _expenseRepository.GetExpensesByLandlordId(landlordId, null, startDate, endDate, null);
-                var payments = await GetYearPayments(landlordId, startDate, endDate);
-                var form1099 = (await GetForm1099Data(landlordId, year)).Data ?? [];
+                var expenses = await _expenseRepository.GetExpensesByOrganizationId(
+                    organizationId,
+                    propertyId: null,
+                    unitId: null,
+                    startDate: null,
+                    endDate: null,
+                    category: null,
+                    vendorId: null);
+                var payments = await GetYearPayments(organizationId, startDate, endDate);
+                var form1099 = (await GetForm1099Data(organizationId, year)).Data ?? [];
 
+                expenses = GetCashBasisExpenses(expenses, startDate, endDate);
                 var deductibleExpenses = expenses.Where(e => e.IsTaxDeductible).ToList();
                 var expenseReviewQueue = expenses
                     .Select(ToTaxReviewExpenseDto)
@@ -275,7 +327,7 @@ namespace brownstone_hub_api.Services.TaxReportService
         }
 
         public async Task<ServiceResponse<AccountingExportDto>> ExportToAccountingSoftware(
-            long landlordId,
+            long organizationId,
             string format,
             int? year = null,
             DateTime? startDate = null,
@@ -291,13 +343,21 @@ namespace brownstone_hub_api.Services.TaxReportService
                     (actualStartDate, actualEndDate) = GetYearRange(year.Value);
                 }
 
-                var expenses = await _expenseRepository.GetExpensesByLandlordId(landlordId, null, actualStartDate, actualEndDate, null);
-                var payments = await _paymentRepository.GetLifetimePaymentsByLandlordId(landlordId);
+                var expenses = await _expenseRepository.GetExpensesByOrganizationId(
+                    organizationId,
+                    propertyId: null,
+                    unitId: null,
+                    startDate: null,
+                    endDate: null,
+                    category: null,
+                    vendorId: null);
+                expenses = GetCashBasisExpenses(expenses, actualStartDate, actualEndDate);
+                var payments = await _paymentRepository.GetLifetimePaymentsByOrganizationId(organizationId);
 
                 if (actualStartDate.HasValue)
                     payments = payments.Where(p => p.PaymentDate >= actualStartDate.Value).ToList();
                 if (actualEndDate.HasValue)
-                    payments = payments.Where(p => p.PaymentDate <= actualEndDate.Value).ToList();
+                    payments = payments.Where(p => p.PaymentDate < actualEndDate.Value).ToList();
 
                 var incomePayments = payments.Where(IsTaxableIncomePayment).ToList();
                 var taxYear = year ?? DateTime.Now.Year;
@@ -310,16 +370,16 @@ namespace brownstone_hub_api.Services.TaxReportService
                     case "quickbooks":
                     case "qb":
                         fileContent = GenerateQuickBooksFormat(expenses, incomePayments);
-                        fileName = $"quickbooks-export-{taxYear}.iif";
+                        fileName = $"quickbooks-experimental-import-template-{taxYear}.iif";
                         mimeType = "application/x-iif";
                         break;
                     case "xero":
                         fileContent = GenerateXeroFormat(expenses, incomePayments);
-                        fileName = $"xero-export-{taxYear}.csv";
+                        fileName = $"xero-experimental-import-template-{taxYear}.csv";
                         break;
                     case "accountant":
                     case "package":
-                        var readiness = (await GetTaxReadiness(landlordId, taxYear)).Data;
+                        var readiness = (await GetTaxReadiness(organizationId, taxYear)).Data;
                         fileContent = GenerateAccountantPackageSummary(expenses, incomePayments, readiness, taxYear);
                         fileName = $"accountant-tax-package-{taxYear}.csv";
                         break;
@@ -338,7 +398,15 @@ namespace brownstone_hub_api.Services.TaxReportService
                     EndDate = actualEndDate,
                     FileContent = fileContent,
                     FileName = fileName,
-                    MimeType = mimeType
+                    MimeType = mimeType,
+                    IsExperimentalTemplate = format.Equals("quickbooks", StringComparison.OrdinalIgnoreCase) ||
+                        format.Equals("qb", StringComparison.OrdinalIgnoreCase) ||
+                        format.Equals("xero", StringComparison.OrdinalIgnoreCase),
+                    ImportDisclaimer = format.Equals("quickbooks", StringComparison.OrdinalIgnoreCase) ||
+                        format.Equals("qb", StringComparison.OrdinalIgnoreCase) ||
+                        format.Equals("xero", StringComparison.OrdinalIgnoreCase)
+                            ? "Experimental import template only; Property Peace does not guarantee acceptance or a successful import. Review before use."
+                            : null
                 };
 
                 return new ServiceResponse<AccountingExportDto> { Data = export };
@@ -350,22 +418,39 @@ namespace brownstone_hub_api.Services.TaxReportService
             }
         }
 
-        private async Task<List<LoadPaymentDto>> GetYearPayments(long landlordId, DateTime startDate, DateTime endDate)
+        private async Task<List<LoadPaymentDto>> GetYearPayments(long organizationId, DateTime startDate, DateTime endDate)
         {
-            var payments = await _paymentRepository.GetLifetimePaymentsByLandlordId(landlordId);
-            return payments.Where(p => p.PaymentDate >= startDate && p.PaymentDate <= endDate && IsCompletedPayment(p)).ToList();
+            var payments = await _paymentRepository.GetLifetimePaymentsByOrganizationId(organizationId);
+            return payments.Where(p => p.PaymentDate >= startDate && p.PaymentDate < endDate && IsCompletedPayment(p)).ToList();
         }
 
         private static (DateTime StartDate, DateTime EndDate) GetYearRange(int year)
         {
-            return (new DateTime(year, 1, 1), new DateTime(year, 12, 31, 23, 59, 59));
+            return (new DateTime(year, 1, 1), new DateTime(year + 1, 1, 1));
         }
 
         private static bool IsCompletedPayment(LoadPaymentDto payment)
         {
             var status = payment.Status?.Trim().ToLowerInvariant();
-            return string.IsNullOrEmpty(status) || status is "completed" or "paid" or "succeeded" or "success";
+            // Loss accounting keeps the original positive receipt and writes a completed negative
+            // adjustment. Include both rows so refunds/disputes report the net cash settlement.
+            return string.IsNullOrEmpty(status) || status is "completed" or "paid" or "succeeded" or "success"
+                or "partiallyrefunded" or "refunded" or "disputed";
         }
+
+        private static List<LoadExpenseDto> GetCashBasisExpenses(
+            IEnumerable<LoadExpenseDto> expenses,
+            DateTime? startDate,
+            DateTime? endDate)
+        {
+            return expenses.Where(e => e.IsPaid && e.PaidDate.HasValue)
+                .Where(e => !startDate.HasValue || e.PaidDate!.Value >= startDate.Value)
+                .Where(e => !endDate.HasValue || e.PaidDate!.Value < endDate.Value)
+                .ToList();
+        }
+
+        private static DateTime GetExpenseAccountingDate(LoadExpenseDto expense) =>
+            expense.PaidDate ?? throw new InvalidOperationException("Cash-basis expense is missing PaidDate.");
 
         private static bool IsRentIncomePayment(LoadPaymentDto payment) => !payment.DepositId.HasValue && !payment.FeeId.HasValue;
 
@@ -417,7 +502,7 @@ namespace brownstone_hub_api.Services.TaxReportService
                 Description = expense.Name,
                 Amount = expense.Amount,
                 DeductibleAmount = GetDeductibleAmount(expense),
-                ExpenseDate = expense.ExpenseDate,
+                ExpenseDate = GetExpenseAccountingDate(expense),
                 TaxCategory = expense.TaxCategory,
                 TaxCategoryName = expense.TaxCategory.HasValue ? GetTaxCategoryName(expense.TaxCategory.Value) : null,
                 Vendor = GetVendorName(expense),
@@ -443,7 +528,7 @@ namespace brownstone_hub_api.Services.TaxReportService
                 Description = expense.Name,
                 Amount = expense.Amount,
                 DeductibleAmount = GetDeductibleAmount(expense),
-                ExpenseDate = expense.ExpenseDate,
+                ExpenseDate = GetExpenseAccountingDate(expense),
                 TaxCategory = expense.TaxCategory,
                 TaxCategoryName = expense.TaxCategory.HasValue ? GetTaxCategoryName(expense.TaxCategory.Value) : null,
                 Vendor = GetVendorName(expense),
@@ -578,15 +663,15 @@ namespace brownstone_hub_api.Services.TaxReportService
             var sb = new StringBuilder();
             sb.AppendLine("Date,Type,Description,Amount,Deductible Amount,Category,Property,Vendor,Payment Method,Review Notes");
 
-            foreach (var expense in expenses.OrderBy(e => e.ExpenseDate))
+            foreach (var expense in expenses.OrderBy(GetExpenseAccountingDate))
             {
                 var reviewNotes = string.Join("; ", BuildExpenseReviewReasons(expense));
                 sb.AppendLine(string.Join(',',
-                    Csv(expense.ExpenseDate.ToString("yyyy-MM-dd")),
+                    Csv(Date(GetExpenseAccountingDate(expense), "yyyy-MM-dd")),
                     Csv("Expense"),
                     Csv(expense.Name),
-                    expense.Amount.ToString("F2"),
-                    GetDeductibleAmount(expense).ToString("F2"),
+                    Number(expense.Amount),
+                    Number(GetDeductibleAmount(expense)),
                     Csv(expense.TaxCategory.HasValue ? GetTaxCategoryName(expense.TaxCategory.Value) : expense.Category),
                     Csv(expense.PropertyName ?? ""),
                     Csv(GetVendorName(expense)),
@@ -597,11 +682,11 @@ namespace brownstone_hub_api.Services.TaxReportService
             foreach (var payment in payments.OrderBy(p => p.PaymentDate))
             {
                 sb.AppendLine(string.Join(',',
-                    Csv(payment.PaymentDate.ToString("yyyy-MM-dd")),
+                    Csv(Date(payment.PaymentDate, "yyyy-MM-dd")),
                     Csv("Income"),
                     Csv(payment.FeeId.HasValue ? payment.FeeName ?? "Fee payment" : "Rent payment"),
-                    payment.Amount.ToString("F2"),
-                    payment.Amount.ToString("F2"),
+                    Number(payment.Amount),
+                    Number(payment.Amount),
                     Csv(payment.FeeId.HasValue ? "Fee income" : "Rent income"),
                     Csv(payment.PropertyName ?? ""),
                     Csv(payment.TenantName ?? "Tenant"),
@@ -630,7 +715,7 @@ namespace brownstone_hub_api.Services.TaxReportService
             sb.AppendLine("Property,Income,Deductible Expenses,Net Income,Expenses,Missing Receipts,Review Items");
             foreach (var property in readiness?.PropertyPackages ?? [])
             {
-                sb.AppendLine(string.Join(',', Csv(property.PropertyName), property.Income.ToString("F2"), property.DeductibleExpenses.ToString("F2"), property.NetIncome.ToString("F2"), property.ExpenseCount, property.MissingReceiptCount, property.ReviewItemCount));
+                sb.AppendLine(string.Join(',', Csv(property.PropertyName), Number(property.Income), Number(property.DeductibleExpenses), Number(property.NetIncome), property.ExpenseCount, property.MissingReceiptCount, property.ReviewItemCount));
             }
 
             sb.AppendLine();
@@ -645,19 +730,20 @@ namespace brownstone_hub_api.Services.TaxReportService
             sb.AppendLine("!SPL\tSPLID\tTRNSTYPE\tDATE\tACCNT\tNAME\tAMOUNT\tDOCNUM\tCLEAR\tMEMO");
             sb.AppendLine("!ENDTRNS");
 
-            foreach (var expense in expenses.OrderBy(e => e.ExpenseDate))
+            foreach (var expense in expenses.OrderBy(GetExpenseAccountingDate))
             {
                 var amount = GetDeductibleAmount(expense);
                 if (amount <= 0) continue;
-                sb.AppendLine($"TRNS\t\t{expense.ExpenseDate:MM/dd/yyyy}\tExpense\t{GetVendorName(expense) ?? "Vendor"}\t-{amount:F2}\t{expense.Id}\tN\t{expense.Name}");
-                sb.AppendLine($"SPL\t\t{expense.ExpenseDate:MM/dd/yyyy}\tAccounts Payable\t{GetVendorName(expense) ?? "Vendor"}\t{amount:F2}\t{expense.Id}\tN\t{expense.Name}");
+                sb.AppendLine($"TRNS\t\t{Date(GetExpenseAccountingDate(expense), "MM/dd/yyyy")}\tExpense\t{ExportText(GetVendorName(expense), "Vendor")}\t-{Number(amount)}\t{expense.Id}\tN\t{ExportText(expense.Name)}");
+                sb.AppendLine($"SPL\t\t{Date(GetExpenseAccountingDate(expense), "MM/dd/yyyy")}\tAccounts Payable\t{ExportText(GetVendorName(expense), "Vendor")}\t{Number(amount)}\t{expense.Id}\tN\t{ExportText(expense.Name)}");
                 sb.AppendLine("ENDTRNS");
             }
 
             foreach (var payment in payments.OrderBy(p => p.PaymentDate))
             {
-                sb.AppendLine($"TRNS\t\t{payment.PaymentDate:MM/dd/yyyy}\tIncome\t{payment.TenantName ?? "Tenant"}\t{payment.Amount:F2}\t{payment.LeaseId}\tN\t{(payment.FeeId.HasValue ? payment.FeeName ?? "Fee Payment" : "Rent Payment")}");
-                sb.AppendLine($"SPL\t\t{payment.PaymentDate:MM/dd/yyyy}\tAccounts Receivable\t{payment.TenantName ?? "Tenant"}\t-{payment.Amount:F2}\t{payment.LeaseId}\tN\t{(payment.FeeId.HasValue ? payment.FeeName ?? "Fee Payment" : "Rent Payment")}");
+                var paymentName = payment.FeeId.HasValue ? payment.FeeName ?? "Fee Payment" : "Rent Payment";
+                sb.AppendLine($"TRNS\t\t{Date(payment.PaymentDate, "MM/dd/yyyy")}\tIncome\t{ExportText(payment.TenantName, "Tenant")}\t{Number(payment.Amount)}\t{payment.LeaseId}\tN\t{ExportText(paymentName)}");
+                sb.AppendLine($"SPL\t\t{Date(payment.PaymentDate, "MM/dd/yyyy")}\tAccounts Receivable\t{ExportText(payment.TenantName, "Tenant")}\t-{Number(payment.Amount)}\t{payment.LeaseId}\tN\t{ExportText(paymentName)}");
                 sb.AppendLine("ENDTRNS");
             }
 
@@ -669,16 +755,16 @@ namespace brownstone_hub_api.Services.TaxReportService
             var sb = new StringBuilder();
             sb.AppendLine("Contact Name,Email Address,PO Address Line 1,PO Address Line 2,PO Address Line 3,PO Address Line 4,PO City,PO Region,PO Postal Code,PO Country,Invoice Number,Invoice Date,Due Date,Inventory Item Code,Description,Quantity,Unit Amount,Discount,Account Code,Tax Type,Tax Amount,Currency,Total");
 
-            foreach (var expense in expenses.OrderBy(e => e.ExpenseDate))
+            foreach (var expense in expenses.OrderBy(GetExpenseAccountingDate))
             {
                 var amount = GetDeductibleAmount(expense);
                 if (amount <= 0) continue;
-                sb.AppendLine($"{Csv(GetVendorName(expense) ?? "Vendor")},\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",{expense.Id},{expense.ExpenseDate:yyyy-MM-dd},{expense.ExpenseDate:yyyy-MM-dd},\"\",{Csv(expense.Name)},1,{amount:F2},0,200,None,0,USD,{amount:F2}");
+                sb.AppendLine($"{Csv(GetVendorName(expense) ?? "Vendor")},\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",{expense.Id},{Date(GetExpenseAccountingDate(expense), "yyyy-MM-dd")},{Date(GetExpenseAccountingDate(expense), "yyyy-MM-dd")},\"\",{Csv(expense.Name)},1,{Number(amount)},0,200,None,0,USD,{Number(amount)}");
             }
 
             foreach (var payment in payments.OrderBy(p => p.PaymentDate))
             {
-                sb.AppendLine($"{Csv(payment.TenantName ?? "Tenant")},\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",{payment.LeaseId},{payment.PaymentDate:yyyy-MM-dd},{payment.PaymentDate:yyyy-MM-dd},\"\",{Csv(payment.FeeId.HasValue ? payment.FeeName ?? "Fee Payment" : "Rent Payment")},1,{payment.Amount:F2},0,400,None,0,USD,{payment.Amount:F2}");
+                sb.AppendLine($"{Csv(payment.TenantName ?? "Tenant")},\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",\"\",{payment.LeaseId},{Date(payment.PaymentDate, "yyyy-MM-dd")},{Date(payment.PaymentDate, "yyyy-MM-dd")},\"\",{Csv(payment.FeeId.HasValue ? payment.FeeName ?? "Fee Payment" : "Rent Payment")},1,{Number(payment.Amount)},0,400,None,0,USD,{Number(payment.Amount)}");
             }
 
             return sb.ToString();
@@ -686,8 +772,19 @@ namespace brownstone_hub_api.Services.TaxReportService
 
         private static string Csv(string value)
         {
-            var safe = value ?? string.Empty;
-            return $"\"{safe.Replace("\"", "\"\"")}\"";
+            return $"\"{ExportText(value).Replace("\"", "\"\"")}\"";
         }
+
+        private static string ExportText(string? value, string fallback = "")
+        {
+            var safe = string.IsNullOrWhiteSpace(value) ? fallback : value;
+            safe = new string(safe.Select(c => c == 13 || c == 10 || c == 9 || c == 44 ? ' ' : c).ToArray()).Trim();
+            if (safe.Length > 0 && safe[0] is '=' or '+' or '-' or '@')
+                safe = "'" + safe;
+            return safe;
+        }
+
+        private static string Number(decimal value) => value.ToString("F2", CultureInfo.InvariantCulture);
+        private static string Date(DateTime value, string format) => value.ToString(format, CultureInfo.InvariantCulture);
     }
 }

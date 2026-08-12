@@ -26,6 +26,7 @@ namespace brownstone_hub_api.Services.UserService
         /// </summary>
         Task<ServiceResponse<string>> AdminSetPassword(long userId, string newPassword);
         Task<(ServiceResponse<LoadUserDto> Response, bool IsNewUser)> GoogleLogin(string? idToken, string? registrationCode = null, string? accessToken = null, string? timezone = null);
+        Task<(ServiceResponse<LoadUserDto> Response, bool IsNewUser)> AppleLogin(string identityToken, string nonce, string? firstName = null, string? lastName = null, string? timezone = null, CancellationToken cancellationToken = default);
         Task<ServiceResponse<LoadUserDto>> GetUserByEmailAsync(string email);
         Task<ServiceResponse<LoadUserDto>> GetUserByIdAsync(long userId);
         Task<ServiceResponse<long?>> GetCurrentUserIdAsync();

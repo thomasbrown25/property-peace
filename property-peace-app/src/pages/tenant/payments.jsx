@@ -41,22 +41,20 @@ import { calculateNextPaymentDate } from 'utils/helper-methods';
 import moment from 'moment';
 import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 // ==============================|| TENANT - PAYMENTS ||============================== //
 
-const BALANCE_CREDITING_STATUSES = new Set(['completed', 'paid']);
-
 function getPaymentStatus(payment) {
-  return (payment?.status || payment?.Status || 'Completed').toString();
-}
-
-function isBalanceCreditingPayment(payment) {
-  return BALANCE_CREDITING_STATUSES.has(getPaymentStatus(payment).toLowerCase());
+  return classifyPaymentStatus(payment).status;
 }
 
 function canRetryPayment(payment) {
-  const status = getPaymentStatus(payment).toLowerCase();
-  return payment?.canRetry || payment?.CanRetry || ['failed', 'canceled', 'cancelled', 'disputed'].includes(status);
+  return classifyPaymentStatus(payment).retryable;
 }
 
 function getPaymentStatusMeta(payment) {
@@ -75,7 +73,7 @@ function getPaymentStatusMeta(payment) {
     case 'disputed':
       return { label: 'Disputed', color: 'error', icon: <WarningOutlined /> };
     default:
-      return { label: getPaymentStatus(payment), color: 'default', icon: null };
+      return { label: 'Needs review', color: 'warning', icon: <WarningOutlined /> };
   }
 }
 
@@ -210,6 +208,7 @@ export default function TenantPayments() {
   const theme = useTheme();
   const { user } = useAuth();
   const modal = useModal();
+  const { presentation: rentReadiness, canInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
 
   const [leases, setLeases] = useState([]);
   const [selectedLeaseId, setSelectedLeaseId] = useState(null);
@@ -250,7 +249,7 @@ export default function TenantPayments() {
       if (!leaseId) return;
       setLoadingPayments(true);
       try {
-        const [paymentsRes] = await Promise.allSettled([axiosServices.get(`/api/payment/${leaseId}`)]);
+        const [paymentsRes] = await Promise.allSettled([axiosServices.get(`/api/payment/${leaseId}/tenant-history`)]);
         if (paymentsRes.status === 'fulfilled') {
           const data = paymentsRes.value.data?.data || paymentsRes.value.data || [];
           setPayments(Array.isArray(data) ? data : []);
@@ -312,13 +311,11 @@ export default function TenantPayments() {
     const rentRecords = rentCollection?.rentRecords || rentCollection?.RentRecords || [];
     const leaseRecord = rentRecords.find((r) => r.leaseId === selectedLease.id || r.LeaseId === selectedLease.id);
 
-    const overdueAmount = leaseRecord
-      ? leaseRecord.overdueAmount || leaseRecord.OverdueAmount || 0
-      : calculateOverdueAmount(selectedLease, payments, today);
-
-    const rentAmount = leaseRecord?.rentAmount || leaseRecord?.RentAmount || selectedLease.rentAmount || 0;
-    const amountDueNow = leaseRecord?.amountDueNow ?? leaseRecord?.AmountDueNow;
-    const amountDue = amountDueNow != null ? amountDueNow : rentAmount + overdueAmount;
+    // Collection records use the canonical balance; only the no-record path keeps
+    // the local schedule fallback for older/property-only responses.
+    const normalizedBalance = leaseRecord ? normalizeRentBalance(leaseRecord) : null;
+    const overdueAmount = normalizedBalance?.overdueAmount ?? calculateOverdueAmount(selectedLease, payments, today);
+    const amountDue = normalizedBalance?.rentDue ?? ((selectedLease.rentAmount || 0) + overdueAmount);
 
     const rentDueDay = selectedLease.rentDueDay || 1;
     const leaseStartDate = moment(selectedLease.startDate);
@@ -360,6 +357,7 @@ export default function TenantPayments() {
   const showSelectedUnitName = shouldShowLeaseUnitName(selectedLease);
 
   const openPaymentForSelectedLease = () => {
+    if (!canInvoke) return;
     if (!selectedLease) return;
 
     const rentRecords = rentCollection?.rentRecords || rentCollection?.RentRecords || [];
@@ -440,6 +438,8 @@ export default function TenantPayments() {
           View your payment history and make payments.
         </Typography>
       </Box>
+
+      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
 
       {/* Mobile lease selector */}
       <Paper
@@ -548,6 +548,7 @@ export default function TenantPayments() {
                     size="small"
                     startIcon={<DollarOutlined />}
                     onClick={openPaymentForSelectedLease}
+                    disabled={!canInvoke}
                     sx={{ textTransform: 'none', fontWeight: 600, whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' } }}
                   >
                     Make Payment{summary.amountDue > 0 && ` · ${formatCurrency(summary.amountDue)}`}
@@ -585,7 +586,7 @@ export default function TenantPayments() {
                   <Alert
                     severity="warning"
                     action={
-                      <Button color="inherit" size="small" onClick={openPaymentForSelectedLease}>
+                      <Button color="inherit" size="small" onClick={openPaymentForSelectedLease} disabled={!canInvoke}>
                         Try another payment method
                       </Button>
                     }
@@ -801,12 +802,14 @@ export default function TenantPayments() {
       </Box>
 
       {/* Payment Modal */}
-      <PaymentModal
-        open={modal.openPayment}
-        rent={modal.selectedRent}
-        onClose={modal.closePaymentModal}
-        defaultAmount={selectedLease?.rentAmount}
-      />
+      {canInvoke && (
+        <PaymentModal
+          open={modal.openPayment}
+          rent={modal.selectedRent}
+          onClose={modal.closePaymentModal}
+          defaultAmount={selectedLease?.rentAmount}
+        />
+      )}
     </Box>
   );
 }

@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace brownstone_hub_api.Tests.Helpers
 {
@@ -11,8 +12,9 @@ namespace brownstone_hub_api.Tests.Helpers
     {
         public static IMapper Create()
         {
-            var config = new MapperConfiguration(cfg =>
-                cfg.AddProfile<AutoMapperProfile>());
+            var config = new MapperConfiguration(
+                cfg => cfg.AddProfile<AutoMapperProfile>(),
+                NullLoggerFactory.Instance);
 
             return config.CreateMapper();
         }

@@ -44,7 +44,7 @@ import { openSnackbar } from 'api/snackbar';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useAuth from 'hooks/useAuth';
 import { getTodayLocalDate } from 'utils/formatters';
-import { generateChatCompletion, isConfigured } from 'services/azureAIService';
+import { categorizeExpense } from 'utils/expenseCategorization';
 
 const STEPS = {
   AMOUNT_PROPERTY: 1,
@@ -277,37 +277,13 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
     handleChange('unitId', null);
   };
 
-  const categorizeExpenseWithAI = async (description) => {
-    if (!isConfigured()) {
-      return {
-        category: 'Other',
-        name: description.length > 50 ? description.substring(0, 50) : description
-      };
-    }
-    try {
-      const categoryList = 'Application Fee, Screening, Auto & Travel, Car Rental, Water tank, Repairs, Maintenance, Utilities, HOA, Insurance, Taxes, Landscaping, Cleaning, Advertising, Legal, Accounting, Property Management, Capital Improvements, Supplies, Other';
-      const prompt = `Based on this expense description: "${description}", determine:
-1. The most appropriate expense category from this list: ${categoryList}
-2. A clear, concise name for this expense (max 50 characters)
-
-Respond in JSON format only: {"category": "...", "name": "..."}`;
-      const result = await generateChatCompletion([{ role: 'user', content: prompt }]);
-      const jsonMatch = result.match(/\{[^}]+\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return { category: parsed.category || 'Other', name: parsed.name || description.substring(0, 50) };
-      }
-      return { category: 'Other', name: description.substring(0, 50) };
-    } catch {
-      return { category: 'Other', name: description.substring(0, 50) };
-    }
-  };
+  const categorizeExpenseLocally = (description) => categorizeExpense(description);
 
   const handleCreateExpense = async () => {
     setError(null);
     setProcessing(true);
     try {
-      const aiResult = await categorizeExpenseWithAI(formData.expenseDescription);
+      const aiResult = categorizeExpenseLocally(formData.expenseDescription);
       setAiResult(aiResult);
       const dayOfPeriod = formData.isRecurring ? new Date(formData.expenseDate).getDate() : null;
       const receiptFiles = formData.receipts.filter(r => r.file instanceof File).map(r => r.file);
@@ -806,7 +782,7 @@ Respond in JSON format only: {"category": "...", "name": "..."}`;
               Creating your expense…
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              AI is categorizing and naming it — just a moment.
+              Categorizing and naming it — just a moment.
             </Typography>
           </Box>
         );

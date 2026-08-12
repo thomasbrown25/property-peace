@@ -220,12 +220,22 @@ namespace brownstone_hub_api.Services.MessageAnalysisService
         {
             try
             {
+                var authorization = await _dataContext.Conversations
+                    .Where(c => c.Id == conversationId && c.OrganizationId.HasValue)
+                    .Select(c => new { OrganizationId = c.OrganizationId!.Value, ActorUserId = c.LandlordId })
+                    .SingleOrDefaultAsync();
+                if (authorization == null)
+                {
+                    _logger.LogWarning("Cannot scope message urgency for conversation {ConversationId}", conversationId);
+                    return;
+                }
+
                 if (analysisResult?.UrgentItems == null || !analysisResult.UrgentItems.Any())
                 {
                     // No urgent items, ensure all messages are marked as not urgent
                     foreach (var message in messages)
                     {
-                        await _messageRepository.SetMessageUrgent(message.Id, false);
+                        await _messageRepository.SetMessageUrgent(message.Id, false, conversationId, authorization.OrganizationId, authorization.ActorUserId);
                     }
                     return;
                 }
@@ -244,7 +254,7 @@ namespace brownstone_hub_api.Services.MessageAnalysisService
                             
                             if (urgentKeywords.Any(keyword => messageContent.Contains(keyword)))
                             {
-                                await _messageRepository.SetMessageUrgent(message.Id, true);
+                                await _messageRepository.SetMessageUrgent(message.Id, true, conversationId, authorization.OrganizationId, authorization.ActorUserId);
                             }
                         }
                         continue;
@@ -260,7 +270,7 @@ namespace brownstone_hub_api.Services.MessageAnalysisService
 
                     if (matchingMessage != null)
                     {
-                        await _messageRepository.SetMessageUrgent(matchingMessage.Id, true);
+                        await _messageRepository.SetMessageUrgent(matchingMessage.Id, true, conversationId, authorization.OrganizationId, authorization.ActorUserId);
                         _logger.LogInformation(
                             "Set message {MessageId} as urgent based on urgent item: {Type} - {Description}",
                             matchingMessage.Id,
@@ -301,7 +311,7 @@ namespace brownstone_hub_api.Services.MessageAnalysisService
                 {
                     if (!urgentMessageIds.Contains(message.Id))
                     {
-                        await _messageRepository.SetMessageUrgent(message.Id, false);
+                        await _messageRepository.SetMessageUrgent(message.Id, false, conversationId, authorization.OrganizationId, authorization.ActorUserId);
                     }
                 }
             }

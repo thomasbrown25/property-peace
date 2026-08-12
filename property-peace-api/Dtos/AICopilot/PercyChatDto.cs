@@ -2,6 +2,7 @@ namespace brownstone_hub_api.Dtos.AICopilot
 {
     public class PercyChatRequestDto
     {
+        public string ClientRequestId { get; set; } = string.Empty;
         public long? ConversationId { get; set; }
         public string Message { get; set; } = string.Empty;
         // Retained for backwards-compatible request binding. The server never trusts this history.
@@ -25,6 +26,7 @@ namespace brownstone_hub_api.Dtos.AICopilot
         public string? ActivityStatus { get; set; }
         public List<PercyMetricDto> Metrics { get; set; } = [];
         public List<PercyResultItemDto> Items { get; set; } = [];
+        public List<PercySourceDto> Sources { get; set; } = [];
         public PercyPendingConfirmationDto? PendingConfirmation { get; set; }
     }
 
@@ -40,6 +42,15 @@ namespace brownstone_hub_api.Dtos.AICopilot
         public string Title { get; set; } = string.Empty;
         public string Detail { get; set; } = string.Empty;
         public string? Value { get; set; }
+    }
+
+    public class PercySourceDto
+    {
+        public string Kind { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string WorkflowRoute { get; set; } = string.Empty;
+        public string? RecordReference { get; set; }
+        public DateTime RetrievedAtUtc { get; set; }
     }
 
     public class PercyConversationSummaryDto
@@ -67,6 +78,7 @@ namespace brownstone_hub_api.Dtos.AICopilot
         public string? ActivityStatus { get; set; }
         public List<PercyMetricDto> Metrics { get; set; } = [];
         public List<PercyResultItemDto> Items { get; set; } = [];
+        public List<PercySourceDto> Sources { get; set; } = [];
         public PercyPendingConfirmationDto? PendingConfirmation { get; set; }
     }
 

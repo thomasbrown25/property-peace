@@ -103,7 +103,7 @@ export default function ListingsPage() {
                 Listings that fit your leasing process
               </h2>
               <p className="text-lg text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                This marketing page does not show live rentals. Listings are a Property Peace feature landlords can use inside the app.
+                This marketing page does not show live rentals. Property Peace creates shareable listing pages, but it does not currently syndicate listings to Zillow, Apartments.com, Realtor.com, or other listing networks.
               </p>
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">

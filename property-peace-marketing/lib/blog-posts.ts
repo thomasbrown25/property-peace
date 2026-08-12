@@ -44,7 +44,7 @@ Look for software that integrates with payment processors like Stripe. This elim
 - Payment history tracking
 - Multiple payment methods (credit card, ACH)
 
-Learn more about [online rent collection features](/features/rent-collection) and [integrated payment processing](/features/payment-processing).
+Learn more about [rent tracking and reminder tools](/features/rent-collection) and the [online payment processing roadmap](/features/payment-processing). Property Peace currently records payments received outside the platform rather than processing them online.
 
 ### 2. Tenant Portal
 A good tenant portal reduces your workload significantly. Tenants can:
@@ -144,9 +144,9 @@ Choose the platform that feels most natural and solves your biggest pain points.
 ## Why Property Peace?
 
 Property Peace is designed specifically for landlords managing 1-50 units. We offer:
-- Simple, flat pricing starting at $4.99/month
+- Simple, flat pricing with Premium at $14.99/month
 - No per-unit fees
-- Real-time updates across all features
+- Current records across supported property-management workflows
 - Comprehensive features without the complexity
 - Mobile-friendly interface
 - Dedicated support for small landlords
@@ -562,7 +562,7 @@ When testing software:
 
 The best property management software for small landlords includes these 10 essential features without unnecessary complexity. You don't need enterprise features—you need tools that solve real problems.
 
-Property Peace includes all 10 essential features, designed specifically for landlords managing 1-50 units. Explore our [complete feature list](/features) and see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). [Get started](https://app.propertypeace.io/register) and see how these features can transform your property management.
+Property Peace offers a focused set of tools for landlords managing 1-50 units, including rent records and reminders, application organization, maintenance tracking, and lease administration. Online payment processing and integrated screening reports are not currently available. Explore our [current feature list](/features), see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [get started](https://app.propertypeace.io/register).
     `,
     date: '2024-01-29',
     author: 'Property Peace Team',
@@ -627,7 +627,7 @@ Tenants can pay rent directly through the tenant portal:
 - Automatic receipt generation
 - Payment history always available
 
-Learn more about our [integrated payment processing](/features/payment-processing) and [rent collection features](/features/rent-collection).
+Property Peace does not currently process online payments. Learn about the [online payment roadmap](/features/payment-processing) and use the available [rent ledger and reminder tools](/features/rent-collection) to organize payments received elsewhere.
 
 ### 2. Automated Payment Reminders
 
@@ -804,7 +804,7 @@ Automated rent collection through property management software:
 
 The small monthly cost is typically offset by time savings alone, not to mention improved collection rates.
 
-Explore our [payment processing features](/features/payment-processing) and [rent collection tools](/features/rent-collection). Compare our solution with other options in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). [Start streamlining your rent collection today](https://app.propertypeace.io/register) with Property Peace's automated payment system.
+Explore Property Peace's [online payment roadmap](/features/payment-processing) and currently available [rent ledger and reminder tools](/features/rent-collection). Property Peace does not currently process online payments; you can record payments received elsewhere, monitor balances, and organize reminders. Compare options in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [start organizing your rent records](https://app.propertypeace.io/register).
     `,
     date: '2024-02-05',
     author: 'Property Peace Team',
@@ -1440,7 +1440,7 @@ The best property management app for solo landlords:
 
 Don't overthink it. Get started, test with your actual properties, and see if it makes your life easier.
 
-Explore our [complete feature list](/features) designed for solo landlords and see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Check our [pricing](/pricing) and learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Get started with Property Peace](https://app.propertypeace.io/register) and discover why it's the best choice for solo landlords.
+Explore our [complete feature list](/features) designed for solo landlords and see how we compare in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Check our [pricing](/pricing) and learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Get started with Property Peace](https://app.propertypeace.io/register) to evaluate it with your own portfolio.
     `,
     date: '2024-02-19',
     author: 'Property Peace Team',
@@ -1977,7 +1977,7 @@ Online rent collection through property management software:
 
 The small cost is typically offset by time savings alone, not to mention improved collection rates and reduced stress.
 
-Explore our [payment processing features](/features/payment-processing) and [rent collection tools](/features/rent-collection). Learn about [streamlining rent collection](/blog/streamline-rent-collection-property-management-software) and see our [complete feature list](/features). [Start collecting rent online today](https://app.propertypeace.io/register) with Property Peace's automated payment system.
+Explore Property Peace's [online payment roadmap](/features/payment-processing) and currently available [rent ledger and reminder tools](/features/rent-collection). Property Peace does not currently process online payments, but you can record payments received elsewhere and track balances and reminders. Learn more about [organizing rent collection](/blog/streamline-rent-collection-property-management-software), review the [current feature list](/features), or [start organizing your rent records](https://app.propertypeace.io/register).
     `,
     date: '2024-03-05',
     author: 'Property Peace Team',
@@ -2241,7 +2241,7 @@ Property management software designed for landlords can transform how you manage
 
 Whether you're managing one property in South End or dozens across Mecklenburg County, the right software makes all the difference in Charlotte's dynamic rental market.
 
-Explore our [complete feature list](/features) designed for landlords, including [online rent collection](/features/rent-collection), [tenant screening tools](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Check our [pricing](/pricing) and read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). [Get started with property management software today](https://app.propertypeace.io/register) and see how it can help you manage your Charlotte, NC rental properties more effectively.
+Explore our [complete feature list](/features) designed for landlords, including [rent tracking](/features/rent-collection), [rental application organization](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Property Peace does not currently process online payments or provide integrated credit, criminal, or eviction screening reports. Check our [pricing](/pricing) and read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). [Get started with property management software today](https://app.propertypeace.io/register) and see how it can help you manage your Charlotte, NC rental properties more effectively.
     `,
     date: '2024-03-12',
     author: 'Property Peace Team',
@@ -2501,7 +2501,7 @@ Property management software can:
 - Track application status
 - Send automated follow-ups
 
-See how our [digital rental applications](/features/rental-applications) feature streamlines the entire tenant screening process.
+See how our [digital rental applications](/features/rental-applications) feature organizes application records and status. Property Peace does not currently provide integrated credit, criminal, or eviction screening reports.
 
 ### Integrated Screening Services
 
@@ -2666,7 +2666,7 @@ Thorough tenant screening is one of the most important things you can do as a la
 
 Take the time to screen properly, use objective criteria, stay compliant with laws, and trust the process. The right tenant is worth waiting for.
 
-Property management software can streamline your screening process, help you stay organized, and ensure you don't miss important steps. Explore our [rental application features](/features/rental-applications) and learn about [choosing the right property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Get started today](https://app.propertypeace.io/register) and see how software can improve your tenant screening process.
+Property management software can help organize applications and screening records. Explore our [rental application features](/features/rental-applications) and learn about [choosing the right property management software](/blog/how-to-choose-property-management-software-for-small-landlords). Property Peace does not currently provide integrated credit, criminal, or eviction screening reports. [Get started today](https://app.propertypeace.io/register) and see how software can keep applicant records organized.
     `,
     date: '2024-03-19',
     author: 'Property Peace Team',
@@ -5482,7 +5482,7 @@ We prioritized:
 - Real-time updates
 - Mobile-friendly
 
-**Pricing**: Starting at $4.99/mo, no per-unit fees
+**Pricing**: Free for up to 5 units; Premium is $14.99/mo with no per-unit fees
 
 **Pros**:
 - Designed specifically for small landlords
@@ -5812,7 +5812,7 @@ We prioritized:
 ### Budget
 
 **Free/Low cost**:
-- Property Peace ($4.99/mo)
+- Property Peace (free for up to 5 units; Premium $14.99/mo)
 - TenantCloud (free tier)
 - Cozy (free basic)
 
@@ -5908,7 +5908,7 @@ Choose based on:
 
 ## The Bottom Line
 
-The best property management software for you depends on your specific needs, portfolio size, and budget. For most small to medium landlords (1-50 units), Property Peace offers the best combination of features, affordability, and ease of use.
+The best property management software for you depends on your specific needs, portfolio size, and budget. Property Peace is designed for independent landlords managing 1-50 units, with a permanent Free plan for up to 5 units and a flat-price Premium option.
 
 Key takeaways:
 - **Start with free trials**: Test before committing
@@ -5919,7 +5919,7 @@ Key takeaways:
 
 Remember, the best software is the one that solves your specific problems and fits your budget. Don't be swayed by flashy features you'll never use—focus on what matters for your rental business.
 
-Compare our solution with others in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Explore our [complete feature list](/features) and [pricing options](/pricing). Learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Try Property Peace](https://app.propertypeace.io/register) and see why it's the top choice for landlords managing 1-50 units in 2024.
+Compare our solution with others in our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). Explore our [complete feature list](/features) and [pricing options](/pricing). Learn about [choosing property management software](/blog/how-to-choose-property-management-software-for-small-landlords). [Try Property Peace](https://app.propertypeace.io/register) to evaluate the workflow for your own portfolio.
     `,
     date: '2024-05-07',
     author: 'Property Peace Team',
@@ -6933,7 +6933,7 @@ Property management software designed for landlords can transform how you manage
 
 Whether you're managing one property in South Austin or dozens across Travis County, the right software makes all the difference in Austin's dynamic rental market.
 
-Explore our [complete feature list](/features) designed for landlords, including [online rent collection](/features/rent-collection), [tenant screening tools](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Check our [pricing](/pricing) and read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024). [Get started with property management software today](https://app.propertypeace.io/register) and see how it can help you manage your Austin, Texas rental properties more effectively.
+Explore our [current feature list](/features) for landlords, including [rent records and reminders](/features/rent-collection), [rental application organization](/features/rental-applications), and [maintenance management](/features/maintenance-tracking). Property Peace does not currently process online payments or provide integrated credit, criminal, or eviction screening reports. Check our [pricing](/pricing), read our [property management software reviews](/blog/property-management-software-reviews-top-10-2024), or [get started](https://app.propertypeace.io/register) to organize your Austin rental operations.
     `,
     date: '2025-02-10',
     author: 'Property Peace Team',
@@ -6942,7 +6942,7 @@ Explore our [complete feature list](/features) designed for landlords, including
     faqs: [
       {
         question: 'What property management software works best for Austin, Texas landlords?',
-        answer: 'The best property management software for Austin landlords should understand Texas landlord-tenant laws, support Travis County requirements, offer mobile access for managing properties across Austin\'s neighborhoods, and include features like online rent collection, tenant screening, and maintenance management tailored for Austin\'s competitive market.'
+        answer: 'The best property management software for Austin landlords should support the records and workflows they need for Texas and Travis County requirements, offer mobile access across Austin\'s neighborhoods, and provide clear rent, application, and maintenance tools. Verify each platform\'s current payment-processing and screening availability before choosing it.'
       },
       {
         question: 'What are the landlord-tenant laws in Texas?',
@@ -8590,21 +8590,21 @@ Important features include:
 
 Avoid tools that feel heavier than your portfolio. If you manage 1-50 units, you need a practical system that helps you collect rent without forcing you into a corporate property management process.
 
-## How Property Peace Helps With Digital Rent Payments
+## How Property Peace Helps Track Rent Records
 
-Property Peace is built for independent landlords who want rent collection to feel organized without adding bloat. It connects rent, tenants, leases, communication, and property records so you are not managing payments in one place and tenant details somewhere else.
+Property Peace is built for independent landlords who want rent records and follow-up to feel organized without adding bloat. It connects recorded payments, tenants, leases, communication, and property records. Property Peace does not currently process online payments.
 
 With Property Peace, landlords can use:
 
-- Tenant portals for payment access and rental information
-- Online rent collection workflows
+- Tenant portals for rental information
+- Recorded payment and balance tracking
 - Automated reminders and clearer tenant communication
-- Payment tracking tied to the right property and lease
+- Rent records tied to the right property and lease
 - Financial records that are easier to review later
 
-If rent collection is currently spread across spreadsheets, bank apps, Venmo notes, checks, and text messages, Property Peace gives you one place to bring the workflow together.
+If rent tracking is currently spread across spreadsheets, bank apps, checks, and text messages, Property Peace gives you one place to organize the records and follow-up.
 
-Learn more about [rent collection features](/features/rent-collection), [payment processing](/features/payment-processing), and [financial reports](/features/financial-reports).
+Learn more about [rent tracking features](/features/rent-collection), the [payment processing roadmap](/features/payment-processing), and [financial reports](/features/financial-reports).
 
 ## How to Set Up Automated Tenant Payment Reminders
 

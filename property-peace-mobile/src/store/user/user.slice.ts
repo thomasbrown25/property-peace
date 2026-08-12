@@ -34,6 +34,23 @@ export const register = createAsyncThunk('user/register', async (data: RegisterD
   return user;
 });
 
+export const appleLogin = createAsyncThunk(
+  'user/appleLogin',
+  async (params: {
+    identityToken: string;
+    nonce: string;
+    firstName?: string;
+    lastName?: string;
+    timezone?: string;
+  }) => authService.appleLogin(params)
+);
+
+export const verifyMfaLogin = createAsyncThunk(
+  'user/verifyMfaLogin',
+  async (params: { challengeId: string; code: string }) =>
+    authService.verifyMfaLogin(params.challengeId, params.code)
+);
+
 export const googleLogin = createAsyncThunk(
   'user/googleLogin',
   async (params: { idToken?: string; accessToken?: string; registrationCode?: string }) => {
@@ -124,9 +141,15 @@ const userSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
-        state.token = action.payload.jwtToken || null;
-        state.currentUser = action.payload;
-        state.isAuthenticated = true;
+        if (action.payload.kind === 'challenge') {
+          state.token = null;
+          state.currentUser = null;
+          state.isAuthenticated = false;
+        } else {
+          state.token = action.payload.user.jwtToken || null;
+          state.currentUser = action.payload.user;
+          state.isAuthenticated = true;
+        }
         state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
@@ -158,6 +181,33 @@ const userSlice = createSlice({
         state.error = action.error.message;
       });
 
+    // Sign in with Apple
+    builder
+      .addCase(appleLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(appleLogin.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.kind === 'challenge') {
+          state.token = null;
+          state.currentUser = null;
+          state.isAuthenticated = false;
+        } else {
+          state.token = action.payload.user.jwtToken || null;
+          state.currentUser = action.payload.user;
+          state.isAuthenticated = true;
+        }
+        state.error = null;
+      })
+      .addCase(appleLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.token = null;
+        state.currentUser = null;
+        state.isAuthenticated = false;
+        state.error = action.error.message;
+      });
+
     // Google Login
     builder
       .addCase(googleLogin.pending, (state) => {
@@ -166,12 +216,39 @@ const userSlice = createSlice({
       })
       .addCase(googleLogin.fulfilled, (state, action) => {
         state.loading = false;
+        if (action.payload.kind === 'challenge') {
+          state.token = null;
+          state.currentUser = null;
+          state.isAuthenticated = false;
+        } else {
+          state.token = action.payload.user.jwtToken || null;
+          state.currentUser = action.payload.user;
+          state.isAuthenticated = true;
+        }
+        state.error = null;
+      })
+      .addCase(googleLogin.rejected, (state, action) => {
+        state.loading = false;
+        state.token = null;
+        state.currentUser = null;
+        state.isAuthenticated = false;
+        state.error = action.error.message;
+      });
+
+    // MFA verification
+    builder
+      .addCase(verifyMfaLogin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyMfaLogin.fulfilled, (state, action) => {
+        state.loading = false;
         state.token = action.payload.jwtToken || null;
         state.currentUser = action.payload;
         state.isAuthenticated = true;
         state.error = null;
       })
-      .addCase(googleLogin.rejected, (state, action) => {
+      .addCase(verifyMfaLogin.rejected, (state, action) => {
         state.loading = false;
         state.token = null;
         state.currentUser = null;

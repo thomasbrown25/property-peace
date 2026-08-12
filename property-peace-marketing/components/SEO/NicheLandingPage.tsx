@@ -48,7 +48,7 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
-      description: 'Free for up to 2 units. Premium plan available for unlimited units and advanced tools.',
+      description: 'Free for up to 5 units. Premium plan available for unlimited units and advanced tools.',
     },
     audience: {
       '@type': 'Audience',

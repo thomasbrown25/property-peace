@@ -38,7 +38,7 @@ export default function PropertyManagementAppPage() {
       price: '0',
       priceCurrency: 'USD',
     },
-    description: 'Best property management app for landlords. Manage rental properties from your phone with online rent collection, tenant management, and maintenance tracking. Currently free.',
+    description: 'Mobile-friendly property management software for landlords. Review recorded rent status, tenant details, maintenance, and lease records from your phone. Online payment processing is not currently available.',
     featureList: appFeatures,
   };
 
@@ -119,7 +119,7 @@ export default function PropertyManagementAppPage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                See who paid rent and who hasn't, all from your phone. Get instant notifications when payments are received.
+                Review recorded rent status from your phone, including paid and overdue ledger entries. Online payment processing is not currently available in Property Peace.
               </p>
             </div>
             <div>

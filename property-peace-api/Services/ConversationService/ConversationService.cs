@@ -1,6 +1,7 @@
 using brownstone_hub_api.Dtos.Conversation;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Users;
+using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Services.ActionSuppressionService;
 using brownstone_hub_api.Services.MessageAnalysisService;
 using brownstone_hub_api.Dtos.Message;
@@ -15,7 +16,8 @@ namespace brownstone_hub_api.Services.ConversationService
         IActionSuppressionService? actionSuppressionService,
         IHttpContextAccessor httpContextAccessor,
         IMessageAnalysisService? messageAnalysisService,
-        ILogger<ConversationService> logger) : IConversationService
+        ILogger<ConversationService> logger,
+        IOrganizationMemberRepository organizationMemberRepository) : IConversationService
     {
         private readonly IConversationRepository _conversationRepository = conversationRepository;
         private readonly IUserRepository _userRepository = userRepository;
@@ -23,10 +25,12 @@ namespace brownstone_hub_api.Services.ConversationService
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly IMessageAnalysisService? _messageAnalysisService = messageAnalysisService;
         private readonly ILogger<ConversationService> _logger = logger;
+        private readonly IOrganizationMemberRepository _organizationMemberRepository = organizationMemberRepository;
 
         private long? GetOrganizationIdFromContext()
         {
-            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var orgIdObj) == true && orgIdObj is long orgId)
+            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var orgIdObj) == true &&
+                orgIdObj is long orgId && orgId > 0)
             {
                 return orgId;
             }
@@ -59,13 +63,47 @@ namespace brownstone_hub_api.Services.ConversationService
             return null;
         }
 
+        private async Task<bool> HasActiveOrganizationContextAsync(long userId)
+        {
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue) return false;
+            var member = await _organizationMemberRepository.GetMemberAsync(organizationId.Value, userId);
+            return member is { IsActive: true } && IsKnownOrganizationRole(member.Role);
+        }
+
+        private static bool IsKnownOrganizationRole(string? role) =>
+            string.Equals(role, "Owner", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "Manager", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "Viewer", StringComparison.OrdinalIgnoreCase);
+
+        private async Task<bool> HasStaffOrganizationContextAsync(long userId)
+        {
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue) return false;
+            var member = await _organizationMemberRepository.GetMemberAsync(organizationId.Value, userId);
+            return member is { IsActive: true } &&
+                (string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(member.Role, "Manager", StringComparison.OrdinalIgnoreCase));
+        }
+
+        private async Task<bool> IsConversationInActiveOrganizationAsync(long conversationId, long userId, bool requireStaff = false)
+        {
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue) return false;
+            var authorized = requireStaff
+                ? await HasStaffOrganizationContextAsync(userId)
+                : await HasActiveOrganizationContextAsync(userId);
+            if (!authorized) return false;
+            return await _conversationRepository.GetConversationById(conversationId, userId, organizationId.Value) != null;
+        }
+
         public async Task<ServiceResponse<LoadConversationDto>> AddConversation(AddConversationDto conversation, long landlordId)
         {
             try
             {
-                // Always get organization ID - required for conversations
-                var organizationId = await GetOrganizationIdAsync(landlordId);
-                if (!organizationId.HasValue)
+                // REST writes trust only the organization selected and validated for this request.
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue || !await HasStaffOrganizationContextAsync(landlordId))
                 {
                     return ServiceResponse<LoadConversationDto>.CreateError(
                         "Organization ID is required", 
@@ -89,7 +127,10 @@ namespace brownstone_hub_api.Services.ConversationService
         {
             try
             {
-                var result = await _conversationRepository.GetConversationById(conversationId, userId);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue || !await HasStaffOrganizationContextAsync(userId))
+                    return ServiceResponse<LoadConversationDto>.CreateError("Conversation not found", "No active organization access was found", statusCode: 404);
+                var result = await _conversationRepository.GetConversationById(conversationId, userId, organizationId.Value);
                 if (result == null)
                     return ServiceResponse<LoadConversationDto>.CreateError("Conversation not found", $"No conversation found with ID {conversationId}", statusCode: 404);
 
@@ -120,6 +161,10 @@ namespace brownstone_hub_api.Services.ConversationService
                     return ServiceResponse<List<LoadConversationDto>>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
 
+                if (!await HasStaffOrganizationContextAsync(landlordId))
+                    return ServiceResponse<List<LoadConversationDto>>.CreateError(
+                        "Conversations not found", "No active organization access was found", "", 404);
+
                 var result = await _conversationRepository.GetConversationsByOrganizationId(organizationId.Value, includeArchived, landlordId);
                 return ServiceResponse<List<LoadConversationDto>>.CreateSuccess(result);
             }
@@ -134,7 +179,10 @@ namespace brownstone_hub_api.Services.ConversationService
         {
             try
             {
-                var result = await _conversationRepository.GetConversationsByParticipantUserId(userId, includeArchived);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue || !await HasActiveOrganizationContextAsync(userId))
+                    return ServiceResponse<List<LoadConversationDto>>.CreateError("Conversations not found", "No active organization access was found", "", 404);
+                var result = await _conversationRepository.GetConversationsByOrganizationId(organizationId.Value, includeArchived, userId);
                 return ServiceResponse<List<LoadConversationDto>>.CreateSuccess(result);
             }
             catch (Exception ex)
@@ -144,11 +192,13 @@ namespace brownstone_hub_api.Services.ConversationService
             }
         }
 
-        public async Task<ServiceResponse<LoadConversationDto>> UpdateConversation(long conversationId, AddConversationDto conversation)
+        public async Task<ServiceResponse<LoadConversationDto>> UpdateConversation(long conversationId, AddConversationDto conversation, long actorUserId)
         {
             try
             {
-                var result = await _conversationRepository.UpdateConversation(conversationId, conversation);
+                if (!await IsConversationInActiveOrganizationAsync(conversationId, actorUserId, requireStaff: true))
+                    return ServiceResponse<LoadConversationDto>.CreateError("Conversation not found", $"No conversation found with ID {conversationId}", statusCode: 404);
+                var result = await _conversationRepository.UpdateConversation(conversationId, conversation, actorUserId);
                 return ServiceResponse<LoadConversationDto>.CreateSuccess(result, "Conversation updated successfully");
             }
             catch (KeyNotFoundException)
@@ -162,12 +212,18 @@ namespace brownstone_hub_api.Services.ConversationService
             }
         }
 
-        public async Task<ServiceResponse<bool>> DeleteConversation(long conversationId)
+        public async Task<ServiceResponse<bool>> DeleteConversation(long conversationId, long actorUserId)
         {
             try
             {
-                var result = await _conversationRepository.DeleteConversation(conversationId);
+                if (!await IsConversationInActiveOrganizationAsync(conversationId, actorUserId, requireStaff: true))
+                    return ServiceResponse<bool>.CreateError("Conversation not found", $"No conversation found with ID {conversationId}", statusCode: 404);
+                var result = await _conversationRepository.DeleteConversation(conversationId, actorUserId);
                 return ServiceResponse<bool>.CreateSuccess(result, "Conversation deleted successfully");
+            }
+            catch (KeyNotFoundException)
+            {
+                return ServiceResponse<bool>.CreateError("Conversation not found", $"No conversation found with ID {conversationId}", statusCode: 404);
             }
             catch (Exception ex)
             {
@@ -176,11 +232,13 @@ namespace brownstone_hub_api.Services.ConversationService
             }
         }
 
-        public async Task<ServiceResponse<LoadConversationDto>> ArchiveConversation(long conversationId, bool archive)
+        public async Task<ServiceResponse<LoadConversationDto>> ArchiveConversation(long conversationId, bool archive, long actorUserId)
         {
             try
             {
-                var result = await _conversationRepository.ArchiveConversation(conversationId, archive);
+                if (!await IsConversationInActiveOrganizationAsync(conversationId, actorUserId, requireStaff: true))
+                    return ServiceResponse<LoadConversationDto>.CreateError("Conversation not found", $"No conversation found with ID {conversationId}", statusCode: 404);
+                var result = await _conversationRepository.ArchiveConversation(conversationId, archive, actorUserId);
                 return ServiceResponse<LoadConversationDto>.CreateSuccess(result, archive ? "Conversation archived" : "Conversation unarchived");
             }
             catch (KeyNotFoundException)
@@ -194,11 +252,13 @@ namespace brownstone_hub_api.Services.ConversationService
             }
         }
 
-        public async Task<ServiceResponse<LoadConversationDto>> PinConversation(long conversationId, bool pin)
+        public async Task<ServiceResponse<LoadConversationDto>> PinConversation(long conversationId, bool pin, long actorUserId)
         {
             try
             {
-                var result = await _conversationRepository.PinConversation(conversationId, pin);
+                if (!await IsConversationInActiveOrganizationAsync(conversationId, actorUserId, requireStaff: true))
+                    return ServiceResponse<LoadConversationDto>.CreateError("Conversation not found", $"No conversation found with ID {conversationId}", statusCode: 404);
+                var result = await _conversationRepository.PinConversation(conversationId, pin, actorUserId);
                 return ServiceResponse<LoadConversationDto>.CreateSuccess(result, pin ? "Conversation pinned" : "Conversation unpinned");
             }
             catch (KeyNotFoundException)
@@ -216,7 +276,11 @@ namespace brownstone_hub_api.Services.ConversationService
         {
             try
             {
-                var result = await _conversationRepository.GetOrCreateTenantLandlordConversation(tenantUserId);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadConversationDto>.CreateError(
+                        "Conversation not found", "No active organization access was found", statusCode: 404);
+                var result = await _conversationRepository.GetOrCreateTenantLandlordConversation(tenantUserId, organizationId.Value);
                 return ServiceResponse<LoadConversationDto>.CreateSuccess(result);
             }
             catch (Exception ex)
@@ -243,7 +307,10 @@ namespace brownstone_hub_api.Services.ConversationService
         {
             try
             {
-                var result = await _conversationRepository.GetConversationsByTenantUserId(tenantUserId, includeArchived);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<List<LoadConversationDto>>.CreateError("Conversations not found", "No active organization access was found", "", 404);
+                var result = await _conversationRepository.GetConversationsByTenantUserId(tenantUserId, organizationId.Value, includeArchived);
                 return ServiceResponse<List<LoadConversationDto>>.CreateSuccess(result);
             }
             catch (Exception ex)
@@ -257,7 +324,12 @@ namespace brownstone_hub_api.Services.ConversationService
         {
             try
             {
-                var result = await _conversationRepository.GetOrCreateConversationForTenantLandlord(tenantUserId, landlordUserId);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadConversationDto>.CreateError(
+                        "Conversation not found", "No active organization access was found", statusCode: 404);
+                var result = await _conversationRepository.GetOrCreateConversationForTenantLandlord(
+                    tenantUserId, landlordUserId, organizationId.Value);
                 return ServiceResponse<LoadConversationDto>.CreateSuccess(result);
             }
             catch (Exception ex)
@@ -275,7 +347,11 @@ namespace brownstone_hub_api.Services.ConversationService
         {
             try
             {
-                var result = await _conversationRepository.GetAvailableLandlordsForTenant(tenantUserId);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<List<TenantAvailableLandlordDto>>.CreateError(
+                        "Landlords not found", "No active organization access was found", "", 404);
+                var result = await _conversationRepository.GetAvailableLandlordsForTenant(tenantUserId, organizationId.Value);
                 return ServiceResponse<List<TenantAvailableLandlordDto>>.CreateSuccess(result);
             }
             catch (Exception ex)
@@ -290,19 +366,13 @@ namespace brownstone_hub_api.Services.ConversationService
             try
             {
                 var organizationId = GetOrganizationIdFromContext();
-                if (!organizationId.HasValue)
-                {
-                    // Try to get from user as fallback
-                    organizationId = await GetOrganizationIdAsync(landlordId);
-                }
-                
-                if (!organizationId.HasValue)
+                if (!organizationId.HasValue || !await HasStaffOrganizationContextAsync(landlordId))
                 {
                     return ServiceResponse<List<LoadConversationDto>>.CreateError(
-                        "Organization ID is required", 
-                        "No organization context found",
-                        "", 
-                        400
+                        "Conversations not found",
+                        "No active organization access was found",
+                        "",
+                        404
                     );
                 }
 

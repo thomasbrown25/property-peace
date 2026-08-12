@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform } from 'react-native';
 import { useAppDispatch } from '../../store/hooks';
 import { login, googleLogin } from '../../store/user/user.slice';
 import { useNavigation } from '@react-navigation/native';
@@ -9,6 +9,7 @@ import { useGoogleSignIn } from '../../hooks/useGoogleSignIn';
 import config from '../../config';
 import GoogleLogo from '../../components/GoogleLogo';
 import AuthMarketingBackground from '../../components/AuthMarketingBackground';
+import AppleSignInButton from '../../components/AppleSignInButton';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -19,6 +20,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
+  const showGoogleSignIn = Platform.OS !== 'ios' && Boolean(config.GOOGLE_CLIENT_ID);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -28,7 +30,10 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      await dispatch(login({ email, password })).unwrap();
+      const result = await dispatch(login({ email, password })).unwrap();
+      if (result.kind === 'challenge') {
+        navigation.navigate('MfaVerification', { challenge: result.challenge });
+      }
       // Navigation will be handled by AppNavigator based on auth state
     } catch (error: any) {
       Alert.alert('Login Failed', error?.message || 'Invalid credentials. Please try again.');
@@ -64,12 +69,15 @@ export default function LoginScreen() {
         return;
       }
 
-      await dispatch(
+      const authResult = await dispatch(
         googleLogin({
           idToken: result.idToken || undefined,
           accessToken: result.accessToken || undefined,
         })
       ).unwrap();
+      if (authResult.kind === 'challenge') {
+        navigation.navigate('MfaVerification', { challenge: authResult.challenge });
+      }
       // Navigation will be handled by AppNavigator based on auth state
     } catch (error: any) {
       Alert.alert('Google Sign-In Failed', error?.message || 'Failed to sign in with Google. Please try again.');
@@ -117,26 +125,32 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
+          {Platform.OS === 'ios' && <AppleSignInButton mode="sign-in" />}
 
-          <TouchableOpacity
-            style={[styles.googleButton, (loading || googleLoading) && styles.buttonDisabled]}
-            onPress={handleGoogleSignIn}
-            disabled={loading || googleLoading}
-          >
-            <View style={styles.googleButtonContent}>
-              <View style={{ marginRight: 12 }}>
-                <GoogleLogo size={20} />
+          {showGoogleSignIn && (
+            <>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
               </View>
-              <Text style={styles.googleButtonText}>
-                {googleLoading ? 'Signing in...' : 'Sign in with Google'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.googleButton, (loading || googleLoading) && styles.buttonDisabled]}
+                onPress={handleGoogleSignIn}
+                disabled={loading || googleLoading}
+              >
+                <View style={styles.googleButtonContent}>
+                  <View style={{ marginRight: 12 }}>
+                    <GoogleLogo size={20} />
+                  </View>
+                  <Text style={styles.googleButtonText}>
+                    {googleLoading ? 'Signing in...' : 'Sign in with Google'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.linkButton}
@@ -151,6 +165,18 @@ export default function LoginScreen() {
           >
             <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
           </TouchableOpacity>
+
+          <View style={styles.legalLinks}>
+            <Text style={styles.legalText}>By continuing, you agree to our </Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.propertypeace.io/terms')}>
+              <Text style={styles.legalLink}>Terms</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalText}> and </Text>
+            <TouchableOpacity onPress={() => Linking.openURL('https://www.propertypeace.io/privacy')}>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalText}>.</Text>
+          </View>
         </View>
       </AuthMarketingBackground>
     </KeyboardAvoidingView>
@@ -238,6 +264,25 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  legalLinks: {
+    marginTop: 22,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  legalText: {
+    color: 'rgba(255, 255, 255, 0.60)',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  legalLink: {
+    color: '#bfdbfe',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   divider: {
     flexDirection: 'row',

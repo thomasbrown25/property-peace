@@ -11,14 +11,18 @@ const plans = [
     monthlyPrice: 0,
     annualMonthly: 0,
     annualTotal: 0,
-    description: 'Get started at no cost — no credit card required.',
+    description: 'The essentials for a small portfolio — no credit card required.',
     badge: null,
     features: [
-      'Up to 2 units',
+      'Up to 5 units',
+      'Hosted Property Peace listing page',
+      '1 active external listing (coming soon)',
+      'Lead management & showing scheduling',
       'Tenant portal',
       'Maintenance request tracking',
       'Lease management',
-      'Basic rent tracking',
+      'Basic rent & expense tracking',
+      'Digital rental applications',
       'Document storage',
     ],
     cta: 'Start for free',
@@ -30,26 +34,20 @@ const plans = [
     monthlyPrice: 14.99,
     annualMonthly: 12.74,
     annualTotal: 152.90,
-    description: 'Everything you need to manage and grow your portfolio.',
-    badge: 'Most popular',
+    description: 'Complete portfolio management with unlimited units and advanced workflows.',
+    badge: null,
     features: [
-      'Up to 2 units',
-      'Tenant portal',
-      'Maintenance request tracking',
-      'Lease management',
-      'Basic rent tracking',
-      'Document storage',
+      'Everything in Free',
       'Unlimited units',
-      'Online rent collection (Stripe)',
+      'Multiple active external listings (coming soon)',
+      'Lead source attribution after syndication launches',
+      'Rent ledger, late fees & reminders',
       'Automated rent reminders',
-      'Financial reports & Schedule E',
-      'Expense tracking',
+      'Advanced accounting & Schedule E',
       'Occupancy tracking',
       'Rent estimates',
       'LeaseShield protection',
-      'Percy-powered features',
-      'Digital rental applications',
-      'Priority support',
+      'One dedicated organization SMS number included with Premium; activation and configuration required',
       'Cancel anytime',
     ],
     cta: 'Get started',
@@ -82,7 +80,7 @@ export default function PricingPlans() {
             className="text-lg md:text-xl text-[#737373] max-w-2xl mx-auto mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Start free. Upgrade when you&apos;re ready. No hidden fees, no per-unit charges.
+            Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled. Limited Percy Pilot access may be available and is not included as a plan entitlement.
           </p>
 
           {/* Annual toggle */}

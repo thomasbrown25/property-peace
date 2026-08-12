@@ -1,6 +1,7 @@
 using AutoMapper;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.FutureExpense;
+using brownstone_hub_api.Repositories.Expenses;
 using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Repositories.FutureExpenses
@@ -11,21 +12,19 @@ namespace brownstone_hub_api.Repositories.FutureExpenses
         private readonly ILogger<FutureExpenseRepository> _logger = logger;
         private readonly IMapper _mapper = mapper;
 
-        public async Task<LoadFutureExpenseDto> AddFutureExpense(AddFutureExpenseDto futureExpense, long? organizationId = null)
+        public async Task<LoadFutureExpenseDto> AddFutureExpense(AddFutureExpenseDto futureExpense, long organizationId)
         {
             try
             {
                 _logger.LogInformation("[FutureExpenseRepository] AddFutureExpense called: LandlordId={LandlordId}, OrganizationId={OrganizationId}, PropertyId={PropertyId}, Name={Name}, Amount={Amount}, DueDate={DueDate}", 
                     futureExpense.LandlordId, organizationId, futureExpense.PropertyId, futureExpense.Name, futureExpense.Amount, futureExpense.DueDate);
 
+                await ExpenseOrganizationGuard.ValidateAsync(_context, organizationId, futureExpense.LandlordId,
+                    futureExpense.PropertyId, futureExpense.UnitId, futureExpense.VendorId, futureExpense.MaintenanceRequestId);
+
                 var entity = _mapper.Map<Models.FutureExpense>(futureExpense);
                 entity.CreatedAt = DateTime.Now;
-                
-                if (organizationId.HasValue)
-                {
-                    entity.OrganizationId = organizationId.Value;
-                    _logger.LogInformation("[FutureExpenseRepository] Set OrganizationId={OrganizationId} on entity", organizationId.Value);
-                }
+                entity.OrganizationId = organizationId;
 
                 await _context.FutureExpenses.AddAsync(entity);
                 await _context.SaveChangesAsync();
@@ -52,11 +51,12 @@ namespace brownstone_hub_api.Repositories.FutureExpenses
             }
         }
 
-        public async Task<bool> DeleteFutureExpense(long futureExpenseId)
+        public async Task<bool> DeleteFutureExpense(long futureExpenseId, long organizationId)
         {
             try
             {
-                var futureExpense = await _context.FutureExpenses.FindAsync(futureExpenseId);
+                var futureExpense = await _context.FutureExpenses
+                    .FirstOrDefaultAsync(e => e.Id == futureExpenseId && e.OrganizationId == organizationId);
                 if (futureExpense == null)
                     return false;
 
@@ -71,7 +71,7 @@ namespace brownstone_hub_api.Repositories.FutureExpenses
             }
         }
 
-        public async Task<LoadFutureExpenseDto?> GetFutureExpenseById(long futureExpenseId)
+        public async Task<LoadFutureExpenseDto?> GetFutureExpenseById(long futureExpenseId, long organizationId)
         {
             try
             {
@@ -79,7 +79,7 @@ namespace brownstone_hub_api.Repositories.FutureExpenses
                     .Include(e => e.Property)
                     .Include(e => e.Unit)
                     .Include(e => e.VendorEntity)
-                    .FirstOrDefaultAsync(e => e.Id == futureExpenseId);
+                    .FirstOrDefaultAsync(e => e.Id == futureExpenseId && e.OrganizationId == organizationId);
 
                 return futureExpense == null ? null : _mapper.Map<LoadFutureExpenseDto>(futureExpense);
             }
@@ -90,7 +90,7 @@ namespace brownstone_hub_api.Repositories.FutureExpenses
             }
         }
 
-        public async Task<List<LoadFutureExpenseDto>> GetFutureExpensesByOrganizationId(long organizationId, long? propertyId = null)
+        public async Task<List<LoadFutureExpenseDto>> GetFutureExpensesByOrganizationId(long organizationId, long? propertyId = null, long? unitId = null)
         {
             try
             {
@@ -103,6 +103,9 @@ namespace brownstone_hub_api.Repositories.FutureExpenses
 
                 if (propertyId.HasValue)
                     query = query.Where(e => e.PropertyId == propertyId.Value);
+
+                if (unitId.HasValue)
+                    query = query.Where(e => e.UnitId == unitId.Value);
 
                 var futureExpenses = await query
                     .OrderBy(e => e.DueDate)

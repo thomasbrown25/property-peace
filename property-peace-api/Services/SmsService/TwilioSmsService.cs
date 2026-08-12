@@ -1,4 +1,5 @@
 using brownstone_hub_api.Config;
+using brownstone_hub_api.Services;
 using Microsoft.Extensions.Options;
 using System.Text.RegularExpressions;
 using Twilio;
@@ -37,8 +38,15 @@ namespace brownstone_hub_api.Services.SmsService
             }
         }
 
-        public async Task<bool> SendSmsAsync(string to, string message, CancellationToken cancellationToken = default, string? from = null)
+        public async Task<bool> SendSmsAsync(string to, string message, CancellationToken cancellationToken = default, string? from = null) =>
+            (await SubmitSmsAsync(to, message, cancellationToken, from)).Accepted;
+
+        public async Task<SmsSubmissionResult> SubmitSmsAsync(string to, string message, CancellationToken cancellationToken = default,
+            string? from = null, string? idempotencyToken = null)
         {
+            var maskedTo = CommunicationLogSanitizer.MaskDestination(to);
+            var configuredFrom = from ?? _settings.FromPhoneNumber;
+            var maskedFrom = CommunicationLogSanitizer.MaskDestination(configuredFrom);
             try
             {
                 if (!_isInitialized)
@@ -47,7 +55,7 @@ namespace brownstone_hub_api.Services.SmsService
                     return false;
                 }
 
-                var hasFrom = !string.IsNullOrWhiteSpace(_settings.FromPhoneNumber);
+                var hasFrom = !string.IsNullOrWhiteSpace(from) || !string.IsNullOrWhiteSpace(_settings.FromPhoneNumber);
                 var hasSid = !string.IsNullOrWhiteSpace(_settings.MessagingServiceSid);
 
                 if (!hasFrom && !hasSid)
@@ -60,7 +68,7 @@ namespace brownstone_hub_api.Services.SmsService
                 var normalizedTo = NormalizePhoneNumber(to);
                 if (string.IsNullOrWhiteSpace(normalizedTo))
                 {
-                    _logger.LogError("Invalid phone number format: {PhoneNumber}. Expected format: +1234567890 or (123) 456-7890", to);
+                    _logger.LogError("Invalid phone number format: {PhoneNumber}", maskedTo);
                     return false;
                 }
 
@@ -79,13 +87,13 @@ namespace brownstone_hub_api.Services.SmsService
                 var normalizedFrom = NormalizePhoneNumber(from ?? string.Empty);
                 var useExplicitFrom = !string.IsNullOrWhiteSpace(normalizedFrom);
                 var sourceDescription = useExplicitFrom
-                    ? $"From:{normalizedFrom}"
+                    ? $"From:{CommunicationLogSanitizer.MaskDestination(normalizedFrom)}"
                     : hasSid
                         ? $"MessagingService:{_settings.MessagingServiceSid}"
-                        : $"From:{_settings.FromPhoneNumber}";
+                        : $"From:{CommunicationLogSanitizer.MaskDestination(_settings.FromPhoneNumber)}";
 
                 _logger.LogInformation("Sending SMS via Twilio to {To} using {Source} with message length: {Length}",
-                    normalizedTo, sourceDescription, message.Length);
+                    maskedTo, sourceDescription, message.Length);
 
                 var messageResource = useExplicitFrom
                     ? await MessageResource.CreateAsync(
@@ -105,25 +113,25 @@ namespace brownstone_hub_api.Services.SmsService
                 if (messageResource.ErrorCode == null)
                 {
                     _logger.LogInformation("SMS sent successfully via Twilio to {To} from {From}. MessageSid: {MessageSid}, Status: {Status}", 
-                        normalizedTo, _settings.FromPhoneNumber, messageResource.Sid, messageResource.Status);
-                    return true;
+                        maskedTo, maskedFrom, messageResource.Sid, messageResource.Status);
+                    return new SmsSubmissionResult(true, "twilio", messageResource.Sid);
                 }
                 else
                 {
-                    _logger.LogError("Twilio SMS send failed for {To} from {From}. ErrorCode: {ErrorCode}, ErrorMessage: {ErrorMessage}", 
-                        normalizedTo, _settings.FromPhoneNumber, messageResource.ErrorCode, messageResource.ErrorMessage);
+                    _logger.LogError("Twilio SMS send failed for {To} from {From}. ErrorCode: {ErrorCode}; Status: {Status}",
+                        maskedTo, maskedFrom, messageResource.ErrorCode, messageResource.Status);
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error sending SMS via Twilio to {To} from {From}: {Error}", 
-                    to, _settings.FromPhoneNumber, ex.Message);
+                _logger.LogError("Unexpected {ExceptionType} sending SMS via Twilio to {To} from {From}",
+                    ex.GetType().Name, maskedTo, maskedFrom);
                 return false;
             }
         }
 
-        public async Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default)
+        public async Task<bool> SendBulkSmsAsync(List<string> to, string message, CancellationToken cancellationToken = default, string? from = null)
         {
             try
             {
@@ -133,9 +141,10 @@ namespace brownstone_hub_api.Services.SmsService
                     return false;
                 }
 
-                if (string.IsNullOrWhiteSpace(_settings.FromPhoneNumber))
+                var normalizedFrom = NormalizePhoneNumber(from ?? string.Empty);
+                if (string.IsNullOrWhiteSpace(normalizedFrom))
                 {
-                    _logger.LogError("Twilio from phone number is not configured in TwilioSettings.");
+                    _logger.LogError("An explicit organization SMS sender is required for bulk sends.");
                     return false;
                 }
 
@@ -170,7 +179,7 @@ namespace brownstone_hub_api.Services.SmsService
                 }
 
                 _logger.LogInformation("Sending bulk SMS via Twilio to {Count} recipients from {From} with message length: {Length}", 
-                    normalizedNumbers.Count, _settings.FromPhoneNumber, message.Length);
+                    normalizedNumbers.Count, CommunicationLogSanitizer.MaskDestination(normalizedFrom), message.Length);
 
                 // Send to each recipient
                 var tasks = normalizedNumbers.Select(async phoneNumber =>
@@ -178,14 +187,15 @@ namespace brownstone_hub_api.Services.SmsService
                     try
                     {
                         var messageResource = await MessageResource.CreateAsync(
-                            from: new PhoneNumber(_settings.FromPhoneNumber),
+                            from: new PhoneNumber(normalizedFrom),
                             to: new PhoneNumber(phoneNumber),
                             body: message);
                         return new { PhoneNumber = phoneNumber, Success = messageResource.ErrorCode == null, MessageSid = messageResource.Sid, ErrorCode = messageResource.ErrorCode, ErrorMessage = messageResource.ErrorMessage };
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error sending SMS to {PhoneNumber} in bulk send: {Error}", phoneNumber, ex.Message);
+                        _logger.LogError("Unexpected {ExceptionType} sending SMS to {PhoneNumber} in bulk send",
+                            ex.GetType().Name, CommunicationLogSanitizer.MaskDestination(phoneNumber));
                         return new { PhoneNumber = phoneNumber, Success = false, MessageSid = (string?)null, ErrorCode = (int?)null, ErrorMessage = ex.Message };
                     }
                 });
@@ -203,8 +213,8 @@ namespace brownstone_hub_api.Services.SmsService
                 if (failureCount > 0)
                 {
                     var failedNumbers = results.Where(r => !r.Success).Select(r => r.PhoneNumber).ToList();
-                    _logger.LogWarning("Failed to send SMS to {Count} recipients: {FailedNumbers}", 
-                        failureCount, string.Join(", ", failedNumbers));
+                    _logger.LogWarning("Failed to send SMS to {Count} recipients: {FailedNumbers}",
+                        failureCount, string.Join(", ", failedNumbers.Select(CommunicationLogSanitizer.MaskDestination)));
                 }
 
                 // Return true if at least one message was sent successfully
@@ -212,8 +222,8 @@ namespace brownstone_hub_api.Services.SmsService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error sending bulk SMS via Twilio from {From}: {Error}", 
-                    _settings.FromPhoneNumber, ex.Message);
+                _logger.LogError("Unexpected {ExceptionType} sending bulk SMS via Twilio from {From}",
+                    ex.GetType().Name, CommunicationLogSanitizer.MaskDestination(_settings.FromPhoneNumber));
                 return false;
             }
         }
@@ -255,7 +265,8 @@ namespace brownstone_hub_api.Services.SmsService
             }
 
             // Return as-is if we can't determine format (will likely fail validation)
-            _logger.LogWarning("Unable to normalize phone number: {PhoneNumber}. Returning as-is.", phoneNumber);
+            _logger.LogWarning("Unable to normalize phone number: {PhoneNumber}. Returning normalized digits as-is.",
+                CommunicationLogSanitizer.MaskDestination(phoneNumber));
             return cleaned;
         }
     }

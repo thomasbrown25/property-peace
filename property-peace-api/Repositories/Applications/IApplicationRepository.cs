@@ -7,6 +7,7 @@ namespace brownstone_hub_api.Repositories.Applications
     {
         Task<LoadRentalApplicationDto> AddApplication(AddRentalApplicationDto application, long landlordId, long? organizationId = null);
         Task<LoadRentalApplicationDto?> GetApplicationById(long id);
+        Task<bool?> IsApplicationOwnedByLandlordAndOrganization(long id, long landlordId, long organizationId);
         Task<List<LoadRentalApplicationDto>> GetApplicationsByLandlordId(long landlordId);
         Task<List<LoadRentalApplicationDto>> GetApplicationsByPropertyId(long propertyId);
         Task<List<LoadRentalApplicationDto>> GetApplicationsByStatus(long landlordId, EApplicationStatus status);

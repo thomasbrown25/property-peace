@@ -31,6 +31,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency, formatRentStatus, getRentStatusColor } from 'utils/formatters';
 import { useModal } from 'contexts/ModalContext';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 export default function RentCollectionTable({ sortedRents, sortField, sortOrder, onSort, onSendReminder }) {
   const navigate = useNavigate();
@@ -138,7 +139,8 @@ export default function RentCollectionTable({ sortedRents, sortField, sortOrder,
         </TableHead>
         <TableBody>
           {sortedRents.map((rent) => {
-            const isOverdue = rent.status === 'overdue';
+            const { overdueAmount, rentDueIsOverdue } = normalizeRentBalance(rent);
+            const isOverdue = rentDueIsOverdue;
             const isNotStarted = rent.status === 'notStarted';
             const hasPaymentIssue = rent.paymentIssueCount > 0 || rent.hasLongProcessingPayment;
 
@@ -249,9 +251,9 @@ export default function RentCollectionTable({ sortedRents, sortField, sortOrder,
                   </Stack>
                 </TableCell>
                 <TableCell align="right">
-                  {rent.overdueAmount > 0 ? (
+                  {overdueAmount > 0 ? (
                     <Typography variant="body2" fontWeight={700} color="error.main">
-                      {formatCurrency(rent.overdueAmount)}
+                      {formatCurrency(overdueAmount)}
                     </Typography>
                   ) : (
                     <Typography variant="body2" color="text.secondary">

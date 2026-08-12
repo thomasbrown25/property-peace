@@ -1,7 +1,7 @@
+using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.FutureExpense;
 using brownstone_hub_api.Repositories.FutureExpenses;
 using Microsoft.AspNetCore.Http;
-using brownstone_hub_api.Data;
 
 namespace brownstone_hub_api.Services.FutureExpenseService
 {
@@ -13,16 +13,27 @@ namespace brownstone_hub_api.Services.FutureExpenseService
     {
         private readonly IFutureExpenseRepository _futureExpenseRepository = futureExpenseRepository;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
-        private readonly DataContext _dataContext = dataContext;
         private readonly ILogger<FutureExpenseService> _logger = logger;
 
-        private long? GetOrganizationIdFromContext()
+        private long? GetOrganizationIdFromContext() =>
+            _httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var value) == true && value is long id && id > 0
+                ? id
+                : null;
+
+        private bool TryGetOrganizationId<T>(ServiceResponse<T> response, out long organizationId)
         {
-            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var orgIdObj) == true && orgIdObj is long orgId)
+            var current = GetOrganizationIdFromContext();
+            if (current.HasValue)
             {
-                return orgId;
+                organizationId = current.Value;
+                return true;
             }
-            return null;
+
+            organizationId = 0;
+            response.Success = false;
+            response.Message = "Organization context is required";
+            response.StatusCode = StatusCodes.Status403Forbidden;
+            return false;
         }
 
         public async Task<ServiceResponse<LoadFutureExpenseDto>> AddFutureExpense(AddFutureExpenseDto futureExpense)
@@ -30,24 +41,18 @@ namespace brownstone_hub_api.Services.FutureExpenseService
             var response = new ServiceResponse<LoadFutureExpenseDto>();
             try
             {
-                _logger.LogInformation("[FutureExpenseService] AddFutureExpense called: LandlordId={LandlordId}, PropertyId={PropertyId}, Name={Name}, Amount={Amount}, DueDate={DueDate}", 
-                    futureExpense.LandlordId, futureExpense.PropertyId, futureExpense.Name, futureExpense.Amount, futureExpense.DueDate);
-                
-                var organizationId = GetOrganizationIdFromContext();
-                _logger.LogInformation("[FutureExpenseService] OrganizationId from context: {OrganizationId}", organizationId);
-                
-                if (!organizationId.HasValue)
-                {
-                    _logger.LogWarning("[FutureExpenseService] OrganizationId is null - future expense may not be retrievable by organization");
-                }
-                
-                var result = await _futureExpenseRepository.AddFutureExpense(futureExpense, organizationId);
-                _logger.LogInformation("[FutureExpenseService] FutureExpense created successfully: Id={Id}", result?.Id);
-                response.Data = result;
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                response.Data = await _futureExpenseRepository.AddFutureExpense(futureExpense, organizationId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                response.Success = false;
+                response.Message = ex.Message;
+                response.StatusCode = StatusCodes.Status400BadRequest;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[FutureExpenseService] Error adding future expense: {Message}", ex.Message);
+                _logger.LogError(ex, "Error adding future expense");
                 response.Success = false;
                 response.Message = ex.Message;
             }
@@ -59,18 +64,18 @@ namespace brownstone_hub_api.Services.FutureExpenseService
             var response = new ServiceResponse<bool>();
             try
             {
-                var result = await _futureExpenseRepository.DeleteFutureExpense(futureExpenseId);
-                response.Data = result;
-                if (!result)
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                response.Data = await _futureExpenseRepository.DeleteFutureExpense(futureExpenseId, organizationId);
+                if (!response.Data)
                 {
                     response.Success = false;
                     response.Message = "Future expense not found";
-                    response.StatusCode = 404;
+                    response.StatusCode = StatusCodes.Status404NotFound;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[FutureExpenseService] Error deleting future expense {FutureExpenseId}", futureExpenseId);
+                _logger.LogError(ex, "Error deleting future expense {FutureExpenseId}", futureExpenseId);
                 response.Success = false;
                 response.Message = ex.Message;
             }
@@ -82,47 +87,35 @@ namespace brownstone_hub_api.Services.FutureExpenseService
             var response = new ServiceResponse<LoadFutureExpenseDto>();
             try
             {
-                var result = await _futureExpenseRepository.GetFutureExpenseById(futureExpenseId);
-                if (result == null)
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                response.Data = await _futureExpenseRepository.GetFutureExpenseById(futureExpenseId, organizationId);
+                if (response.Data == null)
                 {
                     response.Success = false;
                     response.Message = "Future expense not found";
-                    response.StatusCode = 404;
-                }
-                else
-                {
-                    response.Data = result;
+                    response.StatusCode = StatusCodes.Status404NotFound;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[FutureExpenseService] Error retrieving future expense {FutureExpenseId}", futureExpenseId);
+                _logger.LogError(ex, "Error retrieving future expense {FutureExpenseId}", futureExpenseId);
                 response.Success = false;
                 response.Message = ex.Message;
             }
             return response;
         }
 
-        public async Task<ServiceResponse<List<LoadFutureExpenseDto>>> GetFutureExpenses(long landlordId, long? propertyId = null)
+        public async Task<ServiceResponse<List<LoadFutureExpenseDto>>> GetFutureExpenses(long? propertyId = null, long? unitId = null)
         {
             var response = new ServiceResponse<List<LoadFutureExpenseDto>>();
             try
             {
-                var organizationId = GetOrganizationIdFromContext();
-                if (organizationId.HasValue)
-                {
-                    var result = await _futureExpenseRepository.GetFutureExpensesByOrganizationId(organizationId.Value, propertyId);
-                    response.Data = result;
-                }
-                else
-                {
-                    var result = await _futureExpenseRepository.GetFutureExpensesByLandlordId(landlordId, propertyId);
-                    response.Data = result;
-                }
+                if (!TryGetOrganizationId(response, out var organizationId)) return response;
+                response.Data = await _futureExpenseRepository.GetFutureExpensesByOrganizationId(organizationId, propertyId, unitId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[FutureExpenseService] Error retrieving future expenses for landlord {LandlordId}", landlordId);
+                _logger.LogError(ex, "Error retrieving future expenses for active organization");
                 response.Success = false;
                 response.Message = ex.Message;
             }

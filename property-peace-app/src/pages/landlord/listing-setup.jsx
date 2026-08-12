@@ -42,6 +42,9 @@ import { useSubscription } from 'hooks/useSubscription';
 import RentEstimateCard from 'components/RentEstimateCard';
 import ListingAmenitiesStep from 'components/listings/ListingAmenitiesStep';
 import { getFallbackSelections } from 'utils/amenityFallbacks';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 const LEASE_DURATION_OPTIONS = [
   'Monthly', '2 Months', '3 Months', '4 Months', '5 Months', '6 Months', '7 Months', '8 Months', '9 Months',
@@ -96,6 +99,8 @@ export default function ListingSetupPage() {
   const listing = useSelector(selectSelectedListing);
   const loading = useSelector(selectListingLoading);
   const { subscription } = useSubscription();
+  const { presentation: syndicationReadiness, canInvoke: syndicationCanInvoke } = useFeatureReadiness(FEATURE_KEYS.listingSyndication);
+  const { canInvoke: screeningCanInvoke, presentation: screeningReadiness } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
   const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
   const isPremium = planName === 'premium' || planName.includes('lifetime');
 
@@ -136,10 +141,10 @@ export default function ListingSetupPage() {
       acceptOnlineApplications: listing.acceptOnlineApplications ?? true,
       applicationFeeRequired: listing.applicationFeeRequired ?? false,
       applicationFee: listing.applicationFee ?? '0',
-      requireScreening: listing.requireScreening ?? true,
-      screeningType: listing.screeningType ?? 'Essential',
-      requireIncomeVerification: listing.requireIncomeVerification ?? false,
-      incomeVerificationCost: listing.incomeVerificationCost ?? '12',
+      requireScreening: screeningCanInvoke && Boolean(listing.requireScreening ?? true),
+      screeningType: screeningCanInvoke ? (listing.screeningType ?? 'Essential') : '',
+      requireIncomeVerification: screeningCanInvoke && Boolean(listing.requireIncomeVerification ?? false),
+      incomeVerificationCost: screeningCanInvoke ? (listing.incomeVerificationCost ?? '12') : '',
       listingContactName: listing.listingContactName ?? '',
       listingContactPhone: listing.listingContactPhone ?? '',
       listingContactEmail: listing.listingContactEmail ?? '',
@@ -156,7 +161,7 @@ export default function ListingSetupPage() {
     setCoverFile(null);
     setGalleryNewFiles([]);
     setRemovedImageIds([]);
-  }, [listing]);
+  }, [listing, screeningCanInvoke]);
 
   useEffect(() => {
     if (!coverFile) {
@@ -227,16 +232,16 @@ export default function ListingSetupPage() {
       acceptOnlineApplications: Boolean(formData.acceptOnlineApplications),
       applicationFeeRequired: Boolean(formData.applicationFeeRequired),
       applicationFee: formData.applicationFeeRequired ? parseFloat(formData.applicationFee) || 0 : 0,
-      requireScreening: Boolean(formData.requireScreening),
-      screeningType: formData.screeningType || 'Essential',
-      requireIncomeVerification: Boolean(formData.requireIncomeVerification),
-      incomeVerificationCost: formData.requireIncomeVerification ? parseFloat(formData.incomeVerificationCost) || 0 : 0,
+      requireScreening: screeningCanInvoke && Boolean(formData.requireScreening),
+      screeningType: screeningCanInvoke && formData.requireScreening ? (formData.screeningType || 'Essential') : null,
+      requireIncomeVerification: screeningCanInvoke && Boolean(formData.requireIncomeVerification),
+      incomeVerificationCost: screeningCanInvoke && formData.requireIncomeVerification ? parseFloat(formData.incomeVerificationCost) || 0 : 0,
       listingContactName: formData.listingContactName?.trim() || null,
       listingContactPhone: formData.listingContactPhone?.trim() || null,
       listingContactEmail: formData.listingContactEmail?.trim() || null,
       syndicateToListingWebsite: Boolean(formData.syndicateToListingWebsite),
-      syndicateToFreeSites: Boolean(formData.syndicateToFreeSites),
-      syndicateToPremiumSites: Boolean(formData.syndicateToPremiumSites),
+      syndicateToFreeSites: syndicationCanInvoke && Boolean(formData.syndicateToFreeSites),
+      syndicateToPremiumSites: syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites),
       basicAmenityIds: (formData.basicAmenityIds ?? []).filter((value) => Number(value) > 0),
       defaultAmenityIds: (formData.defaultAmenityIds ?? []).filter((value) => Number(value) > 0),
       customAmenityIds: formData.customAmenityIds ?? [],
@@ -286,6 +291,7 @@ export default function ListingSetupPage() {
 
   const handleSaveAndPublish = async () => {
     if (!id || !formData) return;
+
     const incompleteTab = SETUP_TABS.find((tab) => !setupProgress.steps[tab.key]);
     if (incompleteTab) {
       setActiveTab(incompleteTab.key);
@@ -542,6 +548,7 @@ export default function ListingSetupPage() {
 
             <Box sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.divider}`, bgcolor: alpha(theme.palette.primary.main, 0.035) }}>
               <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Application settings</Typography>
+              <FeatureReadinessNotice presentation={screeningReadiness} featureName="Tenant screening" compact />
               <Stack spacing={0.5}>
                 <FormControlLabel control={<Checkbox checked={Boolean(formData.acceptOnlineApplications)} onChange={(e) => setFormData((p) => ({ ...p, acceptOnlineApplications: e.target.checked }))} />} label="Accept online applications" />
                 <FormControlLabel control={<Checkbox checked={Boolean(formData.applicationFeeRequired)} onChange={(e) => setFormData((p) => ({ ...p, applicationFeeRequired: e.target.checked }))} />} label="Require application fee" />
@@ -552,17 +559,19 @@ export default function ListingSetupPage() {
                     </SetupField>
                   </Box>
                 )}
-                <FormControlLabel control={<Checkbox checked={Boolean(formData.requireScreening)} onChange={(e) => setFormData((p) => ({ ...p, requireScreening: e.target.checked }))} />} label="Require tenant screening" />
-                <FormControlLabel control={<Checkbox checked={Boolean(formData.requireIncomeVerification)} onChange={(e) => setFormData((p) => ({ ...p, requireIncomeVerification: e.target.checked }))} />} label="Require income verification" />
+                <FormControlLabel control={<Checkbox checked={screeningCanInvoke && Boolean(formData.requireScreening)} disabled={!screeningCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, requireScreening: e.target.checked }))} />} label="Require tenant screening" />
+                <FormControlLabel control={<Checkbox checked={screeningCanInvoke && Boolean(formData.requireIncomeVerification)} disabled={!screeningCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, requireIncomeVerification: e.target.checked }))} />} label="Require income verification" />
               </Stack>
             </Box>
 
             <Box sx={{ p: 2, borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
-              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Syndication</Typography>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>Publishing</Typography>
               <Stack spacing={0.5}>
                 <FormControlLabel control={<Checkbox checked={Boolean(formData.syndicateToListingWebsite)} onChange={(e) => setFormData((p) => ({ ...p, syndicateToListingWebsite: e.target.checked }))} />} label="Show on Property Peace listing website" />
-                <FormControlLabel control={<Checkbox checked={Boolean(formData.syndicateToFreeSites)} onChange={(e) => setFormData((p) => ({ ...p, syndicateToFreeSites: e.target.checked }))} />} label="Syndicate to free sites" />
-                <FormControlLabel control={<Checkbox checked={Boolean(formData.syndicateToPremiumSites)} onChange={(e) => setFormData((p) => ({ ...p, syndicateToPremiumSites: e.target.checked }))} />} label="Syndicate to premium sites" />
+                <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ pt: 1 }}>EXTERNAL DISTRIBUTION</Typography>
+                <FeatureReadinessNotice presentation={syndicationReadiness} featureName="External listing syndication" compact />
+                <FormControlLabel control={<Checkbox checked={syndicationCanInvoke && Boolean(formData.syndicateToFreeSites)} disabled={!syndicationCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, syndicateToFreeSites: e.target.checked }))} />} label="Core external distribution" />
+                <FormControlLabel control={<Checkbox checked={syndicationCanInvoke && Boolean(formData.syndicateToPremiumSites)} disabled={!syndicationCanInvoke} onChange={(e) => setFormData((p) => ({ ...p, syndicateToPremiumSites: e.target.checked }))} />} label="Extended external distribution" />
               </Stack>
             </Box>
           </Stack>

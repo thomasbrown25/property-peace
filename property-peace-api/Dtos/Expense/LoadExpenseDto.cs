@@ -1,6 +1,8 @@
 using brownstone_hub_api.Dtos.ExpenseReceipt;
 using brownstone_hub_api.Enums;
 
+using System.Text.Json.Serialization;
+
 namespace brownstone_hub_api.Dtos.Expense
 {
     public class LoadExpenseDto
@@ -20,6 +22,8 @@ namespace brownstone_hub_api.Dtos.Expense
         public string? VendorName { get; set; } // Vendor name from Vendor entity
         public string? VendorEmail { get; set; } // Vendor email from Vendor entity
         public string? VendorPhone { get; set; } // Vendor phone from Vendor entity
+        // Used internally by the dedicated 1099 workflow, but never emitted by generic expense APIs.
+        [JsonIgnore]
         public string? VendorTaxId { get; set; }
         public string? VendorAddress { get; set; }
         public bool VendorRequires1099 { get; set; }

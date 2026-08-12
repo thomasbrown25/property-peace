@@ -4,6 +4,9 @@ using brownstone_hub_api.Enums;
 using brownstone_hub_api.Services.ApplicationService;
 using brownstone_hub_api.Services.ApplicationPdfService;
 using brownstone_hub_api.Services.BackgroundCheckService;
+using brownstone_hub_api.Config;
+using brownstone_hub_api.Filters;
+using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Repositories.Applications;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.AzureBlobService;
@@ -342,24 +345,51 @@ namespace brownstone_hub_api.Controllers
         [Authorize(Roles = "Landlord,Admin")]
         public async Task<IActionResult> RequestBackgroundCheck(long id, [FromBody] RequestBackgroundCheckDto request)
         {
+            var ownershipFailure = await EnsureApplicationOwnedByCurrentUser(id);
+            if (ownershipFailure != null)
+                return ownershipFailure;
+
             if (id != request.ApplicationId)
                 return BadRequest(new { Message = "Application ID mismatch" });
 
-            var response = await _backgroundCheckService.RequestBackgroundCheckAsync(id, request.ScreeningPackage);
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new { response.Message, response.Errors });
-            return Ok(response);
+            return StatusCode(StatusCodes.Status410Gone,
+                new { Message = "This endpoint has been retired. Use /api/screenings." });
         }
 
         [HttpGet("{id}/background-check")]
         [Authorize(Roles = "Landlord,Admin")]
         public async Task<IActionResult> GetBackgroundCheckStatus(long id)
         {
-            var response = await _backgroundCheckService.GetBackgroundCheckStatusAsync(id);
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new { response.Message, response.Errors });
-            return Ok(response);
+            var ownershipFailure = await EnsureApplicationOwnedByCurrentUser(id);
+            if (ownershipFailure != null)
+                return ownershipFailure;
+
+            return StatusCode(StatusCodes.Status410Gone,
+                new { Message = "This endpoint has been retired. Use /api/screenings." });
+        }
+
+        private async Task<IActionResult?> EnsureApplicationOwnedByCurrentUser(long applicationId)
+        {
+            var currentUser = await _userRepository.GetCurrentUser();
+            if (currentUser == null)
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You can only access screening for applications assigned to you" });
+
+            var organizationId = this.GetCurrentOrganizationId();
+            if (!organizationId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You can only access screening for applications assigned to your organization" });
+
+            // Query only the ownership boundary before loading applicant PII or calling RentSpree.
+            var isOwned = await _applicationRepository.IsApplicationOwnedByLandlordAndOrganization(
+                applicationId,
+                currentUser.Id,
+                organizationId.Value);
+            if (!isOwned.HasValue)
+                return NotFound(new { Message = "Application not found" });
+
+            if (!isOwned.Value)
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "You can only access screening for applications assigned to you" });
+
+            return null;
         }
     }
 }
-

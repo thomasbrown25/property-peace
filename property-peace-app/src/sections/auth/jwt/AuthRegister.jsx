@@ -250,10 +250,10 @@ export default function AuthRegister({ isDemo = false }) {
             {/* Welcome Message */}
             <Box sx={{ textAlign: 'center', mb: 2 }}>
               <Typography variant="h2" sx={{ fontWeight: 600, mb: 1.5, fontSize: { xs: '1.875rem', md: '2rem' } }}>
-                Sign up for your free 30-day trial
+                Start Free
               </Typography>
               <Typography variant="body1" sx={{ color: 'text.secondary', mb: 1, fontSize: { xs: '0.9375rem', md: '1rem' }, fontWeight: 400 }}>
-                It takes just 30 seconds. No credit card required. Use sample data to see how Property Peace handles your real-world tasks.
+                Free for up to 5 units. No credit card required. It takes just 30 seconds to get started.
               </Typography>
             </Box>
 

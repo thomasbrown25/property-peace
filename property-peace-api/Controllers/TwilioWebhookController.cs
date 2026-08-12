@@ -3,6 +3,7 @@ using brownstone_hub_api.Repositories.OrganizationSmsNumbers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Twilio.Security;
+using brownstone_hub_api.Services.MessageDeliveries;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -12,11 +13,13 @@ namespace brownstone_hub_api.Controllers
     public class TwilioWebhookController(
         IInboundSmsService inboundSmsService,
         IOrganizationSmsNumberRepository organizationSmsNumberRepository,
+        IMessageDeliveryService messageDeliveryService,
         IConfiguration configuration,
         ILogger<TwilioWebhookController> logger) : ControllerBase
     {
         private readonly IInboundSmsService _inboundSmsService = inboundSmsService;
         private readonly IOrganizationSmsNumberRepository _organizationSmsNumberRepository = organizationSmsNumberRepository;
+        private readonly IMessageDeliveryService _messageDeliveryService = messageDeliveryService;
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<TwilioWebhookController> _logger = logger;
 
@@ -33,16 +36,17 @@ namespace brownstone_hub_api.Controllers
             var from = Request.Form["From"].ToString();
             var to = Request.Form["To"].ToString();
             var body = Request.Form["Body"].ToString();
+            var messageSid = Request.Form["MessageSid"].ToString();
 
-            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to) || string.IsNullOrWhiteSpace(body))
+            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to) || string.IsNullOrWhiteSpace(body) || string.IsNullOrWhiteSpace(messageSid))
             {
-                _logger.LogWarning("Inbound SMS webhook received with missing From, To, or Body");
+                _logger.LogWarning("Inbound SMS webhook received with missing From, To, Body, or MessageSid");
                 return BadRequest();
             }
 
-            _logger.LogInformation("Inbound SMS from {From} to {To}, length {Length}", from, to, body.Length);
+            _logger.LogInformation("Authenticated inbound SMS received, length {Length}", body.Length);
 
-            var twiml = await _inboundSmsService.HandleInboundAsync(from, to, body);
+            var twiml = await _inboundSmsService.HandleInboundAsync(from, to, body, messageSid);
 
             return Content(twiml, "application/xml");
         }
@@ -90,6 +94,19 @@ namespace brownstone_hub_api.Controllers
 
             await _organizationSmsNumberRepository.UpdateAsync(number);
             _logger.LogInformation("Updated organization SMS number {Id} SID {Sid} status to {Status}", number.Id, sid, status);
+            return Ok();
+        }
+
+        [HttpPost("message-status")]
+        public async Task<IActionResult> MessageStatus(CancellationToken cancellationToken)
+        {
+            if (!ValidateTwilioSignature()) return Forbid();
+            var sid = Request.Form["MessageSid"].ToString();
+            var status = Request.Form["MessageStatus"].ToString();
+            if (string.IsNullOrWhiteSpace(sid) || string.IsNullOrWhiteSpace(status)) return BadRequest();
+
+            await _messageDeliveryService.RecordProviderStatusAsync("twilio", sid, status,
+                Request.Form["ErrorCode"].ToString(), Request.Form["ErrorMessage"].ToString(), cancellationToken);
             return Ok();
         }
 

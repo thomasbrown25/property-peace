@@ -10,7 +10,6 @@ import {
   BellOutlined,
   HighlightOutlined,
   ProfileOutlined,
-  RobotOutlined,
   MobileOutlined
 } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
@@ -20,7 +19,6 @@ import AppearanceSettings from 'sections/landlord/settings/AppearanceSettings';
 import AccountSettings from 'sections/landlord/settings/AccountSettings';
 import PaymentsSettings from 'sections/landlord/settings/PaymentsSettings';
 import ProfileSettings from 'sections/landlord/settings/ProfileSettings';
-import AISummarySettings from 'sections/landlord/settings/AISummarySettings';
 import SmsNumberSettings from 'sections/landlord/settings/SmsNumberSettings';
 import SubscriptionSettings from 'sections/landlord/settings/SubscriptionSettings';
 
@@ -34,8 +32,7 @@ const tabMap = {
   payments: 4,
   smsnumber: 5,
   notifications: 6,
-  appearance: 7,
-  aisummary: 8
+  appearance: 7
 };
 
 const tabKeys = Object.keys(tabMap);
@@ -48,8 +45,7 @@ const tabConfig = [
   { key: 'payments', label: 'Bank Settings', description: 'Payment accounts, payouts, and billing rails.', icon: DollarOutlined, component: PaymentsSettings },
   { key: 'smsnumber', label: 'SMS Number Settings', description: 'Dedicated tenant texting number, routing, and setup.', icon: MobileOutlined, component: SmsNumberSettings },
   { key: 'notifications', label: 'Notifications', description: 'Alerts, reminders, and communication preferences.', icon: BellOutlined, component: NotificationSettings },
-  { key: 'appearance', label: 'Appearance', description: 'Theme, color, and display customization.', icon: HighlightOutlined, component: AppearanceSettings },
-  { key: 'aisummary', label: 'AI Summary', description: 'Configure automated summaries and AI assistance.', icon: RobotOutlined, component: AISummarySettings }
+  { key: 'appearance', label: 'Appearance', description: 'Theme, color, and display customization.', icon: HighlightOutlined, component: AppearanceSettings }
 ];
 
 export default function Settings() {

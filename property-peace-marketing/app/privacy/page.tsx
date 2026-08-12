@@ -113,8 +113,8 @@ export default function PrivacyPage() {
               We use trusted third-party services to operate our platform:
             </p>
             <ul className="list-disc pl-6 text-[#737373] space-y-2">
-              <li><strong>Stripe</strong> — Payment processing. Stripe&apos;s privacy policy applies to payment data.</li>
-              <li><strong>DocuSign</strong> — Digital lease signing. DocuSign&apos;s privacy policy applies to document signing.</li>
+              <li><strong>Stripe</strong> — A payment processing provider used only if and when online rent processing is operationally enabled. Online rent processing is currently unavailable.</li>
+              <li><strong>DocuSign</strong> — A document signing provider used only if and when integrated digital lease signing is operationally enabled. Integrated digital lease signing is currently unavailable.</li>
               <li><strong>Google</strong> — Authentication (optional). Google&apos;s privacy policy applies when you sign in with Google.</li>
               <li><strong>Analytics</strong> — We may use analytics services to understand how our platform is used.</li>
             </ul>

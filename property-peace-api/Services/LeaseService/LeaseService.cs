@@ -16,6 +16,7 @@ using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Dtos.Payment;
 using brownstone_hub_api.Repositories.Payments;
 using brownstone_hub_api.Services.PaymentService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.AspNetCore.Http;
@@ -40,7 +41,8 @@ namespace brownstone_hub_api.Services.LeaseService
         DataContext? dataContext,
         IPaymentRepository? paymentRepository,
         IPaymentService? paymentService,
-        IEmailService? emailService) : ILeaseService
+        IEmailService? emailService,
+        IActivationOccurrenceRecorder? activationRecorder = null) : ILeaseService
     {
         private readonly ILeaseRepository _leaseRepository = leaseRepository;
         private readonly IPropertyRepository _propertyRepository = propertyRepository;
@@ -58,6 +60,7 @@ namespace brownstone_hub_api.Services.LeaseService
         private readonly IPaymentRepository? _paymentRepository = paymentRepository;
         private readonly IPaymentService? _paymentService = paymentService;
         private readonly IEmailService? _emailService = emailService;
+        private readonly IActivationOccurrenceRecorder? _activationRecorder = activationRecorder;
         private const string SignedDocumentsContainerName = "signed-documents";
 
         private long? GetOrganizationIdFromContext()
@@ -67,6 +70,63 @@ namespace brownstone_hub_api.Services.LeaseService
                 return orgId;
             }
             return null;
+        }
+
+        private async Task<bool> HasOrganizationPermissionAsync(long organizationId, bool tenantPermission, CancellationToken cancellationToken = default)
+        {
+            if (_dataContext == null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var currentUser = _userContextService == null ? null : await _userContextService.GetCurrentUserAsync();
+                cancellationToken.ThrowIfCancellationRequested();
+                return currentUser?.Organizations.Any(org => org.Id == organizationId
+                    && (string.Equals(org.Role, "Owner", StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(org.Role, "Admin", StringComparison.OrdinalIgnoreCase))) == true;
+            }
+            if (_httpContextAccessor.HttpContext?.Items.TryGetValue("UserId", out var userIdObject) != true || userIdObject is not long userId)
+                return false;
+            return await _dataContext.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == userId && member.OrganizationId == organizationId && member.IsActive
+                && member.Organization.IsActive && !member.Organization.IsDeleted
+                && (member.Role == "Owner" || member.Role == "Manager"
+                    && (tenantPermission ? member.CanManageTenants : member.CanManageLeases)), cancellationToken);
+        }
+
+        private async Task<(bool Success, string Error)> BindAuthenticatedLandlordAsync(
+            SendLeaseForSignatureDto request,
+            long? expectedUserId = null,
+            long? expectedOrganizationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue ||
+                (expectedOrganizationId.HasValue && expectedOrganizationId.Value != organizationId.Value) ||
+                _userContextService == null)
+            {
+                return (false, "Authenticated organization context is required.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var user = await _userContextService.GetCurrentUserAsync();
+            cancellationToken.ThrowIfCancellationRequested();
+            var belongsToOrganization = user != null &&
+                (user.CurrentOrganizationId == organizationId.Value ||
+                 user.Organizations.Any(organization => organization.Id == organizationId.Value));
+            if (user == null || user.Id <= 0 ||
+                (expectedUserId.HasValue && expectedUserId.Value != user.Id) ||
+                !belongsToOrganization)
+            {
+                return (false, "Authenticated user is not a member of the current organization.");
+            }
+
+            var email = user.Email?.Trim();
+            var name = $"{user.Firstname} {user.Lastname}".Trim();
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(name))
+                return (false, "Authenticated landlord name and email are required.");
+
+            request.LandlordEmail = email;
+            request.LandlordName = name;
+            return (true, string.Empty);
         }
 
         private static void PreserveRenewedMonthToMonthEndDate(UpdateLeaseDto update, LoadLeaseDto existing)
@@ -87,9 +147,21 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
-                var property = await _propertyRepository.GetPropertyById(lease.PropertyId);
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadLeaseDto>.CreateError(
+                        "Organization ID is required", "No organization context found", "", 400);
+
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+
+                lease.OrganizationId = organizationId.Value;
+                var property = await _propertyRepository.GetPropertyById(lease.PropertyId, organizationId.Value);
                 if (property == null)
-                    return ServiceResponse<LoadLeaseDto>.CreateError("Invalid Property ID", "The specified property does not exist.");
+                    return ServiceResponse<LoadLeaseDto>.CreateError(
+                        "Invalid Property ID",
+                        "The specified property does not exist or does not belong to your organization.",
+                        statusCode: 404);
 
                 var unit = property.Units.FirstOrDefault(u => u.Id == lease.UnitId);
                 if (unit == null)
@@ -110,9 +182,6 @@ namespace brownstone_hub_api.Services.LeaseService
                         "Start date, end date, rent amount, lease length, rent frequency, and rent due day are required before creating a lease.",
                         statusCode: 400);
                 }
-
-                // Get organizationId from context
-                var organizationId = GetOrganizationIdFromContext();
 
                 LoadLeaseDto newLease;
 
@@ -245,6 +314,10 @@ namespace brownstone_hub_api.Services.LeaseService
                 var organizationId = GetOrganizationIdFromContext();
                 if (!organizationId.HasValue)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
                 var lease = await _leaseRepository.CompleteDraft(leaseId, organizationId.Value);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Lease draft completed");
             }
@@ -266,6 +339,10 @@ namespace brownstone_hub_api.Services.LeaseService
                 var organizationId = GetOrganizationIdFromContext();
                 if (!organizationId.HasValue)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
                 var lease = await _leaseRepository.SetMoveInReportTemplateCompletedAt(leaseId, organizationId.Value);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Move-in report template step marked complete for this lease");
             }
@@ -277,24 +354,6 @@ namespace brownstone_hub_api.Services.LeaseService
             {
                 _logger.LogError(ex, "Error setting move-in report template completed for lease {LeaseId}", leaseId);
                 return ServiceResponse<LoadLeaseDto>.CreateError("Error updating lease", ex.Message, ex.InnerException?.Message);
-            }
-        }
-
-        public async Task<ServiceResponse<LoadLeaseDto>> UpdateLeaseSignature(UpdateLeaseSignatureDto signatureInfo)
-        {
-            try
-            {
-                var lease = await _leaseRepository.UpdateLeaseSignature(signatureInfo);
-                return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Lease signature information updated successfully");
-            }
-            catch (KeyNotFoundException)
-            {
-                return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", $"No lease found with ID {signatureInfo.LeaseId}", statusCode: 404);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating lease signature for lease {LeaseId}", signatureInfo.LeaseId);
-                return ServiceResponse<LoadLeaseDto>.CreateError("Error updating lease signature", ex.Message, ex.InnerException?.Message);
             }
         }
 
@@ -338,6 +397,13 @@ namespace brownstone_hub_api.Services.LeaseService
         {
             try
             {
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", statusCode: 400);
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
                 var lease = await _leaseRepository.DeleteLease(leaseId);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease);
             }
@@ -375,6 +441,9 @@ namespace brownstone_hub_api.Services.LeaseService
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
 
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
+
                 // Verify the lease belongs to the organization
                 var existingLease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (existingLease == null)
@@ -403,6 +472,9 @@ namespace brownstone_hub_api.Services.LeaseService
                 {
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
+
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
+                    return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
 
                 // Verify the lease belongs to the organization
                 var existingLease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
@@ -444,54 +516,53 @@ namespace brownstone_hub_api.Services.LeaseService
         }
 
         // Helper method to retrieve lease document from blob storage
-        private async Task<(byte[]? documentBytes, string documentName)> GetLeaseDocumentAsync(long leaseId)
+        private async Task<(byte[]? documentBytes, string documentName)> GetLeaseDocumentAsync(long leaseId, CancellationToken cancellationToken)
         {
             try
             {
                 if (_tenantDocumentService == null || _blobServiceClient == null)
-                {
                     return (null, "Lease Agreement.pdf");
-                }
 
+                // The legacy tenant-document API has no cancellation overload.
+                cancellationToken.ThrowIfCancellationRequested();
                 var leaseAgreementResponse = await _tenantDocumentService.GetLeaseAgreementByLeaseId(leaseId);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                if (leaseAgreementResponse.Success && leaseAgreementResponse.Data != null)
+                if (leaseAgreementResponse.Success && leaseAgreementResponse.Data != null &&
+                    !string.IsNullOrEmpty(leaseAgreementResponse.Data.BlobName))
                 {
                     var leaseDoc = leaseAgreementResponse.Data;
-
-                    if (!string.IsNullOrEmpty(leaseDoc.BlobName))
+                    string[] containersToTry = { "tenant-documents", "lease-documents" };
+                    foreach (var containerName in containersToTry)
                     {
-                        // Try both containers - lease documents and tenant documents
-                        string[] containersToTry = { "tenant-documents", "lease-documents" };
-
-                        foreach (var containerName in containersToTry)
+                        try
                         {
-                            try
+                            var blobClient = _blobServiceClient.GetBlobContainerClient(containerName).GetBlobClient(leaseDoc.BlobName);
+                            if (await blobClient.ExistsAsync(cancellationToken))
                             {
-                                var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
-                                var blobClient = containerClient.GetBlobClient(leaseDoc.BlobName);
-
-                                if (await blobClient.ExistsAsync())
-                                {
-                                    using var memoryStream = new MemoryStream();
-                                    await blobClient.DownloadToAsync(memoryStream);
-                                    var documentBytes = memoryStream.ToArray();
-                                    var documentName = leaseDoc.FileName ?? "Lease Agreement.pdf";
-                                    return (documentBytes, documentName);
-                                }
+                                using var memoryStream = new MemoryStream();
+                                await blobClient.DownloadToAsync(memoryStream, cancellationToken);
+                                return (memoryStream.ToArray(), leaseDoc.FileName ?? "Lease Agreement.pdf");
                             }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "Failed to retrieve document from container {ContainerName}", containerName);
-                                continue;
-                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception)
+                        {
+                            _logger.LogWarning("Lease document retrieval failed for lease {LeaseId} from container {ContainerName}", leaseId, containerName);
                         }
                     }
                 }
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error retrieving lease document for lease {LeaseId}", leaseId);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("Lease document retrieval failed for lease {LeaseId}", leaseId);
             }
 
             return (null, "Lease Agreement.pdf");
@@ -520,23 +591,28 @@ namespace brownstone_hub_api.Services.LeaseService
         public async Task<ServiceResponse<SignLandlordOnlyResultDto>> SignLandlordOnlyAsync(
             long leaseId,
             SendLeaseForSignatureDto request,
-            string? frontendBaseUrl)
+            string? frontendBaseUrl,
+            CancellationToken cancellationToken)
         {
             try
             {
-                // Get the lease
-                var leaseResponse = await GetLeaseById(leaseId);
-                if (!leaseResponse.Success || leaseResponse.Data == null)
-                {
-                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
-                        "Lease not found",
-                        $"No lease found with ID {leaseId}",
-                        "",
-                        404
-                    );
-                }
+                cancellationToken.ThrowIfCancellationRequested();
+                var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError("Lease not found", statusCode: 404);
 
-                var lease = leaseResponse.Data;
+                var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value, cancellationToken);
+                if (lease == null || !lease.IsActive)
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError("Lease not found", statusCode: 404);
+
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false, cancellationToken))
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
+                        "Forbidden", "Lease management permission is required.", "", 403);
+
+                var landlordBinding = await BindAuthenticatedLandlordAsync(request, cancellationToken: cancellationToken);
+                if (!landlordBinding.Success)
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
+                        "Forbidden", "Lease management permission is required.", "", 403);
 
                 // Check if landlord already signed
                 if (lease.LeaseAgreement?.LandlordSignedAt != null)
@@ -559,7 +635,8 @@ namespace brownstone_hub_api.Services.LeaseService
                         lease.LeaseAgreement.DocuSignEnvelopeId,
                         request.LandlordEmail,
                         request.LandlordName,
-                        returnUrl
+                        returnUrl,
+                        cancellationToken
                     );
 
                     if (embeddedUrlResponse.Success && !string.IsNullOrEmpty(embeddedUrlResponse.Data))
@@ -578,14 +655,14 @@ namespace brownstone_hub_api.Services.LeaseService
                         return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
                             "Failed to get signing URL",
                             "Failed to get signing URL for existing envelope",
-                            embeddedUrlResponse.Errors?.Message ?? "",
+                            "The e-signature provider could not complete the request.",
                             500
                         );
                     }
                 }
 
                 // Get lease document
-                var (documentBytes, documentName) = await GetLeaseDocumentAsync(leaseId);
+                var (documentBytes, documentName) = await GetLeaseDocumentAsync(leaseId, cancellationToken);
 
                 if (documentBytes == null || documentBytes.Length == 0)
                 {
@@ -622,48 +699,57 @@ namespace brownstone_hub_api.Services.LeaseService
                 };
 
                 // Send to DocuSign (landlord only)
-                var signatureResponse = await _eSignatureService.SendForSignature(landlordOnlyRequest, documentBytes, documentName);
+                var signatureResponse = await _eSignatureService.SendForSignature(landlordOnlyRequest, documentBytes, documentName, cancellationToken);
 
                 if (!signatureResponse.Success)
                 {
                     return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
-                        signatureResponse.Message,
-                        signatureResponse.Errors?.Message ?? "",
+                        "External e-signature service unavailable",
+                        "The e-signature provider could not complete the request.",
                         "",
                         signatureResponse.StatusCode
                     );
                 }
 
-                // Update lease with signature information (but status is still "Not Sent" to tenants)
-                var signatureInfo = new UpdateLeaseSignatureDto
-                {
-                    LeaseId = lease.Id,
-                    SignatureStatus = ESignatureStatus.NotSent, // Not sent to tenants yet
-                    DocuSignEnvelopeId = signatureResponse.Data?.EnvelopeId,
-                    SignatureSentAt = null, // Not sent to tenants yet
-                    SignatureExpiresAt = signatureResponse.Data?.ExpiresAt
-                };
+                // A provider success without its authoritative identifier is not a usable envelope.
+                // Validate before any repository mutation, then read the exact value back so no
+                // signing URL/success can be returned for an envelope we did not persist.
+                var envelopeId = signatureResponse.Data?.EnvelopeId;
+                if (!ESignatureEnvelopeId.IsCanonical(envelopeId))
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
+                        "External e-signature service unavailable",
+                        "The e-signature provider returned an invalid response.",
+                        statusCode: 502);
 
-                await UpdateLeaseSignature(signatureInfo);
+                var persistedEnvelopeId = await _leaseRepository.PersistSentEnvelopeAsync(
+                    lease.Id,
+                    organizationId.Value,
+                    envelopeId,
+                    DateTime.UtcNow,
+                    signatureResponse.Data!.ExpiresAt,
+                    cancellationToken);
+                if (!string.Equals(persistedEnvelopeId, envelopeId, StringComparison.Ordinal))
+                    return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
+                        "Service unavailable", "Unable to persist the signature request.", statusCode: 503);
 
                 // Generate embedded signing URL for in-app signing
-                if (!string.IsNullOrEmpty(signatureResponse.Data?.EnvelopeId))
                 {
                     var baseUrl = GetFrontendBaseUrl(frontendBaseUrl);
                     var returnUrl = $"{baseUrl.TrimEnd('/')}/landlord/leases/{leaseId}?signed=true";
 
                     var embeddedUrlResponse = await _eSignatureService.GetEmbeddedSigningUrl(
-                        signatureResponse.Data.EnvelopeId,
+                        envelopeId,
                         request.LandlordEmail,
                         request.LandlordName,
-                        returnUrl
+                        returnUrl,
+                        cancellationToken
                     );
 
                     if (embeddedUrlResponse.Success && !string.IsNullOrEmpty(embeddedUrlResponse.Data))
                     {
                         return ServiceResponse<SignLandlordOnlyResultDto>.CreateSuccess(new SignLandlordOnlyResultDto
                         {
-                            EnvelopeId = signatureResponse.Data.EnvelopeId,
+                            EnvelopeId = envelopeId,
                             EmbeddedSigningUrl = embeddedUrlResponse.Data,
                             SignerUrls = signatureResponse.Data.SignerUrls,
                             ExpiresAt = signatureResponse.Data.ExpiresAt,
@@ -672,14 +758,13 @@ namespace brownstone_hub_api.Services.LeaseService
                     }
                     else
                     {
-                        _logger.LogError("Failed to generate embedded signing URL for envelope {EnvelopeId}. Error: {Error}",
-                            signatureResponse.Data.EnvelopeId,
-                            embeddedUrlResponse.Message);
+                        _logger.LogError("Embedded signing URL generation failed for lease {LeaseId} and envelope {EnvelopeId}",
+                            leaseId, envelopeId);
 
                         return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
                             "Failed to generate signing URL",
                             "Failed to generate embedded signing URL. Please try again or contact support.",
-                            embeddedUrlResponse.Errors?.Message ?? "",
+                            "The e-signature provider could not complete the request.",
                             500
                         );
                     }
@@ -692,13 +777,17 @@ namespace brownstone_hub_api.Services.LeaseService
                     500
                 );
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error signing landlord only for lease {LeaseId}", leaseId);
+                throw;
+            }
+            catch (Exception)
+            {
+                _logger.LogError("Landlord e-signature mutation failed for lease {LeaseId}", leaseId);
                 return ServiceResponse<SignLandlordOnlyResultDto>.CreateError(
                     "Error signing lease",
-                    ex.Message,
-                    ex.InnerException?.Message
+                    "Unable to complete the signing request.",
+                    ""
                 );
             }
         }
@@ -707,23 +796,28 @@ namespace brownstone_hub_api.Services.LeaseService
             long leaseId,
             SendLeaseForSignatureDto request,
             long landlordId,
-            long? organizationId)
+            long? organizationId,
+            CancellationToken cancellationToken)
         {
             try
             {
-                // Get the lease
-                var leaseResponse = await GetLeaseById(leaseId);
-                if (!leaseResponse.Success || leaseResponse.Data == null)
-                {
-                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
-                        "Lease not found",
-                        $"No lease found with ID {leaseId}",
-                        "",
-                        404
-                    );
-                }
+                cancellationToken.ThrowIfCancellationRequested();
+                var selectedOrganizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue || !selectedOrganizationId.HasValue || organizationId != selectedOrganizationId)
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError("Lease not found", statusCode: 404);
 
-                var lease = leaseResponse.Data;
+                var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value, cancellationToken);
+                if (lease == null || !lease.IsActive)
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError("Lease not found", statusCode: 404);
+
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false, cancellationToken))
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "Forbidden", "Lease management permission is required.", "", 403);
+
+                var landlordBinding = await BindAuthenticatedLandlordAsync(request, landlordId, organizationId, cancellationToken);
+                if (!landlordBinding.Success)
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "Forbidden", "Lease management permission is required.", "", 403);
 
                 var orderedTenants = (lease.Tenants ?? [])
                     .OrderBy(tenant => tenant.Id)
@@ -779,7 +873,9 @@ namespace brownstone_hub_api.Services.LeaseService
                 if (lease.Tenants != null && lease.Tenants.Any() && _tenantDocumentService != null)
                 {
                     var firstTenant = lease.Tenants.First();
+                    cancellationToken.ThrowIfCancellationRequested();
                     var tenantDocsResponse = await _tenantDocumentService.GetTenantDocumentsByTenantId(firstTenant.Id);
+                    cancellationToken.ThrowIfCancellationRequested();
 
                     if (tenantDocsResponse.Success && tenantDocsResponse.Data != null)
                     {
@@ -794,10 +890,10 @@ namespace brownstone_hub_api.Services.LeaseService
                                 var containerClient = _blobServiceClient.GetBlobContainerClient("tenant-documents");
                                 var blobClient = containerClient.GetBlobClient(leaseDoc.BlobName);
 
-                                if (await blobClient.ExistsAsync())
+                                if (await blobClient.ExistsAsync(cancellationToken))
                                 {
                                     using var memoryStream = new MemoryStream();
-                                    await blobClient.DownloadToAsync(memoryStream);
+                                    await blobClient.DownloadToAsync(memoryStream, cancellationToken);
                                     documentBytes = memoryStream.ToArray();
                                     documentName = leaseDoc.FileName;
                                 }
@@ -808,7 +904,7 @@ namespace brownstone_hub_api.Services.LeaseService
                                 return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
                                     "Error retrieving document",
                                     "Error retrieving lease document from storage",
-                                    ex.Message,
+                                    "",
                                     500
                                 );
                             }
@@ -838,24 +934,26 @@ namespace brownstone_hub_api.Services.LeaseService
                 }
 
                 // Send to DocuSign
-                var signatureResponse = await _eSignatureService.SendForSignature(request, documentBytes, documentName);
+                var signatureResponse = await _eSignatureService.SendForSignature(request, documentBytes, documentName, cancellationToken);
 
                 if (!signatureResponse.Success)
                 {
-                    return signatureResponse;
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "External e-signature service unavailable",
+                        "The e-signature provider could not complete the request.",
+                        statusCode: signatureResponse.StatusCode);
                 }
 
-                // Update lease with signature information
-                var signatureInfo = new UpdateLeaseSignatureDto
-                {
-                    LeaseId = lease.Id,
-                    SignatureStatus = ESignatureStatus.Sent,
-                    DocuSignEnvelopeId = signatureResponse.Data?.EnvelopeId,
-                    SignatureSentAt = DateTime.UtcNow,
-                    SignatureExpiresAt = signatureResponse.Data?.ExpiresAt
-                };
+                var envelopeId = signatureResponse.Data?.EnvelopeId;
+                if (!ESignatureEnvelopeId.IsCanonical(envelopeId))
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "External e-signature service unavailable", "The e-signature provider returned an invalid response.", statusCode: 502);
 
-                await UpdateLeaseSignature(signatureInfo);
+                var persistedEnvelopeId = await _leaseRepository.PersistSentEnvelopeAsync(lease.Id,
+                    organizationId.Value, envelopeId, DateTime.UtcNow, signatureResponse.Data!.ExpiresAt, cancellationToken);
+                if (!string.Equals(persistedEnvelopeId, envelopeId, StringComparison.Ordinal))
+                    return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
+                        "Service unavailable", "Unable to persist the signature request.", statusCode: 503);
 
                 // Send notifications to all tenants on the lease
                 if (lease.Tenants != null && lease.Tenants.Any() && request.TenantSigners != null && request.TenantSigners.Any() && _notificationService != null)
@@ -908,14 +1006,22 @@ namespace brownstone_hub_api.Services.LeaseService
                                     PerformedByName = landlordName
                                 };
 
-                                await _notificationService.CreateNotification(notificationDto);
+                                await _notificationService.CreateNotification(notificationDto).WaitAsync(cancellationToken);
                                 _logger.LogInformation("Notification sent to tenant UserId {UserId} for lease {LeaseId}", tenant.UserId.Value, lease.Id);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                throw;
                             }
                             catch (Exception ex)
                             {
                                 _logger.LogWarning(ex, "Failed to send notification to tenant UserId {UserId} for lease {LeaseId}", tenant.UserId.Value, lease.Id);
                             }
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -926,89 +1032,162 @@ namespace brownstone_hub_api.Services.LeaseService
 
                 return signatureResponse;
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending lease for signature {LeaseId}", leaseId);
                 return ServiceResponse<Services.ESignatureService.SignatureEnvelopeDto>.CreateError(
                     "Error sending lease for signature",
-                    ex.Message,
-                    ex.InnerException?.Message
+                    "Unable to send this lease for signature.",
+                    ""
                 );
             }
+        }
+
+        public async Task<ServiceResponse<bool>> CancelLeaseSignatureAsync(long leaseId, string? reason, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue)
+                return ServiceResponse<bool>.CreateError("Lease not found", statusCode: 404);
+
+            var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value, cancellationToken);
+            if (lease == null)
+                return ServiceResponse<bool>.CreateError("Lease not found", statusCode: 404);
+            if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false, cancellationToken))
+                return ServiceResponse<bool>.CreateError("Forbidden", "Lease management permission is required.", "", 403);
+            if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
+                return ServiceResponse<bool>.CreateError("Lease has not been sent for signature", statusCode: 400);
+            if (_eSignatureService == null)
+                return ServiceResponse<bool>.CreateError("Service unavailable", statusCode: 500);
+
+            var envelopeId = lease.LeaseAgreement.DocuSignEnvelopeId;
+            try
+            {
+                var providerResult = await _eSignatureService.CancelSignature(envelopeId, reason, cancellationToken);
+                if (!providerResult.Success || providerResult.Data != true)
+                    return ServiceResponse<bool>.CreateError("External e-signature service unavailable",
+                        "The e-signature provider could not cancel the request.", statusCode: 502);
+                if (!await _leaseRepository.PersistCancelledEnvelopeAsync(leaseId, organizationId.Value,
+                        envelopeId, cancellationToken))
+                    return ServiceResponse<bool>.CreateError("Service unavailable",
+                        "Unable to persist the cancellation.", statusCode: 503);
+                return ServiceResponse<bool>.CreateSuccess(true);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unable to persist cancellation for lease {LeaseId}", leaseId);
+                return ServiceResponse<bool>.CreateError("Service unavailable",
+                    "Unable to cancel the signature request.", statusCode: 503);
+            }
+        }
+
+        public async Task<ServiceResponse<bool>> ResendLeaseSignatureAsync(long leaseId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue)
+                return ServiceResponse<bool>.CreateError("Lease not found", statusCode: 404);
+
+            var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value, cancellationToken);
+            if (lease == null)
+                return ServiceResponse<bool>.CreateError("Lease not found", statusCode: 404);
+            if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false, cancellationToken))
+                return ServiceResponse<bool>.CreateError("Forbidden", "Lease management permission is required.", "", 403);
+            if (string.IsNullOrEmpty(lease.LeaseAgreement?.DocuSignEnvelopeId))
+                return ServiceResponse<bool>.CreateError("Lease has not been sent for signature", statusCode: 400);
+            if (_eSignatureService == null)
+                return ServiceResponse<bool>.CreateError("Service unavailable", statusCode: 500);
+
+            return await _eSignatureService.ResendSignatureRequest(lease.LeaseAgreement.DocuSignEnvelopeId, cancellationToken);
         }
 
         public async Task<ServiceResponse<SyncSignatureStatusResultDto>> SyncLeaseSignatureStatusAsync(
             long leaseId,
-            string? landlordEmail)
+            string? landlordEmail,
+            CancellationToken cancellationToken)
         {
-            if (_eSignatureService == null || _dataContext == null || _blobServiceClient == null)
-            {
-                return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
-                    "Service unavailable",
-                    "Required services are not configured.",
-                    "",
-                    500
-                );
-            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var organizationId = GetOrganizationIdFromContext();
+            if (!organizationId.HasValue)
+                return ServiceResponse<SyncSignatureStatusResultDto>.CreateError("Lease not found", statusCode: 404);
 
-            var leaseResponse = await GetLeaseById(leaseId);
-            if (!leaseResponse.Success || leaseResponse.Data == null)
-            {
+            var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value, cancellationToken);
+            if (lease == null)
+                return ServiceResponse<SyncSignatureStatusResultDto>.CreateError("Lease not found", statusCode: 404);
+            if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false, cancellationToken))
                 return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
-                    "Lease not found",
-                    $"No lease found with ID {leaseId}",
-                    "",
-                    404
-                );
-            }
+                    "Forbidden", "Lease management permission is required.", "", 403);
+
+            if (_eSignatureService == null || _dataContext == null || _blobServiceClient == null)
+                return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
+                    "Service unavailable", "Required services are not configured.", "", 500);
 
             string? landlordSignedByName = null;
             if (_userContextService != null)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var currentUser = await _userContextService.GetCurrentUserAsync();
+                cancellationToken.ThrowIfCancellationRequested();
                 if (currentUser != null)
                 {
+                    // The caller cannot nominate the landlord signer. Bind reconciliation to the
+                    // authenticated server-side user, as send does.
+                    landlordEmail = currentUser.Email?.Trim();
                     landlordSignedByName = !string.IsNullOrEmpty(currentUser.Firstname)
                         ? $"{currentUser.Firstname} {currentUser.Lastname}".Trim()
                         : currentUser.Email;
-                    if (string.IsNullOrEmpty(landlordSignedByName))
-                        landlordSignedByName = currentUser.Email;
                 }
             }
 
-            return await SyncLeaseSignatureStatusCoreAsync(leaseResponse.Data, landlordEmail, landlordSignedByName);
+            return await SyncLeaseSignatureStatusCoreAsync(lease, organizationId.Value, landlordEmail, landlordSignedByName, cancellationToken);
         }
 
-        public async Task<ServiceResponse<SyncSignatureStatusResultDto>> SyncLeaseSignatureStatusFromConnectAsync(long leaseId, long organizationId)
+
+        private static DateTime? ResolveLandlordSignedAt(
+            SignatureStatusDto status,
+            string? authoritativeLandlordEmail,
+            bool serverConfirmedLandlordOnly)
         {
-            if (_eSignatureService == null || _dataContext == null || _blobServiceClient == null)
+            var signers = status.SignerStatuses;
+            if (signers == null || signers.Count == 0) return null;
+
+            if (!string.IsNullOrWhiteSpace(authoritativeLandlordEmail))
             {
-                return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
-                    "Service unavailable",
-                    "Required services are not configured.",
-                    "",
-                    500
-                );
+                var exact = signers.FirstOrDefault(pair =>
+                    string.Equals(pair.Key, authoritativeLandlordEmail, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(pair.Value.Email, authoritativeLandlordEmail, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(exact.Key) && IsAuthoritativelySigned(exact.Value))
+                    return exact.Value.SignedAt;
             }
 
-            var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId);
-            if (lease == null)
+            if (serverConfirmedLandlordOnly && signers.Count == 1)
             {
-                return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
-                    "Lease not found",
-                    $"No lease found with ID {leaseId}",
-                    "",
-                    404
-                );
+                var onlySigner = signers.First().Value;
+                if (IsAuthoritativelySigned(onlySigner)) return onlySigner.SignedAt;
             }
 
-            return await SyncLeaseSignatureStatusCoreAsync(lease, landlordEmail: null, landlordSignedByName: null);
+            return null;
         }
+
+        private static bool IsAuthoritativelySigned(SignerStatusDto signer) =>
+            signer.SignedAt.HasValue &&
+            (string.Equals(signer.Status, "signed", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(signer.Status, "completed", StringComparison.OrdinalIgnoreCase));
 
         private async Task<ServiceResponse<SyncSignatureStatusResultDto>> SyncLeaseSignatureStatusCoreAsync(
             LoadLeaseDto lease,
+            long organizationId,
             string? landlordEmail,
-            string? landlordSignedByName)
+            string? landlordSignedByName,
+            CancellationToken cancellationToken)
         {
             try
             {
@@ -1024,7 +1203,7 @@ namespace brownstone_hub_api.Services.LeaseService
                 }
 
                 // Get signature status from DocuSign
-                var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement.DocuSignEnvelopeId);
+                var statusResponse = await _eSignatureService.GetSignatureStatus(lease.LeaseAgreement.DocuSignEnvelopeId, cancellationToken);
                 if (!statusResponse.Success)
                 {
                     return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
@@ -1037,61 +1216,93 @@ namespace brownstone_hub_api.Services.LeaseService
 
                 var status = statusResponse.Data;
 
-                // Check if landlord has signed
-                DateTime? landlordSignedAt = null;
-                if (status.SignerStatuses != null && status.SignerStatuses.Any())
+                // A cardinality fallback is valid only when the authoritative lease has no tenants,
+                // which is the server-confirmed landlord-only send flow.
+                var landlordSignedAt = ResolveLandlordSignedAt(status, landlordEmail,
+                    lease.Tenants is null || lease.Tenants.Count == 0);
+
+                // All provider I/O and blob I/O completes before the repository opens its transaction.
+                if (!ESignatureEnvelopeId.IsCanonical(status.EnvelopeId) ||
+                    !string.Equals(status.EnvelopeId, lease.LeaseAgreement.DocuSignEnvelopeId, StringComparison.Ordinal))
+                    return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
+                        "External e-signature service unavailable", "The provider returned an invalid envelope.", statusCode: 502);
+
+                var providerSignatureStatus = status.Status?.ToLowerInvariant() switch
                 {
-                    // Try to match by email (case-insensitive)
-                    if (!string.IsNullOrEmpty(landlordEmail))
+                    "sent" => ESignatureStatus.Sent,
+                    "delivered" => ESignatureStatus.InProgress,
+                    "signed" => ESignatureStatus.PartiallySigned,
+                    "completed" => ESignatureStatus.Completed,
+                    "declined" => ESignatureStatus.Declined,
+                    "voided" => ESignatureStatus.Cancelled,
+                    "expired" => ESignatureStatus.Expired,
+                    _ => ESignatureStatus.NotSent
+                };
+                var providerSignedRecipients = (status.SignerStatuses ?? [])
+                    .Where(pair => (string.Equals(pair.Value.Status, "signed", StringComparison.OrdinalIgnoreCase) ||
+                                    string.Equals(pair.Value.Status, "completed", StringComparison.OrdinalIgnoreCase)) &&
+                                   pair.Value.SignedAt.HasValue)
+                    .ToDictionary(pair => pair.Key, pair => pair.Value.SignedAt!.Value, StringComparer.OrdinalIgnoreCase);
+
+                string? providerBlobName = null;
+                string? providerBlobUrl = null;
+                var providerDocumentUploaded = false;
+                var providerDocumentRequired = (providerSignatureStatus == ESignatureStatus.Completed || landlordSignedAt.HasValue) &&
+                    string.IsNullOrWhiteSpace(lease.LeaseAgreement.SignedDocumentBlobName);
+                if (providerDocumentRequired)
+                {
+                    var documentResponse = await _eSignatureService.GetSignedDocument(lease.LeaseAgreement.DocuSignEnvelopeId, cancellationToken);
+                    if (!documentResponse.Success || documentResponse.Data is not { Length: > 0 })
+                        return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
+                            "External e-signature service unavailable", "Unable to retrieve the signed document.", statusCode: 502);
+
+                    var container = _blobServiceClient.GetBlobContainerClient(SignedDocumentsContainerName);
+                    await container.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
+                    providerBlobName = $"organizations/{organizationId}/leases/{lease.Id}/envelopes/{Uri.EscapeDataString(lease.LeaseAgreement.DocuSignEnvelopeId)}/signed.pdf";
+                    var blob = container.GetBlobClient(providerBlobName);
+                    using var stream = new MemoryStream(documentResponse.Data);
+                    await blob.UploadAsync(stream, new BlobUploadOptions
                     {
-                        var matchingSigner = status.SignerStatuses.FirstOrDefault(s =>
-                            string.Equals(s.Key, landlordEmail, StringComparison.OrdinalIgnoreCase));
-
-                        if (!string.IsNullOrEmpty(matchingSigner.Key))
-                        {
-                            var landlordStatus = matchingSigner.Value;
-                            if ((landlordStatus.Status == "signed" || landlordStatus.Status == "completed") && landlordStatus.SignedAt.HasValue)
-                            {
-                                landlordSignedAt = landlordStatus.SignedAt;
-                                _logger.LogInformation("Found landlord signature by email match: {Email}, Status: {Status}, SignedAt: {SignedAt}",
-                                    matchingSigner.Key, landlordStatus.Status, landlordStatus.SignedAt);
-                            }
-                        }
-                    }
-
-                    // If no match by email, check if this is a landlord-only envelope (only one signer)
-                    if (!landlordSignedAt.HasValue && status.SignerStatuses.Count == 1)
-                    {
-                        var onlySigner = status.SignerStatuses.First();
-                        if ((onlySigner.Value.Status == "signed" || onlySigner.Value.Status == "completed") && onlySigner.Value.SignedAt.HasValue)
-                        {
-                            landlordSignedAt = onlySigner.Value.SignedAt;
-                            _logger.LogInformation("Found landlord signature (single signer): {Email}, Status: {Status}, SignedAt: {SignedAt}",
-                                onlySigner.Key, onlySigner.Value.Status, onlySigner.Value.SignedAt);
-                        }
-                    }
-
-                    // Also check envelope status - if envelope is "completed", check all signers
-                    if (!landlordSignedAt.HasValue && status.Status == "completed" && status.SignerStatuses.Any())
-                    {
-                        var signedSigner = status.SignerStatuses.FirstOrDefault(s =>
-                            (s.Value.Status == "signed" || s.Value.Status == "completed") && s.Value.SignedAt.HasValue);
-
-                        if (!string.IsNullOrEmpty(signedSigner.Key))
-                        {
-                            landlordSignedAt = signedSigner.Value.SignedAt;
-                            _logger.LogInformation("Found landlord signature (envelope completed): {Email}, Status: {Status}, SignedAt: {SignedAt}",
-                                signedSigner.Key, signedSigner.Value.Status, signedSigner.Value.SignedAt);
-                        }
-                    }
+                        HttpHeaders = new BlobHttpHeaders { ContentType = "application/pdf" }
+                    }, cancellationToken);
+                    providerBlobUrl = blob.Uri.ToString();
+                    providerDocumentUploaded = true;
                 }
 
+                var atomicResult = await _leaseRepository.ApplySignatureSyncAsync(lease.Id, organizationId,
+                    new SignatureSyncUpdate(lease.LeaseAgreement.DocuSignEnvelopeId, providerSignatureStatus,
+                        status.CompletedAt, status.ExpiresAt, landlordSignedAt, landlordSignedByName,
+                        providerBlobName, providerBlobUrl, providerSignedRecipients), cancellationToken);
+                if (atomicResult == null)
+                    return ServiceResponse<SyncSignatureStatusResultDto>.CreateError("Lease not found", statusCode: 404);
+
+                if (_activationRecorder is not null && atomicResult.Status == ESignatureStatus.Completed &&
+                    status.CompletedAt.HasValue)
+                {
+                    await _activationRecorder.RecordAsync(new ActivationOccurrenceRequest(organizationId,
+                        ActivationMilestones.LeaseSigned, $"lease:{lease.Id}",
+                        new DateTimeOffset(DateTime.SpecifyKind(status.CompletedAt.Value, DateTimeKind.Utc)),
+                        SourceEventType: "docusign-envelope", SourceEventId: lease.LeaseAgreement.DocuSignEnvelopeId),
+                        cancellationToken);
+                }
+
+                return ServiceResponse<SyncSignatureStatusResultDto>.CreateSuccess(new SyncSignatureStatusResultDto
+                {
+                    LandlordSignedAt = atomicResult.LandlordSignedAt,
+                    SignatureStatus = atomicResult.Status,
+                    TenantSignaturesUpdated = atomicResult.TenantSignaturesUpdated,
+                    SignedDocumentDownloaded = providerDocumentUploaded && atomicResult.SignedDocumentApplied
+                });
+
+#if false // Superseded by the atomic repository operation above.
                 // Update tenant signatures via TenantLease
                 int tenantSignaturesUpdated = 0;
                 var tenantLeases = await _dataContext.TenantLeases
                     .Include(tl => tl.Tenant)
-                    .Where(tl => tl.LeaseId == lease.Id && !tl.Tenant.IsDeleted)
-                    .ToListAsync();
+                    .Where(tl => tl.LeaseId == lease.Id && !tl.Tenant.IsDeleted
+                        && tl.Lease.Unit.Property.OrganizationId == organizationId
+                        && (!tl.Lease.OrganizationId.HasValue || tl.Lease.OrganizationId == organizationId))
+                    .ToListAsync(cancellationToken);
 
                 if (tenantLeases.Any() && status.SignerStatuses != null && status.SignerStatuses.Any())
                 {
@@ -1123,7 +1334,7 @@ namespace brownstone_hub_api.Services.LeaseService
 
                     if (tenantSignaturesUpdated > 0)
                     {
-                        await _dataContext.SaveChangesAsync();
+                        await _dataContext.SaveChangesAsync(cancellationToken);
                         _logger.LogInformation("Updated {Count} tenant signature(s) for lease {LeaseId}",
                             tenantSignaturesUpdated, lease.Id);
                     }
@@ -1150,12 +1361,12 @@ namespace brownstone_hub_api.Services.LeaseService
                 {
                     try
                     {
-                        var signedDocumentResponse = await _eSignatureService.GetSignedDocument(lease.LeaseAgreement!.DocuSignEnvelopeId!);
+                        var signedDocumentResponse = await _eSignatureService.GetSignedDocument(lease.LeaseAgreement!.DocuSignEnvelopeId!, cancellationToken);
 
                         if (signedDocumentResponse.Success && signedDocumentResponse.Data != null)
                         {
                             var containerClient = _blobServiceClient.GetBlobContainerClient(SignedDocumentsContainerName);
-                            await containerClient.CreateIfNotExistsAsync(PublicAccessType.None);
+                            await containerClient.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
 
                             var blobName = $"lease-{lease.Id}-signed-{Guid.NewGuid()}.pdf";
                             var blobClient = containerClient.GetBlobClient(blobName);
@@ -1167,7 +1378,7 @@ namespace brownstone_hub_api.Services.LeaseService
                                     HttpHeaders = new BlobHttpHeaders { ContentType = "application/pdf" },
                                     Conditions = null
                                 };
-                                await blobClient.UploadAsync(stream, uploadOptions);
+                                await blobClient.UploadAsync(stream, uploadOptions, cancellationToken);
                             }
 
                             signedDocumentBlobName = blobName;
@@ -1177,6 +1388,10 @@ namespace brownstone_hub_api.Services.LeaseService
                             _logger.LogInformation("Successfully uploaded signed document for lease {LeaseId} to blob storage: {BlobName}",
                                 lease.Id, blobName);
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
                     }
                     catch (Exception ex)
                     {
@@ -1208,17 +1423,23 @@ namespace brownstone_hub_api.Services.LeaseService
                     LandlordSignedBy = landlordSignedByName ?? lease.LeaseAgreement?.LandlordSignedBy
                 };
 
-                await UpdateLeaseSignature(signatureInfo);
+                var updatedLease = await _leaseRepository.UpdateLeaseSignature(signatureInfo, organizationId, cancellationToken);
+                if (updatedLease == null)
+                    return ServiceResponse<SyncSignatureStatusResultDto>.CreateError("Lease not found", statusCode: 404);
 
                 // Update signed document info if we downloaded it
                 if (signedDocumentDownloaded && !string.IsNullOrEmpty(signedDocumentBlobName))
                 {
-                    var agreementEntity = await _dataContext.LeaseAgreements.FirstOrDefaultAsync(la => la.LeaseId == lease.Id);
+                    var agreementEntity = await _dataContext.LeaseAgreements.FirstOrDefaultAsync(agreement =>
+                        agreement.LeaseId == lease.Id
+                        && agreement.Lease.Unit.Property.OrganizationId == organizationId
+                        && (!agreement.Lease.OrganizationId.HasValue || agreement.Lease.OrganizationId == organizationId),
+                        cancellationToken);
                     if (agreementEntity != null)
                     {
                         agreementEntity.SignedDocumentBlobName = signedDocumentBlobName;
                         agreementEntity.SignedDocumentBlobUrl = signedDocumentBlobUrl;
-                        await _dataContext.SaveChangesAsync();
+                        await _dataContext.SaveChangesAsync(cancellationToken);
                         _logger.LogInformation("Updated lease {LeaseId} with signed document info", lease.Id);
                     }
                 }
@@ -1230,14 +1451,19 @@ namespace brownstone_hub_api.Services.LeaseService
                     TenantSignaturesUpdated = tenantSignaturesUpdated,
                     SignedDocumentDownloaded = signedDocumentDownloaded
                 });
+#endif
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error syncing signature status for lease {LeaseId}", lease.Id);
                 return ServiceResponse<SyncSignatureStatusResultDto>.CreateError(
                     "Error syncing signature status",
-                    ex.Message,
-                    ex.InnerException?.Message
+                    "Unable to synchronize the signature status.",
+                    ""
                 );
             }
         }
@@ -1419,6 +1645,12 @@ namespace brownstone_hub_api.Services.LeaseService
                     return;
                 }
 
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: true))
+                {
+                    _logger.LogWarning("User lacks permission to send lease-added notifications for organization {OrganizationId}", organizationId.Value);
+                    return;
+                }
+
                 var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (lease == null)
                 {
@@ -1431,7 +1663,10 @@ namespace brownstone_hub_api.Services.LeaseService
                     .Include(t => t.TenantLeases)
                     .Include(t => t.Unit)
                         .ThenInclude(u => u.Property)
-                    .FirstOrDefaultAsync(t => t.Id == tenantId && !t.IsDeleted);
+                    .FirstOrDefaultAsync(t => t.Id == tenantId
+                        && t.OrganizationId == organizationId.Value
+                        && !t.IsDeleted
+                        && t.TenantLeases.Any(tl => tl.LeaseId == leaseId));
 
                 if (tenant == null || !tenant.UserId.HasValue || string.IsNullOrEmpty(tenant.Email))
                 {
@@ -1537,13 +1772,11 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
                 if (emailSent)
                 {
-                    _logger.LogInformation("Lease added notification email sent successfully to tenant {TenantId} ({Email}) for lease {LeaseId}",
-                        tenantId, tenant.Email, leaseId);
+                    _logger.LogInformation("Lease added notification email sent successfully to tenant {TenantId} for lease {LeaseId}", tenantId, leaseId);
                 }
                 else
                 {
-                    _logger.LogWarning("Failed to send lease added notification email to tenant {TenantId} ({Email}) for lease {LeaseId}",
-                        tenantId, tenant.Email, leaseId);
+                    _logger.LogWarning("Failed to send lease added notification email to tenant {TenantId} for lease {LeaseId}", tenantId, leaseId);
                 }
             }
             catch (Exception ex)
@@ -1561,6 +1794,8 @@ This is an automated email from Property Peace. Please do not reply to this mess
                 {
                     return ServiceResponse<bool>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: true))
+                    return ServiceResponse<bool>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
 
                 // Verify the lease belongs to the organization
                 var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
@@ -1572,6 +1807,11 @@ This is an automated email from Property Peace. Please do not reply to this mess
                         statusCode: 404
                     );
                 }
+
+                var tenantBelongsToOrganization = _dataContext != null && await _dataContext.Tenants.AsNoTracking()
+                    .AnyAsync(t => t.Id == tenantId && t.OrganizationId == organizationId.Value && !t.IsDeleted);
+                if (!tenantBelongsToOrganization)
+                    return ServiceResponse<bool>.CreateError("Tenant not found", "Tenant does not exist or does not belong to your organization", statusCode: 404);
 
                 // Remove the tenant from this specific lease only
                 var removed = await _leaseRepository.RemoveTenantFromLease(leaseId, tenantId);
@@ -1590,11 +1830,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error removing tenant {TenantId} from lease {LeaseId}", tenantId, leaseId);
-                return ServiceResponse<bool>.CreateError(
-                    "Error removing tenant from lease",
-                    ex.Message,
-                    ex.InnerException?.Message
-                );
+                return ServiceResponse<bool>.CreateError("Error removing tenant from lease");
             }
         }
 
@@ -1610,6 +1846,8 @@ This is an automated email from Property Peace. Please do not reply to this mess
                 {
                     return ServiceResponse<bool>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 }
+                if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: true))
+                    return ServiceResponse<bool>.CreateError("You do not have permission to manage tenants for this organization", statusCode: 403);
 
                 var lease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (lease == null)
@@ -1617,13 +1855,18 @@ This is an automated email from Property Peace. Please do not reply to this mess
                     return ServiceResponse<bool>.CreateError("Lease not found", "Lease does not exist or does not belong to your organization", statusCode: 404);
                 }
 
+                var tenantBelongsToOrganization = _dataContext != null && await _dataContext.Tenants.AsNoTracking()
+                    .AnyAsync(t => t.Id == tenantId && t.OrganizationId == organizationId.Value && !t.IsDeleted);
+                if (!tenantBelongsToOrganization)
+                    return ServiceResponse<bool>.CreateError("Tenant not found", "Tenant does not exist or does not belong to your organization", statusCode: 404);
+
                 var added = await _leaseRepository.AddTenantToLease(leaseId, tenantId);
                 return ServiceResponse<bool>.CreateSuccess(added, added ? "Tenant added to lease successfully" : "Tenant already on lease");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding tenant {TenantId} to lease {LeaseId}", tenantId, leaseId);
-                return ServiceResponse<bool>.CreateError("Error adding tenant to lease", ex.Message, ex.InnerException?.Message);
+                return ServiceResponse<bool>.CreateError("Error adding tenant to lease");
             }
         }
     }

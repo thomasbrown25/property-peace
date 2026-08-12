@@ -51,15 +51,6 @@ export const switchOrganization = async (organizationId) => {
   return response.data;
 };
 
-// Update agent enable/disable settings for the current user's organization
-export const updateAgentSettings = async ({ isMaintenanceAgentEnabled, isCollectionsAgentEnabled }) => {
-  const response = await axios.patch('/api/organization/agent-settings', {
-    isMaintenanceAgentEnabled,
-    isCollectionsAgentEnabled
-  });
-  return response.data;
-};
-
 export const organizationAPI = {
   createOrganization,
   getOrganizationById,
@@ -67,8 +58,7 @@ export const organizationAPI = {
   getUserOrganizations,
   updateOrganization,
   deleteOrganization,
-  switchOrganization,
-  updateAgentSettings
+  switchOrganization
 };
 
 export default organizationAPI;

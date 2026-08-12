@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { getBlogPost, getAllBlogPosts } from '@/lib/blog-posts';
 import { FiArrowLeft, FiCalendar, FiUser, FiClock, FiArrowRight, FiZap, FiList, FiCheckCircle, FiFileText } from 'react-icons/fi';
 import StructuredData from '@/components/SEO/StructuredData';
+import PrintArticleButton from '@/components/Blog/PrintArticleButton';
+import { getArticleEditorial } from '@/lib/article-editorial';
 
 const CATEGORY_COLORS: Record<string, string> = {
   'How-To':         '#16a34a',
@@ -35,24 +37,47 @@ function slugifyHeading(text: string) {
 }
 
 function extractHeadings(content: string) {
+  const seen = new Map<string, number>();
+
   return content
     .split('\n')
     .map((line) => line.trim().match(/^##\s+(.+)/))
     .filter((match): match is RegExpMatchArray => Boolean(match))
     .slice(0, 8)
-    .map((match) => ({ text: match[1].replace(/\*\*(.+?)\*\*/g, '$1'), id: slugifyHeading(match[1]) }));
+    .map((match) => {
+      const text = match[1].replace(/\*\*(.+?)\*\*/g, '$1');
+      const baseId = slugifyHeading(text) || 'section';
+      const occurrence = seen.get(baseId) ?? 0;
+      seen.set(baseId, occurrence + 1);
+
+      return { text, id: occurrence === 0 ? baseId : `${baseId}-${occurrence + 1}` };
+    });
 }
 
 function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
   const fallback: BlogCta = {
     eyebrow: 'Free landlord software',
     title: 'Put this guide into action with Property Peace',
-    body: 'Collect rent, track maintenance, store leases, and manage tenant communication from one simple dashboard.',
+    body: 'Track rent records, maintenance, leases, and tenant communication from one simple dashboard.',
     href: 'https://app.propertypeace.io/register',
     label: 'Get Started Free',
   };
 
   if (!post) return fallback;
+
+  if (
+    post.slug === 'landlord-move-in-move-out-checklist' ||
+    post.slug === 'rental-property-cash-flow-template-landlords' ||
+    post.slug === 'landlord-maintenance-checklist-prevent-costly-repairs'
+  ) {
+    return {
+      eyebrow: 'Free practical downloads',
+      title: 'Use the free Landlord Starter Pack',
+      body: 'Download printable inspection and maintenance checklists plus an editable rental cash-flow workbook.',
+      href: '/resources/starter-pack',
+      label: 'Open the Starter Pack',
+    };
+  }
 
   const text = `${post.slug} ${post.title} ${post.description} ${post.keywords}`.toLowerCase();
 
@@ -78,9 +103,9 @@ function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
 
   if (text.includes('rent') || text.includes('payment')) {
     return {
-      eyebrow: 'Online rent collection',
-      title: 'Make rent collection easier this month',
-      body: 'Send reminders, accept online payments, track overdue rent, and keep payment history organized automatically.',
+      eyebrow: 'Rent tracking tools',
+      title: 'Keep rent records organized this month',
+      body: 'Record payment history, track overdue rent, and organize reminders. Online payment processing is not currently available.',
       href: '/features/rent-collection',
       label: 'See Rent Collection',
     };
@@ -120,7 +145,7 @@ function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
 }
 
 export async function generateStaticParams() {
-  const posts = getAllBlogPosts();
+  const posts = getAllBlogPosts().filter((post) => getArticleEditorial(post.slug));
   return posts.map((post) => ({ slug: post.slug }));
 }
 
@@ -131,6 +156,7 @@ function renderContent(content: string) {
   let inList = false;
   let listItems: string[] = [];
   let listKey = 0;
+  const headingIds = new Map<string, number>();
 
   const inlineFormat = (text: string) => {
     const out = text
@@ -181,7 +207,13 @@ function renderContent(content: string) {
       if (inList) flushList();
       const level = hMatch[1].length;
       const text = hMatch[2];
-      const headingId = level === 2 ? slugifyHeading(text) : undefined;
+      let headingId: string | undefined;
+      if (level === 2) {
+        const baseId = slugifyHeading(text) || 'section';
+        const occurrence = headingIds.get(baseId) ?? 0;
+        headingIds.set(baseId, occurrence + 1);
+        headingId = occurrence === 0 ? baseId : `${baseId}-${occurrence + 1}`;
+      }
 
       const headingClass: Record<number, string> = {
         1: 'text-2xl md:text-3xl font-bold text-primary-main mt-12 mb-5 pb-3 border-b border-slate-200',
@@ -234,8 +266,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const post = getBlogPost(slug);
 
   if (!post) notFound();
+  const editorial = getArticleEditorial(post.slug);
+  if (!post || !editorial) notFound();
 
-  const allPosts = getAllBlogPosts();
+  const allPosts = getAllBlogPosts().filter((candidate) => getArticleEditorial(candidate.slug));
   const related = allPosts
     .filter((p) => p.slug !== post.slug && p.category === post.category)
     .slice(0, 2);
@@ -252,6 +286,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     description: post.description,
     author: { '@type': 'Organization', name: post.author },
     datePublished: post.date,
+    ...(editorial ? { dateModified: editorial.reviewedOn } : {}),
     publisher: {
       '@type': 'Organization',
       name: 'Property Peace',
@@ -276,14 +311,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   return (
     <>
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-white">
+      <div className="article-hero relative overflow-hidden bg-white">
 
         <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-50/80 via-white to-white" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
           {/* Back link */}
           <Link
             href="/blog"
-            className="inline-flex items-center gap-2 text-[#516A80] hover:text-green-600 transition-colors mb-10 text-sm font-medium"
+            className="article-screen-only inline-flex items-center gap-2 text-[#516A80] hover:text-green-600 transition-colors mb-10 text-sm font-medium"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             <FiArrowLeft className="w-4 h-4" />
@@ -344,9 +379,27 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               <FiClock className="w-3.5 h-3.5" />
               {readingTime} min read
             </span>
+            {editorial && (
+              <>
+                <span className="text-[#B5B5B5]">·</span>
+                <span className="flex items-center gap-1.5">
+                  <FiCheckCircle className="w-3.5 h-3.5" />
+                  Last reviewed{' '}
+                  {new Date(`${editorial.reviewedOn}T00:00:00`).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+              </>
+            )}
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
+          <div className="article-screen-only mt-5">
+            <PrintArticleButton />
+          </div>
+
+          <div className="article-screen-only mt-8 flex flex-wrap gap-3">
             <Link
               href={cta.href}
               className="inline-flex items-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-green-950/20 transition-all hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700"
@@ -371,7 +424,23 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <div className="bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
           <div className="lg:grid lg:grid-cols-[minmax(0,760px)_320px] lg:gap-10">
-            <main id="article" className="min-w-0">
+            <main id="article" className="article-main min-w-0">
+              {headings.length > 0 && (
+                <details className="article-screen-only mb-8 rounded-2xl border border-slate-200 bg-white p-5 lg:hidden">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    <FiList className="h-4 w-4 text-[#16a34a]" />
+                    In this guide
+                  </summary>
+                  <nav className="mt-4 space-y-2" aria-label="Table of contents">
+                    {headings.map((heading) => (
+                      <a key={heading.id} href={`#${heading.id}`} className="block border-l-2 border-green-100 px-3 py-2 text-sm leading-snug text-[#516A80] hover:border-green-500 hover:text-[#15803d]">
+                        {heading.text}
+                      </a>
+                    ))}
+                  </nav>
+                </details>
+              )}
+
               <div className="mb-10 rounded-2xl border border-green-100 bg-green-50/40 p-6">
                 <div className="flex items-start gap-4">
                   <div className="mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white text-[#16a34a] shadow-sm">
@@ -390,7 +459,33 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
               <article className="article-content">{renderContent(post.content)}</article>
 
-              <div className="my-14 rounded-3xl border border-green-100 bg-gradient-to-br from-[#f7fbff] to-white p-7 md:p-8 shadow-[0_18px_50px_rgba(10,45,82,0.07)]">
+              {editorial && (
+                <section className="article-references mt-12 border-t border-slate-200 pt-8" aria-labelledby="article-sources-heading">
+                  <p className="mb-2 text-sm font-semibold text-[#15803d]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    {editorial.reviewNote}
+                  </p>
+                  {editorial.disclaimer && (
+                    <p className="mb-6 text-sm leading-relaxed text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                      {editorial.disclaimer}
+                    </p>
+                  )}
+                  <h2 id="article-sources-heading" className="mb-4 text-xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    Primary sources and references
+                  </h2>
+                  <ol className="space-y-3 pl-5 text-sm leading-relaxed text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    {editorial.sources.map((source) => (
+                      <li key={source.href} className="list-decimal pl-1">
+                        <a href={source.href} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#15803d] underline decoration-green-200 underline-offset-4 hover:text-primary-main">
+                          {source.title}
+                        </a>{' '}
+                        <span>— {source.publisher}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+
+              <div className="article-screen-only my-14 rounded-3xl border border-green-100 bg-gradient-to-br from-[#f7fbff] to-white p-7 shadow-[0_18px_50px_rgba(10,45,82,0.07)] md:p-8">
                 <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#16a34a]" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {cta.eyebrow}
                 </p>
@@ -437,7 +532,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               )}
 
               {/* CTA */}
-              <div className="relative bg-[#061e35] mt-14 overflow-hidden rounded-2xl p-10 text-center">
+              <div className="article-screen-only relative bg-[#061e35] mt-14 overflow-hidden rounded-2xl p-10 text-center">
                 <div
                   className="inline-flex items-center justify-center w-12 h-12 rounded-xl mb-5"
                   style={{ background: 'rgba(255,255,255,0.1)' }}
@@ -454,7 +549,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                   className="text-white/65 mb-7 max-w-md mx-auto leading-relaxed"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
-                  Free for up to 2 units. No credit card required.
+                  Free for up to 5 units. No credit card required.
                 </p>
                 <Link
                   href="https://app.propertypeace.io/register"
@@ -468,7 +563,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
               {/* Related posts */}
               {related.length > 0 && (
-                <div className="mt-14">
+                <div className="article-screen-only mt-14">
                   <div className="flex items-center gap-3 mb-6">
                     <p
                       className="text-sm font-medium text-[#8fa8c0] whitespace-nowrap"
@@ -523,7 +618,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               )}
             </main>
 
-            <aside className="mt-12 lg:mt-0">
+            <aside className="article-screen-only mt-12 lg:mt-0">
               <div className="sticky top-24 space-y-5">
                 {headings.length > 0 && (
                   <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_12px_34px_rgba(10,45,82,0.06)]">
@@ -563,7 +658,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
                     Why landlords use Property Peace
                   </div>
                   <ul className="space-y-3 text-sm leading-relaxed text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                    <li>Free for up to 2 rental units</li>
+                    <li>Free for up to 5 rental units</li>
                     <li>Built for independent landlords</li>
                     <li>Rent, leases, maintenance, and tenants together</li>
                   </ul>

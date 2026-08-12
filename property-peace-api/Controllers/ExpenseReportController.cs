@@ -1,4 +1,5 @@
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Entitlements.Enforcement;
 using brownstone_hub_api.Services.ExpenseReportService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,7 @@ namespace brownstone_hub_api.Controllers
     [ApiController]
     [Route("api/[controller]")]
     [Authorize(Roles = "Landlord,Admin")]
+    [AdvancedReportingEntitlement]
     public class ExpenseReportController(IExpenseReportService expenseReportService) : ControllerBase
     {
         private readonly IExpenseReportService _expenseReportService = expenseReportService;

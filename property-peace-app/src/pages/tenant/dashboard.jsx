@@ -55,10 +55,13 @@ import Announcements from 'sections/tenant/dashboard/Announcements';
 import LeaseSelector from 'components/LeaseSelector';
 import { openSnackbar } from 'api/snackbar';
 import moment from 'moment';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
+import { normalizeRentBalance } from 'utils/rentBalance';
 
 // ==============================|| TENANT - DASHBOARD ||============================== //
-
-const BALANCE_CREDITING_STATUSES = new Set(['completed', 'paid']);
 
 let tenantDashboardStripePromise;
 const getTenantDashboardStripe = async () => {
@@ -97,11 +100,7 @@ function getLandlordPhoneFromLease(lease) {
 }
 
 function getPaymentStatus(payment) {
-  return (payment?.status || payment?.Status || 'Completed').toString();
-}
-
-function isBalanceCreditingPayment(payment) {
-  return BALANCE_CREDITING_STATUSES.has(getPaymentStatus(payment).toLowerCase());
+  return classifyPaymentStatus(payment).status;
 }
 
 function getPaymentStatusMeta(payment) {
@@ -156,11 +155,11 @@ function getPaymentStatusMeta(payment) {
       };
     default:
       return {
-        label: getPaymentStatus(payment),
-        color: 'default',
-        icon: null,
-        iconColor: '#8c8c8c',
-        accent: 'default',
+        label: 'Needs review',
+        color: 'warning',
+        icon: <WarningOutlined />,
+        iconColor: '#faad14',
+        accent: 'warning',
         datePrefix: 'Submitted on'
       };
   }
@@ -432,7 +431,7 @@ function SavePaymentMethodForm({ onClose, onSaved }) {
   );
 }
 
-function TenantPaymentMethodModal({ open, onClose }) {
+function TenantPaymentMethodModal({ open, onClose, canInvoke }) {
   const [stripePromise, setStripePromise] = useState(null);
   const [clientSecret, setClientSecret] = useState('');
   const [loading, setLoading] = useState(false);
@@ -442,7 +441,7 @@ function TenantPaymentMethodModal({ open, onClose }) {
     let active = true;
 
     const prepareSetupIntent = async () => {
-      if (!open) return;
+      if (!open || !canInvoke) return;
       setLoading(true);
       setError(null);
       setClientSecret('');
@@ -469,7 +468,7 @@ function TenantPaymentMethodModal({ open, onClose }) {
     return () => {
       active = false;
     };
-  }, [open]);
+  }, [open, canInvoke]);
 
   const handleClose = () => {
     setClientSecret('');
@@ -524,6 +523,7 @@ export default function TenantDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const modal = useModal();
+  const { presentation: rentReadiness, canInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const { getSelectedLease, selectedLeaseId, leases: contextLeases, setLeases: setContextLeases, selectLease } = useLease();
 
   // Track previous lease ID to prevent unnecessary re-fetches
@@ -647,7 +647,7 @@ export default function TenantDashboard() {
         // Fetch payments for this lease
         if (leaseData.id) {
           try {
-            const paymentsResponse = await axiosServices.get(`/api/payment/${leaseData.id}`);
+            const paymentsResponse = await axiosServices.get(`/api/payment/${leaseData.id}/tenant-history`);
             if (paymentsResponse.data) {
               // Handle both response formats
               const paymentsData = paymentsResponse.data.data || paymentsResponse.data || [];
@@ -796,7 +796,6 @@ export default function TenantDashboard() {
 
     // Get rent record to match landlord portal calculation
     let overdueAmount = 0;
-    let rentAmount = lease.rentAmount || 0;
     let leaseRecord = null;
 
     // Handle both camelCase and PascalCase property names
@@ -804,8 +803,7 @@ export default function TenantDashboard() {
     if (rentRecords && rentRecords.length > 0) {
       leaseRecord = rentRecords.find((r) => r.leaseId === lease.id || r.LeaseId === lease.id);
       if (leaseRecord) {
-        overdueAmount = leaseRecord.overdueAmount || leaseRecord.OverdueAmount || 0;
-        rentAmount = leaseRecord.rentAmount || leaseRecord.RentAmount || lease.rentAmount || 0;
+        overdueAmount = normalizeRentBalance(leaseRecord).overdueAmount;
       } else {
         overdueAmount = calculateOverdueAmount(lease, payments, today);
       }
@@ -813,9 +811,10 @@ export default function TenantDashboard() {
       overdueAmount = calculateOverdueAmount(lease, payments, today);
     }
 
-    // Amount due: use AmountDueNow (15-day charge window + overdue) when present; else rent + overdue.
-    const amountDueNow = leaseRecord?.amountDueNow ?? leaseRecord?.AmountDueNow;
-    const amountDue = amountDueNow != null ? amountDueNow : rentAmount + overdueAmount;
+    // Keep local schedule arithmetic only when this surface has no collection record.
+    const amountDue = leaseRecord
+      ? normalizeRentBalance(leaseRecord).rentDue
+      : (lease.rentAmount || 0) + overdueAmount;
 
     return {
       date: nextDue.toDate(),
@@ -981,6 +980,10 @@ export default function TenantDashboard() {
           </Box>
         </Grid>
         <Divider width="100%" sx={{ mt: -0.25, mb: 0.25 }} />
+
+        <Grid size={12}>
+          <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
+        </Grid>
 
         {/* Announcements */}
         <Grid size={{ xs: 12 }}>
@@ -1148,7 +1151,7 @@ export default function TenantDashboard() {
                               fullWidth
                               startIcon={<DollarOutlined />}
                               color="success"
-                              disabled={!paymentAllocation || totalAmountDue <= 0}
+                              disabled={!canInvoke || !paymentAllocation || totalAmountDue <= 0}
                               onClick={() => {
                                 if (paymentAllocation) {
                                   modal.openPaymentModal({
@@ -1184,6 +1187,7 @@ export default function TenantDashboard() {
                               variant="outlined"
                               fullWidth
                               startIcon={<SettingOutlined />}
+                              disabled={!canInvoke}
                               onClick={() => setPaymentMethodModalOpen(true)}
                               sx={{
                                 minHeight: 44,
@@ -1489,10 +1493,16 @@ export default function TenantDashboard() {
       )}
 
       {/* Payment Method Modal */}
-      <TenantPaymentMethodModal open={paymentMethodModalOpen} onClose={() => setPaymentMethodModalOpen(false)} />
+      {canInvoke && paymentMethodModalOpen && (
+        <TenantPaymentMethodModal
+          open={paymentMethodModalOpen}
+          onClose={() => setPaymentMethodModalOpen(false)}
+          canInvoke={canInvoke}
+        />
+      )}
 
       {/* Payment Modal */}
-      {lease && (
+      {canInvoke && lease && (
         <PaymentModal
           open={modal.openPayment}
           rent={modal.selectedRent}
@@ -1506,7 +1516,7 @@ export default function TenantDashboard() {
               try {
                 if (!lease?.id) return;
 
-                const paymentsResponse = await axiosServices.get(`/api/payment/${lease.id}`);
+                const paymentsResponse = await axiosServices.get(`/api/payment/${lease.id}/tenant-history`);
                 if (paymentsResponse.data) {
                   const paymentsData = paymentsResponse.data.data || paymentsResponse.data || [];
                   setPayments(Array.isArray(paymentsData) ? paymentsData : []);

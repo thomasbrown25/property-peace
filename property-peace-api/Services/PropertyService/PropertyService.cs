@@ -3,9 +3,9 @@ using brownstone_hub_api.Dtos.Image;
 using brownstone_hub_api.Dtos.Property;
 using brownstone_hub_api.Dtos.Unit;
 using brownstone_hub_api.Repositories.Properties;
-using brownstone_hub_api.Repositories.Users;
+
 using brownstone_hub_api.Repositories.MaintenanceRequests;
-using brownstone_hub_api.Repositories.Subscriptions;
+
 using brownstone_hub_api.Repositories.Leases;
 using brownstone_hub_api.Repositories.Expenses;
 using brownstone_hub_api.Repositories.RecurringExpenses;
@@ -20,24 +20,23 @@ using brownstone_hub_api.Repositories.ApplicationInvites;
 using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Repositories.Listings;
 using brownstone_hub_api.Services.ImageService;
-using brownstone_hub_api.Services.UnitService;
-using brownstone_hub_api.Services.SubscriptionService;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Infrastructure;
+using brownstone_hub_api.Entitlements.Policy;
 using brownstone_hub_api.Services.AzureBlobService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Azure.Storage.Blobs;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
 
 namespace brownstone_hub_api.Services.PropertyService
 {
-    public class PropertyService(IPropertyRepository propertyRepository, IImageService<PropertyImage, LoadImageDto, AddImageDto> imageService, IUnitService unitService, IUserRepository userRepository, IMaintenanceRequestRepository maintenanceRequestRepository, IFeatureGateService featureGateService, ISubscriptionRepository subscriptionRepository, ILeaseRepository leaseRepository, IExpenseRepository expenseRepository, IRecurringExpenseRepository recurringExpenseRepository, IConversationRepository conversationRepository, IApplicationRepository applicationRepository, IChecklistRepository checklistRepository, ITenantDocumentRepository tenantDocumentRepository, IPaymentRepository paymentRepository, IUnitRepository unitRepository, IApplicationInviteRepository applicationInviteRepository, IChecklistService checklistService, ITenantRepository tenantRepository, BlobServiceClient blobServiceClient, IAzureBlobService azureBlobService, IHttpContextAccessor httpContextAccessor, IListingRepository listingRepository, ILogger<PropertyService> logger) : IPropertyService
+    public class PropertyService(IPropertyRepository propertyRepository, IImageService<PropertyImage, LoadImageDto, AddImageDto> imageService, IMaintenanceRequestRepository maintenanceRequestRepository, ILeaseRepository leaseRepository, IExpenseRepository expenseRepository, IRecurringExpenseRepository recurringExpenseRepository, IConversationRepository conversationRepository, IApplicationRepository applicationRepository, IChecklistRepository checklistRepository, ITenantDocumentRepository tenantDocumentRepository, IPaymentRepository paymentRepository, IUnitRepository unitRepository, IApplicationInviteRepository applicationInviteRepository, IChecklistService checklistService, ITenantRepository tenantRepository, BlobServiceClient blobServiceClient, IAzureBlobService azureBlobService, IHttpContextAccessor httpContextAccessor, IListingRepository listingRepository, IEntitlementDecisionService entitlementDecisionService, IOrganizationEntitlementMutationCoordinator mutationCoordinator, ILogger<PropertyService> logger, IActivationOccurrenceRecorder? occurrenceRecorder = null) : IPropertyService
     {
         private readonly IPropertyRepository _propertyRepository = propertyRepository;
         private readonly IImageService<PropertyImage, LoadImageDto, AddImageDto> _imageService = imageService;
-        private readonly IUnitService _unitService = unitService;
-        private readonly IUserRepository _userRepository = userRepository;
         private readonly IMaintenanceRequestRepository _maintenanceRequestRepository = maintenanceRequestRepository;
-        private readonly IFeatureGateService _featureGateService = featureGateService;
-        private readonly ISubscriptionRepository _subscriptionRepository = subscriptionRepository;
         private readonly ILeaseRepository _leaseRepository = leaseRepository;
         private readonly IExpenseRepository _expenseRepository = expenseRepository;
         private readonly IRecurringExpenseRepository _recurringExpenseRepository = recurringExpenseRepository;
@@ -54,7 +53,10 @@ namespace brownstone_hub_api.Services.PropertyService
         private readonly BlobServiceClient _blobServiceClient = blobServiceClient;
         private readonly IAzureBlobService _azureBlobService = azureBlobService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly IEntitlementDecisionService _entitlementDecisionService = entitlementDecisionService;
+        private readonly IOrganizationEntitlementMutationCoordinator _mutationCoordinator = mutationCoordinator;
         private readonly ILogger<PropertyService> _logger = logger;
+        private readonly IActivationOccurrenceRecorder? _occurrenceRecorder = occurrenceRecorder;
         private const string ChecklistContainerName = "checklist-images";
 
         private long? GetCurrentOrganizationId()
@@ -85,311 +87,275 @@ namespace brownstone_hub_api.Services.PropertyService
             return streetAddress;
         }
 
-        public async Task<ServiceResponse<LoadPropertyDto>> AddOrUpdateProperty(UpdatePropertyDto propertyDto, List<IFormFile> files)
+        public async Task<ServiceResponse<LoadPropertyDto>> AddOrUpdateProperty(
+            UpdatePropertyDto propertyDto,
+            List<IFormFile> files,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                // ✅ Step 1: Get organization ID from context
-                var organizationId = GetCurrentOrganizationId();
-                if (!organizationId.HasValue)
+                cancellationToken.ThrowIfCancellationRequested();
+                if (propertyDto is null)
                 {
                     return ServiceResponse<LoadPropertyDto>.CreateError(
-                        "Organization context is required",
-                        "Organization context is required to create or update properties.",
-                        "",
-                        403
-                    );
+                        "Invalid property", statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
                 }
 
-                // ✅ Step 2: Validate landlord (still needed for LandlordId field, but we'll use OrganizationId primarily)
-                var landlord = await _userRepository.GetUser(propertyDto.LandlordId);
-                if (landlord == null)
-                    return ServiceResponse<LoadPropertyDto>.CreateError(
-                        "Invalid Landlord ID",
-                        "The specified landlord does not exist."
-                    );
-
-                // Set OrganizationId on the property DTO
-                propertyDto.OrganizationId = organizationId.Value;
-
-                LoadPropertyDto property;
-
-                // ✅ Step 2: Check if property exists
-                var existingProperty = await _propertyRepository.GetPropertyById(propertyDto.Id);
-
-                if (existingProperty != null)
+                if (!TryGetTrustedMutationScope(out var userId, out var organizationId))
                 {
-                    // ✅ Check for duplicate property name when updating (exclude current property)
-                    // Only check if name is provided (not null or empty)
-                    if (!string.IsNullOrWhiteSpace(propertyDto.Name))
-                    {
-                        var nameExists = await _propertyRepository.PropertyNameExistsInOrganization(
-                            propertyDto.Name,
-                            organizationId.Value,
-                            propertyDto.Id
-                        );
+                    return Forbidden<LoadPropertyDto>();
+                }
 
-                        if (nameExists)
-                        {
-                            return ServiceResponse<LoadPropertyDto>.CreateError(
-                                "Duplicate Property Name",
-                                $"A property with the name '{propertyDto.Name}' already exists in your organization. Please choose a different name.",
-                                "",
-                                400
-                            );
-                        }
+                if (propertyDto.Id <= 0 &&
+                    propertyDto.PropertyType == Enums.EPropertyType.MultiUnit &&
+                    propertyDto.UnitCount is not > 0)
+                {
+                    return ServiceResponse<LoadPropertyDto>.CreateError(
+                        "Invalid unit count",
+                        "Multi-unit properties require a positive unit count.",
+                        statusCode: StatusCodes.Status400BadRequest,
+                        suppressDetailedErrors: true);
+                }
+
+                if (propertyDto.Id > 0)
+                {
+                    var existing = await _propertyRepository.GetPropertyByIdForMutationAsync(
+                        propertyDto.Id, organizationId, cancellationToken);
+                    if (existing?.OrganizationId != organizationId)
+                    {
+                        return Forbidden<LoadPropertyDto>();
                     }
 
-                    // ✅ Update property
-                    property = await _propertyRepository.UpdateProperty(propertyDto);
+                    propertyDto.OrganizationId = organizationId;
+                    propertyDto.LandlordId = existing.LandlordId;
+                    if (!string.IsNullOrWhiteSpace(propertyDto.Name) &&
+                        await _propertyRepository.PropertyNameExistsInOrganization(
+                            propertyDto.Name, organizationId, propertyDto.Id))
+                    {
+                        return DuplicatePropertyName(propertyDto.Name);
+                    }
 
-                    // ✅ Step 3: Handle image update (only if files provided)
+                    var updated = await _propertyRepository.UpdatePropertyForMutationAsync(
+                        propertyDto, organizationId, cancellationToken);
+                    if (updated is null)
+                    {
+                        return Forbidden<LoadPropertyDto>();
+                    }
+
                     if (files is { Count: > 0 })
                     {
-                        await _imageService.DeleteImagesByRefId(property.Id); // 💥 Generic cleanup
-                        var imageResponse = await _imageService.AddImages(property.Id, files);
+                        await _imageService.DeleteImagesByRefId(updated.Id);
+                        var imageResponse = await _imageService.AddImages(updated.Id, files);
                         if (!imageResponse.Success)
-                            return ServiceResponse<LoadPropertyDto>.CreateError("Image Upload Failed", imageResponse.Message);
-
-                        property.Images = imageResponse.Data;
-                    }
-
-
-                    return new ServiceResponse<LoadPropertyDto>
-                    {
-                        Data = property,
-                        Message = "Property updated successfully"
-                    };
-                }
-
-                // ✅ Step 4: Check subscription status and unit limits before creating new property
-                if (propertyDto.Id == 0) // Only check for new properties, not updates
-                {
-                    var canAddProperty = await _featureGateService.CanAddPropertyAsync(propertyDto.LandlordId);
-                    if (!canAddProperty)
-                    {
-                        return ServiceResponse<LoadPropertyDto>.CreateError(
-                            "Subscription Required",
-                            "Your subscription is not active. Please activate your subscription to add properties.",
-                            "",
-                            403
-                        );
-                    }
-
-                    // Note: Property limits removed - everything is based on unit limits now
-                    // Unit limits are checked when creating units for the property (see Steps 8 and 8b below)
-
-                    // ✅ Check for duplicate property name before creating
-                    // Only check if name is provided (not null or empty)
-                    if (!string.IsNullOrWhiteSpace(propertyDto.Name))
-                    {
-                        var nameExists = await _propertyRepository.PropertyNameExistsInOrganization(
-                            propertyDto.Name,
-                            organizationId.Value
-                        );
-
-                        if (nameExists)
                         {
                             return ServiceResponse<LoadPropertyDto>.CreateError(
-                                "Duplicate Property Name",
-                                $"A property with the name '{propertyDto.Name}' already exists in your organization. Please choose a different name.",
-                                "",
-                                400
-                            );
+                                "Image Upload Failed", imageResponse.Message);
                         }
+                        updated.Images = imageResponse.Data;
                     }
+
+                    return ServiceResponse<LoadPropertyDto>.CreateSuccess(
+                        updated, "Property updated successfully");
                 }
 
-                // ✅ Step 5: Create new property
-                // Only set property name from street address when no name was provided at creation
-                if (string.IsNullOrWhiteSpace(propertyDto.Name) && !string.IsNullOrWhiteSpace(propertyDto.StreetAddress))
+                propertyDto.Id = 0;
+                propertyDto.OrganizationId = organizationId;
+                // The authenticated subject owns the record. Client-supplied landlord/organization IDs are never trusted.
+                propertyDto.LandlordId = userId;
+                if (string.IsNullOrWhiteSpace(propertyDto.Name) &&
+                    !string.IsNullOrWhiteSpace(propertyDto.StreetAddress))
                 {
                     propertyDto.Name = ExtractStreetAddressOnly(propertyDto.StreetAddress);
                 }
-                // If name is already provided, leave it as-is (do not overwrite)
 
-                property = await _propertyRepository.AddProperty(propertyDto);
-
-                // ✅ Step 6: Do not auto-create inspections/checklists for new properties.
-                // Users should intentionally create move-in or move-out inspections from the Inspections page.
-
-                // ✅ Step 7: Handle image upload for new property
-                if (files is { Count: > 0 })
+                var initialUnitCount = propertyDto.PropertyType switch
                 {
-                    var imageResponse = await _imageService.AddImages(property.Id, files);
-                    if (!imageResponse.Success)
-                        return ServiceResponse<LoadPropertyDto>.CreateError("Image Upload Failed", imageResponse.Message);
-
-                    property.Images = imageResponse.Data;
-                }
-
-                // ✅ Step 8: Auto-create "Unit 1" for single-family properties
-                if (propertyDto.PropertyType == Enums.EPropertyType.SingleFamily)
-                {
-                    try
-                    {
-                        // Check unit limits before creating the unit
-                        var remainingUnitSlots = await _featureGateService.GetRemainingUnitSlotsAsync(propertyDto.LandlordId);
-
-                        if (remainingUnitSlots.HasValue && remainingUnitSlots.Value < 1)
-                        {
-                            // Property was created but we can't add the unit - delete the property
-                            await _propertyRepository.DeleteProperty(property.Id);
-                            return ServiceResponse<LoadPropertyDto>.CreateError(
-                                "Unit Limit Reached",
-                                "You've reached your unit limit. Please upgrade your subscription to add more units.",
-                                "",
-                                403
-                            );
-                        }
-
-                        var unitDto = new Dtos.Unit.UpdateUnitDto
-                        {
-                            Id = 0, // New unit
-                            Name = "Unit 1",
-                            PropertyId = property.Id,
-                            Bedrooms = "",
-                            Baths = "",
-                            Type = "",
-                            SquareFeet = 0,
-                            RentAmount = 0,
-                            IsOccupied = false,
-                            Amenities = [],
-                            IncludedUtility = []
-                        };
-
-                        var unitResponse = await _unitService.AddOrUpdateUnit(unitDto);
-                        if (!unitResponse.Success)
-                        {
-                            _logger.LogWarning("Failed to auto-create unit for single-family property {PropertyId}: {Message}",
-                                property.Id, unitResponse.Message);
-                            // If unit limit was exceeded, delete the property
-                            if (unitResponse.Message.Contains("Unit Limit") || unitResponse.Message.Contains("unit limit"))
-                            {
-                                await _propertyRepository.DeleteProperty(property.Id);
-                                return ServiceResponse<LoadPropertyDto>.CreateError(
-                                    "Unit Limit Reached",
-                                    unitResponse.Message,
-                                    "",
-                                    403
-                                );
-                            }
-                            // Otherwise, don't fail property creation - user can add unit manually later
-                        }
-                        else
-                        {
-                            _logger.LogInformation("Successfully auto-created unit for single-family property {PropertyId}", property.Id);
-                            // Refresh property to include the newly created unit
-                            property = await _propertyRepository.GetPropertyById(property.Id);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error auto-creating unit for single-family property {PropertyId}", property.Id);
-                        // Don't fail property creation if unit creation fails - user can add unit manually later
-                    }
-                }
-
-                // ✅ Step 8b: Auto-create units for multi-family properties
-                if (propertyDto.PropertyType == Enums.EPropertyType.MultiUnit && propertyDto.UnitCount.HasValue && propertyDto.UnitCount.Value > 0)
-                {
-                    try
-                    {
-                        var unitCount = propertyDto.UnitCount.Value;
-
-                        // Check unit limits before creating
-                        var currentTotalUnits = await _featureGateService.GetCurrentTotalUnitsAsync(propertyDto.LandlordId);
-                        var remainingUnitSlots = await _featureGateService.GetRemainingUnitSlotsAsync(propertyDto.LandlordId);
-
-                        // Total units to create: just the specified number (Unit 1, Unit 2, etc.)
-                        var totalUnitsToCreate = unitCount;
-
-                        if (remainingUnitSlots.HasValue && remainingUnitSlots.Value < totalUnitsToCreate)
-                        {
-                            _logger.LogWarning("Cannot create {TotalUnits} units for property {PropertyId}. Remaining slots: {RemainingSlots}",
-                                totalUnitsToCreate, property.Id, remainingUnitSlots.Value);
-                            return ServiceResponse<LoadPropertyDto>.CreateError(
-                                "Unit Limit Exceeded",
-                                $"You cannot add {totalUnitsToCreate} units. You have {remainingUnitSlots.Value} unit slots remaining. Please upgrade your subscription to add more units.",
-                                "",
-                                403
-                            );
-                        }
-
-                        var unitsToCreate = new List<Dtos.Unit.UpdateUnitDto>();
-
-                        // Create numbered units (Unit 1, Unit 2, etc.) - no Main Unit for multi-unit properties
-                        for (int i = 1; i <= unitCount; i++)
-                        {
-                            unitsToCreate.Add(new Dtos.Unit.UpdateUnitDto
-                            {
-                                Id = 0,
-                                Name = $"Unit {i}",
-                                PropertyId = property.Id,
-                                Bedrooms = "",
-                                Baths = "",
-                                Type = "",
-                                SquareFeet = 0,
-                                RentAmount = 0,
-                                IsOccupied = false,
-                                Amenities = [],
-                                IncludedUtility = []
-                            });
-                        }
-
-                        // Use bulk create to create all units at once
-                        var bulkCreateDto = new Dtos.Unit.BulkCreateUnitsDto
-                        {
-                            PropertyId = property.Id,
-                            Units = unitsToCreate
-                        };
-
-                        var bulkResponse = await _unitService.BulkCreateUnits(bulkCreateDto);
-                        if (!bulkResponse.Success)
-                        {
-                            _logger.LogWarning("Failed to auto-create units for multi-family property {PropertyId}: {Message}",
-                                property.Id, bulkResponse.Message);
-                            // Don't fail property creation if unit creation fails - user can add units manually later
-                        }
-                        else
-                        {
-                            _logger.LogInformation("Successfully auto-created {UnitCount} units for multi-family property {PropertyId}",
-                                totalUnitsToCreate, property.Id);
-                            // Refresh property to include the newly created units
-                            property = await _propertyRepository.GetPropertyById(property.Id);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error auto-creating units for multi-family property {PropertyId}", property.Id);
-                        // Don't fail property creation if unit creation fails - user can add units manually later
-                    }
-                }
-
-                // ✅ Step 9: Return success
-                return new ServiceResponse<LoadPropertyDto>
-                {
-                    Data = property,
-                    Message = "Property added successfully"
+                    Enums.EPropertyType.SingleFamily => 1,
+                    Enums.EPropertyType.MultiUnit when propertyDto.UnitCount is > 0 => propertyDto.UnitCount.Value,
+                    _ => 0
                 };
+
+                var outcome = await _mutationCoordinator.ExecuteAsync(
+                    organizationId,
+                    async token =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(propertyDto.Name) &&
+                            await _propertyRepository.PropertyNameExistsInOrganization(
+                                propertyDto.Name, organizationId))
+                        {
+                            return EntitlementMutationOutcome<ServiceResponse<LoadPropertyDto>>.Rollback(
+                                DuplicatePropertyName(propertyDto.Name));
+                        }
+
+                        if (initialUnitCount > 0)
+                        {
+                            var decision = await _entitlementDecisionService.DecideAsync(
+                                new EntitlementDecisionRequest(
+                                    userId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                    organizationId,
+                                    FeatureKeys.PropertyManagement,
+                                    RequestedQuantity: initialUnitCount,
+                                    ResourceOrganizationId: organizationId),
+                                token);
+                            var denial = MapCreationDecisionDenial(decision);
+                            if (denial is not null)
+                            {
+                                return EntitlementMutationOutcome<ServiceResponse<LoadPropertyDto>>.Rollback(denial);
+                            }
+                        }
+
+                        var created = await _propertyRepository.AddProperty(propertyDto, token);
+                        var createdUnits = new List<LoadUnitDto>();
+                        if (initialUnitCount == 1 && propertyDto.PropertyType == Enums.EPropertyType.SingleFamily)
+                        {
+                            createdUnits.Add(await _unitRepository.AddUnit(
+                                NewInitialUnit(1, created.Id), created.Id, organizationId, token));
+                        }
+                        else if (initialUnitCount > 0)
+                        {
+                            var bulk = new BulkCreateUnitsDto
+                            {
+                                PropertyId = created.Id,
+                                Units = Enumerable.Range(1, initialUnitCount)
+                                    .Select(number => NewInitialUnit(number, created.Id))
+                                    .ToList()
+                            };
+                            createdUnits.AddRange(await _unitRepository.BulkCreateUnits(
+                                bulk, organizationId, token));
+                        }
+
+                        created.Units = createdUnits;
+                        if (_occurrenceRecorder is not null)
+                            await _occurrenceRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                                organizationId, ActivationMilestones.PropertyAdded, $"property:{created.Id}",
+                                DateTimeOffset.UtcNow, SourceEventType: "property",
+                                SourceEventId: created.Id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                ActorUserId: userId), token);
+                        return EntitlementMutationOutcome<ServiceResponse<LoadPropertyDto>>.Commit(
+                            ServiceResponse<LoadPropertyDto>.CreateSuccess(
+                                created, "Property added successfully"));
+                    },
+                    cancellationToken);
+
+                var response = outcome.Value;
+                // Blob I/O is deliberately after the serializable database transaction commits.
+                if (outcome.MutationSucceeded && response.Success && files is { Count: > 0 })
+                {
+                    var imageResponse = await _imageService.AddImages(response.Data!.Id, files);
+                    if (!imageResponse.Success)
+                    {
+                        return ServiceResponse<LoadPropertyDto>.CreateError(
+                            "Image Upload Failed", imageResponse.Message);
+                    }
+                    response.Data.Images = imageResponse.Data;
+                }
+
+                return response;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding/updating property");
+                _logger.LogError(ex, "Property mutation is unavailable");
                 return ServiceResponse<LoadPropertyDto>.CreateError(
-                    "Error adding/updating property",
-                    ex.Message,
-                    ex.InnerException?.Message
-                );
+                    "Property creation unavailable",
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    suppressDetailedErrors: true);
             }
         }
+
+        private bool TryGetTrustedMutationScope(out long userId, out long organizationId)
+        {
+            userId = 0;
+            organizationId = 0;
+            var context = _httpContextAccessor.HttpContext;
+            if (context?.Items.TryGetValue("OrganizationId", out var organizationValue) != true ||
+                organizationValue is not long selectedOrganizationId || selectedOrganizationId <= 0 ||
+                context.Items.TryGetValue("UserId", out var userValue) != true ||
+                userValue is not long selectedUserId || selectedUserId <= 0 ||
+                !long.TryParse(context.User.FindFirstValue(ClaimTypes.NameIdentifier), out var subjectUserId) ||
+                subjectUserId != selectedUserId)
+            {
+                return false;
+            }
+
+            userId = selectedUserId;
+            organizationId = selectedOrganizationId;
+            return true;
+        }
+
+        private static UpdateUnitDto NewInitialUnit(int number, long propertyId) => new()
+        {
+            Id = 0,
+            Name = $"Unit {number}",
+            PropertyId = propertyId,
+            Bedrooms = "",
+            Baths = "",
+            Type = "",
+            SquareFeet = 0,
+            RentAmount = 0,
+            IsOccupied = false,
+            Amenities = [],
+            IncludedUtility = []
+        };
+
+        private static ServiceResponse<LoadPropertyDto>? MapCreationDecisionDenial(
+            UnifiedEntitlementDecision? decision)
+        {
+            if (decision is not null && decision.IsAllowed &&
+                decision.Category == EntitlementDecisionCategory.Allowed)
+            {
+                return null;
+            }
+
+            if (decision is not null && !decision.IsAllowed &&
+                decision.Category == EntitlementDecisionCategory.Upgrade)
+            {
+                return ServiceResponse<LoadPropertyDto>.CreateError(
+                    "Unit limit reached",
+                    "Upgrade your plan to add more units.",
+                    statusCode: StatusCodes.Status403Forbidden,
+                    suppressDetailedErrors: true);
+            }
+
+            if (decision is not null && !decision.IsAllowed &&
+                decision.Category == EntitlementDecisionCategory.Unauthorized)
+            {
+                return Forbidden<LoadPropertyDto>();
+            }
+
+            return ServiceResponse<LoadPropertyDto>.CreateError(
+                "Property creation unavailable",
+                statusCode: StatusCodes.Status503ServiceUnavailable,
+                suppressDetailedErrors: true);
+        }
+
+        private static ServiceResponse<LoadPropertyDto> DuplicatePropertyName(string name) =>
+            ServiceResponse<LoadPropertyDto>.CreateError(
+                "Duplicate Property Name",
+                $"A property with the name '{name}' already exists in your organization. Please choose a different name.",
+                "",
+                StatusCodes.Status400BadRequest);
+
+        private static ServiceResponse<T> Forbidden<T>() => ServiceResponse<T>.CreateError(
+            "Forbidden",
+            statusCode: StatusCodes.Status403Forbidden,
+            suppressDetailedErrors: true);
 
 
         public async Task<ServiceResponse<LoadPropertyDto>> GetPropertyById(long propertyId)
         {
             try
             {
-                var property = await _propertyRepository.GetPropertyById(propertyId);
+                if (!TryGetTrustedMutationScope(out _, out var organizationId))
+                {
+                    return Forbidden<LoadPropertyDto>();
+                }
+
+                var property = await _propertyRepository.GetPropertyById(propertyId, organizationId);
 
                 if (property == null)
                 {
@@ -532,7 +498,13 @@ namespace brownstone_hub_api.Services.PropertyService
         {
             try
             {
-                var property = await _propertyRepository.GetPropertyById(propertyId);
+                if (!TryGetTrustedMutationScope(out _, out var organizationId))
+                {
+                    return Forbidden<LoadPropertyDto>();
+                }
+
+                var property = await _propertyRepository.GetPropertyByIdForMutationAsync(
+                    propertyId, organizationId, CancellationToken.None);
                 if (property == null)
                 {
                     return ServiceResponse<LoadPropertyDto>.CreateError("Property not found", "The specified property does not exist.", "", 404);
@@ -724,7 +696,8 @@ namespace brownstone_hub_api.Services.PropertyService
                 _logger.LogInformation("Deleted {Count} units", deletedUnitsCount);
 
                 // Finally, soft delete the property itself
-                var deletedProperty = await _propertyRepository.DeleteProperty(propertyId);
+                var deletedProperty = await _propertyRepository.DeleteProperty(
+                    propertyId, organizationId, CancellationToken.None);
 
                 return new ServiceResponse<LoadPropertyDto>
                 {
@@ -748,7 +721,13 @@ namespace brownstone_hub_api.Services.PropertyService
         {
             try
             {
-                var property = await _propertyRepository.GetPropertyById(propertyId);
+                if (!TryGetTrustedMutationScope(out _, out var organizationId))
+                {
+                    return Forbidden<LoadPropertyDto>();
+                }
+
+                var property = await _propertyRepository.GetPropertyByIdForMutationAsync(
+                    propertyId, organizationId, CancellationToken.None);
                 if (property == null)
                 {
                     return ServiceResponse<LoadPropertyDto>.CreateError("Property not found", "The specified property does not exist.", "", 404);
@@ -770,7 +749,8 @@ namespace brownstone_hub_api.Services.PropertyService
                     }
                 }
 
-                var inactivatedProperty = await _propertyRepository.InactivateProperty(propertyId);
+                var inactivatedProperty = await _propertyRepository.InactivateProperty(
+                    propertyId, organizationId, CancellationToken.None);
 
                 return new ServiceResponse<LoadPropertyDto>
                 {
@@ -848,31 +828,62 @@ namespace brownstone_hub_api.Services.PropertyService
         {
             try
             {
-                var property = await _propertyRepository.GetPropertyById(propertyId);
-                if (property == null)
+                if (!TryGetTrustedMutationScope(out var userId, out var organizationId))
                 {
-                    return ServiceResponse<LoadPropertyDto>.CreateError("Property not found", "The specified property does not exist.", "", 404);
+                    return Forbidden<LoadPropertyDto>();
                 }
 
-                var reactivatedProperty = await _propertyRepository.ReactivateProperty(propertyId);
+                var outcome = await _mutationCoordinator.ExecuteAsync(
+                    organizationId,
+                    async token =>
+                    {
+                        // Deleted records are intentionally queried only here, under trusted organization scope
+                        // and inside the same serializable transaction as quota evaluation and restoration.
+                        var property = await _propertyRepository.GetInactivePropertyByIdForMutationAsync(
+                            propertyId, organizationId, token);
+                        if (property is null)
+                        {
+                            return EntitlementMutationOutcome<ServiceResponse<LoadPropertyDto>>.Rollback(
+                                PropertyNotFound());
+                        }
 
-                return new ServiceResponse<LoadPropertyDto>
-                {
-                    Data = reactivatedProperty,
-                    Message = "Property reactivated successfully"
-                };
-            }
-            catch (KeyNotFoundException ex)
-            {
-                _logger.LogWarning(ex, "Property {PropertyId} not found for reactivation", propertyId);
-                return ServiceResponse<LoadPropertyDto>.CreateError("Property not found", "The specified property does not exist.", "", 404);
+                        var restoredUnitCount = property.Units?.Count ?? 0;
+                        var decision = await _entitlementDecisionService.DecideAsync(
+                            new EntitlementDecisionRequest(
+                                userId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                organizationId,
+                                FeatureKeys.PropertyManagement,
+                                RequestedQuantity: restoredUnitCount,
+                                ResourceOrganizationId: organizationId),
+                            token);
+                        var denial = MapCreationDecisionDenial(decision);
+                        if (denial is not null)
+                        {
+                            return EntitlementMutationOutcome<ServiceResponse<LoadPropertyDto>>.Rollback(denial);
+                        }
+
+                        var reactivatedProperty = await _propertyRepository.ReactivateProperty(
+                            propertyId, organizationId, token);
+                        return EntitlementMutationOutcome<ServiceResponse<LoadPropertyDto>>.Commit(
+                            ServiceResponse<LoadPropertyDto>.CreateSuccess(
+                                reactivatedProperty, "Property reactivated successfully"));
+                    });
+
+                return outcome.Value;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error reactivating property {PropertyId}", propertyId);
-                return ServiceResponse<LoadPropertyDto>.CreateError("Error reactivating property", ex.Message, ex.InnerException?.Message);
+                return ServiceResponse<LoadPropertyDto>.CreateError(
+                    "Property reactivation unavailable",
+                    statusCode: StatusCodes.Status503ServiceUnavailable,
+                    suppressDetailedErrors: true);
             }
         }
+
+        private static ServiceResponse<LoadPropertyDto> PropertyNotFound() =>
+            ServiceResponse<LoadPropertyDto>.CreateError(
+                "Property not found", "The specified property does not exist.", "", StatusCodes.Status404NotFound);
 
         public async Task<ServiceResponse<bool>> IsSingleUnitPortfolio(long organizationId)
         {

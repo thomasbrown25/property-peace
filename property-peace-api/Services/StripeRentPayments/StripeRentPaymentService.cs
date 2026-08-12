@@ -5,6 +5,7 @@ using System.Text;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Utils;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -19,9 +20,11 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         private readonly IConfiguration _configuration;
         private readonly TimeProvider _timeProvider;
         private readonly ILogger<StripeRentPaymentService> _logger;
+        private readonly IActivationOccurrenceRecorder? _activationRecorder;
 
         public StripeRentPaymentService(DataContext context, IStripeRentGateway gateway, IStripeRentRiskService risk,
-            IConfiguration configuration, TimeProvider timeProvider, ILogger<StripeRentPaymentService> logger)
+            IConfiguration configuration, TimeProvider timeProvider, ILogger<StripeRentPaymentService> logger,
+            IActivationOccurrenceRecorder? activationRecorder = null)
         {
             _context = context;
             _gateway = gateway;
@@ -29,6 +32,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             _configuration = configuration;
             _timeProvider = timeProvider;
             _logger = logger;
+            _activationRecorder = activationRecorder;
         }
 
         public async Task<StripeRentPaymentClientResult> CreateAsync(CreateStripeRentPaymentCommand command, CancellationToken cancellationToken = default)
@@ -210,8 +214,13 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 _logger.LogWarning("Ignoring succeeded rent PaymentIntent {PaymentIntentId} because no durable aggregate exists", succeeded.PaymentIntentId);
                 return;
             }
+            if (payment.Status == StripeRentPaymentStatus.Held && payment.HeldAt.HasValue)
+            {
+                await RecordSuccessfulActivationAsync(payment, payment.HeldAt.Value, cancellationToken);
+                return;
+            }
             if (payment.Status != StripeRentPaymentStatus.Created)
-                return; // Never resurrect Blocked/Failed/Canceled or duplicate a held/pending/terminal success.
+                return; // Never resurrect Blocked/Failed/Canceled or pending/terminal recovery states.
 
             var allocated = await GetAllocatedAmountAsync(payment, cancellationToken);
             if (allocated != payment.AmountCents / 100m)
@@ -241,6 +250,33 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 payment.RiskReason = null;
             }
             await _context.SaveChangesAsync(cancellationToken);
+            if (payment.Status == StripeRentPaymentStatus.Held)
+                await RecordSuccessfulActivationAsync(payment, succeeded.SucceededAt, cancellationToken);
+        }
+
+        private async Task RecordSuccessfulActivationAsync(
+            StripeRentPayment payment,
+            DateTimeOffset succeededAt,
+            CancellationToken cancellationToken)
+        {
+            if (payment.AmountCents <= 0 || _activationRecorder is null)
+                return;
+            var authoritativeLeaseExists = await (from lease in _context.Leases.AsNoTracking()
+                                                  join unit in _context.Units.AsNoTracking() on lease.UnitId equals unit.Id
+                                                  join property in _context.Properties.AsNoTracking() on unit.PropertyId equals property.Id
+                                                  where lease.Id == payment.LeaseId && !lease.IsDeleted &&
+                                                        lease.OrganizationId == payment.OrganizationId &&
+                                                        property.OrganizationId == payment.OrganizationId
+                                                  select lease.Id).AnyAsync(cancellationToken);
+            if (!authoritativeLeaseExists)
+                return;
+            await _activationRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                payment.OrganizationId,
+                ActivationMilestones.FirstRentRecordedOrPaid,
+                $"lease:{payment.LeaseId}",
+                succeededAt.ToUniversalTime(),
+                SourceEventType: "stripe_rent_payment",
+                SourceEventId: payment.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), cancellationToken);
         }
 
         public Task MarkFailedAsync(string paymentIntentId, string reason, CancellationToken cancellationToken = default) =>
@@ -284,7 +320,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             else
             {
                 payment.DisputedAt ??= now;
-                payment.StripeDisputeId ??= eventObjectId;
+                if (!string.IsNullOrWhiteSpace(eventObjectId))
+                    payment.StripeDisputeId ??= eventObjectId;
                 if (blockedAmountCents > 0)
                     payment.DisputedAmountCents = Math.Max(payment.DisputedAmountCents, blockedAmountCents.Value);
             }
@@ -310,6 +347,75 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             payment.NextTransferAttemptAt = null;
             payment.UpdatedAt = now;
             await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task ReconcileRefundExposureAsync(string paymentIntentId, string stripeChargeId, string refundId,
+            string reason, long authoritativeRefundedAmountCents, CancellationToken cancellationToken = default)
+        {
+            var gate = PaymentLocks.GetOrAdd($"refund:{paymentIntentId}", _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(cancellationToken);
+            try
+            {
+                await using var transaction = await BeginRefundReconciliationTransactionAsync(paymentIntentId,
+                    cancellationToken);
+                var payment = await _context.StripeRentPayments.SingleOrDefaultAsync(
+                    x => x.PaymentIntentId == paymentIntentId, cancellationToken)
+                    ?? throw new InvalidOperationException("The Stripe rent payment is not registered.");
+                await _context.Entry(payment).ReloadAsync(cancellationToken);
+                if (string.IsNullOrWhiteSpace(payment.StripeChargeId)
+                    || !string.Equals(payment.StripeChargeId, stripeChargeId, StringComparison.Ordinal))
+                    throw new InvalidOperationException("Refund charge provenance does not match the durable rent payment.");
+                if (authoritativeRefundedAmountCents < 0 || authoritativeRefundedAmountCents > payment.AmountCents)
+                    throw new InvalidOperationException("Authoritative refunded exposure is outside the durable payment amount.");
+
+                var reconciledRefundedAmountCents = authoritativeRefundedAmountCents;
+                if (reconciledRefundedAmountCents < payment.RefundedAmountCents)
+                {
+                    // A refund can legitimately fail after initially succeeding, but a delayed successful-refund
+                    // handler may also carry an older cumulative charge snapshot. Re-read Stripe while holding the
+                    // durable per-PaymentIntent lock before allowing exposure or ledger state to move backward.
+                    var latestSource = await _gateway.GetSourceStateAsync(stripeChargeId, cancellationToken);
+                    if (!latestSource.Exists || !latestSource.Paid || latestSource.RefundedAmountCents == null
+                        || !string.Equals(latestSource.PaymentIntentId, paymentIntentId, StringComparison.Ordinal)
+                        || latestSource.AmountCents != payment.AmountCents
+                        || !string.Equals(latestSource.Currency, payment.Currency, StringComparison.OrdinalIgnoreCase)
+                        || latestSource.RefundedAmountCents < 0
+                        || latestSource.RefundedAmountCents > payment.AmountCents)
+                        throw new InvalidOperationException("Could not revalidate decreasing authoritative refund exposure.");
+                    reconciledRefundedAmountCents = latestSource.RefundedAmountCents.Value;
+                }
+
+                var now = _timeProvider.GetUtcNow();
+                if (reconciledRefundedAmountCents > 0)
+                {
+                    payment.RefundedAt ??= now;
+                    if (!string.IsNullOrWhiteSpace(refundId)) payment.StripeRefundId ??= refundId;
+                }
+                payment.RefundedAmountCents = reconciledRefundedAmountCents;
+                var target = Math.Min(payment.AmountCents,
+                    checked(payment.RefundedAmountCents + payment.DisputedAmountCents));
+                if (!string.IsNullOrWhiteSpace(payment.StripeTransferId) && target > payment.ReversedAmountCents)
+                    payment.Status = StripeRentPaymentStatus.ReversalPending;
+                else if (payment.Status is not StripeRentPaymentStatus.Reversed and not StripeRentPaymentStatus.RecoveryFailed)
+                    payment.Status = StripeRentPaymentStatus.Blocked;
+                if (target <= payment.ReversedAmountCents)
+                {
+                    payment.ReversalTargetAmountCents = 0;
+                    payment.ReversalIncrementAmountCents = 0;
+                }
+                payment.RiskReason = reason;
+                payment.TransferEligibleAt = null;
+                payment.NextTransferAttemptAt = null;
+                payment.UpdatedAt = now;
+                await _context.SaveChangesAsync(cancellationToken);
+                if (transaction != null) await transaction.CommitAsync(cancellationToken);
+            }
+            finally
+            {
+                gate.Release();
+                if (gate.CurrentCount == 1)
+                    PaymentLocks.TryRemove(new KeyValuePair<string, SemaphoreSlim>($"refund:{paymentIntentId}", gate));
+            }
         }
 
         public async Task<int> ProcessEligibleTransfersAsync(CancellationToken cancellationToken = default)
@@ -839,8 +945,26 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
             {
                 var gate = PaymentLocks.GetOrAdd($"reversal:{candidate.PaymentIntentId}", _ => new SemaphoreSlim(1, 1));
                 await gate.WaitAsync(cancellationToken);
+                var sqlLossLockHeld = false;
+                var relationalConnectionOpened = false;
                 try
                 {
+                    if (_context.Database.IsSqlServer())
+                    {
+                        await _context.Database.OpenConnectionAsync(cancellationToken);
+                        relationalConnectionOpened = true;
+                        var lockResource = $"stripe-rent-loss:{candidate.PaymentIntentId}";
+                        await _context.Database.ExecuteSqlInterpolatedAsync($@"
+DECLARE @lockResult int;
+EXEC @lockResult = sys.sp_getapplock
+    @Resource = {lockResource},
+    @LockMode = 'Exclusive',
+    @LockOwner = 'Session',
+    @LockTimeout = 30000;
+IF @lockResult < 0
+    THROW 51000, 'Could not acquire the Stripe rent reversal lock.', 1;", cancellationToken);
+                        sqlLossLockHeld = true;
+                    }
                     await _context.Entry(candidate).ReloadAsync(cancellationToken);
                     if (candidate.Status != StripeRentPaymentStatus.ReversalPending
                         || string.IsNullOrWhiteSpace(candidate.StripeTransferId)) continue;
@@ -875,28 +999,24 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
                     candidate.UpdatedAt = candidate.LastReversalAttemptAt.Value;
                     await _context.SaveChangesAsync(cancellationToken);
 
+                    string? completedReversalId = null;
                     try
                     {
-                        var reversalId = await _gateway.CreateTransferReversalAsync(candidate.StripeTransferId,
+                        completedReversalId = await _gateway.CreateTransferReversalAsync(candidate.StripeTransferId,
                             incrementalReversalAmount,
                             $"rent-transfer-reversal:{candidate.PaymentIntentId}:{targetReversalAmount}", cancellationToken);
-
-                        // Reload after Stripe returns so a concurrent larger refund/dispute cannot be overwritten.
-                        await _context.Entry(candidate).ReloadAsync(cancellationToken);
-                        candidate.StripeTransferReversalId = reversalId;
-                        candidate.ReversedAmountCents = Math.Max(candidate.ReversedAmountCents, targetReversalAmount);
-                        candidate.ReversalTargetAmountCents = 0;
-                        candidate.ReversalIncrementAmountCents = 0;
-                        candidate.ReversalAttemptCount = 0;
-                        var latestTarget = Math.Min(candidate.AmountCents,
-                            checked(candidate.RefundedAmountCents + candidate.DisputedAmountCents));
-                        candidate.Status = latestTarget > candidate.ReversedAmountCents
-                            ? StripeRentPaymentStatus.ReversalPending
-                            : candidate.ReversedAmountCents >= candidate.AmountCents
-                                ? StripeRentPaymentStatus.Reversed
-                                : StripeRentPaymentStatus.Blocked;
-                        candidate.UpdatedAt = _timeProvider.GetUtcNow();
-                        await _context.SaveChangesAsync(cancellationToken);
+                        await PersistSuccessfulReversalAsync(candidate, completedReversalId,
+                            targetReversalAmount, cancellationToken);
+                    }
+                    catch (DbUpdateConcurrencyException ex) when (!string.IsNullOrWhiteSpace(completedReversalId))
+                    {
+                        // The provider side effect succeeded. Never misclassify a local merge conflict as a
+                        // failed reversal; reload and idempotently merge the confirmed provider result.
+                        _logger.LogWarning(ex,
+                            "Retrying persistence of successful Stripe reversal for PaymentIntent {PaymentIntentId}",
+                            candidate.PaymentIntentId);
+                        await PersistSuccessfulReversalAsync(candidate, completedReversalId,
+                            targetReversalAmount, cancellationToken);
                     }
                     catch (Exception ex)
                     {
@@ -908,7 +1028,88 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
                         _logger.LogCritical(ex, "Stripe transfer reversal failed for rent PaymentIntent {PaymentIntentId}; manual recovery may be required", candidate.PaymentIntentId);
                     }
                 }
-                finally { gate.Release(); }
+                finally
+                {
+                    try
+                    {
+                        if (sqlLossLockHeld)
+                        {
+                            var lockResource = $"stripe-rent-loss:{candidate.PaymentIntentId}";
+                            await _context.Database.ExecuteSqlInterpolatedAsync($@"
+DECLARE @releaseResult int;
+EXEC @releaseResult = sys.sp_releaseapplock
+    @Resource = {lockResource},
+    @LockOwner = 'Session';", cancellationToken);
+                        }
+                    }
+                    finally
+                    {
+                        if (relationalConnectionOpened)
+                            await _context.Database.CloseConnectionAsync();
+                        gate.Release();
+                    }
+                }
+            }
+        }
+
+        private async Task PersistSuccessfulReversalAsync(StripeRentPayment candidate, string reversalId,
+            long targetReversalAmount, CancellationToken cancellationToken)
+        {
+            // Reload after Stripe returns so a concurrent larger refund/dispute cannot be overwritten.
+            await _context.Entry(candidate).ReloadAsync(cancellationToken);
+            candidate.StripeTransferReversalId = reversalId;
+            candidate.ReversedAmountCents = Math.Max(candidate.ReversedAmountCents, targetReversalAmount);
+            candidate.ReversalTargetAmountCents = 0;
+            candidate.ReversalIncrementAmountCents = 0;
+            candidate.ReversalAttemptCount = 0;
+            var latestTarget = Math.Min(candidate.AmountCents,
+                checked(candidate.RefundedAmountCents + candidate.DisputedAmountCents));
+            var reversalFundedRecoveredDispute = candidate.DisputeRecoveredAmountCents > 0
+                && targetReversalAmount > candidate.RefundedAmountCents;
+            if (reversalFundedRecoveredDispute)
+            {
+                candidate.Status = StripeRentPaymentStatus.RecoveryFailed;
+                candidate.RiskReason = "Won dispute recovery followed a transfer reversal; manual destination funding and reconciliation are required.";
+            }
+            else
+            {
+                candidate.Status = latestTarget > candidate.ReversedAmountCents
+                    ? StripeRentPaymentStatus.ReversalPending
+                    : candidate.ReversedAmountCents >= candidate.AmountCents
+                        ? StripeRentPaymentStatus.Reversed
+                        : StripeRentPaymentStatus.Blocked;
+            }
+            candidate.UpdatedAt = _timeProvider.GetUtcNow();
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        private async Task<IDbContextTransaction?> BeginRefundReconciliationTransactionAsync(
+            string paymentIntentId, CancellationToken cancellationToken)
+        {
+            if (!_context.Database.IsRelational()) return null;
+            var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable,
+                cancellationToken);
+            try
+            {
+                if (_context.Database.IsSqlServer())
+                {
+                    var resource = $"stripe-rent-loss:{paymentIntentId}";
+                    await _context.Database.ExecuteSqlInterpolatedAsync($@"
+DECLARE @lockResult int;
+EXEC @lockResult = sys.sp_getapplock
+    @Resource = {resource},
+    @LockMode = 'Exclusive',
+    @LockOwner = 'Transaction',
+    @LockTimeout = 15000;
+IF @lockResult < 0
+    THROW 51000, 'Could not acquire the Stripe rent refund-reconciliation lock.', 1;", cancellationToken);
+                }
+                return transaction;
+            }
+            catch
+            {
+                await transaction.DisposeAsync();
+                throw;
             }
         }
 

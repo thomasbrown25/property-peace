@@ -14,6 +14,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
     public sealed record StripeRentIntentResult(string PaymentIntentId, string ClientSecret);
 
+    public sealed record StripeRentPaymentIntentState(bool Exists, string? Status);
+
     public sealed record StripeRentTransferRequest(
         long AmountCents,
         string Currency,
@@ -44,6 +46,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task<StripeRentIntentResult> CreatePaymentIntentAsync(StripeRentIntentRequest request, CancellationToken cancellationToken = default);
         Task<StripeRentIntentResult> UpdatePaymentIntentAsync(string paymentIntentId, StripeRentIntentRequest request, CancellationToken cancellationToken = default);
         Task<string?> GetPaymentMethodTypeAsync(string paymentIntentId, CancellationToken cancellationToken = default);
+        Task<StripeRentPaymentIntentState> GetPaymentIntentStateAsync(string paymentIntentId, CancellationToken cancellationToken = default);
         Task<StripeRentSourceState> GetSourceStateAsync(string chargeId, CancellationToken cancellationToken = default);
         Task<string> CreateTransferAsync(StripeRentTransferRequest request, CancellationToken cancellationToken = default);
         Task<string> CreateTransferReversalAsync(string transferId, long amountCents, string idempotencyKey, CancellationToken cancellationToken = default);
@@ -113,6 +116,21 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             var intent = await new PaymentIntentService(_stripeClient).GetAsync(paymentIntentId,
                 new PaymentIntentGetOptions { Expand = new List<string> { "latest_charge" } }, cancellationToken: cancellationToken);
             return intent.LatestCharge?.PaymentMethodDetails?.Type;
+        }
+
+        public async Task<StripeRentPaymentIntentState> GetPaymentIntentStateAsync(string paymentIntentId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var intent = await new PaymentIntentService(_stripeClient).GetAsync(paymentIntentId,
+                    cancellationToken: cancellationToken);
+                return new StripeRentPaymentIntentState(true, intent.Status);
+            }
+            catch (StripeException ex) when (ex.StripeError?.Code == "resource_missing")
+            {
+                return new StripeRentPaymentIntentState(false, null);
+            }
         }
 
         public async Task<StripeRentSourceState> GetSourceStateAsync(string chargeId, CancellationToken cancellationToken = default)

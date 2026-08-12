@@ -1,6 +1,7 @@
 using Azure;
 using Azure.Communication.Email;
 using brownstone_hub_api.Config;
+using brownstone_hub_api.Services;
 using Microsoft.Extensions.Options;
 
 namespace brownstone_hub_api.Services.EmailService
@@ -43,7 +44,8 @@ namespace brownstone_hub_api.Services.EmailService
             }
             else
             {
-                _logger.LogInformation("Azure Communication Services sender address configured: {SenderAddress}", _settings.SenderAddress);
+                _logger.LogInformation("Azure Communication Services sender address configured: {Sender}",
+                    CommunicationLogSanitizer.MaskDestination(_settings.SenderAddress));
             }
         }
 
@@ -52,15 +54,19 @@ namespace brownstone_hub_api.Services.EmailService
             return await SendEmailAsync(to, subject, htmlContent, plainTextContent, null, cancellationToken);
         }
 
-        public async Task<bool> SendEmailAsync(string to, string subject, string htmlContent, string? plainTextContent, string? senderAddress, CancellationToken cancellationToken = default)
+        public async Task<bool> SendEmailAsync(string to, string subject, string htmlContent, string? plainTextContent, string? senderAddress, CancellationToken cancellationToken = default) =>
+            (await SubmitEmailAsync(to, subject, htmlContent, plainTextContent, senderAddress, cancellationToken)).Accepted;
+
+        public async Task<EmailSubmissionResult> SubmitEmailAsync(string to, string subject, string htmlContent,
+            string? plainTextContent = null, string? senderAddress = null, CancellationToken cancellationToken = default,
+            string? idempotencyToken = null)
         {
             // Azure Communication Services requires senderAddress to be the bare email (no display name).
             // The name shown in recipients' inboxes (e.g. "The Property Peace Team") is set in Azure Portal: Email Communication Service → Domains → Mail From → Display Name.
             string rawSenderEmail = GetRawSenderEmail(
                 !string.IsNullOrWhiteSpace(senderAddress) ? senderAddress : _settings.SenderAddress);
-            string displayFrom = rawSenderEmail;
-            if (!string.IsNullOrWhiteSpace(_settings.SenderDisplayName) && string.IsNullOrWhiteSpace(senderAddress))
-                displayFrom = $"\"{_settings.SenderDisplayName.Trim()}\" <{rawSenderEmail}>";
+            var maskedTo = CommunicationLogSanitizer.MaskDestination(to);
+            var maskedSender = CommunicationLogSanitizer.MaskDestination(rawSenderEmail);
 
             try
             {
@@ -78,7 +84,7 @@ namespace brownstone_hub_api.Services.EmailService
 
                 if (!rawSenderEmail.Contains("@"))
                 {
-                    _logger.LogError("Invalid sender address format: {SenderAddress}. Expected format: email@domain.com", rawSenderEmail);
+                    _logger.LogError("Invalid sender address format: {Sender}. Expected an email address", maskedSender);
                     return false;
                 }
 
@@ -94,17 +100,19 @@ namespace brownstone_hub_api.Services.EmailService
                     recipients: new EmailRecipients(new List<EmailAddress> { new EmailAddress(to) })
                 );
 
-                _logger.LogInformation("Sending email to {To} from {Sender} with subject: {Subject}", to, displayFrom, subject);
+                _logger.LogInformation("Sending email to {To} from {Sender}; subject length: {SubjectLength}; HTML length: {HtmlLength}; plain-text length: {PlainTextLength}",
+                    maskedTo, maskedSender, subject.Length, htmlContent.Length, plainTextContent?.Length ?? 0);
 
                 // Submit and return immediately — do not poll for delivery status.
                 // Azure email delivery is async; polling WaitForCompletionAsync blocks for 2–5s per send.
-                await _emailClient.SendAsync(
+                var operation = await _emailClient.SendAsync(
                     WaitUntil.Started,
                     emailMessage,
                     cancellationToken);
 
-                _logger.LogInformation("Email submitted to {To} from {Sender}", to, displayFrom);
-                return true;
+                _logger.LogInformation("Email submitted to {To} from {Sender}. MessageId: {MessageId}",
+                    maskedTo, maskedSender, operation.Id);
+                return new EmailSubmissionResult(true, "azure-email", operation.Id);
             }
             catch (RequestFailedException ex)
             {
@@ -112,22 +120,20 @@ namespace brownstone_hub_api.Services.EmailService
                 if (errorMessage.Contains("domain") || errorMessage.Contains("verified") || errorMessage.Contains("sender"))
                 {
                     var domain = rawSenderEmail.Contains('@') ? rawSenderEmail.Split('@')[1].TrimEnd('>') : rawSenderEmail;
-                    _logger.LogError(ex, "Azure Communication Services error - Domain may not be verified. " +
-                        "Error sending email to {To} from {Sender}: {Error}. " +
-                        "Please verify the domain '{Domain}' in Azure Communication Services Email Communication Services.",
-                        to, displayFrom, ex.Message, domain);
+                    _logger.LogError("Azure email submission failed for {To} from {Sender}. Status: {Status}; ErrorCode: {ErrorCode}; sender domain may not be verified: {Domain}",
+                        maskedTo, maskedSender, ex.Status, ex.ErrorCode, domain);
                 }
                 else
                 {
-                    _logger.LogError(ex, "Azure Communication Services error sending email to {To} from {Sender}: {Error}",
-                        to, displayFrom, ex.Message);
+                    _logger.LogError("Azure email submission failed for {To} from {Sender}. Status: {Status}; ErrorCode: {ErrorCode}",
+                        maskedTo, maskedSender, ex.Status, ex.ErrorCode);
                 }
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error sending email to {To} from {Sender}: {Error}",
-                    to, displayFrom, ex.Message);
+                _logger.LogError("Unexpected {ExceptionType} sending email to {To} from {Sender}",
+                    ex.GetType().Name, maskedTo, maskedSender);
                 return false;
             }
         }
@@ -177,7 +183,8 @@ namespace brownstone_hub_api.Services.EmailService
                     recipients: new EmailRecipients(emailAddresses)
                 );
 
-                _logger.LogInformation("Sending bulk email to {Count} recipients with subject: {Subject}", to.Count, subject);
+                _logger.LogInformation("Sending bulk email to {Count} recipients; subject length: {SubjectLength}; HTML length: {HtmlLength}; plain-text length: {PlainTextLength}",
+                    to.Count, subject.Length, htmlContent.Length, plainTextContent?.Length ?? 0);
 
                 EmailSendOperation emailSendOperation = await _emailClient.SendAsync(
                     WaitUntil.Started,
@@ -204,23 +211,21 @@ namespace brownstone_hub_api.Services.EmailService
                 if (errorMessage.Contains("domain") || errorMessage.Contains("verified") || errorMessage.Contains("sender"))
                 {
                     var domain = rawSenderEmail.Contains('@') ? rawSenderEmail.Split('@')[1].TrimEnd('>') : rawSenderEmail;
-                    _logger.LogError(ex, "Azure Communication Services error - Domain may not be verified. " +
-                        "Error sending bulk email from {Sender}: {Error}. " +
-                        "Please verify the domain '{Domain}' in Azure Communication Services Email Communication Services.",
-                        rawSenderEmail, ex.Message, domain);
+                    _logger.LogError("Azure bulk email submission failed from {Sender}. Status: {Status}; ErrorCode: {ErrorCode}; sender domain may not be verified: {Domain}",
+                        CommunicationLogSanitizer.MaskDestination(rawSenderEmail), ex.Status, ex.ErrorCode, domain);
                 }
                 else
                 {
-                    _logger.LogError(ex, "Azure Communication Services error sending bulk email from {Sender}: {Error}",
-                        rawSenderEmail, ex.Message);
+                    _logger.LogError("Azure bulk email submission failed from {Sender}. Status: {Status}; ErrorCode: {ErrorCode}",
+                        CommunicationLogSanitizer.MaskDestination(rawSenderEmail), ex.Status, ex.ErrorCode);
                 }
                 return false;
             }
             catch (Exception ex)
             {
                 var rawSenderEmail = GetRawSenderEmail(_settings.SenderAddress);
-                _logger.LogError(ex, "Unexpected error sending bulk email from {Sender}: {Error}",
-                    rawSenderEmail, ex.Message);
+                _logger.LogError("Unexpected {ExceptionType} sending bulk email from {Sender}",
+                    ex.GetType().Name, CommunicationLogSanitizer.MaskDestination(rawSenderEmail));
                 return false;
             }
         }

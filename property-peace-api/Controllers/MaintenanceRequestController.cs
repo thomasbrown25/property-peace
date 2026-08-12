@@ -20,138 +20,56 @@ namespace brownstone_hub_api.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> AddMaintenanceRequest([FromForm] string maintenanceData, [FromForm] List<IFormFile> files)
         {
-            try
-            {
-                var jsonObject = JObject.Parse(maintenanceData);
-
-                // Remove category-related fields - AI will choose the category
-                jsonObject.Remove("CategoryId");
-                jsonObject.Remove("categoryId");
-                jsonObject.Remove("category");
-
-                var maintenanceDataDto = jsonObject.ToObject<AddMaintenanceRequestDto>();
-                if (maintenanceDataDto == null)
-                {
-                    return BadRequest(new { Message = "Invalid maintenance request data" });
-                }
-
-                // All logic (title generation, category selection) is handled in the service
-                var response = await _maintenanceRequestService.AddMaintenanceRequest(maintenanceDataDto, files);
-
-                if (!response.Success)
-                    return StatusCode(response.StatusCode, new
-                    {
-                        response.Message,
-                        response.Errors
-                    });
-
-                return Ok(response);
-            }
-            catch (JsonException ex)
-            {
-                return BadRequest(new { Message = "Invalid JSON format", Error = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { Message = "An error occurred while processing the request", Error = ex.Message });
-            }
+            await Task.CompletedTask;
+            return LegacyReadOrCreateGone();
         }
 
         [Authorize]
         [HttpPut("{maintenanceRequestId}")]
-        public async Task<IActionResult> UpdateMaintenanceRequest(long maintenanceRequestId, [FromBody] UpdateMaintenanceRequestDto updateMaintenanceRequestDto)
+        [Obsolete("Use named transitions under api/maintenance-requests. Legacy aggregate mutation is disabled.")]
+        public Task<IActionResult> UpdateMaintenanceRequest(long maintenanceRequestId, [FromBody] UpdateMaintenanceRequestDto updateMaintenanceRequestDto)
         {
-            var response = await _maintenanceRequestService.UpdateMaintenanceRequest(maintenanceRequestId, updateMaintenanceRequestDto);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
+            IActionResult result = StatusCode(StatusCodes.Status410Gone, new
+            {
+                Message = "Legacy maintenance mutation is disabled. Use the named maintenance workflow transitions.",
+                Code = "maintenance.legacy_mutation_disabled"
+            });
+            return Task.FromResult(result);
         }
 
         [Authorize]
         [HttpGet("{maintenanceRequestId}")]
         public async Task<IActionResult> GetMaintenanceRequestById(long maintenanceRequestId)
         {
-            var response = await _maintenanceRequestService.GetMaintenanceRequestById(maintenanceRequestId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
-
+            await Task.CompletedTask;
+            return LegacyReadOrCreateGone();
         }
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("property/{propertyId}")]
         public async Task<IActionResult> GetMaintenanceRequestsByPropertyId(long propertyId)
         {
-            var response = await _maintenanceRequestService.GetMaintenanceRequestsByPropertyId(propertyId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
+            await Task.CompletedTask;
+            return LegacyReadOrCreateGone();
         }
 
         [Authorize]
         [HttpGet("unit/{unitId}")]
         public async Task<IActionResult> GetMaintenanceRequestsByUnitId(long unitId)
         {
-            var response = await _maintenanceRequestService.GetMaintenanceRequestsByUnitId(unitId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
+            await Task.CompletedTask;
+            return LegacyReadOrCreateGone();
         }
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("property/{propertyId}/current")]
-        public async Task<IActionResult> GetCurrentMaintenanceByPropertyId(long propertyId)
-        {
-            var response = await _maintenanceRequestService.GetCurrentMaintenanceByPropertyId(propertyId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
-        }
+        public Task<IActionResult> GetCurrentMaintenanceByPropertyId(long propertyId) =>
+            Task.FromResult(LegacyReadOrCreateGone());
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("property/{propertyId}/history")]
-        public async Task<IActionResult> GetMaintenanceHistoryByPropertyId(long propertyId)
-        {
-            var response = await _maintenanceRequestService.GetMaintenanceHistoryByPropertyId(propertyId);
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
-        }
+        public Task<IActionResult> GetMaintenanceHistoryByPropertyId(long propertyId) =>
+            Task.FromResult(LegacyReadOrCreateGone());
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("organization/current")]
@@ -224,49 +142,18 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpGet("{maintenanceRequestId}/events")]
-        public async Task<IActionResult> GetMaintenanceEventsByRequestId(long maintenanceRequestId)
-        {
-            var response = await _maintenanceRequestService.GetMaintenanceEventsByRequestId(maintenanceRequestId);
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-            return Ok(response);
-        }
+        public Task<IActionResult> GetMaintenanceEventsByRequestId(long maintenanceRequestId) =>
+            Task.FromResult(LegacyReadOrCreateGone());
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("property/{propertyId}/open-count")]
-        public async Task<IActionResult> GetPropertyOpenMaintenanceRequestsCount(long propertyId)
-        {
-            var response = await _maintenanceRequestService.GetPropertyOpenMaintenanceRequestsCount(propertyId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
-        }
+        public Task<IActionResult> GetPropertyOpenMaintenanceRequestsCount(long propertyId) =>
+            Task.FromResult(LegacyReadOrCreateGone());
 
         [Authorize]
         [HttpDelete("{maintenanceRequestId}")]
-        public async Task<IActionResult> DeleteMaintenanceRequest(long maintenanceRequestId)
-        {
-            var response = await _maintenanceRequestService.DeleteMaintenanceRequest(maintenanceRequestId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
-        }
+        [Obsolete("Legacy aggregate mutation is disabled.")]
+        public Task<IActionResult> DeleteMaintenanceRequest(long maintenanceRequestId) => Task.FromResult(LegacyMutationGone());
 
         [Authorize]
         [HttpGet("categories")]
@@ -317,66 +204,40 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize]
         [HttpPut("reopen/{requestId}")]
-        public async Task<IActionResult> ReopenMaintenance(long requestId)
-        {
-            var response = await _maintenanceRequestService.ReopenMaintenance(requestId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
-        }
+        [Obsolete("Use the canonical completion reopen transition.")]
+        public Task<IActionResult> ReopenMaintenance(long requestId) => Task.FromResult(LegacyMutationGone());
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPut("resolve/{requestId}")]
-        public async Task<IActionResult> ResolveMaintenance(long requestId)
-        {
-            var response = await _maintenanceRequestService.ResolveMaintenance(requestId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
-        }
+        [Obsolete("Use the canonical completion confirmation or staff-close transition.")]
+        public Task<IActionResult> ResolveMaintenance(long requestId) => Task.FromResult(LegacyMutationGone());
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPut("{maintenanceRequestId}/assign")]
-        public async Task<IActionResult> AssignMaintenanceRequest(long maintenanceRequestId, [FromBody] AssignMaintenanceRequestDto dto)
-        {
-            var response = await _maintenanceRequestService.AssignMaintenanceRequest(maintenanceRequestId, dto);
+        [Obsolete("Use POST api/maintenance-requests/{id}/assign.")]
+        public Task<IActionResult> AssignMaintenanceRequest(long maintenanceRequestId, [FromBody] AssignMaintenanceRequestDto dto) =>
+            Task.FromResult(LegacyMutationGone());
 
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
+        private IActionResult LegacyMutationGone() =>
+            StatusCode(StatusCodes.Status410Gone, new
+            {
+                Message = "Legacy maintenance mutation is disabled. Use the named maintenance workflow transitions.",
+                Code = "maintenance.legacy_mutation_disabled"
+            });
 
-            return Ok(response);
-        }
+        private IActionResult LegacyReadOrCreateGone() =>
+            StatusCode(StatusCodes.Status410Gone, new
+            {
+                Message = "This legacy maintenance endpoint is disabled. Use the scoped canonical maintenance API.",
+                Code = "maintenance.legacy_endpoint_disabled"
+            });
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("{maintenanceRequestId}/generate-tenant-message")]
         public async Task<IActionResult> GenerateTenantMessage(long maintenanceRequestId)
         {
-            var response = await _maintenanceRequestService.GenerateTenantMessage(maintenanceRequestId);
-
-            if (!response.Success)
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-
-            return Ok(response);
+            await Task.CompletedTask;
+            return LegacyReadOrCreateGone();
         }
     }
 }

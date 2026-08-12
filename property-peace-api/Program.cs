@@ -34,6 +34,7 @@ using brownstone_hub_api.Repositories.MaintenanceImages;
 using brownstone_hub_api.Services.MaintenanceImageService;
 using brownstone_hub_api.Services.ExpenseReceiptService;
 using brownstone_hub_api.Services.GoogleAuthService;
+using brownstone_hub_api.Services.AppleAuthService;
 using brownstone_hub_api.Services.AzureBlobService;
 using brownstone_hub_api.Services.LeaseService;
 using brownstone_hub_api.Repositories.Leases;
@@ -76,6 +77,7 @@ using brownstone_hub_api.Dtos.Image;
 using brownstone_hub_api.Services.NotificationSettingService;
 using brownstone_hub_api.Repositories.NotificationSettings;
 using brownstone_hub_api.Services.NotificationService;
+using brownstone_hub_api.Services.MessageDeliveries;
 using brownstone_hub_api.Repositories.Notifications;
 using brownstone_hub_api.Services.ScheduledNotificationService;
 using brownstone_hub_api.Services.ActivityService;
@@ -88,6 +90,7 @@ using brownstone_hub_api.Repositories.RecurringExpenses;
 using brownstone_hub_api.Repositories.FutureExpenses;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
 using System.Net;
 using brownstone_hub_api.Hubs;
 using brownstone_hub_api.Middleware;
@@ -118,11 +121,15 @@ using brownstone_hub_api.Repositories.Files;
 using brownstone_hub_api.Repositories.FileCategories;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Messages;
-using brownstone_hub_api.Config;
+using brownstone_hub_api.Repositories.Timelines;
+using brownstone_hub_api.Services.Timelines;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.SmsService;
 using brownstone_hub_api.Services.CommunicationService;
 using brownstone_hub_api.Services.SubscriptionService;
+using brownstone_hub_api.Services.FeatureReadiness;
+using brownstone_hub_api.Services.LeasingPipeline;
+using brownstone_hub_api.Services.Leads;
 using brownstone_hub_api.Services.OrganizationSmsNumberService;
 using brownstone_hub_api.Repositories.OrganizationSmsNumbers;
 using brownstone_hub_api.Repositories.Subscriptions;
@@ -144,6 +151,7 @@ using brownstone_hub_api.Services.AdminSettingsService;
 using brownstone_hub_api.Repositories.AdminSettings;
 using brownstone_hub_api.Repositories.Vendors;
 using brownstone_hub_api.Services.BackgroundCheckService;
+using brownstone_hub_api.Services.Screening;
 using brownstone_hub_api.Services.UpcomingFeatureService;
 using brownstone_hub_api.Repositories.UpcomingFeatures;
 using brownstone_hub_api.Services.DemoRequestService;
@@ -155,6 +163,11 @@ using brownstone_hub_api.Services.AdminDashboardService;
 using Fido2NetLib;
 using brownstone_hub_api.Services.MfaService;
 using brownstone_hub_api.Dtos.Mfa;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Infrastructure;
+using brownstone_hub_api.Entitlements.Enforcement;
+using brownstone_hub_api.Security;
+using brownstone_hub_api.Services.ActivationFunnel;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -240,6 +253,8 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 if (!builder.Environment.IsDevelopment())
 {
     services.AddApplicationInsightsTelemetry();
+    services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer,
+        brownstone_hub_api.Telemetry.AuthenticatedUserTelemetryInitializer>();
     builder.Logging.AddApplicationInsights();    // bridge ILogger -> AI after ClearProviders()
     builder.Logging.AddFilter<Microsoft.Extensions.Logging.ApplicationInsights.ApplicationInsightsLoggerProvider>(
         "",
@@ -280,6 +295,19 @@ services.AddDbContext<DataContext>(
     }
 );
 services.AddSingleton<TimeProvider>(TimeProvider.System);
+services.AddScoped<IActivationOccurrenceRecorder, ActivationOccurrenceRecorder>();
+services.AddScoped<IActivationFunnelProjection, ActivationFunnelProjection>();
+services.AddScoped<ICommunicationDestinationProtector, DataProtectionCommunicationDestinationProtector>();
+services.AddScoped<IMessageDeliveryService, MessageDeliveryService>();
+services.AddScoped<IOutboundMessageDeliveryEnqueuer, OutboundMessageDeliveryEnqueuer>();
+services.AddScoped<IOutboundSmsSecurityService, OutboundSmsSecurityService>();
+services.AddScoped<IMessageDeliveryProcessor, MessageDeliveryProcessor>();
+services.AddSingleton<ILeadAbuseGuard, MemoryLeadAbuseGuard>();
+services.AddScoped<ILeadTokenDelivery, ProtectedLeadTokenDelivery>();
+services.AddScoped<ILeadTokenDispatcher, LeadTokenDispatcher>();
+services.AddScoped<ILeadNotificationDispatcher, LeadNotificationDispatcher>();
+services.AddScoped<IPublicLeadSessionService, PublicLeadSessionService>();
+services.AddScoped<ILeadService, LeadService>();
 services.AddSingleton(new StripeWebhookLeaseOptions());
 
 // Honor proxy scheme/client information only from explicitly trusted proxies (loopback remains trusted
@@ -440,12 +468,27 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 //     c.OperationFilter<SecurityRequirementsOperationFilter>();
 // });
 // services.AddSwaggerGenNewtonsoftSupport();
-services.AddAutoMapper(typeof(Program).Assembly);
+services.AddAutoMapper(cfg =>
+{
+    var autoMapperLicenseKey = configuration["AutoMapper:LicenseKey"];
+    if (!string.IsNullOrWhiteSpace(autoMapperLicenseKey))
+    {
+        cfg.LicenseKey = autoMapperLicenseKey;
+    }
+}, typeof(Program).Assembly);
 
 // Services
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
+services.AddHttpClient<IAppleAuthService, AppleAuthService>();
 services.AddScoped<IUserService, UserService>();
-services.AddDataProtection();
+services.AddScoped<brownstone_hub_api.Services.Activation.IActivationService, brownstone_hub_api.Services.Activation.ActivationService>();
+var dataProtectionKeysPath = configuration["DataProtection:KeysPath"];
+if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+    dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+services.AddDataProtection()
+    .SetApplicationName("PropertyPeace")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
 services.Configure<MfaOptions>(builder.Configuration.GetSection("Mfa"));
 services.AddScoped<IMfaService, MfaService>();
 services.AddSingleton<ImpersonationConnectionRegistry>();
@@ -456,12 +499,22 @@ services.AddScoped<IEmailVerificationService, EmailVerificationService>();
 services.AddScoped<IPropertyService, PropertyService>();
 services.AddScoped<IPropertyPortfolioService, PropertyPortfolioService>();
 services.AddScoped<IMaintenanceRequestService, MaintenanceRequestService>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceActorAccessor, brownstone_hub_api.Services.Maintenance.MaintenanceActorAccessor>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceRequestApiService, brownstone_hub_api.Services.Maintenance.MaintenanceRequestApiService>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceActivityService, brownstone_hub_api.Services.Maintenance.MaintenanceActivityService>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceCommandExecutor, brownstone_hub_api.Services.Maintenance.MaintenanceCommandExecutor>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceTransactionSideEffects, brownstone_hub_api.Services.Maintenance.MaintenanceTransactionSideEffects>();
+services.AddHostedService<brownstone_hub_api.Services.Maintenance.MaintenanceTimelineProjectionWorker>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceAttachmentStorage, brownstone_hub_api.Services.Maintenance.AzureMaintenanceAttachmentStorage>();
+services.AddScoped<brownstone_hub_api.Services.Maintenance.IMaintenanceAttachmentService, brownstone_hub_api.Services.Maintenance.MaintenanceAttachmentService>();
+services.AddScoped(sp => new brownstone_hub_api.Services.MaintenanceTriage.MaintenanceTriagePolicyV1(sp.GetRequiredService<TimeProvider>()));
 services.AddScoped<IDemoRequestRepository, DemoRequestRepository>();
 services.AddScoped<IDemoRequestService, DemoRequestService>();
 services.AddScoped<IMaintenanceImageService, MaintenanceImageService>();
 services.AddScoped<IUnitService, UnitService>();
 services.AddScoped<IAzureBlobService, AzureBlobService>();
 services.AddScoped<ILeaseService, LeaseService>();
+services.AddScoped<IDocuSignConnectProcessor, DocuSignConnectProcessor>();
 services.AddScoped<ILeaseTemplateService, LeaseTemplateService>();
 services.AddScoped<IPolicyPackService, PolicyPackService>();
 services.AddScoped<ILeaseGenerationService, LeaseGenerationService>();
@@ -491,6 +544,8 @@ services.AddScoped<IScheduledNotificationService, ScheduledNotificationService>(
 services.AddScoped<brownstone_hub_api.Services.AnnouncementService.IAnnouncementService, brownstone_hub_api.Services.AnnouncementService.AnnouncementService>();
 services.AddScoped<IActivityService, ActivityService>();
 services.AddScoped<IExpenseService, ExpenseService>();
+services.AddScoped<brownstone_hub_api.Services.MoneyCenter.IMoneyCenterDataSource, brownstone_hub_api.Services.MoneyCenter.EfMoneyCenterDataSource>();
+services.AddScoped<brownstone_hub_api.Services.MoneyCenter.IMoneyCenterService, brownstone_hub_api.Services.MoneyCenter.MoneyCenterService>();
 services.AddScoped<IVendorService, VendorService>();
 services.AddScoped<IRecurringExpenseService, RecurringExpenseService>();
 services.AddScoped<IFutureExpenseService, FutureExpenseService>();
@@ -505,12 +560,9 @@ services.AddScoped<IFileCategoryService, FileCategoryService>();
 services.AddScoped<IApplicationService, ApplicationService>();
 services.AddScoped<IApplicationPdfService, ApplicationPdfService>();
 
-// RentSpree Background Check Configuration
-var rentSpreeSection = configuration.GetSection("RentSpree");
-services.Configure<RentSpreeSettings>(rentSpreeSection);
-services.AddHttpClient<IRentSpreeService, RentSpreeService>();
-services.AddScoped<IRentSpreeService, RentSpreeService>();
+// The legacy application screening path is retained only as a fail-closed compatibility service.
 services.AddScoped<IBackgroundCheckService, BackgroundCheckService>();
+services.AddFailClosedTenantScreening(configuration);
 services.AddScoped<IChecklistService, ChecklistService>();
 services.AddScoped<IOrganizationChecklistItemService, OrganizationChecklistItemService>();
 services.AddScoped<IMoveInReportTemplateService, MoveInReportTemplateService>();
@@ -520,7 +572,6 @@ services.AddScoped<IMessageAnalysisService, MessageAnalysisService>();
 services.AddScoped<IAdminSettingsService, AdminSettingsService>();
 services.AddScoped<ISupportRequestService, SupportRequestService>();
 services.AddScoped<IAdminDashboardService, AdminDashboardService>();
-services.AddSingleton(TimeProvider.System);
 services.AddScoped<IStripeService, StripeService>();
 services.AddScoped<IStripeSyncService, StripeSyncService>();
 services.AddScoped<IStripeWebhookService, StripeWebhookService>();
@@ -542,6 +593,15 @@ services.AddScoped<IUpcomingFeatureService, UpcomingFeatureService>();
 services.AddScoped<IDailySummaryEmailService, DailySummaryEmailService>();
 
 // Subscription Services
+services.AddScoped<IEntitlementFeatureFactsLoader, EfEntitlementFeatureFactsLoader>();
+services.AddScoped<IEntitlementDecisionFactsProvider, EfEntitlementDecisionFactsProvider>();
+services.AddScoped<IEntitlementDecisionService, EntitlementDecisionService>();
+services.AddScoped<IEntitlementResourceOrganizationResolver, EfEntitlementResourceOrganizationResolver>();
+services.AddScoped<IOrganizationEntitlementMutationCoordinator, EfOrganizationEntitlementMutationCoordinator>();
+services.AddOptions<FeatureReadinessOptions>()
+    .Bind(configuration.GetSection(FeatureReadinessOptions.SectionName));
+services.AddScoped<IFeatureReadinessService, FeatureReadinessService>();
+services.AddScoped<ILeasingPipelineService, LeasingPipelineService>();
 services.AddScoped<ISubscriptionService, SubscriptionService>();
 services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
 services.AddScoped<IFeatureGateService, FeatureGateService>();
@@ -653,6 +713,9 @@ services.AddSignalR(options =>
 
 // Background Services
 services.AddHostedService<NotificationBackgroundService>();
+services.AddHostedService<MessageDeliveryBackgroundService>();
+services.AddHostedService<LeadTokenDeliveryBackgroundService>();
+services.AddHostedService<LeadNotificationDeliveryBackgroundService>();
 services.AddHostedService<RecurringExpenseGenerationBackgroundService>();
 services.AddHostedService<SubscriptionBackgroundService>();
 services.AddHostedService<StateLateFeeLawUpdateBackgroundService>();
@@ -700,6 +763,11 @@ services.AddScoped<IMoveInReportTemplateRepository, MoveInReportTemplateReposito
 services.AddScoped<IAdminSettingsRepository, AdminSettingsRepository>();
 services.AddScoped<IConversationRepository, ConversationRepository>();
 services.AddScoped<IMessageRepository, MessageRepository>();
+services.AddScoped<IConversationTimelineSequenceAllocator, ConversationTimelineSequenceAllocator>();
+services.AddScoped<IConversationTimelineRepository, ConversationTimelineRepository>();
+services.AddScoped<IMilestone7ConversationService, Milestone7ConversationService>();
+services.AddScoped<IWorkflowTimelineIntegration, WorkflowTimelineIntegration>();
+services.AddScoped<ConversationContextService>();
 services.AddScoped<IUpcomingFeatureRepository, UpcomingFeatureRepository>();
 services.AddScoped(typeof(IImageRepository<,,>), typeof(ImageRepository<,,>));
 // Note: ImageRepository is generic and will work for ListingImage automatically
@@ -745,6 +813,7 @@ services.AddScoped<IOrganizationSmsNumberRepository, OrganizationSmsNumberReposi
 // Organization Repositories
 services.AddScoped<brownstone_hub_api.Repositories.Organizations.IOrganizationRepository, brownstone_hub_api.Repositories.Organizations.OrganizationRepository>();
 services.AddScoped<brownstone_hub_api.Repositories.Organizations.IOrganizationMemberRepository, brownstone_hub_api.Repositories.Organizations.OrganizationMemberRepository>();
+services.AddScoped<IOrganizationAuthorityResolver, OrganizationAuthorityResolver>();
 services.AddScoped<brownstone_hub_api.Repositories.Organizations.IOrganizationInviteRepository, brownstone_hub_api.Repositories.Organizations.OrganizationInviteRepository>();
 
 // Client Repositories
@@ -866,6 +935,10 @@ services
     })
     .AddJwtBearer(options =>
     {
+        // Preserve the token's explicit numeric NameIdentifier claim. Mapping the
+        // email-valued `sub` claim creates a duplicate NameIdentifier that can
+        // shadow the numeric subject on authorization-sensitive paths.
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -1238,26 +1311,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Validate RentSpree configuration on startup (log warnings, don't fail startup)
-var rentSpreeSettings = app.Configuration.GetSection("RentSpree").Get<RentSpreeSettings>();
-if (rentSpreeSettings != null)
-{
-    var rentSpreeLogger = app.Services.GetRequiredService<ILogger<Program>>();
-    var validationErrors = rentSpreeSettings.GetValidationErrors();
-    if (validationErrors.Any())
-    {
-        rentSpreeLogger.LogWarning("RentSpree configuration issues: {Errors}. Background checks will not work until configured.",
-            string.Join("; ", validationErrors));
-    }
-    else if (rentSpreeSettings.EnableBackgroundChecks)
-    {
-        rentSpreeLogger.LogInformation("RentSpree background checks are enabled and configured");
-    }
-    else
-    {
-        rentSpreeLogger.LogInformation("RentSpree background checks are disabled");
-    }
-}
+
 
 app.Run();
 

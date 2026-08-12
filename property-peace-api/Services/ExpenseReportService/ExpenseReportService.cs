@@ -465,33 +465,24 @@ namespace brownstone_hub_api.Services.ExpenseReportService
                 var year2Value = year2 ?? currentYear;
 
                 var startDate1 = new DateTime(year1Value, 1, 1);
-                var endDate1 = new DateTime(year1Value, 12, 31, 23, 59, 59);
+                var endDate1 = startDate1.AddYears(1);
                 var startDate2 = new DateTime(year2Value, 1, 1);
-                var endDate2 = new DateTime(year2Value, 12, 31, 23, 59, 59);
+                var endDate2 = startDate2.AddYears(1);
 
-                // Get payments for year 1
-                List<LoadPaymentDto> payments1;
-                if (propertyId.HasValue)
-                {
-                    payments1 = await _paymentRepository.GetPaymentsByPropertyId(propertyId.Value, startDate1, endDate1);
-                }
-                else
-                {
-                    var allPayments1 = await _paymentRepository.GetLifetimePaymentsByOrganizationId(organizationId);
-                    payments1 = allPayments1.Where(p => p.PaymentDate >= startDate1 && p.PaymentDate <= endDate1).ToList();
-                }
+                var queryStart = startDate1 < startDate2 ? startDate1 : startDate2;
+                var queryEnd = endDate1 > endDate2 ? endDate1 : endDate2;
+                var scopedPayments = await _paymentRepository.GetPaymentsByOrganizationAndPropertyId(
+                    organizationId,
+                    propertyId,
+                    queryStart,
+                    queryEnd);
 
-                // Get payments for year 2
-                List<LoadPaymentDto> payments2;
-                if (propertyId.HasValue)
-                {
-                    payments2 = await _paymentRepository.GetPaymentsByPropertyId(propertyId.Value, startDate2, endDate2);
-                }
-                else
-                {
-                    var allPayments2 = await _paymentRepository.GetLifetimePaymentsByOrganizationId(organizationId);
-                    payments2 = allPayments2.Where(p => p.PaymentDate >= startDate2 && p.PaymentDate <= endDate2).ToList();
-                }
+                var payments1 = scopedPayments
+                    .Where(p => p.PaymentDate >= startDate1 && p.PaymentDate < endDate1)
+                    .ToList();
+                var payments2 = scopedPayments
+                    .Where(p => p.PaymentDate >= startDate2 && p.PaymentDate < endDate2)
+                    .ToList();
 
                 var comparison = new List<YearOverYearComparisonDto>();
 

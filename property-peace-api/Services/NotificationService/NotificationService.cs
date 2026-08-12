@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.SignalR;
 using brownstone_hub_api.Hubs;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.SmsService;
+using brownstone_hub_api.Services.Timelines;
 using Microsoft.AspNetCore.Http;
 
 namespace brownstone_hub_api.Services.NotificationService
@@ -22,7 +23,8 @@ namespace brownstone_hub_api.Services.NotificationService
         EmailTemplateService emailTemplateService,
         IUserRepository userRepository,
         IHttpContextAccessor httpContextAccessor,
-        ILogger<NotificationService> logger) : INotificationService
+        ILogger<NotificationService> logger,
+        IWorkflowTimelineIntegration? workflowTimeline = null) : INotificationService
     {
         private readonly INotificationRepository _notificationRepository = notificationRepository;
         private readonly INotificationSettingRepository _notificationSettingRepository = notificationSettingRepository;
@@ -34,6 +36,7 @@ namespace brownstone_hub_api.Services.NotificationService
         private readonly IUserRepository _userRepository = userRepository;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly ILogger<NotificationService> _logger = logger;
+        private readonly IWorkflowTimelineIntegration? _workflowTimeline = workflowTimeline;
 
         private async Task<long?> GetCurrentUserIdAsync()
         {
@@ -310,6 +313,23 @@ namespace brownstone_hub_api.Services.NotificationService
                     if (createNotificationDto.SendSMS && settings.PhoneEnabled)
                     {
                         shouldSendSMS = ShouldSendSMSForType(createNotificationDto.Type, settings);
+                    }
+
+                    // The immutable entry and delivery rows precede provider calls. Provider IDs cannot
+                    // be synthesized: legacy email/SMS abstractions expose only a success boolean.
+                    if (_workflowTimeline != null)
+                    {
+                        try
+                        {
+                            await _workflowTimeline.RecordNotificationAttemptAsync(
+                                createNotificationDto, notification?.Id, settings.EmailAddress, settings.PhoneNumber,
+                                shouldSendEmail && !string.IsNullOrEmpty(settings.EmailAddress),
+                                shouldSendSMS && !string.IsNullOrEmpty(settings.PhoneNumber));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to record timeline evidence before notification provider sends");
+                        }
                     }
 
                     // Send email if enabled

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Box } from '@mui/system';
 import { Typography } from '@mui/material';
 import Autocomplete from 'components/@extended/AutoComplete';
@@ -36,6 +36,7 @@ const PropertySelect = ({
   label = 'Select Property',
   placeholder,
   disabledPropertyIds,
+  requestedPropertyId,
   disabledPropertyReason = 'Unavailable'
 }) => {
   const dispatch = useDispatch();
@@ -44,7 +45,36 @@ const PropertySelect = ({
   // Use local property if provided, otherwise use Redux
   const selectedProperty = localSelectedProperty !== null ? localSelectedProperty : reduxSelectedProperty;
 
-  const { properties } = useFetchProperties();
+  const { properties, isLoading, propertiesLoadedAt } = useFetchProperties();
+  const requestedPropertyAppliedRef = useRef(null);
+
+  useEffect(() => {
+    if (!requestedPropertyId || isLoading || !propertiesLoadedAt) return;
+    const requestedKey = String(requestedPropertyId);
+    if (requestedPropertyAppliedRef.current === requestedKey) return;
+    requestedPropertyAppliedRef.current = requestedKey;
+
+    const requestedProperty = properties?.find((property) => String(property.id) === requestedKey);
+    if (requestedProperty) {
+      if (onPropertyChange) {
+        onPropertyChange(requestedProperty);
+      } else {
+        dispatch(setProperty(requestedProperty));
+        dispatch(setLease(requestedProperty.units?.length === 1 ? requestedProperty.units[0]?.lease || {} : {}));
+      }
+    } else {
+      if (onPropertyChange) onPropertyChange(null);
+      else {
+        dispatch(setProperty(null));
+        dispatch(setLease({}));
+      }
+    }
+  }, [dispatch, isLoading, onPropertyChange, properties, propertiesLoadedAt, requestedPropertyId]);
+
+  const requestedPropertyMissing = Boolean(
+    requestedPropertyId && propertiesLoadedAt && !isLoading
+      && !properties?.some((property) => String(property.id) === String(requestedPropertyId))
+  );
 
   const selectedOption = useMemo(() => {
     if (selectedProperty && selectedProperty.id) {
@@ -184,6 +214,11 @@ const PropertySelect = ({
         }}
         disablePortal={false}
       />
+      {requestedPropertyMissing && (
+        <Typography role="alert" variant="caption" color="warning.main">
+          The requested property is unavailable in the selected organization. Showing all properties.
+        </Typography>
+      )}
     </Box>
   );
 };

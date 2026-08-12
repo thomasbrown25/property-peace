@@ -1,32 +1,24 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Typography, Card, CardContent, Grid, Stack, Button, CircularProgress, Alert } from '@mui/material';
 import { DownloadOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import ReportFilters from 'sections/reports/ReportFilters';
 import { getNPSClientReport } from 'api/reports';
-import { useSubscription } from 'hooks/useSubscription';
+
 import useAuth from 'hooks/useAuth';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar } from 'recharts';
 
 export default function NPSClientReport() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState(null);
 
-  const planName = (subscription?.plan?.name || subscription?.subscriptionPlan?.name || '').toLowerCase();
-  const hasPremiumAccess = planName === 'premium' || planName.includes('lifetime');
 
-  useEffect(() => {
-    if (!subscriptionLoading && !hasPremiumAccess) {
-      navigate('/landlord/reports');
-    }
-  }, [hasPremiumAccess, subscriptionLoading, navigate]);
 
   const [filters, setFilters] = useState({
     propertyIds: searchParams.get('propertyIds')?.split(',').filter(Boolean).map(Number) || [],
@@ -49,8 +41,6 @@ export default function NPSClientReport() {
   }, [filters, setSearchParams]);
 
   useEffect(() => {
-    // TODO: Re-enable premium access check when ready
-    // if (!hasPremiumAccess) return;
     const fetchData = async () => {
       if (!user?.id && !user?.Id) return;
       setLoading(true);
@@ -70,21 +60,8 @@ export default function NPSClientReport() {
       }
     };
     fetchData();
-  }, [user, filters]); // TODO: Add hasPremiumAccess back when re-enabling premium checks
+  }, [user, filters]);
 
-  // TODO: Re-enable premium access check when ready
-  // if (!hasPremiumAccess) {
-  //   return (
-  //     <Box>
-  //       <PageBreadcrumbs items={[
-  //         { label: 'Dashboard', path: '/landlord/dashboard' },
-  //         { label: 'Reports & Analytics', path: '/landlord/reports' },
-  //         { label: 'NPS Client Score Report' }
-  //       ]} />
-  //       <MainCard><Alert severity="warning">This report requires a premium subscription.</Alert></MainCard>
-  //     </Box>
-  //   );
-  // }
 
   return (
     <Box>

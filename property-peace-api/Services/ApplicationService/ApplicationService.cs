@@ -1,4 +1,5 @@
 using brownstone_hub_api.Dtos.Application;
+using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Repositories.Applications;
@@ -6,9 +7,13 @@ using brownstone_hub_api.Repositories.Listings;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.ApplicationPdfService;
 using brownstone_hub_api.Services.NotificationService;
+using brownstone_hub_api.Services.Timelines;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Azure.Storage.Blobs;
 using brownstone_hub_api.Services.AzureBlobService;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace brownstone_hub_api.Services.ApplicationService
 {
@@ -21,7 +26,10 @@ namespace brownstone_hub_api.Services.ApplicationService
         INotificationService notificationService,
         IHttpContextAccessor httpContextAccessor,
         IListingRepository listingRepository,
-        ILogger<ApplicationService> logger) : IApplicationService
+        ILogger<ApplicationService> logger,
+        IWorkflowTimelineIntegration workflowTimeline,
+        IActivationOccurrenceRecorder? occurrenceRecorder = null,
+        DataContext? dataContext = null) : IApplicationService
     {
         private readonly IApplicationRepository _applicationRepository = applicationRepository;
         private readonly IUserRepository _userRepository = userRepository;
@@ -32,6 +40,9 @@ namespace brownstone_hub_api.Services.ApplicationService
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly IListingRepository _listingRepository = listingRepository;
         private readonly ILogger<ApplicationService> _logger = logger;
+        private readonly IWorkflowTimelineIntegration _workflowTimeline = workflowTimeline;
+        private readonly IActivationOccurrenceRecorder? _occurrenceRecorder = occurrenceRecorder;
+        private readonly DataContext? _dataContext = dataContext;
 
         private async Task<long?> GetCurrentUserIdAsync()
         {
@@ -59,11 +70,19 @@ namespace brownstone_hub_api.Services.ApplicationService
                 }
 
                 var organizationId = GetOrganizationIdFromContext();
+                await using var activationTransaction = await BeginActivationTransactionAsync();
                 var result = await _applicationRepository.AddApplication(application, landlordId.Value, organizationId);
+                if (result.Status == EApplicationStatus.Submitted)
+                    await TryRecordApplicationCompletedAsync(result, landlordId.Value);
+                if (activationTransaction is not null)
+                    await activationTransaction.CommitAsync();
                 
                 // Generate PDF if application is submitted
                 if (application.Status == EApplicationStatus.Submitted)
                 {
+                    if (organizationId.HasValue)
+                        await _workflowTimeline.RecordApplicationTransitionAsync(organizationId.Value, result.Id,
+                            landlordId, "submitted", "Rental application submitted", $"application:{result.Id}:submitted");
                     await GenerateAndSaveApplicationPdfAsync(result.Id);
                     // Reload to get PDF fields
                     result = await _applicationRepository.GetApplicationById(result.Id) ?? result;
@@ -305,7 +324,19 @@ namespace brownstone_hub_api.Services.ApplicationService
                     return ServiceResponse<LoadRentalApplicationDto>.CreateError("Unauthorized", "User does not have permission to update applications", "", 403);
                 }
 
+                await using var activationTransaction = await BeginActivationTransactionAsync();
                 var result = await _applicationRepository.UpdateApplication(application);
+
+                if (result.Status == EApplicationStatus.Submitted)
+                    await TryRecordApplicationCompletedAsync(result, currentUser.Id);
+                if (activationTransaction is not null)
+                    await activationTransaction.CommitAsync();
+
+                if (application.Status.HasValue && application.Status.Value != existing.Status && existing.OrganizationId.HasValue)
+                    await _workflowTimeline.RecordApplicationTransitionAsync(existing.OrganizationId.Value, application.Id,
+                        currentUser.Id, application.Status.Value.ToString().ToLowerInvariant(),
+                        $"Rental application status changed to {application.Status.Value}",
+                        $"application:{application.Id}:status:{application.Status.Value}:{result.UpdatedAt?.Ticks ?? DateTime.UtcNow.Ticks}");
                 
                 // Generate PDF if application is being submitted
                 if (application.Status.HasValue && application.Status.Value == EApplicationStatus.Submitted)
@@ -327,6 +358,38 @@ namespace brownstone_hub_api.Services.ApplicationService
             {
                 _logger.LogError(ex, "Error updating application");
                 return ServiceResponse<LoadRentalApplicationDto>.CreateError("An error occurred while updating the application", ex.Message);
+            }
+        }
+
+        private async Task<IDbContextTransaction?> BeginActivationTransactionAsync()
+        {
+            if (_dataContext is null || !_dataContext.Database.IsRelational())
+                return null;
+
+            return await _dataContext.Database.BeginTransactionAsync();
+        }
+
+        private async Task TryRecordApplicationCompletedAsync(LoadRentalApplicationDto result, long actorUserId)
+        {
+            if (_occurrenceRecorder is null || !result.OrganizationId.HasValue)
+                return;
+
+            try
+            {
+                var occurredAt = result.SubmittedAt ?? result.CreatedAt;
+                await _occurrenceRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                    result.OrganizationId.Value, ActivationMilestones.ApplicationCompleted,
+                    $"application:{result.Id}",
+                    new DateTimeOffset(DateTime.SpecifyKind(occurredAt, DateTimeKind.Utc)),
+                    IsTimestampEstimated: !result.SubmittedAt.HasValue,
+                    SourceEventType: "application", SourceEventId: result.Id.ToString(),
+                    ActorUserId: actorUserId));
+            }
+            catch (Exception ex) when (_dataContext is null || !_dataContext.Database.IsRelational())
+            {
+                _logger.LogError(ex,
+                    "Application {ApplicationId} was persisted but activation recording failed; a later submitted-application mutation can replay the idempotent occurrence.",
+                    result.Id);
             }
         }
 
@@ -528,6 +591,9 @@ namespace brownstone_hub_api.Services.ApplicationService
                 };
 
                 var result = await _applicationRepository.AddApplication(addDto, listing.CreatedBy, listing.OrganizationId);
+
+                await _workflowTimeline.RecordApplicationTransitionAsync(listing.OrganizationId, result.Id,
+                    null, "submitted", "Rental application submitted", $"application:{result.Id}:submitted");
 
                 // Generate PDF — don't block if it fails
                 await GenerateAndSaveApplicationPdfAsync(result.Id);

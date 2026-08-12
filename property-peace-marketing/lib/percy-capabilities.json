@@ -1,0 +1,180 @@
+{
+  "statuses": ["available", "pilot", "prepareOnly", "planned", "unavailable"],
+  "forbiddenPublicClaims": [
+    {
+      "description": "fully autonomous operation",
+      "pattern": "(?:\\b(?:Percy|AI|assistant)\\b[^\\r\\n.!?]{0,40})?(?:fully|completely) autonomous|autonomous property (?:manager|management)"
+    },
+    {
+      "description": "autonomous operation",
+      "pattern": "\\b(?:operates?|runs?|acts?|works?) autonomously\\b"
+    },
+    {
+      "description": "rental operation without the landlord or user",
+      "pattern": "\\b(?:runs?|manages?|operates?) (?:your |the )?(?:rentals?|rental properties|properties|portfolio) (?:entirely |completely )?without (?:you|the (?:landlord|user)|landlord|user)\\b"
+    },
+    {
+      "description": "handles-everything labor replacement",
+      "pattern": "handles? (?:absolutely )?everything|does everything for you"
+    },
+    {
+      "description": "landlord or property-manager labor replacement",
+      "pattern": "\\b(?:does|handles?) the (?:day-to-day )?work of (?:your |a |the )?(?:landlord|property manager)\\b"
+    },
+    {
+      "description": "automatic sending",
+      "pattern": "\\bsends? (?:messages?|emails?|texts?|notices?|reminders?)?\\s*automatically\\b"
+    },
+    {
+      "description": "24/7 property-manager replacement",
+      "pattern": "(?:24\\s*\\/\\s*7|24-?7|always-on) (?:AI )?property manager"
+    },
+    {
+      "description": "landlord or property-manager replacement",
+      "pattern": "(?:replaces?|replacement for|takes? the place of) (?:your |a |the )?(?:landlord|property manager)|(?:replaces?|eliminates?) the need for (?:your |a |the )?(?:landlord|property manager)"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "portfolioBriefings",
+      "status": "pilot",
+      "publicLanguage": "In the limited Percy Pilot, get a current portfolio briefing across supported Property Peace records.",
+      "prohibitedImplications": [
+        "Generally available to every account",
+        "Continuously monitors every property-management system",
+        "Replaces a landlord or property manager"
+      ]
+    },
+    {
+      "id": "propertyQuestions",
+      "status": "pilot",
+      "publicLanguage": "Ask questions about supported portfolio, rent-payment, maintenance, lease, application, and urgent-message records in the limited Percy Pilot.",
+      "prohibitedImplications": [
+        "Can answer from every Property Peace record",
+        "Provides legal, tax, screening, or professional advice",
+        "Changes records while answering"
+      ]
+    },
+    {
+      "id": "sourceLinkedAnswers",
+      "status": "pilot",
+      "publicLanguage": "In the limited Percy Pilot, review answers with links back to the supported Property Peace workflow categories Percy checked.",
+      "prohibitedImplications": [
+        "Cites individual documents or external authorities",
+        "Guarantees that an answer is complete or error-free",
+        "Exposes model-generated record identifiers as evidence"
+      ]
+    },
+    {
+      "id": "tenantCommunicationSummaries",
+      "status": "pilot",
+      "publicLanguage": "Surface urgent tenant-conversation signals from supported in-app communication records in the limited Percy Pilot.",
+      "prohibitedImplications": [
+        "Summarizes every tenant communication channel",
+        "Monitors personal email, phone calls, or third-party inboxes",
+        "Responds to tenants autonomously"
+      ]
+    },
+    {
+      "id": "tenantCommunicationDrafts",
+      "status": "planned",
+      "publicLanguage": "Reviewable tenant outreach drafts are planned; Percy does not send tenant messages today.",
+      "prohibitedImplications": [
+        "Sends tenant messages automatically",
+        "Runs collections follow-ups",
+        "Communicates without landlord review"
+      ]
+    },
+    {
+      "id": "maintenanceTriage",
+      "status": "pilot",
+      "publicLanguage": "Review current maintenance requests and organize status, priority, and age signals in the limited Percy Pilot.",
+      "prohibitedImplications": [
+        "Diagnoses every repair",
+        "Dispatches vendors",
+        "Resolves emergencies or replaces emergency services"
+      ]
+    },
+    {
+      "id": "maintenanceDrafts",
+      "status": "planned",
+      "publicLanguage": "Reviewable maintenance troubleshooting guidance is planned; Percy does not currently produce or stage a maintenance draft.",
+      "prohibitedImplications": [
+        "Prepares or stages maintenance troubleshooting guidance today",
+        "Records troubleshooting outcomes",
+        "Closes or updates maintenance requests",
+        "Authorizes work, dispatches a vendor, or applies fees"
+      ]
+    },
+    {
+      "id": "leaseDeadlines",
+      "status": "pilot",
+      "publicLanguage": "In the limited Percy Pilot, surface upcoming lease starts, expirations, and supported signature-status tasks in a portfolio briefing.",
+      "prohibitedImplications": [
+        "Guarantees legal notice deadlines",
+        "Tracks every jurisdictional requirement",
+        "Automatically renews leases"
+      ]
+    },
+    {
+      "id": "leaseRenewals",
+      "status": "unavailable",
+      "publicLanguage": "Lease renewals remain landlord-run in the lease workflow; Percy does not renew a lease.",
+      "prohibitedImplications": [
+        "Negotiates renewal terms",
+        "Creates or executes a renewal",
+        "Sends renewal notices"
+      ]
+    },
+    {
+      "id": "financialExplanations",
+      "status": "unavailable",
+      "publicLanguage": "Percy can summarize supported recorded rent-payment data, but accounting and financial explanations are not available today.",
+      "prohibitedImplications": [
+        "Provides accounting or tax advice",
+        "Reads expenses, receipts, books, or bank accounts in Percy chat",
+        "Moves money or records payments"
+      ]
+    },
+    {
+      "id": "imports",
+      "status": "unavailable",
+      "publicLanguage": "Use the product importer for properties and basic units; Percy does not run imports.",
+      "prohibitedImplications": [
+        "Percy imports a complete portfolio",
+        "Imports leases, tenants, rent, or communications",
+        "Cleans up or verifies imported data automatically"
+      ]
+    },
+    {
+      "id": "notifications",
+      "status": "planned",
+      "publicLanguage": "Proactive Percy notifications are planned; current briefings are opened by the landlord.",
+      "prohibitedImplications": [
+        "Watches the portfolio around the clock",
+        "Guarantees proactive alerts",
+        "Sends reminders or notifications automatically"
+      ]
+    },
+    {
+      "id": "actionApprovalAndExecution",
+      "status": "planned",
+      "publicLanguage": "Landlord approval and audit controls are being prepared for future actions; current Percy chat is read-only and does not execute changes.",
+      "prohibitedImplications": [
+        "Approval currently enables an action executor",
+        "Percy takes actions in the background",
+        "Confirmation overrides permissions or availability"
+      ]
+    },
+    {
+      "id": "providerDependentActions",
+      "status": "unavailable",
+      "publicLanguage": "Provider-dependent sending, signing, payment, screening, and external-listing actions are not Percy capabilities today.",
+      "prohibitedImplications": [
+        "Percy sends email or text messages",
+        "Percy signs leases or processes rent",
+        "Percy screens applicants or syndicates listings"
+      ]
+    }
+  ]
+}

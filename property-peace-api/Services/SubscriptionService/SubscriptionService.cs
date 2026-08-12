@@ -9,6 +9,8 @@ using brownstone_hub_api.Services.StripeService;
 using Microsoft.AspNetCore.Http;
 using Stripe;
 using System.Text.Json;
+using brownstone_hub_api.Entitlements.Decision;
+using brownstone_hub_api.Entitlements.Policy;
 
 namespace brownstone_hub_api.Services.SubscriptionService
 {
@@ -22,6 +24,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
         private readonly IOrganizationRepository _organizationRepository;
         private readonly IStripeService _stripeService;
         private readonly IFeatureGateService _featureGateService;
+        private readonly IEntitlementDecisionService _entitlementDecisionService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IMapper _mapper;
         private readonly ILogger<SubscriptionService> _logger;
@@ -35,6 +38,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
             IOrganizationRepository organizationRepository,
             IStripeService stripeService,
             IFeatureGateService featureGateService,
+            IEntitlementDecisionService entitlementDecisionService,
             IHttpContextAccessor httpContextAccessor,
             IMapper mapper,
             ILogger<SubscriptionService> logger)
@@ -47,6 +51,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
             _organizationRepository = organizationRepository;
             _stripeService = stripeService;
             _featureGateService = featureGateService;
+            _entitlementDecisionService = entitlementDecisionService;
             _httpContextAccessor = httpContextAccessor;
             _mapper = mapper;
             _logger = logger;
@@ -81,6 +86,17 @@ namespace brownstone_hub_api.Services.SubscriptionService
             return null;
         }
 
+        private Task<UnifiedEntitlementDecision> DecidePropertyManagementAsync(
+            long userId,
+            long organizationId,
+            int requestedQuantity) =>
+            _entitlementDecisionService.DecideAsync(new EntitlementDecisionRequest(
+                userId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                organizationId,
+                FeatureKeys.PropertyManagement,
+                RequestedQuantity: requestedQuantity,
+                ResourceOrganizationId: organizationId));
+
         private const string LifetimePlanName = "Lifetime Plan";
 
         /// <summary>
@@ -92,16 +108,6 @@ namespace brownstone_hub_api.Services.SubscriptionService
         {
             return plan.Name.Equals("Free", StringComparison.OrdinalIgnoreCase) ||
                    (plan.MonthlyPrice == 0 && plan.AnnualPrice == 0);
-        }
-
-        private static bool IsLifetimePlan(Models.SubscriptionPlan plan)
-        {
-            return plan.Name.Equals(LifetimePlanName, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private static bool IsPublicSubscriptionPlan(Models.SubscriptionPlan plan)
-        {
-            return !IsLifetimePlan(plan);
         }
 
         /// <summary>
@@ -208,7 +214,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
             {
                 var plans = await _planRepository.GetAllPlansAsync();
                 var planDtos = plans
-                    .Where(IsPublicSubscriptionPlan)
+                    .Where(CustomerSelectableSubscriptionPlan.IsSelectable)
                     .Select(plan =>
                 {
                     var dto = _mapper.Map<SubscriptionPlanDto>(plan);
@@ -471,6 +477,13 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 {
                     var tenantPlan = await _planRepository.GetPlanByIdAsync(createDto.PlanId);
                     if (tenantPlan == null) { response.Message = "Plan not found"; return response; }
+                    if (!CustomerSelectableSubscriptionPlan.IsSelectable(tenantPlan))
+                    {
+                        response.Success = false;
+                        response.Message = "Selected plan is not available for customer subscriptions.";
+                        response.StatusCode = StatusCodes.Status400BadRequest;
+                        return response;
+                    }
                     if (!IsFreePlan(tenantPlan))
                     {
                         response.Success = false;
@@ -527,6 +540,14 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 if (plan == null)
                 {
                     response.Message = "Plan not found";
+                    return response;
+                }
+
+                if (!CustomerSelectableSubscriptionPlan.IsSelectable(plan))
+                {
+                    response.Success = false;
+                    response.Message = "Selected plan is not available for customer subscriptions.";
+                    response.StatusCode = StatusCodes.Status400BadRequest;
                     return response;
                 }
 
@@ -772,7 +793,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                             SubscriptionPlanId = plan.Id,
                             StripeSubscriptionId = stripeSubscription.Id,
                             StripeCustomerId = customerId,
-                            Status = stripeSubscription.Status == "trialing" ? "Trial" : "Active",
+                            Status = MapStripeStatus(stripeSubscription.Status),
                             BillingCycle = createDto.BillingCycle,
                             CurrentPeriodStart = stripeSubscription.CurrentPeriodStart,
                             CurrentPeriodEnd = stripeSubscription.CurrentPeriodEnd,
@@ -858,6 +879,14 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     return response;
                 }
 
+                if (!CustomerSelectableSubscriptionPlan.IsSelectable(newPlan))
+                {
+                    response.Success = false;
+                    response.Message = "Selected plan is not available for customer subscriptions.";
+                    response.StatusCode = StatusCodes.Status400BadRequest;
+                    return response;
+                }
+
                 // Prevent upgrading to the same plan
                 if (subscription.SubscriptionPlanId == newPlan.Id)
                 {
@@ -903,7 +932,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                         var reactivatedOldPlanId = subscription.SubscriptionPlanId;
                         subscription.SubscriptionPlanId = newPlan.Id;
                         subscription.BillingCycle = billingCycle;
-                        subscription.Status = reactivatedSub.Status == "trialing" ? "Trial" : "Active";
+                        subscription.Status = MapStripeStatus(reactivatedSub.Status);
                         subscription.CancelAtPeriodEnd = false;
                         subscription.CurrentPeriodStart = reactivatedSub.CurrentPeriodStart;
                         subscription.CurrentPeriodEnd = reactivatedSub.CurrentPeriodEnd;
@@ -973,7 +1002,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 var oldBillingCycle = subscription.BillingCycle;
                 subscription.SubscriptionPlanId = newPlan.Id;
                 subscription.BillingCycle = billingCycle; // Update billing cycle if changed
-                subscription.Status = stripeSubscription.Status == "trialing" ? "Trial" : "Active";
+                subscription.Status = MapStripeStatus(stripeSubscription.Status);
                 subscription.CurrentPeriodStart = stripeSubscription.CurrentPeriodStart;
                 subscription.CurrentPeriodEnd = stripeSubscription.CurrentPeriodEnd;
 
@@ -1051,6 +1080,14 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     response.Success = false;
                     response.Message = "Plan not found";
                     response.StatusCode = 404;
+                    return response;
+                }
+
+                if (!CustomerSelectableSubscriptionPlan.IsSelectable(newPlan))
+                {
+                    response.Success = false;
+                    response.Message = "Selected plan is not available for customer subscriptions.";
+                    response.StatusCode = StatusCodes.Status400BadRequest;
                     return response;
                 }
 
@@ -1261,7 +1298,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 // Update in database
                 subscription.CancelAtPeriodEnd = false;
                 subscription.CancelledAt = null;
-                subscription.Status = stripeSubscription.Status == "trialing" ? "Trial" : "Active";
+                subscription.Status = MapStripeStatus(stripeSubscription.Status);
 
                 var updatedSubscription = await _subscriptionRepository.UpdateSubscriptionAsync(subscription);
 
@@ -1347,7 +1384,13 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 // Update in database
                 subscription.PausedAtPeriodEnd = pauseAtPeriodEnd;
                 subscription.PausedAt = pauseAtPeriodEnd ? null : DateTime.UtcNow;
-                subscription.Status = "Paused";
+                // A scheduled pause does not take effect until the current paid period ends.
+                // Preserve the current lifecycle status so entitlement checks continue to
+                // grant access through that boundary; immediate pauses become Paused now.
+                if (!pauseAtPeriodEnd)
+                {
+                    subscription.Status = "Paused";
+                }
 
                 await _subscriptionRepository.UpdateSubscriptionAsync(subscription);
 
@@ -1465,156 +1508,20 @@ namespace brownstone_hub_api.Services.SubscriptionService
             return response;
         }
 
-        public async Task<ServiceResponse<bool>> CheckTrialEligibilityAsync()
-        {
-            var response = new ServiceResponse<bool>();
-
-            try
+        public Task<ServiceResponse<bool>> CheckTrialEligibilityAsync()
+            => Task.FromResult(new ServiceResponse<bool>
             {
-                var userId = await GetCurrentUserIdAsync();
-                if (!userId.HasValue)
-                {
-                    response.Success = false;
-                    response.Message = "User not found";
-                    response.StatusCode = 401;
-                    return response;
-                }
+                Data = false,
+                Message = "Trials are no longer available."
+            });
 
-                // Trial eligibility is per landlord-user, not per organization.
-                // Check the user's subscription regardless of which org is currently active.
-                var subscription = await _subscriptionRepository.GetSubscriptionByOwnerUserIdAsync(userId.Value);
-
-                if (subscription == null)
-                {
-                    response.Data = true;
-                    response.Message = "User is eligible for trial";
-                    return response;
-                }
-
-                // User is ineligible if they have already started or completed a trial
-                var history = await _historyRepository.GetHistoryBySubscriptionIdAsync(subscription.Id);
-                var hasHadTrial = subscription.Status == "Trial" ||
-                                  history.Any(h => h.EventType == "TrialStarted");
-
-                response.Data = !hasHadTrial;
-                response.Message = hasHadTrial
-                    ? "User has already used their free trial"
-                    : "User is eligible for trial";
-            }
-            catch (Exception ex)
+        public Task<ServiceResponse<SubscriptionDto>> StartTrialAsync()
+            => Task.FromResult(new ServiceResponse<SubscriptionDto>
             {
-                _logger.LogError(ex, "Error checking trial eligibility");
-                response.Success = false;
-                response.Message = $"Error checking trial eligibility: {ex.Message}";
-            }
-
-            return response;
-        }
-
-        public async Task<ServiceResponse<SubscriptionDto>> StartTrialAsync()
-        {
-            var response = new ServiceResponse<SubscriptionDto>();
-
-            try
-            {
-                var userId = await GetCurrentUserIdAsync();
-                if (!userId.HasValue)
-                {
-                    response.Success = false;
-                    response.Message = "User not found";
-                    response.StatusCode = 401;
-                    return response;
-                }
-
-                // Check eligibility
-                var eligibilityResponse = await CheckTrialEligibilityAsync();
-                if (!eligibilityResponse.Success || !eligibilityResponse.Data)
-                {
-                    response.Success = false;
-                    response.Message = "User is not eligible for trial";
-                    return response;
-                }
-
-                // Get organization
-                var organizationId = GetCurrentOrganizationId();
-                if (!organizationId.HasValue)
-                {
-                    response.Success = false;
-                    response.Message = "No active organization. Subscriptions are tied to organizations.";
-                    response.StatusCode = 400;
-                    return response;
-                }
-
-                // Check if organization already has a subscription
-                var existingSubscription = await _subscriptionRepository.GetSubscriptionByOrganizationIdAsync(organizationId.Value);
-                if (existingSubscription != null && (existingSubscription.Status == "Active" || existingSubscription.Status == "Trial"))
-                {
-                    response.Success = false;
-                    response.Message = "Organization already has an active subscription or trial";
-                    return response;
-                }
-
-                // Get Free Trial plan
-                var plans = await _planRepository.GetAllPlansAsync();
-                var trialPlan = plans.FirstOrDefault(p => p.IsTrial);
-
-                if (trialPlan == null)
-                {
-                    response.Success = false;
-                    response.Message = "Trial plan not found";
-                    return response;
-                }
-
-                // Create subscription in database ONLY (no Stripe)
-                var subscription = new Models.Subscription
-                {
-                    OrganizationId = organizationId.Value,
-                    OwnerUserId = userId.Value,  // ties trial to the landlord user — one trial per user
-                    SubscriptionPlanId = trialPlan.Id,
-                    StripeSubscriptionId = null,
-                    StripeCustomerId = null,
-                    Status = "Trial",
-                    BillingCycle = "Monthly",
-                    TrialStart = DateTime.UtcNow,
-                    TrialEnd = DateTime.UtcNow.AddDays(30),
-                    CurrentPeriodStart = DateTime.UtcNow,
-                    CurrentPeriodEnd = DateTime.UtcNow.AddDays(30)
-                };
-
-                var createdSubscription = await _subscriptionRepository.CreateSubscriptionAsync(subscription);
-
-                // Update organization with subscription ID
-                var organization = await _organizationRepository.GetOrganizationByIdAsync(organizationId.Value);
-                if (organization != null)
-                {
-                    organization.SubscriptionId = createdSubscription.Id;
-                    await _organizationRepository.UpdateOrganizationAsync(organization);
-                }
-
-                // Add history
-                await _historyRepository.AddHistoryAsync(new SubscriptionHistory
-                {
-                    SubscriptionId = createdSubscription.Id,
-                    EventType = "TrialStarted",
-                    NewPlanId = trialPlan.Id
-                });
-
-                var dto = _mapper.Map<SubscriptionDto>(createdSubscription);
-                dto.Plan = _mapper.Map<SubscriptionPlanDto>(trialPlan);
-                dto.IsOrphaned = false; // Not orphaned - this is intentional (database-only trial)
-
-                response.Data = dto;
-                response.Message = "Trial started successfully";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error starting trial");
-                response.Success = false;
-                response.Message = $"Error starting trial: {ex.Message}";
-            }
-
-            return response;
-        }
+                Success = false,
+                StatusCode = StatusCodes.Status410Gone,
+                Message = "Trials are no longer available."
+            });
 
         public async Task<ServiceResponse<bool>> ValidatePropertyLimitAsync()
         {
@@ -1633,8 +1540,17 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     return response;
                 }
 
-                // Property limits removed - just check if subscription allows adding properties
-                var canAdd = await _featureGateService.CanAddPropertyAsync(userId.Value);
+                var organizationId = GetCurrentOrganizationId();
+                if (!organizationId.HasValue)
+                {
+                    response.Success = false;
+                    response.Message = "No active organization. Subscriptions are tied to organizations.";
+                    response.StatusCode = StatusCodes.Status400BadRequest;
+                    return response;
+                }
+
+                var decision = await DecidePropertyManagementAsync(userId.Value, organizationId.Value, 1);
+                var canAdd = decision.IsAllowed;
                 response.Data = canAdd;
                 response.Message = canAdd
                     ? "User can add properties (limits are based on units)"
@@ -1716,7 +1632,8 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 subscription = await _subscriptionRepository.GetSubscriptionByOrganizationIdAsync(organizationId.Value);
 
                 var currentPropertyCount = await _featureGateService.GetCurrentPropertyCountAsync(userId.Value);
-                var canAddProperty = await _featureGateService.CanAddPropertyAsync(userId.Value);
+                var propertyDecision = await DecidePropertyManagementAsync(userId.Value, organizationId.Value, 1);
+                var canAddProperty = propertyDecision.IsAllowed;
 
                 // Check if subscription is paused and period has ended
                 var isPaused = subscription != null && 
@@ -1738,7 +1655,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     statusDto.Subscription = _mapper.Map<SubscriptionDto>(subscription);
                     statusDto.Subscription.Plan = _mapper.Map<SubscriptionPlanDto>(subscription.SubscriptionPlan);
                     statusDto.MaxProperties = null; // Property limits removed
-                    statusDto.MaxTotalUnits = subscription.SubscriptionPlan.MaxTotalUnits;
+                    statusDto.MaxTotalUnits = propertyDecision.Quota?.Limit;
                     statusDto.IsTrialActive = subscription.Status == "Trial";
 
                     // Get current total units
@@ -1746,7 +1663,9 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     statusDto.CurrentTotalUnits = currentTotalUnits;
 
                     // Get remaining unit slots
-                    var remainingUnitSlots = await _featureGateService.GetRemainingUnitSlotsAsync(userId.Value);
+                    int? remainingUnitSlots = propertyDecision.Quota is null
+                        ? null
+                        : Math.Max(0, propertyDecision.Quota.Limit - currentTotalUnits);
                     statusDto.RemainingUnitSlots = remainingUnitSlots;
 
                     if (subscription.TrialEnd.HasValue)
@@ -1756,20 +1675,20 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     }
 
                     // Check if upgrade is needed - only based on unit limits now
-                    if (remainingUnitSlots.HasValue && remainingUnitSlots.Value == 0 && subscription.SubscriptionPlan.MaxTotalUnits.HasValue)
+                    if (remainingUnitSlots.HasValue && remainingUnitSlots.Value == 0 && propertyDecision.Quota is not null)
                     {
                         statusDto.RequiresUpgrade = true;
-                        statusDto.UpgradeMessage = $"You've reached your unit limit ({currentTotalUnits}/{subscription.SubscriptionPlan.MaxTotalUnits.Value} units). Upgrade to add more units.";
+                        statusDto.UpgradeMessage = $"You've reached your unit limit ({currentTotalUnits}/{propertyDecision.Quota.Limit} units). Upgrade to add more units.";
                     }
                 }
                 else
                 {
-                    // No subscription - trial limits based on units, not properties
+                    // Missing subscription facts fail closed; never synthesize a legacy trial allowance.
                     statusDto.MaxProperties = null; // Property limits removed
-                    statusDto.MaxTotalUnits = 1; // Trial allows 1 unit
+                    statusDto.MaxTotalUnits = null;
                     var currentTotalUnits = await _featureGateService.GetCurrentTotalUnitsAsync(userId.Value);
                     statusDto.CurrentTotalUnits = currentTotalUnits;
-                    statusDto.RemainingUnitSlots = currentTotalUnits == 0 ? 1 : 0;
+                    statusDto.RemainingUnitSlots = 0;
                 }
 
                 response.Data = statusDto;
@@ -1915,6 +1834,16 @@ namespace brownstone_hub_api.Services.SubscriptionService
         {
             var response = new ServiceResponse<string>();
 
+            // Billing cycle values cross repository and provider boundaries, so accept only the
+            // canonical contract values before consulting any dependency.
+            if (createDto.BillingCycle != "Monthly" && createDto.BillingCycle != "Annual")
+            {
+                response.Success = false;
+                response.Message = "Billing cycle must be either Monthly or Annual.";
+                response.StatusCode = StatusCodes.Status400BadRequest;
+                return response;
+            }
+
             try
             {
                 var userId = await GetCurrentUserIdAsync();
@@ -1985,8 +1914,34 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     return response;
                 }
 
+                if (!CustomerSelectableSubscriptionPlan.IsSelectable(plan))
+                {
+                    response.Success = false;
+                    response.Message = "Selected plan is not available for customer subscriptions.";
+                    response.StatusCode = StatusCodes.Status400BadRequest;
+                    return response;
+                }
+
                 // Check if this is a free plan - if so, create subscription directly without Stripe checkout
                 bool isFreePlan = IsFreePlan(plan);
+                string? priceId = null;
+
+                // Resolve and validate the applicable provider mapping before creating/updating a
+                // customer or persisting a PaymentPending subscription.
+                if (!isFreePlan)
+                {
+                    priceId = createDto.BillingCycle == "Annual"
+                        ? plan.StripePriceIdAnnual
+                        : plan.StripePriceIdMonthly;
+
+                    if (string.IsNullOrWhiteSpace(priceId))
+                    {
+                        response.Success = false;
+                        response.Message = $"Price ID not configured for {createDto.BillingCycle} billing";
+                        response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+                        return response;
+                    }
+                }
                 
                 if (isFreePlan)
                 {
@@ -2057,20 +2012,13 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     var tenantCustomerId = customerResponse.Data.Id;
                     tenantSubscription.StripeCustomerId = tenantCustomerId;
                     await _subscriptionRepository.UpdateSubscriptionAsync(tenantSubscription);
-                    var tenantPriceId = (createDto.BillingCycle == "Annual" ? plan.StripePriceIdAnnual : plan.StripePriceIdMonthly);
-                    if (string.IsNullOrWhiteSpace(tenantPriceId))
-                    {
-                        response.Success = false;
-                        response.Message = $"Price ID not configured for {(createDto.BillingCycle ?? "Monthly")} billing";
-                        return response;
-                    }
                     var tenantCheckoutResponse = await _stripeService.CreateCheckoutSessionAsync(
                         tenantCustomerId,
-                        tenantPriceId,
+                        priceId!,
                         createDto.SuccessUrl ?? "/tenant/subscription?success=true",
                         createDto.CancelUrl ?? "/tenant/subscription?canceled=true",
                         trialDays: null);
-                    if (!tenantCheckoutResponse.Success)
+                    if (!tenantCheckoutResponse.Success || string.IsNullOrWhiteSpace(tenantCheckoutResponse.Data))
                     {
                         response.Success = false;
                         response.Message = tenantCheckoutResponse.Message ?? "Failed to create checkout session";
@@ -2175,18 +2123,6 @@ namespace brownstone_hub_api.Services.SubscriptionService
                     }
                 }
 
-                // Get price ID based on billing cycle
-                var priceId = createDto.BillingCycle == "Annual"
-                    ? plan.StripePriceIdAnnual
-                    : plan.StripePriceIdMonthly;
-
-                if (string.IsNullOrWhiteSpace(priceId))
-                {
-                    response.Success = false;
-                    response.Message = $"Price ID not configured for {createDto.BillingCycle} billing";
-                    return response;
-                }
-
                 // Use URLs from DTO (should be provided by controller)
                 var successUrl = createDto.SuccessUrl ?? "/landlord/subscription?success=true";
                 var cancelUrl = createDto.CancelUrl ?? "/landlord/subscription?canceled=true";
@@ -2231,7 +2167,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 // Create checkout session
                 var checkoutResponse = await _stripeService.CreateCheckoutSessionAsync(
                     customerId,
-                    priceId,
+                    priceId!,
                     successUrl,
                     cancelUrl,
                     trialDays
@@ -3363,7 +3299,7 @@ namespace brownstone_hub_api.Services.SubscriptionService
                 // Update subscription in database with Stripe IDs
                 subscription.StripeCustomerId = customerId;
                 subscription.StripeSubscriptionId = stripeSubscription.Id;
-                subscription.Status = stripeSubscription.Status == "trialing" ? "Trial" : "Active";
+                subscription.Status = MapStripeStatus(stripeSubscription.Status);
                 
                 // Update period dates from Stripe
                 // When billing_cycle_anchor is set, Stripe preserves CurrentPeriodStart and calculates CurrentPeriodEnd

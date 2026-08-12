@@ -185,6 +185,11 @@ namespace brownstone_hub_api.Services.ChecklistService
                     };
                 }
 
+                if (checklist.LandlordId != landlordId.Value)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only access your own checklists", "", 403);
+                }
+
                 // Generate SAS URLs for images
                 checklist = GenerateSasUrlsForChecklist(checklist);
 
@@ -252,6 +257,9 @@ namespace brownstone_hub_api.Services.ChecklistService
                 }
 
                 var checklists = await _checklistRepository.GetChecklistsByPropertyId(propertyId);
+
+                // Property IDs are user-controlled route values. Never return another landlord's checklists.
+                checklists = checklists.Where(checklist => checklist.LandlordId == landlordId.Value).ToList();
 
                 // Generate SAS URLs for images in each checklist
                 var checklistsWithSasUrls = checklists.Select(GenerateSasUrlsForChecklist).ToList();
@@ -375,6 +383,11 @@ namespace brownstone_hub_api.Services.ChecklistService
                         Success = false,
                         Message = "Checklist not found"
                     };
+                }
+
+                if (existing.LandlordId != landlordId.Value)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only update your own checklists", "", 403);
                 }
 
                 var result = await _checklistRepository.UpdateChecklist(checklist);

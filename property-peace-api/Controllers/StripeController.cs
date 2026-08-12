@@ -8,6 +8,8 @@ using brownstone_hub_api.Services.StripeRentPayments;
 using brownstone_hub_api.Repositories.BankAccounts;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Config;
+using brownstone_hub_api.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -57,6 +59,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("connect-account")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> CreateConnectAccount([FromBody] CreateConnectAccountRequest request)
         {
             try
@@ -137,6 +140,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("account-status")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> GetAccountStatus()
         {
             try
@@ -234,6 +238,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("account-link")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> CreateAccountLink([FromBody] CreateAccountLinkRequest request)
         {
             try
@@ -319,6 +324,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("login-link")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> CreateLoginLink()
         {
             try
@@ -400,6 +406,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("account-session")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> CreateAccountSession()
         {
             try
@@ -481,6 +488,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("sync-bank-account")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> SyncBankAccount()
         {
             try
@@ -677,6 +685,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Tenant")]
         [HttpPost("create-setup-intent")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> CreateSetupIntent()
         {
             try
@@ -766,6 +775,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Tenant")]
         [HttpPost("create-payment-intent")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> CreatePaymentIntent([FromBody] CreatePaymentIntentDto request)
         {
             try
@@ -810,6 +820,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Tenant")]
         [HttpPost("update-payment-intent")]
+        [RequireFeatureReady(FeatureKeys.OnlineRentCollection)]
         public async Task<IActionResult> UpdatePaymentIntent([FromBody] UpdatePaymentIntentDto request)
         {
             try

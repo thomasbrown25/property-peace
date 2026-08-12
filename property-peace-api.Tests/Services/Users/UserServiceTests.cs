@@ -6,6 +6,8 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Roles;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.GoogleAuthService;
+using brownstone_hub_api.Services.AppleAuthService;
+using brownstone_hub_api.Services.EmailVerificationService;
 using brownstone_hub_api.Services.OrganizationInviteService;
 using brownstone_hub_api.Services.TenantInviteService;
 using brownstone_hub_api.Dtos.Tenant;
@@ -27,6 +29,7 @@ namespace brownstone_hub_api.Tests.Services.Users
         private readonly Mock<IUserRepository> _userRepo = new();
         private readonly Mock<IRoleRepository> _roleRepo = new();
         private readonly Mock<IGoogleAuthService> _googleAuth = new();
+        private readonly Mock<IAppleAuthService> _appleAuth = new();
         private readonly Mock<IOrganizationInviteService> _orgInviteService = new();
         private readonly Mock<ITenantInviteService> _tenantInviteService = new();
         private readonly Mock<ITenantRepository> _tenantRepo = new();
@@ -57,6 +60,7 @@ namespace brownstone_hub_api.Tests.Services.Users
                 _configuration,
                 Mock.Of<ILogger<UserService>>(),
                 _googleAuth.Object,
+                _appleAuth.Object,
                 _context,
                 organizationInviteService: _orgInviteService.Object,
                 tenantInviteService: _tenantInviteService.Object,
@@ -111,17 +115,76 @@ namespace brownstone_hub_api.Tests.Services.Users
             }
         };
 
+        private async Task<string> SeedVerifiedEmailAsync(string email = "john@test.com", DateTime? verifiedAt = null)
+        {
+            var verified = verifiedAt ?? DateTime.UtcNow;
+            var verification = new brownstone_hub_api.Models.EmailVerification
+            {
+                Email = email.Trim().ToLowerInvariant(),
+                Code = "123456",
+                CreatedAt = verified.AddMinutes(-1),
+                ExpiresAt = verified.AddMinutes(9),
+                IsVerified = true,
+                VerifiedAt = verified,
+            };
+            _context.EmailVerifications.Add(verification);
+            await _context.SaveChangesAsync();
+
+            return EmailVerificationProof.Create(
+                verification.Id,
+                verification.Email,
+                verified,
+                _configuration["JwtSettings:SecretKey"]!);
+        }
+
         // ── Register — guard clauses ──────────────────────────────────────────────
 
         [Fact]
-        public async Task Register_ReturnsFailure_WhenEmailAlreadyExists()
+        public async Task Register_DoesNotRevealExistingAccountWithoutVerification()
         {
             _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(true);
 
             var result = await _sut.Register(new AddUserDto { Email = "john@test.com", Password = ValidPassword });
 
             result.Success.Should().BeFalse();
-            result.Message.Should().Contain("already exists");
+            result.StatusCode.Should().Be(403);
+            result.Message.Should().Be("Email verification is required before registration.");
+            _userRepo.Verify(r => r.UserExists(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Register_ReturnsFailure_WhenEmailWasNotVerified()
+        {
+            _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(false);
+
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com",
+                Password = ValidPassword,
+            });
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            result.Message.Should().Be("Email verification is required before registration.");
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Register_ReturnsFailure_WhenEmailVerificationIsStale()
+        {
+            _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(false);
+            var proof = await SeedVerifiedEmailAsync(verifiedAt: DateTime.UtcNow.AddMinutes(-31));
+
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com",
+                EmailVerificationProof = proof,
+                Password = ValidPassword,
+            });
+
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _userRepo.Verify(r => r.AddUser(It.IsAny<AddUserDto>()), Times.Never);
         }
 
         [Fact]
@@ -239,6 +302,7 @@ namespace brownstone_hub_api.Tests.Services.Users
         [Fact]
         public async Task Register_ReturnsSuccess_WithValidSimpleUser()
         {
+            var proof = await SeedVerifiedEmailAsync();
             _userRepo.Setup(r => r.UserExists("john@test.com")).ReturnsAsync(false);
             _userRepo.Setup(r => r.AddUser(It.IsAny<AddUserDto>()))
                      .ReturnsAsync(MakeLoadUserDto(1, "john@test.com"));
@@ -251,12 +315,13 @@ namespace brownstone_hub_api.Tests.Services.Users
             var result = await _sut.Register(new AddUserDto
             {
                 Email = "john@test.com",
+                EmailVerificationProof = proof,
                 Password = ValidPassword,
                 Firstname = "John",
                 Lastname = "Doe",
             });
 
-            result.Success.Should().BeTrue();
+            result.Success.Should().BeTrue(result.Message);
             result.Data.Should().NotBeNull();
             result.Data!.JWTToken.Should().NotBeNullOrEmpty();
         }
@@ -346,6 +411,112 @@ namespace brownstone_hub_api.Tests.Services.Users
             result.Data.Should().Contain("successfully");
         }
 
+        [Fact]
+        public async Task GoogleLogin_RejectsProviderEmailThatIsNotVerified()
+        {
+            _googleAuth.Setup(service => service.VerifyGoogleTokenAsync("token"))
+                .ReturnsAsync(new GoogleUserInfo
+                {
+                    Id = "google-user-123",
+                    Email = "john@test.com",
+                    EmailVerified = false,
+                });
+
+            var (response, isNewUser) = await _sut.GoogleLogin("token");
+
+            response.Success.Should().BeFalse();
+            response.StatusCode.Should().Be(403);
+            response.Message.Should().Contain("verified email");
+            isNewUser.Should().BeFalse();
+            _userRepo.Verify(repository => repository.GetUserByGoogleIdAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        // ── AppleLogin ─────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task AppleLogin_ReturnsUnauthorized_WhenIdentityTokenIsInvalid()
+        {
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("bad-token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync((AppleUserInfo?)null);
+
+            var (response, isNewUser) = await _sut.AppleLogin("bad-token", "nonce");
+
+            response.Success.Should().BeFalse();
+            response.StatusCode.Should().Be(401);
+            isNewUser.Should().BeFalse();
+            _userRepo.Verify(repository => repository.GetUserByAppleIdAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task AppleLogin_ReturnsExistingAccount_WithoutRequiringNameAgain()
+        {
+            var user = MakeUser();
+            user.AppleId = "apple-user-123";
+            user.AuthProvider = "Apple";
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AppleUserInfo("apple-user-123", "john@test.com"));
+            _userRepo.Setup(repository => repository.GetUserByAppleIdAsync("apple-user-123")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.AppleLogin("token", "nonce");
+
+            response.Success.Should().BeTrue();
+            response.Data.Should().BeSameAs(loaded);
+            isNewUser.Should().BeFalse();
+            user.LoginCount.Should().Be(1);
+        }
+
+        [Fact]
+        public async Task AppleLogin_LinksVerifiedEmail_WhenAccountHasNoAppleIdentity()
+        {
+            var user = MakeUser();
+            user.PasswordHash = [1, 2, 3];
+            user.AuthProvider = "Email";
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AppleUserInfo("apple-user-123", "john@test.com"));
+            _userRepo.SetupSequence(repository => repository.GetUserByAppleIdAsync("apple-user-123"))
+                .ReturnsAsync((LoadUserDto?)null)
+                .ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUserByEmailAsync("john@test.com")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.AppleLogin("token", "nonce");
+
+            response.Success.Should().BeTrue();
+            isNewUser.Should().BeFalse();
+            user.AppleId.Should().Be("apple-user-123");
+            user.AuthProvider.Should().Be("Email,Apple");
+        }
+
+        [Fact]
+        public async Task AppleLogin_RejectsVerifiedEmail_WhenAccountHasDifferentAppleIdentity()
+        {
+            var user = MakeUser();
+            user.AppleId = "different-apple-user";
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _appleAuth.Setup(service => service.VerifyIdentityTokenAsync("token", "nonce", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AppleUserInfo("apple-user-123", "john@test.com"));
+            _userRepo.Setup(repository => repository.GetUserByAppleIdAsync("apple-user-123"))
+                .ReturnsAsync((LoadUserDto?)null);
+            _userRepo.Setup(repository => repository.GetUserByEmailAsync("john@test.com")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.AppleLogin("token", "nonce");
+
+            response.Success.Should().BeFalse();
+            response.StatusCode.Should().Be(409);
+            isNewUser.Should().BeFalse();
+            user.AppleId.Should().Be("different-apple-user");
+        }
+
         // ── DeleteUser ────────────────────────────────────────────────────────────
 
         [Fact]
@@ -415,6 +586,104 @@ namespace brownstone_hub_api.Tests.Services.Users
         }
 
         [Fact]
+        public async Task DeleteUser_StaleOwnerIdWithoutActiveOwnerMembership_FailsBeforeTransferOrDeletion()
+        {
+            var user = MakeUser(1);
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(user);
+            _context.Users.Add(new User { Id = 2, FirstName = "Next", LastName = "Owner", Email = "next@test.com" });
+            _context.Organizations.Add(new Organization
+            {
+                Id = 10, Name = "Org", OwnerId = 1, IsActive = true, IsDeleted = false
+            });
+            _context.OrganizationMembers.Add(new OrganizationMember
+            {
+                Id = 2, OrganizationId = 10, UserId = 2, Role = "Manager", IsActive = true
+            });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.DeleteUser(1);
+
+            result.Success.Should().BeFalse();
+            result.Message.Should().Contain("ownership");
+            (await _context.Organizations.FindAsync(10L))!.OwnerId.Should().Be(1);
+            (await _context.OrganizationMembers.FindAsync(2L))!.Role.Should().Be("Manager");
+            _userRepo.Verify(r => r.DeleteUser(It.IsAny<User>()), Times.Never);
+        }
+
+        [Theory]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        public async Task DeleteUser_InactiveOrganizationOrOwnerMembership_FailsClosed(
+            bool organizationActive,
+            bool ownerMembershipActive)
+        {
+            var user = MakeUser(1);
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(user);
+            _context.Users.Add(new User { Id = 2, FirstName = "Next", LastName = "Owner", Email = "next@test.com" });
+            _context.Organizations.Add(new Organization
+            {
+                Id = 10, Name = "Org", OwnerId = 1, IsActive = organizationActive, IsDeleted = false
+            });
+            _context.OrganizationMembers.AddRange(
+                new OrganizationMember
+                {
+                    Id = 1, OrganizationId = 10, UserId = 1, Role = "Owner", IsActive = ownerMembershipActive
+                },
+                new OrganizationMember
+                {
+                    Id = 2, OrganizationId = 10, UserId = 2, Role = "Manager", IsActive = true
+                });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.DeleteUser(1);
+
+            result.Success.Should().BeFalse();
+            (await _context.Organizations.FindAsync(10L))!.OwnerId.Should().Be(1);
+            (await _context.OrganizationMembers.FindAsync(2L))!.Role.Should().Be("Manager");
+            _userRepo.Verify(r => r.DeleteUser(It.IsAny<User>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task DeleteUser_ValidActiveOwnerTransfer_ChoosesActiveSuccessorAndCanonicalizesOwnerRole()
+        {
+            var user = MakeUser(1);
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(user);
+            _userRepo.Setup(r => r.DeleteUser(user)).Returns(Task.CompletedTask);
+            _context.Users.AddRange(
+                new User { Id = 2, FirstName = "Inactive", LastName = "Member", Email = "inactive@test.com" },
+                new User { Id = 3, FirstName = "Next", LastName = "Owner", Email = "next@test.com" });
+            _context.Organizations.Add(new Organization
+            {
+                Id = 10, Name = "Org", OwnerId = 1, IsActive = true, IsDeleted = false
+            });
+            _context.OrganizationMembers.AddRange(
+                new OrganizationMember
+                {
+                    Id = 1, OrganizationId = 10, UserId = 1, Role = "owner", IsActive = true
+                },
+                new OrganizationMember
+                {
+                    Id = 2, OrganizationId = 10, UserId = 2, Role = "Manager", IsActive = false,
+                    JoinedAt = DateTime.Now.AddDays(-2)
+                },
+                new OrganizationMember
+                {
+                    Id = 3, OrganizationId = 10, UserId = 3, Role = "manager", IsActive = true,
+                    JoinedAt = DateTime.Now.AddDays(-1)
+                });
+            await _context.SaveChangesAsync();
+
+            var result = await _sut.DeleteUser(1);
+
+            result.Success.Should().BeTrue();
+            (await _context.Organizations.FindAsync(10L))!.OwnerId.Should().Be(3);
+            (await _context.OrganizationMembers.FindAsync(2L))!.Role.Should().Be("Manager");
+            var successor = (await _context.OrganizationMembers.FindAsync(3L))!;
+            successor.Role.Should().Be("Owner");
+            successor.CanManageMembers.Should().BeTrue();
+        }
+
+        [Fact]
         public async Task HardDeleteUserCompletely_RemovesTenantUserDependentReferences()
         {
             var user = MakeUser(1);
@@ -454,6 +723,20 @@ namespace brownstone_hub_api.Tests.Services.Users
             _context.Notifications.Single(n => n.Id == 70).PerformedByUserId.Should().BeNull();
             _context.Conversations.Single(c => c.Id == 80).TenantId.Should().BeNull();
             _userRepo.Verify(r => r.HardDeleteUser(user), Times.Once);
+        }
+
+        // ── GetUserByIdAsync ──────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task GetUserByIdAsync_PreservesCurrentOrganizationForTrustedMutationBinding()
+        {
+            _userRepo.Setup(r => r.GetUser(1L)).ReturnsAsync(MakeUser(1, currentOrgId: 313));
+
+            var result = await _sut.GetUserByIdAsync(1);
+
+            result.Success.Should().BeTrue();
+            result.Data.Should().NotBeNull();
+            result.Data!.CurrentOrganizationId.Should().Be(313);
         }
 
         // ── SuspendUser ───────────────────────────────────────────────────────────

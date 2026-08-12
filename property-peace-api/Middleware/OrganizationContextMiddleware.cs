@@ -1,5 +1,5 @@
-using brownstone_hub_api.Repositories.Organizations;
 using brownstone_hub_api.Repositories.Users;
+using brownstone_hub_api.Security;
 using System.Security.Claims;
 
 namespace brownstone_hub_api.Middleware
@@ -18,7 +18,7 @@ namespace brownstone_hub_api.Middleware
         public async Task InvokeAsync(
             HttpContext context,
             IUserRepository userRepository,
-            IOrganizationMemberRepository memberRepository)
+            IOrganizationAuthorityResolver authorityResolver)
         {
             if (context.User.Identity?.IsAuthenticated == true)
             {
@@ -49,6 +49,10 @@ namespace brownstone_hub_api.Middleware
                                     userId = userDto.Id;
                                 }
                             }
+                            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+                            {
+                                throw;
+                            }
                             catch (Exception ex)
                             {
                                 _logger.LogWarning(ex, "Could not find user by email/claim: {UserIdClaim}", userIdClaim);
@@ -58,38 +62,70 @@ namespace brownstone_hub_api.Middleware
 
                     if (userId.HasValue)
                     {
-                        bool organizationContextSet = false;
-                        
-                        // Get organization ID from header if provided
+                        var organizationHeaderWasProvided = context.Request.Headers.ContainsKey("X-Organization-Id");
                         var organizationIdHeader = context.Request.Headers["X-Organization-Id"].FirstOrDefault();
-                        if (!string.IsNullOrEmpty(organizationIdHeader) && long.TryParse(organizationIdHeader, out var organizationId))
+
+                        if (organizationHeaderWasProvided)
                         {
-                            // Verify user is a member of this organization
-                            var isMember = await memberRepository.IsUserMemberOfOrganizationAsync(userId.Value, organizationId);
-                            if (isMember)
+                            if (!long.TryParse(organizationIdHeader, out var organizationId) || organizationId <= 0)
                             {
-                                // Store in context for use in controllers/services
-                                context.Items["OrganizationId"] = organizationId;
-                                context.Items["UserId"] = userId.Value;
-                                organizationContextSet = true;
+                                _logger.LogWarning(
+                                    "User {UserId} supplied an invalid organization ID header: {Header}",
+                                    userId.Value,
+                                    organizationIdHeader ?? "null");
+                                context.Items.Remove("OrganizationId");
+                                context.Items.Remove("UserId");
+                                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                                return;
                             }
-                            else
+
+                            var isMember = await authorityResolver.HasActiveMembershipAsync(
+                                userId.Value,
+                                organizationId,
+                                context.RequestAborted);
+                            if (!isMember)
                             {
-                                _logger.LogWarning("User {UserId} attempted to access organization {OrganizationId} without membership. Falling back to user's CurrentOrganizationId.", userId.Value, organizationId);
+                                _logger.LogWarning(
+                                    "User {UserId} attempted to access organization {OrganizationId} without membership.",
+                                    userId.Value,
+                                    organizationId);
+                                context.Items.Remove("OrganizationId");
+                                context.Items.Remove("UserId");
+                                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                                return;
                             }
+
+                            context.Items["OrganizationId"] = organizationId;
+                            context.Items["UserId"] = userId.Value;
                         }
-                        
-                        // If organization context not set (no header, invalid header, or membership check failed),
-                        // fall back to user's CurrentOrganizationId
-                        if (!organizationContextSet)
+                        else
                         {
+                            // With no explicit selection, preserve the product convention of using
+                            // the user's persisted current organization as the default.
                             var user = await userRepository.GetUser(userId.Value);
-                            if (user?.CurrentOrganizationId != null)
+                            if (user?.CurrentOrganizationId is > 0)
                             {
-                                context.Items["OrganizationId"] = user.CurrentOrganizationId;
+                                var persistedOrganizationId = user.CurrentOrganizationId.Value;
+                                var isMember = await authorityResolver.HasActiveMembershipAsync(
+                                    userId.Value,
+                                    persistedOrganizationId,
+                                    context.RequestAborted);
+                                if (!isMember)
+                                {
+                                    _logger.LogWarning(
+                                        "User {UserId}'s persisted organization {OrganizationId} is no longer an authorized membership.",
+                                        userId.Value,
+                                        persistedOrganizationId);
+                                    context.Items.Remove("OrganizationId");
+                                    context.Items.Remove("UserId");
+                                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                                    return;
+                                }
+
+                                context.Items["OrganizationId"] = persistedOrganizationId;
                                 context.Items["UserId"] = userId.Value;
                                 _logger.LogDebug("Organization context set from user's CurrentOrganizationId: {OrganizationId} for UserId: {UserId}", 
-                                    user.CurrentOrganizationId, userId.Value);
+                                    persistedOrganizationId, userId.Value);
                             }
                             else
                             {
@@ -103,10 +139,19 @@ namespace brownstone_hub_api.Middleware
                         _logger.LogWarning("Could not determine user ID from claims for authenticated user");
                     }
                 }
+                catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error setting organization context");
-                    // Continue without organization context - let authorization handle it
+                    // Organization authorization could not be verified. Fail closed rather than
+                    // allowing an authenticated request to continue with stale or absent scope.
+                    context.Items.Remove("OrganizationId");
+                    context.Items.Remove("UserId");
+                    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                    return;
                 }
             }
 

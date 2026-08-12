@@ -15,18 +15,8 @@ namespace brownstone_hub_api.Repositories.Expenses
         {
             try
             {
-                // If organizationId not provided, try to get it from the property
-                if (organizationId == 0)
-                {
-                    var property = await _context.Properties.FindAsync(expense.PropertyId);
-                    if (property?.OrganizationId.HasValue == true)
-                    {
-                        organizationId = property.OrganizationId.Value;
-                    }
-                }
-
-                _logger.LogInformation("[ExpenseRepository] AddExpense called: LandlordId={LandlordId}, OrganizationId={OrganizationId}, PropertyId={PropertyId}, Name={Name}, Amount={Amount}, IsPaid={IsPaid}, PaidDate={PaidDate}, IsRecurring={IsRecurring}, ExpenseDate={ExpenseDate}",
-                    expense.LandlordId, organizationId, expense.PropertyId, expense.Name, expense.Amount, expense.IsPaid, expense.PaidDate, expense.IsRecurring, expense.ExpenseDate);
+                await ExpenseOrganizationGuard.ValidateAsync(_context, organizationId, expense.LandlordId,
+                    expense.PropertyId, expense.UnitId, expense.VendorId, expense.MaintenanceRequestId);
 
                 var expenseEntity = new Models.Expense
                 {
@@ -110,13 +100,17 @@ namespace brownstone_hub_api.Repositories.Expenses
             }
         }
 
-        public async Task<LoadExpenseDto> UpdateExpense(UpdateExpenseDto expense)
+        public async Task<LoadExpenseDto> UpdateExpense(UpdateExpenseDto expense, long organizationId)
         {
             try
             {
-                var expenseEntity = await _context.Expenses.FindAsync(expense.Id);
+                var expenseEntity = await _context.Expenses
+                    .FirstOrDefaultAsync(e => e.Id == expense.Id && e.OrganizationId == organizationId);
                 if (expenseEntity == null)
                     throw new KeyNotFoundException($"Expense with ID {expense.Id} not found");
+
+                await ExpenseOrganizationGuard.ValidateReferencesAsync(_context, organizationId,
+                    expense.PropertyId, expense.UnitId, expense.VendorId, expense.MaintenanceRequestId);
 
                 expenseEntity.PropertyId = expense.PropertyId;
                 expenseEntity.UnitId = expense.UnitId;
@@ -194,11 +188,12 @@ namespace brownstone_hub_api.Repositories.Expenses
             }
         }
 
-        public async Task<bool> DeleteExpense(long expenseId)
+        public async Task<bool> DeleteExpense(long expenseId, long organizationId)
         {
             try
             {
-                var expense = await _context.Expenses.FindAsync(expenseId);
+                var expense = await _context.Expenses
+                    .FirstOrDefaultAsync(e => e.Id == expenseId && e.OrganizationId == organizationId);
                 if (expense == null)
                     return false;
 
@@ -213,7 +208,7 @@ namespace brownstone_hub_api.Repositories.Expenses
             }
         }
 
-        public async Task<LoadExpenseDto?> GetExpenseById(long expenseId)
+        public async Task<LoadExpenseDto?> GetExpenseById(long expenseId, long organizationId)
         {
             try
             {
@@ -222,7 +217,7 @@ namespace brownstone_hub_api.Repositories.Expenses
                     .Include(e => e.Unit)
                     .Include(e => e.VendorEntity)
                     .Include(e => e.Receipts)
-                    .FirstOrDefaultAsync(e => e.Id == expenseId);
+                    .FirstOrDefaultAsync(e => e.Id == expenseId && e.OrganizationId == organizationId);
 
                 return expense == null ? null : _mapper.Map<LoadExpenseDto>(expense);
             }
@@ -303,7 +298,7 @@ namespace brownstone_hub_api.Repositories.Expenses
             }
         }
 
-        public async Task<List<LoadExpenseDto>> GetExpensesByOrganizationId(long organizationId, long? propertyId = null, DateTime? startDate = null, DateTime? endDate = null, string? category = null, long? vendorId = null)
+        public async Task<List<LoadExpenseDto>> GetExpensesByOrganizationId(long organizationId, long? propertyId = null, DateTime? startDate = null, DateTime? endDate = null, string? category = null, long? vendorId = null, long? unitId = null)
         {
             try
             {
@@ -320,6 +315,9 @@ namespace brownstone_hub_api.Repositories.Expenses
 
                 if (propertyId.HasValue)
                     query = query.Where(e => e.PropertyId == propertyId.Value);
+
+                if (unitId.HasValue)
+                    query = query.Where(e => e.UnitId == unitId.Value);
 
                 if (startDate.HasValue)
                     query = query.Where(e => e.ExpenseDate >= startDate.Value);
@@ -491,11 +489,12 @@ namespace brownstone_hub_api.Repositories.Expenses
             }
         }
 
-        public async Task<bool> MarkBillAsPaid(long expenseId, DateTime paidDate)
+        public async Task<bool> MarkBillAsPaid(long expenseId, long organizationId, DateTime paidDate)
         {
             try
             {
-                var expense = await _context.Expenses.FindAsync(expenseId);
+                var expense = await _context.Expenses
+                    .FirstOrDefaultAsync(e => e.Id == expenseId && e.OrganizationId == organizationId);
                 if (expense == null)
                 {
                     return false;

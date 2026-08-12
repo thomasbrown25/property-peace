@@ -15,32 +15,11 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
-import DashboardAPI from '../../api/dashboardAPI';
+import PropertyAPI, { Property } from '../../api/propertyAPI';
+import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 
 const logo = require('../../../assets/property-peace-navbar-logo.png');
-
-const pickNumber = (source: any, keys: string[]) => {
-  for (const key of keys) {
-    const value = source?.[key];
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) return Number(value);
-  }
-  return 0;
-};
-
-const money = (value: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: value % 1 === 0 ? 0 : 2 }).format(value || 0);
-
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-};
-
-const getLongDate = () =>
-  new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date());
 
 const firstString = (...values: any[]) => {
   for (const value of values) {
@@ -49,29 +28,45 @@ const firstString = (...values: any[]) => {
   return '';
 };
 
-export default function DashboardScreen({ onMenuPress }: { onMenuPress?: () => void } = {}) {
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+};
+
+const getUnits = (property: Property) => property.units || property.Units || [];
+const isOpenMaintenance = (request: MaintenanceRequest) => {
+  const status = firstString(request.status, request.Status).toLowerCase();
+  return !['completed', 'cancelled', 'closed', 'resolved'].includes(status);
+};
+
+export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { currentUser } = useAppSelector((state) => state.user);
-  const [summary, setSummary] = useState<any>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const loadDashboard = useCallback(async () => {
-    try {
-      const [summaryData, notificationData] = await Promise.all([
-        DashboardAPI.getSummary().catch(() => null),
-        NotificationAPI.getNotifications().catch(() => []),
-      ]);
-      setSummary(summaryData || {});
-      setNotifications((notificationData || []).slice(0, 3));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    const results = await Promise.allSettled([
+      PropertyAPI.getProperties(),
+      MaintenanceAPI.getCurrent(),
+      NotificationAPI.getNotifications(),
+    ]);
+
+    if (results[0].status === 'fulfilled') setProperties(results[0].value || []);
+    if (results[1].status === 'fulfilled') setMaintenance(results[1].value || []);
+    if (results[2].status === 'fulfilled') setNotifications((results[2].value || []).slice(0, 3));
+    setLoadError(results.some((result) => result.status === 'rejected'));
+    setLoading(false);
+    setRefreshing(false);
   }, []);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
@@ -79,14 +74,11 @@ export default function DashboardScreen({ onMenuPress }: { onMenuPress?: () => v
   const firstName = firstString(
     currentUser?.FirstName,
     currentUser?.firstName,
-    currentUser?.firstname,
     currentUser?.Name,
     currentUser?.name,
     currentUser?.Email,
     currentUser?.email,
   ).split(/[\s@]/)[0] || 'there';
-
-  const avatarLabel = (firstName || 'P').slice(0, 1).toUpperCase();
   const displayName = firstString(
     `${currentUser?.FirstName || currentUser?.firstName || ''} ${currentUser?.LastName || currentUser?.lastName || ''}`,
     currentUser?.Name,
@@ -95,149 +87,130 @@ export default function DashboardScreen({ onMenuPress }: { onMenuPress?: () => v
   );
   const email = firstString(currentUser?.Email, currentUser?.email, 'No email');
   const profileImageUrl = firstString(currentUser?.ProfileImageUrl, currentUser?.profileImageUrl);
+  const avatarLabel = firstName.slice(0, 1).toUpperCase();
 
-  const metrics = useMemo(() => {
-    const rentExpected = pickNumber(summary, ['rentExpected', 'expectedRent', 'monthlyRentExpected', 'totalRentDue', 'totalMonthlyRent', 'rentDue']);
-    const rentCollected = pickNumber(summary, ['rentCollected', 'collectedRent', 'monthlyRentCollected', 'totalCollected', 'paymentsCollected']);
-    const outstanding = pickNumber(summary, ['outstanding', 'rentOutstanding', 'outstandingRent', 'totalOutstanding', 'balanceDue']) || Math.max(rentExpected - rentCollected, 0);
-    const expenses = pickNumber(summary, ['expenses', 'monthlyExpenses', 'totalExpenses', 'expensesThisMonth']);
-    const collectionRate = rentExpected > 0 ? Math.min(100, Math.round((rentCollected / rentExpected) * 100)) : 0;
-    return { rentExpected, rentCollected, outstanding, expenses, collectionRate };
-  }, [summary]);
+  const portfolio = useMemo(() => {
+    const units = properties.reduce((count, property) => count + getUnits(property).length, 0);
+    const occupied = properties.reduce((count, property) => count + getUnits(property).filter((unit: any) => {
+      const status = firstString(unit.status, unit.Status).toLowerCase();
+      return status === 'occupied' || status === 'overdue';
+    }).length, 0);
+    return {
+      properties: properties.length,
+      units,
+      occupied,
+      openMaintenance: maintenance.filter(isOpenMaintenance).length,
+      unread: notifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
+    };
+  }, [maintenance, notifications, properties]);
 
-  const attentionCount = notifications.length;
+  const attentionCount = portfolio.openMaintenance + portfolio.unread;
 
-  if (loading) return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#0b3558" /></View>;
+  if (loading) {
+    return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#2475cf" /></View>;
+  }
 
   return (
     <View style={styles.container}>
-      <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 12, 20) }]}>
-        <TouchableOpacity style={styles.iconButton} onPress={onMenuPress} activeOpacity={0.75}>
-          <Ionicons name="menu-outline" size={25} color="#0b2438" />
-        </TouchableOpacity>
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 18) }]}>
         <Image source={logo} style={styles.logo} resizeMode="contain" />
-        <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)} activeOpacity={0.8}>
-          {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
-        </TouchableOpacity>
+        <View style={styles.topActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="Open notifications">
+            <Ionicons name="notifications-outline" size={23} color="#0b3558" />
+            {portfolio.unread > 0 && <View style={styles.unreadDot} />}
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)}>
+            {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {profileMenuOpen && (
-        <ProfileMenu
-          topOffset={Math.max(insets.top + 12, 20) + 50}
-          displayName={displayName}
-          email={email}
-          avatarLabel={avatarLabel}
-          profileImageUrl={profileImageUrl}
-          onClose={() => setProfileMenuOpen(false)}
-          onNavigate={(route) => {
-            setProfileMenuOpen(false);
-            navigation.navigate(route);
-          }}
-          onLogout={async () => {
-            setProfileMenuOpen(false);
-            await dispatch(logout());
-          }}
-        />
+        <View style={styles.profileMenuLayer} pointerEvents="box-none">
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProfileMenuOpen(false)} />
+          <View style={[styles.profileMenu, { top: Math.max(insets.top + 68, 78) }]}>
+            <View style={styles.profileIdentity}>
+              <Text style={styles.profileName}>{displayName}</Text>
+              <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
+            </View>
+            <ProfileAction icon="people-outline" label="Tenants" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Tenants'); }} />
+            <ProfileAction icon="document-text-outline" label="Leases" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Leases'); }} />
+            <ProfileAction icon="settings-outline" label="Settings" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Settings'); }} />
+            <ProfileAction icon="log-out-outline" label="Sign out" destructive onPress={async () => { setProfileMenuOpen(false); await dispatch(logout()); }} />
+          </View>
+        </View>
       )}
 
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 112 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 94 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor="#0b3558" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor="#2475cf" />}
       >
-        <View style={styles.dateRow}>
-          <Ionicons name="calendar-outline" size={17} color="#0f2334" />
-          <Text style={styles.dateText}>{getLongDate()}</Text>
-        </View>
-
+        <Text style={styles.eyebrow}>YOUR LANDLORD DAY</Text>
         <Text style={styles.heroTitle}>{getGreeting()}, {firstName}.</Text>
-        <Text style={styles.heroSubtitle}>{attentionCount || 'No'} {attentionCount === 1 ? 'thing needs' : 'things need'} your attention today</Text>
+        <Text style={styles.heroSubtitle}>
+          {attentionCount > 0 ? `${attentionCount} ${attentionCount === 1 ? 'item needs' : 'items need'} your attention.` : 'Your portfolio is caught up for now.'}
+        </Text>
 
-        <Text style={styles.quickSectionTitle}>Quick actions</Text>
-        <View style={styles.quickList}>
-          <QuickAction
-            icon="cash-outline"
-            title="Record Payment"
-            color="#62c944"
-            background="#effbea"
-            onPress={() => navigation.navigate('Leases')}
-          />
-          <QuickAction
-            icon="receipt-outline"
-            title="Add Expense"
-            color="#f2b72e"
-            background="#fff7e9"
-            onPress={() => navigation.navigate('Properties')}
-          />
-          <QuickAction
-            icon="construct-outline"
-            title="Create Maintenance"
-            color="#fb5b73"
-            background="#fff0f3"
-            onPress={() => navigation.navigate('Maintenance', { screen: 'AddMaintenance' })}
-          />
-          <QuickAction
-            icon="chatbubble-ellipses-outline"
-            title="Send Rent Reminder"
-            color="#34c7c3"
-            background="#eafcfb"
-            onPress={() => navigation.navigate('Messages')}
-          />
-        </View>
-
-        <View style={styles.moneyCard}>
-          <View style={styles.moneyHeader}>
-            <Text style={styles.moneyTitle}>Money{`\n`}Summary</Text>
-            <View style={styles.filterCluster}>
-              <View style={[styles.filterPill, styles.filterPillActive]}><Text style={styles.filterPillActiveText}>This month</Text></View>
-              <View style={styles.filterPill}><Text style={styles.filterPillText}>All time</Text></View>
+        {loadError && (
+          <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82}>
+            <Ionicons name="cloud-offline-outline" size={22} color="#a45f12" />
+            <View style={styles.warningCopy}>
+              <Text style={styles.warningTitle}>Some information is unavailable</Text>
+              <Text style={styles.warningText}>Tap to try loading it again.</Text>
             </View>
-            <TouchableOpacity style={styles.viewAllButton} onPress={() => navigation.navigate('Leases')} activeOpacity={0.75}>
-              <Text style={styles.viewAllText}>View all</Text>
-              <Ionicons name="arrow-forward" size={18} color="#172533" />
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.portfolioCard}>
+          <View style={styles.portfolioHeader}>
+            <View>
+              <Text style={styles.cardEyebrow}>PORTFOLIO SNAPSHOT</Text>
+              <Text style={styles.portfolioTitle}>{portfolio.properties} {portfolio.properties === 1 ? 'property' : 'properties'}</Text>
+            </View>
+            <TouchableOpacity style={styles.openButton} onPress={() => navigation.navigate('Properties')}>
+              <Text style={styles.openButtonText}>Open</Text>
+              <Ionicons name="arrow-forward" size={17} color="#ffffff" />
             </TouchableOpacity>
           </View>
-
-          <View style={styles.metricList}>
-            <Metric label="Rent Expected" value={money(metrics.rentExpected)} color="#2475cf" />
-            <Metric label="Rent Collected" value={money(metrics.rentCollected)} color="#2475cf" />
-            <Metric label="Outstanding" value={money(metrics.outstanding)} color="#f05364" />
-            <Metric label="Expenses" value={money(metrics.expenses)} color="#0b2438" />
-          </View>
-
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressLabel}>Collection progress</Text>
-            <Text style={styles.progressPercent}>{metrics.collectionRate}%</Text>
-          </View>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${metrics.collectionRate}%` }]} />
-          </View>
-
-          <View style={styles.netRow}>
-            <Text style={styles.netLabel}>Net this month:</Text>
-            <Text style={[styles.netValue, { color: metrics.rentCollected - metrics.expenses >= 0 ? '#5fc73f' : '#f05364' }]}>
-              {money(metrics.rentCollected - metrics.expenses)}
-            </Text>
+          <View style={styles.statRow}>
+            <PortfolioStat label="Units" value={String(portfolio.units)} />
+            <View style={styles.statDivider} />
+            <PortfolioStat label="Occupied" value={String(portfolio.occupied)} />
+            <View style={styles.statDivider} />
+            <PortfolioStat label="Open repairs" value={String(portfolio.openMaintenance)} alert={portfolio.openMaintenance > 0} />
           </View>
         </View>
 
-        <View style={styles.notificationsCard}>
+        <Text style={styles.sectionTitle}>Do it from your phone</Text>
+        <View style={styles.quickList}>
+          <QuickAction icon="add-circle-outline" title="Add a property" subtitle="Grow your portfolio" color="#2475cf" background="#eaf3ff" onPress={() => navigation.navigate('Properties', { screen: 'AddProperty' })} />
+          <QuickAction icon="construct-outline" title="Maintenance workflow" subtitle="Assign and track open repairs" color="#d94d63" background="#fff0f3" onPress={() => navigation.navigate('Maintenance', { screen: 'MaintenanceList' })} />
+          <QuickAction icon="clipboard-outline" title="Property checklists" subtitle="Move-in and move-out inspections" color="#2f8f46" background="#edf9ef" onPress={() => navigation.navigate('Properties')} />
+          <QuickAction icon="chatbubble-ellipses-outline" title="Open messages" subtitle="Reply to tenants and applicants" color="#168f91" background="#eafafa" onPress={() => navigation.navigate('Messages')} />
+        </View>
+
+        <View style={styles.activityCard}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Notifications')}><Text style={styles.sectionLink}>View all</Text></TouchableOpacity>
+            <View>
+              <Text style={styles.cardEyebrow}>RECENT</Text>
+              <Text style={styles.activityTitle}>Activity</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.textButton}>
+              <Text style={styles.textButtonLabel}>View all</Text>
+            </TouchableOpacity>
           </View>
           {notifications.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="checkmark-circle-outline" size={22} color="#62c944" />
-              <Text style={styles.emptyText}>No new notifications.</Text>
+              <View style={styles.emptyIcon}><Ionicons name="checkmark" size={18} color="#2f8f46" /></View>
+              <Text style={styles.emptyText}>No recent notifications.</Text>
             </View>
           ) : notifications.map((notification: any) => (
             <View key={String(notification.id || notification.Id)} style={styles.notificationRow}>
               <View style={styles.notificationDot} />
               <View style={styles.notificationCopy}>
                 <Text style={styles.notificationTitle}>{notification.title || notification.Title || 'Notification'}</Text>
-                <Text style={styles.notificationMessage}>{notification.message || notification.Message}</Text>
+                {!!(notification.message || notification.Message) && <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message || notification.Message}</Text>}
               </View>
             </View>
           ))}
@@ -247,237 +220,95 @@ export default function DashboardScreen({ onMenuPress }: { onMenuPress?: () => v
   );
 }
 
-function ProfileMenu({
-  topOffset,
-  displayName,
-  email,
-  avatarLabel,
-  profileImageUrl,
-  onClose,
-  onNavigate,
-  onLogout,
-}: {
-  topOffset: number;
-  displayName: string;
-  email: string;
-  avatarLabel: string;
-  profileImageUrl: string;
-  onClose: () => void;
-  onNavigate: (route: string) => void;
-  onLogout: () => void | Promise<void>;
-}) {
+function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void | Promise<void>; destructive?: boolean }) {
   return (
-    <View style={styles.profileMenuLayer} pointerEvents="box-none">
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <View style={[styles.profileMenu, { top: topOffset }]}>
-        <TouchableOpacity style={styles.profileHeader} activeOpacity={0.78} onPress={() => onNavigate('Settings')}>
-          <View style={styles.profileAvatarLarge}>
-            {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.profileAvatarImage} /> : <Text style={styles.profileAvatarText}>{avatarLabel}</Text>}
-          </View>
-          <View style={styles.profileHeaderCopy}>
-            <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
-            <View style={styles.profileEmailRow}>
-              <Ionicons name="mail-outline" size={14} color="#6a7885" />
-              <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.profileDivider} />
-        <ProfileMenuItem icon="notifications-outline" label="Notifications" onPress={() => onNavigate('Notifications')} />
-        <ProfileMenuItem icon="mail-outline" label="Messages" onPress={() => onNavigate('Messages')} />
-        <View style={styles.profileDivider} />
-        <ProfileMenuItem icon="settings-outline" label="Settings" onPress={() => onNavigate('Settings')} />
-        <ProfileMenuItem icon="help-circle-outline" label="Support" onPress={() => onNavigate('Settings')} />
-        <ProfileMenuItem icon="chatbox-ellipses-outline" label="Feedback" onPress={() => onNavigate('Settings')} />
-        <View style={styles.profileDivider} />
-        <ProfileMenuItem icon="log-out-outline" label="Sign out" destructive onPress={onLogout} />
-      </View>
-    </View>
-  );
-}
-
-function ProfileMenuItem({ icon, label, onPress, destructive = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void | Promise<void>; destructive?: boolean }) {
-  return (
-    <TouchableOpacity style={styles.profileMenuItem} onPress={onPress} activeOpacity={0.76}>
+    <TouchableOpacity style={styles.profileAction} onPress={onPress}>
       <Ionicons name={icon} size={20} color={destructive ? '#c2413b' : '#20394d'} />
-      <Text style={[styles.profileMenuItemText, destructive && styles.profileMenuItemTextDestructive]}>{label}</Text>
+      <Text style={[styles.profileActionText, destructive && styles.destructiveText]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
-function QuickAction({ icon, title, color, background, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; color: string; background: string; onPress: () => void }) {
+function PortfolioStat({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
+  return (
+    <View style={styles.statItem}>
+      <Text style={[styles.statValue, alert && styles.statValueAlert]}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function QuickAction({ icon, title, subtitle, color, background, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; color: string; background: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.quickAction} onPress={onPress} activeOpacity={0.82}>
-      <View style={[styles.quickIconWrap, { backgroundColor: background }]}>
-        <Ionicons name={icon} size={27} color={color} />
-      </View>
+      <View style={[styles.quickIcon, { backgroundColor: background }]}><Ionicons name={icon} size={25} color={color} /></View>
       <View style={styles.quickCopy}>
         <Text style={styles.quickTitle}>{title}</Text>
+        <Text style={styles.quickSubtitle}>{subtitle}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={21} color="#90a0ae" />
+      <Ionicons name="chevron-forward" size={20} color="#8c9aa6" />
     </TouchableOpacity>
-  );
-}
-
-function Metric({ value, label, color }: { value: string; label: string; color: string }) {
-  return (
-    <View style={styles.metricItem}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <Text style={[styles.metricValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    backgroundColor: '#fbf7f4',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee6df',
-  },
-  iconButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(11,36,56,0.04)' },
-  logo: { width: 142, height: 42 },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#0b3558',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#e7dfd8',
-    overflow: 'hidden',
-  },
-  avatarActive: { borderColor: '#9cd69a', backgroundColor: '#082f58' },
+  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee6df' },
+  logo: { width: 148, height: 42 },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerButton: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#e7e1dc' },
+  unreadDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#d94d63', borderWidth: 1.5, borderColor: '#fff' },
+  avatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: '#0b3558', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#ffffff' },
+  avatarActive: { borderColor: '#74c86b' },
   avatarImage: { width: '100%', height: '100%' },
-  avatarText: { color: '#fff', fontWeight: '800', fontSize: 17 },
+  avatarText: { color: '#fff', fontSize: 17, fontWeight: '900' },
   profileMenuLayer: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50 },
-  profileMenu: {
-    position: 'absolute',
-    right: 14,
-    width: 306,
-    maxWidth: '86%',
-    backgroundColor: '#fff',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#e8edf0',
-    overflow: 'hidden',
-    shadowColor: '#001a33',
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 16,
-  },
-  profileHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 18, backgroundColor: '#fbfdff' },
-  profileAvatarLarge: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#0b3558', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  profileAvatarImage: { width: '100%', height: '100%' },
-  profileAvatarText: { color: '#fff', fontWeight: '900', fontSize: 19 },
-  profileHeaderCopy: { flex: 1, minWidth: 0 },
-  profileName: { color: '#102d43', fontSize: 17, lineHeight: 22, fontWeight: '900', textTransform: 'capitalize' },
-  profileEmailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
-  profileEmail: { flex: 1, color: '#6a7885', fontSize: 13, lineHeight: 17 },
-  profileDivider: { height: 1, backgroundColor: '#edf1f3' },
-  profileMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 18, paddingVertical: 15, backgroundColor: '#fff' },
-  profileMenuItemText: { color: '#20394d', fontSize: 16, fontWeight: '700' },
-  profileMenuItemTextDestructive: { color: '#c2413b' },
-  scroll: { flex: 1 },
-  content: { paddingHorizontal: 18, paddingTop: 22 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 14 },
-  dateText: { color: '#0f2334', fontSize: 16, fontWeight: '700' },
-  heroTitle: { color: '#082941', fontSize: 31, lineHeight: 37, fontWeight: '900', letterSpacing: -1.0, marginBottom: 8 },
-  heroSubtitle: { color: '#425466', fontSize: 16, lineHeight: 23, marginBottom: 24 },
-  quickSectionTitle: { color: '#082941', fontSize: 22, fontWeight: '900', letterSpacing: -0.4, marginBottom: 12 },
-  quickList: { gap: 12, marginBottom: 30 },
-  quickAction: {
-    width: '100%',
-    minHeight: 76,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ece6e2',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 13,
-    shadowColor: '#13293d',
-    shadowOpacity: 0.08,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  quickIconWrap: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  profileMenu: { position: 'absolute', right: 14, width: 280, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  profileIdentity: { padding: 18, backgroundColor: '#f8fbfd', borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
+  profileName: { color: '#102d43', fontSize: 17, fontWeight: '900' },
+  profileEmail: { color: '#6a7885', fontSize: 13, marginTop: 4 },
+  profileAction: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#f0f2f4' },
+  profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
+  destructiveText: { color: '#c2413b' },
+  content: { paddingHorizontal: 18, paddingTop: 25 },
+  eyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginBottom: 7 },
+  heroTitle: { color: '#082941', fontSize: 31, lineHeight: 37, fontWeight: '900', letterSpacing: -1, marginBottom: 7 },
+  heroSubtitle: { color: '#536575', fontSize: 16, lineHeight: 23, marginBottom: 22 },
+  warningCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff8e8', borderWidth: 1, borderColor: '#f1d8a7', borderRadius: 16, padding: 14, marginBottom: 18 },
+  warningCopy: { flex: 1 },
+  warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
+  warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
+  portfolioCard: { backgroundColor: '#0b3558', borderRadius: 22, padding: 18, marginBottom: 28, shadowColor: '#062945', shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
+  portfolioHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 21 },
+  cardEyebrow: { color: '#2f8f46', fontSize: 10, lineHeight: 14, fontWeight: '900', letterSpacing: 1.1 },
+  portfolioTitle: { color: '#ffffff', fontSize: 25, lineHeight: 31, fontWeight: '900', marginTop: 2 },
+  openButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#2475cf', borderRadius: 13, paddingHorizontal: 14 },
+  openButtonText: { color: '#fff', fontWeight: '900' },
+  statRow: { flexDirection: 'row', alignItems: 'stretch', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, paddingVertical: 13 },
+  statItem: { flex: 1, alignItems: 'center', justifyContent: 'center', minWidth: 0 },
+  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.14)' },
+  statValue: { color: '#ffffff', fontSize: 22, fontWeight: '900' },
+  statValueAlert: { color: '#ffb8c2' },
+  statLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, lineHeight: 15, textAlign: 'center', marginTop: 3 },
+  sectionTitle: { color: '#082941', fontSize: 22, fontWeight: '900', letterSpacing: -0.4, marginBottom: 12 },
+  quickList: { gap: 10, marginBottom: 28 },
+  quickAction: { minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 13, padding: 12, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e8e4e0', shadowColor: '#13293d', shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
+  quickIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   quickCopy: { flex: 1, minWidth: 0 },
-  quickTitle: { color: '#102d43', fontSize: 18, lineHeight: 23, fontWeight: '900', letterSpacing: -0.2 },
-  moneyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    borderWidth: 1.4,
-    borderColor: '#c6eec2',
-    paddingHorizontal: 16,
-    paddingVertical: 18,
-    marginBottom: 28,
-    shadowColor: '#7bc878',
-    shadowOpacity: 0.08,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
-  },
-  moneyHeader: { marginBottom: 18 },
-  moneyTitle: { color: '#082941', fontSize: 27, lineHeight: 32, fontWeight: '900', letterSpacing: -0.7, marginBottom: 12 },
-  filterCluster: { alignSelf: 'flex-start', flexDirection: 'row', backgroundColor: '#f7fafc', borderRadius: 13, borderWidth: 1, borderColor: '#eef0f2', marginBottom: 12, padding: 3 },
-  filterPill: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
-  filterPillActive: { backgroundColor: '#2475cf' },
-  filterPillText: { color: '#1f2933', fontWeight: '800', fontSize: 13 },
-  filterPillActiveText: { color: '#fff', fontWeight: '900', fontSize: 13 },
-  viewAllButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 7 },
-  viewAllText: { color: '#172533', fontSize: 15, fontWeight: '700' },
-  metricList: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 22 },
-  metricItem: {
-    width: '48.4%',
-    minHeight: 86,
-    borderRadius: 16,
-    backgroundColor: '#fbfdff',
-    borderWidth: 1,
-    borderColor: '#edf2f5',
-    paddingHorizontal: 12,
-    paddingVertical: 13,
-    justifyContent: 'center',
-    gap: 5,
-  },
-  metricValue: { fontSize: 23, lineHeight: 29, fontWeight: '900', letterSpacing: -0.7 },
-  metricLabel: { color: '#51606c', fontSize: 11, lineHeight: 15, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.5 },
-  progressHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 9 },
-  progressLabel: { color: '#101820', fontSize: 16, fontWeight: '600' },
-  progressPercent: { color: '#2475cf', fontSize: 16, fontWeight: '800' },
-  progressTrack: { height: 8, borderRadius: 8, backgroundColor: '#e9f2f9', overflow: 'hidden', marginBottom: 22 },
-  progressFill: { height: '100%', borderRadius: 8, backgroundColor: '#2475cf' },
-  netRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#eef2ef', paddingTop: 22, gap: 8 },
-  netLabel: { color: '#101820', fontSize: 16 },
-  netValue: { fontSize: 20, fontWeight: '900' },
-  notificationsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    borderWidth: 1.4,
-    borderColor: '#d5f0d1',
-    padding: 18,
-    marginBottom: 20,
-  },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  sectionTitle: { color: '#082941', fontSize: 22, fontWeight: '900', letterSpacing: -0.3 },
-  sectionLink: { color: '#2475cf', fontWeight: '800' },
-  emptyState: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  emptyText: { color: '#51606c', fontSize: 15 },
-  notificationRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#eef2ef' },
-  notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2475cf', marginTop: 7, marginRight: 12 },
+  quickTitle: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '900' },
+  quickSubtitle: { color: '#6a7885', fontSize: 13, lineHeight: 18, marginTop: 2 },
+  activityCard: { backgroundColor: '#fff', borderRadius: 22, borderWidth: 1, borderColor: '#e8e4e0', padding: 18 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  activityTitle: { color: '#082941', fontSize: 22, fontWeight: '900', marginTop: 2 },
+  textButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  textButtonLabel: { color: '#2475cf', fontWeight: '900' },
+  emptyState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
+  emptyIcon: { width: 32, height: 32, borderRadius: 11, backgroundColor: '#edf9ef', alignItems: 'center', justifyContent: 'center' },
+  emptyText: { color: '#607080', fontSize: 14 },
+  notificationRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#edf1f3' },
+  notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2475cf', marginTop: 7, marginRight: 11 },
   notificationCopy: { flex: 1 },
-  notificationTitle: { fontWeight: '800', color: '#0f2334', marginBottom: 4 },
-  notificationMessage: { color: '#51606c', lineHeight: 20 },
+  notificationTitle: { color: '#102d43', fontSize: 14, fontWeight: '900', marginBottom: 3 },
+  notificationMessage: { color: '#697887', fontSize: 13, lineHeight: 18 },
 });

@@ -90,17 +90,18 @@ import { conversationAPI } from 'api';
 import { getSuppressedMessageIds, analyzeConversation } from 'api/conversation';
 import { Button, useTheme, useMediaQuery } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
+import ConversationTimelinePanel from 'components/conversation/ConversationTimelinePanel';
+import ConversationQuickReplies from 'components/conversation/ConversationQuickReplies';
+import GroupConversationManager from 'components/conversation/GroupConversationManager';
+import { useOrganization } from 'contexts/OrganizationContext';
+import { getSendAttempt } from 'utils/clientRequestId';
 
 // ==============================|| MESSAGES PAGE ||============================== //
 
 const AGENT_PURPLE = '#7c3aed';
 const SENT_MESSAGE_BLUE = '#1877F2';
 const MAX_MESSAGE_LENGTH = 2000;
-const QUICK_REPLIES = [
-  'Thanks for the update.',
-  'I’ll look into this and follow up shortly.',
-  'Can you send a photo so I can take a closer look?'
-];
+
 
 function formatConversationTimestamp(dateStr) {
   if (!dateStr) return '';
@@ -185,6 +186,7 @@ export default function Messages() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
   const theme = useTheme();
   const drawer = useDrawer();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -222,8 +224,11 @@ export default function Messages() {
   const initialLoadDone = useRef(false);
   const hasBeenLoading = useRef(false);
   const activeTabRef = useRef('all');
+  const sendAttemptRef = useRef(null);
 
   const selectedConversationId = selectedConversation?.id || null;
+  const quickReplyOrganizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
+  const quickReplyUserId = user?.id ?? user?.Id ?? null;
   const messageInput = selectedConversationId ? messageDrafts[String(selectedConversationId)] || '' : '';
   const setConversationDraft = useCallback((conversationId, value) => {
     if (!conversationId) return;
@@ -345,7 +350,9 @@ export default function Messages() {
     if (!messageInput.trim() || !selectedConversation || sendingMessage) return;
     const content = messageInput.trim();
     const conversationId = selectedConversation.id;
-    const optimisticId = `optimistic-${Date.now()}`;
+    const attempt = getSendAttempt(sendAttemptRef.current, conversationId, content);
+    sendAttemptRef.current = attempt;
+    const optimisticId = `optimistic-${attempt.clientRequestId}`;
     const userId = user?.Id || user?.id;
     const optimisticMsg = {
       id: optimisticId,
@@ -361,8 +368,9 @@ export default function Messages() {
     setSendingMessage(true);
     setTimeout(() => scrollToBottom(), 50);
     try {
-      const result = await dispatch(addMessage({ conversationId, content }));
+      const result = await dispatch(addMessage({ conversationId, content, clientRequestId: attempt.clientRequestId }));
       if (result.success) {
+        sendAttemptRef.current = null;
         setOptimisticMessages((prev) => prev.filter((m) => m.id !== optimisticId));
         dispatch(getConversations(activeTabRef.current === 'archived'));
         setTimeout(() => scrollToBottom(), 50);
@@ -983,7 +991,21 @@ export default function Messages() {
               One inbox for tenant conversations, urgent updates, and follow-up
             </Typography>
           </Box>
-          <Button
+          <Stack direction="row" spacing={1} alignItems="center">
+            <GroupConversationManager
+              organizationId={quickReplyOrganizationId}
+              conversation={selectedConversation}
+              currentUserId={quickReplyUserId}
+              onChanged={async (conversationId) => {
+                await dispatch(getConversations(false));
+                if (conversationId) setTimeout(() => handleSelectConversation(conversationId), 0);
+              }}
+              onLeft={async () => {
+                dispatch(setSelectedConversation(null));
+                await dispatch(getConversations(false));
+              }}
+            />
+            <Button
             variant="contained"
             startIcon={<PlusOutlined />}
             onClick={() => {
@@ -996,6 +1018,7 @@ export default function Messages() {
             <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>New message</Box>
             <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>New</Box>
           </Button>
+          </Stack>
         </Stack>
       </Box>
 
@@ -1549,6 +1572,12 @@ export default function Messages() {
                       })()}
                     </Box>
 
+                    <ConversationTimelinePanel
+                      conversationId={selectedConversation.id}
+                      organizationId={quickReplyOrganizationId}
+                      currentUserId={quickReplyUserId}
+                    />
+
                     {/* ── Messages ── */}
                     <Box
                       ref={messagesContainerRef}
@@ -1827,28 +1856,13 @@ export default function Messages() {
                         </Stack>
                       ) : (
                         <>
-                          {!messageInput && (
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                gap: 0.75,
-                                overflowX: 'auto',
-                                pb: 1,
-                                scrollbarWidth: 'none',
-                                '&::-webkit-scrollbar': { display: 'none' }
-                              }}
-                            >
-                              {QUICK_REPLIES.map((reply) => (
-                                <Chip
-                                  key={reply}
-                                  label={reply}
-                                  variant="outlined"
-                                  onClick={() => setMessageInput(reply)}
-                                  sx={{ flexShrink: 0, maxWidth: { xs: 250, sm: 'none' }, borderRadius: 2, bgcolor: 'background.paper', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
-                                />
-                              ))}
-                            </Box>
-                          )}
+                          <ConversationQuickReplies
+                            conversation={activeConversation}
+                            organizationId={quickReplyOrganizationId}
+                            userId={quickReplyUserId}
+                            hidden={Boolean(messageInput)}
+                            onSelect={setMessageInput}
+                          />
                           <Paper
                             elevation={0}
                             sx={{

@@ -20,8 +20,26 @@ namespace brownstone_hub_api.Data
         }
 
         public DbSet<MaintenanceEvent> MaintenanceEvents => Set<MaintenanceEvent>();
-        public override async Task<int> SaveChangesAsync(CancellationToken ct = default)
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
         {
+            RejectScreeningDeletionEvidenceMutation();
+            RejectAppendOnly<ConversationTimelineEntry>();
+            RejectAppendOnly<MaintenanceActivityEvent>();
+            RejectAppendOnly<ActivationMilestoneOccurrence>();
+            RejectInvalidMessageDeliveryEvidenceMutation();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(CancellationToken ct = default) =>
+            SaveChangesAsync(acceptAllChangesOnSuccess: true, ct);
+
+        public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
+        {
+            RejectScreeningDeletionEvidenceMutation();
+            RejectAppendOnly<ConversationTimelineEntry>();
+            RejectAppendOnly<MaintenanceActivityEvent>();
+            RejectAppendOnly<ActivationMilestoneOccurrence>();
+            RejectInvalidMessageDeliveryEvidenceMutation();
             var now = DateTime.Now;
 
             foreach (var entry in ChangeTracker.Entries<MaintenanceRequest>())
@@ -80,15 +98,103 @@ namespace brownstone_hub_api.Data
                     });
                 }
             }
-            return await base.SaveChangesAsync(ct);
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
 
             static string ToCamel(string s) =>
                 string.IsNullOrEmpty(s) ? s : char.ToLowerInvariant(s[0]) + s[1..];
         }
 
+        private void RejectScreeningDeletionEvidenceMutation()
+        {
+            // Compliance evidence is append-only at the context boundary. Aggregates which carry an
+            // explicitly mutable lifecycle are handled separately so their immutable facts cannot be rewritten.
+            RejectAppendOnly<ScreeningPaymentEvidence>();
+            RejectAppendOnly<ScreeningTransitionEvent>();
+            RejectAppendOnly<ScreeningConsentEvidence>();
+            RejectAppendOnly<ScreeningReportDeletionEvent>();
+            RejectAppendOnly<ScreeningDisputeEvent>();
+            RejectAppendOnly<ScreeningReconsiderationEvent>();
+            RejectAppendOnly<ScreeningIncidentEvent>();
+            RejectAppendOnly<ScreeningAdverseAction>();
+            RejectImmutableChanges<ScreeningWebhookInboxEvent>(nameof(ScreeningWebhookInboxEvent.ProcessedAt),
+                nameof(ScreeningWebhookInboxEvent.ProcessingLeaseId), nameof(ScreeningWebhookInboxEvent.ProcessingLeaseUntil),
+                nameof(ScreeningWebhookInboxEvent.ProcessingStatus), nameof(ScreeningWebhookInboxEvent.ProcessingAttempts),
+                nameof(ScreeningWebhookInboxEvent.NextAttemptAt), nameof(ScreeningWebhookInboxEvent.FailureCode),
+                nameof(ScreeningWebhookInboxEvent.FailureDetail), nameof(ScreeningWebhookInboxEvent.DuplicateCount),
+                nameof(ScreeningWebhookInboxEvent.LastDuplicateReceivedAt), nameof(ScreeningWebhookInboxEvent.SecurityIncidentCode),
+                nameof(ScreeningWebhookInboxEvent.SecurityIncidentCount), nameof(ScreeningWebhookInboxEvent.LastSecurityIncidentAt),
+                nameof(ScreeningWebhookInboxEvent.TenantScreeningOrderId), nameof(ScreeningWebhookInboxEvent.RowVersion));
+            RejectImmutableChanges<ScreeningCancellationIntent>(nameof(ScreeningCancellationIntent.Status),
+                nameof(ScreeningCancellationIntent.Attempts), nameof(ScreeningCancellationIntent.ProcessingLeaseId),
+                nameof(ScreeningCancellationIntent.ProcessingLeaseUntil), nameof(ScreeningCancellationIntent.NextAttemptAt), nameof(ScreeningCancellationIntent.ProviderAcceptedAt),
+                nameof(ScreeningCancellationIntent.CompletedAt), nameof(ScreeningCancellationIntent.ProviderReference),
+                nameof(ScreeningCancellationIntent.FailureCode), nameof(ScreeningCancellationIntent.RowVersion));
+            RejectImmutableChanges<ScreeningDisputeIntent>(nameof(ScreeningDisputeIntent.Status),
+                nameof(ScreeningDisputeIntent.Attempts), nameof(ScreeningDisputeIntent.ProcessingLeaseId),
+                nameof(ScreeningDisputeIntent.ProcessingLeaseUntil), nameof(ScreeningDisputeIntent.NextAttemptAt), nameof(ScreeningDisputeIntent.ProviderAcceptedAt),
+                nameof(ScreeningDisputeIntent.CompletedAt), nameof(ScreeningDisputeIntent.ProviderReference),
+                nameof(ScreeningDisputeIntent.FailureCode), nameof(ScreeningDisputeIntent.RowVersion));
+            RejectImmutableChanges<ScreeningReportAccessAudit>(nameof(ScreeningReportAccessAudit.Status),
+                nameof(ScreeningReportAccessAudit.CompletedAt), nameof(ScreeningReportAccessAudit.GrantExpiresAt),
+                nameof(ScreeningReportAccessAudit.GrantReference), nameof(ScreeningReportAccessAudit.FailureCode));
+            RejectImmutableChanges<ScreeningAdverseActionDeliveryAttempt>(nameof(ScreeningAdverseActionDeliveryAttempt.Status),
+                nameof(ScreeningAdverseActionDeliveryAttempt.AttemptedAt), nameof(ScreeningAdverseActionDeliveryAttempt.DeliveredAt),
+                nameof(ScreeningAdverseActionDeliveryAttempt.ProviderDeliveryReference), nameof(ScreeningAdverseActionDeliveryAttempt.FailureCode),
+                nameof(ScreeningAdverseActionDeliveryAttempt.ProcessingLeaseId), nameof(ScreeningAdverseActionDeliveryAttempt.ProcessingLeaseUntil),
+                nameof(ScreeningAdverseActionDeliveryAttempt.NextAttemptAt), nameof(ScreeningAdverseActionDeliveryAttempt.RowVersion));
+            RejectImmutableChanges<ScreeningSupportElevation>(nameof(ScreeningSupportElevation.RevokedAt),
+                nameof(ScreeningSupportElevation.RevokedByUserId), nameof(ScreeningSupportElevation.AccessCount),
+                nameof(ScreeningSupportElevation.RowVersion));
+            RejectImmutableChanges<ScreeningDispute>(nameof(ScreeningDispute.Status), nameof(ScreeningDispute.ResolvedAt),
+                nameof(ScreeningDispute.CorrectedScreeningReportRevisionId));
+            RejectImmutableChanges<ScreeningIncident>(nameof(ScreeningIncident.Status), nameof(ScreeningIncident.ContainedAt),
+                nameof(ScreeningIncident.ResolvedAt), nameof(ScreeningIncident.ActorUserId),
+                nameof(ScreeningIncident.RemediationEvidenceReference), nameof(ScreeningIncident.NotificationEvidenceReference));
+            RejectImmutableChanges<ScreeningRentalDecisionRevision>(nameof(ScreeningRentalDecisionRevision.IsFrozenByDispute),
+                nameof(ScreeningRentalDecisionRevision.DisputeStatus));
+            RejectImmutableChanges<ScreeningReportRevision>(nameof(ScreeningReportRevision.DeleteRequestedAt),
+                nameof(ScreeningReportRevision.DeletedAt), nameof(ScreeningReportRevision.NormalizedFactsJson),
+                nameof(ScreeningReportRevision.IsUnderLegalHold), nameof(ScreeningReportRevision.LegalHoldPlacedAt),
+                nameof(ScreeningReportRevision.LegalHoldReleasedAt), nameof(ScreeningReportRevision.LegalHoldReasonCode),
+                nameof(ScreeningReportRevision.DeletionClaimToken), nameof(ScreeningReportRevision.DeletionClaimedAt),
+                nameof(ScreeningReportRevision.DeletionClaimExpiresAt), nameof(ScreeningReportRevision.DeletionProviderCallStartedAt),
+                nameof(ScreeningReportRevision.PendingDisputeOperationId));
+        }
+
+        private void RejectAppendOnly<TEntity>() where TEntity : class
+        {
+            if (ChangeTracker.Entries<TEntity>().Any(entry => entry.State is EntityState.Modified or EntityState.Deleted))
+                throw new InvalidOperationException($"{typeof(TEntity).Name} evidence is append-only.");
+        }
+
+        private void RejectInvalidMessageDeliveryEvidenceMutation()
+        {
+            if (ChangeTracker.Entries<MessageDelivery>().Any(entry => entry.State == EntityState.Deleted))
+                throw new InvalidOperationException("Message delivery evidence cannot be deleted.");
+            RejectImmutableChanges<MessageDelivery>(
+                nameof(MessageDelivery.Status), nameof(MessageDelivery.Provider), nameof(MessageDelivery.ProviderMessageId),
+                nameof(MessageDelivery.AttemptCount), nameof(MessageDelivery.NextAttemptAtUtc),
+                nameof(MessageDelivery.ProcessingLeaseId), nameof(MessageDelivery.ProcessingLeaseUntilUtc),
+                nameof(MessageDelivery.ErrorCode), nameof(MessageDelivery.ErrorDetail),
+                nameof(MessageDelivery.SubmittedAtUtc), nameof(MessageDelivery.DeliveredAtUtc),
+                nameof(MessageDelivery.FailedAtUtc), nameof(MessageDelivery.UpdatedAtUtc), nameof(MessageDelivery.RowVersion));
+        }
+
+        private void RejectImmutableChanges<TEntity>(params string[] mutableLifecycleProperties) where TEntity : class
+        {
+            var allowed = mutableLifecycleProperties.ToHashSet(StringComparer.Ordinal);
+            foreach (var entry in ChangeTracker.Entries<TEntity>())
+            {
+                if (entry.State == EntityState.Deleted ||
+                    entry.State == EntityState.Modified && entry.Properties.Any(p => p.IsModified && !allowed.Contains(p.Metadata.Name)))
+                    throw new InvalidOperationException($"{typeof(TEntity).Name} immutable evidence is append-only.");
+            }
+        }
+
 
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<ActivationMilestoneOccurrence> ActivationMilestoneOccurrences => Set<ActivationMilestoneOccurrence>();
         public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
         public DbSet<ImpersonationSession> ImpersonationSessions => Set<ImpersonationSession>();
         public DbSet<ImpersonationAuditRecord> ImpersonationAuditRecords => Set<ImpersonationAuditRecord>();
@@ -113,6 +219,18 @@ namespace brownstone_hub_api.Data
         public DbSet<TenantInvite> TenantInvites => Set<TenantInvite>();
         public DbSet<LandlordInvite> LandlordInvites => Set<LandlordInvite>();
         public DbSet<ApplicationInvite> ApplicationInvites => Set<ApplicationInvite>();
+        public DbSet<UnitLifecycleEvent> UnitLifecycleEvents => Set<UnitLifecycleEvent>();
+        public DbSet<Lead> Leads => Set<Lead>();
+        public DbSet<LeadSource> LeadSources => Set<LeadSource>();
+        public DbSet<PreScreenConfiguration> PreScreenConfigurations => Set<PreScreenConfiguration>();
+        public DbSet<PreScreenResponse> PreScreenResponses => Set<PreScreenResponse>();
+        public DbSet<ShowingAvailability> ShowingAvailabilities => Set<ShowingAvailability>();
+        public DbSet<Showing> Showings => Set<Showing>();
+        public DbSet<LeadNote> LeadNotes => Set<LeadNote>();
+        public DbSet<LeadTask> LeadTasks => Set<LeadTask>();
+        public DbSet<LeadNotificationIntent> LeadNotificationIntents => Set<LeadNotificationIntent>();
+        public DbSet<LeadTokenDelivery> LeadTokenDeliveries => Set<LeadTokenDelivery>();
+        public DbSet<ShowingOperation> ShowingOperations => Set<ShowingOperation>();
         public DbSet<Lease> Leases => Set<Lease>();
         public DbSet<LeaseAgreement> LeaseAgreements => Set<LeaseAgreement>();
         public DbSet<LeaseHistory> LeaseHistories => Set<LeaseHistory>();
@@ -138,6 +256,16 @@ namespace brownstone_hub_api.Data
         public DbSet<MaintenanceRequest> MaintenanceRequests => Set<MaintenanceRequest>();
         public DbSet<MaintenanceCategory> MaintenanceCategories => Set<MaintenanceCategory>();
         public DbSet<MaintenanceImage> MaintenanceImages => Set<MaintenanceImage>();
+        public DbSet<MaintenancePreferredWindow> MaintenancePreferredWindows => Set<MaintenancePreferredWindow>();
+        public DbSet<MaintenanceEstimate> MaintenanceEstimates => Set<MaintenanceEstimate>();
+        public DbSet<MaintenanceWorkOrder> MaintenanceWorkOrders => Set<MaintenanceWorkOrder>();
+        public DbSet<MaintenanceAppointment> MaintenanceAppointments => Set<MaintenanceAppointment>();
+        public DbSet<MaintenanceCompletion> MaintenanceCompletions => Set<MaintenanceCompletion>();
+        public DbSet<MaintenanceTroubleshootingStep> MaintenanceTroubleshootingSteps => Set<MaintenanceTroubleshootingStep>();
+        public DbSet<MaintenanceActivityEvent> MaintenanceActivityEvents => Set<MaintenanceActivityEvent>();
+        public DbSet<MaintenanceAttachment> MaintenanceAttachments => Set<MaintenanceAttachment>();
+        public DbSet<MaintenanceCommandReceipt> MaintenanceCommandReceipts => Set<MaintenanceCommandReceipt>();
+        public DbSet<MaintenanceTimelineOutbox> MaintenanceTimelineOutboxes => Set<MaintenanceTimelineOutbox>();
         public DbSet<Amenity> Amenities => Set<Amenity>();
         public DbSet<IncludedUtility> IncludedUtilities => Set<IncludedUtility>();
         public DbSet<Payment> Payments => Set<Payment>();
@@ -156,6 +284,25 @@ namespace brownstone_hub_api.Data
         public DbSet<TenantDocument> TenantDocuments => Set<TenantDocument>();
         public DbSet<DocumentTemplate> DocumentTemplates => Set<DocumentTemplate>();
         public DbSet<RentalApplication> RentalApplications => Set<RentalApplication>();
+        public DbSet<TenantScreeningOrder> TenantScreeningOrders => Set<TenantScreeningOrder>();
+        public DbSet<ScreeningTransitionEvent> ScreeningTransitionEvents => Set<ScreeningTransitionEvent>();
+        public DbSet<ScreeningConsentEvidence> ScreeningConsentEvidence => Set<ScreeningConsentEvidence>();
+        public DbSet<ScreeningPaymentEvidence> ScreeningPaymentEvidence => Set<ScreeningPaymentEvidence>();
+        public DbSet<ScreeningWebhookInboxEvent> ScreeningWebhookInboxEvents => Set<ScreeningWebhookInboxEvent>();
+        public DbSet<ScreeningCancellationIntent> ScreeningCancellationIntents => Set<ScreeningCancellationIntent>();
+        public DbSet<ScreeningReportAccessAudit> ScreeningReportAccessAudits => Set<ScreeningReportAccessAudit>();
+        public DbSet<ScreeningSupportElevation> ScreeningSupportElevations => Set<ScreeningSupportElevation>();
+        public DbSet<ScreeningReportRevision> ScreeningReportRevisions => Set<ScreeningReportRevision>();
+        public DbSet<ScreeningReportDeletionEvent> ScreeningReportDeletionEvents => Set<ScreeningReportDeletionEvent>();
+        public DbSet<ScreeningRentalDecisionRevision> ScreeningRentalDecisionRevisions => Set<ScreeningRentalDecisionRevision>();
+        public DbSet<ScreeningDispute> ScreeningDisputes => Set<ScreeningDispute>();
+        public DbSet<ScreeningDisputeIntent> ScreeningDisputeIntents => Set<ScreeningDisputeIntent>();
+        public DbSet<ScreeningDisputeEvent> ScreeningDisputeEvents => Set<ScreeningDisputeEvent>();
+        public DbSet<ScreeningAdverseAction> ScreeningAdverseActions => Set<ScreeningAdverseAction>();
+        public DbSet<ScreeningAdverseActionDeliveryAttempt> ScreeningAdverseActionDeliveryAttempts => Set<ScreeningAdverseActionDeliveryAttempt>();
+        public DbSet<ScreeningReconsiderationEvent> ScreeningReconsiderationEvents => Set<ScreeningReconsiderationEvent>();
+        public DbSet<ScreeningIncident> ScreeningIncidents => Set<ScreeningIncident>();
+        public DbSet<ScreeningIncidentEvent> ScreeningIncidentEvents => Set<ScreeningIncidentEvent>();
         public DbSet<Checklist> Checklists => Set<Checklist>();
         public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
         public DbSet<OrganizationChecklistItem> OrganizationChecklistItems => Set<OrganizationChecklistItem>();
@@ -166,6 +313,13 @@ namespace brownstone_hub_api.Data
         public DbSet<Message> Messages => Set<Message>();
         public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
         public DbSet<MessageRead> MessageReads => Set<MessageRead>();
+        public DbSet<ConversationContextLink> ConversationContextLinks => Set<ConversationContextLink>();
+        public DbSet<ConversationTimelineEntry> ConversationTimelineEntries => Set<ConversationTimelineEntry>();
+        public DbSet<ConversationTimelineSequence> ConversationTimelineSequences => Set<ConversationTimelineSequence>();
+        public DbSet<MessageDelivery> MessageDeliveries => Set<MessageDelivery>();
+        public DbSet<ConversationReadWatermark> ConversationReadWatermarks => Set<ConversationReadWatermark>();
+        public DbSet<QuickReply> QuickReplies => Set<QuickReply>();
+        public DbSet<ConversationFollowUpTask> ConversationFollowUpTasks => Set<ConversationFollowUpTask>();
         public DbSet<OrganizationSmsNumber> OrganizationSmsNumbers => Set<OrganizationSmsNumber>();
 
         // Subscriptions
@@ -241,6 +395,7 @@ namespace brownstone_hub_api.Data
         public DbSet<PercyMessage> PercyMessages => Set<PercyMessage>();
         public DbSet<PercyActionConfirmation> PercyActionConfirmations => Set<PercyActionConfirmation>();
         public DbSet<PercyAuditRecord> PercyAuditRecords => Set<PercyAuditRecord>();
+        public DbSet<PercyChatOperation> PercyChatOperations => Set<PercyChatOperation>();
 
         // Time Tracking
         public DbSet<StaffMember> StaffMembers => Set<StaffMember>();

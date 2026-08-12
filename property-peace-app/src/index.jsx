@@ -56,13 +56,50 @@ const root = createRoot(container);
 
 // ==============================|| MAIN - REACT DOM RENDER ||============================== //
 
-root.render(
-  <ConfigProvider>
-    <App />
-  </ConfigProvider>
-);
+const setMeta = (httpEquiv, name, content) => {
+  const selector = httpEquiv ? `meta[http-equiv="${httpEquiv}"]` : `meta[name="${name}"]`;
+  const meta = document.head.querySelector(selector) || document.createElement('meta');
+  if (httpEquiv) meta.setAttribute('http-equiv', httpEquiv);
+  else meta.setAttribute('name', name);
+  meta.setAttribute('content', content);
+  if (!meta.parentNode) document.head.prepend(meta);
+};
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+const bootstrapApplicantCapability = async () => {
+  const isApplicantScreeningRoute = /^\/screening(?:\/|$)/.test(window.location.pathname);
+  if (!isApplicantScreeningRoute) return;
+
+  // Apply document controls to both the one-time URL and the scrubbed cookie-backed
+  // route, before any React provider or optional integration can initialize.
+  setMeta('Referrer-Policy', null, 'no-referrer');
+  setMeta('Cache-Control', null, 'no-store');
+  setMeta(null, 'robots', 'noindex, nofollow');
+
+  const match = window.location.pathname.match(/^\/screening\/([^/]+)\/?$/);
+  if (!match) return;
+
+  const token = decodeURIComponent(match[1]);
+  try {
+    await fetch('/api/screenings/applicant/session', {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      referrerPolicy: 'no-referrer',
+      headers: { 'X-Screening-Access': token }
+    });
+  } finally {
+    // Never leave the bearer capability in history, logs, copy/paste, or referrers.
+    window.history.replaceState(null, '', '/screening');
+  }
+};
+
+const render = () => {
+  root.render(
+    <ConfigProvider>
+      <App />
+    </ConfigProvider>
+  );
+  reportWebVitals();
+};
+
+bootstrapApplicantCapability().finally(render);

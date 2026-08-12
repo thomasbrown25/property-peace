@@ -36,12 +36,15 @@ namespace brownstone_hub_api.Services.SmsService
         private readonly IHubContext<ConversationHub> _conversationHub = conversationHub;
         private readonly ILogger<InboundSmsService> _logger = logger;
 
-        public async Task<string> HandleInboundAsync(string fromPhone, string toPhone, string body)
+        public async Task<string> HandleInboundAsync(string fromPhone, string toPhone, string body, string providerMessageId)
         {
+            if (string.IsNullOrWhiteSpace(providerMessageId) || providerMessageId.Length > 160)
+                throw new ArgumentException("A bounded provider message ID is required.", nameof(providerMessageId));
+
             var organizationSmsNumber = await _organizationSmsNumberRepository.GetByPhoneNumberAsync(toPhone);
             if (organizationSmsNumber == null)
             {
-                _logger.LogWarning("Inbound SMS to unknown Property Peace number {To} from {From}", toPhone, fromPhone);
+                _logger.LogWarning("Inbound SMS received for an unknown Property Peace destination");
                 return EmptyTwiml();
             }
 
@@ -51,7 +54,7 @@ namespace brownstone_hub_api.Services.SmsService
                 ?? await GetTenantUserIdByPhoneNumberAsync(fromPhone);
             if (userId == null)
             {
-                _logger.LogWarning("Inbound SMS from unknown number {From} — no matching user or tenant found", fromPhone);
+                _logger.LogWarning("Inbound SMS sender did not match a user or tenant");
                 return EmptyTwiml();
             }
 
@@ -65,13 +68,21 @@ namespace brownstone_hub_api.Services.SmsService
             }
 
             // 3. Save the message as the tenant
+            var clientRequestId = $"twilio-inbound:{providerMessageId.Trim()}";
+
             var messageDto = new AddMessageDto
             {
                 ConversationId = conversation.Id,
-                Content = body.Trim()
+                Content = body.Trim(),
+                Channel = "sms",
+                ClientRequestId = clientRequestId
             };
 
             var savedMessage = await _messageRepository.AddMessage(messageDto, userId.Value);
+
+            // Twilio retries signed webhooks. The repository verifies that a replay has the
+            // same payload; once verified, do not rebroadcast or notify a second time.
+            if (savedMessage.WasReplayed) return EmptyTwiml();
 
             _logger.LogInformation(
                 "Inbound SMS from user {UserId} routed to conversation {ConversationId}",

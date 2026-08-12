@@ -12,13 +12,14 @@ namespace brownstone_hub_api.Repositories.Tenants
         private readonly IMapper _mapper = mapper;
         private readonly ILogger<TenantInviteRepository> _logger = logger;
 
-        public async Task<LoadTenantInviteDto> CreateInvite(AddTenantInviteDto invite, long createdBy, string inviteToken, DateTime expiresAt)
+        public async Task<LoadTenantInviteDto> CreateInvite(AddTenantInviteDto invite, long createdBy, long organizationId, string inviteToken, DateTime expiresAt)
         {
             try
             {
                 var tenantInvite = new TenantInvite
                 {
                     TenantId = invite.TenantId,
+                    OrganizationId = organizationId,
                     Email = invite.Email,
                     InviteToken = inviteToken,
                     ExpiresAt = expiresAt,
@@ -72,7 +73,11 @@ namespace brownstone_hub_api.Repositories.Tenants
             }
         }
 
-        public async Task<LoadTenantInviteDto?> GetInviteById(long id)
+        public Task<LoadTenantInviteDto?> GetInviteById(long id) => GetInviteByIdCore(id, null);
+
+        public Task<LoadTenantInviteDto?> GetInviteById(long id, long organizationId) => GetInviteByIdCore(id, organizationId);
+
+        private async Task<LoadTenantInviteDto?> GetInviteByIdCore(long id, long? organizationId)
         {
             try
             {
@@ -80,7 +85,7 @@ namespace brownstone_hub_api.Repositories.Tenants
                     .Include(ti => ti.Tenant)
                         .ThenInclude(t => t.TenantLeases)
                             .ThenInclude(tl => tl.Lease)
-                    .FirstOrDefaultAsync(ti => ti.Id == id);
+                    .FirstOrDefaultAsync(ti => ti.Id == id && (!organizationId.HasValue || ti.OrganizationId == organizationId.Value));
 
                 return invite == null ? null : _mapper.Map<LoadTenantInviteDto>(invite);
             }
@@ -91,7 +96,11 @@ namespace brownstone_hub_api.Repositories.Tenants
             }
         }
 
-        public async Task<List<LoadTenantInviteDto>> GetInvitesByTenantId(long tenantId)
+        public Task<List<LoadTenantInviteDto>> GetInvitesByTenantId(long tenantId) => GetInvitesByTenantIdCore(tenantId, null);
+
+        public Task<List<LoadTenantInviteDto>> GetInvitesByTenantId(long tenantId, long organizationId) => GetInvitesByTenantIdCore(tenantId, organizationId);
+
+        private async Task<List<LoadTenantInviteDto>> GetInvitesByTenantIdCore(long tenantId, long? organizationId)
         {
             try
             {
@@ -99,8 +108,9 @@ namespace brownstone_hub_api.Repositories.Tenants
                     .Include(ti => ti.Tenant)
                         .ThenInclude(t => t.TenantLeases)
                             .ThenInclude(tl => tl.Lease)
-                    .Where(ti => ti.TenantId == tenantId)
+                    .Where(ti => ti.TenantId == tenantId && (!organizationId.HasValue || ti.OrganizationId == organizationId.Value))
                     .OrderByDescending(ti => ti.CreatedAt)
+                    .Take(200)
                     .ToListAsync();
 
                 return _mapper.Map<List<LoadTenantInviteDto>>(invites);
@@ -112,7 +122,11 @@ namespace brownstone_hub_api.Repositories.Tenants
             }
         }
 
-        public async Task<List<LoadTenantInviteDto>> GetInvitesByLandlordId(long landlordId)
+        public Task<List<LoadTenantInviteDto>> GetInvitesByLandlordId(long landlordId) => GetInvitesByLandlordIdCore(landlordId, null);
+
+        public Task<List<LoadTenantInviteDto>> GetInvitesByLandlordId(long landlordId, long organizationId) => GetInvitesByLandlordIdCore(landlordId, organizationId);
+
+        private async Task<List<LoadTenantInviteDto>> GetInvitesByLandlordIdCore(long landlordId, long? organizationId, int limit = 200)
         {
             try
             {
@@ -120,8 +134,9 @@ namespace brownstone_hub_api.Repositories.Tenants
                     .Include(ti => ti.Tenant)
                         .ThenInclude(t => t.TenantLeases)
                             .ThenInclude(tl => tl.Lease)
-                    .Where(ti => ti.CreatedBy == landlordId)
+                    .Where(ti => ti.CreatedBy == landlordId && (!organizationId.HasValue || ti.OrganizationId == organizationId.Value))
                     .OrderByDescending(ti => ti.CreatedAt)
+                    .Take(Math.Clamp(limit, 1, 200))
                     .ToListAsync();
 
                 return _mapper.Map<List<LoadTenantInviteDto>>(invites);

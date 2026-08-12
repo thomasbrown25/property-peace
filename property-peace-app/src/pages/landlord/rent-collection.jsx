@@ -48,11 +48,15 @@ import axiosServices from 'utils/axios';
 // Enhanced components
 import RentCollectionHeader from 'sections/landlord/rent-collection/RentCollectionHeader';
 import RentCollectionMetrics from 'sections/landlord/rent-collection/RentCollectionMetrics';
+import SettlementSummary from 'sections/landlord/rent-collection/SettlementSummary';
 import RentCollectionTable from 'sections/landlord/rent-collection/RentCollectionTable';
 import RentCollectionEmptyState from 'sections/landlord/rent-collection/RentCollectionEmptyState';
 import RentCard from 'components/cards/RentCard';
 import MainCard from 'components/MainCard';
 import BankAccountBanner from 'components/rent-collection/BankAccountBanner';
+import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useFeatureReadiness from 'hooks/useFeatureReadiness';
+import { FEATURE_KEYS } from 'utils/featureReadiness';
 
 export default function RentCollection() {
   const modal = useModal();
@@ -64,6 +68,7 @@ export default function RentCollection() {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
+  const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
   const [accountStatus, setAccountStatus] = useState(null);
   const [checkingBankStatus, setCheckingBankStatus] = useState(false);
 
@@ -86,11 +91,16 @@ export default function RentCollection() {
 
   // Check bank account status
   useEffect(() => {
+    if (!rentCanInvoke) {
+      setAccountStatus(null);
+      setCheckingBankStatus(false);
+      return;
+    }
     checkBankAccountStatus();
-  }, [user]);
+  }, [user, rentCanInvoke]);
 
   const checkBankAccountStatus = async () => {
-    if (!user?.id && !user?.Id) return;
+    if (!rentCanInvoke || (!user?.id && !user?.Id)) return;
 
     try {
       setCheckingBankStatus(true);
@@ -345,11 +355,7 @@ export default function RentCollection() {
     }
   };
 
-  const handleViewLease = (rent) => {
-    navigate(`/landlord/rent-collection/${rent.leaseId}`);
-  };
 
-  // Helper function to get icon and label for each tab
   const getTabDisplay = (tabValue) => {
     const tabConfig = {
       active: { icon: <CheckCircleOutlined style={{ fontSize: 16 }} />, label: 'Active' },
@@ -366,16 +372,18 @@ export default function RentCollection() {
     <Box>
       {/* Enhanced Header */}
       <RentCollectionHeader />
+      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
 
       {/* Bank Account Banner - Show if bank account is not connected */}
-      {!checkingBankStatus && !isBankConnected && (
+      {rentCanInvoke && !checkingBankStatus && !isBankConnected && (
         <Box sx={{ mb: 3 }}>
           <BankAccountBanner />
         </Box>
       )}
 
-      {/* Enhanced Metrics */}
+      {/* Tenant payment metrics and landlord settlement are intentionally presented separately. */}
       <RentCollectionMetrics summary={summary} />
+      <SettlementSummary summary={summary} />
 
       {paymentIssueRents.length > 0 && (
         <Alert
@@ -428,7 +436,7 @@ export default function RentCollection() {
             }
           }}
         >
-          <PropertySelect width={300} />
+          <PropertySelect width="100%" requestedPropertyId={searchParams.get('propertyId')} />
 
           <Box
             sx={{
@@ -555,7 +563,7 @@ export default function RentCollection() {
                 if (selectedProperty?.id) {
                   params.set('propertyId', selectedProperty.id);
                 }
-                navigate('/landlord/leases/selection');
+                navigate(`/landlord/leases/selection${params.size ? `?${params.toString()}` : ''}`);
               }}
               sx={{
                 color: 'primary.main',
@@ -590,7 +598,7 @@ export default function RentCollection() {
           <Grid container spacing={3}>
             {sortedRents.map((rent) => (
               <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={rent.leaseId || rent.id}>
-                <RentCard rent={rent} onSendReminder={handleSendReminder} onViewLease={handleViewLease} />
+                <RentCard rent={rent} onSendReminder={handleSendReminder} />
               </Grid>
             ))}
           </Grid>

@@ -39,7 +39,8 @@ namespace brownstone_hub_api.Repositories.Organizations
                 .Include(o => o.Owner)
                 .Include(o => o.Subscription)
                 .Include(o => o.Members)
-                .Where(o => o.Members.Any(m => m.UserId == userId && m.IsActive) && !o.IsDeleted)
+                .Where(o => o.IsActive && !o.IsDeleted &&
+                    o.Members.Any(m => m.OrganizationId == o.Id && m.UserId == userId && m.IsActive))
                 .ToListAsync();
         }
 
@@ -91,14 +92,15 @@ namespace brownstone_hub_api.Repositories.Organizations
 
         public async Task<Organization?> GetCurrentUserOrganizationAsync(long userId)
         {
-            var user = await _context.Users
-                .Include(u => u.CurrentOrganization)
-                .FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted);
-
-            if (user?.CurrentOrganizationId == null)
-                return null;
-
-            return await GetOrganizationByIdAsync(user.CurrentOrganizationId.Value);
+            return await _context.Users
+                .Where(u => u.Id == userId && !u.IsDeleted && u.CurrentOrganizationId.HasValue)
+                .SelectMany(u => _context.Organizations
+                    .Where(o => o.Id == u.CurrentOrganizationId!.Value && o.IsActive && !o.IsDeleted &&
+                        _context.OrganizationMembers.Any(m =>
+                            m.OrganizationId == o.Id && m.UserId == userId && m.IsActive)))
+                .Include(o => o.Owner)
+                .Include(o => o.Subscription)
+                .SingleOrDefaultAsync();
         }
 
         public async Task<bool> OrganizationNameExistsAsync(string organizationName, long? excludeOrganizationId = null)

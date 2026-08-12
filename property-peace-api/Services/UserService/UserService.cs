@@ -13,6 +13,7 @@ using System.Security.Cryptography;
 using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Services.TenantInviteService;
 using brownstone_hub_api.Services.GoogleAuthService;
+using brownstone_hub_api.Services.AppleAuthService;
 using brownstone_hub_api.Services.OrganizationInviteService;
 using brownstone_hub_api.Services.OrganizationService;
 using brownstone_hub_api.Data;
@@ -24,6 +25,7 @@ using brownstone_hub_api.Services.SubscriptionService;
 using brownstone_hub_api.Dtos.Subscription;
 using brownstone_hub_api.Services.StripeService;
 using Microsoft.AspNetCore.Http;
+using brownstone_hub_api.Services.EmailVerificationService;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.AzureBlobService;
 using Azure.Storage.Blobs;
@@ -37,6 +39,7 @@ namespace brownstone_hub_api.Services.UserService
         IConfiguration configuration,
         ILogger<UserService> logger,
         IGoogleAuthService googleAuthService,
+        IAppleAuthService appleAuthService,
         DataContext dataContext,
         BlobServiceClient? blobServiceClient = null,
         IAzureBlobService? azureBlobService = null,
@@ -57,6 +60,7 @@ namespace brownstone_hub_api.Services.UserService
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger _logger = logger;
         private readonly IGoogleAuthService _googleAuthService = googleAuthService;
+        private readonly IAppleAuthService _appleAuthService = appleAuthService;
         private readonly DataContext _dataContext = dataContext;
         private readonly BlobServiceClient? _blobServiceClient = blobServiceClient;
         private readonly IAzureBlobService? _azureBlobService = azureBlobService;
@@ -126,21 +130,36 @@ namespace brownstone_hub_api.Services.UserService
             }
         }
 
-        public async Task<ServiceResponse<LoadUserDto>> Register(AddUserDto newUser)
+        public Task<ServiceResponse<LoadUserDto>> Register(AddUserDto newUser) =>
+            Register(newUser, emailVerifiedByTrustedProvider: false);
+
+        private async Task<ServiceResponse<LoadUserDto>> Register(
+            AddUserDto newUser,
+            bool emailVerifiedByTrustedProvider)
         {
             ServiceResponse<LoadUserDto> response = new();
 
             try
             {
+                newUser.Email = newUser.Email?.Trim().ToLowerInvariant() ?? string.Empty;
                 _logger.LogInformation("Register called for email: {Email}, BusinessName: '{BusinessName}', Roles: {Roles}",
                     newUser.Email, newUser.BusinessName ?? "(null)", string.Join(", ", newUser.Roles ?? new List<string>()));
 
-                if (await _userRepository.UserExists(newUser.Email))
+                long? emailVerificationId = null;
+                var hasInviteContext = !string.IsNullOrWhiteSpace(newUser.OrganizationInviteToken) ||
+                    !string.IsNullOrWhiteSpace(newUser.InviteToken);
+                if (!emailVerifiedByTrustedProvider && !hasInviteContext)
                 {
-                    response.Message = "A user with that email already exists.";
-                    response.Success = false;
-                    _logger.LogTrace("Register user failed: A user with that email already exists.");
-                    return response;
+                    emailVerificationId = await GetValidEmailVerificationIdAsync(
+                        newUser.Email,
+                        newUser.EmailVerificationProof);
+                    if (!emailVerificationId.HasValue)
+                    {
+                        response.Success = false;
+                        response.StatusCode = StatusCodes.Status403Forbidden;
+                        response.Message = "Email verification is required before registration.";
+                        return response;
+                    }
                 }
 
                 // Never trust privileged/auth fields from the public registration payload.
@@ -233,6 +252,28 @@ namespace brownstone_hub_api.Services.UserService
                     serverAssignedRoles = new List<string> { "Tenant" };
                 }
 
+                if (!emailVerifiedByTrustedProvider && !emailVerificationId.HasValue)
+                {
+                    emailVerificationId = await GetValidEmailVerificationIdAsync(
+                        newUser.Email,
+                        newUser.EmailVerificationProof);
+                    if (!emailVerificationId.HasValue)
+                    {
+                        response.Success = false;
+                        response.StatusCode = StatusCodes.Status403Forbidden;
+                        response.Message = "Email verification is required before registration.";
+                        return response;
+                    }
+                }
+
+                if (await _userRepository.UserExists(newUser.Email))
+                {
+                    response.Message = "A user with that email already exists.";
+                    response.Success = false;
+                    _logger.LogTrace("Register user failed: A user with that email already exists.");
+                    return response;
+                }
+
                 // Apply only server-derived roles. Never use roles supplied by the registration request.
                 newUser.Roles = serverAssignedRoles
                     .Where(role => !string.IsNullOrWhiteSpace(role))
@@ -287,7 +328,70 @@ namespace brownstone_hub_api.Services.UserService
 
                 var token = CreateToken(newUser);
 
-                var loadedUser = await _userRepository.AddUser(newUser);
+                Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? registrationTransaction = null;
+                if (emailVerificationId.HasValue && _dataContext.Database.IsRelational())
+                {
+                    registrationTransaction = await _dataContext.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+                }
+
+                LoadUserDto loadedUser;
+                await using (registrationTransaction)
+                {
+                    if (emailVerificationId.HasValue)
+                    {
+                        var consumedAtUtc = DateTime.UtcNow;
+                        int consumedRows;
+                        if (_dataContext.Database.IsRelational())
+                        {
+                            consumedRows = await _dataContext.EmailVerifications
+                                .Where(verification =>
+                                    verification.Id == emailVerificationId.Value &&
+                                    verification.IsVerified &&
+                                    verification.ExpiresAt >= consumedAtUtc)
+                                .ExecuteUpdateAsync(setters => setters
+                                    .SetProperty(verification => verification.Code, string.Empty)
+                                    .SetProperty(verification => verification.ExpiresAt, consumedAtUtc.AddSeconds(-1)));
+                        }
+                        else
+                        {
+                            var verification = await _dataContext.EmailVerifications
+                                .FirstOrDefaultAsync(candidate =>
+                                    candidate.Id == emailVerificationId.Value &&
+                                    candidate.IsVerified &&
+                                    candidate.ExpiresAt >= consumedAtUtc);
+                            if (verification == null)
+                            {
+                                consumedRows = 0;
+                            }
+                            else
+                            {
+                                verification.Code = string.Empty;
+                                verification.ExpiresAt = consumedAtUtc.AddSeconds(-1);
+                                await _dataContext.SaveChangesAsync();
+                                consumedRows = 1;
+                            }
+                        }
+
+                        if (consumedRows != 1)
+                        {
+                            if (registrationTransaction != null)
+                            {
+                                await registrationTransaction.RollbackAsync();
+                            }
+
+                            response.Success = false;
+                            response.StatusCode = StatusCodes.Status403Forbidden;
+                            response.Message = "Email verification is required before registration.";
+                            return response;
+                        }
+                    }
+
+                    loadedUser = await _userRepository.AddUser(newUser);
+                    if (registrationTransaction != null)
+                    {
+                        await registrationTransaction.CommitAsync();
+                    }
+                }
 
                 // Set LastLogin to creation date and LoginCount to 1 for new users
                 if (loadedUser != null)
@@ -677,7 +781,10 @@ namespace brownstone_hub_api.Services.UserService
                 {
                     try
                     {
-                        var orgResponse = await _organizationService.GetOrganizationByIdAsync(response.Data.CurrentOrganizationId.Value);
+                        var orgResponse = await _organizationService.GetOrganizationByIdAsync(
+                            response.Data.CurrentOrganizationId.Value,
+                            response.Data.CurrentOrganizationId.Value,
+                            loadedUser.Id);
                         if (orgResponse.Success && orgResponse.Data != null)
                         {
                             response.Data.CurrentOrganizationName = orgResponse.Data.Name;
@@ -746,12 +853,43 @@ namespace brownstone_hub_api.Services.UserService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception occurred in User Service");
+                _logger.LogError(ex, "Exception occurred while registering user");
                 response.Success = false;
-                response.Message = ex.Message;
+                response.StatusCode = StatusCodes.Status500InternalServerError;
+                response.Message = "Registration could not be completed. Please try again.";
             }
 
             return response;
+        }
+
+        private async Task<long?> GetValidEmailVerificationIdAsync(string email, string? proof)
+        {
+            var nowUtc = DateTime.UtcNow;
+            var proofSecret = _configuration["JwtSettings:SecretKey"] ?? string.Empty;
+            if (!EmailVerificationProof.TryValidate(
+                    proof,
+                    email,
+                    nowUtc,
+                    TimeSpan.FromMinutes(10),
+                    proofSecret,
+                    out var verifiedRecordId))
+            {
+                return null;
+            }
+
+            var verificationCutoff = nowUtc.AddMinutes(-10);
+            var hasMatchingVerification = await _dataContext.EmailVerifications
+                .AsNoTracking()
+                .AnyAsync(verification =>
+                    verification.Id == verifiedRecordId &&
+                    verification.Email == email &&
+                    verification.IsVerified &&
+                    verification.VerifiedAt.HasValue &&
+                    verification.VerifiedAt.Value >= verificationCutoff &&
+                    verification.VerifiedAt.Value <= nowUtc.AddMinutes(1) &&
+                    verification.ExpiresAt >= nowUtc);
+
+            return hasMatchingVerification ? verifiedRecordId : null;
         }
 
         public async Task<ServiceResponse<LoadUserDto>> Login(string email, string password)
@@ -975,12 +1113,15 @@ namespace brownstone_hub_api.Services.UserService
                     }
                 }
 
-                if (googleUser == null)
+                if (googleUser == null || !googleUser.EmailVerified || string.IsNullOrWhiteSpace(googleUser.Email))
                 {
                     response.Success = false;
-                    response.Message = "Invalid Google token";
+                    response.Message = "Google did not provide a verified email address.";
+                    response.StatusCode = StatusCodes.Status403Forbidden;
                     return (response, false);
                 }
+
+                googleUser.Email = googleUser.Email.Trim().ToLowerInvariant();
 
                 // Check if user exists by Google ID
                 var existingUser = await _userRepository.GetUserByGoogleIdAsync(googleUser.Id);
@@ -1291,6 +1432,113 @@ namespace brownstone_hub_api.Services.UserService
             return (response, isNewUser);
         }
 
+        public async Task<(ServiceResponse<LoadUserDto> Response, bool IsNewUser)> AppleLogin(
+            string identityToken,
+            string nonce,
+            string? firstName = null,
+            string? lastName = null,
+            string? timezone = null,
+            CancellationToken cancellationToken = default)
+        {
+            var response = new ServiceResponse<LoadUserDto>();
+            var appleUser = await _appleAuthService.VerifyIdentityTokenAsync(identityToken, nonce, cancellationToken);
+            if (appleUser == null)
+            {
+                response.Success = false;
+                response.Message = "Invalid Apple identity token.";
+                response.StatusCode = 401;
+                return (response, false);
+            }
+
+            var existingByAppleId = await _userRepository.GetUserByAppleIdAsync(appleUser.Subject);
+            if (existingByAppleId != null)
+            {
+                var dbUser = await _userRepository.GetUser(existingByAppleId.Id);
+                if (dbUser.IsSuspended)
+                {
+                    response.Success = false;
+                    response.Message = "Your account has been suspended. Please contact support for assistance.";
+                    response.StatusCode = 403;
+                    return (response, false);
+                }
+
+                dbUser.AuthProvider = MergeAuthProvider(dbUser.AuthProvider, "Apple", dbUser.PasswordHash != null);
+                dbUser.LastLogin = DateTime.Now;
+                dbUser.LoginCount++;
+                dbUser.UpdatedDate = DateTime.Now;
+                await _dataContext.SaveChangesAsync(cancellationToken);
+                response.Data = existingByAppleId;
+                response.Success = true;
+                return (response, false);
+            }
+
+            var existingByEmail = await _userRepository.GetUserByEmailAsync(appleUser.Email);
+            if (existingByEmail != null)
+            {
+                var dbUser = await _userRepository.GetUser(existingByEmail.Id);
+                if (dbUser.IsSuspended)
+                {
+                    response.Success = false;
+                    response.Message = "Your account has been suspended. Please contact support for assistance.";
+                    response.StatusCode = 403;
+                    return (response, false);
+                }
+                if (!string.IsNullOrEmpty(dbUser.AppleId) && dbUser.AppleId != appleUser.Subject)
+                {
+                    response.Success = false;
+                    response.Message = "This account is already linked to another Apple ID.";
+                    response.StatusCode = 409;
+                    return (response, false);
+                }
+
+                dbUser.AppleId = appleUser.Subject;
+                dbUser.AuthProvider = MergeAuthProvider(dbUser.AuthProvider, "Apple", dbUser.PasswordHash != null);
+                dbUser.LastLogin = DateTime.Now;
+                dbUser.LoginCount++;
+                dbUser.UpdatedDate = DateTime.Now;
+                await _dataContext.SaveChangesAsync(cancellationToken);
+                response.Data = await _userRepository.GetUserByAppleIdAsync(appleUser.Subject);
+                response.Success = response.Data != null;
+                return (response, false);
+            }
+
+            var registration = await Register(new AddUserDto
+            {
+                Email = appleUser.Email,
+                Firstname = firstName?.Trim() ?? string.Empty,
+                Lastname = lastName?.Trim() ?? string.Empty,
+                Password = string.Empty,
+                Roles = [],
+                Timezone = timezone
+            }, emailVerifiedByTrustedProvider: true);
+            if (!registration.Success || registration.Data == null)
+            {
+                return (registration, false);
+            }
+
+            var newDbUser = await _userRepository.GetUser(registration.Data.Id);
+            newDbUser.AppleId = appleUser.Subject;
+            newDbUser.AuthProvider = "Apple";
+            newDbUser.UpdatedDate = DateTime.Now;
+            await _dataContext.SaveChangesAsync(cancellationToken);
+
+            response.Data = await _userRepository.GetUserByAppleIdAsync(appleUser.Subject);
+            response.Success = response.Data != null;
+            response.Message = response.Success ? "Apple account created." : "Unable to load the new Apple account.";
+            return (response, true);
+        }
+
+        private static string MergeAuthProvider(string? current, string provider, bool hasPassword)
+        {
+            var providers = (current ?? string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Where(value => !string.Equals(value, "Email", StringComparison.OrdinalIgnoreCase) || hasPassword)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (hasPassword) providers.Add("Email");
+            providers.Add(provider);
+            return string.Join(',', providers.OrderBy(value => value == "Email" ? 0 : 1).ThenBy(value => value));
+        }
+
         public async Task<ServiceResponse<LoadUserDto>> LoadUser()
         {
             ServiceResponse<LoadUserDto> response = new();
@@ -1381,26 +1629,45 @@ namespace brownstone_hub_api.Services.UserService
 
                 if (ownedOrganizations.Any())
                 {
-                    // For each owned organization, either transfer ownership or delete it
+                    // Resolve and validate every ownership operation before mutating anything.
+                    // OwnerId is legacy metadata, not sufficient authorization to promote a member.
+                    var ownershipPlans = new List<(Models.Organization Organization, Models.OrganizationMember? Successor)>();
                     foreach (var org in ownedOrganizations)
                     {
-                        // Find another active member to transfer ownership to
+                        var deletingOwnerMembership = await _dataContext.OrganizationMembers
+                            .AsNoTracking()
+                            .SingleOrDefaultAsync(m => m.OrganizationId == org.Id && m.UserId == userId);
+                        if (!org.IsActive || org.IsDeleted ||
+                            deletingOwnerMembership is not { IsActive: true } ||
+                            !string.Equals(deletingOwnerMembership.Role, "Owner", StringComparison.OrdinalIgnoreCase))
+                        {
+                            response.Success = false;
+                            response.Message = "Cannot delete account: Organization ownership could not be verified.";
+                            return response;
+                        }
+
                         var otherMember = await _dataContext.OrganizationMembers
                             .Include(m => m.User)
                             .Where(m => m.OrganizationId == org.Id
                                 && m.UserId != userId
+                                && m.UserId.HasValue
                                 && m.IsActive
+                                && m.User != null
                                 && !m.User.IsDeleted)
-                            .OrderBy(m => m.JoinedAt) // Transfer to the oldest member
+                            .OrderBy(m => m.JoinedAt)
                             .FirstOrDefaultAsync();
 
+                        ownershipPlans.Add((org, otherMember));
+                    }
+
+                    // All organizations passed the authority/precondition checks. Apply the plans.
+                    foreach (var (org, otherMember) in ownershipPlans)
+                    {
                         if (otherMember != null)
                         {
-                            // Transfer ownership to another member
-                            org.OwnerId = (long)otherMember.UserId;
+                            // Transfer ownership to another member and canonicalize the role.
+                            org.OwnerId = otherMember.UserId!.Value;
                             org.UpdatedAt = DateTime.Now;
-
-                            // Update the member's role to Owner
                             otherMember.Role = "Owner";
                             otherMember.CanManageMembers = true;
 
@@ -1409,7 +1676,7 @@ namespace brownstone_hub_api.Services.UserService
                         }
                         else
                         {
-                            // No other members, soft delete the organization
+                            // No other members, soft delete the organization.
                             org.IsDeleted = true;
                             org.DeletedAt = DateTime.Now;
                             org.UpdatedAt = DateTime.Now;
@@ -1790,6 +2057,7 @@ namespace brownstone_hub_api.Services.UserService
                     IsDeleted = user.IsDeleted,
                     DeletedAt = user.DeletedAt,
                     CreateDate = user.CreateDate,
+                    CurrentOrganizationId = user.CurrentOrganizationId,
                     Roles = user.UserRoles?.Select(ur => ur.Role.RoleName).ToList() ?? new List<string>(),
                     HasPassword = user.PasswordHash != null && user.PasswordHash.Length > 0
                 };

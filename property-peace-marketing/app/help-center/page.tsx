@@ -19,27 +19,27 @@ const faqs = [
   {
     question: "What is Property Peace?",
     answer:
-      "Property Peace is property management software designed for independent landlords. It helps you manage rentals, collect rent, track maintenance, create leases, and handle tenant communication—all in one place.",
+      "Property Peace is property management software designed for independent landlords. It helps you track rent records, manage maintenance, organize leases, and handle tenant communication—all in one place.",
   },
   {
     question: "Is Property Peace free?",
     answer:
-      "Yes! Core features are free: add properties, collect rent, track expenses, manage leases, and use the tenant portal. No credit card required to get started. Some premium features, such as LeaseShield, are available on paid plans.",
+      "Property Peace has a free plan for up to 5 units, with no credit card required to get started. Paid plans add features and capacity; check the pricing page for the current plan details.",
   },
   {
-    question: "How does online rent collection work?",
+    question: "Can tenants pay rent online through Property Peace?",
     answer:
-      "Property Peace integrates with Stripe for secure online payments. Tenants pay through the tenant portal using credit cards or bank transfers. You get automatic reminders, payment tracking, and real-time updates.",
+      "Not currently. Online payment processing is on the roadmap. Today, landlords can record payments, track overdue balances and late fees, and organize rent reminders in Property Peace.",
   },
   {
     question: "Can I manage multiple properties?",
     answer:
-      "Absolutely. Property Peace supports unlimited properties and units. Organize your portfolio, track expenses per property, generate reports, and manage all tenants and leases from one dashboard.",
+      "Yes. The permanent Free plan supports up to 5 total units, while Premium supports unlimited units. Both plans organize properties, units, tenants, leases, maintenance, and financial records in one workspace; advanced reporting depends on plan entitlement and feature readiness.",
   },
   {
     question: "How do I get support?",
     answer:
-      "Contact us at support@propertypeace.io for help. We respond within 24 hours and are available 24/7 for urgent inquiries.",
+      "Contact us at support@propertypeace.io for help. Response times vary by request volume and issue complexity.",
   },
 ];
 
@@ -80,7 +80,7 @@ export default function HelpCenterPage() {
                 Contact Us
               </h2>
               <p className="text-[#737373] text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Email support available 24/7. Get help with your account or questions.
+                Email support is available for account help and product questions.
               </p>
             </div>
           </Link>
@@ -139,7 +139,7 @@ export default function HelpCenterPage() {
                 Get Started
               </h2>
               <p className="text-[#737373] text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Sign up in 30 seconds. No credit card required.
+                Create a Free account. No credit card required.
               </p>
             </div>
           </a>

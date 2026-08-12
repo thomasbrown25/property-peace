@@ -6,20 +6,20 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/rental-management-software/', {
   title: "Rental Management Software for Independent Landlords | Property Peace",
-  description: "Rental management software for independent landlords. Organize tenants, rent collection, maintenance, leases, expenses, and reports. Start free.",
+  description: "Rental management software for independent landlords. Organize tenants, rent records, maintenance, leases, expenses, and reports. Online payments are not currently available.",
   keywords: "rental management software, rental property management software, rental management system, property rental software, rental management tools",
   openGraph: {
     title: "Rental Management Software for Independent Landlords | Property Peace",
-    description: "Organize tenants, rent collection, maintenance, leases, expenses, and reports. Start free.",
+    description: "Organize tenants, rent records, maintenance, lease documents, expenses, and reports.",
     type: 'website',
   },
 });
 
 const rentalFeatures = [
   'Complete tenant management system',
-  'Online rent collection and payment tracking',
+  'Rent ledger, overdue balances, and reminders',
   'Maintenance request management',
-  'Digital lease management and signing',
+  'Lease document and renewal management',
   'Financial reporting and analytics',
   'Property and unit organization',
   'Document storage and management',
@@ -40,7 +40,7 @@ export default function RentalManagementSoftwarePage() {
       price: '0',
       priceCurrency: 'USD',
     },
-    description: 'Complete rental management software for landlords. Manage tenants, collect rent online, track maintenance, and generate financial reports. Currently free.',
+    description: 'Rental management software for landlords to manage tenants, record rent, track maintenance, organize lease documents, and generate financial reports. Online payment processing is not currently available.',
     featureList: rentalFeatures,
   };
 
@@ -59,7 +59,7 @@ export default function RentalManagementSoftwarePage() {
             className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            All-in-one rental management software for landlords. Streamline tenant management, rent collection, maintenance tracking, and financial reporting in one comprehensive platform.
+            Keep tenant management, rent records, maintenance tracking, lease documents, and financial reporting in one platform. Online payment processing and integrated e-signature are not currently available.
           </p>
           <Link
             href="https://app.propertypeace.io/register"
@@ -146,7 +146,7 @@ export default function RentalManagementSoftwarePage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                See rent payments, maintenance requests, and tenant messages instantly. No page refreshes needed—everything updates in real-time.
+                See recorded rent status, maintenance requests, and tenant messages together as records are updated.
               </p>
             </div>
             <div>

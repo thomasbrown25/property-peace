@@ -194,6 +194,7 @@ namespace brownstone_hub_api.Repositories.Users
             user.PhoneNumber = null;
             user.ProfileImageUrl = null;
             user.GoogleId = null;
+            user.AppleId = null;
             user.PasswordHash = null;
             user.PasswordSalt = null;
             await _context.SaveChangesAsync();
@@ -527,6 +528,17 @@ namespace brownstone_hub_api.Repositories.Users
                 .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
                 .Where(u => u.GoogleId == googleId && !u.IsDeleted)
+                .FirstOrDefaultAsync();
+
+            return dbUser != null ? _mapper.Map<LoadUserDto>(dbUser) : null;
+        }
+
+        public async Task<LoadUserDto?> GetUserByAppleIdAsync(string appleId)
+        {
+            var dbUser = await _context.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Where(u => u.AppleId == appleId && !u.IsDeleted)
                 .FirstOrDefaultAsync();
 
             return dbUser != null ? _mapper.Map<LoadUserDto>(dbUser) : null;

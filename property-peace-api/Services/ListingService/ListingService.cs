@@ -1,4 +1,5 @@
 using Azure.Storage.Blobs;
+using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Image;
 using brownstone_hub_api.Dtos.Listing;
 using brownstone_hub_api.Enums;
@@ -11,7 +12,10 @@ using brownstone_hub_api.Repositories.Units;
 using brownstone_hub_api.Services.AzureBlobService;
 using brownstone_hub_api.Services.ImageService;
 using brownstone_hub_api.Services.UserContextService;
+using brownstone_hub_api.Services.ActivationFunnel;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace brownstone_hub_api.Services.ListingService
 {
@@ -25,7 +29,9 @@ namespace brownstone_hub_api.Services.ListingService
         BlobServiceClient blobServiceClient,
         IUserContextService userContextService,
         IHttpContextAccessor httpContextAccessor,
-        ILogger<ListingService> logger) : IListingService
+        ILogger<ListingService> logger,
+        IActivationOccurrenceRecorder? occurrenceRecorder = null,
+        DataContext? dataContext = null) : IListingService
     {
         private const string ListingImagesContainer = "listing-images";
 
@@ -39,6 +45,8 @@ namespace brownstone_hub_api.Services.ListingService
         private readonly IUserContextService _userContextService = userContextService;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly ILogger<ListingService> _logger = logger;
+        private readonly IActivationOccurrenceRecorder? _occurrenceRecorder = occurrenceRecorder;
+        private readonly DataContext? _dataContext = dataContext;
 
         private long? GetCurrentOrganizationId()
         {
@@ -244,7 +252,15 @@ namespace brownstone_hub_api.Services.ListingService
                     listingDto.CustomAmenityIds != null ? string.Join(",", listingDto.CustomAmenityIds) : "null",
                     listingDto.DefaultFeatureIds != null ? string.Join(",", listingDto.DefaultFeatureIds) : "null",
                     listingDto.CustomFeatureIds != null ? string.Join(",", listingDto.CustomFeatureIds) : "null");
+                var existing = await _listingRepository.GetListingById(listingDto.Id);
+                if (existing is null)
+                    return ServiceResponse<LoadListingDto>.CreateError("Listing not found", "Listing not found.");
+                await using var activationTransaction = await BeginActivationTransactionAsync();
                 var listing = await _listingRepository.UpdateListing(listingDto);
+                if (listing.Status == EListingStatus.Active)
+                    await TryRecordListingPublishedAsync(listing);
+                if (activationTransaction is not null)
+                    await activationTransaction.CommitAsync();
                 return ServiceResponse<LoadListingDto>.CreateSuccess(listing);
             }
             catch (KeyNotFoundException ex)
@@ -268,12 +284,55 @@ namespace brownstone_hub_api.Services.ListingService
         {
             try
             {
+                var organizationId = GetCurrentOrganizationId();
+                if (!organizationId.HasValue)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Organization context required",
+                        "Organization context is required to retrieve an internal listing.",
+                        "",
+                        403
+                    );
+                }
+
+                var userId = await _userContextService.GetCurrentUserIdAsync();
+                if (!userId.HasValue)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Access denied",
+                        "An authenticated organization member is required to retrieve an internal listing.",
+                        "",
+                        403
+                    );
+                }
+
+                var member = await _organizationMemberRepository.GetMemberAsync(organizationId.Value, userId.Value);
+                if (member == null || !member.IsActive)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Access denied",
+                        "You do not have access to listings for the current organization.",
+                        "",
+                        403
+                    );
+                }
+
                 var listing = await _listingRepository.GetListingById(listingId);
                 if (listing == null)
                 {
                     return ServiceResponse<LoadListingDto>.CreateError(
                         "Listing not found",
                         $"Listing with ID {listingId} not found."
+                    );
+                }
+
+                if (listing.OrganizationId != organizationId.Value)
+                {
+                    return ServiceResponse<LoadListingDto>.CreateError(
+                        "Access denied",
+                        "You do not have access to this listing.",
+                        "",
+                        403
                     );
                 }
 
@@ -480,7 +539,12 @@ namespace brownstone_hub_api.Services.ListingService
                     CustomListingUrl = slug
                 };
 
+                await using var activationTransaction = await BeginActivationTransactionAsync();
                 var listing = await _listingRepository.UpdateListing(updateDto);
+                if (listing.Status == EListingStatus.Active)
+                    await TryRecordListingPublishedAsync(listing);
+                if (activationTransaction is not null)
+                    await activationTransaction.CommitAsync();
                 return ServiceResponse<LoadListingDto>.CreateSuccess(listing);
             }
             catch (Exception ex)
@@ -490,6 +554,38 @@ namespace brownstone_hub_api.Services.ListingService
                     "Error publishing listing",
                     ex.Message
                 );
+            }
+        }
+
+        private async Task<IDbContextTransaction?> BeginActivationTransactionAsync()
+        {
+            if (_dataContext is null || !_dataContext.Database.IsRelational())
+                return null;
+
+            return await _dataContext.Database.BeginTransactionAsync();
+        }
+
+        private async Task TryRecordListingPublishedAsync(LoadListingDto listing)
+        {
+            if (_occurrenceRecorder is null || listing.OrganizationId is not > 0)
+                return;
+
+            try
+            {
+                var actorUserId = await _userContextService.GetCurrentUserIdAsync();
+                var occurredAt = listing.PublishedAt ?? listing.CreatedAt;
+                await _occurrenceRecorder.RecordAsync(new ActivationOccurrenceRequest(
+                    listing.OrganizationId, ActivationMilestones.ListingPublished, $"listing:{listing.Id}",
+                    new DateTimeOffset(DateTime.SpecifyKind(occurredAt, DateTimeKind.Utc)),
+                    IsTimestampEstimated: !listing.PublishedAt.HasValue,
+                    SourceEventType: "listing", SourceEventId: listing.Id.ToString(),
+                    ActorUserId: actorUserId));
+            }
+            catch (Exception ex) when (_dataContext is null || !_dataContext.Database.IsRelational())
+            {
+                _logger.LogError(ex,
+                    "Listing {ListingId} was persisted but activation recording failed; a later active-listing mutation can replay the idempotent occurrence.",
+                    listing.Id);
             }
         }
 
@@ -560,7 +656,9 @@ namespace brownstone_hub_api.Services.ListingService
             try
             {
                 var listing = await _listingRepository.GetListingByNumber(listingNumber);
-                if (listing == null || listing.Status != EListingStatus.Active)
+                if (listing == null ||
+                    listing.Status != EListingStatus.Active ||
+                    !listing.SyndicateToListingWebsite)
                 {
                     return ServiceResponse<PublicListingDto>.CreateError(
                         "Listing not found",

@@ -1,7 +1,9 @@
+using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Vendor;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Repositories.Vendors;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Services.VendorService
 {
@@ -9,11 +11,13 @@ namespace brownstone_hub_api.Services.VendorService
         IVendorRepository vendorRepository,
         IUserRepository userRepository,
         IHttpContextAccessor httpContextAccessor,
+        DataContext db,
         ILogger<VendorService> logger) : IVendorService
     {
         private readonly IVendorRepository _vendorRepository = vendorRepository;
         private readonly IUserRepository _userRepository = userRepository;
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+        private readonly DataContext _db = db;
         private readonly ILogger<VendorService> _logger = logger;
 
         private long? GetOrganizationIdFromContext()
@@ -48,6 +52,19 @@ namespace brownstone_hub_api.Services.VendorService
                 _logger.LogError(ex, "Error adding vendor");
                 return ServiceResponse<LoadVendorDto>.CreateError("Error creating vendor", ex.Message, ex.InnerException?.Message);
             }
+        }
+
+        public async Task<ServiceResponse<LoadVendorDto>> AddVendor(AddVendorDto vendorDto, long organizationId, long actorUserId)
+        {
+            if (organizationId <= 0 || actorUserId <= 0)
+                return ServiceResponse<LoadVendorDto>.CreateError("Organization and actor are required", "Invalid ownership context", statusCode: 403);
+            var actor = await _userRepository.GetUser(actorUserId);
+            if (actor is null)
+                return ServiceResponse<LoadVendorDto>.CreateError("Actor not found", "Authenticated actor does not exist", statusCode: 401);
+
+            vendorDto.LandlordId = actorUserId;
+            var result = await _vendorRepository.AddVendor(vendorDto, organizationId);
+            return ServiceResponse<LoadVendorDto>.CreateSuccess(result, "Vendor created successfully");
         }
 
         public async Task<ServiceResponse<LoadVendorDto>> GetVendorById(long vendorId)
@@ -103,6 +120,38 @@ namespace brownstone_hub_api.Services.VendorService
             }
         }
 
+        public async Task<ServiceResponse<List<LoadVendorDto>>> GetVendorsByOrganizationId(long organizationId, bool includeInactive = false)
+        {
+            var vendors = await _vendorRepository.GetVendorsByOrganizationId(organizationId, includeInactive);
+            await ApplyReadiness(vendors, organizationId);
+            return ServiceResponse<List<LoadVendorDto>>.CreateSuccess(vendors, "Vendors retrieved successfully");
+        }
+
+        public async Task<ServiceResponse<LoadVendorDto>> GetVendorByOrganizationId(long vendorId, long organizationId)
+        {
+            var vendors = await _vendorRepository.GetVendorsByOrganizationId(organizationId, true);
+            var vendor = vendors.SingleOrDefault(x => x.Id == vendorId);
+            if (vendor is null)
+                return ServiceResponse<LoadVendorDto>.CreateError("Vendor not found", "Vendor not found", statusCode: 404);
+            await ApplyReadiness([vendor], organizationId);
+            return ServiceResponse<LoadVendorDto>.CreateSuccess(vendor, "Vendor retrieved successfully");
+        }
+
+        public async Task<ServiceResponse<List<LoadVendorDto>>> SearchVendorsByOrganizationId(long organizationId, string searchTerm, string? category = null)
+        {
+            var vendors = await _vendorRepository.SearchVendorsByOrganizationId(organizationId, searchTerm, category);
+            await ApplyReadiness(vendors, organizationId);
+            return ServiceResponse<List<LoadVendorDto>>.CreateSuccess(vendors, "Vendors retrieved successfully");
+        }
+
+        private async Task ApplyReadiness(IEnumerable<LoadVendorDto> vendors, long organizationId)
+        {
+            var readyIds = await _db.Vendors.AsNoTracking()
+                .Where(x => x.OrganizationId == organizationId && x.IsActive && !x.IsDeleted && x.PortalUserId != null)
+                .Select(x => x.Id).ToHashSetAsync();
+            foreach (var vendor in vendors) vendor.IsReadyForAssignment = readyIds.Contains(vendor.Id);
+        }
+
         public async Task<ServiceResponse<LoadVendorDto>> UpdateVendor(UpdateVendorDto vendorDto)
         {
             try
@@ -136,6 +185,12 @@ namespace brownstone_hub_api.Services.VendorService
             }
         }
 
+        public async Task<ServiceResponse<LoadVendorDto>> UpdateVendor(UpdateVendorDto vendorDto, long organizationId)
+        {
+            if (!await OwnsVendorAsync(vendorDto.Id, organizationId)) return VendorNotFound<LoadVendorDto>();
+            return await UpdateVendor(vendorDto);
+        }
+
         public async Task<ServiceResponse<bool>> DeleteVendor(long vendorId)
         {
             try
@@ -158,6 +213,12 @@ namespace brownstone_hub_api.Services.VendorService
                 _logger.LogError(ex, "Error deleting vendor with ID {VendorId}", vendorId);
                 return ServiceResponse<bool>.CreateError("Error deleting vendor", ex.Message, ex.InnerException?.Message);
             }
+        }
+
+        public async Task<ServiceResponse<bool>> DeleteVendor(long vendorId, long organizationId)
+        {
+            if (!await OwnsVendorAsync(vendorId, organizationId)) return VendorNotFound<bool>();
+            return await DeleteVendor(vendorId);
         }
 
         public async Task<ServiceResponse<bool>> SoftDeleteVendor(long vendorId)
@@ -183,6 +244,18 @@ namespace brownstone_hub_api.Services.VendorService
                 return ServiceResponse<bool>.CreateError("Error deactivating vendor", ex.Message, ex.InnerException?.Message);
             }
         }
+
+        public async Task<ServiceResponse<bool>> SoftDeleteVendor(long vendorId, long organizationId)
+        {
+            if (!await OwnsVendorAsync(vendorId, organizationId)) return VendorNotFound<bool>();
+            return await SoftDeleteVendor(vendorId);
+        }
+
+        private Task<bool> OwnsVendorAsync(long vendorId, long organizationId) =>
+            _db.Vendors.AsNoTracking().AnyAsync(x => x.Id == vendorId && x.OrganizationId == organizationId);
+
+        private static ServiceResponse<T> VendorNotFound<T>() =>
+            ServiceResponse<T>.CreateError("Vendor not found", "Vendor not found in the current organization", statusCode: 404);
 
         public async Task<ServiceResponse<List<LoadVendorDto>>> SearchVendors(long landlordId, string searchTerm, string? category = null)
         {

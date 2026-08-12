@@ -33,6 +33,30 @@ public sealed class StripeRentTransferTests
     }
 
     [Fact]
+    public async Task ReconcileRefundExposureAsync_StaleProviderSnapshot_CannotReduceDurableRefundExposure()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+        payment.Status = StripeRentPaymentStatus.Blocked;
+        payment.RefundedAmountCents = 5_000;
+        context.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.GetSourceStateAsync("ch_123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StripeRentSourceState(true, true, false, false, null,
+                "pi_transfer", 10_000, "usd", 5_000));
+        var service = CreateService(context, gateway.Object, Mock.Of<IStripeRentRiskService>(), transfersEnabled: false);
+
+        await service.ReconcileRefundExposureAsync("pi_transfer", "ch_123", "re_stale",
+            "stale cumulative refund snapshot", 3_000);
+
+        context.ChangeTracker.Clear();
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.RefundedAmountCents.Should().Be(5_000);
+        stored.Status.Should().Be(StripeRentPaymentStatus.Blocked);
+    }
+
+    [Fact]
     public async Task ProcessEligibleAsync_PartialRefund_ReversesOnlyIncrementalLostAmount()
     {
         await using var context = StripeRentPaymentFlowTests.CreateContext();
@@ -172,6 +196,53 @@ public sealed class StripeRentTransferTests
             "rent-transfer-reversal:pi_transfer:3000", It.IsAny<CancellationToken>()), Times.Exactly(2));
         gateway.Verify(x => x.CreateTransferReversalAsync("tr_ambiguous_reversal", 2_000,
             "rent-transfer-reversal:pi_transfer:5000", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessEligibleAsync_WhenDisputeIsWonDuringInFlightReversal_PreservesManualRecoveryState()
+    {
+        var database = Guid.NewGuid().ToString();
+        await using (var setup = StripeRentPaymentFlowTests.CreateContext(database))
+        {
+            var aggregate = await StripeRentLossAccountingTests.SeedCompletedPaymentAsync(
+                setup, refundedCents: 0, disputedCents: 0);
+            aggregate.StripeTransferId = "tr_won_race";
+            aggregate.Status = StripeRentPaymentStatus.Transferred;
+            await setup.SaveChangesAsync();
+            var loss = new StripeRentLossAccountingService(setup,
+                Mock.Of<ILogger<StripeRentLossAccountingService>>());
+            await loss.ApplyDisputeCreatedAsync(new StripeRentDisputeCreatedCommand(
+                "pi_loss", "ch_loss", "dp_won_race", 8_000, DateTimeOffset.UtcNow,
+                "Stripe dispute opened."));
+        }
+
+        var gateway = new Mock<IStripeRentGateway>(MockBehavior.Strict);
+        gateway.Setup(x => x.CreateTransferReversalAsync("tr_won_race", 8_000,
+                "rent-transfer-reversal:pi_loss:8000", It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                await using var concurrent = StripeRentPaymentFlowTests.CreateContext(database);
+                var loss = new StripeRentLossAccountingService(concurrent,
+                    Mock.Of<ILogger<StripeRentLossAccountingService>>());
+                await loss.RecoverWonDisputeAsync("pi_loss", "ch_loss", "dp_won_race",
+                    8_000, "usd", DateTimeOffset.UtcNow.AddMinutes(1));
+                return "trr_won_race";
+            });
+        await using var context = StripeRentPaymentFlowTests.CreateContext(database);
+        var service = CreateService(context, gateway.Object, Mock.Of<IStripeRentRiskService>(),
+            transfersEnabled: false);
+
+        await service.ProcessEligibleTransfersAsync();
+
+        context.ChangeTracker.Clear();
+        var stored = await context.StripeRentPayments.SingleAsync();
+        stored.Status.Should().Be(StripeRentPaymentStatus.RecoveryFailed);
+        stored.StripeTransferReversalId.Should().Be("trr_won_race");
+        stored.ReversedAmountCents.Should().Be(8_000);
+        stored.DisputedAmountCents.Should().Be(0);
+        stored.DisputeRecoveredAmountCents.Should().Be(8_000);
+        stored.RiskReason.Should().Contain("manual destination funding");
+        gateway.VerifyAll();
     }
 
     [Fact]
