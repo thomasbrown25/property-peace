@@ -47,7 +47,6 @@ const plans = [
       'Occupancy tracking',
       'Rent estimates',
       'LeaseShield protection',
-      'Percy Pilot workflows (limited availability)',
       'One dedicated organization SMS number included with Premium; activation and configuration required',
       'Cancel anytime',
     ],
@@ -81,7 +80,7 @@ export default function PricingPlans() {
             className="text-lg md:text-xl text-[#737373] max-w-2xl mx-auto mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled.
+            Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled. Limited Percy Pilot access may be available and is not included as a plan entitlement.
           </p>
 
           {/* Annual toggle */}

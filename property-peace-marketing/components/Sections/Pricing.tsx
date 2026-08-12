@@ -1,99 +1,48 @@
-'use client';
-
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { FiArrowRight, FiCalendar } from 'react-icons/fi';
+import { FiArrowRight, FiCheck } from 'react-icons/fi';
+
+const plans = [
+  {
+    name: 'Free',
+    price: '$0',
+    cadence: 'forever',
+    description: 'A calm home for a small rental portfolio.',
+    features: ['Up to 5 units', 'Core lease, maintenance, rent, expense, and document records', 'No credit card required'],
+  },
+  {
+    name: 'Premium',
+    price: '$14.99',
+    cadence: 'per month',
+    description: 'More room and advanced property-management workflows.',
+    features: ['Unlimited units', 'Advanced accounting, rent workflows, and LeaseShield', 'Limited Percy Pilot access may be available; not a plan entitlement'],
+  },
+];
 
 export default function Pricing() {
   return (
-    <section
-      id="pricing"
-      className="relative overflow-hidden bg-white py-32 px-4 sm:px-6 lg:px-8"
-    >
-      <div className="relative z-10 max-w-3xl mx-auto text-center">
-        {/* Badge */}
-        <motion.div
-          className="flex justify-center mb-8"
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-        >
-          <span
-            className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest uppercase text-green-600 px-4 py-1.5 rounded-full border border-green-500/20 bg-green-50"
-            style={{ fontFamily: '"Inter", sans-serif' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block flex-shrink-0" />
-            Start free · built for landlords with 1–50 units
-          </span>
-        </motion.div>
-
-        {/* Heading */}
-        <motion.h2
-          className="text-5xl md:text-6xl lg:text-7xl font-bold text-primary-main mb-6"
-          style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.1 }}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-        >
-          Simplify Your Landlord{' '}
-          <span className="text-green-600">Workflow</span>
-        </motion.h2>
-
-        {/* Subtext */}
-        <motion.p
-          className="text-lg text-slate-500 mb-12 max-w-xl mx-auto"
-          style={{ fontFamily: '"Inter", sans-serif' }}
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          Start with the work that creates the most chaos: rent tracking, maintenance requests, expenses, and lease details. No credit card required.
-        </motion.p>
-
-        {/* CTA Card */}
-        <motion.div
-          className="mx-auto max-w-xl"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          <Link
-            href="https://app.propertypeace.io/register"
-            className="group flex w-full items-center justify-center gap-3 rounded-none px-8 py-5 text-lg font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-emerald-500/40"
-            style={{
-              background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-              fontFamily: '"Poppins", sans-serif',
-              boxShadow: '0 14px 40px rgba(34,197,94,0.35)'
-            }}
-          >
-            Start free
-            <FiArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-          </Link>
-          <Link
-            href="/demo"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-none border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-primary-main shadow-sm transition-colors hover:bg-slate-50 hover:text-primary-hover"
-            style={{ fontFamily: '"Inter", sans-serif' }}
-          >
-            <FiCalendar className="h-4 w-4" />
-            Prefer a walkthrough? Book a demo
-          </Link>
-        </motion.div>
-
-        {/* Factual trust note */}
-        <motion.p
-          className="mt-8 text-sm text-slate-500"
-          style={{ fontFamily: '"Inter", sans-serif' }}
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-        >
-          Designed for 1–50 unit landlords moving from spreadsheets and scattered messages to one calm system.
-        </motion.p>
+    <section id="pricing" className="bg-white px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <div className="mx-auto max-w-6xl">
+        <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
+          <div className="max-w-2xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-700">Simple pricing</p>
+            <h2 className="mt-4 text-3xl font-bold tracking-[-0.03em] text-[#061E35] sm:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Start with five units, free.</h2>
+            <p className="mt-4 leading-7 text-slate-600">Property Peace remains useful with or without Percy. Upgrade when your portfolio or workflow needs more.</p>
+          </div>
+          <Link href="/pricing" className="inline-flex min-h-11 items-center gap-2 font-bold text-green-700 underline underline-offset-4">See full plan details <FiArrowRight aria-hidden="true" /></Link>
+        </div>
+        <div className="mt-10 grid gap-5 md:grid-cols-2">
+          {plans.map((plan, index) => (
+            <article key={plan.name} className={`border p-6 sm:p-8 ${index === 1 ? 'border-[#061E35] bg-[#061E35] text-white' : 'border-slate-200 bg-[#F8FAF9] text-[#061E35]'}`}>
+              <h3 className="text-xl font-bold">{plan.name}</h3>
+              <div className="mt-5 flex items-end gap-2"><span className="text-4xl font-bold">{plan.price}</span><span className={`pb-1 text-sm ${index === 1 ? 'text-slate-300' : 'text-slate-500'}`}>{plan.cadence}</span></div>
+              <p className={`mt-4 text-sm leading-6 ${index === 1 ? 'text-slate-300' : 'text-slate-600'}`}>{plan.description}</p>
+              <ul className="mt-6 space-y-3">
+                {plan.features.map((feature) => <li key={feature} className="flex gap-3 text-sm leading-6"><FiCheck className="mt-1 shrink-0 text-green-500" aria-hidden="true" />{feature}</li>)}
+              </ul>
+              <Link href="https://app.propertypeace.io/register" className="mt-7 inline-flex min-h-12 w-full items-center justify-center bg-green-600 px-6 font-bold text-white transition hover:bg-green-500">{index === 1 ? 'Get started' : 'Start free'}</Link>
+            </article>
+          ))}
+        </div>
       </div>
     </section>
   );

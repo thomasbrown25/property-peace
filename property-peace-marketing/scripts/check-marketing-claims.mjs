@@ -71,6 +71,192 @@ const required = [
 
 const failures = [];
 
+// Homepage repositioning contract. These requirements intentionally lead the copy change: keep
+// Percy positioned as an assistant, and make landlord review/control explicit before launch.
+const homepagePositioningRequired = [
+  [/AI property assistant/i, 'approved AI property assistant positioning'],
+  [
+    /(?:\bPercy\b[^.!?]{0,160}\b(?:you|landlords?)\b[^.!?]{0,80}\b(?:review|approv\w*|remain in control|stay in control)\b|\b(?:you|landlords?)\b[^.!?]{0,80}\b(?:review|approv\w*|control)\b[^.!?]{0,160}\bPercy(?:'s)?\b)/i,
+    'clear Percy-specific sentence establishing landlord review or control',
+  ],
+];
+
+function withoutComments(source) {
+  return source.replace(/\{?\/\*[\s\S]*?\*\/\}?/g, '').replace(/^\s*\/\/.*$/gm, '');
+}
+
+function hasUnnegatedMatch(source, pattern) {
+  const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+  const matcher = new RegExp(pattern.source, flags);
+  for (const match of source.matchAll(matcher)) {
+    // A negator must govern the matched phrase in the same short clause. This accepts truthful
+    // copy such as "is not a replacement" / "isn't a replacement" without allowing contrastive
+    // claims such as "is not only a replacement" or a negation in an earlier clause.
+    const prefix = source.slice(Math.max(0, match.index - 120), match.index);
+    const clause = prefix.slice(Math.max(prefix.lastIndexOf('.'), prefix.lastIndexOf('!'), prefix.lastIndexOf('?'), prefix.lastIndexOf(';')) + 1);
+    const negators = [...clause.matchAll(/\b(?:never|cannot|(?:does|do|did|is|are|was|were|will|would|can|could|should|has|have|had)\s+not|(?:doesn|don|didn|isn|aren|wasn|weren|won|wouldn|can|couldn|shouldn|hasn|haven|hadn)['’]t)\b/gi)];
+    const negator = negators.at(-1);
+    if (!negator) return true;
+    const gap = clause.slice(negator.index + negator[0].length);
+    const words = gap.match(/[A-Za-z]+(?:[-'][A-Za-z]+)*/g) ?? [];
+    const breaksNegation = /\b(?:only|just|merely|because|although|though|but|yet|however|unless|unable|incapable)\b|\b(?:and|or)\s+(?:it\s+)?(?:does|is|are|will|can)\b/i.test(gap);
+    if (words.length > 6 || breaksNegation || /[,():{}]|=>|&&|\|\|/.test(gap)) return true;
+  }
+  return false;
+}
+
+function parseLocalImports(source) {
+  const imports = [];
+  for (const match of source.matchAll(/\bimport\s+(?!type\b)([\s\S]*?)\s+from\s+['"]([^'"]+)['"]/g)) {
+    const [, clause, specifier] = match;
+    if (!specifier.startsWith('.') && !specifier.startsWith('@/')) continue;
+    const bindings = [];
+    const defaultBinding = clause.match(/^\s*([A-Za-z_$][\w$]*)/);
+    if (defaultBinding) bindings.push({ local: defaultBinding[1], imported: 'default' });
+    const namespace = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+    if (namespace) bindings.push({ local: namespace[1], imported: '*' });
+    const named = clause.match(/\{([\s\S]*?)\}/)?.[1] ?? '';
+    for (const item of named.split(',')) {
+      const binding = item.trim().replace(/^type\s+/, '').match(/^([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/);
+      if (binding) bindings.push({ imported: binding[1], local: binding[2] ?? binding[1] });
+    }
+    imports.push({ specifier, bindings });
+  }
+  return imports;
+}
+
+function mountedImportRequests(source) {
+  const requests = [];
+  for (const imported of parseLocalImports(source)) {
+    const names = new Set();
+    for (const binding of imported.bindings) {
+      if (binding.imported === '*') {
+        for (const match of source.matchAll(new RegExp(`<${binding.local}\\.([A-Z][\\w$]*)\\b`, 'g'))) names.add(match[1]);
+      } else if (new RegExp(`<${binding.local}\\b`).test(source)) {
+        names.add(binding.imported);
+      }
+    }
+    if (names.size) requests.push({ specifier: imported.specifier, names });
+  }
+  return requests;
+}
+
+async function resolveLocalImport(specifier, importer) {
+  const base = specifier.startsWith('@/') ? new URL(`../${specifier.slice(2)}`, import.meta.url) : new URL(specifier, importer);
+  for (const suffix of ['', '.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts', '/index.jsx', '/index.js']) {
+    const candidate = new URL(`${base.href}${suffix}`);
+    try {
+      await readFile(candidate, 'utf8');
+      return candidate;
+    } catch (error) {
+      if (error.code !== 'ENOENT' && error.code !== 'EISDIR') throw error;
+    }
+  }
+  return undefined;
+}
+
+function reexportRequests(source, requestedNames) {
+  const requests = [];
+  for (const match of source.matchAll(/\bexport\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]/g)) {
+    const names = new Set();
+    for (const item of match[1].split(',')) {
+      const binding = item.trim().match(/^([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/);
+      if (binding && requestedNames.has(binding[2] ?? binding[1])) names.add(binding[1]);
+    }
+    if (names.size) requests.push({ specifier: match[2], names });
+  }
+  for (const match of source.matchAll(/\bexport\s*\*\s*from\s*['"]([^'"]+)['"]/g)) {
+    requests.push({ specifier: match[1], names: new Set(requestedNames) });
+  }
+
+  // Also support the common two-step barrel form: import Foo from './Foo'; export { Foo }.
+  const locallyExported = new Set();
+  for (const match of source.matchAll(/\bexport\s*\{([^}]*)\}(?!\s*from)/g)) {
+    for (const item of match[1].split(',')) {
+      const binding = item.trim().match(/^([A-Za-z_$][\w$]*)(?:\s+as\s+([A-Za-z_$][\w$]*))?$/);
+      if (binding && requestedNames.has(binding[2] ?? binding[1])) locallyExported.add(binding[1]);
+    }
+  }
+  for (const imported of parseLocalImports(source)) {
+    const names = new Set(imported.bindings.filter(({ local }) => locallyExported.has(local)).map(({ imported: name }) => name));
+    if (names.size) requests.push({ specifier: imported.specifier, names });
+  }
+  return requests;
+}
+
+async function renderedComponentSources(entry) {
+  const visited = new Map();
+  const traversedExports = new Map();
+  async function visit(file, requestedNames = new Set(['default'])) {
+    const alreadyRequested = traversedExports.get(file.href) ?? new Set();
+    const newNames = new Set([...requestedNames].filter((name) => !alreadyRequested.has(name)));
+    if (!newNames.size) return;
+    traversedExports.set(file.href, new Set([...alreadyRequested, ...newNames]));
+    let source = visited.get(file.href);
+    if (source === undefined) {
+      source = withoutComments(await readFile(file, 'utf8'));
+      visited.set(file.href, source);
+    }
+    const requests = [...mountedImportRequests(source), ...reexportRequests(source, newNames)];
+    for (const request of requests) {
+      const dependency = await resolveLocalImport(request.specifier, file);
+      if (dependency) await visit(dependency, request.names);
+    }
+  }
+  await visit(entry);
+  const root = new URL('../', import.meta.url).pathname;
+  return [...visited].map(([href, source]) => [new URL(href).pathname.replace(root, ''), source]);
+}
+
+// Dependency-free fixtures keep the bounded parser and negation semantics from silently regressing.
+const traversalFixture = mountedImportRequests(`
+  import DefaultCard from './default-card';
+  import { NamedCard as RenamedCard, UnusedCard } from './cards';
+  import * as Sections from './sections';
+  <DefaultCard /><RenamedCard /><Sections.NamespaceCard />
+`);
+const traversalFixtureResult = traversalFixture.map(({ specifier, names }) => [specifier, [...names].sort()]);
+const expectedTraversalFixture = [
+  ['./default-card', ['default']],
+  ['./cards', ['NamedCard']],
+  ['./sections', ['NamespaceCard']],
+];
+if (JSON.stringify(traversalFixtureResult) !== JSON.stringify(expectedTraversalFixture)) {
+  failures.push('internal import-traversal fixture failed for mounted default, named, or namespace imports');
+}
+const barrelFixture = reexportRequests(`
+  export { default as DirectCard, NamedCard as RenamedCard, UnusedCard } from './direct';
+  export * from './star';
+  import ImportedCard from './two-step';
+  export { ImportedCard, OtherCard };
+`, new Set(['DirectCard', 'RenamedCard', 'StarCard', 'ImportedCard']));
+const barrelFixtureResult = barrelFixture.map(({ specifier, names }) => [specifier, [...names].sort()]);
+const expectedBarrelFixture = [
+  ['./direct', ['NamedCard', 'default']],
+  ['./star', ['DirectCard', 'ImportedCard', 'RenamedCard', 'StarCard']],
+  ['./two-step', ['default']],
+];
+if (JSON.stringify(barrelFixtureResult) !== JSON.stringify(expectedBarrelFixture)) {
+  failures.push('internal import-traversal fixture failed for direct, star, or two-step barrel re-exports');
+}
+const replacementClaim = /replacement for (?:a |the )?property manager/i;
+for (const compliant of [
+  'Percy is not a replacement for a property manager.',
+  "Percy isn't a replacement for a property manager.",
+  "Percy isn’t a replacement for a property manager.",
+  "Percy and its tools aren't a replacement for a property manager.",
+]) {
+  if (hasUnnegatedMatch(compliant, replacementClaim)) failures.push(`internal negation fixture rejected compliant copy: ${compliant}`);
+}
+for (const prohibited of [
+  'Percy is a replacement for a property manager.',
+  'Percy is not only a replacement for a property manager.',
+  "Percy isn't limited and is a replacement for a property manager.",
+  "Percy isn't limited, so it is a replacement for a property manager.",
+]) {
+  if (!hasUnnegatedMatch(prohibited, replacementClaim)) failures.push(`internal negation fixture missed prohibited copy: ${prohibited}`);
+}
+
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
   const files = await Promise.all(entries.map(async (entry) => {
@@ -91,9 +277,89 @@ for (const [file, pattern] of required) {
   if (!pattern.test(source)) failures.push(`${file}: missing availability disclosure matching ${pattern}`);
 }
 
+// Follow only component imports actually mounted from app/page.tsx. Newly composed homepage
+// sections are included automatically, while commented-out and unrelated components are excluded.
+const homepageSources = await renderedComponentSources(new URL('../app/page.tsx', import.meta.url));
+for (const [pattern, description] of homepagePositioningRequired) {
+  if (!homepageSources.some(([, source]) => pattern.test(source))) {
+    failures.push(`homepage: missing ${description} matching ${pattern}`);
+  }
+}
+
 const blogIndexClient = await readFile(new URL('../app/blog/BlogPageClient.tsx', import.meta.url), 'utf8');
 if (/['"]@\/lib\/(?:blog-posts|article-editorial)['"]/.test(blogIndexClient)) {
   failures.push('app/blog/BlogPageClient.tsx: public client bundle must not import the full unpublished article corpus or editorial registry');
+}
+
+// The JSON contract is shared directly with TypeScript and this dependency-free Node check.
+const capabilityContract = JSON.parse(await readFile(new URL('../lib/percy-capabilities.json', import.meta.url), 'utf8'));
+const expectedCapabilityStatuses = new Map(Object.entries({
+  portfolioBriefings: 'pilot', propertyQuestions: 'pilot', sourceLinkedAnswers: 'pilot',
+  tenantCommunicationSummaries: 'pilot', tenantCommunicationDrafts: 'planned',
+  maintenanceTriage: 'pilot', maintenanceDrafts: 'planned', leaseDeadlines: 'pilot',
+  leaseRenewals: 'unavailable', financialExplanations: 'unavailable', imports: 'unavailable',
+  notifications: 'planned', actionApprovalAndExecution: 'planned', providerDependentActions: 'unavailable',
+}));
+const expectedStatuses = ['available', 'pilot', 'prepareOnly', 'planned', 'unavailable'];
+if (JSON.stringify(capabilityContract.statuses) !== JSON.stringify(expectedStatuses)) {
+  failures.push('lib/percy-capabilities.json: statuses must exactly match the canonical status set and order');
+}
+const capabilities = Array.isArray(capabilityContract.capabilities) ? capabilityContract.capabilities : [];
+const ids = capabilities.map((capability) => capability?.id);
+if (ids.length !== new Set(ids).size) failures.push('lib/percy-capabilities.json: capability IDs must be unique');
+if (JSON.stringify([...ids].sort()) !== JSON.stringify([...expectedCapabilityStatuses.keys()].sort())) {
+  failures.push('lib/percy-capabilities.json: capability IDs must exactly match the Release-A contract (no omissions or extras)');
+}
+const forbiddenClaims = Array.isArray(capabilityContract.forbiddenPublicClaims) ? capabilityContract.forbiddenPublicClaims : [];
+if (!forbiddenClaims.length) failures.push('lib/percy-capabilities.json: forbiddenPublicClaims must be nonempty');
+const compiledForbiddenClaims = [];
+for (const claim of forbiddenClaims) {
+  if (!claim || typeof claim.description !== 'string' || !claim.description.trim() ||
+      typeof claim.pattern !== 'string' || !claim.pattern.trim()) {
+    failures.push('lib/percy-capabilities.json: each forbidden public claim needs a nonempty description and pattern');
+    continue;
+  }
+  try {
+    compiledForbiddenClaims.push([new RegExp(claim.pattern, 'i'), claim.description]);
+  } catch {
+    failures.push(`lib/percy-capabilities.json: invalid forbidden public claim regex for ${claim.description}`);
+  }
+}
+for (const capability of capabilities) {
+  const label = `lib/percy-capabilities.json: ${String(capability?.id)}`;
+  if (expectedCapabilityStatuses.get(capability?.id) !== capability?.status) {
+    failures.push(`${label} must retain its expected status ${expectedCapabilityStatuses.get(capability?.id)}`);
+  }
+  if (typeof capability?.publicLanguage !== 'string' || !capability.publicLanguage.trim()) {
+    failures.push(`${label} must define nonempty publicLanguage`);
+  }
+  if (!Array.isArray(capability?.prohibitedImplications) || !capability.prohibitedImplications.length ||
+      capability.prohibitedImplications.some((implication) => typeof implication !== 'string' || !implication.trim()) ||
+      new Set(capability.prohibitedImplications).size !== capability.prohibitedImplications.length) {
+    failures.push(`${label} must define unique, nonempty prohibitedImplications`);
+  }
+  const language = capability?.publicLanguage ?? '';
+  const qualifier = {
+    pilot: /\blimited Percy Pilot\b/i,
+    prepareOnly: /\b(?:review|draft|prepare|stage)\w*\b[\s\S]*\b(?:does not|cannot|won't|will not)\b[\s\S]*\b(?:send|execute|change|act)\w*\b/i,
+    planned: /\b(?:planned|future|being prepared|coming soon)\b[\s\S]*(?:\b(?:not|does not|cannot|won't)\b|\b(?:today|current(?:ly)?)\b)|(?:\b(?:not|does not|cannot|won't)\b|\b(?:today|current(?:ly)?)\b)[\s\S]*\b(?:planned|future|being prepared|coming soon)\b/i,
+    unavailable: /\b(?:not available|unavailable|does not|cannot|not .{0,30}capabilit(?:y|ies)|remain[s]? .{0,30}-run)\b/i,
+  }[capability?.status];
+  if (qualifier && !qualifier.test(language)) failures.push(`${label} publicLanguage needs a meaningful ${capability.status} qualifier`);
+  for (const [pattern, description] of compiledForbiddenClaims) {
+    if (hasUnnegatedMatch(language, pattern)) failures.push(`${label} publicLanguage implies forbidden claim: ${description}`);
+  }
+}
+for (const [file, source] of homepageSources) {
+  for (const [pattern, description] of compiledForbiddenClaims) {
+    if (hasUnnegatedMatch(source, pattern)) failures.push(`homepage (${file}): unsupported ${description} matches ${pattern}`);
+  }
+  for (const capability of capabilities) {
+    for (const implication of capability.prohibitedImplications ?? []) {
+      const literal = new RegExp(implication.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      if (hasUnnegatedMatch(source, literal)) failures.push(`homepage (${file}): prohibited ${capability.id} implication: ${implication}`);
+    }
+  }
 }
 
 // Keep the Free card useful and concrete. Scope these checks to the Free object so a Premium
@@ -204,4 +470,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`Marketing claim regression check passed (${checks.length + required.length} assertions).`);
+console.log('Marketing claim regression check passed.');
