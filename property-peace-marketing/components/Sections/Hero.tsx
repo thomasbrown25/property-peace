@@ -8,7 +8,7 @@ export default function Hero() {
       <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
         <div>
           <p className="inline-flex border border-green-300/30 bg-green-300/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-green-200">
-            Meet Percy — limited pilot
+            Meet Percy
           </p>
           <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-[1.08] tracking-[-0.04em] text-white sm:text-5xl lg:text-[3.75rem]" style={{ fontFamily: '"Poppins", sans-serif' }}>
             Your AI assistant for managing rental properties
