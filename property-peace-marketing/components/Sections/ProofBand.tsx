@@ -339,9 +339,9 @@ export default function ProofBand() {
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
-          <div>
+          <div className="text-center lg:text-left">
             <span
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-green-600 shadow-sm"
+              className="mb-4 inline-flex max-w-full items-center justify-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-4 py-1.5 text-center text-xs font-semibold uppercase leading-snug tracking-widest text-green-600 shadow-sm"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               <FiCheckCircle className="h-4 w-4" />
@@ -354,7 +354,7 @@ export default function ProofBand() {
               From landlord chaos to a calm weekly rhythm.
             </h2>
             <p
-              className="mb-8 max-w-xl text-base leading-relaxed text-slate-600 md:text-lg"
+              className="mb-8 mx-auto max-w-xl text-base leading-relaxed text-slate-600 md:text-lg lg:mx-0"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Property Peace is for landlords managing 1–50 units who are tired of chasing rent in texts,

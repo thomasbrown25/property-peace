@@ -2,23 +2,25 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import HeroProductStepper from './HeroProductStepper';
 
 export default function Hero() {
   return (
     <section className="relative overflow-hidden bg-[#061E35] lg:min-h-[780px]">
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 bg-cover bg-[position:72%_center] bg-no-repeat sm:bg-[position:68%_center] lg:bg-[position:62%_center]"
         style={{ backgroundImage: 'url(/images/landing/hero-smart-home-entry.jpg)' }}
         aria-hidden="true"
       />
-      <div className="absolute inset-0 bg-[#061E35]/65" aria-hidden="true" />
-      <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-[#061E35]/80 via-[#061E35]/45 to-[#061E35]/20" aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,30,53,0.97)_0%,rgba(6,30,53,0.92)_42%,rgba(6,30,53,0.62)_72%,rgba(6,30,53,0.16)_100%)] sm:bg-[linear-gradient(90deg,rgba(6,30,53,0.97)_0%,rgba(6,30,53,0.91)_40%,rgba(6,30,53,0.48)_68%,rgba(6,30,53,0.08)_100%)] lg:bg-[linear-gradient(90deg,rgba(6,30,53,0.98)_0%,rgba(6,30,53,0.94)_34%,rgba(6,30,53,0.58)_55%,rgba(6,30,53,0.16)_75%,rgba(6,30,53,0.02)_100%)]"
+        aria-hidden="true"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#061E35]/15 via-transparent to-[#061E35]/30" aria-hidden="true" />
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-6">
-        <div className="flex flex-col lg:min-h-[780px] lg:flex-row">
+        <div className="flex flex-col lg:min-h-[780px]">
 
           {/* Left Side - Content */}
-          <div className="flex items-start pt-[7rem] pb-14 sm:pt-28 lg:flex-1 lg:items-center lg:py-20 xl:py-28 lg:max-w-[52%] self-stretch">
+          <div className="flex items-start pb-14 pt-[7rem] sm:pt-28 lg:min-h-[780px] lg:w-[52%] lg:items-center lg:py-20 xl:py-28 self-stretch">
           <motion.div
             className="w-full text-center lg:text-left"
             initial={false}
@@ -64,7 +66,7 @@ export default function Hero() {
                   className="mx-auto mt-3 max-w-[18rem] text-[1rem] font-semibold leading-6 text-blue-100"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
-                  From one unit to fifty, we've got you covered.
+                  From one unit to fifty, we&apos;ve got you covered.
                 </p>
                 <div className="mt-6 grid grid-cols-2 gap-3">
                   <Link
@@ -124,16 +126,6 @@ export default function Hero() {
             </div>
           </motion.div>
         </div>
-
-        {/* Right Side - Interactive product stepper (desktop only for now) */}
-        <motion.div
-          className="hidden w-full lg:flex lg:flex-1 self-stretch flex-col min-h-[500px] lg:min-h-0"
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-        >
-          <HeroProductStepper />
-        </motion.div>
 
         </div>
       </div>
