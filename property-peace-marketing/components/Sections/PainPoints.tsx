@@ -26,7 +26,7 @@ const pillars = [
 
 export default function PainPoints() {
   return (
-    <section className="relative overflow-hidden bg-white px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-28">
+    <section className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] bg-white px-4 py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:px-6 sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:px-8 lg:py-28">
       <div
         className="pointer-events-none absolute left-1/2 top-0 h-px w-[min(90%,72rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent"
         aria-hidden="true"
@@ -41,8 +41,8 @@ export default function PainPoints() {
       >
         <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-end lg:gap-20">
           <h2
-            className="max-w-3xl text-3xl font-bold leading-[1.13] tracking-[-0.035em] text-[#061e35] sm:text-4xl lg:text-[3.25rem]"
-            style={{ fontFamily: '"Poppins", sans-serif' }}
+            className="max-w-3xl text-3xl font-bold tracking-[-0.025em] text-[#061e35] sm:text-4xl lg:text-[3.25rem]"
+            style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.22 }}
           >
             Less busywork. More control.{' '}
             <span className="text-green-600">Manage every rental with confidence.</span>

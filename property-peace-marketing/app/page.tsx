@@ -5,17 +5,11 @@ import PainPoints from '@/components/Sections/PainPoints';
 import CTA from '@/components/Sections/CTA';
 // import Features from '@/components/Sections/Features'; // Hidden for now
 import TrustClarity from '@/components/Sections/TrustClarity';
-import AiSummaries from '@/components/Sections/AiSummaries';
-import MaintenanceAgent from '@/components/Sections/MaintenanceAgent';
-import RentalAccounting from '@/components/Sections/RentalAccounting';
 import FAQ from '@/components/Sections/FAQ';
-import RentEstimates from '@/components/Sections/RentEstimates';
 // Testimonials/SocialProof section is temporarily hidden; keep the component for later re-enable.
 // import SocialProof from '@/components/Sections/SocialProof';
-import ProofBand from '@/components/Sections/ProofBand';
 import SeoPathways from '@/components/Sections/SeoPathways';
 import ResourceHighlights from '@/components/Sections/ResourceHighlights';
-import Pricing from '@/components/Sections/Pricing';
 
 export const metadata: Metadata = applyOttoSeo('/', {
   title: 'Free Rental Management Software | Property Peace',
@@ -36,28 +30,12 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Proof band replaces hidden testimonials with factual product proof */}
-        <ProofBand />
         <SeoPathways />
         <ResourceHighlights />
 
         {/* Zone 2: Feature sections — light */}
         <TrustClarity />
-
-        {/* Find your peace CTA — desktop/tablet only; hidden on mobile to keep the homepage shorter. */}
-        <div className="hidden md:block">
-          <Pricing />
-        </div>
-
-        {/* Detailed feature demos — desktop/tablet only; hidden on mobile per mobile audit. */}
-        <div className="hidden md:block">
-          <AiSummaries />
-          <MaintenanceAgent />
-          <RentEstimates />
-          <RentalAccounting />
-        </div>
         <FAQ />
-        <CTA featured />
 
         {/* Zone 3: Social proof + Compare — hidden for now */}
         {/* <div
