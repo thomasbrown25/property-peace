@@ -6,6 +6,7 @@ import Navigation from "@/components/Layout/Navigation";
 import Footer from "@/components/Layout/Footer";
 import StickyCTA from "@/components/Layout/StickyCTA";
 import CookieConsent from "@/components/Layout/CookieConsent";
+import MarketingAnalytics from "@/components/Analytics/MarketingAnalytics";
 import StructuredData from "@/components/SEO/StructuredData";
 import { organizationSchema, websiteSchema } from "@/lib/structured-data";
 import "./globals.css";
@@ -90,8 +91,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const gaId = process.env.NEXT_PUBLIC_GA_ID;
+  const gaId = process.env.NEXT_PUBLIC_GA_ID || "G-K445DGYHFZ";
   const googleAdsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID || "AW-17815665224";
+  const plausibleDomain = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+  const clarityId = process.env.NEXT_PUBLIC_CLARITY_ID;
 
   return (
     <html lang="en">
@@ -109,11 +112,28 @@ export default function RootLayout({
           src="https://assets.calendly.com/assets/external/widget.js"
           strategy="lazyOnload"
         />
+        {plausibleDomain && (
+          <>
+            <Script id="plausible-bootstrap" strategy="afterInteractive">
+              {`
+                window.plausible = window.plausible || function() {
+                  (window.plausible.q = window.plausible.q || []).push(arguments);
+                };
+              `}
+            </Script>
+            <Script
+              src="https://plausible.io/js/script.js"
+              data-domain={plausibleDomain}
+              strategy="afterInteractive"
+            />
+          </>
+        )}
+        <CookieConsent gaId={gaId} googleAdsId={googleAdsId} clarityId={clarityId} />
+        <MarketingAnalytics />
         <Navigation />
         {children}
         <Footer />
         <StickyCTA />
-        <CookieConsent gaId={gaId} googleAdsId={googleAdsId} />
       </body>
     </html>
   );
