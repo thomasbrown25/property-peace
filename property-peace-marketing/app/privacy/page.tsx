@@ -30,7 +30,7 @@ export default function PrivacyPage() {
             className="text-lg text-[#737373]"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Last updated: February 2026
+            Last updated: August 2026
           </p>
         </div>
 
@@ -115,8 +115,9 @@ export default function PrivacyPage() {
             <ul className="list-disc pl-6 text-[#737373] space-y-2">
               <li><strong>Stripe</strong> — A payment processing provider used only if and when online rent processing is operationally enabled. Online rent processing is currently unavailable.</li>
               <li><strong>DocuSign</strong> — A document signing provider used only if and when integrated digital lease signing is operationally enabled. Integrated digital lease signing is currently unavailable.</li>
-              <li><strong>Google</strong> — Authentication (optional). Google&apos;s privacy policy applies when you sign in with Google.</li>
-              <li><strong>Analytics</strong> — We may use analytics services to understand how our platform is used.</li>
+              <li><strong>Google</strong> — Optional authentication, aggregate analytics, and advertising measurement. Google storage is denied by default and is granted only after you accept analytics cookies.</li>
+              <li><strong>Plausible Analytics</strong> — Privacy-focused aggregate measurement of marketing-site traffic and selected actions, without setting analytics cookies or collecting form contents.</li>
+              <li><strong>Microsoft Clarity</strong> — Optional session insights and heatmaps that load only after you accept analytics cookies. Sensitive form fields are not intentionally included in analytics events.</li>
             </ul>
           </section>
 
@@ -128,7 +129,7 @@ export default function PrivacyPage() {
               Cookies and Similar Technologies
             </h2>
             <p className="text-[#737373] leading-relaxed">
-              We use cookies and similar tracking technologies to operate our website and platform. Cookies help us remember your preferences, keep you logged in, and understand how you use our services. You can control cookies through your browser settings.
+              We use essential storage to operate the website and remember your privacy choice. Our marketing site may use privacy-focused, cookie-free aggregate analytics automatically. Google Analytics, Google advertising storage, and Microsoft Clarity session insights remain denied or unloaded unless you choose “Accept all.” You can decline optional analytics using the cookie notice or clear your saved choice through your browser storage settings.
             </p>
           </section>
 

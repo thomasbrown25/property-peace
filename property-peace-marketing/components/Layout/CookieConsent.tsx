@@ -8,6 +8,12 @@ import { LuCookie } from "react-icons/lu";
 
 type ConsentChoice = "essential" | "all";
 
+type CookieConsentProps = {
+  gaId?: string;
+  googleAdsId?: string;
+  clarityId?: string;
+};
+
 const STORAGE_KEY = "propertyPeaceCookieConsent";
 const COOKIE_NAME = "property_peace_cookie_consent";
 const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
@@ -16,7 +22,16 @@ function writeConsentCookie(choice: ConsentChoice) {
   document.cookie = `${COOKIE_NAME}=${choice}; path=/; max-age=${ONE_YEAR_SECONDS}; SameSite=Lax`;
 }
 
-export default function CookieConsent({ gaId, googleAdsId }: { gaId?: string; googleAdsId?: string }) {
+function updateGoogleConsent(choice: ConsentChoice) {
+  window.gtag?.("consent", "update", {
+    analytics_storage: choice === "all" ? "granted" : "denied",
+    ad_storage: choice === "all" ? "granted" : "denied",
+    ad_user_data: choice === "all" ? "granted" : "denied",
+    ad_personalization: choice === "all" ? "granted" : "denied",
+  });
+}
+
+export default function CookieConsent({ gaId, googleAdsId, clarityId }: CookieConsentProps) {
   const [choice, setChoice] = useState<ConsentChoice | null>(null);
   const [isReady, setIsReady] = useState(false);
 
@@ -27,6 +42,7 @@ export default function CookieConsent({ gaId, googleAdsId }: { gaId?: string; go
       if (savedChoice === "essential" || savedChoice === "all") {
         setChoice(savedChoice);
         writeConsentCookie(savedChoice);
+        updateGoogleConsent(savedChoice);
       }
 
       setIsReady(true);
@@ -36,6 +52,7 @@ export default function CookieConsent({ gaId, googleAdsId }: { gaId?: string; go
   const saveChoice = (nextChoice: ConsentChoice) => {
     window.localStorage.setItem(STORAGE_KEY, nextChoice);
     writeConsentCookie(nextChoice);
+    updateGoogleConsent(nextChoice);
     setChoice(nextChoice);
   };
 
@@ -45,8 +62,25 @@ export default function CookieConsent({ gaId, googleAdsId }: { gaId?: string; go
 
   return (
     <>
-      {primaryGoogleTagId && hasAcceptedAnalytics && (
+      {primaryGoogleTagId && (
         <>
+          <Script id="google-consent-default" strategy="afterInteractive">
+            {`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              window.gtag = window.gtag || gtag;
+              var savedConsent = window.localStorage.getItem('${STORAGE_KEY}') === 'all';
+              gtag('consent', 'default', {
+                analytics_storage: savedConsent ? 'granted' : 'denied',
+                ad_storage: savedConsent ? 'granted' : 'denied',
+                ad_user_data: savedConsent ? 'granted' : 'denied',
+                ad_personalization: savedConsent ? 'granted' : 'denied',
+                wait_for_update: 500
+              });
+              gtag('set', 'ads_data_redaction', true);
+              gtag('set', 'url_passthrough', true);
+            `}
+          </Script>
           <Script
             src={`https://www.googletagmanager.com/gtag/js?id=${primaryGoogleTagId}`}
             strategy="afterInteractive"
@@ -54,13 +88,25 @@ export default function CookieConsent({ gaId, googleAdsId }: { gaId?: string; go
           <Script id="google-tag" strategy="afterInteractive">
             {`
               window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
+              window.gtag = window.gtag || function(){dataLayer.push(arguments);};
               gtag('js', new Date());
               ${googleAdsId ? `gtag('config', '${googleAdsId}');` : ""}
-              ${gaId ? `gtag('config', '${gaId}');` : ""}
+              ${gaId ? `gtag('config', '${gaId}', { send_page_view: false });` : ""}
             `}
           </Script>
         </>
+      )}
+
+      {clarityId && hasAcceptedAnalytics && (
+        <Script id="microsoft-clarity" strategy="lazyOnload">
+          {`
+            (function(c,l,a,r,i,t,y){
+              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+            })(window, document, "clarity", "script", "${clarityId}");
+          `}
+        </Script>
       )}
 
       {shouldShowBanner && (
@@ -86,8 +132,9 @@ export default function CookieConsent({ gaId, googleAdsId }: { gaId?: string; go
           <div className="cookieConsent__content">
             <h2 className="cookieConsent__title">Cookies & privacy</h2>
             <p>
-              Essential cookies keep Property Peace working. Analytics only run if you accept.
-              See our <Link href="/privacy">Privacy Policy</Link>.
+              Essential storage and privacy-friendly aggregate analytics help us improve Property Peace.
+              Google Analytics and session insights only get full access if you accept. See our{" "}
+              <Link href="/privacy">Privacy Policy</Link>.
             </p>
 
             <div className="ppNoticeActions">
@@ -100,7 +147,7 @@ export default function CookieConsent({ gaId, googleAdsId }: { gaId?: string; go
             </div>
 
             <p className="cookieConsent__fineprint">
-              Essential only unless you choose “Accept all”
+              Google storage remains denied unless you choose “Accept all”
             </p>
           </div>
         </section>
