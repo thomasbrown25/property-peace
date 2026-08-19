@@ -66,6 +66,14 @@ test('tax workspace describes preparation/review truthfully', async () => {
   assert.match(tax, /tax-export-menu/);
 });
 
+test('tax workspace header keeps utility controls distinct from primary actions', async () => {
+  const tax = await read('../pages/landlord/reports/tax.jsx');
+  assert.match(tax, /aria-label="Tax workspace actions"/);
+  assert.match(tax, /gridTemplateColumns: \{ xs: '1fr', sm: 'repeat\(2, minmax\(0, 1fr\)\)' \}/);
+  assert.ok(tax.indexOf('aria-label="Refresh tax data"') < tax.indexOf('Download Schedule E'));
+  assert.doesNotMatch(tax, /calc\(100% - 140px\)/);
+});
+
 test('Money Center and mobile Accounting navigation expose state to assistive technology', async () => {
   const money = await read('../components/money-center/MoneyCenter.jsx');
   const mobile = await read('../layout/Dashboard/BottomNavBar/index.jsx');

@@ -337,9 +337,20 @@ export default function TaxReports() {
             </Typography>
           </Box>
 
-          <Stack spacing={1} sx={{ width: { lg: 470 } }}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'flex-end' }}>
-              <Box sx={{ width: { xs: '100%', sm: 132 }, flexShrink: 0 }}>
+          <Stack
+            aria-label="Tax workspace actions"
+            spacing={1.25}
+            sx={{
+              width: { xs: '100%', lg: 440 },
+              flexShrink: 0,
+              p: 1.25,
+              borderRadius: 2,
+              bgcolor: alpha('#fff', 0.055),
+              border: `1px solid ${alpha('#fff', 0.12)}`
+            }}
+          >
+            <Stack direction="row" spacing={1} alignItems="flex-end" justifyContent="space-between">
+              <Box sx={{ flex: 1, maxWidth: { sm: 150 } }}>
                 <Typography component="label" htmlFor="tax-year-select" sx={{ display: 'block', mb: 0.5, color: alpha('#fff', 0.66), fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.55, textTransform: 'uppercase' }}>
                   Tax year
                 </Typography>
@@ -363,17 +374,34 @@ export default function TaxReports() {
                   </Select>
                 </FormControl>
               </Box>
+              <IconButton
+                onClick={() => fetchTaxData()}
+                disabled={taxLoading}
+                aria-label="Refresh tax data"
+                sx={{
+                  width: 40,
+                  height: 40,
+                  flexShrink: 0,
+                  color: '#fff',
+                  border: `1px solid ${alpha('#fff', 0.34)}`,
+                  borderRadius: 1.5,
+                  '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) }
+                }}
+              >
+                {taxLoading ? <CircularProgress size={18} color="inherit" /> : <ReloadOutlined />}
+              </IconButton>
+            </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1 }}>
               <Button
+                fullWidth
                 variant="contained"
                 startIcon={actionLoading === 'schedule-e' ? <CircularProgress size={15} color="inherit" /> : <FilePdfOutlined />}
                 onClick={handleDownloadScheduleE}
                 disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
-                sx={{ flex: 1, minHeight: 40, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
+                sx={{ minHeight: 40, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
               >
-                Schedule E preparation PDF
+                Download Schedule E
               </Button>
-            </Stack>
-            <Stack direction="row" spacing={1} sx={{ ml: { sm: 'auto' }, width: { xs: '100%', sm: 'calc(100% - 140px)' } }}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -385,12 +413,9 @@ export default function TaxReports() {
                 disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
                 sx={{ color: '#fff', borderColor: alpha('#fff', 0.34), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) } }}
               >
-                {actionLoading && actionLoading !== 'schedule-e' ? 'Preparing…' : 'Export & packages'}
+                {actionLoading && actionLoading !== 'schedule-e' ? 'Preparing…' : 'Export packages'}
               </Button>
-              <IconButton onClick={() => fetchTaxData()} disabled={taxLoading} aria-label="Refresh tax data" sx={{ color: '#fff', border: `1px solid ${alpha('#fff', 0.34)}`, borderRadius: 1.5 }}>
-                {taxLoading ? <CircularProgress size={18} color="inherit" /> : <ReloadOutlined />}
-              </IconButton>
-            </Stack>
+            </Box>
           </Stack>
         </Stack>
       </Box>
