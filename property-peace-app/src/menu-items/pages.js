@@ -57,6 +57,42 @@ const pages = [
         icon: icons.DashboardOutlined
       },
       {
+        id: 'portfolio',
+        title: 'Portfolio',
+        type: 'collapse',
+        icon: icons.HomeOutlined,
+        children: [
+          {
+            id: 'properties-page',
+            title: 'Properties',
+            type: 'item',
+            url: '/landlord/properties',
+            icon: icons.HomeOutlined
+          },
+          {
+            id: 'tenants',
+            title: 'Tenants',
+            type: 'item',
+            url: '/landlord/tenants',
+            icon: icons.UserOutlined
+          },
+          {
+            id: 'leases',
+            title: 'Leases',
+            type: 'item',
+            url: '/landlord/leases',
+            icon: icons.DollarCircleOutlined
+          },
+          {
+            id: 'inspections',
+            title: 'Checklists',
+            type: 'item',
+            url: '/landlord/checklists',
+            icon: icons.AuditOutlined
+          }
+        ]
+      },
+      {
         id: 'ai-center',
         title: 'Percy',
         type: 'item',
@@ -105,42 +141,6 @@ const pages = [
         type: 'item',
         url: '/landlord/leads',
         icon: icons.FormOutlined
-      },
-      {
-        id: 'portfolio',
-        title: 'Portfolio',
-        type: 'collapse',
-        icon: icons.HomeOutlined,
-        children: [
-          {
-            id: 'properties-page',
-            title: 'Properties',
-            type: 'item',
-            url: '/landlord/properties',
-            icon: icons.HomeOutlined
-          },
-          {
-            id: 'tenants',
-            title: 'Tenants',
-            type: 'item',
-            url: '/landlord/tenants',
-            icon: icons.UserOutlined
-          },
-          {
-            id: 'leases',
-            title: 'Leases',
-            type: 'item',
-            url: '/landlord/leases',
-            icon: icons.DollarCircleOutlined
-          },
-          {
-            id: 'inspections',
-            title: 'Checklists',
-            type: 'item',
-            url: '/landlord/checklists',
-            icon: icons.AuditOutlined
-          }
-        ]
       },
       {
         id: 'leasing',

@@ -188,7 +188,7 @@ export default function MoneyCenter() {
     <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Money Center' }]} />
     <Box sx={{ p: { xs: 2, md: 3 }, mb: 2.5, borderRadius: 2, color: 'common.white', background: `linear-gradient(120deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})` }}>
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" gap={2}>
-        <Box><Typography variant="h2" color="inherit" fontWeight={800}>Know what happened with your money.</Typography><Typography sx={{ opacity: 0.86, maxWidth: 720, mt: 0.75 }}>Recorded property activity, obligations, and records that need your attention—without pretending this is a bank balance.</Typography></Box>
+        <Box><Typography variant="h2" color="inherit" fontWeight={800}>Know what happened with your money.</Typography><Typography sx={{ color: alpha('#fff', 0.86), maxWidth: 720, mt: 0.75 }}>Recorded property activity, obligations, and records that need your attention—without pretending this is a bank balance.</Typography></Box>
         <Chip icon={<CalendarMonthOutlined />} label={`${formatMoneyCenterDate(overview.from)} – ${formatMoneyCenterDate(new Date(new Date(overview.to).valueOf() - 1))}`} sx={{ bgcolor: alpha('#fff', 0.2), color: 'common.white', alignSelf: 'flex-start', '& .MuiChip-icon': { color: 'common.white' } }} />
       </Stack>
     </Box>
