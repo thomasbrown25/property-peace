@@ -36,3 +36,7 @@ test('interactive truncation disclosure confirms the accountant export remains c
   assert.match(component, /accountant-review CSV includes every source record in the selected period/i);
   assert.doesNotMatch(component, /CSV[^.]*may also be limited/i);
 });
+
+test('Money Center hero subtitle keeps readable contrast on the dark background', () => {
+  assert.match(component, /<Typography sx={{ color: alpha\('#fff', 0\.86\),[^}]+}}>Recorded property activity/);
+});
