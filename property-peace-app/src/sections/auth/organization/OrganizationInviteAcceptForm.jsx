@@ -654,7 +654,7 @@ export default function OrganizationInviteAcceptForm({ inviteToken, inviteData }
               sx={{ bgcolor: 'action.disabledBackground' }}
             />
           </Box>
-          <Stack direction="row" spacing={2}>
+          <Stack spacing={1.25} sx={{ '& > *': { width: '100%' } }}>
             <AnimateButton>
               <Button
                 disableElevation
@@ -665,6 +665,7 @@ export default function OrganizationInviteAcceptForm({ inviteToken, inviteData }
                 variant="contained"
                 color="primary"
                 onClick={handleAcceptInvite}
+                sx={{ py: 1.35, bgcolor: '#061e35', '&:hover': { bgcolor: '#0a314f' } }}
               >
                 {accepting ? <CircularProgress size={20} /> : 'Accept Invite'}
               </Button>
@@ -674,11 +675,12 @@ export default function OrganizationInviteAcceptForm({ inviteToken, inviteData }
                 disableElevation
                 disabled={accepting || rejecting}
                 fullWidth
-                size="large"
+                size="medium"
                 type="button"
-                variant="outlined"
+                variant="text"
                 color="error"
                 onClick={handleRejectInvite}
+                sx={{ py: 1.1 }}
               >
                 {rejecting ? <CircularProgress size={20} /> : 'Reject Invite'}
               </Button>

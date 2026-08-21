@@ -12,6 +12,12 @@ import ConversationTimelinePanel from 'components/conversation/ConversationTimel
 import MaintenanceEvidenceList from 'components/maintenance/MaintenanceEvidenceList';
 import { maintenanceWorkflowAPI, maintenanceProblemMessage } from 'api/maintenanceWorkflow';
 import {
+  darkPageHeaderEyebrowSx,
+  darkPageHeaderMetaLabelSx,
+  darkPageHeaderMetaValueSx,
+  darkPageHeaderTitleSx
+} from 'styles/darkPageHeader.mjs';
+import {
   availableMaintenanceActions, createEvidenceUploadEntries, evidenceSelection, maintenanceActorForRoute, maintenanceUserId,
   MAINTENANCE_EVIDENCE_TYPES, slaState, statusLabel, uploadPendingEvidence, workflowActivitiesFromMaintenanceDetail,
   workflowFromMaintenanceDetail, workflowProjectionWarning
@@ -108,7 +114,7 @@ export default function MaintenancePage() {
 
   return <Box sx={{ pb: 5 }}>
     <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Maintenance', path: '/landlord/maintenances' }, { label: `MR-${request.id}` }]} />
-    <Paper sx={{ mt: 2, p: { xs: 2.25, md: 3 }, borderRadius: 2, color: '#fff', background: `linear-gradient(125deg, ${NAVY}, #0b3855)` }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}><Box><Typography variant="caption" sx={{ color: '#65d6c4', fontWeight: 800 }}>MR-{request.id} · PROPERTY {request.propertyId}{request.unitId ? ` / UNIT ${request.unitId}` : ''}</Typography><Typography variant="h3" color="inherit" fontWeight={800} sx={{ mt: .5 }}>{request.title}</Typography><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}><Chip label={request.urgency} color={urgencyColor} /><Chip label={statusLabel(request.status)} sx={{ bgcolor: '#fff', color: NAVY }} /><Chip label={request.location || 'Location missing'} variant="outlined" sx={{ color: '#fff', borderColor: alpha('#fff', .45) }} /></Stack></Box><Box sx={{ minWidth: { md: 250 } }}><Typography variant="caption" sx={{ opacity: .72 }}>ROLE-AWARE ACCESS</Typography><Typography fontWeight={750}>{role === 'manager' ? 'Landlord / maintenance manager' : 'Assigned team member'}</Typography></Box></Stack></Paper>
+    <Paper sx={{ mt: 2, p: { xs: 2.25, md: 3 }, borderRadius: 2, color: '#fff', background: `linear-gradient(125deg, ${NAVY}, #0b3855)` }}><Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}><Box><Typography variant="caption" sx={darkPageHeaderEyebrowSx}>MR-{request.id} · PROPERTY {request.propertyId}{request.unitId ? ` / UNIT ${request.unitId}` : ''}</Typography><Typography variant="h3" sx={{ ...darkPageHeaderTitleSx, mt: .5, fontWeight: 800 }}>{request.title}</Typography><Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}><Chip label={request.urgency} color={urgencyColor} /><Chip label={statusLabel(request.status)} sx={{ bgcolor: '#fff', color: NAVY }} /><Chip label={request.location || 'Location missing'} variant="outlined" sx={{ color: '#fff', borderColor: alpha('#fff', .45) }} /></Stack></Box><Box sx={{ minWidth: { md: 250 } }}><Typography variant="caption" sx={darkPageHeaderMetaLabelSx}>ROLE-AWARE ACCESS</Typography><Typography sx={darkPageHeaderMetaValueSx}>{role === 'manager' ? 'Landlord / maintenance manager' : 'Assigned team member'}</Typography></Box></Stack></Paper>
     {String(request.urgency).toLowerCase() === 'emergency' && <Alert severity="error" variant="filled" sx={{ mt: 2 }}><b>Emergency escalation:</b> Contact the tenant and dispatch appropriate emergency support now. The deterministic policy has stopped troubleshooting.</Alert>}
     {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}{success && <Alert severity="success" onClose={() => setSuccess('')} sx={{ mt: 2 }}>{success}</Alert>}
     {dataWarnings.map((warning) => <Alert key={warning} severity="warning" sx={{ mt: 2 }}>{warning}</Alert>)}

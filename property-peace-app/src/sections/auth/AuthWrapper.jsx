@@ -21,6 +21,7 @@ import propertyPeaceDark2 from 'assets/images/logos/property-peace-dark-2.png';
 import { ThemeMode } from 'config';
 
 import useAuth from 'hooks/useAuth';
+import { getFocusedAuthShellPresentation } from 'utils/authShellPresentation';
 
 // assets
 import AuthBackground from './AuthBackground';
@@ -28,7 +29,7 @@ import ExclamationCircleOutlined from '@ant-design/icons/ExclamationCircleOutlin
 
 // ==============================|| AUTHENTICATION - WRAPPER ||============================== //
 
-export default function AuthWrapper({ children, splitScreen = false }) {
+export default function AuthWrapper({ children, splitScreen = false, focused = false }) {
   const { isLoggedIn } = useAuth();
   const location = useLocation();
   const theme = useTheme();
@@ -55,6 +56,44 @@ export default function AuthWrapper({ children, splitScreen = false }) {
       break;
   }
 
+  if (focused) {
+    const presentation = getFocusedAuthShellPresentation(theme.palette.mode);
+    const focusedLogo = presentation.logoVariant === 'dark' ? propertyPeaceDark : propertyPeaceDark2;
+
+    return (
+      <Box sx={{ minHeight: '100svh', bgcolor: 'background.paper', display: 'flex', flexDirection: 'column' }}>
+        {presentation.showDecorativeBackground && <AuthBackground />}
+        <Box
+          component="header"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            px: { xs: 3, sm: 4, md: 6 },
+            py: { xs: 2, md: 2.5 }
+          }}
+        >
+          <RouterLink to="/" aria-label="Property Peace home">
+            <img src={focusedLogo} alt="Property Peace" style={{ display: 'block', height: 52, width: 'auto' }} />
+          </RouterLink>
+        </Box>
+
+        <Box
+          component="main"
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            px: { xs: 3, sm: 4 },
+            pt: { xs: 3, md: 4 },
+            pb: { xs: 7, md: 12 }
+          }}
+        >
+          <Box sx={{ width: '100%', maxWidth: presentation.contentMaxWidth }}>{children}</Box>
+        </Box>
+      </Box>
+    );
+  }
   // Split screen layout for login page
   if (splitScreen) {
     return (
@@ -307,5 +346,6 @@ export default function AuthWrapper({ children, splitScreen = false }) {
 
 AuthWrapper.propTypes = {
   children: PropTypes.node,
-  splitScreen: PropTypes.bool
+  splitScreen: PropTypes.bool,
+  focused: PropTypes.bool
 };
