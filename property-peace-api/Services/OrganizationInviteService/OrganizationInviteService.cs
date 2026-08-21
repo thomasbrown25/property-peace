@@ -549,163 +549,71 @@ Property Peace Team";
     <meta charset='utf-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <style>
-        body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #333333;
-            background-color: #f5f5f5;
-            margin: 0;
-            padding: 0;
-        }}
-        .email-wrapper {{
-            max-width: 600px;
-            margin: 0 auto;
-            background-color: #ffffff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }}
-        .header {{
-            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-            color: #ffffff;
-            padding: 40px 30px;
-            text-align: center;
-        }}
-        .header h1 {{
-            margin: 0;
-            font-size: 32px;
-            font-weight: 600;
-        }}
-        .content {{
-            padding: 40px 30px;
-        }}
-        .content h2 {{
-            color: #1976d2;
-            margin-top: 0;
-            font-size: 24px;
-            font-weight: 600;
-        }}
-        .greeting {{
-            font-size: 16px;
-            margin-bottom: 20px;
-        }}
-        .button-container {{
-            text-align: center;
-            margin: 30px 0;
-        }}
-        .button {{
-            display: inline-block;
-            padding: 16px 40px;
-            background-color: #1976d2;
-            color: #ffffff !important;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 16px;
-            transition: background-color 0.3s;
-        }}
-        .button:hover {{
-            background-color: #1565c0;
-        }}
-        .info-box {{
-            background-color: #f8f9fa;
-            border-left: 4px solid #1976d2;
-            padding: 20px;
-            margin: 30px 0;
-            border-radius: 4px;
-        }}
-        .info-box p {{
-            margin: 8px 0;
-        }}
-        .expiry-notice {{
-            background-color: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 4px;
-            padding: 15px;
-            margin: 30px 0;
-            text-align: center;
-        }}
-        .expiry-notice p {{
-            margin: 0;
-            color: #856404;
-        }}
-        .signature {{
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-        }}
-        .team-name {{
-            font-weight: 600;
-            color: #1976d2;
-        }}
-        .footer {{
-            background-color: #f8f9fa;
-            padding: 24px 30px;
-            text-align: center;
-            border-top: 1px solid #e0e0e0;
-        }}
-        .footer p {{
-            font-size: 12px;
-            color: #999999;
-            margin: 0;
-        }}
-        @media only screen and (max-width: 600px) {{
-            body {{
-                padding: 10px;
-            }}
-            .header {{
-                padding: 30px 20px;
-            }}
-            .header h1 {{
-                font-size: 28px;
-            }}
-            .content {{
-                padding: 30px 20px;
-            }}
-            .content h2 {{
-                font-size: 22px;
-            }}
-            .button {{
-                padding: 14px 32px;
-                font-size: 15px;
-            }}
+        body {{ margin:0; padding:0; background:#f4f4f3; color:#3f454d; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; }}
+        .outer {{ width:100%; background:#f4f4f3; padding:28px 0; }}
+        .wrap {{ max-width:680px; margin:0 auto; background:#ffffff; border-radius:10px; overflow:hidden; }}
+        .logo {{ padding:34px 28px 30px; text-align:center; background:#ffffff; border-bottom:1px solid #e8ecef; }}
+        .logo img {{ width:190px; max-width:70%; height:auto; display:inline-block; }}
+        .content {{ padding:34px 42px 38px; font-size:16px; line-height:1.65; }}
+        .eyebrow {{ margin:0 0 8px; color:#64707c; font-size:13px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }}
+        h1 {{ margin:0 0 18px; color:#15212d; font-size:26px; line-height:1.25; font-weight:700; }}
+        h2 {{ margin:0 0 10px; color:#15212d; font-size:18px; line-height:1.35; }}
+        p {{ margin:0 0 18px; }}
+        .button-container {{ margin:26px 0 28px; }}
+        .button {{ display:inline-block; padding:14px 28px; background:#1464cc; color:#ffffff !important; text-decoration:none; border-radius:8px; font-size:16px; font-weight:700; }}
+        .info-box {{ background:#f8faf9; border:1px solid #e5ebe8; border-radius:10px; padding:18px 20px; margin:0 0 18px; }}
+        .info-box ul {{ padding-left:20px; margin:8px 0 0; }}
+        .info-box li {{ margin:7px 0; }}
+        .expiry-note {{ background:#fff8e6; border:1px solid #f1d38a; color:#5f4508; border-radius:10px; padding:14px 16px; margin:0 0 26px; }}
+        .expiry-note strong {{ color:#493505; }}
+        .muted {{ color:#64707c; font-size:14px; }}
+        hr {{ border:0; border-top:1px solid #e1e5e8; margin:28px 0; }}
+        .footer {{ background:#062d42; color:#d8e2e7; padding:30px 28px; text-align:center; font-size:13px; line-height:1.6; }}
+        .footer a {{ color:#ffffff; font-weight:700; text-decoration:none; margin:0 12px; }}
+        .footer .reason {{ color:#d8e2e7; margin:18px auto 0; max-width:520px; font-size:12px; }}
+        .copyright {{ color:#a9bbc4; margin-top:18px; }}
+        @media only screen and (max-width: 640px) {{
+            .outer {{ padding:0; }}
+            .wrap {{ border-radius:0; }}
+            .content {{ padding:28px 24px 32px; }}
+            .button {{ display:block; text-align:center; }}
         }}
     </style>
 </head>
 <body>
-    <div class='email-wrapper'>
-        <div class='header'>
-            <h1>Property Peace</h1>
-        </div>
-        <div class='content'>
-            <h2>You've been invited to join {organizationName}</h2>
-            <p class='greeting'>Hello,</p>
-            <p>You have been invited by <strong>{inviterName}</strong> to join <strong>{organizationName}</strong> on <strong>Property Peace</strong>, a modern property management platform.</p>
-            
-            <div class='button-container'>
-                <a href='{inviteUrl}' class='button'>Accept Invitation</a>
+    <div class='outer'>
+        <div class='wrap'>
+            <div class='logo'>
+                <img src='https://propertypeace.io/images/logos/property-peace-dark.png' alt='Property Peace'>
             </div>
-            
-            <div class='info-box'>
-                <p><strong>What you can do as a team member:</strong></p>
-                <p style='margin-top: 8px;'>• Manage properties and units<br>
-                • Handle tenant applications and leases<br>
-                • Track maintenance requests<br>
-                • Process rent payments<br>
-                • Communicate with tenants and team members</p>
+            <div class='content'>
+                <p class='eyebrow'>Team invitation</p>
+                <h1>You've been invited to join {organizationName}</h1>
+                <p>Hello,</p>
+                <p><strong>{inviterName}</strong> invited you to join <strong>{organizationName}</strong> on Property Peace.</p>
+                <div class='button-container'>
+                    <a href='{inviteUrl}' class='button'>Accept Invitation</a>
+                </div>
+                <div class='info-box'>
+                    <h2>What you can do as a team member</h2>
+                    <ul>
+                        <li>Manage properties and units</li>
+                        <li>Handle tenant applications and leases</li>
+                        <li>Track maintenance requests</li>
+                        <li>Process rent payments</li>
+                        <li>Communicate with tenants and team members</li>
+                    </ul>
+                </div>
+                <div class='expiry-note'>This invitation expires on <strong>{invite.ExpiresAt:MMMM dd, yyyy}</strong>.</div>
+                <p class='muted'>If you did not expect this invitation, you can safely ignore this email.</p>
+                <hr>
+                <p>Thanks,<br>Property Peace</p>
             </div>
-            
-            <div class='expiry-notice'>
-                <p>⏰ This invitation will expire on <strong>{invite.ExpiresAt:MMMM dd, yyyy}</strong></p>
+            <div class='footer'>
+                <div><a href='https://propertypeace.io'>Website</a><a href='https://x.com/PropertyPeace'>Twitter / X</a><a href='https://www.instagram.com/propertypeace'>Instagram</a></div>
+                <div class='reason'>This automated invitation was sent by a Property Peace organization member. Please do not reply to this message.</div>
+                <div class='copyright'>© 2026 Property Peace. All rights reserved.</div>
             </div>
-            
-            <p style='color: #666666; font-size: 14px;'>If you did not expect this invitation, please ignore this email.</p>
-            
-            <div class='signature'>
-                <p>Best regards,</p>
-                <p class='team-name'>Property Peace Team</p>
-            </div>
-        </div>
-        <div class='footer'>
-            <p>This is an automated email from Property Peace. Please do not reply to this message.</p>
         </div>
     </div>
 </body>
