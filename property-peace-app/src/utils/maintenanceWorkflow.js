@@ -22,6 +22,34 @@ export const statusLabel = (value) => ({
   scheduled: 'Scheduled', inprogress: 'In progress', awaitingtenant: 'Awaiting tenant', resolved: 'Resolved', cancelled: 'Cancelled'
 }[normalizeWorkflowToken(value)] || 'Reported');
 
+export function clearMaintenanceListFilters(filters = {}) {
+  const scope = ['active', 'resolved', 'all'].includes(filters.scope) ? filters.scope : 'active';
+  return {
+    scope,
+    search: '',
+    priority: 'all',
+    category: 'all',
+    assignment: 'all'
+  };
+}
+
+export function maintenanceScopeFromStatus(status) {
+  return ['resolved', 'completed', 'closed', 'cancelled', 'canceled'].includes(normalizeWorkflowToken(status))
+    ? 'resolved'
+    : 'active';
+}
+
+export function maintenanceListEmptyMessage({ hasRequests, hasRefinements, scope, hasResolvedRequests }) {
+  if (!hasRequests) return 'Tenant-submitted requests will appear here for review.';
+  if (scope === 'active' && hasResolvedRequests) {
+    return hasRefinements
+      ? 'No active requests match these filters. Clear filters, or choose Resolved or All requests to view completed work.'
+      : 'No active requests. Choose Resolved or All requests to view completed work.';
+  }
+  if (hasRefinements) return 'Try clearing or changing the current filters.';
+  return `No ${scope === 'resolved' ? 'resolved ' : ''}maintenance requests are available.`;
+}
+
 export function maintenanceActorFromUser(user) {
   const rawRoles = Array.isArray(user?.Roles) ? user.Roles : Array.isArray(user?.roles) ? user.roles : [];
   const roles = rawRoles.map((item) => normalizeWorkflowToken(typeof item === 'string' ? item : item?.roleName || item?.name));
