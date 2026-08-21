@@ -48,6 +48,7 @@ import {
 } from 'store/maintenance/maintenance.selector';
 import { setProperty } from 'store/property/property.action';
 import { selectProperties, selectProperty } from 'store/property/property.selector';
+import { maintenanceFilterControlSx, maintenanceFilterGridSx, maintenanceFilterSummarySx } from 'utils/maintenanceListLayout';
 import { clearMaintenanceListFilters, maintenanceListEmptyMessage, maintenanceScopeFromStatus } from 'utils/maintenanceWorkflow';
 
 const NAVY = '#061e35';
@@ -397,20 +398,19 @@ export default function Maintenances() {
 
       <Box sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, bgcolor: 'background.paper', boxShadow: `0 6px 24px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
         <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
-          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.15} alignItems={{ lg: 'center' }}>
-            <OutlinedInput size="small" placeholder="Search requests, properties, vendors..." value={search} onChange={(event) => setSearch(event.target.value)} startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ width: { xs: '100%', lg: 310 } }} />
-            <FormControl size="small" sx={{ minWidth: 150 }}><Select value={selectedProperty?.id || ''} displayEmpty onChange={(event) => dispatch(setProperty(properties.find((property) => Number(property.id) === Number(event.target.value)) || null))}><MenuItem value="">All properties</MenuItem>{properties.map((property) => <MenuItem key={property.id} value={property.id}>{property.name?.trim() || property.streetAddress?.trim() || `Property ${property.id}`}</MenuItem>)}</Select></FormControl>
-            <FormControl size="small" sx={{ minWidth: 125 }}><Select value={scope} onChange={(event) => { setScope(event.target.value); setMetric('open'); }}><MenuItem value="active">Active</MenuItem><MenuItem value="resolved">Resolved</MenuItem><MenuItem value="all">All requests</MenuItem></Select></FormControl>
-            <FormControl size="small" sx={{ minWidth: 125 }}><Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><MenuItem value="all">All priorities</MenuItem>{PRIORITY_OPTIONS.map((priority) => <MenuItem key={priority} value={priority}>{titleCase(priority)}</MenuItem>)}</Select></FormControl>
-            <Box sx={{ flex: 1 }} />
-          </Stack>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }} sx={{ mt: 1.15 }}>
-            <FormControl size="small" sx={{ minWidth: 155 }}><Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><MenuItem value="all">All categories</MenuItem>{categories.map((category) => <MenuItem key={category} value={category}>{titleCase(category)}</MenuItem>)}</Select></FormControl>
-            <FormControl size="small" sx={{ minWidth: 145 }}><Select value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}><MenuItem value="all">All assignments</MenuItem><MenuItem value="unassigned">Unassigned</MenuItem><MenuItem value="vendor">Vendor</MenuItem><MenuItem value="team">Team member</MenuItem></Select></FormControl>
-            <FormControl size="small" sx={{ minWidth: 160 }}><Select value={sort} onChange={(event) => setSort(event.target.value)}><MenuItem value="priority">Priority · oldest</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="newest">Newest first</MenuItem><MenuItem value="status">Workflow status</MenuItem></Select></FormControl>
-            <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>{visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}{activeFilterCount ? ` · ${activeFilterCount} ${activeFilterCount === 1 ? 'filter' : 'filters'} active` : ''}</Typography>
-            {hasRefinements && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
-          </Stack>
+          <Box sx={maintenanceFilterGridSx}>
+            <OutlinedInput size="small" placeholder="Search requests, properties, vendors..." value={search} onChange={(event) => setSearch(event.target.value)} startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={maintenanceFilterControlSx} />
+            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={selectedProperty?.id || ''} displayEmpty onChange={(event) => dispatch(setProperty(properties.find((property) => Number(property.id) === Number(event.target.value)) || null))}><MenuItem value="">All properties</MenuItem>{properties.map((property) => <MenuItem key={property.id} value={property.id}>{property.name?.trim() || property.streetAddress?.trim() || `Property ${property.id}`}</MenuItem>)}</Select></FormControl>
+            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={scope} onChange={(event) => { setScope(event.target.value); setMetric('open'); }}><MenuItem value="active">Active</MenuItem><MenuItem value="resolved">Resolved</MenuItem><MenuItem value="all">All requests</MenuItem></Select></FormControl>
+            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><MenuItem value="all">All priorities</MenuItem>{PRIORITY_OPTIONS.map((priority) => <MenuItem key={priority} value={priority}>{titleCase(priority)}</MenuItem>)}</Select></FormControl>
+            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}><MenuItem value="all">All categories</MenuItem>{categories.map((category) => <MenuItem key={category} value={category}>{titleCase(category)}</MenuItem>)}</Select></FormControl>
+            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}><MenuItem value="all">All assignments</MenuItem><MenuItem value="unassigned">Unassigned</MenuItem><MenuItem value="vendor">Vendor</MenuItem><MenuItem value="team">Team member</MenuItem></Select></FormControl>
+            <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={sort} onChange={(event) => setSort(event.target.value)}><MenuItem value="priority">Priority · oldest</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="newest">Newest first</MenuItem><MenuItem value="status">Workflow status</MenuItem></Select></FormControl>
+            <Box sx={maintenanceFilterSummarySx}>
+              <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>{visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}{activeFilterCount ? ` · ${activeFilterCount} ${activeFilterCount === 1 ? 'filter' : 'filters'} active` : ''}</Typography>
+              {hasRefinements && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
+            </Box>
+          </Box>
         </Box>
 
         {busy ? <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : visibleRequests.length === 0 ? (
