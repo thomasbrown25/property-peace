@@ -48,6 +48,7 @@ import {
 } from 'store/maintenance/maintenance.selector';
 import { setProperty } from 'store/property/property.action';
 import { selectProperties, selectProperty } from 'store/property/property.selector';
+import { clearMaintenanceListFilters, maintenanceListEmptyMessage, maintenanceScopeFromStatus } from 'utils/maintenanceWorkflow';
 
 const NAVY = '#061e35';
 const PAGE_SIZE = 10;
@@ -62,7 +63,6 @@ const BOARD_COLUMNS = [
   { key: 'awaitingtenant', label: 'Awaiting tenant', color: '#0f766e' },
   { key: 'resolved', label: 'Resolved', color: '#16a34a' }
 ];
-const STATUS_OPTIONS = BOARD_COLUMNS.map(({ key, label }) => ({ key, label }));
 const PRIORITY_OPTIONS = ['high', 'medium', 'low'];
 
 const normalizeToken = (value) => String(value ?? '').trim().toLowerCase().replace(/[-_\s]/g, '');
@@ -251,7 +251,6 @@ export default function Maintenances() {
   const [scope, setScope] = useState('active');
   const [metric, setMetric] = useState('open');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [assignmentFilter, setAssignmentFilter] = useState('all');
@@ -277,14 +276,10 @@ export default function Maintenances() {
   }, [dispatch, properties, searchParams]);
 
   useEffect(() => {
-    const status = searchParams.get('status');
     const priority = searchParams.get('priority');
-    if (status) {
-      const normalized = normalizeStatus(status);
-      setStatusFilter(normalized);
-      if (normalized === 'resolved') setScope('resolved');
-    }
+    const status = searchParams.get('status');
     if (priority) setPriorityFilter(normalizeToken(priority));
+    if (status) setScope(maintenanceScopeFromStatus(status));
   }, [searchParams]);
 
   const allRequests = useMemo(() => {
@@ -313,7 +308,6 @@ export default function Maintenances() {
       if (scope === 'active' && !active) return false;
       if (scope === 'resolved' && active) return false;
       if (selectedProperty?.id && Number(request.propertyId) !== Number(selectedProperty.id)) return false;
-      if (statusFilter !== 'all' && status !== statusFilter) return false;
       if (priorityFilter !== 'all' && normalizeToken(request.priority) !== priorityFilter) return false;
       if (categoryFilter !== 'all' && getCategory(request) !== categoryFilter) return false;
       const assignment = getAssignment(request);
@@ -338,23 +332,38 @@ export default function Maintenances() {
       const priorityDifference = (priorityRank[normalizeToken(a.priority)] ?? 9) - (priorityRank[normalizeToken(b.priority)] ?? 9);
       return priorityDifference || new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
     });
-  }, [allRequests, assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort, statusFilter]);
+  }, [allRequests, assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort]);
 
-  useEffect(() => setPage(1), [assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort, statusFilter]);
+  useEffect(() => setPage(1), [assignmentFilter, categoryFilter, metric, priorityFilter, scope, search, selectedProperty, sort]);
 
   const pageCount = Math.max(1, Math.ceil(visibleRequests.length / PAGE_SIZE));
   const paginated = visibleRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   useEffect(() => { if (page > pageCount) setPage(pageCount); }, [page, pageCount]);
 
   const clearFilters = () => {
-    setScope('active'); setMetric('open'); setSearch(''); setStatusFilter('all'); setPriorityFilter('all'); setCategoryFilter('all'); setAssignmentFilter('all'); dispatch(setProperty(null));
+    const cleared = clearMaintenanceListFilters({ scope });
+    setScope(cleared.scope);
+    setMetric('open');
+    setSearch(cleared.search);
+    setPriorityFilter(cleared.priority);
+    setCategoryFilter(cleared.category);
+    setAssignmentFilter(cleared.assignment);
+    dispatch(setProperty(null));
   };
 
   const openActions = (event, request) => { setActionAnchor(event.currentTarget); setActionRequest(request); };
   const closeActions = () => { setActionAnchor(null); };
   const runAction = (callback) => { closeActions(); callback(); };
 
-  const activeFilterCount = [statusFilter, priorityFilter, categoryFilter, assignmentFilter].filter((value) => value !== 'all').length + (selectedProperty ? 1 : 0);
+  const activeFilterCount = [priorityFilter, categoryFilter, assignmentFilter].filter((value) => value !== 'all').length + (selectedProperty ? 1 : 0);
+  const hasRefinements = activeFilterCount > 0 || Boolean(search) || metric !== 'open';
+  const hasResolvedRequests = allRequests.some((request) => !ACTIVE_STATUSES.includes(normalizeStatus(request.status)));
+  const emptyMessage = maintenanceListEmptyMessage({
+    hasRequests: allRequests.length > 0,
+    hasRefinements,
+    scope,
+    hasResolvedRequests
+  });
   const pageStart = visibleRequests.length ? (page - 1) * PAGE_SIZE + 1 : 0;
   const pageEnd = Math.min(page * PAGE_SIZE, visibleRequests.length);
 
@@ -392,7 +401,6 @@ export default function Maintenances() {
             <OutlinedInput size="small" placeholder="Search requests, properties, vendors..." value={search} onChange={(event) => setSearch(event.target.value)} startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={{ width: { xs: '100%', lg: 310 } }} />
             <FormControl size="small" sx={{ minWidth: 150 }}><Select value={selectedProperty?.id || ''} displayEmpty onChange={(event) => dispatch(setProperty(properties.find((property) => Number(property.id) === Number(event.target.value)) || null))}><MenuItem value="">All properties</MenuItem>{properties.map((property) => <MenuItem key={property.id} value={property.id}>{property.name?.trim() || property.streetAddress?.trim() || `Property ${property.id}`}</MenuItem>)}</Select></FormControl>
             <FormControl size="small" sx={{ minWidth: 125 }}><Select value={scope} onChange={(event) => { setScope(event.target.value); setMetric('open'); }}><MenuItem value="active">Active</MenuItem><MenuItem value="resolved">Resolved</MenuItem><MenuItem value="all">All requests</MenuItem></Select></FormControl>
-            <FormControl size="small" sx={{ minWidth: 140 }}><Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><MenuItem value="all">All statuses</MenuItem>{STATUS_OPTIONS.map((option) => <MenuItem key={option.key} value={option.key}>{option.label}</MenuItem>)}</Select></FormControl>
             <FormControl size="small" sx={{ minWidth: 125 }}><Select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><MenuItem value="all">All priorities</MenuItem>{PRIORITY_OPTIONS.map((priority) => <MenuItem key={priority} value={priority}>{titleCase(priority)}</MenuItem>)}</Select></FormControl>
             <Box sx={{ flex: 1 }} />
           </Stack>
@@ -401,12 +409,19 @@ export default function Maintenances() {
             <FormControl size="small" sx={{ minWidth: 145 }}><Select value={assignmentFilter} onChange={(event) => setAssignmentFilter(event.target.value)}><MenuItem value="all">All assignments</MenuItem><MenuItem value="unassigned">Unassigned</MenuItem><MenuItem value="vendor">Vendor</MenuItem><MenuItem value="team">Team member</MenuItem></Select></FormControl>
             <FormControl size="small" sx={{ minWidth: 160 }}><Select value={sort} onChange={(event) => setSort(event.target.value)}><MenuItem value="priority">Priority · oldest</MenuItem><MenuItem value="oldest">Oldest first</MenuItem><MenuItem value="newest">Newest first</MenuItem><MenuItem value="status">Workflow status</MenuItem></Select></FormControl>
             <Typography sx={{ fontSize: '0.74rem', color: 'text.secondary' }}>{visibleRequests.length} {visibleRequests.length === 1 ? 'request' : 'requests'}{activeFilterCount ? ` · ${activeFilterCount} ${activeFilterCount === 1 ? 'filter' : 'filters'} active` : ''}</Typography>
-            {(activeFilterCount > 0 || search || scope !== 'active' || metric !== 'open') && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
+            {hasRefinements && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
           </Stack>
         </Box>
 
         {busy ? <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : visibleRequests.length === 0 ? (
-          <Box sx={{ py: 8, px: 2, textAlign: 'center' }}><Avatar sx={{ mx: 'auto', mb: 1.5, width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.09), color: 'primary.main' }}><ToolOutlined /></Avatar><Typography variant="h6">No matching maintenance requests</Typography><Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: '0.82rem' }}>{allRequests.length ? 'Try clearing or changing the current filters.' : 'Tenant-submitted requests will appear here for review.'}</Typography>{allRequests.length && <Button variant="contained" startIcon={<SearchOutlined />} onClick={clearFilters} sx={{ mt: 2, textTransform: 'none' }}>Clear filters</Button>}</Box>
+          <Box sx={{ py: 8, px: 2, textAlign: 'center' }}>
+            <Avatar sx={{ mx: 'auto', mb: 1.5, width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.09), color: 'primary.main' }}><ToolOutlined /></Avatar>
+            <Typography variant="h6">No matching maintenance requests</Typography>
+            <Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: '0.82rem' }}>
+              {emptyMessage}
+            </Typography>
+            {hasRefinements && <Button variant="contained" startIcon={<SearchOutlined />} onClick={clearFilters} sx={{ mt: 2, textTransform: 'none' }}>Clear filters</Button>}
+          </Box>
         ) : (
           <>
             <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(250px, 1.35fr) minmax(190px, 1fr) minmax(145px, .72fr) minmax(150px, .78fr) 44px', gap: 2, px: 2, py: 1, bgcolor: alpha(theme.palette.background.default, 0.55), borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>{['Request', 'Property & timing', 'Priority & status', 'Assigned to', ''].map((label) => <Typography key={label} sx={{ fontSize: '0.66rem', fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 0.55 }}>{label}</Typography>)}</Box>

@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   availableMaintenanceActions, buildCreateMaintenancePayload, classifySignals, emergencyInstructions,
-  createEvidenceUploadEntries, currentCycleTroubleshootingSteps, evidenceSelection, uploadPendingEvidence,
+  clearMaintenanceListFilters, createEvidenceUploadEntries, currentCycleTroubleshootingSteps, evidenceSelection, uploadPendingEvidence,
   maintenanceActorForRoute, maintenanceActorFromUser, maintenanceUserId, normalizeWorkflowToken, safeTroubleshootingStep, slaState, statusLabel,
   tenantEvidencePurpose, workflowActivitiesFromMaintenanceDetail, workflowFromMaintenanceDetail, workflowProjectionWarning
 } from './maintenanceWorkflow.js';
+import * as maintenanceWorkflow from './maintenanceWorkflow.js';
 
 test('status contract normalizes numeric-style API names without collapsing workflow states', () => {
   assert.equal(normalizeWorkflowToken('Awaiting_Approval'), 'awaitingapproval');
@@ -14,6 +15,49 @@ test('status contract normalizes numeric-style API names without collapsing work
   assert.equal(statusLabel('AwaitingTenant'), 'Awaiting tenant');
 });
 
+test('clearing maintenance list refinements preserves the selected lifecycle view', () => {
+  const actual = clearMaintenanceListFilters({
+    scope: 'resolved', search: 'leak', priority: 'high',
+    category: 'Plumbing', assignment: 'vendor'
+  });
+
+  assert.deepEqual(actual, {
+    scope: 'resolved',
+    search: '',
+    priority: 'all',
+    category: 'all',
+    assignment: 'all'
+  });
+});
+
+test('resolved maintenance deep links select the resolved lifecycle view', () => {
+  const maintenanceScopeFromStatus = maintenanceWorkflow.maintenanceScopeFromStatus;
+  const actual =
+    typeof maintenanceScopeFromStatus === 'function'
+      ? ['Resolved', 'Completed', 'Closed', 'Cancelled'].map(maintenanceScopeFromStatus)
+      : null;
+
+  assert.deepEqual(actual, ['resolved', 'resolved', 'resolved', 'resolved']);
+});
+
+test('active empty states direct refined views to completed work when resolved records exist', () => {
+  const maintenanceListEmptyMessage = maintenanceWorkflow.maintenanceListEmptyMessage;
+  const actual =
+    typeof maintenanceListEmptyMessage === 'function'
+      ? maintenanceListEmptyMessage({
+          hasRequests: true,
+          hasRefinements: true,
+          scope: 'active',
+          hasResolvedRequests: true
+        })
+      : null;
+
+  assert.equal(
+    actual,
+    'No active requests match these filters. Clear filters, or choose Resolved or All requests to view completed work.'
+  );
+
+});
 test('deterministic emergency rules are independent of AI and take precedence', () => {
   assert.equal(classifySignals(['NoRunningWater']), 'Urgent');
   assert.equal(classifySignals(['NoRunningWater', 'GasOdor']), 'Emergency');
