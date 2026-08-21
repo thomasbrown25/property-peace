@@ -78,15 +78,16 @@ public sealed class RentPaymentSummaryTests
     [Fact]
     public void CurrentMonthRentDue_SeparatesThisMonthsRentFromOlderOverdueRent()
     {
-        var today = DateTime.Today;
+        var today = new DateTime(2026, 8, 15);
         var lease = ActiveMonthlyLease(today.AddMonths(-2), today.AddMonths(10), 1_190m);
+        lease.RentDueDay = today.Day;
 
-        var currentRentDue = RentCalculator.GetCurrentMonthRentDue(lease, []);
-        var priorOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(lease, []);
+        var currentRentDue = RentCalculator.GetCurrentMonthRentDue(lease, [], today: today);
+        var priorOverdueRent = RentCalculator.GetPriorPeriodOverdueRent(lease, [], today: today);
 
         currentRentDue.Should().Be(1_190m);
         priorOverdueRent.Should().BeGreaterThan(0m);
-        var overdueIncludingCurrentPeriod = RentCalculator.CalculateOverdueForLease(lease, []);
+        var overdueIncludingCurrentPeriod = RentCalculator.CalculateOverdueForLease(lease, [], today: today);
         var currentDueDate = new DateTime(today.Year, today.Month, lease.RentDueDay!.Value);
         priorOverdueRent.Should().Be(today > currentDueDate
             ? overdueIncludingCurrentPeriod - currentRentDue
