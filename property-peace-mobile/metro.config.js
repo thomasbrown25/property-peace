@@ -9,6 +9,9 @@ const config = getDefaultConfig(__dirname);
 // This is critical for monorepo setups where packages might be hoisted
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '..');
+const sharedRoot = path.resolve(monorepoRoot, 'shared');
+
+config.watchFolders = [...new Set([...(config.watchFolders || []), sharedRoot])];
 
 config.resolver = {
   ...config.resolver,

@@ -6,6 +6,10 @@
   "exports": {
     ".": "./index.js",
     "./api": "./api/index.js",
+    "./password-validation": {
+      "types": "./password-validation.d.ts",
+      "default": "./password-validation.js"
+    },
     "./utils": "./utils/storage.js"
   },
   "dependencies": {

@@ -194,6 +194,7 @@ namespace brownstone_hub_api.Data
 
 
         public DbSet<User> Users => Set<User>();
+        public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
         public DbSet<ActivationMilestoneOccurrence> ActivationMilestoneOccurrences => Set<ActivationMilestoneOccurrence>();
         public DbSet<UserRefreshToken> UserRefreshTokens => Set<UserRefreshToken>();
         public DbSet<ImpersonationSession> ImpersonationSessions => Set<ImpersonationSession>();

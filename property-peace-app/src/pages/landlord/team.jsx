@@ -48,8 +48,9 @@ import CreateOrganizationDialog from 'components/organization/CreateOrganization
 import useAuth from 'hooks/useAuth';
 import { openSnackbar } from 'api/snackbar';
 import { getCurrentOrganization } from 'api/organization';
-import { getMembers, removeMember, updateMember } from 'api/organizationMember';
+import { getMembers, updateMember } from 'api/organizationMember';
 import { createInvite, deleteInvite, getInvites, resendInvite } from 'api/organizationInvite';
+import RemoveTeamMemberDialog from './RemoveTeamMemberDialog';
 
 const ROLE_DETAILS = {
   Owner: {
@@ -343,6 +344,7 @@ export default function Team() {
   const [createOrganizationOpen, setCreateOrganizationOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
+  const [memberPendingRemoval, setMemberPendingRemoval] = useState(null);
 
   const loadData = async (quiet = false) => {
     quiet ? setRefreshing(true) : setLoading(true);
@@ -474,7 +476,7 @@ export default function Team() {
             canManage={canManage}
             isCurrentUser={item.kind === 'member' && Number(item.userId) === currentUserId}
             onEdit={setEditingMember}
-            onRemove={(member) => confirmAndRun(`Remove ${member.name} from ${organization.name}? They will lose organization access immediately.`, () => removeMember(organization.id, member.id), `${member.name} was removed`)}
+            onRemove={setMemberPendingRemoval}
             onResend={async (invite) => { try { await resendInvite(invite.id); openSnackbar({ open: true, message: `A fresh invitation was sent to ${invite.email}`, variant: 'alert', alert: { color: 'success' } }); await loadData(true); } catch (err) { openSnackbar({ open: true, message: err?.response?.data?.message || err?.message || 'Could not resend the invitation', variant: 'alert', alert: { color: 'error' } }); } }}
             onCancel={(invite) => confirmAndRun(`Revoke the invitation for ${invite.email}? Their current link will stop working.`, () => deleteInvite(invite.id), `Invitation for ${invite.email} was revoked`)}
           />
@@ -491,6 +493,13 @@ export default function Team() {
         description="Set up a separate organization for another company, portfolio, or team. You will become its owner and Property Peace will switch to it after creation."
       />
       <RoleDialog member={editingMember} open={Boolean(editingMember)} onClose={() => setEditingMember(null)} onSaved={() => loadData(true)} />
+      <RemoveTeamMemberDialog
+        member={memberPendingRemoval}
+        organization={organization}
+        open={Boolean(memberPendingRemoval)}
+        onClose={() => setMemberPendingRemoval(null)}
+        onRemoved={() => loadData(true)}
+      />
     </Box>
   );
 }

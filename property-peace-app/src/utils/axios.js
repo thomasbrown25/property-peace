@@ -11,6 +11,7 @@ import {
   notifyImpersonationExpired,
   updateImpersonationAccessToken
 } from 'utils/impersonationSession';
+import { removeInheritedAuthContext } from 'utils/authRequestContext';
 
 const getApiBaseURL = () => {
   const envUrl = import.meta.env.VITE_APP_API_URL;
@@ -117,6 +118,7 @@ axiosServices.interceptors.request.use(async (config) => {
   const state = store.getState();
   let accessToken = getActiveAccessToken();
   const authEndpoint = isAuthEndpoint(config.url);
+  if (authEndpoint) removeInheritedAuthContext(config.headers);
   if (accessToken && !authEndpoint) {
     if (shouldRefreshToken(accessToken)) {
       try {

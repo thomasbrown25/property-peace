@@ -481,6 +481,8 @@ services.AddAutoMapper(cfg =>
 services.AddHttpClient<IGoogleAuthService, GoogleAuthService>();
 services.AddHttpClient<IAppleAuthService, AppleAuthService>();
 services.AddScoped<IUserService, UserService>();
+services.AddScoped<brownstone_hub_api.Services.PasswordReset.IPasswordResetService,
+    brownstone_hub_api.Services.PasswordReset.PasswordResetService>();
 services.AddScoped<brownstone_hub_api.Services.Activation.IActivationService, brownstone_hub_api.Services.Activation.ActivationService>();
 var dataProtectionKeysPath = configuration["DataProtection:KeysPath"];
 if (string.IsNullOrWhiteSpace(dataProtectionKeysPath))

@@ -19,6 +19,7 @@ import { getBrowserTimezone } from 'utils/browserTimezone';
 import { getPostLoginRedirectPath } from 'utils/authRedirect';
 import { normalizeLoginResult } from 'utils/mfaChallenge';
 import { verifyMfaChallenge } from 'api/security';
+import { createPasswordResetApi } from 'api/passwordReset';
 import {
   clearImpersonationSession,
   getActiveAccessToken,
@@ -31,6 +32,7 @@ import {
 } from 'utils/impersonationSession';
 
 const chance = new Chance();
+const passwordResetApi = createPasswordResetApi(axios);
 
 // constant
 const initialState = {
@@ -711,8 +713,8 @@ export const JWTProvider = ({ children }) => {
     window.location.replace('/login');
   };
 
-  const resetPassword = async (email) => {
-  };
+  const resetPassword = async (email) => passwordResetApi.requestReset(email);
+  const completePasswordReset = async (token, newPassword) => passwordResetApi.completeReset(token, newPassword);
 
   const updateProfile = () => {};
 
@@ -761,6 +763,7 @@ export const JWTProvider = ({ children }) => {
         logout,
         register,
         resetPassword,
+        completePasswordReset,
         updateProfile,
         updateUser,
         reloadUser,

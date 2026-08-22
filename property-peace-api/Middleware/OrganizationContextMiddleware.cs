@@ -1,5 +1,6 @@
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Security;
+using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 
 namespace brownstone_hub_api.Middleware
@@ -62,6 +63,16 @@ namespace brownstone_hub_api.Middleware
 
                     if (userId.HasValue)
                     {
+                        var endpoint = context.GetEndpoint();
+                        if (endpoint?.Metadata.GetMetadata<OrganizationContextOptionalAttribute>() != null ||
+                            endpoint?.Metadata.GetMetadata<IAllowAnonymous>() != null)
+                        {
+                            context.Items.Remove("OrganizationId");
+                            context.Items["UserId"] = userId.Value;
+                            await _next(context);
+                            return;
+                        }
+
                         var organizationHeaderWasProvided = context.Request.Headers.ContainsKey("X-Organization-Id");
                         var organizationIdHeader = context.Request.Headers["X-Organization-Id"].FirstOrDefault();
 

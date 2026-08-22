@@ -2,6 +2,7 @@ using brownstone_hub_api.Dtos.Organization;
 using brownstone_hub_api.Dtos.OrganizationInvite;
 using brownstone_hub_api.Dtos.OrganizationMember;
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.OrganizationInviteService;
 using brownstone_hub_api.Services.OrganizationMemberService;
@@ -100,6 +101,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpGet("user/list")]
+        [OrganizationContextOptional]
         public async Task<IActionResult> GetUserOrganizations()
         {
             var userId = await this.GetCurrentUserIdAsync(_userRepository);
@@ -183,6 +185,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("switch")]
+        [OrganizationContextOptional]
         public async Task<IActionResult> SwitchOrganization([FromBody] SwitchOrganizationDto dto)
         {
             var userId = await this.GetCurrentUserIdAsync(_userRepository);
@@ -267,8 +270,8 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
-        [HttpDelete("members/{organizationId}/{memberUserId}")]
-        public async Task<IActionResult> RemoveMember(long organizationId, long memberUserId)
+        [HttpDelete("members/{organizationId}/{memberId}")]
+        public async Task<IActionResult> RemoveMember(long organizationId, long memberId)
         {
             var userId = await this.GetCurrentUserIdAsync(_userRepository);
             if (!userId.HasValue)
@@ -276,7 +279,7 @@ namespace brownstone_hub_api.Controllers
                 return Unauthorized(new { Message = "User not authenticated" });
             }
 
-            var response = await _memberService.RemoveMemberAsync(organizationId, memberUserId, userId.Value);
+            var response = await _memberService.RemoveMemberAsync(organizationId, memberId, userId.Value);
             if (!response.Success)
             {
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
@@ -342,6 +345,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("invites/accept")]
+        [OrganizationContextOptional]
         public async Task<IActionResult> AcceptInvite([FromBody] AcceptOrganizationInviteDto dto)
         {
             var userId = await this.GetCurrentUserIdAsync(_userRepository);

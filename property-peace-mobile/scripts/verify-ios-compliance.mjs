@@ -44,8 +44,8 @@ assert.match(userApi, /delete\('\/api\/user'\)/, 'account deletion must call DEL
 assert.match(login, /AppleSignInButton/, 'iOS login must offer Sign in with Apple');
 assert.match(register, /AppleSignInButton/, 'iOS registration must offer Sign in with Apple');
 assert.match(authService, /\/api\/user\/apple-login/, 'mobile auth service must use the Apple login endpoint');
-assert.match(login, /Platform\.OS !== 'ios'/, 'Google login must remain hidden on iOS');
-assert.match(register, /Platform\.OS !== 'ios'/, 'Google registration must remain hidden on iOS');
+assert.match(login, /Platform\.OS !== ['"]ios['"]/, 'Google login must remain hidden on iOS');
+assert.match(register, /Platform\.OS !== ['"]ios['"]/, 'Google registration must remain hidden on iOS');
 for (const source of [login, register, settings]) {
   assert.match(source, /https:\/\/www\.propertypeace\.io\/privacy/, 'privacy link must be reachable in app');
   assert.match(source, /https:\/\/www\.propertypeace\.io\/terms/, 'terms link must be reachable in app');

@@ -173,58 +173,63 @@ namespace brownstone_hub_api.Services.OrganizationMemberService
             }
         }
 
-        public async Task<ServiceResponse<bool>> RemoveMemberAsync(long organizationId, long memberIdOrUserId, long requestingUserId)
+        public async Task<ServiceResponse<bool>> RemoveMemberAsync(long organizationId, long memberId, long requestingUserId)
         {
             try
             {
-                // Try to find by member ID first (for pending members with null UserId)
-                var member = await _memberRepository.GetMemberByMemberIdAsync(organizationId, memberIdOrUserId);
-                
-                // If not found, try by UserId (for existing members)
-                if (member == null)
-                {
-                    member = await _memberRepository.GetMemberAsync(organizationId, memberIdOrUserId);
-                }
+                // The route identifier is always the OrganizationMember primary key.
+                var member = await _memberRepository.GetMemberByMemberIdAsync(organizationId, memberId);
                 
                 if (member == null)
                 {
                     return ServiceResponse<bool>.CreateError("Member not found", "The specified member does not exist.");
                 }
 
+
                 // Check if requester has permission
                 var requestingMember = await _memberRepository.GetMemberAsync(organizationId, requestingUserId);
-                if (requestingMember == null || (!requestingMember.CanManageMembers && requestingMember.Role != "Owner"))
+                if (requestingMember == null || !requestingMember.IsActive ||
+                    requestingMember.OrganizationId != organizationId ||
+                    (!requestingMember.CanManageMembers &&
+                     !string.Equals(requestingMember.Role, "Owner", StringComparison.OrdinalIgnoreCase)))
                 {
                     return ServiceResponse<bool>.CreateError("Unauthorized", "You do not have permission to remove members.", "", 403);
                 }
 
-                if (member.Role == "Owner" && requestingMember.Role != "Owner")
+                if (string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(requestingMember.Role, "Owner", StringComparison.OrdinalIgnoreCase))
                 {
                     return ServiceResponse<bool>.CreateError("Unauthorized", "Only an organization owner can remove another owner.", "", 403);
                 }
 
                 // Prevent removing the last owner
-                if (member.Role == "Owner")
+                if (string.Equals(member.Role, "Owner", StringComparison.OrdinalIgnoreCase))
                 {
                     var owners = await _memberRepository.GetMembersByOrganizationIdAsync(organizationId);
-                    if (owners.Count(m => m.Role == "Owner") <= 1)
+                    if (owners.Count(m => m.IsActive &&
+                        string.Equals(m.Role, "Owner", StringComparison.OrdinalIgnoreCase)) <= 1)
                     {
                         return ServiceResponse<bool>.CreateError("Cannot remove last owner", "An organization must have at least one owner.");
                     }
                 }
 
-                // Remove by member ID if UserId is null, otherwise by UserId
-                bool result;
-                if (member.UserId.HasValue)
+                // The repository removes the exact membership and repairs CurrentOrganizationId atomically.
+                var removal = await _memberRepository.RemoveMemberAndRepairCurrentOrganizationAsync(organizationId, member.Id);
+
+                if (!removal.Removed)
                 {
-                    result = await _memberRepository.RemoveMemberAsync(organizationId, member.UserId.Value);
+                    return ServiceResponse<bool>.CreateError("Member not found", "The specified member no longer exists.");
                 }
-                else
-                {
-                    result = await _memberRepository.RemoveMemberByIdAsync(organizationId, member.Id);
-                }
-                
-                return ServiceResponse<bool>.CreateSuccess(result, "Member removed successfully");
+
+                _logger.LogInformation(
+                    "Removed OrganizationMemberId {MemberId} for UserId {RemovedUserId} from OrganizationId {OrganizationId}; CurrentOrganizationId is now {CurrentOrganizationId}; requested by UserId {RequestingUserId}.",
+                    member.Id,
+                    removal.RemovedUserId,
+                    organizationId,
+                    removal.CurrentOrganizationId,
+                    requestingUserId);
+
+                return ServiceResponse<bool>.CreateSuccess(true, "Member removed successfully");
             }
             catch (Exception ex)
             {

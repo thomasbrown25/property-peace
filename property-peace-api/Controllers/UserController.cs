@@ -18,6 +18,7 @@ using Azure.Storage.Blobs.Models;
 using brownstone_hub_api.Services.AzureBlobService;
 using brownstone_hub_api.Services.EmailVerificationService;
 using brownstone_hub_api.Services.GoogleAuthService;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Messages;
 using brownstone_hub_api.Repositories.AdminSettings;
@@ -28,6 +29,7 @@ using brownstone_hub_api.Services.SubscriptionService;
 using brownstone_hub_api.Repositories.NotificationSettings;
 using brownstone_hub_api.Services.MfaService;
 using brownstone_hub_api.Dtos.Mfa;
+using brownstone_hub_api.Services.PasswordReset;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -48,6 +50,7 @@ namespace brownstone_hub_api.Controllers
         ISubscriptionService subscriptionService,
         INotificationSettingRepository notificationSettingRepository,
         IMfaService mfaService,
+        IPasswordResetService passwordResetService,
         ILogger<UserController> logger
         ) : ControllerBase
     {
@@ -65,6 +68,7 @@ namespace brownstone_hub_api.Controllers
         private readonly ISubscriptionService _subscriptionService = subscriptionService;
         private readonly INotificationSettingRepository _notificationSettingRepository = notificationSettingRepository;
         private readonly IMfaService _mfaService = mfaService;
+        private readonly IPasswordResetService _passwordResetService = passwordResetService;
         private readonly ILogger<UserController> _logger = logger;
         private const string EmailVerificationCookieName = "pp-email-verification";
 
@@ -124,6 +128,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpPost("google-login")]
+        [OrganizationContextOptional]
         public async Task<ActionResult> GoogleLogin(GoogleLoginDto request, CancellationToken ct)
         {
             // Log the incoming request for debugging
@@ -280,6 +285,36 @@ namespace brownstone_hub_api.Controllers
                 SameSite = secure ? SameSiteMode.None : SameSiteMode.Lax,
                 Path = "/"
             });
+        }
+
+        [AllowAnonymous]
+        [HttpPost("forgot-password")]
+        public async Task<ActionResult<ServiceResponse<bool>>> ForgotPassword(
+            [FromBody] ForgotPasswordRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            await _passwordResetService.RequestResetAsync(request.Email, cancellationToken);
+            return Ok(ServiceResponse<bool>.CreateSuccess(
+                true,
+                "If an account exists for that email, a password reset link has been sent."));
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        public async Task<ActionResult<ServiceResponse<bool>>> ResetPassword(
+            [FromBody] ResetPasswordRequestDto request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _passwordResetService.ResetPasswordAsync(
+                request.Token,
+                request.NewPassword,
+                cancellationToken);
+            if (!result.Success)
+            {
+                return BadRequest(ServiceResponse<bool>.CreateError(result.Message, suppressDetailedErrors: true));
+            }
+
+            return Ok(ServiceResponse<bool>.CreateSuccess(true, result.Message));
         }
 
         [HttpPost("check-email")]
@@ -588,6 +623,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
         }
 
         [HttpPost("google-user-info")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<GoogleUserInfoDto>>> GetGoogleUserInfo([FromBody] GoogleUserInfoRequestDto request)
         {
             try
@@ -627,6 +663,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
         // Load current user
         [Authorize]
         [HttpGet("load-user")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<LoadUserDto>>> LoadUser()
         {
             var response = await _userService.LoadUser();

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform } from 'react-native';
 import { useAppDispatch } from '../../store/hooks';
 import { login, googleLogin } from '../../store/user/user.slice';
 import { useNavigation } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import config from '../../config';
 import GoogleLogo from '../../components/GoogleLogo';
 import AuthMarketingBackground from '../../components/AuthMarketingBackground';
 import AppleSignInButton from '../../components/AppleSignInButton';
+import { resolveReducedMotionPreference } from '../../features/startup/startupPresentation';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -21,6 +22,40 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
   const showGoogleSignIn = Platform.OS !== 'ios' && Boolean(config.GOOGLE_CLIENT_ID);
+  const entrance = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let active = true;
+    let animation: Animated.CompositeAnimation | undefined;
+    const controller = new AbortController();
+
+    resolveReducedMotionPreference(
+      () => AccessibilityInfo.isReduceMotionEnabled(),
+      400,
+      controller.signal,
+    ).then((reduceMotion) => {
+      if (!active) return;
+      if (reduceMotion) {
+        entrance.setValue(1);
+        return;
+      }
+
+      animation = Animated.timing(entrance, {
+        delay: 70,
+        duration: 620,
+        easing: Easing.out(Easing.cubic),
+        toValue: 1,
+        useNativeDriver: true,
+      });
+      animation.start();
+    });
+
+    return () => {
+      active = false;
+      controller.abort();
+      animation?.stop();
+    };
+  }, [entrance]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -90,8 +125,20 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <AuthMarketingBackground>
-        <View style={styles.content}>
-          <Text style={styles.eyebrow}>Property Peace mobile</Text>
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              opacity: entrance,
+              transform: [{
+                translateY: entrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [24, 0],
+                }),
+              }],
+            },
+          ]}
+        >
           <Text style={styles.title}>Property Peace</Text>
           <Text style={styles.subtitle}>Sign in to your calm landlord dashboard.</Text>
 
@@ -177,7 +224,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
             <Text style={styles.legalText}>.</Text>
           </View>
-        </View>
+        </Animated.View>
       </AuthMarketingBackground>
     </KeyboardAvoidingView>
   );
@@ -193,21 +240,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 28,
-  },
-  eyebrow: {
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(147, 197, 253, 0.30)',
-    backgroundColor: 'rgba(96, 165, 250, 0.10)',
-    color: '#93c5fd',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    marginBottom: 18,
   },
   title: {
     fontSize: 36,

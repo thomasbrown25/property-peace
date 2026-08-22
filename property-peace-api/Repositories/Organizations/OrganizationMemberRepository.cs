@@ -89,9 +89,7 @@ namespace brownstone_hub_api.Repositories.Organizations
             if (member == null)
                 return false;
 
-            _context.OrganizationMembers.Remove(member);
-            await _context.SaveChangesAsync();
-            return true;
+            return (await RemoveMemberAndRepairCurrentOrganizationAsync(organizationId, member.Id)).Removed;
         }
         
         public async Task<bool> RemoveMemberByIdAsync(long organizationId, long memberId)
@@ -100,9 +98,60 @@ namespace brownstone_hub_api.Repositories.Organizations
             if (member == null)
                 return false;
 
+            return (await RemoveMemberAndRepairCurrentOrganizationAsync(organizationId, member.Id)).Removed;
+        }
+
+        public async Task<OrganizationMemberRemovalResult> RemoveMemberAndRepairCurrentOrganizationAsync(
+            long organizationId,
+            long memberId)
+        {
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
+
+            var member = await _context.OrganizationMembers
+                .FirstOrDefaultAsync(m => m.OrganizationId == organizationId && m.Id == memberId);
+            if (member == null)
+            {
+                return new OrganizationMemberRemovalResult(false, null, null);
+            }
+
+            var removedUserId = member.UserId;
+            long? currentOrganizationId = null;
+
+            if (removedUserId.HasValue)
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == removedUserId.Value);
+                currentOrganizationId = user?.CurrentOrganizationId;
+
+                if (user?.CurrentOrganizationId == organizationId)
+                {
+                    currentOrganizationId = await _context.OrganizationMembers
+                        .Where(m =>
+                            m.Id != memberId &&
+                            m.UserId == removedUserId.Value &&
+                            m.OrganizationId != organizationId &&
+                            m.IsActive &&
+                            m.Organization.IsActive &&
+                            !m.Organization.IsDeleted)
+                        .OrderByDescending(m => m.Role == "Owner")
+                        .ThenBy(m => m.JoinedAt)
+                        .ThenBy(m => m.Id)
+                        .Select(m => (long?)m.OrganizationId)
+                        .FirstOrDefaultAsync();
+                    user.CurrentOrganizationId = currentOrganizationId;
+                }
+            }
+
             _context.OrganizationMembers.Remove(member);
             await _context.SaveChangesAsync();
-            return true;
+
+            if (transaction != null)
+            {
+                await transaction.CommitAsync();
+            }
+
+            return new OrganizationMemberRemovalResult(true, removedUserId, currentOrganizationId);
         }
 
         public async Task<bool> IsUserMemberOfOrganizationAsync(long userId, long organizationId)

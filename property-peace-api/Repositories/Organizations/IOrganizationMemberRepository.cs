@@ -13,6 +13,7 @@ namespace brownstone_hub_api.Repositories.Organizations
         Task<OrganizationMember> UpdateMemberAsync(OrganizationMember member);
         Task<bool> RemoveMemberAsync(long organizationId, long userId);
         Task<bool> RemoveMemberByIdAsync(long organizationId, long memberId);
+        Task<OrganizationMemberRemovalResult> RemoveMemberAndRepairCurrentOrganizationAsync(long organizationId, long memberId);
         Task<bool> IsUserMemberOfOrganizationAsync(long userId, long organizationId);
         Task<bool> UserHasRoleAsync(long userId, long organizationId, string role);
         Task<bool> UserHasPermissionAsync(long userId, long organizationId, string permission);

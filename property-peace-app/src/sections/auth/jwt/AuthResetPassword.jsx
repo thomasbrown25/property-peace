@@ -23,6 +23,7 @@ import IconButton from 'components/@extended/IconButton';
 import AnimateButton from 'components/@extended/AnimateButton';
 
 import { strengthColor, strengthIndicator } from 'utils/password-strength';
+import { validatePassword } from 'utils/password-validation';
 import { openSnackbar } from 'api/snackbar';
 
 // assets
@@ -34,7 +35,7 @@ import EyeInvisibleOutlined from '@ant-design/icons/EyeInvisibleOutlined';
 export default function AuthResetPassword() {
   const navigate = useNavigate();
 
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, completePasswordReset } = useAuth();
 
   const [level, setLevel] = useState();
   const [showPassword, setShowPassword] = useState(false);
@@ -53,6 +54,7 @@ export default function AuthResetPassword() {
 
   const [searchParams] = useSearchParams();
   const auth = searchParams.get('auth'); // get auth and set route based on that
+  const token = searchParams.get('token');
 
   useEffect(() => {
     changePassword('');
@@ -66,14 +68,22 @@ export default function AuthResetPassword() {
         submit: null
       }}
       validationSchema={Yup.object().shape({
-        password: Yup.string().max(255).required('Password is required'),
+        password: Yup.string()
+          .required('Password is required')
+          .test('password-policy', 'Password does not meet requirements', (password, context) => {
+            const error = validatePassword(password);
+            return error ? context.createError({ message: error }) : true;
+          }),
         confirmPassword: Yup.string()
           .required('Confirm Password is required')
           .test('confirmPassword', 'Both Password must be match!', (confirmPassword, yup) => yup.parent.password === confirmPassword)
       })}
       onSubmit={async (values, { setErrors, setStatus, setSubmitting }) => {
         try {
-          // password reset
+          if (!token) {
+            throw new Error('This password reset link is invalid or has expired.');
+          }
+          await completePasswordReset(token, values.password);
           setStatus({ success: true });
           setSubmitting(false);
           openSnackbar({
