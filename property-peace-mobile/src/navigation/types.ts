@@ -1,3 +1,6 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { ChecklistsStackParamList } from './checklistsTypes';
+
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
@@ -15,6 +18,7 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   Dashboard: undefined;
   Properties: undefined;
+  Checklists: NavigatorScreenParams<ChecklistsStackParamList> | undefined;
   Maintenance: undefined;
   Messages: undefined;
   Notifications: undefined;

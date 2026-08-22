@@ -36,6 +36,8 @@ import TenantMaintenanceReceiptScreen from '../screens/tenant/TenantMaintenanceR
 import MaintenanceEmergencyScreen from '../screens/tenant/MaintenanceEmergencyScreen';
 import { useAppSelector } from '../store/hooks';
 import { maintenanceAudience } from '../features/maintenance/maintenanceModel';
+import ChecklistsNavigator from './ChecklistsNavigator';
+import { mainTabIconNames, resolveVisibleMainTabs, type MainTabComponentRegistry } from './mainTabModel';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const PropertiesStack = createNativeStackNavigator<PropertiesStackParamList>();
@@ -121,6 +123,17 @@ export default function MainNavigator() {
   const currentUser = useAppSelector((state) => state.user.currentUser);
   const audience = maintenanceAudience(currentUser);
   const bottomInset = Math.max(insets.bottom, 8);
+  const visibleComponents: MainTabComponentRegistry<React.ComponentType<any>> = {
+    DashboardScreen,
+    PropertiesNavigator,
+    ChecklistsNavigator,
+    MaintenanceNavigator,
+    TenantMaintenanceNavigator,
+    UnsupportedMaintenanceNavigator,
+    MessagesNavigator,
+    SettingsScreen,
+  };
+  const visibleTabs = resolveVisibleMainTabs(audience, visibleComponents);
 
   return (
     <Tab.Navigator
@@ -142,36 +155,20 @@ export default function MainNavigator() {
           shadowOffset: { width: 0, height: -4 },
         },
         tabBarIcon: ({ color, size, focused }) => {
-          const icons: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
-            Dashboard: { active: 'home', inactive: 'home-outline' },
-            Properties: { active: 'business', inactive: 'business-outline' },
-            Maintenance: { active: 'construct', inactive: 'construct-outline' },
-            Messages: { active: 'chatbubble-ellipses', inactive: 'chatbubble-ellipses-outline' },
-            Settings: { active: 'settings', inactive: 'settings-outline' },
-          };
-          const icon = icons[route.name];
-          return icon ? <Ionicons name={focused ? icon.active : icon.inactive} size={size + 1} color={color} /> : null;
+          const icon = mainTabIconNames(route.name);
+          return icon ? <Ionicons name={(focused ? icon.active : icon.inactive) as keyof typeof Ionicons.glyphMap} size={size + 1} color={color} /> : null;
         },
       })}
     >
-      {audience === 'tenant' ? <>
-        <Tab.Screen name="Maintenance" component={TenantMaintenanceNavigator} options={{ tabBarLabel: 'Repairs' }} />
-        <Tab.Screen name="Messages" component={MessagesNavigator} />
-        <Tab.Screen name="Settings" component={SettingsScreen} />
-      </> : audience === 'landlord' ? <>
-        <Tab.Screen name="Dashboard" component={DashboardScreen} options={{ tabBarLabel: 'Home' }} />
-        <Tab.Screen name="Properties" component={PropertiesNavigator} />
-        <Tab.Screen name="Maintenance" component={MaintenanceNavigator} />
-        <Tab.Screen name="Messages" component={MessagesNavigator} />
+      {visibleTabs.map((tab) => {
+        return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
+      })}
+      {audience === 'landlord' && <>
         <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Tenants" component={TenantsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Leases" component={LeasesNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
-      </> : <>
-        <Tab.Screen name="Maintenance" component={UnsupportedMaintenanceNavigator} />
-        <Tab.Screen name="Settings" component={SettingsScreen} />
       </>}
-
     </Tab.Navigator>
   );
 }
