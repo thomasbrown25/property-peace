@@ -2,13 +2,18 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import PropertyAPI from '../../api/propertyAPI';
+import AddressAutocompleteInput from '../../components/properties/AddressAutocompleteInput';
+import {
+  applyGooglePlaceDetails,
+  PropertyDraft,
+} from '../../features/properties/addressAutocomplete';
 
 export default function AddPropertyScreen() {
   const navigation = useNavigation<any>();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', address: '', city: '', state: '', zipCode: '', propertyType: 'Residential' });
+  const [form, setForm] = useState<PropertyDraft>({ name: '', address: '', city: '', state: '', zipCode: '', propertyType: 'Residential' });
 
-  const update = (key: string, value: string) => setForm((current) => ({ ...current, [key]: value }));
+  const update = (key: keyof PropertyDraft, value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   const save = async () => {
     if (!form.name.trim() || !form.address.trim()) {
@@ -28,10 +33,22 @@ export default function AddPropertyScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+    >
       <Text style={styles.helper}>Mobile keeps this quick: add the property shell here, then use the web app for full listing/media setup.</Text>
       <TextInput style={styles.input} placeholder="Property name" value={form.name} onChangeText={(v) => update('name', v)} />
-      <TextInput style={styles.input} placeholder="Street address" value={form.address} onChangeText={(v) => update('address', v)} />
+      <AddressAutocompleteInput
+        value={form.address}
+        onChangeText={(value) => update('address', value)}
+        onPlaceSelected={(details) =>
+          setForm((current) => applyGooglePlaceDetails(current, details))
+        }
+        disabled={saving}
+      />
       <TextInput style={styles.input} placeholder="City" value={form.city} onChangeText={(v) => update('city', v)} />
       <View style={styles.row}>
         <TextInput style={[styles.input, styles.rowInput]} placeholder="State" autoCapitalize="characters" value={form.state} onChangeText={(v) => update('state', v)} />

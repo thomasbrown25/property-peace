@@ -20,6 +20,58 @@ export type GooglePlaceDetails = {
   longitude: number | null;
 };
 
+export type AddressAutocompleteState = {
+  input: string;
+  suggestions: GooglePlaceSuggestion[];
+  loading: boolean;
+  open: boolean;
+  error: string;
+};
+
+export const initialAddressAutocompleteState: AddressAutocompleteState = {
+  input: '',
+  suggestions: [],
+  loading: false,
+  open: false,
+  error: '',
+};
+
+export type AddressAutocompleteAction =
+  | { type: 'inputChanged'; value: string }
+  | { type: 'requestStarted' }
+  | { type: 'requestSucceeded'; suggestions: GooglePlaceSuggestion[] }
+  | { type: 'requestFailed'; message: string }
+  | { type: 'closed' };
+
+export const addressAutocompleteReducer = (
+  state: AddressAutocompleteState,
+  action: AddressAutocompleteAction,
+): AddressAutocompleteState => {
+  switch (action.type) {
+    case 'inputChanged':
+      return { ...state, input: action.value, error: '' };
+    case 'requestStarted':
+      return { ...state, loading: true, open: true, error: '' };
+    case 'requestSucceeded':
+      return {
+        ...state,
+        suggestions: action.suggestions,
+        loading: false,
+        open: action.suggestions.length > 0,
+        error: '',
+      };
+    case 'requestFailed':
+      return {
+        ...state,
+        suggestions: [],
+        loading: false,
+        open: false,
+        error: action.message,
+      };
+    case 'closed':
+      return { ...state, suggestions: [], loading: false, open: false };
+  }
+};
 export const shouldFetchAddressSuggestions = (input: string) =>
   input.trim().length >= 3;
 

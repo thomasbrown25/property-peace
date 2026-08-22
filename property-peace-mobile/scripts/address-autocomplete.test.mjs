@@ -2,10 +2,27 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   applyGooglePlaceDetails,
+  addressAutocompleteReducer,
   createLatestRequestGate,
+  initialAddressAutocompleteState,
   nextAddressSessionToken,
   shouldFetchAddressSuggestions,
 } from '../src/features/properties/addressAutocomplete.ts';
+
+test('failed suggestions preserve typed input and expose manual fallback', () => {
+  const typed = addressAutocompleteReducer(initialAddressAutocompleteState, {
+    type: 'inputChanged',
+    value: '123 Main',
+  });
+  const failed = addressAutocompleteReducer(typed, {
+    type: 'requestFailed',
+    message: 'Address suggestions are unavailable. Continue entering it manually.',
+  });
+  assert.equal(failed.input, '123 Main');
+  assert.deepEqual(failed.suggestions, []);
+  assert.equal(failed.open, false);
+  assert.match(failed.error, /Continue entering it manually/);
+});
 
 test('requests suggestions only after three trimmed characters', () => {
   assert.equal(shouldFetchAddressSuggestions(' 12 '), false);
