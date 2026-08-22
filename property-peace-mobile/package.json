@@ -13,7 +13,8 @@
     "test:maintenance": "node --experimental-strip-types --test scripts/maintenance-m8.test.mjs",
     "test:properties": "node --experimental-strip-types --test scripts/properties-page.test.mjs",
     "test:ios-compliance": "node scripts/verify-ios-compliance.mjs",
-    "test:startup": "node --experimental-strip-types --test scripts/startup-presentation.test.mjs scripts/automatic-biometric-prompt.test.mjs scripts/metro-config.test.cjs"
+    "test:startup": "node --experimental-strip-types --test scripts/startup-presentation.test.mjs scripts/automatic-biometric-prompt.test.mjs scripts/metro-config.test.cjs",
+    "test:checklists": "node --experimental-strip-types --test scripts/checklists-model.test.mjs scripts/checklists-workflow.test.mjs scripts/checklists-parity.test.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
