@@ -13,7 +13,7 @@ This release includes:
 - A property or unit checklist overview with paired move-in/move-out history.
 - Starting new move-in or move-out inspections using the same defaults and linking behavior as the web app.
 - Native checklist editing organized by room.
-- Per-item condition values matching the web app: Good, Fair, Poor, and Damaged.
+- Per-item condition values matching the web app: Good, Needs Cleaning (NC), Needs Painting (NP), Needs Repair (NR), Needs Spot Cleaning (NSC), Needs Spot Painting (NSP), and Needs Replacing (RP).
 - Per-item notes, damage details, and completion progress.
 - Adding and renaming rooms, and adding and deleting room items.
 - Item-level photo capture/library selection, upload, viewing, and deletion.
@@ -76,9 +76,9 @@ The editor loads a checklist by ID and presents collapsible room sections. Room 
 
 Each checklist item supports:
 
-- Good, Fair, Poor, or Damaged condition.
+- Good, NC, NP, NR, NSC, NSP, or RP condition, with the same full labels shown by the web app.
 - Optional notes.
-- Damage description when Damaged is selected.
+- Optional damage details alongside repair/replacement conditions.
 - One or more photos.
 - Deletion for non-default/custom items, following web behavior.
 
