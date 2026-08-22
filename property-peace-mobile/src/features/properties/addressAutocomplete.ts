@@ -49,9 +49,22 @@ export const addressAutocompleteReducer = (
 ): AddressAutocompleteState => {
   switch (action.type) {
     case 'inputChanged':
-      return { ...state, input: action.value, error: '' };
+      return {
+        ...state,
+        input: action.value,
+        suggestions: [],
+        loading: false,
+        open: false,
+        error: '',
+      };
     case 'requestStarted':
-      return { ...state, loading: true, open: true, error: '' };
+      return {
+        ...state,
+        suggestions: [],
+        loading: true,
+        open: true,
+        error: '',
+      };
     case 'requestSucceeded':
       return {
         ...state,

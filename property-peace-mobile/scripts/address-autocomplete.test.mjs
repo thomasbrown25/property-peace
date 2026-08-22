@@ -24,6 +24,20 @@ test('failed suggestions preserve typed input and expose manual fallback', () =>
   assert.match(failed.error, /Continue entering it manually/);
 });
 
+test('changing input closes and clears suggestions from the prior query', () => {
+  const populated = addressAutocompleteReducer(initialAddressAutocompleteState, {
+    type: 'requestSucceeded',
+    suggestions: [{ placeId: 'old-place', text: '123 Old Street' }],
+  });
+  const changed = addressAutocompleteReducer(populated, {
+    type: 'inputChanged',
+    value: '456 New',
+  });
+  assert.equal(changed.input, '456 New');
+  assert.deepEqual(changed.suggestions, []);
+  assert.equal(changed.open, false);
+});
+
 test('requests suggestions only after three trimmed characters', () => {
   assert.equal(shouldFetchAddressSuggestions(' 12 '), false);
   assert.equal(shouldFetchAddressSuggestions(' 123 '), true);

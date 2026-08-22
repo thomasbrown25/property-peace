@@ -52,10 +52,12 @@ export default function AddressAutocompleteInput({
   const previousValueRef = useRef(value);
   const latestValueRef = useRef(value);
   const mountedRef = useRef(true);
+  const disabledRef = useRef(disabled);
   const requestGateRef = useRef(createLatestRequestGate());
   const detailsGateRef = useRef(createLatestRequestGate());
   const autocompleteAbortRef = useRef<AbortController | null>(null);
   const detailsAbortRef = useRef<AbortController | null>(null);
+  disabledRef.current = disabled;
 
   useEffect(() => {
     return () => {
@@ -68,9 +70,24 @@ export default function AddressAutocompleteInput({
   }, []);
 
   useEffect(() => {
+    if (!disabled) return;
+
+    autocompleteAbortRef.current?.abort();
+    detailsAbortRef.current?.abort();
+    requestGateRef.current.invalidate();
+    detailsGateRef.current.invalidate();
+    setResolving(false);
+    dispatch({ type: 'closed' });
+  }, [disabled]);
+
+  useEffect(() => {
     latestValueRef.current = value;
 
-    if (!shouldFetchAddressSuggestions(value) || !sessionTokenRef.current) {
+    if (
+      disabled ||
+      !shouldFetchAddressSuggestions(value) ||
+      !sessionTokenRef.current
+    ) {
       autocompleteAbortRef.current?.abort();
       requestGateRef.current.invalidate();
       dispatch({ type: 'closed' });
@@ -90,7 +107,8 @@ export default function AddressAutocompleteInput({
           if (
             mountedRef.current &&
             requestGateRef.current.isCurrent(requestId) &&
-            !controller.signal.aborted
+            !controller.signal.aborted &&
+            !disabledRef.current
           ) {
             dispatch({ type: 'requestSucceeded', suggestions });
           }
@@ -99,7 +117,8 @@ export default function AddressAutocompleteInput({
           if (
             mountedRef.current &&
             requestGateRef.current.isCurrent(requestId) &&
-            !isCancellation(error, controller)
+            !isCancellation(error, controller) &&
+            !disabledRef.current
           ) {
             dispatch({ type: 'requestFailed', message: manualFallbackMessage });
           }
@@ -116,9 +135,11 @@ export default function AddressAutocompleteInput({
         autocompleteAbortRef.current = null;
       }
     };
-  }, [value]);
+  }, [disabled, value]);
 
   const handleChange = (next: string) => {
+    if (disabledRef.current) return;
+
     sessionTokenRef.current = nextAddressSessionToken(
       previousValueRef.current,
       next,
@@ -138,7 +159,7 @@ export default function AddressAutocompleteInput({
 
   const selectSuggestion = async (suggestion: GooglePlaceSuggestion) => {
     const token = sessionTokenRef.current;
-    if (!token || disabled) return;
+    if (!token || disabledRef.current) return;
 
     const selectedValue = latestValueRef.current;
     autocompleteAbortRef.current?.abort();
@@ -159,6 +180,7 @@ export default function AddressAutocompleteInput({
         mountedRef.current &&
         detailsGateRef.current.isCurrent(requestId) &&
         !controller.signal.aborted &&
+        !disabledRef.current &&
         latestValueRef.current === selectedValue &&
         sessionTokenRef.current === token;
       if (!stillSelected) return;
@@ -170,12 +192,17 @@ export default function AddressAutocompleteInput({
       if (
         mountedRef.current &&
         detailsGateRef.current.isCurrent(requestId) &&
-        !isCancellation(error, controller)
+        !isCancellation(error, controller) &&
+        !disabledRef.current
       ) {
         dispatch({ type: 'requestFailed', message: manualFallbackMessage });
       }
     } finally {
-      if (mountedRef.current && detailsGateRef.current.isCurrent(requestId)) {
+      if (
+        mountedRef.current &&
+        detailsGateRef.current.isCurrent(requestId) &&
+        !disabledRef.current
+      ) {
         setResolving(false);
       }
       if (detailsAbortRef.current === controller) {
@@ -184,7 +211,7 @@ export default function AddressAutocompleteInput({
     }
   };
 
-  const showSuggestions = state.open || resolving;
+  const showSuggestions = !disabled && (state.open || resolving);
 
   return (
     <View style={styles.wrapper}>
@@ -197,7 +224,7 @@ export default function AddressAutocompleteInput({
           editable={!disabled}
           accessibilityLabel="Street address"
         />
-        {(state.loading || resolving) && (
+        {!disabled && (state.loading || resolving) && (
           <ActivityIndicator style={styles.loader} size="small" color="#1976d2" />
         )}
       </View>
