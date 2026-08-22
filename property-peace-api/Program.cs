@@ -168,6 +168,8 @@ using brownstone_hub_api.Entitlements.Infrastructure;
 using brownstone_hub_api.Entitlements.Enforcement;
 using brownstone_hub_api.Security;
 using brownstone_hub_api.Services.ActivationFunnel;
+using brownstone_hub_api.Services.GooglePlacesService;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -324,6 +326,16 @@ services.Configure<ForwardedHeadersOptions>(options =>
 
 // Rate limiting configuration
 services.AddMemoryCache();
+services.Configure<GooglePlacesSettings>(
+    configuration.GetSection("GooglePlaces"));
+services.AddHttpClient<IGooglePlacesService, GooglePlacesService>((sp, client) =>
+{
+    var settings = sp.GetRequiredService<IOptions<GooglePlacesSettings>>().Value;
+    client.BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(
+        Math.Clamp(settings.TimeoutSeconds, 2, 20));
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
 services.Configure<IpRateLimitOptions>(options =>
 {
     options.EnableEndpointRateLimiting = true;
@@ -426,6 +438,18 @@ services.Configure<IpRateLimitOptions>(options =>
             Endpoint = "POST:/api/admin/impersonation/stop",
             Period = "1m",
             Limit = 10
+        },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/google-places/autocomplete",
+            Period = "1m",
+            Limit = 60
+        },
+        new RateLimitRule
+        {
+            Endpoint = "GET:/api/google-places/details/*",
+            Period = "1m",
+            Limit = 20
         },
         // General API rate limiting
         new RateLimitRule
