@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ChecklistsStackParamList } from './checklistsTypes';
 import ChecklistPropertySearchScreen from '../screens/landlord/ChecklistPropertySearchScreen';
+import PropertyChecklistsScreen from '../screens/landlord/PropertyChecklistsScreen';
 import ChecklistsScreen from '../screens/landlord/ChecklistsScreen';
 
 const Stack = createNativeStackNavigator<ChecklistsStackParamList>();
@@ -18,7 +19,7 @@ export default function ChecklistsNavigator() {
       }}
     >
       <Stack.Screen name="ChecklistPropertySearch" component={ChecklistPropertySearchScreen} options={{ title: 'Property checklists' }} />
-      <Stack.Screen name="PropertyChecklists" component={ChecklistsScreen as any} options={{ title: 'Checklists' }} />
+      <Stack.Screen name="PropertyChecklists" component={PropertyChecklistsScreen} options={{ title: 'Checklists' }} />
       <Stack.Screen name="ChecklistEditor" component={ChecklistsScreen as any} options={{ title: 'Inspection' }} />
     </Stack.Navigator>
   );
