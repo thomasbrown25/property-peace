@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ChecklistAPI from '../../api/checklistAPI';
+import ChecklistItemPhotos from '../../components/checklists/ChecklistItemPhotos';
 import {
   CHECKLIST_CONDITIONS,
   addChecklistItem,
@@ -232,6 +233,8 @@ export default function ChecklistEditorScreen({ route }: Props) {
               <InspectionItem
                 key={idText(item.id)}
                 item={item}
+                checklistId={checklistId}
+                onChecklistUpdated={setChecklist}
                 draft={itemDrafts[idText(item.id)] || { notes: item.notes || '', damageDescription: item.damageDescription || '' }}
                 onDraft={(draft) => setItemDrafts((current) => ({ ...current, [idText(item.id)]: draft }))}
                 savingKey={savingKey}
@@ -292,7 +295,8 @@ export default function ChecklistEditorScreen({ route }: Props) {
   );
 }
 
-function InspectionItem({ item, draft, onDraft, savingKey, retryCondition, onCondition, onSaveDetails, onDelete }: {
+function InspectionItem({ checklistId, item, draft, onDraft, savingKey, retryCondition, onCondition, onSaveDetails, onDelete, onChecklistUpdated }: {
+  checklistId: Id;
   item: ChecklistItem;
   draft: ItemDraft;
   onDraft: (draft: ItemDraft) => void;
@@ -301,6 +305,7 @@ function InspectionItem({ item, draft, onDraft, savingKey, retryCondition, onCon
   onCondition: (condition: ChecklistCondition | null) => void;
   onSaveDetails: () => void;
   onDelete: () => void;
+  onChecklistUpdated: (checklist: Checklist) => void;
 }) {
   const key = idText(item.id);
   const savingCondition = savingKey === `condition-${key}`;
@@ -337,6 +342,7 @@ function InspectionItem({ item, draft, onDraft, savingKey, retryCondition, onCon
       <TouchableOpacity style={styles.saveDetailsButton} onPress={onSaveDetails} disabled={savingKey === `details-${key}`}>
         {savingKey === `details-${key}` ? <ActivityIndicator size="small" color="#2475cf" /> : <Text style={styles.saveDetailsText}>Save notes</Text>}
       </TouchableOpacity>
+      <ChecklistItemPhotos checklistId={checklistId} item={item} onChecklistUpdated={onChecklistUpdated} />
     </View>
   );
 }

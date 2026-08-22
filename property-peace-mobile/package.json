@@ -12,9 +12,10 @@
     "test:messages": "node --experimental-strip-types --test scripts/messages-parity.test.mjs",
     "test:maintenance": "node --experimental-strip-types --test scripts/maintenance-m8.test.mjs",
     "test:properties": "node --experimental-strip-types --test scripts/properties-page.test.mjs",
+    "test:navigation": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test scripts/main-navigation.test.mjs",
     "test:ios-compliance": "node scripts/verify-ios-compliance.mjs",
     "test:startup": "node --experimental-strip-types --test scripts/startup-presentation.test.mjs scripts/automatic-biometric-prompt.test.mjs scripts/metro-config.test.cjs",
-    "test:checklists": "node --experimental-strip-types --test scripts/checklists-model.test.mjs scripts/checklists-workflow.test.mjs scripts/checklists-parity.test.mjs scripts/checklists-overview.test.mjs scripts/checklists-start-state.test.mjs scripts/checklists-editor.test.mjs"
+    "test:checklists": "node --experimental-strip-types --test scripts/checklists-model.test.mjs scripts/checklists-workflow.test.mjs scripts/checklists-parity.test.mjs scripts/checklists-overview.test.mjs scripts/checklists-start-state.test.mjs scripts/checklists-editor.test.mjs scripts/checklists-photos.test.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
