@@ -15,16 +15,47 @@ const addressAutocompleteInputSource = readFileSync(
   'utf8',
 );
 
+const selectSuggestionStart = addressAutocompleteInputSource.indexOf(
+  'const selectSuggestion = async',
+);
+const selectSuggestionEnd = addressAutocompleteInputSource.indexOf(
+  '\n  const showSuggestions',
+  selectSuggestionStart,
+);
+const selectSuggestionSource = addressAutocompleteInputSource.slice(
+  selectSuggestionStart,
+  selectSuggestionEnd,
+);
+
+test('selection closes suggestions before place details resolve', () => {
+  assert.notEqual(selectSuggestionStart, -1, 'selectSuggestion function must exist');
+  const closeIndex = selectSuggestionSource.indexOf("dispatch({ type: 'closed' });");
+  const detailsIndex = selectSuggestionSource.indexOf('await googlePlacesAPI.details');
+  assert.notEqual(closeIndex, -1, 'selection must close reducer state');
+  assert.ok(
+    closeIndex < detailsIndex,
+    'selection must close the panel before awaiting place details',
+  );
+  assert.match(
+    addressAutocompleteInputSource,
+    /const showSuggestions = !disabled && state\.open;/,
+    'the resolving spinner must not keep the suggestion panel visible',
+  );
+});
+
 test('Google Maps attribution uses the required text contract', () => {
   assert.match(
     addressAutocompleteInputSource,
     /<Text\s+style=\{styles\.attribution\}\s+numberOfLines=\{1\}>Google Maps<\/Text>/s,
   );
-  assert.match(addressAutocompleteInputSource, /color:\s*'#(?:5E5E5E|1F1F1F)'/);
-  assert.match(addressAutocompleteInputSource, /fontSize:\s*1[2-6]/);
-  assert.match(addressAutocompleteInputSource, /fontWeight:\s*'400'/);
+  const attributionStyle = addressAutocompleteInputSource.match(
+    /attribution:\s*\{(?<style>[\s\S]*?)\n\s*\},/,
+  )?.groups?.style;
+  assert.ok(attributionStyle, 'styles.attribution must exist');
+  assert.match(attributionStyle, /color:\s*'#(?:5E5E5E|1F1F1F)'/);
+  assert.match(attributionStyle, /fontSize:\s*1[2-6]/);
+  assert.match(attributionStyle, /fontWeight:\s*'400'/);
 });
-
 test('failed suggestions preserve typed input and expose manual fallback', () => {
   const typed = addressAutocompleteReducer(initialAddressAutocompleteState, {
     type: 'inputChanged',

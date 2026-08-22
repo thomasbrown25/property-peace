@@ -32,7 +32,7 @@ public sealed class GooglePlacesControllerTests
         var controller = Create(service.Object);
 
         var result = await controller.Autocomplete(
-            new GooglePlacesAutocompleteRequest("ab", Guid.NewGuid()),
+            new GooglePlacesController.AutocompleteWireRequest("ab", Guid.NewGuid().ToString()),
             CancellationToken.None);
 
         result.Should().BeOfType<OkObjectResult>();
@@ -45,7 +45,7 @@ public sealed class GooglePlacesControllerTests
         var service = new Mock<IGooglePlacesService>();
 
         var result = await Create(service.Object).Autocomplete(
-            new GooglePlacesAutocompleteRequest(new string('a', 201), Guid.NewGuid()),
+            new GooglePlacesController.AutocompleteWireRequest(new string('a', 201), Guid.NewGuid().ToString()),
             CancellationToken.None);
 
         var response = result.Should().BeOfType<BadRequestObjectResult>().Which.Value
@@ -60,7 +60,7 @@ public sealed class GooglePlacesControllerTests
     {
         var service = new Mock<IGooglePlacesService>();
 
-        var result = await Create(service.Object).Details("place\\id", Guid.NewGuid(), CancellationToken.None);
+        var result = await Create(service.Object).Details("place\\id", Guid.NewGuid().ToString(), CancellationToken.None);
 
         var response = result.Should().BeOfType<BadRequestObjectResult>().Which.Value
             .Should().BeOfType<brownstone_hub_api.Models.ServiceResponse<GooglePlaceDetailsDto>>().Which;
@@ -80,7 +80,7 @@ public sealed class GooglePlacesControllerTests
                 "Address suggestions are unavailable."));
 
         var result = await Create(service.Object).Details(
-            "place-123", Guid.NewGuid(), CancellationToken.None);
+            "place-123", Guid.NewGuid().ToString(), CancellationToken.None);
 
         result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(503);
     }
@@ -96,7 +96,7 @@ public sealed class GooglePlacesControllerTests
                 "place-123", It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new GooglePlacesException(kind, "upstream detail that must not leak"));
 
-        var result = await Create(service.Object).Details("place-123", Guid.NewGuid(), CancellationToken.None);
+        var result = await Create(service.Object).Details("place-123", Guid.NewGuid().ToString(), CancellationToken.None);
 
         var response = result.Should().BeOfType<ObjectResult>().Which;
         response.StatusCode.Should().Be(status);

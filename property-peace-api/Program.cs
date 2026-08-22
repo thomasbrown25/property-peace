@@ -341,7 +341,6 @@ services.Configure<IpRateLimitOptions>(options =>
     options.EnableEndpointRateLimiting = true;
     options.StackBlockedRequests = false;
     options.HttpStatusCode = 429; // Too Many Requests
-    options.RealIpHeader = "X-Real-IP";
     options.ClientIdHeader = "X-ClientId";
     options.GeneralRules = new List<RateLimitRule>
     {
@@ -461,7 +460,7 @@ services.Configure<IpRateLimitOptions>(options =>
     };
 });
 services.AddInMemoryRateLimiting();
-services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+services.AddSingleton<IRateLimitConfiguration, TrustedConnectionRateLimitConfiguration>();
 
 services.AddControllers().AddJsonOptions(o =>
     {
@@ -1341,3 +1340,20 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
+// ForwardedHeadersMiddleware has already replaced RemoteIpAddress when, and only when, the
+// immediate proxy is trusted. Rate limiting must not consult a client-supplied IP header again.
+public sealed class TrustedConnectionRateLimitConfiguration(
+    IOptions<IpRateLimitOptions> ipOptions,
+    IOptions<ClientRateLimitOptions> clientOptions)
+    : RateLimitConfiguration(ipOptions, clientOptions)
+{
+    public override void RegisterResolvers()
+    {
+        base.RegisterResolvers();
+        for (var index = IpResolvers.Count - 1; index >= 0; index--)
+        {
+            if (IpResolvers[index] is IpHeaderResolveContributor)
+                IpResolvers.RemoveAt(index);
+        }
+    }
+}

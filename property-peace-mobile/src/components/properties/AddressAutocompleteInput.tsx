@@ -168,6 +168,7 @@ export default function AddressAutocompleteInput({
     const controller = new AbortController();
     const requestId = detailsGateRef.current.begin();
     detailsAbortRef.current = controller;
+    dispatch({ type: 'closed' });
     setResolving(true);
 
     try {
@@ -186,7 +187,6 @@ export default function AddressAutocompleteInput({
       if (!stillSelected) return;
 
       onPlaceSelected(details);
-      dispatch({ type: 'closed' });
       sessionTokenRef.current = null;
     } catch (error) {
       if (
@@ -211,7 +211,7 @@ export default function AddressAutocompleteInput({
     }
   };
 
-  const showSuggestions = !disabled && (state.open || resolving);
+  const showSuggestions = !disabled && state.open;
 
   return (
     <View style={styles.wrapper}>

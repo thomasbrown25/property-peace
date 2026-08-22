@@ -16,13 +16,17 @@ public sealed class GooglePlacesController(
     private readonly IGooglePlacesService _service = service;
     private readonly ILogger<GooglePlacesController> _logger = logger;
 
+    public sealed record AutocompleteWireRequest(string? Input, string? SessionToken);
+
     [HttpPost("autocomplete")]
     public async Task<IActionResult> Autocomplete(
-        [FromBody] GooglePlacesAutocompleteRequest request,
+        [FromBody] AutocompleteWireRequest request,
         CancellationToken cancellationToken)
     {
         var input = request.Input?.Trim() ?? string.Empty;
-        if (request.SessionToken == Guid.Empty || input.Length > 200)
+        var validToken = Guid.TryParse(request.SessionToken, out var sessionToken)
+            && sessionToken != Guid.Empty;
+        if (!validToken || input.Length > 200)
         {
             return BadRequest(new ServiceResponse<GooglePlacesAutocompleteResponse>
             {
@@ -38,7 +42,7 @@ public sealed class GooglePlacesController(
 
         try
         {
-            var suggestions = await _service.AutocompleteAsync(input, request.SessionToken, cancellationToken);
+            var suggestions = await _service.AutocompleteAsync(input, sessionToken, cancellationToken);
             return Ok(ServiceResponse<GooglePlacesAutocompleteResponse>.CreateSuccess(new(suggestions)));
         }
         catch (GooglePlacesException exception)
@@ -50,15 +54,17 @@ public sealed class GooglePlacesController(
     [HttpGet("details/{placeId}")]
     public async Task<IActionResult> Details(
         string placeId,
-        [FromQuery] Guid sessionToken,
+        [FromQuery] string? sessionToken,
         CancellationToken cancellationToken)
     {
+        var validToken = Guid.TryParse(sessionToken, out var parsedSessionToken)
+            && parsedSessionToken != Guid.Empty;
         var invalidPlaceId = string.IsNullOrWhiteSpace(placeId)
             || placeId.Length > 255
             || placeId.Any(char.IsControl)
             || placeId.Contains('/')
             || placeId.Contains('\\');
-        if (invalidPlaceId || sessionToken == Guid.Empty)
+        if (invalidPlaceId || !validToken)
         {
             return BadRequest(new ServiceResponse<GooglePlaceDetailsDto>
             {
@@ -70,7 +76,7 @@ public sealed class GooglePlacesController(
 
         try
         {
-            var details = await _service.GetDetailsAsync(placeId, sessionToken, cancellationToken);
+            var details = await _service.GetDetailsAsync(placeId, parsedSessionToken, cancellationToken);
             return Ok(ServiceResponse<GooglePlaceDetailsDto>.CreateSuccess(details));
         }
         catch (GooglePlacesException exception)
