@@ -243,7 +243,7 @@ export default function AddressAutocompleteInput({
               <Text style={styles.suggestionText}>{suggestion.text}</Text>
             </TouchableOpacity>
           ))}
-          <Text style={styles.attribution}>Google Maps</Text>
+          <Text style={styles.attribution} numberOfLines={1}>Google Maps</Text>
         </View>
       )}
       {!!state.error && <Text style={styles.error}>{state.error}</Text>}
@@ -283,8 +283,10 @@ const styles = StyleSheet.create({
   attribution: {
     borderTopColor: '#eee',
     borderTopWidth: 1,
-    color: '#777',
+    color: '#5E5E5E',
     fontSize: 12,
+    fontWeight: '400',
+    letterSpacing: 0,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },

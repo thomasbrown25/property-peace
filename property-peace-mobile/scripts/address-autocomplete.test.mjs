@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   applyGooglePlaceDetails,
@@ -8,6 +9,21 @@ import {
   nextAddressSessionToken,
   shouldFetchAddressSuggestions,
 } from '../src/features/properties/addressAutocomplete.ts';
+
+const addressAutocompleteInputSource = readFileSync(
+  new URL('../src/components/properties/AddressAutocompleteInput.tsx', import.meta.url),
+  'utf8',
+);
+
+test('Google Maps attribution uses the required text contract', () => {
+  assert.match(
+    addressAutocompleteInputSource,
+    /<Text\s+style=\{styles\.attribution\}\s+numberOfLines=\{1\}>Google Maps<\/Text>/s,
+  );
+  assert.match(addressAutocompleteInputSource, /color:\s*'#(?:5E5E5E|1F1F1F)'/);
+  assert.match(addressAutocompleteInputSource, /fontSize:\s*1[2-6]/);
+  assert.match(addressAutocompleteInputSource, /fontWeight:\s*'400'/);
+});
 
 test('failed suggestions preserve typed input and expose manual fallback', () => {
   const typed = addressAutocompleteReducer(initialAddressAutocompleteState, {
