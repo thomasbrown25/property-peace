@@ -6,11 +6,12 @@ namespace brownstone_hub_api.Repositories.Checklists
     public interface IChecklistRepository
     {
         Task<LoadChecklistDto> AddChecklist(AddChecklistDto checklist, long landlordId, long? organizationId = null);
-        Task<LoadChecklistDto?> GetChecklistById(long id);
+        Task<LoadChecklistDto?> GetChecklistById(long id, long? landlordId = null);
         Task<List<LoadChecklistDto>> GetChecklistsByLandlordId(long landlordId);
         Task<List<LoadChecklistDto>> GetChecklistsByPropertyId(long propertyId);
-        Task<List<LoadChecklistDto>> GetChecklistsByUnitId(long unitId);
+        Task<List<LoadChecklistDto>> GetChecklistsByUnitId(long unitId, long? landlordId = null);
         Task<List<LoadChecklistDto>> GetChecklistsByLeaseId(long leaseId);
+        Task<List<LoadChecklistDto>> GetChecklistsByLeaseId(long leaseId, long landlordId);
         Task<List<LoadChecklistDto>> GetChecklistsByType(long landlordId, ETenantDocumentType checklistType);
         Task<List<LoadChecklistDto>> GetChecklistsByOrganizationId(long organizationId);
         Task<List<LoadChecklistDto>> GetChecklistsByTypeAndOrganizationId(long organizationId, ETenantDocumentType checklistType);

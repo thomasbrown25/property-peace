@@ -35,6 +35,21 @@ export const buildChecklistOverviewCards = (cycles: ChecklistCycle[]) => cycles.
   moveIn: side(cycle.moveIn, 'Move-in'),
   moveOut: side(cycle.moveOut, 'Move-out'),
 }));
+export const activeLeaseScope = (home: ChecklistHome) => home.unitId
+  ? { scope: 'unit' as const, id: home.unitId }
+  : { scope: 'property' as const, id: home.propertyId };
+
+export const selectChecklistLease = <T extends Record<string, unknown>>(
+  lease: T | null | undefined,
+  selectedUnitId?: string,
+): T | null => {
+  if (!lease) return null;
+  if (!selectedUnitId) return lease;
+  const leaseUnitId = lease.unitId ?? lease.UnitId;
+  const isActive = lease.isActive ?? lease.IsActive;
+  return String(leaseUnitId ?? '') === String(selectedUnitId) && isActive === true ? lease : null;
+};
+
 
 export const checklistHistoryScope = (home: ChecklistHome) => home.unitId
   ? { scope: 'unit' as const, id: home.unitId }

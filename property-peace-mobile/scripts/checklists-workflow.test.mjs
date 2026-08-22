@@ -145,3 +145,26 @@ test('pair link failure removes both records created by the attempt in reverse o
   );
   assert.deepEqual(pair.removed, [41, 40]);
 });
+
+test('pair link failure reports when compensating cleanup leaves an orphan', async () => {
+  const { startChecklistCycle } = required();
+  const removed = [];
+  let createCount = 0;
+  const gateway = {
+    async create() {
+      createCount += 1;
+      return { id: 49 + createCount, items: [] };
+    },
+    async update() { throw new Error('failed update'); },
+    async remove(id) {
+      removed.push(id);
+      if (id === 51) throw new Error('failed cleanup');
+    },
+  };
+
+  await assert.rejects(
+    startChecklistCycle({ type: 40, home, now: fixedNow }, gateway),
+    /cleanup|incomplete records/i,
+  );
+  assert.deepEqual(removed, [51, 50]);
+});

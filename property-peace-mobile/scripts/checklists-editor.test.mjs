@@ -71,3 +71,75 @@ test('pair mutations work when no counterpart exists', () => {
   assert.deepEqual(result.active.roomNames, ['Kitchen', 'Bedroom']);
   assert.equal(result.counterpart, null);
 });
+
+test('paired saves restore the active checklist when the counterpart update fails', async () => {
+  const { persistChecklistPair } = required();
+  const original = pair();
+  const next = {
+    active: { ...original.active, roomNames: ['Kitchen', 'Bedroom'] },
+    counterpart: { ...original.counterpart, roomNames: ['Kitchen', 'Bedroom'] },
+  };
+  const calls = [];
+  const gateway = {
+    update: async (id, checklist) => {
+      calls.push({ id, roomNames: checklist.roomNames });
+      if (id === 2) throw new Error('counterpart unavailable');
+      return checklist;
+    },
+  };
+
+  await assert.rejects(
+    persistChecklistPair(original.active, next.active, original.counterpart, next.counterpart, gateway),
+    /active checklist was restored/i,
+  );
+  assert.deepEqual(calls, [
+    { id: 1, roomNames: ['Kitchen', 'Bedroom'] },
+    { id: 2, roomNames: ['Kitchen', 'Bedroom'] },
+    { id: 1, roomNames: ['Kitchen'] },
+  ]);
+});
+
+test('paired saves report when compensating rollback also fails', async () => {
+  const { persistChecklistPair } = required();
+  const original = pair();
+  const next = {
+    active: { ...original.active, roomNames: ['Kitchen', 'Bedroom'] },
+    counterpart: { ...original.counterpart, roomNames: ['Kitchen', 'Bedroom'] },
+  };
+  let activeAttempts = 0;
+  const gateway = {
+    update: async (id, checklist) => {
+      if (id === 1 && ++activeAttempts === 1) return checklist;
+      throw new Error('unavailable');
+    },
+  };
+
+  await assert.rejects(
+    persistChecklistPair(original.active, next.active, original.counterpart, next.counterpart, gateway),
+    /refresh before making another change/i,
+  );
+});
+
+test('paired saves reject before writing when a linked counterpart is unavailable', async () => {
+  const { persistChecklistPair } = required();
+  const active = { ...pair().active, counterpartChecklistId: 2 };
+  let calls = 0;
+  const gateway = {
+    update: async (_id, checklist) => {
+      calls += 1;
+      return checklist;
+    },
+  };
+
+  await assert.rejects(
+    persistChecklistPair(
+      active,
+      { ...active, roomNames: ['Kitchen', 'Bedroom'] },
+      null,
+      null,
+      gateway,
+    ),
+    /connected checklist is unavailable/i,
+  );
+  assert.equal(calls, 0);
+});

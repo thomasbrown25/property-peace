@@ -101,6 +101,19 @@ test('unlinked records with the same lease form one condition cycle', () => {
   assert.equal(cycles[0].moveOut.id, 4);
 });
 
+test('explicit counterpart linkage wins over an earlier same-lease candidate', () => {
+  const { buildConditionCycles } = requireModels();
+  const cycles = buildConditionCycles([
+    { id: 5, checklistType: 40, leaseId: 12, counterpartChecklistId: 7, items: [] },
+    { id: 6, checklistType: 41, leaseId: 12, items: [] },
+    { id: 7, checklistType: 41, leaseId: 12, counterpartChecklistId: 5, items: [] },
+  ]);
+
+  assert.equal(cycles[0].moveIn.id, 5);
+  assert.equal(cycles[0].moveOut.id, 7);
+  assert.equal(cycles[1].moveOut.id, 6);
+});
+
 test('rooms combine explicit names and item categories without case duplicates', () => {
   const { groupChecklistRooms } = requireModels();
   const rooms = groupChecklistRooms({
@@ -115,7 +128,7 @@ test('rooms combine explicit names and item categories without case duplicates',
 });
 
 test('the final condition completes a checklist and clearing one reopens it', () => {
-  const { withItemCondition } = requireModels();
+  const { serializeChecklistUpdate, withItemCondition } = requireModels();
   const original = {
     id: 8,
     items: [
@@ -129,6 +142,8 @@ test('the final condition completes a checklist and clearing one reopens it', ()
   const reopened = withItemCondition(completed, 1, null, '2026-08-22T12:01:00.000Z');
   assert.equal(reopened.isCompleted, false);
   assert.equal(reopened.completedAt, null);
+  assert.equal(serializeChecklistUpdate(reopened).Items[0].Condition, '');
+  assert.equal(serializeChecklistUpdate(reopened).CompletedAt, null);
 });
 
 test('room operations reject duplicates and rename every matching item category', () => {

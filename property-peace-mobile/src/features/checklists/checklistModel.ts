@@ -85,11 +85,14 @@ export const buildConditionCycles = (checklists: Checklist[]): ChecklistCycle[] 
   const moveOuts = checklists.filter(isMoveOutChecklist);
   const unusedMoveOuts = new Set(moveOuts.map((item) => String(item.id)));
   const cycles: ChecklistCycle[] = moveIns.map((moveIn) => {
-    const moveOut = moveOuts.find((candidate) => unusedMoveOuts.has(String(candidate.id)) && (
+    const available = (candidate: Checklist) => unusedMoveOuts.has(String(candidate.id));
+    const explicitlyLinked = moveOuts.find((candidate) => available(candidate) && (
       sameId(moveIn.counterpartChecklistId, candidate.id)
       || sameId(candidate.counterpartChecklistId, moveIn.id)
-      || sameId(moveIn.leaseId, candidate.leaseId)
-    )) ?? null;
+    ));
+    const moveOut = explicitlyLinked
+      ?? moveOuts.find((candidate) => available(candidate) && sameId(moveIn.leaseId, candidate.leaseId))
+      ?? null;
     if (moveOut) unusedMoveOuts.delete(String(moveOut.id));
     return { id: `in-${String(moveIn.id)}`, moveIn, moveOut };
   });
@@ -200,7 +203,7 @@ const serializeChecklistItem = (item: ChecklistItem) => ({
   Name: item.name ?? '',
   Description: item.description ?? '',
   Category: item.category ?? '',
-  Condition: item.condition || null,
+  Condition: (item.condition || '') as ChecklistCondition | '',
   Notes: item.notes ?? '',
   HasDamage: item.hasDamage ?? false,
   DamageDescription: item.damageDescription ?? '',

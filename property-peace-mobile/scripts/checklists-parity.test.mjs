@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
+const dashboardSource = readFileSync(new URL('../src/screens/landlord/DashboardScreen.tsx', import.meta.url), 'utf8');
 let navigationModel;
 let loadError;
 
@@ -86,4 +88,11 @@ test('property detail requires unit selection for multi-unit properties', () => 
     screen: 'ChecklistPropertySearch',
     params: { preselectedPropertyId: '15' },
   });
+});
+
+test('dashboard checklist action always opens dedicated property search', () => {
+  assert.match(
+    dashboardSource,
+    /navigate\('Checklists',\s*\{\s*screen:\s*'ChecklistPropertySearch'\s*\}\)/,
+  );
 });

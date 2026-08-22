@@ -116,7 +116,14 @@ export const startChecklistCycle = async (
     });
     return { primary: linkedMoveIn, counterpart: moveOut };
   } catch (error) {
-    await Promise.allSettled([...createdIds].reverse().map((id) => gateway.remove(id)));
+    const cleanup = await Promise.allSettled([...createdIds].reverse().map((id) => gateway.remove(id)));
+    if (cleanup.some((result) => result.status === 'rejected')) {
+      const original = error instanceof Error ? error.message : 'unknown error';
+      throw new Error(
+        `Checklist creation failed and cleanup left incomplete records. Refresh checklist history before retrying. Original error: ${original}`,
+        { cause: error },
+      );
+    }
     throw error;
   }
 };

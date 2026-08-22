@@ -25,32 +25,36 @@ import type {
 type Props = {
   checklistId: Id;
   item: ChecklistItem;
+  disabled: boolean;
+  failedAsset: ChecklistUploadAsset | null;
+  onFailedAssetChange: (asset: ChecklistUploadAsset | null) => void;
+  onBusyChange: (busy: boolean) => boolean;
   onChecklistUpdated: (checklist: Checklist) => void;
 };
 
 const message = (error: any, fallback: string) => error?.message || error?.Message || fallback;
 
-export default function ChecklistItemPhotos({ checklistId, item, onChecklistUpdated }: Props) {
+export default function ChecklistItemPhotos({ checklistId, item, disabled, failedAsset, onFailedAssetChange, onBusyChange, onChecklistUpdated }: Props) {
   const [uploading, setUploading] = useState(false);
   const [deletingKey, setDeletingKey] = useState('');
-  const [failedAsset, setFailedAsset] = useState<ChecklistUploadAsset | null>(null);
   const [error, setError] = useState('');
   const photos = useMemo(() => getChecklistItemPhotos(item), [item]);
   const itemId = item.id;
 
   const upload = async (asset: ChecklistUploadAsset) => {
-    if (itemId == null) return;
+    if (itemId == null || disabled || !onBusyChange(true)) return;
     setUploading(true);
     setError('');
     try {
       const saved = await ChecklistAPI.uploadItemImage(checklistId, itemId, asset);
-      setFailedAsset(null);
+      onFailedAssetChange(null);
       onChecklistUpdated(saved);
     } catch (uploadError) {
-      setFailedAsset(asset);
+      onFailedAssetChange(asset);
       setError(message(uploadError, 'Photo upload failed.'));
     } finally {
       setUploading(false);
+      onBusyChange(false);
     }
   };
 
@@ -83,7 +87,7 @@ export default function ChecklistItemPhotos({ checklistId, item, onChecklistUpda
   };
 
   const chooseSource = () => {
-    if (itemId == null || uploading) return;
+    if (itemId == null || uploading || disabled) return;
     Alert.alert('Add room photo', 'Choose where the photo comes from.', [
       { text: 'Camera', onPress: () => void takePhoto() },
       { text: 'Photo library', onPress: () => void choosePhoto() },
@@ -92,13 +96,14 @@ export default function ChecklistItemPhotos({ checklistId, item, onChecklistUpda
   };
 
   const removePhoto = (blobName: string, key: string) => {
-    if (itemId == null) return;
+    if (itemId == null || disabled) return;
     Alert.alert('Delete photo?', 'This removes the photo from this checklist item.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          if (!onBusyChange(true)) return;
           setDeletingKey(key);
           setError('');
           try {
@@ -107,6 +112,7 @@ export default function ChecklistItemPhotos({ checklistId, item, onChecklistUpda
             setError(message(deleteError, 'Photo could not be deleted.'));
           } finally {
             setDeletingKey('');
+            onBusyChange(false);
           }
         },
       },
@@ -120,9 +126,9 @@ export default function ChecklistItemPhotos({ checklistId, item, onChecklistUpda
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Add room photo"
-          style={[styles.addButton, (itemId == null || uploading) && styles.disabled]}
+          style={[styles.addButton, (itemId == null || uploading || disabled) && styles.disabled]}
           onPress={chooseSource}
-          disabled={itemId == null || uploading}
+          disabled={itemId == null || uploading || disabled}
         >
           {uploading ? <ActivityIndicator size="small" color="#0b5d55" /> : <Ionicons name="camera-outline" size={18} color="#0b5d55" />}
           <Text style={styles.addText}>{uploading ? 'Uploading…' : 'Add photo'}</Text>
@@ -140,7 +146,7 @@ export default function ChecklistItemPhotos({ checklistId, item, onChecklistUpda
                   accessibilityLabel="Delete photo"
                   style={styles.deleteButton}
                   onPress={() => removePhoto(photo.blobName!, photo.key)}
-                  disabled={deletingKey === photo.key}
+                  disabled={disabled || deletingKey === photo.key}
                 >
                   {deletingKey === photo.key
                     ? <ActivityIndicator size="small" color="#fff" />
@@ -153,7 +159,7 @@ export default function ChecklistItemPhotos({ checklistId, item, onChecklistUpda
       )}
 
       {!!failedAsset && !uploading && (
-        <TouchableOpacity style={styles.retryButton} onPress={() => void upload(failedAsset)}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => void upload(failedAsset)} disabled={disabled}>
           <Ionicons name="refresh" size={16} color="#9a3412" />
           <Text style={styles.retryText}>Upload failed · Retry {failedAsset.name}</Text>
         </TouchableOpacity>
@@ -168,14 +174,14 @@ const styles = StyleSheet.create({
   container: { marginTop: 12, gap: 8 },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heading: { color: '#52687a', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.6 },
-  addButton: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#e4f2ee' },
+  addButton: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#e4f2ee' },
   addText: { color: '#0b5d55', fontSize: 13, fontWeight: '800' },
   disabled: { opacity: 0.55 },
   photoStrip: { gap: 10, paddingVertical: 2 },
   photoWrap: { position: 'relative' },
   photo: { width: 108, height: 82, borderRadius: 10, backgroundColor: '#e4e9ed' },
-  deleteButton: { position: 'absolute', right: 5, top: 5, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(25, 38, 48, 0.82)' },
-  retryButton: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
+  deleteButton: { position: 'absolute', right: 0, top: 0, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(25, 38, 48, 0.82)' },
+  retryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
   retryText: { color: '#9a3412', fontSize: 12, fontWeight: '800' },
   error: { color: '#b42318', fontSize: 12 },
   hint: { color: '#738494', fontSize: 12 },

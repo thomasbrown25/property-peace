@@ -100,7 +100,7 @@ namespace brownstone_hub_api.Repositories.Checklists
             }
         }
 
-        public async Task<LoadChecklistDto?> GetChecklistById(long id)
+        public async Task<LoadChecklistDto?> GetChecklistById(long id, long? landlordId = null)
         {
             try
             {
@@ -110,7 +110,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .FirstOrDefaultAsync(c => c.Id == id);
+                    .FirstOrDefaultAsync(c => c.Id == id && (!landlordId.HasValue || c.LandlordId == landlordId.Value));
 
                 return checklist == null ? null : MapToDto(checklist);
             }
@@ -167,7 +167,7 @@ namespace brownstone_hub_api.Repositories.Checklists
             }
         }
 
-        public async Task<List<LoadChecklistDto>> GetChecklistsByUnitId(long unitId)
+        public async Task<List<LoadChecklistDto>> GetChecklistsByUnitId(long unitId, long? landlordId = null)
         {
             try
             {
@@ -177,7 +177,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .Where(c => c.UnitId == unitId)
+                    .Where(c => c.UnitId == unitId && (!landlordId.HasValue || c.LandlordId == landlordId.Value))
                     .OrderByDescending(c => c.InspectionDate)
                     .ToListAsync();
 
@@ -190,7 +190,13 @@ namespace brownstone_hub_api.Repositories.Checklists
             }
         }
 
-        public async Task<List<LoadChecklistDto>> GetChecklistsByLeaseId(long leaseId)
+        public Task<List<LoadChecklistDto>> GetChecklistsByLeaseId(long leaseId) =>
+            GetChecklistsByLeaseIdInternal(leaseId, null);
+
+        public Task<List<LoadChecklistDto>> GetChecklistsByLeaseId(long leaseId, long landlordId) =>
+            GetChecklistsByLeaseIdInternal(leaseId, landlordId);
+
+        private async Task<List<LoadChecklistDto>> GetChecklistsByLeaseIdInternal(long leaseId, long? landlordId)
         {
             try
             {
@@ -200,7 +206,7 @@ namespace brownstone_hub_api.Repositories.Checklists
                     .Include(c => c.Lease)
                     .Include(c => c.Tenant)
                     .Include(c => c.Items.OrderBy(i => i.SortOrder).ThenBy(i => i.Id))
-                    .Where(c => c.LeaseId == leaseId)
+                    .Where(c => c.LeaseId == leaseId && (!landlordId.HasValue || c.LandlordId == landlordId.Value))
                     .OrderByDescending(c => c.InspectionDate)
                     .ToListAsync();
 
@@ -296,8 +302,17 @@ namespace brownstone_hub_api.Repositories.Checklists
             if (checklist.LeaseId.HasValue) entity.LeaseId = checklist.LeaseId.Value;
             if (checklist.CounterpartChecklistId.HasValue) entity.CounterpartChecklistId = checklist.CounterpartChecklistId.Value;
             if (checklist.InspectionDate.HasValue) entity.InspectionDate = checklist.InspectionDate.Value;
-            if (checklist.CompletedAt.HasValue) entity.CompletedAt = checklist.CompletedAt.Value;
-            if (checklist.IsCompleted.HasValue) entity.IsCompleted = checklist.IsCompleted.Value;
+            if (checklist.IsCompleted.HasValue)
+            {
+                entity.IsCompleted = checklist.IsCompleted.Value;
+                entity.CompletedAt = checklist.IsCompleted.Value
+                    ? checklist.CompletedAt ?? entity.CompletedAt
+                    : null;
+            }
+            else if (checklist.CompletedAt.HasValue)
+            {
+                entity.CompletedAt = checklist.CompletedAt.Value;
+            }
             if (checklist.ConductedBy.HasValue) entity.ConductedBy = checklist.ConductedBy.Value;
             if (checklist.TenantSignature != null) entity.TenantSignature = checklist.TenantSignature;
             if (checklist.LandlordSignature != null) entity.LandlordSignature = checklist.LandlordSignature;

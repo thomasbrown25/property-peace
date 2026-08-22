@@ -1031,7 +1031,10 @@ namespace brownstone_hub_api.Repositories.Leases
                     query = query.Where(l => l.OrganizationId == organizationId.Value);
                 }
 
-                var lease = await query.FirstOrDefaultAsync();
+                var lease = await query
+                    .OrderByDescending(candidate => candidate.IsActive)
+                    .ThenByDescending(candidate => candidate.StartDate)
+                    .FirstOrDefaultAsync();
 
                 return _mapper.Map<LoadLeaseDto>(lease);
             }

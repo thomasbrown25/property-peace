@@ -15,7 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ChecklistAPI from '../../api/checklistAPI';
 import LeaseAPI, { Lease } from '../../api/leaseAPI';
 import { buildConditionCycles } from '../../features/checklists/checklistModel';
-import { buildChecklistOverviewCards, checklistHistoryScope, isChecklistStarted } from '../../features/checklists/checklistOverviewModel';
+import { activeLeaseScope, buildChecklistOverviewCards, checklistHistoryScope, isChecklistStarted, selectChecklistLease } from '../../features/checklists/checklistOverviewModel';
 import { startChecklistCycle } from '../../features/checklists/checklistWorkflow';
 import type { Checklist, ChecklistCycle } from '../../features/checklists/checklistTypes';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
@@ -50,9 +50,11 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
     }
 
     try {
-      const lease = await LeaseAPI.getActiveLease(home.propertyId);
-      const leaseUnitId = lease?.unitId ?? lease?.UnitId;
-      setActiveLease(lease && (!home.unitId || String(leaseUnitId) === home.unitId) ? lease : null);
+      const leaseScope = activeLeaseScope(home);
+      const lease = leaseScope.scope === 'unit'
+        ? await LeaseAPI.getLease(leaseScope.id)
+        : await LeaseAPI.getActiveLease(leaseScope.id);
+      setActiveLease(selectChecklistLease(lease, leaseScope.scope === 'unit' ? String(home.unitId) : undefined));
     } catch {
       setActiveLease(null);
     }
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
   progress: { color: '#536575', fontSize: 11, fontWeight: '900', backgroundColor: '#f0f3f5', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
   sideTitle: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '900', marginTop: 2 },
   sideMeta: { color: '#697887', fontSize: 12, marginTop: 3 },
-  sideButton: { alignSelf: 'flex-start', minHeight: 40, justifyContent: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, marginTop: 10 },
+  sideButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, marginTop: 10 },
   sideButtonText: { fontSize: 13, fontWeight: '900' },
   divider: { height: 1, backgroundColor: '#edf1f3', marginVertical: 15 },
   separator: { height: 12 },

@@ -143,7 +143,7 @@ export interface UpdateChecklistPayload {
     Name: string;
     Description: string;
     Category: string;
-    Condition: ChecklistCondition | null;
+    Condition: ChecklistCondition | '' | null;
     Notes: string;
     HasDamage: boolean;
     DamageDescription: string;

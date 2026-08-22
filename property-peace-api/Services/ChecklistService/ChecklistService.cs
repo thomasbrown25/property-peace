@@ -174,7 +174,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                     return ServiceResponse<LoadChecklistDto>.CreateError("User not found", "User not authenticated", "", 401);
                 }
 
-                var checklist = await _checklistRepository.GetChecklistById(id);
+                var checklist = await _checklistRepository.GetChecklistById(id, landlordId.Value);
 
                 if (checklist == null)
                 {
@@ -287,7 +287,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                     return ServiceResponse<List<LoadChecklistDto>>.CreateError("User not found", "User not authenticated", "", 401);
                 }
 
-                var checklists = await _checklistRepository.GetChecklistsByUnitId(unitId);
+                var checklists = await _checklistRepository.GetChecklistsByUnitId(unitId, landlordId.Value);
 
                 // Generate SAS URLs for images in each checklist
                 var checklistsWithSasUrls = checklists.Select(GenerateSasUrlsForChecklist).ToList();
@@ -315,7 +315,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                     return ServiceResponse<List<LoadChecklistDto>>.CreateError("User not found", "User not authenticated", "", 401);
                 }
 
-                var checklists = await _checklistRepository.GetChecklistsByLeaseId(leaseId);
+                var checklists = await _checklistRepository.GetChecklistsByLeaseId(leaseId, landlordId.Value);
 
                 // Generate SAS URLs for images in each checklist
                 var checklistsWithSasUrls = checklists.Select(GenerateSasUrlsForChecklist).ToList();
@@ -463,7 +463,7 @@ namespace brownstone_hub_api.Services.ChecklistService
                 }
 
                 // Get the checklist
-                var checklist = await _checklistRepository.GetChecklistById(checklistId);
+                var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
                 if (checklist == null)
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Checklist not found", "The checklist does not exist", "", 404);
@@ -548,6 +548,33 @@ namespace brownstone_hub_api.Services.ChecklistService
         {
             try
             {
+                var landlordId = await GetCurrentUserIdAsync();
+                if (!landlordId.HasValue)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError("User not found", "User not authenticated", "", 401);
+                }
+
+                var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
+                if (checklist == null)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only update your own checklists", "", 403);
+                }
+
+                var item = checklist.Items.FirstOrDefault(candidate => candidate.Id == itemId);
+                if (item == null)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError("Checklist item not found", "The item does not belong to this checklist", "", 404);
+                }
+
+                if (item.PhotoBlobNames?.Contains(blobName, StringComparer.Ordinal) != true)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError(
+                        "Checklist photo not found",
+                        "The photo is not attached to this checklist item",
+                        "",
+                        404);
+                }
+
                 // Delete from blob storage
                 var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
                 var blobClient = containerClient.GetBlobClient(blobName);
@@ -579,12 +606,24 @@ namespace brownstone_hub_api.Services.ChecklistService
                 }
 
                 // Get the checklist
-                var checklist = await _checklistRepository.GetChecklistById(checklistId);
+                var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
                 if (checklist == null)
                 {
                     return ServiceResponse<LoadChecklistDto>.CreateError("Checklist not found", "The checklist does not exist", "", 404);
                 }
 
+
+                var selectedBlobNames = isBeforeMoveIn
+                    ? checklist.BeforeMoveInImagesBlobNames
+                    : checklist.AfterMoveOutImagesBlobNames;
+                if (selectedBlobNames?.Contains(blobName, StringComparer.Ordinal) != true)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError(
+                        "Checklist photo not found",
+                        "The photo is not attached to the selected checklist image set",
+                        "",
+                        404);
+                }
                 // Delete the blob from Azure Storage
                 var containerClient = _blobServiceClient.GetBlobContainerClient(ContainerName);
                 var blobClient = containerClient.GetBlobClient(blobName);
@@ -654,6 +693,27 @@ namespace brownstone_hub_api.Services.ChecklistService
         {
             try
             {
+                var landlordId = await GetCurrentUserIdAsync();
+                if (!landlordId.HasValue)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError("User not found", "User not authenticated", "", 401);
+                }
+
+                var checklist = await _checklistRepository.GetChecklistById(checklistId, landlordId.Value);
+                if (checklist == null)
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError("Unauthorized access", "You can only update your own checklists", "", 403);
+                }
+
+                if (!checklist.Items.Any(candidate => candidate.Id == itemId))
+                {
+                    return ServiceResponse<LoadChecklistDto>.CreateError(
+                        "Checklist item not found",
+                        "The item does not belong to this checklist",
+                        "",
+                        404);
+                }
+
                 var validation = FileValidationHelper.ValidateImageFile(file);
                 if (!validation.IsValid)
                 {

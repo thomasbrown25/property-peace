@@ -58,3 +58,23 @@ test('history scope chooses the unit endpoint only when a unit is selected', () 
   assert.deepEqual(checklistHistoryScope({ propertyId: '7', propertyName: 'Maple' }), { scope: 'property', id: '7' });
   assert.deepEqual(checklistHistoryScope({ propertyId: '7', propertyName: 'Maple', unitId: '8' }), { scope: 'unit', id: '8' });
 });
+
+test('active lease lookup uses the selected unit when one is present', () => {
+  const { activeLeaseScope } = required();
+  assert.deepEqual(activeLeaseScope({ propertyId: '7', propertyName: 'Maple' }), { scope: 'property', id: '7' });
+  assert.deepEqual(activeLeaseScope({ propertyId: '7', propertyName: 'Maple', unitId: '9' }), { scope: 'unit', id: '9' });
+});
+
+test('selected-unit lease lookup accepts only the exact active unit lease', () => {
+  const { selectChecklistLease } = required();
+  const active = { id: 5, unitId: 9, isActive: true };
+  assert.equal(selectChecklistLease(active, '9'), active);
+  assert.equal(selectChecklistLease({ ...active, isActive: false }, '9'), null);
+  assert.equal(selectChecklistLease({ ...active, unitId: 10 }, '9'), null);
+  assert.deepEqual(
+    selectChecklistLease({ Id: 6, UnitId: 9, IsActive: true }, '9'),
+    { Id: 6, UnitId: 9, IsActive: true },
+  );
+  const propertyLease = { id: 7, isActive: false };
+  assert.equal(selectChecklistLease(propertyLease), propertyLease);
+});

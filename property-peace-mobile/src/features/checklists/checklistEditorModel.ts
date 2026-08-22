@@ -70,3 +70,50 @@ export const renameRoomInChecklistPair = (
     ? renameRoom(counterpart, currentName, nextName)
     : counterpart,
 });
+
+type ChecklistUpdateGateway = {
+  update: (id: Id, checklist: Checklist) => Promise<Checklist>;
+};
+
+export const persistChecklistPair = async (
+  currentActive: Checklist,
+  nextActive: Checklist,
+  currentCounterpart: Checklist | null,
+  nextCounterpart: Checklist | null,
+  gateway: ChecklistUpdateGateway,
+): Promise<{ active: Checklist; counterpart: Checklist | null }> => {
+  if (nextActive.id == null) throw new Error('Checklist ID is missing');
+  if (currentActive.counterpartChecklistId != null && currentCounterpart == null) {
+    throw new Error('The connected checklist is unavailable. Refresh it before changing rooms.');
+  }
+  const savedActive = await gateway.update(nextActive.id, nextActive);
+  if (nextCounterpart?.id == null) {
+    return { active: savedActive, counterpart: currentCounterpart };
+  }
+
+  try {
+    return {
+      active: savedActive,
+      counterpart: await gateway.update(nextCounterpart.id, nextCounterpart),
+    };
+  } catch (counterpartError) {
+    if (currentActive.id == null) {
+      throw new Error(
+        'The connected checklist did not update and the active checklist cannot be restored. Refresh before making another change.',
+        { cause: counterpartError },
+      );
+    }
+    try {
+      await gateway.update(currentActive.id, currentActive);
+    } catch (rollbackError) {
+      throw new Error(
+        'The connected checklist did not update and restoring the active checklist also failed. Refresh before making another change.',
+        { cause: { counterpartError, rollbackError } },
+      );
+    }
+    throw new Error(
+      'The connected checklist did not update. The active checklist was restored; retry the room change.',
+      { cause: counterpartError },
+    );
+  }
+};
