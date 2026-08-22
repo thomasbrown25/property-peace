@@ -126,8 +126,8 @@ export const withItemCondition = (
   condition: ChecklistCondition | null,
   now: string,
 ): Checklist => {
-  const items = checklist.items.map((item) => sameId(item.id, itemId)
-    ? { ...item, condition: condition ?? '', isChecked: Boolean(condition), checkedAt: condition ? now : null }
+  const items: ChecklistItem[] = checklist.items.map((item) => sameId(item.id, itemId)
+    ? { ...item, condition: condition ?? ('' as const), isChecked: Boolean(condition), checkedAt: condition ? now : null }
     : item);
   const complete = items.length > 0 && items.every((item) => Boolean(item.condition));
   return {

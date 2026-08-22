@@ -1,113 +1,71 @@
 import apiClient from '../services/apiClient';
 import { ApiResponse } from '../types';
+import {
+  checklistCollectionPath,
+  checklistDetailPath,
+  checklistItemImageDeletePath,
+  checklistItemImagePath,
+} from '../features/checklists/checklistTransportModel';
+import { normalizeChecklist, serializeChecklistUpdate } from '../features/checklists/checklistModel';
+import type {
+  AddChecklistPayload,
+  Checklist,
+  ChecklistItem,
+  ChecklistUploadAsset,
+  Id,
+  UpdateChecklistPayload,
+} from '../features/checklists/checklistTypes';
 
-export interface ChecklistItem {
-  id?: string | number;
-  name?: string;
-  description?: string;
-  category?: string;
-  condition?: string;
-  notes?: string;
-  hasDamage?: boolean;
-  damageDescription?: string;
-  photoBlobNames?: string[];
-  photoBlobUrls?: string[];
-  isChecked?: boolean;
-  checkedAt?: string | null;
-  sortOrder?: number;
-  [key: string]: any;
-}
+export type { Checklist, ChecklistItem } from '../features/checklists/checklistTypes';
 
-export interface Checklist {
-  id?: string | number;
-  title?: string;
-  checklistType?: number | string;
-  propertyId?: string | number;
-  unitId?: string | number;
-  leaseId?: string | number;
-  inspectionDate?: string;
-  completedAt?: string | null;
-  isCompleted?: boolean;
-  generalNotes?: string;
-  conditionNotes?: string;
-  items?: ChecklistItem[];
-  [key: string]: any;
-}
-
-const value = <T>(source: any, camel: string, pascal: string, fallback?: T): T =>
-  (source?.[camel] ?? source?.[pascal] ?? fallback) as T;
-
-export const normalizeChecklistItem = (item: any): ChecklistItem => ({
-  ...item,
-  id: value(item, 'id', 'Id'),
-  name: value(item, 'name', 'Name', ''),
-  description: value(item, 'description', 'Description', ''),
-  category: value(item, 'category', 'Category', ''),
-  condition: value(item, 'condition', 'Condition', ''),
-  notes: value(item, 'notes', 'Notes', ''),
-  hasDamage: value(item, 'hasDamage', 'HasDamage', false),
-  damageDescription: value(item, 'damageDescription', 'DamageDescription', ''),
-  photoBlobNames: value(item, 'photoBlobNames', 'PhotoBlobNames', []),
-  photoBlobUrls: value(item, 'photoBlobUrls', 'PhotoBlobUrls', []),
-  isChecked: value(item, 'isChecked', 'IsChecked', false),
-  checkedAt: value(item, 'checkedAt', 'CheckedAt', null),
-  sortOrder: value(item, 'sortOrder', 'SortOrder', 0),
-});
-
-export const normalizeChecklist = (item: any): Checklist => ({
-  ...item,
-  id: value(item, 'id', 'Id'),
-  title: value(item, 'title', 'Title', 'Property checklist'),
-  checklistType: value(item, 'checklistType', 'ChecklistType'),
-  propertyId: value(item, 'propertyId', 'PropertyId'),
-  unitId: value(item, 'unitId', 'UnitId'),
-  leaseId: value(item, 'leaseId', 'LeaseId'),
-  inspectionDate: value(item, 'inspectionDate', 'InspectionDate'),
-  completedAt: value(item, 'completedAt', 'CompletedAt', null),
-  isCompleted: value(item, 'isCompleted', 'IsCompleted', false),
-  generalNotes: value(item, 'generalNotes', 'GeneralNotes', ''),
-  conditionNotes: value(item, 'conditionNotes', 'ConditionNotes', ''),
-  items: value<any[]>(item, 'items', 'Items', []).map(normalizeChecklistItem),
-});
+const isUpdatePayload = (input: Checklist | UpdateChecklistPayload): input is UpdateChecklistPayload =>
+  Object.prototype.hasOwnProperty.call(input, 'Id');
 
 class ChecklistAPI {
-  async getByProperty(propertyId: string | number): Promise<Checklist[]> {
-    const response = await apiClient.get<ApiResponse<any[]>>(`/api/Checklist/property/${propertyId}`);
-    return (response.data || []).map(normalizeChecklist);
+  async getByProperty(propertyId: Id): Promise<Checklist[]> {
+    const response = await apiClient.get<ApiResponse<unknown[]>>(checklistCollectionPath('property', propertyId));
+    return (response.data ?? []).map(normalizeChecklist);
   }
 
-  async getById(id: string | number): Promise<Checklist> {
-    const response = await apiClient.get<ApiResponse<any>>(`/api/Checklist/${id}`);
+  async getByUnit(unitId: Id): Promise<Checklist[]> {
+    const response = await apiClient.get<ApiResponse<unknown[]>>(checklistCollectionPath('unit', unitId));
+    return (response.data ?? []).map(normalizeChecklist);
+  }
+
+  async getById(id: Id): Promise<Checklist> {
+    const response = await apiClient.get<ApiResponse<unknown>>(checklistDetailPath(id));
     return normalizeChecklist(response.data);
   }
 
-  async update(id: string | number, checklist: Checklist): Promise<Checklist> {
-    const items = (checklist.items || []).map((item) => ({
-      id: item.id ?? null,
-      name: item.name ?? '',
-      description: item.description ?? '',
-      category: item.category ?? '',
-      condition: item.condition ?? '',
-      notes: item.notes ?? '',
-      hasDamage: item.hasDamage ?? false,
-      damageDescription: item.damageDescription ?? '',
-      photoBlobNames: item.photoBlobNames ?? [],
-      isChecked: item.isChecked ?? false,
-      checkedAt: item.checkedAt ?? null,
-      sortOrder: item.sortOrder ?? 0,
-    }));
-    const payload = {
-      id: Number(id),
-      title: checklist.title,
-      leaseId: checklist.leaseId ?? null,
-      inspectionDate: checklist.inspectionDate ?? null,
-      completedAt: checklist.completedAt ?? null,
-      isCompleted: checklist.isCompleted ?? false,
-      generalNotes: checklist.generalNotes ?? '',
-      conditionNotes: checklist.conditionNotes ?? '',
-      items,
-    };
-    const response = await apiClient.put<ApiResponse<any>>(`/api/Checklist/${id}`, payload);
+  async create(payload: AddChecklistPayload): Promise<Checklist> {
+    const response = await apiClient.post<ApiResponse<unknown>>('/api/Checklist', payload);
+    return normalizeChecklist(response.data);
+  }
+
+  async update(id: Id, checklist: Checklist | UpdateChecklistPayload): Promise<Checklist> {
+    const payload = isUpdatePayload(checklist) ? checklist : serializeChecklistUpdate(checklist);
+    const response = await apiClient.put<ApiResponse<unknown>>(checklistDetailPath(id), payload);
+    return normalizeChecklist(response.data);
+  }
+
+  async remove(id: Id): Promise<void> {
+    await apiClient.delete(checklistDetailPath(id));
+  }
+
+  async uploadItemImage(checklistId: Id, itemId: Id, asset: ChecklistUploadAsset): Promise<Checklist> {
+    const formData = new FormData();
+    formData.append('file', asset as any);
+    const response = await apiClient.post<ApiResponse<unknown>>(
+      checklistItemImagePath(checklistId, itemId),
+      formData,
+    );
+    return normalizeChecklist(response.data);
+  }
+
+  async deleteItemImage(checklistId: Id, itemId: Id, blobName: string): Promise<Checklist> {
+    const response = await apiClient.delete<ApiResponse<unknown>>(
+      checklistItemImageDeletePath(checklistId, itemId, blobName),
+    );
     return normalizeChecklist(response.data);
   }
 }

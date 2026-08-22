@@ -9,6 +9,7 @@ export interface Lease {
   endDate?: string;
   rentAmount?: string | number;
   securityDeposit?: string | number;
+  tenants?: any[];
   [key: string]: any;
 }
 
@@ -23,6 +24,11 @@ class LeaseAPI {
   async getLease(unitId: string | number): Promise<Lease> {
     const response = await this.client.get<ApiResponse<Lease>>(`/api/Lease/${unitId}`);
     return response.data;
+  }
+
+  async getActiveLease(propertyId: string | number): Promise<Lease | null> {
+    const response = await this.client.get<ApiResponse<Lease | null>>(`/api/Lease/active/${propertyId}`);
+    return response.data ?? null;
   }
 
   async addOrUpdateLease(leaseData: Partial<Lease>): Promise<Lease> {
