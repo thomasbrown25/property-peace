@@ -43,3 +43,15 @@ export const findPreselectedProperty = <T extends { id?: unknown; Id?: unknown }
 ): T | null => propertyId
   ? properties.find((property) => String(property.id ?? property.Id) === propertyId) ?? null
   : null;
+
+export const buildPropertyChecklistEntry = (property: PropertyShape) => {
+  const propertyId = property.id ?? property.Id;
+  if (propertyId == null) throw new Error('Property ID is required');
+  if (requiresUnit(property)) {
+    return {
+      screen: 'ChecklistPropertySearch' as const,
+      params: { preselectedPropertyId: String(propertyId) },
+    };
+  }
+  return { screen: 'PropertyChecklists' as const, params: buildChecklistHomeParams(property) };
+};

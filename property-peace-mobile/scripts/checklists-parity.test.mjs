@@ -59,3 +59,31 @@ test('preselection only returns an exact property id match', () => {
   assert.equal(findPreselectedProperty(properties, '3'), null);
   assert.equal(findPreselectedProperty(properties, undefined), null);
 });
+
+test('property detail opens single-unit checklists directly', () => {
+  const { buildPropertyChecklistEntry } = required();
+  assert.deepEqual(buildPropertyChecklistEntry({
+    id: 14,
+    name: 'Oak House',
+    propertyType: 'SingleFamily',
+  }), {
+    screen: 'PropertyChecklists',
+    params: {
+      propertyId: '14',
+      propertyName: 'Oak House',
+      propertyType: 'SingleFamily',
+    },
+  });
+});
+
+test('property detail requires unit selection for multi-unit properties', () => {
+  const { buildPropertyChecklistEntry } = required();
+  assert.deepEqual(buildPropertyChecklistEntry({
+    Id: 15,
+    Name: 'Oak Flats',
+    PropertyType: 'MultiUnit',
+  }), {
+    screen: 'ChecklistPropertySearch',
+    params: { preselectedPropertyId: '15' },
+  });
+});

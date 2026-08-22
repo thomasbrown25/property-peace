@@ -14,8 +14,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
-
+import { buildPropertyChecklistEntry } from '../../features/checklists/checklistNavigationModel';
 type PropertyDetailRoute = RouteProp<PropertiesStackParamList, 'PropertyDetail'>;
+
 type PropertyDetailNavigation = NativeStackNavigationProp<PropertiesStackParamList, 'PropertyDetail'>;
 
 const stringValue = (...values: any[]) => {
@@ -110,7 +111,7 @@ export default function PropertyDetailScreen() {
 
       <Text style={styles.sectionTitle}>On-site actions</Text>
       <View style={styles.actionList}>
-        <ActionRow icon="clipboard-outline" title="Open checklists" subtitle="Complete move-in and move-out items" color="#2f8f46" background="#edf9ef" onPress={() => navigation.navigate('Checklists', { propertyId, propertyName: details.name })} />
+        <ActionRow icon="clipboard-outline" title="Open checklists" subtitle="Complete move-in and move-out items" color="#2f8f46" background="#edf9ef" onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
         <ActionRow icon="construct-outline" title="Maintenance workflow" subtitle="Review and manage open requests" color="#d94d63" background="#fff0f3" onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} />
         <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color="#2475cf" background="#eaf3ff" onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
         <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color="#8b5bb7" background="#f5effb" onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
