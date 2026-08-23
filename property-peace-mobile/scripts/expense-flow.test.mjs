@@ -45,6 +45,15 @@ test('rejects invalid amounts and impossible dates', () => {
   });
 });
 
+test('requires a positive integer property ID', () => {
+  const { validateExpenseStep } = required();
+  for (const propertyId of [0, -1, 1.5, Number.NaN]) {
+    assert.deepEqual(validateExpenseStep({ ...validForm, propertyId }, 'details'), {
+      propertyId: 'Choose a property.',
+    });
+  }
+});
+
 test('rejects descriptions longer than 200 characters', () => {
   const { validateExpenseStep } = required();
   assert.deepEqual(validateExpenseStep({ ...validForm, description: 'x'.repeat(201) }, 'description'), {

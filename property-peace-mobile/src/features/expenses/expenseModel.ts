@@ -83,7 +83,7 @@ export const validateExpenseStep = (form: ExpenseFormState, step: ExpenseStep): 
   if (step === 'details' || step === 'review') {
     if (parseAmount(form.amount) === null) errors.amount = 'Enter an amount greater than zero.';
     if (!isValidLocalDate(form.expenseDate)) errors.expenseDate = 'Enter a valid date.';
-    if (form.propertyId === null) errors.propertyId = 'Choose a property.';
+    if (!Number.isInteger(form.propertyId) || form.propertyId <= 0) errors.propertyId = 'Choose a property.';
   }
   if (step === 'description' || step === 'review') {
     const description = form.description.trim();
@@ -113,7 +113,7 @@ export const buildCreateExpensePayload = (form: ExpenseFormState, landlordId: nu
   if (!Number.isInteger(landlordId) || landlordId <= 0) throw new Error('A landlord ID is required.');
   if (Object.keys(validateExpenseStep(form, 'review')).length > 0) throw new Error('Expense form is invalid.');
   const amount = parseAmount(form.amount);
-  if (amount === null || form.propertyId === null) throw new Error('Expense form is invalid.');
+  if (amount === null || !Number.isInteger(form.propertyId) || form.propertyId <= 0) throw new Error('Expense form is invalid.');
   return {
     landlordId, propertyId: form.propertyId, unitId: form.unitId, name: form.description.trim(),
     category: categorizeExpense(form.description).category, amount, expenseDate: form.expenseDate,
