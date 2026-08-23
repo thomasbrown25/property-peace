@@ -168,6 +168,8 @@ using brownstone_hub_api.Entitlements.Infrastructure;
 using brownstone_hub_api.Entitlements.Enforcement;
 using brownstone_hub_api.Security;
 using brownstone_hub_api.Services.ActivationFunnel;
+using brownstone_hub_api.Services.GooglePlacesService;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 var services = builder.Services;
@@ -324,12 +326,21 @@ services.Configure<ForwardedHeadersOptions>(options =>
 
 // Rate limiting configuration
 services.AddMemoryCache();
+services.Configure<GooglePlacesSettings>(
+    configuration.GetSection("GooglePlaces"));
+services.AddHttpClient<IGooglePlacesService, GooglePlacesService>((sp, client) =>
+{
+    var settings = sp.GetRequiredService<IOptions<GooglePlacesSettings>>().Value;
+    client.BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/");
+    client.Timeout = TimeSpan.FromSeconds(
+        Math.Clamp(settings.TimeoutSeconds, 2, 20));
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+});
 services.Configure<IpRateLimitOptions>(options =>
 {
     options.EnableEndpointRateLimiting = true;
     options.StackBlockedRequests = false;
     options.HttpStatusCode = 429; // Too Many Requests
-    options.RealIpHeader = "X-Real-IP";
     options.ClientIdHeader = "X-ClientId";
     options.GeneralRules = new List<RateLimitRule>
     {
@@ -427,6 +438,18 @@ services.Configure<IpRateLimitOptions>(options =>
             Period = "1m",
             Limit = 10
         },
+        new RateLimitRule
+        {
+            Endpoint = "POST:/api/google-places/autocomplete",
+            Period = "1m",
+            Limit = 60
+        },
+        new RateLimitRule
+        {
+            Endpoint = "GET:/api/google-places/details/*",
+            Period = "1m",
+            Limit = 20
+        },
         // General API rate limiting
         new RateLimitRule
         {
@@ -437,7 +460,7 @@ services.Configure<IpRateLimitOptions>(options =>
     };
 });
 services.AddInMemoryRateLimiting();
-services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+services.AddSingleton<IRateLimitConfiguration, TrustedConnectionRateLimitConfiguration>();
 
 services.AddControllers().AddJsonOptions(o =>
     {
@@ -1317,3 +1340,20 @@ using (var scope = app.Services.CreateScope())
 
 app.Run();
 
+// ForwardedHeadersMiddleware has already replaced RemoteIpAddress when, and only when, the
+// immediate proxy is trusted. Rate limiting must not consult a client-supplied IP header again.
+public sealed class TrustedConnectionRateLimitConfiguration(
+    IOptions<IpRateLimitOptions> ipOptions,
+    IOptions<ClientRateLimitOptions> clientOptions)
+    : RateLimitConfiguration(ipOptions, clientOptions)
+{
+    public override void RegisterResolvers()
+    {
+        base.RegisterResolvers();
+        for (var index = IpResolvers.Count - 1; index >= 0; index--)
+        {
+            if (IpResolvers[index] is IpHeaderResolveContributor)
+                IpResolvers.RemoveAt(index);
+        }
+    }
+}
