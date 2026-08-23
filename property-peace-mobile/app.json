@@ -20,8 +20,8 @@
       "buildNumber": "1",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Take photos or videos that document a maintenance issue in your home.",
-        "NSPhotoLibraryUsageDescription": "Choose photos or videos that document a maintenance issue in your home."
+        "NSCameraUsageDescription": "Take photos of maintenance issues or expense receipts.",
+        "NSPhotoLibraryUsageDescription": "Choose photos of maintenance issues or expense receipts."
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -50,12 +50,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Choose photos or videos that document a maintenance issue in your home.",
-          "cameraPermission": "Take photos or videos that document a maintenance issue in your home.",
+          "photosPermission": "Choose photos of maintenance issues or expense receipts.",
+          "cameraPermission": "Take photos of maintenance issues or expense receipts.",
           "microphonePermission": "Record audio while taking a maintenance video."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

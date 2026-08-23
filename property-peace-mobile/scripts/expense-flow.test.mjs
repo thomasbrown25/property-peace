@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import * as model from '../src/features/expenses/expenseModel.ts';
 import { ExpenseAPI } from '../src/api/expenseAPI.ts';
 import { getExpenseErrorMessage, retryExpenseReceipt, submitExpense } from '../src/features/expenses/expenseSubmission.ts';
+import { toLocalExpenseReceipt } from '../src/features/expenses/expenseReceiptModel.ts';
 
 const required = () => model;
 
@@ -176,6 +178,55 @@ test('returns saved after creating an expense and uploading its receipt', async 
   assert.deepEqual(uploads, [[createdExpense.id, receipt]]);
 });
 
+
+test('converts a picker asset into one normalized local receipt', () => {
+  assert.deepEqual(
+    toLocalExpenseReceipt({
+      uri: 'file://receipt.webp',
+      fileName: 'receipt.webp',
+      mimeType: undefined,
+      fileSize: 1024,
+    }),
+    {
+      uri: 'file://receipt.webp',
+      fileName: 'receipt.webp',
+      mimeType: 'image/webp',
+      fileSize: 1024,
+    },
+  );
+});
+
+test('rejects invalid picker receipt assets before they reach the native screen', () => {
+  assert.throws(
+    () => toLocalExpenseReceipt({ uri: 'file://receipt.pdf', fileName: 'receipt.pdf', mimeType: 'application/pdf' }),
+    /JPEG, PNG, or WebP/,
+  );
+  assert.throws(
+    () => toLocalExpenseReceipt({ uri: 'file://large.jpg', fileName: 'large.jpg', mimeType: 'image/jpeg', fileSize: 10 * 1024 * 1024 + 1 }),
+    /10 MB or smaller/,
+  );
+});
+
+test('uses a JPEG filename fallback when a picker omits the asset filename', () => {
+  const receipt = toLocalExpenseReceipt({ uri: 'file://camera-image', mimeType: 'image/jpeg' }, () => 12345);
+  assert.deepEqual(receipt, {
+    uri: 'file://camera-image',
+    fileName: 'expense-receipt-12345.jpg',
+    mimeType: 'image/jpeg',
+    fileSize: undefined,
+  });
+});
+
+test('declares focused receipt permissions in iOS and Expo image-picker config', async () => {
+  const appConfig = JSON.parse(await readFile(new URL('../app.json', import.meta.url), 'utf8'));
+  const iosInfo = appConfig.expo.ios.infoPlist;
+  const imagePickerConfig = appConfig.expo.plugins.find((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-image-picker')?.[1];
+
+  assert.equal(iosInfo.NSCameraUsageDescription, 'Take photos of maintenance issues or expense receipts.');
+  assert.equal(iosInfo.NSPhotoLibraryUsageDescription, 'Choose photos of maintenance issues or expense receipts.');
+  assert.equal(imagePickerConfig.cameraPermission, 'Take photos of maintenance issues or expense receipts.');
+  assert.equal(imagePickerConfig.photosPermission, 'Choose photos of maintenance issues or expense receipts.');
+});
 test('propagates a create failure without attempting receipt upload', async () => {
   let uploads = 0;
   const api = { createExpense: async () => { throw new Error('Create unavailable'); }, uploadReceipt: async () => { uploads += 1; } };
