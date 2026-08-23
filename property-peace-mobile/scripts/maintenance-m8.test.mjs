@@ -29,7 +29,7 @@ test('completion supports confirm and reasoned reopen',()=>{assert.match(detail,
 
 test('landlord has a reachable canonical detail workflow instead of unsafe legacy create',()=>{
  assert.match(nav,/LandlordMaintenanceDetail/);assert.match(landlordList,/navigate\('LandlordMaintenanceDetail'/);assert.doesNotMatch(nav,/AddMaintenance/);assert.doesNotMatch(api,/['"]\/api\/maintenance-request['"]/);assert.doesNotMatch(landlordList,/maintenance AI agent/i);
- for(const marker of ['assignRequest','submitEstimate','approveEstimate','rejectEstimate','issueWorkOrder','proposeAppointment','cancelAppointment','startWork','cancelWorkOrder','submitCompletion','staffCloseCompletion']) assert.match(landlordDetail,new RegExp(marker));
+ for(const marker of ['assignRequest','submitEstimate','approveEstimate','rejectEstimate','issueWorkOrder','cancelAppointment','startWork','cancelWorkOrder','submitCompletion','staffCloseCompletion']) assert.match(landlordDetail,new RegExp(marker));
  assert.match(landlordDetail,/activityEvents/);assert.match(landlordDetail,/openEvidence/);
 });
 
@@ -68,7 +68,7 @@ test('role routing is active-context aware and never sends vendors to landlord s
  const vendorAudience=maintenanceAudience({currentOrganizationRole:'Vendor'});
  assert.equal(tenantAudience,'tenant');assert.deepEqual(visibleMainTabsForAudience(tenantAudience).map((tab)=>tab.name),['Maintenance','Messages','Settings']);
  assert.equal(landlordAudience,'landlord');assert.deepEqual(visibleMainTabsForAudience(landlordAudience).map((tab)=>tab.name),['Dashboard','Properties','Checklists','Maintenance','Messages']);
- assert.equal(vendorAudience,'unsupported');assert.deepEqual(visibleMainTabsForAudience(vendorAudience).map((tab)=>tab.name),['Maintenance','Settings']);
+ assert.equal(vendorAudience,'unsupported');assert.deepEqual(visibleMainTabsForAudience(vendorAudience).map((tab)=>tab.name),[]);
 });
 test('pending completion lookup never falls back to decided completions',()=>{
  assert.equal(findPendingCompletion({completions:[{id:1,status:'Accepted'},{id:2,status:'Disputed'}]}),undefined);assert.deepEqual(findPendingCompletion({completions:[{id:3,status:'Submitted'}]}),{id:3,status:'Submitted'});assert.match(api,/return findPendingCompletion<MaintenanceCompletion>\(item\)/);
@@ -99,8 +99,32 @@ test('completion uploads replace retry state from active current-cycle detail an
 test('tenant list clears stale tab results when loading fails',()=>{assert.match(read('src/screens/tenant/TenantMaintenanceScreen.tsx'),/catch[^}]*setItems\(\[\]\)/s);});
 test('receipt keeps unknown network status distinct from a closed evidence stage',()=>{assert.match(receipt,/unknown/);assert.match(receipt,/Refresh status/);assert.match(receipt,/Retry upload anyway/);assert.doesNotMatch(receipt,/catch\s*\{\s*return false/);});
 test('assignment uses API-backed named directories instead of raw IDs',()=>{assert.match(api,/\/api\/vendor\?landlordId=/);assert.match(api,/\/api\/organization\/members\//);assert.match(landlordDetail,/assignmentOptions/);assert.doesNotMatch(landlordDetail,/placeholder=\{`\$\{assigneeType.*ID/);});
-test('destructive reasons and appointment/completion notes are not shared',()=>{for(const name of ['estimateRejectReason','appointmentCancelReason','workOrderCancelReason','staffCloseReason','appointmentNotes','resolutionNotes'])assert.match(landlordDetail,new RegExp(name));assert.doesNotMatch(landlordDetail,/const \[reason,/);assert.doesNotMatch(landlordDetail,/Appointment \/ resolution notes/);});
-test('appointment input requires explicit ISO date-times with timezone',()=>{assert.match(landlordDetail,/ISO_DATE_TIME_WITH_ZONE/);assert.match(landlordDetail,/2026-08-10T09:00:00-04:00/);assert.match(landlordDetail,/textContentType="none"/);});
+test('destructive reasons and completion notes are not shared',()=>{for(const name of ['estimateRejectReason','appointmentCancelReason','workOrderCancelReason','staffCloseReason','resolutionNotes'])assert.match(landlordDetail,new RegExp(name));assert.doesNotMatch(landlordDetail,/const \[reason,/);assert.doesNotMatch(landlordDetail,/Appointment \/ resolution notes/);});
+test('v1 hides manual appointment scheduling rather than asking staff for ISO timestamps',()=>{
+ assert.doesNotMatch(landlordDetail,/ISO_DATE_TIME_WITH_ZONE|appointmentStart|appointmentEnd|appointmentNotes|proposeAppointment|Propose appointment|ISO date-time|textContentType="none"/);
+ assert.match(landlordDetail,/Appointments can be reviewed and cancelled here/);
+ assert.match(landlordDetail,/cancelAppointment/);
+});
+test('maintenance screens never present internal record IDs and use friendly home labels when available',()=>{
+ for(const marker of [/REQUEST #/,/Property \{value\(item, 'propertyId'\)/,/Unit \{value\(item, 'unitId'\)/,/Estimate #/,/Work order #/,/Appointment #/,/Completion #/]) assert.doesNotMatch(landlordDetail,marker);
+ assert.match(landlordDetail,/propertyName/);assert.match(landlordDetail,/unitName/);
+ assert.doesNotMatch(intake,/value=\{`Property \$\{propertyId\} · Unit \$\{unitId\}`\}/);
+ assert.match(intake,/homeLabel/);
+});
+test('tenant detail and receipt omit raw request IDs and identify reports with friendly details',()=>{
+ assert.doesNotMatch(detail,/REQUEST #\{requestId\}/);
+ assert.doesNotMatch(receipt,/Save this request number|label="Request" value=\{`#\$\{id\}`\}/);
+ for(const marker of [/v\(item,'title'\)/,/v\(item,'unitName'\)/,/v\(item,'createdAtUtc'\)/,/displayStatus\(v\(item,'status'\)\)/]) assert.match(detail,marker);
+ for(const marker of [/request\.title/,/request\.unitName/,/request\.createdAtUtc/,/displayStatus\(request\.status/]) assert.match(receipt,marker);
+ assert.match(detail,/getDetail\(requestId\)/,'requestId stays internal for API calls');
+ assert.match(receipt,/getDetail\(id\)/,'the database ID stays internal for receipt API calls');
+});
+test('tenant intake does not fabricate hidden dates for access-window chips and submits a valid empty window list',()=>{
+ assert.doesNotMatch(intake,/timeWindows|toggleWindow|setWindows|Preferred access windows|consecutive upcoming days/);
+ assert.doesNotMatch(intake,/\['Morning','Afternoon','Evening'\]/);
+ assert.match(intake,/preferredWindows:\s*\[\]/);
+ assert.match(intake,/Entry:.*Permission granted.*Contact tenant first/);
+});
 test('tenant appointment cancellation and completion reopen use isolated reason state',()=>{
  for(const name of ['appointmentCancelReason','completionReopenReason'])assert.match(detail,new RegExp(name));
  assert.doesNotMatch(detail,/const \[reason,/);
@@ -115,4 +139,26 @@ test('assignment directory reports member and vendor partial failures without cl
  assert.match(landlordDetail,/Retry assignment directory/);
  assert.match(landlordDetail,/Some assignment options could not be loaded/);
  assert.match(landlordDetail,/directoryFailedSources/);
+});
+test('maintenance forms use the established iPhone keyboard-safe scrolling pattern',()=>{
+ for(const screen of [intake,landlordDetail]){
+  assert.match(screen,/KeyboardAvoidingView/);
+  assert.match(screen,/behavior=\{Platform\.OS === 'ios' \? 'padding' : 'height'\}/);
+  assert.match(screen,/keyboardDismissMode="interactive"/);
+  assert.match(screen,/automaticallyAdjustKeyboardInsets=\{Platform\.OS === 'ios'\}/);
+ }
+ assert.match(landlordDetail,/InputAccessoryView/);
+ assert.match(landlordDetail,/inputAccessoryViewID=\{MONEY_KEYBOARD_ACCESSORY_ID\}/);
+ assert.match(landlordDetail,/onPress=\{Keyboard\.dismiss\}/);
+ assert.match(landlordDetail,/>Done</);
+});
+test('maintenance selection controls expose their state and disabled choices to VoiceOver',()=>{
+ assert.match(intake,/accessibilityRole="radio"/);
+ assert.match(intake,/accessibilityState=\{\{selected:active\}\}/);
+ assert.match(intake,/accessibilityRole="checkbox"/);
+ assert.match(intake,/accessibilityState=\{\{checked:signals\.includes\(x\.value\)\}\}/);
+ assert.match(landlordDetail,/accessibilityRole="radio"/);
+ assert.match(landlordDetail,/accessibilityState=\{\{selected:active,disabled\}\}/);
+ assert.match(landlordDetail,/accessibilityState=\{\{selected:assigneeId===String\(option\.id\),disabled:!canAssign\}\}/);
+ assert.match(landlordDetail,/disabled=\{!canAssign\}/);
 });

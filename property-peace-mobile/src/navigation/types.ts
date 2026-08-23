@@ -15,8 +15,13 @@ export type AuthStackParamList = {
   };
 };
 
+export type DashboardStackParamList = {
+  DashboardHome: undefined;
+  AddExpense: undefined;
+};
+
 export type MainTabParamList = {
-  Dashboard: undefined;
+  Dashboard: NavigatorScreenParams<DashboardStackParamList> | undefined;
   Properties: undefined;
   Checklists: NavigatorScreenParams<ChecklistsStackParamList> | undefined;
   Maintenance: undefined;
@@ -31,7 +36,7 @@ export type PropertiesStackParamList = {
   PropertiesList: undefined;
   PropertyDetail: { propertyId: string };
   AddProperty: undefined;
-  Checklists: { propertyId: string; propertyName?: string };
+
 };
 
 export type TenantsStackParamList = {
@@ -51,8 +56,6 @@ export type MaintenanceStackParamList = {
 
 export type LeasesStackParamList = {
   LeasesList: undefined;
-  LeaseDetail: { leaseId: string };
-  AddLease: undefined;
 };
 
 export type MessagesStackParamList = {

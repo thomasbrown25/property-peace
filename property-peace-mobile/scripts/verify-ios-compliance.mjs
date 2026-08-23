@@ -27,8 +27,16 @@ assert.equal(app.ios.usesAppleSignIn, true, 'Sign in with Apple entitlement is r
 assert.ok(app.plugins.includes('expo-apple-authentication'), 'Sign in with Apple plugin is required');
 assert.ok(app.plugins.some((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-local-authentication'), 'Face ID plugin is required');
 assert.ok(app.plugins.includes('expo-secure-store'), 'SecureStore plugin is required');
-assert.match(app.ios.infoPlist.NSCameraUsageDescription, /maintenance/i, 'camera usage must explain maintenance evidence');
-assert.match(app.ios.infoPlist.NSPhotoLibraryUsageDescription, /maintenance/i, 'photo library usage must explain maintenance evidence');
+assert.match(app.ios.infoPlist.NSCameraUsageDescription, /maintenance.*inspection/i, 'camera usage must cover maintenance and inspection evidence');
+assert.match(app.ios.infoPlist.NSPhotoLibraryUsageDescription, /maintenance.*inspection/i, 'photo library usage must cover maintenance and inspection evidence');
+assert.equal(app.ios.privacyManifests.NSPrivacyTracking, false, 'the app must explicitly declare that it does not track users');
+assert.deepEqual(app.ios.privacyManifests.NSPrivacyCollectedDataTypes, [], 'native privacy manifest must not invent SDK-level data collection');
+const accessedPrivacyApis = new Map(
+  app.ios.privacyManifests.NSPrivacyAccessedAPITypes.map((entry) => [entry.NSPrivacyAccessedAPIType, entry.NSPrivacyAccessedAPITypeReasons]),
+);
+assert.ok(accessedPrivacyApis.get('NSPrivacyAccessedAPICategoryFileTimestamp')?.length, 'file timestamp access reasons are required');
+assert.ok(accessedPrivacyApis.get('NSPrivacyAccessedAPICategoryDiskSpace')?.length, 'disk space access reasons are required');
+assert.ok(accessedPrivacyApis.get('NSPrivacyAccessedAPICategoryUserDefaults')?.length, 'user defaults access reasons are required');
 assert.ok(app.plugins.some((plugin) => Array.isArray(plugin) && plugin[0] === 'expo-image-picker'), 'ImagePicker permission plugin is required');
 assert.ok(pkg.dependencies['expo-apple-authentication'], 'Sign in with Apple dependency is required');
 assert.ok(pkg.dependencies['expo-local-authentication'], 'local authentication dependency is required');

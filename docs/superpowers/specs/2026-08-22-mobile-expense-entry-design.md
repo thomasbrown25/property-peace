@@ -242,7 +242,7 @@ Cover:
 - `property-peace-mobile/src/navigation/types.ts`
 - `property-peace-mobile/scripts/expense-flow.test.mjs`
 - `property-peace-mobile/package.json`
-- Root dependency lockfile
+- `property-peace-mobile/package-lock.json`
 - Shared categorization module, type declaration, and package export
 - Main-app categorization re-export and existing categorization tests
 

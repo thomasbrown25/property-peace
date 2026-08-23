@@ -695,6 +695,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
             return Ok(response);
         }
 
+        [Authorize]
         [HttpGet("settings")]
         public async Task<ActionResult<ServiceResponse<SettingsDto>>> GetSettings()
         {

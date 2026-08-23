@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text, View } from 'react-native';
+
 import {
   LeasesStackParamList,
   MainTabParamList,
@@ -12,19 +12,20 @@ import {
   PropertiesStackParamList,
   TenantsStackParamList,
 } from './types';
+import type { DashboardStackParamList } from './types';
 
 import DashboardScreen from '../screens/landlord/DashboardScreen';
+import AddExpenseScreen from '../screens/landlord/AddExpenseScreen';
 import PropertiesScreen from '../screens/landlord/PropertiesScreen';
 import PropertyDetailScreen from '../screens/landlord/PropertyDetailScreen';
 import AddPropertyScreen from '../screens/landlord/AddPropertyScreen';
-import ChecklistsScreen from '../screens/landlord/ChecklistsScreen';
+
 import TenantsScreen from '../screens/landlord/TenantsScreen';
 import AddTenantScreen from '../screens/landlord/AddTenantScreen';
 import MaintenanceScreen from '../screens/landlord/MaintenanceScreen';
 import LandlordMaintenanceDetailScreen from '../screens/landlord/LandlordMaintenanceDetailScreen';
 import LeasesScreen from '../screens/landlord/LeasesScreen';
-import LeaseDetailScreen from '../screens/landlord/LeaseDetailScreen';
-import AddLeaseScreen from '../screens/landlord/AddLeaseScreen';
+
 import MessagesScreen from '../screens/landlord/MessagesScreen';
 import ConversationDetailScreen from '../screens/landlord/ConversationDetailScreen';
 import NotificationsScreen from '../screens/landlord/NotificationsScreen';
@@ -38,8 +39,10 @@ import { useAppSelector } from '../store/hooks';
 import { maintenanceAudience } from '../features/maintenance/maintenanceModel';
 import ChecklistsNavigator from './ChecklistsNavigator';
 import { mainTabIconNames, resolveVisibleMainTabs, type MainTabComponentRegistry } from './mainTabModel';
+import UnsupportedRoleScreen from '../screens/UnsupportedRoleScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const PropertiesStack = createNativeStackNavigator<PropertiesStackParamList>();
 const MaintenanceStack = createNativeStackNavigator<MaintenanceStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
@@ -54,13 +57,22 @@ const stackOptions = {
   contentStyle: { backgroundColor: '#fbf7f4' },
 };
 
+function DashboardNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={stackOptions}>
+      <DashboardStack.Screen name="DashboardHome" component={DashboardScreen} options={{ headerShown: false }} />
+      <DashboardStack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: 'Add expense' }} />
+    </DashboardStack.Navigator>
+  );
+}
+
 function PropertiesNavigator() {
   return (
     <PropertiesStack.Navigator screenOptions={stackOptions}>
       <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ title: 'Properties' }} />
       <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={{ title: 'Property' }} />
       <PropertiesStack.Screen name="AddProperty" component={AddPropertyScreen} options={{ title: 'Add property' }} />
-      <PropertiesStack.Screen name="Checklists" component={ChecklistsScreen} options={{ title: 'Property checklists' }} />
+
     </PropertiesStack.Navigator>
   );
 }
@@ -86,9 +98,6 @@ function TenantMaintenanceNavigator() {
   return <MaintenanceNavigator tenant />;
 }
 
-function UnsupportedMaintenanceNavigator() {
-  return <View style={{ flex: 1, justifyContent: 'center', padding: 28, backgroundColor: '#fbf7f4' }}><Text style={{ color: '#102d43', fontSize: 22, fontWeight: '800' }}>Maintenance access unavailable</Text><Text style={{ color: '#526874', lineHeight: 21, marginTop: 10 }}>Switch to an active tenant, landlord, or administrator organization role. Vendor maintenance needs its dedicated limited workflow and is never shown property-owner controls.</Text></View>;
-}
 
 function MessagesNavigator() {
   return (
@@ -112,8 +121,7 @@ function LeasesNavigator() {
   return (
     <LeasesStack.Navigator screenOptions={stackOptions}>
       <LeasesStack.Screen name="LeasesList" component={LeasesScreen} options={{ title: 'Leases' }} />
-      <LeasesStack.Screen name="LeaseDetail" component={LeaseDetailScreen} options={{ title: 'Lease' }} />
-      <LeasesStack.Screen name="AddLease" component={AddLeaseScreen} options={{ title: 'Add lease' }} />
+
     </LeasesStack.Navigator>
   );
 }
@@ -124,16 +132,18 @@ export default function MainNavigator() {
   const audience = maintenanceAudience(currentUser);
   const bottomInset = Math.max(insets.bottom, 8);
   const visibleComponents: MainTabComponentRegistry<React.ComponentType<any>> = {
-    DashboardScreen,
+    DashboardScreen: DashboardNavigator,
     PropertiesNavigator,
     ChecklistsNavigator,
     MaintenanceNavigator,
     TenantMaintenanceNavigator,
-    UnsupportedMaintenanceNavigator,
+
     MessagesNavigator,
     SettingsScreen,
   };
   const visibleTabs = resolveVisibleMainTabs(audience, visibleComponents);
+
+  if (audience === 'unsupported') return <UnsupportedRoleScreen />;
 
   return (
     <Tab.Navigator

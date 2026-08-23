@@ -93,6 +93,42 @@ const pages = [
         ]
       },
       {
+        id: 'operations',
+        title: 'Operations',
+        type: 'collapse',
+        icon: icons.ToolOutlined,
+        children: [
+          {
+            id: 'admin-users',
+            title: 'Team',
+            type: 'item',
+            url: '/landlord/admin-members',
+            icon: icons.UserOutlined
+          },
+          {
+            id: 'announcements',
+            title: 'Announcements',
+            type: 'item',
+            url: '/landlord/announcements',
+            icon: icons.NotificationOutlined
+          },
+          {
+            id: 'maintenances',
+            title: 'Maintenance',
+            type: 'item',
+            url: '/landlord/maintenances',
+            icon: icons.ToolOutlined
+          },
+          {
+            id: 'vendors',
+            title: 'Vendors',
+            type: 'item',
+            url: '/landlord/vendors',
+            icon: icons.ShopOutlined
+          }
+        ]
+      },
+      {
         id: 'ai-center',
         title: 'Percy',
         type: 'item',
@@ -219,42 +255,6 @@ const pages = [
             type: 'item',
             url: '/landlord/reports',
             icon: icons.FundOutlined
-          }
-        ]
-      },
-      {
-        id: 'operations',
-        title: 'Operations',
-        type: 'collapse',
-        icon: icons.ToolOutlined,
-        children: [
-          {
-            id: 'admin-users',
-            title: 'Team',
-            type: 'item',
-            url: '/landlord/admin-members',
-            icon: icons.UserOutlined
-          },
-          {
-            id: 'announcements',
-            title: 'Announcements',
-            type: 'item',
-            url: '/landlord/announcements',
-            icon: icons.NotificationOutlined
-          },
-          {
-            id: 'maintenances',
-            title: 'Maintenance',
-            type: 'item',
-            url: '/landlord/maintenances',
-            icon: icons.ToolOutlined
-          },
-          {
-            id: 'vendors',
-            title: 'Vendors',
-            type: 'item',
-            url: '/landlord/vendors',
-            icon: icons.ShopOutlined
           }
         ]
       }
