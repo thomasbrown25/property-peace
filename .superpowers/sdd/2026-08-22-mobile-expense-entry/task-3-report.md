@@ -30,3 +30,9 @@ Created a typed, pure `ExpenseAPI` with an injected HTTP client and form-data fa
 ## Concerns
 
 No known concerns. The behavior tests use direct static module imports and focused recording/fake clients; they do not inspect source text or use lazy dynamic imports.
+
+## Review fix: P2 error-message preservation
+
+- Added direct behavior coverage for lower-case `message`, upper-case `Message`, blank/non-object fallback, and the `receipt-failed` result message.
+- RED mutation: disabling message extraction made `npm run test:expenses` fail 2 assertions (expected lower-case message and `offline`, received fallbacks).
+- GREEN: restored extraction; `npm run test:expenses` passed 16 tests and `npx tsc --noEmit` exited 0.
