@@ -10,6 +10,7 @@
     "web": "npx expo start --web",
     "test:registration": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test scripts/registration-validation.test.mjs ../shared/password-validation.test.js",
     "test:messages": "node --experimental-strip-types --test scripts/messages-parity.test.mjs",
+    "test:expenses": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test scripts/expense-flow.test.mjs",
     "test:maintenance": "node --experimental-strip-types --test scripts/maintenance-m8.test.mjs",
     "test:properties": "node --experimental-strip-types --test scripts/properties-page.test.mjs",
     "test:navigation": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test scripts/main-navigation.test.mjs",
