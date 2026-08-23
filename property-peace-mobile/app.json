@@ -20,8 +20,8 @@
       "buildNumber": "1",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Take photos or videos to document maintenance, property inspections, and repair completion.",
-        "NSPhotoLibraryUsageDescription": "Choose photos or videos to document maintenance, property inspections, and repair completion."
+        "NSCameraUsageDescription": "Take photos or videos to document maintenance, property inspections, repair completion, or expense receipts.",
+        "NSPhotoLibraryUsageDescription": "Choose photos or videos to document maintenance, property inspections, repair completion, or expense receipts."
       },
       "privacyManifests": {
         "NSPrivacyTracking": false,
@@ -77,12 +77,13 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Choose photos or videos to document maintenance, property inspections, and repair completion.",
-          "cameraPermission": "Take photos or videos to document maintenance, property inspections, and repair completion.",
+          "photosPermission": "Choose photos or videos to document maintenance, property inspections, repair completion, or expense receipts.",
+          "cameraPermission": "Take photos or videos to document maintenance, property inspections, repair completion, or expense receipts.",
           "microphonePermission": "Record audio while capturing a maintenance or property-inspection video."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

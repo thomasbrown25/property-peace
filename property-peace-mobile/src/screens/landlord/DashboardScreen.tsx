@@ -18,6 +18,7 @@ import { logout } from '../../store/user/user.slice';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
+import { addExpenseDashboardAction, navigateToAddExpense } from '../../features/expenses/dashboardExpenseAction';
 
 const logo = require('../../../assets/property-peace-navbar-logo.png');
 
@@ -166,7 +167,6 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor="#2475cf" />}
       >
-        <Text style={styles.eyebrow}>YOUR LANDLORD DAY</Text>
         <Text style={styles.heroTitle}>{getGreeting()}, {firstName}.</Text>
         <Text style={styles.heroSubtitle}>
           {!attentionDataAvailable
@@ -188,18 +188,11 @@ export default function DashboardScreen() {
 
         <View style={styles.portfolioCard}>
           <View style={styles.portfolioHeader}>
-            <View>
-              <Text style={styles.cardEyebrow}>PORTFOLIO SNAPSHOT</Text>
-              <Text style={styles.portfolioTitle}>
-                {propertiesStatus === 'success'
-                  ? `${portfolio.properties} ${portfolio.properties === 1 ? 'property' : 'properties'}`
-                  : 'Properties unavailable'}
-              </Text>
-            </View>
-            <TouchableOpacity style={styles.openButton} onPress={() => navigation.navigate('Properties')}>
-              <Text style={styles.openButtonText}>Open</Text>
-              <Ionicons name="arrow-forward" size={17} color="#ffffff" />
-            </TouchableOpacity>
+            <Text style={styles.portfolioTitle}>
+              {propertiesStatus === 'success'
+                ? `${portfolio.properties} ${portfolio.properties === 1 ? 'property' : 'properties'}`
+                : 'Properties unavailable'}
+            </Text>
           </View>
           <View style={styles.statRow}>
             <PortfolioStat label="Units" value={propertiesStatus === 'success' ? String(portfolio.units) : 'Unavailable'} />
@@ -215,7 +208,7 @@ export default function DashboardScreen() {
           <QuickAction icon="add-circle-outline" title="Add a property" subtitle="Grow your portfolio" color="#2475cf" background="#eaf3ff" onPress={() => navigation.navigate('Properties', { screen: 'AddProperty' })} />
           <QuickAction icon="construct-outline" title="Maintenance workflow" subtitle="Assign and track open repairs" color="#d94d63" background="#fff0f3" onPress={() => navigation.navigate('Maintenance', { screen: 'MaintenanceList' })} />
           <QuickAction icon="clipboard-outline" title="Property checklists" subtitle="Move-in and move-out inspections" color="#2f8f46" background="#edf9ef" onPress={() => navigation.navigate('Checklists', { screen: 'ChecklistPropertySearch' })} />
-          <QuickAction icon="chatbubble-ellipses-outline" title="Open messages" subtitle="Reply to tenants and applicants" color="#168f91" background="#eafafa" onPress={() => navigation.navigate('Messages')} />
+          <QuickAction {...addExpenseDashboardAction} onPress={() => navigateToAddExpense((route) => navigation.navigate(route))} />
         </View>
 
         <View style={styles.activityCard}>
@@ -308,7 +301,6 @@ const styles = StyleSheet.create({
   profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
   destructiveText: { color: '#c2413b' },
   content: { paddingHorizontal: 18, paddingTop: 25 },
-  eyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginBottom: 7 },
   heroTitle: { color: '#082941', fontSize: 31, lineHeight: 37, fontWeight: '900', letterSpacing: -1, marginBottom: 7 },
   heroSubtitle: { color: '#536575', fontSize: 16, lineHeight: 23, marginBottom: 22 },
   warningCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff8e8', borderWidth: 1, borderColor: '#f1d8a7', borderRadius: 16, padding: 14, marginBottom: 18 },
@@ -316,11 +308,9 @@ const styles = StyleSheet.create({
   warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
   warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
   portfolioCard: { backgroundColor: '#0b3558', borderRadius: 22, padding: 18, marginBottom: 28, shadowColor: '#062945', shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 8 }, elevation: 5 },
-  portfolioHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 21 },
+  portfolioHeader: { marginBottom: 21 },
   cardEyebrow: { color: '#2f8f46', fontSize: 10, lineHeight: 14, fontWeight: '900', letterSpacing: 1.1 },
   portfolioTitle: { color: '#ffffff', fontSize: 25, lineHeight: 31, fontWeight: '900', marginTop: 2 },
-  openButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#2475cf', borderRadius: 13, paddingHorizontal: 14 },
-  openButtonText: { color: '#fff', fontWeight: '900' },
   statRow: { flexDirection: 'row', alignItems: 'stretch', backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, paddingVertical: 13 },
   statItem: { flex: 1, alignItems: 'center', justifyContent: 'center', minWidth: 0 },
   statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.14)' },
