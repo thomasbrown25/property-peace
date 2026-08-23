@@ -40,7 +40,40 @@ export interface AuthResponse {
   };
 }
 
+interface ServiceResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  errors?: { message?: string; details?: string };
+}
+
 class AuthService {
+  private responseError<T>(response: ServiceResponse<T>, fallback: string): Error {
+    return new Error(response.message || response.errors?.message || response.errors?.details || fallback);
+  }
+
+  async sendRegistrationCode(email: string): Promise<void> {
+    const check = await apiClient.post<ServiceResponse<boolean>>('/api/user/check-email', { email });
+    if (!check.success) throw this.responseError(check, 'Unable to check that email address.');
+    if (check.data === true) throw new Error('An account already exists for this email. Sign in instead.');
+
+    const response = await apiClient.post<ServiceResponse<string>>('/api/user/send-verification-code', { email });
+    if (!response.success) throw this.responseError(response, 'Unable to send a verification code.');
+  }
+
+  async resendRegistrationCode(email: string): Promise<void> {
+    const response = await apiClient.post<ServiceResponse<string>>('/api/user/send-verification-code', { email });
+    if (!response.success) throw this.responseError(response, 'Unable to resend the verification code.');
+  }
+
+  async verifyRegistrationCode(email: string, code: string): Promise<void> {
+    const response = await apiClient.post<ServiceResponse<boolean>>('/api/user/verify-code', { email, code });
+    if (!response.success || response.data !== true) {
+      throw this.responseError(response, 'That code is invalid or expired.');
+    }
+    // The success response sets the HttpOnly pp-email-verification proof cookie.
+  }
+
   private async completeAuthentication(user: User): Promise<User> {
     if (!user.jwtToken) {
       throw new Error('The server did not return a valid sign-in session.');

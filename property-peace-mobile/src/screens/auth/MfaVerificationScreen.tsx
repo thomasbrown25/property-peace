@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -48,7 +49,11 @@ export default function MfaVerificationScreen({ navigation, route }: Props) {
       style={styles.container}
     >
       <AuthMarketingBackground>
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
           <View style={styles.badge}>
             <Text style={styles.badgeText}>Secure sign in</Text>
           </View>
@@ -98,7 +103,7 @@ export default function MfaVerificationScreen({ navigation, route }: Props) {
           >
             <Text style={styles.backText}>Back to login</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </AuthMarketingBackground>
     </KeyboardAvoidingView>
   );
@@ -106,7 +111,7 @@ export default function MfaVerificationScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#061e35' },
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 28 },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 28 },
   badge: {
     alignSelf: 'center',
     borderWidth: 1,

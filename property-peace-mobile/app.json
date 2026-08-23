@@ -20,8 +20,35 @@
       "buildNumber": "1",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Take photos or videos that document a maintenance issue in your home.",
-        "NSPhotoLibraryUsageDescription": "Choose photos or videos that document a maintenance issue in your home."
+        "NSCameraUsageDescription": "Take photos or videos to document maintenance, property inspections, and repair completion.",
+        "NSPhotoLibraryUsageDescription": "Choose photos or videos to document maintenance, property inspections, and repair completion."
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyCollectedDataTypes": [],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1",
+              "0A2A.1",
+              "3B52.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1",
+              "85F4.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          }
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -50,9 +77,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Choose photos or videos that document a maintenance issue in your home.",
-          "cameraPermission": "Take photos or videos that document a maintenance issue in your home.",
-          "microphonePermission": "Record audio while taking a maintenance video."
+          "photosPermission": "Choose photos or videos to document maintenance, property inspections, and repair completion.",
+          "cameraPermission": "Take photos or videos to document maintenance, property inspections, and repair completion.",
+          "microphonePermission": "Record audio while capturing a maintenance or property-inspection video."
         }
       ],
       "expo-font"

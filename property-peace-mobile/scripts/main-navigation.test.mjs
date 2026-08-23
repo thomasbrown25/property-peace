@@ -35,6 +35,11 @@ test('tenant navigation does not show the landlord Checklists tab', () => {
   );
 });
 
+test('unsupported roles do not receive an empty tab navigator', () => {
+  assert.equal(loadError, undefined);
+  assert.deepEqual(visibleMainTabsForAudience('unsupported'), []);
+});
+
 test('Checklists uses clipboard icons in active and inactive states', () => {
   assert.equal(loadError, undefined);
   assert.deepEqual(mainTabIconNames('Checklists'), {
@@ -51,7 +56,6 @@ test('landlord tab assembly resolves Checklists to its navigator component', () 
     ChecklistsNavigator: 'checklists-navigator',
     MaintenanceNavigator: 'maintenance-navigator',
     TenantMaintenanceNavigator: 'tenant-maintenance-navigator',
-    UnsupportedMaintenanceNavigator: 'unsupported-maintenance-navigator',
     MessagesNavigator: 'messages-navigator',
     SettingsScreen: 'settings-screen',
   });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '../../navigation/types';
@@ -40,7 +40,11 @@ export default function ForgotPasswordScreen() {
       style={styles.container}
     >
       <AuthMarketingBackground>
-        <View style={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
           <Text style={styles.eyebrow}>Account access</Text>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>Enter your email to receive reset instructions.</Text>
@@ -70,7 +74,7 @@ export default function ForgotPasswordScreen() {
           >
             <Text style={styles.linkText}>Back to Sign In</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </AuthMarketingBackground>
     </KeyboardAvoidingView>
   );
@@ -82,7 +86,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#061e35',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 28,

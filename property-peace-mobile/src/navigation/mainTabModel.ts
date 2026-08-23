@@ -17,7 +17,6 @@ export type MainTabComponentName =
   | 'ChecklistsNavigator'
   | 'MaintenanceNavigator'
   | 'TenantMaintenanceNavigator'
-  | 'UnsupportedMaintenanceNavigator'
   | 'MessagesNavigator'
   | 'SettingsScreen';
 
@@ -45,10 +44,7 @@ const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
     { name: 'Messages', component: 'MessagesNavigator' },
     { name: 'Settings', component: 'SettingsScreen' },
   ],
-  unsupported: [
-    { name: 'Maintenance', component: 'UnsupportedMaintenanceNavigator' },
-    { name: 'Settings', component: 'SettingsScreen' },
-  ],
+  unsupported: [],
 };
 
 const icons: Partial<Record<MainTabName, { active: string; inactive: string }>> = {

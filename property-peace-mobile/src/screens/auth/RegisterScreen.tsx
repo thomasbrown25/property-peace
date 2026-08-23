@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -24,6 +24,13 @@ import AuthMarketingBackground from "../../components/AuthMarketingBackground";
 import AppleSignInButton from "../../components/AppleSignInButton";
 import { passwordRequirementStatuses } from "@property-peace/shared/password-validation";
 import { prepareRegistration } from "../../features/auth/registrationValidation";
+import authService from "../../services/authService";
+import {
+  CODE_EXPIRY_SECONDS,
+  RESEND_COOLDOWN_SECONDS,
+  normalizeVerificationCode,
+  secondsRemaining,
+} from "../../features/auth/emailVerification";
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<
   AuthStackParamList,
@@ -39,31 +46,102 @@ export default function RegisterScreen() {
   const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"details" | "verify">("details");
+  const [code, setCode] = useState("");
+  const [sentAt, setSentAt] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  const [statusMessage, setStatusMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
   const showGoogleSignIn =
     Platform.OS !== "ios" && Boolean(config.GOOGLE_CLIENT_ID);
 
-  const handleRegister = async () => {
-    const preparedRegistration = prepareRegistration({
-      email,
-      password,
-      firstName,
-      lastName,
-    });
+  useEffect(() => {
+    if (step !== "verify" || emailVerified) return undefined;
+    const timer = setInterval(() => setNow(Date.now()), 1_000);
+    return () => clearInterval(timer);
+  }, [emailVerified, step]);
+
+  const prepared = () => prepareRegistration({ email, password, firstName, lastName });
+
+  const handleSendCode = async () => {
+    const preparedRegistration = prepared();
     if ("error" in preparedRegistration) {
-      Alert.alert("Error", preparedRegistration.error);
+      Alert.alert("Check your details", preparedRegistration.error);
       return;
     }
 
     setLoading(true);
+    setErrorMessage("");
     try {
-      await dispatch(register(preparedRegistration.data)).unwrap();
-      // Navigation will be handled by AppNavigator based on auth state
+      await authService.sendRegistrationCode(preparedRegistration.data.email);
+      const timestamp = Date.now();
+      setEmail(preparedRegistration.data.email);
+      setSentAt(timestamp);
+      setNow(timestamp);
+      setCode("");
+      setStatusMessage("We sent a new six-digit code. It expires in 10 minutes.");
+      setStep("verify");
     } catch (error: any) {
-      Alert.alert(
-        "Registration Failed",
-        error?.message || "Failed to create account. Please try again.",
-      );
+      setErrorMessage(error?.message || "We could not send the code. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createAccount = async () => {
+    const preparedRegistration = prepared();
+    if ("error" in preparedRegistration) {
+      setErrorMessage(preparedRegistration.error);
+      return;
+    }
+    await dispatch(register(preparedRegistration.data)).unwrap();
+  };
+
+  const handleVerifyAndRegister = async () => {
+    if (!emailVerified && code.length !== 6) {
+      setErrorMessage("Enter all 6 digits from your email.");
+      return;
+    }
+    if (!emailVerified && secondsRemaining(sentAt, Date.now()) === 0) {
+      setErrorMessage("That code has expired. Request a new code to continue.");
+      return;
+    }
+    setLoading(true);
+    setErrorMessage("");
+    setStatusMessage("");
+    let hasProof = emailVerified;
+    try {
+      if (!emailVerified) {
+        await authService.verifyRegistrationCode(email, code);
+        hasProof = true;
+        setEmailVerified(true);
+      }
+      await createAccount();
+    } catch (error: any) {
+      const message = error?.message || "We could not finish registration. Please try again.";
+      setErrorMessage(message);
+      setEmailVerified(hasProof);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setLoading(true);
+    setErrorMessage("");
+    setStatusMessage("");
+    try {
+      await authService.resendRegistrationCode(email);
+      const timestamp = Date.now();
+      setSentAt(timestamp);
+      setNow(timestamp);
+      setCode("");
+      setEmailVerified(false);
+      setStatusMessage("A new code was sent. The previous code no longer works.");
+    } catch (error: any) {
+      setErrorMessage(error?.message || "The code could not be resent. Try again.");
     } finally {
       setLoading(false);
     }
@@ -117,6 +195,11 @@ export default function RegisterScreen() {
     }
   };
 
+  const codeSecondsRemaining = sentAt ? secondsRemaining(sentAt, now) : CODE_EXPIRY_SECONDS;
+  const resendSecondsRemaining = sentAt
+    ? Math.max(0, RESEND_COOLDOWN_SECONDS - Math.floor((now - sentAt) / 1_000))
+    : 0;
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -126,115 +209,103 @@ export default function RegisterScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          contentInsetAdjustmentBehavior="automatic"
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
         >
-          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.eyebrow}>Step {step === "details" ? "1" : "2"} of 2</Text>
+          <Text style={styles.title}>{step === "details" ? "Create Account" : "Check your inbox"}</Text>
           <Text style={styles.subtitle}>
-            Start organizing rentals from one calm dashboard.
+            {step === "details"
+              ? "Start organizing rentals from one calm dashboard. We’ll verify your email before creating your account."
+              : `Enter the six-digit code sent to ${email}.`}
           </Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="First Name *"
-            placeholderTextColor="rgba(255, 255, 255, 0.58)"
-            value={firstName}
-            onChangeText={setFirstName}
-            autoCapitalize="words"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Last Name *"
-            placeholderTextColor="rgba(255, 255, 255, 0.58)"
-            value={lastName}
-            onChangeText={setLastName}
-            autoCapitalize="words"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email *"
-            placeholderTextColor="rgba(255, 255, 255, 0.58)"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-
-          <View
-            style={[
-              styles.passwordContainer,
-              password.length > 0 && styles.passwordContainerWithRequirements,
-            ]}
-          >
-            <TextInput
-              style={styles.passwordInput}
-              placeholder="Password *"
-              placeholderTextColor="rgba(255, 255, 255, 0.58)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoComplete="password-new"
-            />
-            <TouchableOpacity
-              style={styles.passwordToggle}
-              onPress={() => setShowPassword((visible) => !visible)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                showPassword ? "Hide password" : "Show password"
-              }
-            >
-              <Ionicons
-                name={showPassword ? "eye-outline" : "eye-off-outline"}
-                size={22}
-                color="rgba(255, 255, 255, 0.72)"
-              />
-            </TouchableOpacity>
-          </View>
-
-          {password.length > 0 && (
-            <View style={styles.passwordRequirements}>
-              {passwordRequirementStatuses(password).map(({ label, met }) => (
-                <View
-                  key={label}
-                  style={[
-                    styles.requirementChip,
-                    met && styles.requirementChipMet,
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.requirementDot,
-                      met && styles.requirementDotMet,
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.requirementText,
-                      met && styles.requirementTextMet,
-                    ]}
-                  >
-                    {label}
-                  </Text>
+          {step === "details" ? (
+            <>
+              <TextInput style={styles.input} placeholder="First Name *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={firstName} onChangeText={setFirstName} autoCapitalize="words" textContentType="givenName" />
+              <TextInput style={styles.input} placeholder="Last Name *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={lastName} onChangeText={setLastName} autoCapitalize="words" textContentType="familyName" />
+              <TextInput style={styles.input} placeholder="Email *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" />
+              <View style={[styles.passwordContainer, password.length > 0 && styles.passwordContainerWithRequirements]}>
+                <TextInput style={styles.passwordInput} placeholder="Password *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" autoComplete="password-new" textContentType="newPassword" />
+                <TouchableOpacity style={styles.passwordToggle} onPress={() => setShowPassword((visible) => !visible)} accessibilityRole="button" accessibilityLabel={showPassword ? "Hide password" : "Show password"}>
+                  <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={22} color="rgba(255, 255, 255, 0.72)" />
+                </TouchableOpacity>
+              </View>
+              {password.length > 0 && (
+                <View style={styles.passwordRequirements}>
+                  {passwordRequirementStatuses(password).map(({ label, met }) => (
+                    <View key={label} style={[styles.requirementChip, met && styles.requirementChipMet]}>
+                      <View style={[styles.requirementDot, met && styles.requirementDotMet]} />
+                      <Text style={[styles.requirementText, met && styles.requirementTextMet]}>{label}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
+              )}
+              {errorMessage ? <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text> : null}
+              <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSendCode} disabled={loading || googleLoading} accessibilityRole="button">
+                <Text style={styles.buttonText}>{loading ? "Sending code…" : "Send verification code"}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.verificationCard}>
+              {!emailVerified && (
+                <TextInput
+                  style={[styles.input, styles.codeInput]}
+                  value={code}
+                  onChangeText={(value) => { setCode(normalizeVerificationCode(value)); setErrorMessage(""); }}
+                  placeholder="000000"
+                  placeholderTextColor="rgba(255, 255, 255, 0.35)"
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
+                  maxLength={6}
+                  autoFocus
+                  accessibilityLabel="Six-digit email verification code"
+                />
+              )}
+              {!emailVerified && (
+                <Text style={[styles.expiryText, codeSecondsRemaining === 0 && styles.errorText]}>
+                  {codeSecondsRemaining > 0
+                    ? `Code expires in ${Math.floor(codeSecondsRemaining / 60)}:${String(codeSecondsRemaining % 60).padStart(2, "0")}`
+                    : "This code has expired. Request a new one."}
+                </Text>
+              )}
+              {statusMessage ? <Text style={styles.statusText} accessibilityRole="text">{statusMessage}</Text> : null}
+              {errorMessage ? <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text> : null}
+              <TouchableOpacity
+                style={[styles.button, (loading || (!emailVerified && codeSecondsRemaining === 0)) && styles.buttonDisabled]}
+                onPress={handleVerifyAndRegister}
+                disabled={loading || (!emailVerified && codeSecondsRemaining === 0)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.buttonText}>
+                  {loading ? (emailVerified ? "Creating account…" : "Verifying…") : emailVerified ? "Try creating account again" : "Verify & create account"}
+                </Text>
+              </TouchableOpacity>
+              {!emailVerified && (
+                <TouchableOpacity style={styles.linkButton} onPress={handleResend} disabled={loading || resendSecondsRemaining > 0} accessibilityRole="button">
+                  <Text style={[styles.linkText, (loading || resendSecondsRemaining > 0) && styles.mutedText]}>
+                    {resendSecondsRemaining > 0 ? `Resend code in ${resendSecondsRemaining}s` : "Resend code"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => { setStep("details"); setCode(""); setErrorMessage(""); setStatusMessage(""); setEmailVerified(false); }}
+                disabled={loading}
+                accessibilityRole="button"
+              >
+                <Text style={styles.linkText}>Change email</Text>
+              </TouchableOpacity>
             </View>
           )}
 
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleRegister}
-            disabled={loading || googleLoading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? "Creating Account..." : "Create Account"}
-            </Text>
-          </TouchableOpacity>
+          {step === "details" && (
+            <>
+              {Platform.OS === "ios" && <AppleSignInButton mode="sign-up" />}
 
-          {Platform.OS === "ios" && <AppleSignInButton mode="sign-up" />}
-
-          {showGoogleSignIn && (
+              {showGoogleSignIn && (
             <>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -262,14 +333,16 @@ export default function RegisterScreen() {
             </>
           )}
 
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => navigation.navigate("Login")}
-          >
-            <Text style={styles.linkText}>
-              Already have an account? Sign In
-            </Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.linkButton}
+                onPress={() => navigation.navigate("Login")}
+              >
+                <Text style={styles.linkText}>
+                  Already have an account? Sign In
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           <View style={styles.legalLinks}>
             <Text style={styles.legalText}>
@@ -308,6 +381,53 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingVertical: 36,
+  },
+  eyebrow: {
+    color: "#86efac",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    marginBottom: 8,
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
+  verificationCard: {
+    width: "100%",
+  },
+  codeInput: {
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: 10,
+    paddingLeft: 26,
+    textAlign: "center",
+  },
+  expiryText: {
+    color: "rgba(255, 255, 255, 0.68)",
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  statusText: {
+    backgroundColor: "rgba(34, 197, 94, 0.14)",
+    borderColor: "rgba(74, 222, 128, 0.4)",
+    borderRadius: 12,
+    borderWidth: 1,
+    color: "#bbf7d0",
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 12,
+    padding: 12,
+    textAlign: "center",
+  },
+  errorText: {
+    color: "#fecaca",
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  mutedText: {
+    opacity: 0.5,
   },
   title: {
     fontSize: 34,

@@ -21,6 +21,8 @@ import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 
 const logo = require('../../../assets/property-peace-navbar-logo.png');
 
+type LoadStatus = 'loading' | 'success' | 'error';
+
 const firstString = (...values: any[]) => {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
@@ -51,7 +53,9 @@ export default function DashboardScreen() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadError, setLoadError] = useState(false);
+  const [propertiesStatus, setPropertiesStatus] = useState<LoadStatus>('loading');
+  const [maintenanceStatus, setMaintenanceStatus] = useState<LoadStatus>('loading');
+  const [notificationsStatus, setNotificationsStatus] = useState<LoadStatus>('loading');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const loadDashboard = useCallback(async () => {
@@ -61,10 +65,24 @@ export default function DashboardScreen() {
       NotificationAPI.getNotifications(),
     ]);
 
-    if (results[0].status === 'fulfilled') setProperties(results[0].value || []);
-    if (results[1].status === 'fulfilled') setMaintenance(results[1].value || []);
-    if (results[2].status === 'fulfilled') setNotifications((results[2].value || []).slice(0, 3));
-    setLoadError(results.some((result) => result.status === 'rejected'));
+    if (results[0].status === 'fulfilled') {
+      setProperties(results[0].value || []);
+      setPropertiesStatus('success');
+    } else {
+      setPropertiesStatus('error');
+    }
+    if (results[1].status === 'fulfilled') {
+      setMaintenance(results[1].value || []);
+      setMaintenanceStatus('success');
+    } else {
+      setMaintenanceStatus('error');
+    }
+    if (results[2].status === 'fulfilled') {
+      setNotifications(results[2].value || []);
+      setNotificationsStatus('success');
+    } else {
+      setNotificationsStatus('error');
+    }
     setLoading(false);
     setRefreshing(false);
   }, []);
@@ -105,6 +123,8 @@ export default function DashboardScreen() {
   }, [maintenance, notifications, properties]);
 
   const attentionCount = portfolio.openMaintenance + portfolio.unread;
+  const attentionDataAvailable = maintenanceStatus === 'success' && notificationsStatus === 'success';
+  const hasUnavailableData = propertiesStatus === 'error' || maintenanceStatus === 'error' || notificationsStatus === 'error';
 
   if (loading) {
     return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#2475cf" /></View>;
@@ -117,7 +137,7 @@ export default function DashboardScreen() {
         <View style={styles.topActions}>
           <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="Open notifications">
             <Ionicons name="notifications-outline" size={23} color="#0b3558" />
-            {portfolio.unread > 0 && <View style={styles.unreadDot} />}
+            {notificationsStatus === 'success' && portfolio.unread > 0 && <View style={styles.unreadDot} />}
           </TouchableOpacity>
           <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)}>
             {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
@@ -149,15 +169,19 @@ export default function DashboardScreen() {
         <Text style={styles.eyebrow}>YOUR LANDLORD DAY</Text>
         <Text style={styles.heroTitle}>{getGreeting()}, {firstName}.</Text>
         <Text style={styles.heroSubtitle}>
-          {attentionCount > 0 ? `${attentionCount} ${attentionCount === 1 ? 'item needs' : 'items need'} your attention.` : 'Your portfolio is caught up for now.'}
+          {!attentionDataAvailable
+            ? 'Some attention information is unavailable.'
+            : attentionCount > 0
+              ? `${attentionCount} ${attentionCount === 1 ? 'item needs' : 'items need'} your attention.`
+              : 'Your portfolio is caught up for now.'}
         </Text>
 
-        {loadError && (
-          <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82}>
+        {hasUnavailableData && (
+          <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable information">
             <Ionicons name="cloud-offline-outline" size={22} color="#a45f12" />
             <View style={styles.warningCopy}>
               <Text style={styles.warningTitle}>Some information is unavailable</Text>
-              <Text style={styles.warningText}>Tap to try loading it again.</Text>
+              <Text style={styles.warningText}>Retry unavailable information.</Text>
             </View>
           </TouchableOpacity>
         )}
@@ -166,7 +190,11 @@ export default function DashboardScreen() {
           <View style={styles.portfolioHeader}>
             <View>
               <Text style={styles.cardEyebrow}>PORTFOLIO SNAPSHOT</Text>
-              <Text style={styles.portfolioTitle}>{portfolio.properties} {portfolio.properties === 1 ? 'property' : 'properties'}</Text>
+              <Text style={styles.portfolioTitle}>
+                {propertiesStatus === 'success'
+                  ? `${portfolio.properties} ${portfolio.properties === 1 ? 'property' : 'properties'}`
+                  : 'Properties unavailable'}
+              </Text>
             </View>
             <TouchableOpacity style={styles.openButton} onPress={() => navigation.navigate('Properties')}>
               <Text style={styles.openButtonText}>Open</Text>
@@ -174,11 +202,11 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.statRow}>
-            <PortfolioStat label="Units" value={String(portfolio.units)} />
+            <PortfolioStat label="Units" value={propertiesStatus === 'success' ? String(portfolio.units) : 'Unavailable'} />
             <View style={styles.statDivider} />
-            <PortfolioStat label="Occupied" value={String(portfolio.occupied)} />
+            <PortfolioStat label="Occupied" value={propertiesStatus === 'success' ? String(portfolio.occupied) : 'Unavailable'} />
             <View style={styles.statDivider} />
-            <PortfolioStat label="Open repairs" value={String(portfolio.openMaintenance)} alert={portfolio.openMaintenance > 0} />
+            <PortfolioStat label="Open repairs" value={maintenanceStatus === 'success' ? String(portfolio.openMaintenance) : 'Unavailable'} alert={maintenanceStatus === 'success' && portfolio.openMaintenance > 0} />
           </View>
         </View>
 
@@ -200,12 +228,20 @@ export default function DashboardScreen() {
               <Text style={styles.textButtonLabel}>View all</Text>
             </TouchableOpacity>
           </View>
-          {notifications.length === 0 ? (
+          {notificationsStatus === 'error' ? (
+            <View style={styles.notificationError} accessibilityRole="alert">
+              <Text style={styles.notificationErrorTitle}>Notifications unavailable</Text>
+              <Text style={styles.emptyText}>Retry to load recent activity.</Text>
+              <TouchableOpacity onPress={loadDashboard} style={styles.inlineRetry} accessibilityRole="button">
+                <Text style={styles.textButtonLabel}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : notificationsStatus === 'success' && notifications.length === 0 ? (
             <View style={styles.emptyState}>
               <View style={styles.emptyIcon}><Ionicons name="checkmark" size={18} color="#2f8f46" /></View>
               <Text style={styles.emptyText}>No recent notifications.</Text>
             </View>
-          ) : notifications.map((notification: any) => (
+          ) : notifications.slice(0, 3).map((notification: any) => (
             <View key={String(notification.id || notification.Id)} style={styles.notificationRow}>
               <View style={styles.notificationDot} />
               <View style={styles.notificationCopy}>
@@ -306,6 +342,9 @@ const styles = StyleSheet.create({
   emptyState: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
   emptyIcon: { width: 32, height: 32, borderRadius: 11, backgroundColor: '#edf9ef', alignItems: 'center', justifyContent: 'center' },
   emptyText: { color: '#607080', fontSize: 14 },
+  notificationError: { paddingVertical: 8 },
+  notificationErrorTitle: { color: '#8d2923', fontSize: 15, fontWeight: '900', marginBottom: 4 },
+  inlineRetry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginTop: 4 },
   notificationRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#edf1f3' },
   notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2475cf', marginTop: 7, marginRight: 11 },
   notificationCopy: { flex: 1 },

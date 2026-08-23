@@ -10,6 +10,8 @@ class ApiClient {
   constructor() {
     this.httpClient = axios.create({
       baseURL: config.API_URL,
+      // verify-code issues an HttpOnly proof consumed by register.
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -35,6 +37,8 @@ class ApiClient {
       url.includes('/api/mfa/login/verify') ||
       url.includes('/api/user/google-user-info') ||
       url.includes('/api/user/check-email') ||
+      url.includes('/api/user/send-verification-code') ||
+      url.includes('/api/user/verify-code') ||
       url.includes('/api/demo-requests')
     );
   }

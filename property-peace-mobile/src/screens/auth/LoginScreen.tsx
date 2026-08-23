@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform, ScrollView } from 'react-native';
 import { useAppDispatch } from '../../store/hooks';
 import { login, googleLogin } from '../../store/user/user.slice';
 import { useNavigation } from '@react-navigation/native';
@@ -125,9 +125,14 @@ export default function LoginScreen() {
       style={styles.container}
     >
       <AuthMarketingBackground>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+        >
         <Animated.View
           style={[
-            styles.content,
+            styles.form,
             {
               opacity: entrance,
               transform: [{
@@ -225,6 +230,7 @@ export default function LoginScreen() {
             <Text style={styles.legalText}>.</Text>
           </View>
         </Animated.View>
+        </ScrollView>
       </AuthMarketingBackground>
     </KeyboardAvoidingView>
   );
@@ -236,10 +242,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#061e35',
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 28,
+  },
+  form: {
+    width: '100%',
   },
   title: {
     fontSize: 36,

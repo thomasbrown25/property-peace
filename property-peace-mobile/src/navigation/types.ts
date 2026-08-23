@@ -31,7 +31,7 @@ export type PropertiesStackParamList = {
   PropertiesList: undefined;
   PropertyDetail: { propertyId: string };
   AddProperty: undefined;
-  Checklists: { propertyId: string; propertyName?: string };
+
 };
 
 export type TenantsStackParamList = {
@@ -51,8 +51,6 @@ export type MaintenanceStackParamList = {
 
 export type LeasesStackParamList = {
   LeasesList: undefined;
-  LeaseDetail: { leaseId: string };
-  AddLease: undefined;
 };
 
 export type MessagesStackParamList = {
