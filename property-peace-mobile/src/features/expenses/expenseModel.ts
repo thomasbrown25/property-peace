@@ -83,7 +83,7 @@ export const validateExpenseStep = (form: ExpenseFormState, step: ExpenseStep): 
   if (step === 'details' || step === 'review') {
     if (parseAmount(form.amount) === null) errors.amount = 'Enter an amount greater than zero.';
     if (!isValidLocalDate(form.expenseDate)) errors.expenseDate = 'Enter a valid date.';
-    if (!Number.isInteger(form.propertyId) || form.propertyId <= 0) errors.propertyId = 'Choose a property.';
+    if (typeof form.propertyId !== 'number' || !Number.isInteger(form.propertyId) || form.propertyId <= 0) errors.propertyId = 'Choose a property.';
   }
   if (step === 'description' || step === 'review') {
     const description = form.description.trim();
@@ -110,12 +110,13 @@ export const validateExpenseReceipt = (receipt: { uri: string; fileName: string;
 };
 
 export const buildCreateExpensePayload = (form: ExpenseFormState, landlordId: number | null | undefined, paidDate: string): CreateExpensePayload => {
-  if (!Number.isInteger(landlordId) || landlordId <= 0) throw new Error('A landlord ID is required.');
+  if (typeof landlordId !== 'number' || !Number.isInteger(landlordId) || landlordId <= 0) throw new Error('A landlord ID is required.');
   if (Object.keys(validateExpenseStep(form, 'review')).length > 0) throw new Error('Expense form is invalid.');
   const amount = parseAmount(form.amount);
-  if (amount === null || !Number.isInteger(form.propertyId) || form.propertyId <= 0) throw new Error('Expense form is invalid.');
+  const propertyId = form.propertyId;
+  if (amount === null || typeof propertyId !== 'number' || !Number.isInteger(propertyId) || propertyId <= 0) throw new Error('Expense form is invalid.');
   return {
-    landlordId, propertyId: form.propertyId, unitId: form.unitId, name: form.description.trim(),
+    landlordId, propertyId, unitId: form.unitId, name: form.description.trim(),
     category: categorizeExpense(form.description).category, amount, expenseDate: form.expenseDate,
     isRecurring: false, isPaid: true, paidDate, billDate: form.expenseDate, dueDate: form.expenseDate,
   };

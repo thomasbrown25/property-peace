@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import * as model from '../src/features/expenses/expenseModel.ts';
+import { ExpenseAPI } from '../src/api/expenseAPI.ts';
+import { retryExpenseReceipt, submitExpense } from '../src/features/expenses/expenseSubmission.ts';
 
-let model;
-let loadError;
-try {
-  model = await import('../src/features/expenses/expenseModel.ts');
-} catch (error) {
-  loadError = error;
-}
-
-const required = () => {
-  assert.equal(loadError, undefined);
-  return model;
-};
+const required = () => model;
 
 const validForm = {
   amount: '125.50',
@@ -134,4 +126,67 @@ test('presents AI category or a review fallback', () => {
   assert.deepEqual(getTaxCategoryPresentation(null), { status: 'needs-review', label: 'Needs category review' });
   assert.deepEqual(getTaxCategoryPresentation(undefined), { status: 'needs-review', label: 'Needs category review' });
   assert.deepEqual(getTaxCategoryPresentation(99), { status: 'needs-review', label: 'Needs category review' });
+});
+
+const { buildCreateExpensePayload } = required();
+const payload = buildCreateExpensePayload(validForm, 42, '2026-08-22T15:00:00.000Z');
+const receipt = { uri: 'file://receipt.jpg', fileName: 'receipt.jpg', mimeType: 'image/jpeg', fileSize: 1000 };
+const createdExpense = { id: 99, name: payload.name, amount: payload.amount, taxCategory: 1 };
+
+class RecordingFormData {
+  entries = [];
+  append(name, value) { this.entries.push([name, value]); }
+}
+
+test('posts the focused payload to the expense endpoint', async () => {
+  const calls = [];
+  const client = { post: async (...args) => { calls.push(args); return { success: true, data: createdExpense }; } };
+  const api = new ExpenseAPI(client, () => new RecordingFormData());
+  assert.deepEqual(await api.createExpense(payload), createdExpense);
+  assert.deepEqual(calls[0], ['/api/Expense', payload]);
+});
+
+test('uploads React Native receipt metadata under the files field', async () => {
+  const form = new RecordingFormData();
+  const calls = [];
+  const api = new ExpenseAPI({ post: async (...args) => { calls.push(args); return { success: true, data: [] }; } }, () => form);
+  await api.uploadReceipt(99, receipt);
+  assert.equal(calls[0][0], '/api/ExpenseReceipt/99');
+  assert.deepEqual(form.entries, [['files', { uri: receipt.uri, name: receipt.fileName, type: receipt.mimeType }]]);
+});
+
+test('creates an expense without uploading when no receipt is selected', async () => {
+  let uploads = 0;
+  const api = { createExpense: async () => createdExpense, uploadReceipt: async () => { uploads += 1; } };
+  assert.deepEqual(await submitExpense(payload, null, api), { status: 'saved', expense: createdExpense });
+  assert.equal(uploads, 0);
+});
+
+test('returns saved after creating an expense and uploading its receipt', async () => {
+  const uploads = [];
+  const api = { createExpense: async () => createdExpense, uploadReceipt: async (...args) => { uploads.push(args); } };
+  assert.deepEqual(await submitExpense(payload, receipt, api), { status: 'saved', expense: createdExpense });
+  assert.deepEqual(uploads, [[createdExpense.id, receipt]]);
+});
+
+test('propagates a create failure without attempting receipt upload', async () => {
+  let uploads = 0;
+  const api = { createExpense: async () => { throw new Error('Create unavailable'); }, uploadReceipt: async () => { uploads += 1; } };
+  await assert.rejects(() => submitExpense(payload, receipt, api), /Create unavailable/);
+  assert.equal(uploads, 0);
+});
+
+test('receipt failure retains the created expense and retry never recreates it', async () => {
+  let creates = 0;
+  let uploads = 0;
+  const api = {
+    createExpense: async () => { creates += 1; return createdExpense; },
+    uploadReceipt: async () => { uploads += 1; if (uploads === 1) throw new Error('offline'); },
+  };
+  const result = await submitExpense(payload, receipt, api);
+  assert.equal(result.status, 'receipt-failed');
+  assert.equal(result.expense.id, createdExpense.id);
+  await retryExpenseReceipt(result.expense.id, receipt, api);
+  assert.equal(creates, 1);
+  assert.equal(uploads, 2);
 });
