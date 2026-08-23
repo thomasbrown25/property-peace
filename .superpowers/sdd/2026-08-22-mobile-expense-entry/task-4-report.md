@@ -36,7 +36,7 @@ The single progress rail is the only visual signature and corresponds directly t
 - Added a real Axios adapter regression: before the fix Axios transformed the receipt form to `{"files":{}}`; after the fix the adapter receives the original `FormData` with no retained JSON content type.
 - Added a pure request gate and screen `useRef` integration. Save and retry acquire it synchronously before starting an async request and release it in `finally`, preventing duplicate create/upload requests before React can re-render.
 - Wrapped the full camera/library permission-and-launch sequence in a safe actionable alert boundary, made Remove receipt a 44-point target, and grouped success actions in a horizontal wrapper so button flex cannot vertically expand the success screen.
-- Added narrow `cr-at-eol` attributes for the repository’s tracked CRLF `app.json` and `apiClient.ts`, making the requested raw historical `git diff --check` clean without churn to their content.
+- Removed the temporary whitespace attributes and mechanically normalized only the touched `app.json` and `apiClient.ts` blobs to LF, so the requested raw historical `git diff --check` is clean without policy masking.
 
 ### Fix-round verification
 
