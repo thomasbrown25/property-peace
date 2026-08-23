@@ -12,8 +12,10 @@ import {
   PropertiesStackParamList,
   TenantsStackParamList,
 } from './types';
+import type { DashboardStackParamList } from './types';
 
 import DashboardScreen from '../screens/landlord/DashboardScreen';
+import AddExpenseScreen from '../screens/landlord/AddExpenseScreen';
 import PropertiesScreen from '../screens/landlord/PropertiesScreen';
 import PropertyDetailScreen from '../screens/landlord/PropertyDetailScreen';
 import AddPropertyScreen from '../screens/landlord/AddPropertyScreen';
@@ -40,6 +42,7 @@ import ChecklistsNavigator from './ChecklistsNavigator';
 import { mainTabIconNames, resolveVisibleMainTabs, type MainTabComponentRegistry } from './mainTabModel';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const PropertiesStack = createNativeStackNavigator<PropertiesStackParamList>();
 const MaintenanceStack = createNativeStackNavigator<MaintenanceStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
@@ -53,6 +56,15 @@ const stackOptions = {
   headerStyle: { backgroundColor: '#fbf7f4' },
   contentStyle: { backgroundColor: '#fbf7f4' },
 };
+
+function DashboardNavigator() {
+  return (
+    <DashboardStack.Navigator screenOptions={stackOptions}>
+      <DashboardStack.Screen name="DashboardHome" component={DashboardScreen} options={{ headerShown: false }} />
+      <DashboardStack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: 'Add expense' }} />
+    </DashboardStack.Navigator>
+  );
+}
 
 function PropertiesNavigator() {
   return (
@@ -124,7 +136,7 @@ export default function MainNavigator() {
   const audience = maintenanceAudience(currentUser);
   const bottomInset = Math.max(insets.bottom, 8);
   const visibleComponents: MainTabComponentRegistry<React.ComponentType<any>> = {
-    DashboardScreen,
+    DashboardScreen: DashboardNavigator,
     PropertiesNavigator,
     ChecklistsNavigator,
     MaintenanceNavigator,

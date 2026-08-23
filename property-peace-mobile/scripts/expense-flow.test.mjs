@@ -7,6 +7,7 @@ import { ExpenseAPI } from '../src/api/expenseAPI.ts';
 import { getExpenseErrorMessage, retryExpenseReceipt, submitExpense } from '../src/features/expenses/expenseSubmission.ts';
 import { createRequestGate } from '../src/features/expenses/requestGate.ts';
 import { toLocalExpenseReceipt } from '../src/features/expenses/expenseReceiptModel.ts';
+import { addExpenseDashboardAction, navigateToAddExpense } from '../src/features/expenses/dashboardExpenseAction.ts';
 
 const required = () => model;
 
@@ -278,4 +279,18 @@ test('request gate denies a concurrent action until the first unresolved request
   assert.equal(gate.tryAcquire(), false);
   gate.release();
   assert.equal(gate.tryAcquire(), true);
+});
+
+test('dashboard Add expense action presents the expense copy and opens the AddExpense route', () => {
+  assert.deepEqual(addExpenseDashboardAction, {
+    icon: 'receipt-outline',
+    title: 'Add expense',
+    subtitle: 'Record a property expense',
+    color: '#8a5a12',
+    background: '#fff7e8',
+  });
+
+  let target;
+  navigateToAddExpense((route) => { target = route; });
+  assert.equal(target, 'AddExpense');
 });

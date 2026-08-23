@@ -15,8 +15,13 @@ export type AuthStackParamList = {
   };
 };
 
+export type DashboardStackParamList = {
+  DashboardHome: undefined;
+  AddExpense: undefined;
+};
+
 export type MainTabParamList = {
-  Dashboard: undefined;
+  Dashboard: NavigatorScreenParams<DashboardStackParamList> | undefined;
   Properties: undefined;
   Checklists: NavigatorScreenParams<ChecklistsStackParamList> | undefined;
   Maintenance: undefined;
