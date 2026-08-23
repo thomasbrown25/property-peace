@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as model from '../src/features/expenses/expenseModel.ts';
 import { ExpenseAPI } from '../src/api/expenseAPI.ts';
-import { retryExpenseReceipt, submitExpense } from '../src/features/expenses/expenseSubmission.ts';
+import { getExpenseErrorMessage, retryExpenseReceipt, submitExpense } from '../src/features/expenses/expenseSubmission.ts';
 
 const required = () => model;
 
@@ -128,6 +128,13 @@ test('presents AI category or a review fallback', () => {
   assert.deepEqual(getTaxCategoryPresentation(99), { status: 'needs-review', label: 'Needs category review' });
 });
 
+
+test('preserves API error messages and falls back when none are usable', () => {
+  assert.equal(getExpenseErrorMessage({ message: ' lower-case message ' }, 'Fallback.'), 'lower-case message');
+  assert.equal(getExpenseErrorMessage({ Message: ' Upper-case message ' }, 'Fallback.'), 'Upper-case message');
+  assert.equal(getExpenseErrorMessage({ message: '   ' }, 'Fallback.'), 'Fallback.');
+  assert.equal(getExpenseErrorMessage('offline', 'Fallback.'), 'Fallback.');
+});
 const { buildCreateExpensePayload } = required();
 const payload = buildCreateExpensePayload(validForm, 42, '2026-08-22T15:00:00.000Z');
 const receipt = { uri: 'file://receipt.jpg', fileName: 'receipt.jpg', mimeType: 'image/jpeg', fileSize: 1000 };
@@ -187,6 +194,7 @@ test('receipt failure retains the created expense and retry never recreates it',
   assert.equal(result.status, 'receipt-failed');
   assert.equal(result.expense.id, createdExpense.id);
   await retryExpenseReceipt(result.expense.id, receipt, api);
+  assert.equal(result.message, 'offline');
   assert.equal(creates, 1);
   assert.equal(uploads, 2);
 });
