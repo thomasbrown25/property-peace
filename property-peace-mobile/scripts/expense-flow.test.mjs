@@ -124,13 +124,23 @@ test('accepts one supported receipt at or below 10 MB', () => {
   assert.equal(normalizeSupportedImageMime(undefined, 'receipt.webp'), 'image/webp');
 });
 
-test('presents AI category or a review fallback', () => {
+test('presents API tax-category strings or a review fallback', () => {
   const { getTaxCategoryPresentation } = required();
-  assert.deepEqual(getTaxCategoryPresentation(1), { status: 'categorized', label: 'Repairs' });
-  assert.deepEqual(getTaxCategoryPresentation(0), { status: 'needs-review', label: 'Needs category review' });
-  assert.deepEqual(getTaxCategoryPresentation(null), { status: 'needs-review', label: 'Needs category review' });
-  assert.deepEqual(getTaxCategoryPresentation(undefined), { status: 'needs-review', label: 'Needs category review' });
-  assert.deepEqual(getTaxCategoryPresentation(99), { status: 'needs-review', label: 'Needs category review' });
+  for (const [taxCategory, label] of [
+    ['repairs', 'Repairs'], ['maintenance', 'Maintenance'], ['cleaning', 'Cleaning'], ['landscaping', 'Landscaping'],
+    ['utilities', 'Utilities'], ['water', 'Water'], ['sewer', 'Sewer'], ['garbage', 'Garbage'], ['internet', 'Internet'], ['phone', 'Phone'],
+    ['insurance', 'Insurance'], ['liabilityInsurance', 'Liability insurance'], ['propertyInsurance', 'Property insurance'],
+    ['propertyTaxes', 'Property taxes'], ['localTaxes', 'Local taxes'], ['stateTaxes', 'State taxes'],
+    ['propertyManagement', 'Property management'], ['legalFees', 'Legal fees'], ['accountingFees', 'Accounting fees'], ['professionalServices', 'Professional services'],
+    ['advertising', 'Advertising'], ['marketing', 'Marketing'], ['travel', 'Travel'], ['transportation', 'Transportation'], ['vehicleExpenses', 'Vehicle expenses'],
+    ['depreciation', 'Depreciation'], ['improvements', 'Improvements'], ['other', 'Other'], ['supplies', 'Supplies'], ['officeExpenses', 'Office expenses'],
+    ['bankFees', 'Bank fees'], ['interest', 'Interest'], ['mortgageInterest', 'Mortgage interest'], ['contractLabor', 'Contract labor'], ['services', 'Services'],
+  ]) {
+    assert.deepEqual(getTaxCategoryPresentation(taxCategory), { status: 'categorized', label });
+  }
+  for (const taxCategory of ['none', null, undefined, 'futureCategory']) {
+    assert.deepEqual(getTaxCategoryPresentation(taxCategory), { status: 'needs-review', label: 'Needs category review' });
+  }
 });
 
 
@@ -143,7 +153,7 @@ test('preserves API error messages and falls back when none are usable', () => {
 const { buildCreateExpensePayload } = required();
 const payload = buildCreateExpensePayload(validForm, 42, '2026-08-22T15:00:00.000Z');
 const receipt = { uri: 'file://receipt.jpg', fileName: 'receipt.jpg', mimeType: 'image/jpeg', fileSize: 1000 };
-const createdExpense = { id: 99, name: payload.name, amount: payload.amount, taxCategory: 1 };
+const createdExpense = { id: 99, name: payload.name, amount: payload.amount, taxCategory: 'repairs' };
 
 class RecordingFormData {
   entries = [];

@@ -1,12 +1,12 @@
 import type { AxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '../types';
-import type { CreateExpensePayload, LocalExpenseReceipt } from '../features/expenses/expenseModel';
+import type { CreateExpensePayload, LocalExpenseReceipt, TaxCategoryWireValue } from '../features/expenses/expenseModel';
 
 export interface ExpenseRecord {
   id: number;
   name: string;
   amount: number;
-  taxCategory: number | null;
+  taxCategory: TaxCategoryWireValue | null;
 }
 
 export interface ExpenseHttpClient {

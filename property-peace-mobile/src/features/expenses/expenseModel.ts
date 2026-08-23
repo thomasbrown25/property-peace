@@ -35,15 +35,17 @@ export interface CreateExpensePayload {
 export const EXPENSE_RECEIPT_MAX_BYTES = 10 * 1024 * 1024;
 
 const amountPattern = /^\d+(\.\d{1,2})?$/;
-const taxCategoryLabels: Record<number, string> = {
-  0: 'None', 1: 'Repairs', 2: 'Maintenance', 3: 'Cleaning', 4: 'Landscaping', 5: 'Utilities',
-  6: 'Water', 7: 'Sewer', 8: 'Garbage', 9: 'Internet', 10: 'Phone', 11: 'Insurance',
-  12: 'Liability insurance', 13: 'Property insurance', 14: 'Property taxes', 15: 'Local taxes',
-  16: 'State taxes', 17: 'Property management', 18: 'Legal fees', 19: 'Accounting fees',
-  20: 'Professional services', 21: 'Advertising', 22: 'Marketing', 23: 'Travel', 24: 'Transportation',
-  25: 'Vehicle expenses', 26: 'Depreciation', 27: 'Improvements', 28: 'Other', 29: 'Supplies',
-  30: 'Office expenses', 31: 'Bank fees', 32: 'Interest', 33: 'Mortgage interest',
-  34: 'Contract labor', 35: 'Services',
+export type TaxCategoryWireValue = string;
+
+const taxCategoryLabels: Record<TaxCategoryWireValue, string> = {
+  none: 'None', repairs: 'Repairs', maintenance: 'Maintenance', cleaning: 'Cleaning', landscaping: 'Landscaping',
+  utilities: 'Utilities', water: 'Water', sewer: 'Sewer', garbage: 'Garbage', internet: 'Internet', phone: 'Phone',
+  insurance: 'Insurance', liabilityInsurance: 'Liability insurance', propertyInsurance: 'Property insurance',
+  propertyTaxes: 'Property taxes', localTaxes: 'Local taxes', stateTaxes: 'State taxes',
+  propertyManagement: 'Property management', legalFees: 'Legal fees', accountingFees: 'Accounting fees', professionalServices: 'Professional services',
+  advertising: 'Advertising', marketing: 'Marketing', travel: 'Travel', transportation: 'Transportation', vehicleExpenses: 'Vehicle expenses',
+  depreciation: 'Depreciation', improvements: 'Improvements', other: 'Other', supplies: 'Supplies', officeExpenses: 'Office expenses',
+  bankFees: 'Bank fees', interest: 'Interest', mortgageInterest: 'Mortgage interest', contractLabor: 'Contract labor', services: 'Services',
 };
 
 const formatLocalDate = (date: Date) => {
@@ -122,7 +124,7 @@ export const buildCreateExpensePayload = (form: ExpenseFormState, landlordId: nu
   };
 };
 
-export const getTaxCategoryPresentation = (taxCategory: number | null | undefined) => {
-  const label = taxCategory === null || taxCategory === undefined || taxCategory === 0 ? undefined : taxCategoryLabels[taxCategory];
+export const getTaxCategoryPresentation = (taxCategory: TaxCategoryWireValue | null | undefined) => {
+  const label = taxCategory === null || taxCategory === undefined || taxCategory === 'none' ? undefined : taxCategoryLabels[taxCategory];
   return label ? { status: 'categorized' as const, label } : { status: 'needs-review' as const, label: 'Needs category review' };
 };
