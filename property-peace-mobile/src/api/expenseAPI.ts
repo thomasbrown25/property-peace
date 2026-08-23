@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '../types';
 import type { CreateExpensePayload, LocalExpenseReceipt } from '../features/expenses/expenseModel';
 
@@ -9,7 +10,7 @@ export interface ExpenseRecord {
 }
 
 export interface ExpenseHttpClient {
-  post<T>(url: string, data?: unknown): Promise<T>;
+  post<T>(url: string, data?: unknown, options?: AxiosRequestConfig): Promise<T>;
 }
 
 export class ExpenseAPI {
@@ -32,6 +33,6 @@ export class ExpenseAPI {
   async uploadReceipt(expenseId: number, receipt: LocalExpenseReceipt): Promise<void> {
     const form = this.createFormData();
     form.append('files', { uri: receipt.uri, name: receipt.fileName, type: receipt.mimeType } as any);
-    await this.client.post(`/api/ExpenseReceipt/${expenseId}`, form);
+    await this.client.post(`/api/ExpenseReceipt/${expenseId}`, form, { headers: { 'Content-Type': undefined } });
   }
 }

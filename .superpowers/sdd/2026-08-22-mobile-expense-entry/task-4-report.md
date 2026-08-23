@@ -29,3 +29,19 @@ The single progress rail is the only visual signature and corresponds directly t
 - The installed React Navigation version exports `UNSTABLE_usePreventRemove`; the screen aliases it locally as `usePreventRemove` to preserve the requested active-request navigation guard.
 - The pure receipt adapter intentionally keeps picker conversion Node-testable without importing Expo or using TSX source-regex tests. It repeats only the constrained MIME/size boundary so the screen can validate picker output before state changes under the project’s extensionless Node test setup.
 - Native rendering, device permissions, and date-picker presentation still need the Task 6/manual Expo smoke test; TypeScript and behavior tests cover the available non-native boundary.
+
+## Fix round 1: review findings
+
+- Corrected multipart transport at both boundaries. `ExpenseAPI` passes an explicit undefined `Content-Type` request header for receipt uploads, and `ApiClient` now preserves that override when it receives `FormData` instead of allowing the instance JSON default to survive. This authorized shared-client change is load-bearing for native receipt uploads.
+- Added a real Axios adapter regression: before the fix Axios transformed the receipt form to `{"files":{}}`; after the fix the adapter receives the original `FormData` with no retained JSON content type.
+- Added a pure request gate and screen `useRef` integration. Save and retry acquire it synchronously before starting an async request and release it in `finally`, preventing duplicate create/upload requests before React can re-render.
+- Wrapped the full camera/library permission-and-launch sequence in a safe actionable alert boundary, made Remove receipt a 44-point target, and grouped success actions in a horizontal wrapper so button flex cannot vertically expand the success screen.
+- Added narrow `cr-at-eol` attributes for the repository’s tracked CRLF `app.json` and `apiClient.ts`, making the requested raw historical `git diff --check` clean without churn to their content.
+
+### Fix-round verification
+
+- RED: actual Axios adapter observed `{"files":{}}` rather than `FormData` while its JSON default was active.
+- RED: `npm run test:expenses` failed with `ERR_MODULE_NOT_FOUND` for the new request gate.
+- GREEN: `npm run test:expenses` passed 22 tests.
+- GREEN: `npx tsc --noEmit` exited 0.
+- GREEN: `git diff --check 521976ba8053d9ba78f2d92dace70144b1d2c135..HEAD` was clean.

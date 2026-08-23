@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -30,6 +30,7 @@ import {
   type LocalExpenseReceipt,
 } from '../../features/expenses/expenseModel';
 import { toLocalExpenseReceipt } from '../../features/expenses/expenseReceiptModel';
+import { createRequestGate } from '../../features/expenses/requestGate';
 import {
   getExpenseErrorMessage,
   retryExpenseReceipt,
@@ -92,6 +93,7 @@ export default function AddExpenseScreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const requestGate = useRef(createRequestGate()).current;
 
   const loadProperties = useCallback(async () => {
     setPropertyLoading(true);
@@ -129,27 +131,26 @@ export default function AddExpenseScreen() {
   };
 
   const chooseReceipt = async (source: 'camera' | 'library') => {
-    const permission = source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Photo access needed', 'Allow photo access in your device settings to attach a receipt. You can still save this expense without one.');
-      return;
-    }
-
-    const response = source === 'camera'
-      ? await ImagePicker.launchCameraAsync(pickerOptions)
-      : await ImagePicker.launchImageLibraryAsync(pickerOptions);
-    if (response.canceled || !response.assets?.[0]) return;
     try {
+      const permission = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Photo access needed', 'Allow photo access in your device settings to attach a receipt. You can still save this expense without one.');
+        return;
+      }
+
+      const response = source === 'camera'
+        ? await ImagePicker.launchCameraAsync(pickerOptions)
+        : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+      if (response.canceled || !response.assets?.[0]) return;
       setReceipt(toLocalExpenseReceipt(response.assets[0]));
     } catch (error) {
-      Alert.alert('Receipt not added', getExpenseErrorMessage(error, 'Use a JPEG, PNG, or WebP image.'));
+      Alert.alert('Receipt not added', getExpenseErrorMessage(error, 'We could not access your camera or photo library. Try again or save without a receipt.'));
     }
   };
 
   const save = async () => {
-    if (submitting) return;
     const landlordId = Number(currentUser?.id ?? currentUser?.Id);
     const validation = validateExpenseStep(form, 'review');
     setErrors(validation);
@@ -162,6 +163,7 @@ export default function AddExpenseScreen() {
       setSaveError(Object.values(validation)[0]);
       return;
     }
+    if (!requestGate.tryAcquire()) return;
     setSubmitting(true);
     try {
       const payload = buildCreateExpensePayload(form, landlordId, new Date().toISOString());
@@ -169,12 +171,13 @@ export default function AddExpenseScreen() {
     } catch (error) {
       setSaveError(getExpenseErrorMessage(error, 'Expense could not be saved.'));
     } finally {
+      requestGate.release();
       setSubmitting(false);
     }
   };
 
   const retryReceipt = async () => {
-    if (!result || result.status !== 'receipt-failed' || submitting) return;
+    if (!result || result.status !== 'receipt-failed' || !requestGate.tryAcquire()) return;
     setSaveError(null);
     setSubmitting(true);
     try {
@@ -183,6 +186,7 @@ export default function AddExpenseScreen() {
     } catch (error) {
       setSaveError(getExpenseErrorMessage(error, 'Receipt could not be uploaded.'));
     } finally {
+      requestGate.release();
       setSubmitting(false);
     }
   };
@@ -201,8 +205,10 @@ export default function AddExpenseScreen() {
           <View style={styles.categoryRow}><Ionicons name={category.status === 'categorized' ? 'sparkles-outline' : 'alert-circle-outline'} size={18} color={category.status === 'categorized' ? '#2f8f46' : '#8a5a17'} /><Text style={styles.categoryText}>{category.label}</Text></View>
         </View>
         {saveError && <Text style={styles.inlineError}>{saveError}</Text>}
-        {receiptFailed && <ActionButton label="Retry receipt" onPress={() => void retryReceipt()} loading={submitting} secondary />}
-        <ActionButton label="Done" onPress={() => navigation.goBack()} />
+        <View style={styles.successActions}>
+          {receiptFailed && <ActionButton label="Retry receipt" onPress={() => void retryReceipt()} loading={submitting} secondary />}
+          <ActionButton label="Done" onPress={() => navigation.goBack()} />
+        </View>
       </View>
     );
   }
@@ -282,8 +288,8 @@ const styles = StyleSheet.create({
   field: { marginBottom: 22 }, fieldLabel: { color: '#0b3558', fontSize: 15, fontWeight: '900', marginBottom: 8 }, input: { minHeight: 50, borderRadius: 13, borderWidth: 1, borderColor: '#dce3e5', backgroundColor: '#fff', color: '#102d43', fontSize: 17, paddingHorizontal: 14 }, descriptionInput: { minHeight: 112, paddingTop: 13 }, counter: { color: '#71808b', fontSize: 12, textAlign: 'right', marginTop: 5 }, fieldError: { color: '#b23d3d', fontSize: 13, lineHeight: 18, marginTop: 6 },
   selector: { minHeight: 50, borderRadius: 13, borderWidth: 1, borderColor: '#dce3e5', backgroundColor: '#fff', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, selectorText: { color: '#102d43', fontSize: 16, fontWeight: '700' }, loadingRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10 }, muted: { color: '#607080', fontSize: 14, lineHeight: 20 }, notice: { backgroundColor: '#fff', borderColor: '#e3e9ed', borderWidth: 1, borderRadius: 13, padding: 14, gap: 8 }, textButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }, textButtonLabel: { color: '#2475cf', fontSize: 15, fontWeight: '900' },
   choiceList: { gap: 8 }, choice: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 13, borderWidth: 1, borderColor: '#dce3e5', backgroundColor: '#fff', borderRadius: 13 }, choiceSelected: { borderColor: '#2475cf', backgroundColor: '#eef6ff' }, choiceText: { flex: 1, color: '#102d43', fontSize: 15, fontWeight: '700' }, radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#94a4af', alignItems: 'center', justifyContent: 'center' }, radioSelected: { borderColor: '#2475cf' }, radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2475cf' },
-  help: { color: '#697987', fontSize: 13, lineHeight: 18, marginBottom: 10 }, receiptActions: { flexDirection: 'row', gap: 10 }, receiptPreview: { minHeight: 104, flexDirection: 'row', gap: 12, padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#dce3e5', backgroundColor: '#fff' }, receiptImage: { width: 82, height: 82, borderRadius: 9, backgroundColor: '#e9eef0' }, receiptCopy: { flex: 1, justifyContent: 'center', minWidth: 0 }, receiptName: { color: '#102d43', fontWeight: '900', fontSize: 14 }, removeButton: { minHeight: 36, justifyContent: 'center', alignSelf: 'flex-start' }, removeText: { color: '#b23d3d', fontSize: 13, fontWeight: '900' },
+  help: { color: '#697987', fontSize: 13, lineHeight: 18, marginBottom: 10 }, receiptActions: { flexDirection: 'row', gap: 10 }, receiptPreview: { minHeight: 104, flexDirection: 'row', gap: 12, padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#dce3e5', backgroundColor: '#fff' }, receiptImage: { width: 82, height: 82, borderRadius: 9, backgroundColor: '#e9eef0' }, receiptCopy: { flex: 1, justifyContent: 'center', minWidth: 0 }, receiptName: { color: '#102d43', fontWeight: '900', fontSize: 14 }, removeButton: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' }, removeText: { color: '#b23d3d', fontSize: 13, fontWeight: '900' },
   reviewSlip: { backgroundColor: '#fff', borderRadius: 17, borderWidth: 1, borderColor: '#e3e9ed', paddingHorizontal: 15, marginBottom: 16 }, reviewRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#edf0f1', gap: 3 }, reviewLabel: { color: '#70808c', fontSize: 12, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 }, reviewValue: { color: '#102d43', fontSize: 16, lineHeight: 22, fontWeight: '800' }, autoNote: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: '#edf9ef', borderRadius: 13, padding: 13, marginBottom: 16 }, autoNoteText: { flex: 1, color: '#245e35', fontSize: 13, lineHeight: 19 }, inlineError: { color: '#b23d3d', fontSize: 14, lineHeight: 20, marginBottom: 12 },
   actionRow: { flexDirection: 'row', gap: 10 }, button: { minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 17, flex: 1 }, buttonPrimary: { backgroundColor: '#2475cf' }, buttonSecondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfd9de' }, buttonCompact: { minWidth: 0 }, buttonDisabled: { opacity: 0.52 }, buttonText: { fontSize: 16, fontWeight: '900' }, buttonTextPrimary: { color: '#fff' }, buttonTextSecondary: { color: '#0b3558' },
-  successPage: { flex: 1, backgroundColor: '#fbf7f4', paddingHorizontal: 24, justifyContent: 'center' }, successMark: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2f8f46', marginBottom: 18 }, successTitle: { color: '#082941', fontSize: 30, fontWeight: '900', letterSpacing: -0.8 }, successCopy: { color: '#596b79', fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 22 }, resultSlip: { backgroundColor: '#fff', borderRadius: 17, borderWidth: 1, borderColor: '#e3e9ed', padding: 17, marginBottom: 18 }, resultName: { color: '#102d43', fontSize: 17, fontWeight: '900' }, resultAmount: { color: '#0b3558', fontSize: 28, fontWeight: '900', marginTop: 6 }, categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 }, categoryText: { color: '#30505f', fontSize: 14, fontWeight: '800' },
+  successPage: { flex: 1, backgroundColor: '#fbf7f4', paddingHorizontal: 24, justifyContent: 'center' }, successMark: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2f8f46', marginBottom: 18 }, successTitle: { color: '#082941', fontSize: 30, fontWeight: '900', letterSpacing: -0.8 }, successCopy: { color: '#596b79', fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 22 }, resultSlip: { backgroundColor: '#fff', borderRadius: 17, borderWidth: 1, borderColor: '#e3e9ed', padding: 17, marginBottom: 18 }, resultName: { color: '#102d43', fontSize: 17, fontWeight: '900' }, resultAmount: { color: '#0b3558', fontSize: 28, fontWeight: '900', marginTop: 6 }, categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 }, categoryText: { color: '#30505f', fontSize: 14, fontWeight: '800' }, successActions: { flexDirection: 'row', gap: 10 },
 });

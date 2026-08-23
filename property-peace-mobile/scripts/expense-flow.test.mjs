@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import axios from 'axios';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import * as model from '../src/features/expenses/expenseModel.ts';
 import { ExpenseAPI } from '../src/api/expenseAPI.ts';
 import { getExpenseErrorMessage, retryExpenseReceipt, submitExpense } from '../src/features/expenses/expenseSubmission.ts';
+import { createRequestGate } from '../src/features/expenses/requestGate.ts';
 import { toLocalExpenseReceipt } from '../src/features/expenses/expenseReceiptModel.ts';
 
 const required = () => model;
@@ -224,6 +226,7 @@ test('declares focused receipt permissions in iOS and Expo image-picker config',
 
   assert.equal(iosInfo.NSCameraUsageDescription, 'Take photos of maintenance issues or expense receipts.');
   assert.equal(iosInfo.NSPhotoLibraryUsageDescription, 'Choose photos of maintenance issues or expense receipts.');
+
   assert.equal(imagePickerConfig.cameraPermission, 'Take photos of maintenance issues or expense receipts.');
   assert.equal(imagePickerConfig.photosPermission, 'Choose photos of maintenance issues or expense receipts.');
 });
@@ -248,4 +251,31 @@ test('receipt failure retains the created expense and retry never recreates it',
   assert.equal(result.message, 'offline');
   assert.equal(creates, 1);
   assert.equal(uploads, 2);
+});
+test('uploads a receipt without Axios retaining the JSON default content type', async () => {
+  let observedConfig;
+  const client = axios.create({
+    headers: { 'Content-Type': 'application/json' },
+    adapter: async (config) => {
+      observedConfig = config;
+      return { data: { success: true, data: [] }, status: 200, statusText: 'OK', headers: {}, config };
+    },
+  });
+  const form = new FormData();
+  const append = form.append.bind(form);
+  form.append = (name, value) => append(name, new Blob([JSON.stringify(value)]), 'receipt.json');
+
+  await new ExpenseAPI(client, () => form).uploadReceipt(99, receipt);
+
+  const contentType = observedConfig.headers.getContentType();
+  assert.equal(observedConfig.data, form);
+  assert.notEqual(contentType, 'application/json');
+});
+
+test('request gate denies a concurrent action until the first unresolved request releases it', () => {
+  const gate = createRequestGate();
+  assert.equal(gate.tryAcquire(), true);
+  assert.equal(gate.tryAcquire(), false);
+  gate.release();
+  assert.equal(gate.tryAcquire(), true);
 });

@@ -111,11 +111,8 @@ class ApiClient {
 
       if (data) {
         if (data instanceof FormData) {
-          // For file uploads, let axios set Content-Type
           config.data = data;
-          if (config.headers) {
-            delete config.headers['Content-Type'];
-          }
+          config.headers = { ...config.headers, 'Content-Type': undefined };
         } else {
           config.data = data;
         }
