@@ -17,6 +17,7 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using brownstone_hub_api.Services.AzureBlobService;
 using brownstone_hub_api.Services.EmailVerificationService;
+using brownstone_hub_api.Services.BotChallenge;
 using brownstone_hub_api.Services.GoogleAuthService;
 using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Repositories.Conversations;
@@ -42,6 +43,7 @@ namespace brownstone_hub_api.Controllers
         BlobServiceClient blobServiceClient,
         IAzureBlobService azureBlobService,
         IEmailVerificationService emailVerificationService,
+        IBotChallengeVerifier botChallengeVerifier,
         IGoogleAuthService googleAuthService,
         IConversationRepository conversationRepository,
         IMessageRepository messageRepository,
@@ -60,6 +62,7 @@ namespace brownstone_hub_api.Controllers
         private readonly BlobServiceClient _blobServiceClient = blobServiceClient;
         private readonly IAzureBlobService _azureBlobService = azureBlobService;
         private readonly IEmailVerificationService _emailVerificationService = emailVerificationService;
+        private readonly IBotChallengeVerifier _botChallengeVerifier = botChallengeVerifier;
         private readonly IGoogleAuthService _googleAuthService = googleAuthService;
         private readonly IConversationRepository _conversationRepository = conversationRepository;
         private readonly IMessageRepository _messageRepository = messageRepository;
@@ -568,7 +571,9 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
         [AllowAnonymous] // Public endpoint - no authentication required
         [HttpPost("send-verification-code")]
-        public async Task<ActionResult<ServiceResponse<string>>> SendVerificationCode([FromBody] SendVerificationCodeDto request)
+        public async Task<ActionResult<ServiceResponse<string>>> SendVerificationCode(
+            [FromBody] SendVerificationCodeDto request,
+            CancellationToken cancellationToken)
         {
             // Validate model state
             if (!ModelState.IsValid)
@@ -583,6 +588,23 @@ This is an automated email from Property Peace. Please do not reply to this mess
             {
                 _logger.LogWarning("SendVerificationCode called with null or empty email");
                 return BadRequest(new { Message = "Email is required" });
+            }
+
+            var remoteIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var challenge = await _botChallengeVerifier.VerifyAsync(
+                request.BotChallengeToken,
+                remoteIp,
+                "public-signup-email",
+                cancellationToken);
+            if (!challenge.Success)
+            {
+                _logger.LogWarning(
+                    "Public signup bot challenge failed from {RemoteIp}. ErrorCodes={ErrorCodes}",
+                    remoteIp ?? "unknown",
+                    string.Join(",", challenge.ErrorCodes));
+                return BadRequest(ServiceResponse<string>.CreateError(
+                    "Security check required",
+                    "Please check the box to verify you are human, then try again."));
             }
 
             _logger.LogInformation("Sending verification code to {Email}", request.Email);
