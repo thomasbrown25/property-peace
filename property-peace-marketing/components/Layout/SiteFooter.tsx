@@ -19,7 +19,6 @@ export default function SiteFooter() {
 
   return (
     <footer className="relative overflow-hidden bg-[#061e35] text-white">
-      <div className="pointer-events-none absolute inset-0 opacity-[0.035]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.8) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.8) 1px, transparent 1px)', backgroundSize: '42px 42px' }} />
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="mb-12 flex flex-col gap-6 border-b border-white/15 pb-10 md:flex-row md:items-end md:justify-between">
           <div>
@@ -29,7 +28,7 @@ export default function SiteFooter() {
             </h2>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Link href="/how-it-works" className="inline-flex min-h-11 items-center font-bold text-emerald-300 transition-colors hover:text-emerald-200">
+            <Link href="/how-it-works" className="inline-flex min-h-11 items-center font-bold text-[#22c55e] transition-colors hover:text-green-400">
               See how it works →
             </Link>
             <Link href="/pricing" className="inline-flex min-h-11 items-center font-bold text-white transition-colors hover:text-white/80">
@@ -94,9 +93,9 @@ export default function SiteFooter() {
         <div className="mt-12 grid grid-cols-1 items-center gap-4 border-t border-white/15 pt-8 text-sm text-white/55 md:grid-cols-3">
           <p className="order-2 text-center md:order-1 md:text-left">© 2026 Property Peace. All rights reserved.</p>
           <div className="order-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 md:order-2">
-            <Link href="/terms" className="inline-flex min-h-10 items-center font-semibold text-emerald-300 transition-colors hover:text-emerald-200">Terms of Use</Link>
-            <Link href="/privacy" className="inline-flex min-h-10 items-center font-semibold text-emerald-300 transition-colors hover:text-emerald-200">Privacy Policy</Link>
-            <Link href="/sitemap" className="inline-flex min-h-10 items-center font-semibold text-emerald-300 transition-colors hover:text-emerald-200">Sitemap</Link>
+            <Link href="/terms" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Terms of Use</Link>
+            <Link href="/privacy" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Privacy Policy</Link>
+            <Link href="/sitemap" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Sitemap</Link>
           </div>
           <p className="order-3 text-center md:text-right">Created by Brownstone Hub LLC</p>
         </div>
