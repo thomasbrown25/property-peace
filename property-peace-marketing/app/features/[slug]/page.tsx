@@ -672,7 +672,6 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
       <>
         {structuredData()}
         <div className="relative overflow-hidden bg-white">
-          <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, #16a34a 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
           <div className="relative">
             {renderHero(
               'Percy Pilot Summaries: Your Entire Property Portfolio at a Glance',
@@ -734,7 +733,6 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
       <>
         {structuredData()}
         <div className="relative overflow-hidden bg-white">
-          <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, #16a34a 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
           <div className="relative">
             {renderHero(
               'Data-Driven Rent Estimates for Independent Landlords',
@@ -784,7 +782,6 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
       <>
         {structuredData()}
         <div className="relative overflow-hidden bg-white">
-          <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, #16a34a 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
           <div className="relative">
             {renderHero(
               <>Lease<span className="text-green-600">Shield</span></>,
@@ -840,7 +837,6 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
 
   const renderRentCollectionHero = () => (
     <div className="relative overflow-hidden bg-white">
-      <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, #0a2d52 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
       <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-24 sm:px-6 sm:pb-18 sm:pt-10 lg:px-8 lg:pb-20">
         <Link href="/features" className="mb-10 inline-flex items-center text-[#516A80] transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
@@ -888,7 +884,6 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
       {structuredData()}
       {isRentCollectionFeature ? renderRentCollectionHero() : isMaintenanceTrackingFeature ? renderMaintenanceTrackingHero() : (
         <div className="relative overflow-hidden bg-white">
-          <div className="absolute inset-0 pointer-events-none opacity-[0.04]" style={{ backgroundImage: 'radial-gradient(circle, #16a34a 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
           <div className="relative">
             {renderHero(
               restWords ? <>{restWords} <span className="text-green-600">{accentWord}</span></> : <span className="text-green-600">{accentWord}</span>,

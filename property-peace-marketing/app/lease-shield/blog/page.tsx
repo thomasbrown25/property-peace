@@ -73,13 +73,6 @@ export default function LeaseShieldBlogPage() {
         className="relative overflow-hidden"
         style={{ background: 'linear-gradient(160deg, #061e35 0%, #0a2d52 60%, #0d2040 100%)' }}
       >
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.05]"
-          style={{
-            backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
-          }}
-        />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 md:pt-24 md:pb-20">
           <Link
             href="/features/lease-shield"
@@ -118,8 +111,8 @@ export default function LeaseShieldBlogPage() {
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Link
                   href="https://app.propertypeace.io/register"
-                  className="inline-flex items-center justify-center gap-2 rounded-none bg-[#ff7a1a] px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-orange-950/20 transition-all hover:-translate-y-0.5 hover:bg-[#ff8f3d]"
-                  style={{ fontFamily: '"Inter", sans-serif' }}
+                  className="inline-flex items-center justify-center gap-2 rounded-none px-6 py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:brightness-95"
+                  style={{ fontFamily: '"Inter", sans-serif', background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}
                 >
                   Ask LeaseShield a Question
                   <FiZap className="h-4 w-4" />

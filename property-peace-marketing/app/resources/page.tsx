@@ -49,7 +49,6 @@ export default function ResourcesPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
 
       <section className="relative overflow-hidden bg-[#061e35] px-4 pb-16 pt-32 text-white sm:px-6 md:pb-20 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
         <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-emerald-400/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl" />
 
@@ -66,7 +65,7 @@ export default function ResourcesPage() {
               Explore practical guides and checklists for leases, tenants, rent records, maintenance, and the day-to-day systems that keep a small portfolio organized.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="#resource-library" className="inline-flex min-h-[52px] items-center justify-center gap-2 bg-green-700 px-6 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:bg-green-600">
+              <Link href="#resource-library" className="inline-flex min-h-[52px] items-center justify-center gap-2 px-6 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:brightness-95" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                 Browse resources
                 <FiArrowRight className="h-4 w-4" />
               </Link>

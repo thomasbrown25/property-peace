@@ -153,7 +153,6 @@ export default function TurboTenantComparisonPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
 
       <section className="relative overflow-hidden bg-[#061e35] px-4 pb-16 pt-32 text-white sm:px-6 md:pb-20 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
         <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-emerald-400/15 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">

@@ -129,7 +129,6 @@ export default function FeatureLandingPage({
       {faqSchema && <StructuredData data={faqSchema} />}
 
       <section className="relative overflow-hidden bg-white px-4 pt-20 pb-16 sm:px-6 sm:pt-24 sm:pb-20 lg:px-8">
-        <div className="absolute inset-0 pointer-events-none opacity-[0.05]" style={{ backgroundImage: "radial-gradient(circle, #16a34a 1px, transparent 1px)", backgroundSize: "28px 28px" }} />
         <div className="absolute left-1/2 top-0 h-[360px] w-[680px] -translate-x-1/2 rounded-full bg-green-200/50 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
           <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>

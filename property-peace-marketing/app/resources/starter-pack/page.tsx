@@ -89,7 +89,6 @@ export default function LandlordStarterPackPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
 
       <section className="relative overflow-hidden bg-[#061e35] px-4 pb-16 pt-32 text-white sm:px-6 md:pb-20 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
         <div className="pointer-events-none absolute -right-20 top-16 h-96 w-96 rounded-full bg-emerald-400/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl" />
 
@@ -112,7 +111,7 @@ export default function LandlordStarterPackPage() {
             <div className="border border-white/15 bg-white/[0.07] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.22)] backdrop-blur-sm md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Download the complete pack</p>
               <p className="mt-3 text-sm leading-6 text-white/65">One ZIP containing four printable PDFs, one editable spreadsheet, and a short README.</p>
-              <a href={`${base}/property-peace-landlord-starter-pack.zip`} download className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 bg-green-700 px-6 py-3.5 font-bold text-white transition hover:bg-green-600">
+              <a href={`${base}/property-peace-landlord-starter-pack.zip`} download className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 px-6 py-3.5 font-bold text-white transition hover:brightness-95" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                 <FiDownload className="h-5 w-5" /> Download all five resources
               </a>
               <p className="mt-3 text-center text-xs text-white/50">ZIP file • no email required</p>
