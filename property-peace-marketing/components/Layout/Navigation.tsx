@@ -390,7 +390,7 @@ export default function Navigation() {
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 lg:gap-8">
             {featuresCategories.map((category, index) => (
               <div key={index}>
-                <h3 className="text-xs font-semibold text-[#22c55e] uppercase tracking-wide mb-6">
+                <h3 className="text-xs font-semibold text-[#16a34a] uppercase tracking-wide mb-6">
                   {category.title}
                 </h3>
                 <ul className="space-y-4">
