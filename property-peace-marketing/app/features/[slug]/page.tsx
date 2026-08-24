@@ -501,7 +501,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   // ── shared hero + trust bar (Listings-style light bg) ─────────────────────
   const renderHero = (title: React.ReactNode, subtitle: string, badge?: string, ctaLabel?: string, trustItems?: string[]) => (
     <>
-      <div className="mx-auto max-w-6xl px-4 pb-14 pt-24 sm:px-6 sm:pb-18 sm:pt-10 lg:px-8 lg:pb-20">
+      <div className="mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
         <Link href="/features" className="mb-10 inline-flex items-center text-[#516A80] transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
@@ -671,7 +671,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     return (
       <>
         {structuredData()}
-        <div className="relative overflow-hidden bg-white">
+        <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
           <div className="relative">
             {renderHero(
               'Percy Pilot Summaries: Your Entire Property Portfolio at a Glance',
@@ -732,7 +732,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     return (
       <>
         {structuredData()}
-        <div className="relative overflow-hidden bg-white">
+        <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
           <div className="relative">
             {renderHero(
               'Data-Driven Rent Estimates for Independent Landlords',
@@ -781,7 +781,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     return (
       <>
         {structuredData()}
-        <div className="relative overflow-hidden bg-white">
+        <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
           <div className="relative">
             {renderHero(
               <>Lease<span className="text-green-600">Shield</span></>,
@@ -836,8 +836,8 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   const rentCollectionHeroTitle = ottoFeatureH1Overrides[slug] ?? 'Online Rent Collection for Independent Landlords';
 
   const renderRentCollectionHero = () => (
-    <div className="relative overflow-hidden bg-white">
-      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-24 sm:px-6 sm:pb-18 sm:pt-10 lg:px-8 lg:pb-20">
+    <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
+      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
         <Link href="/features" className="mb-10 inline-flex items-center text-[#516A80] transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
@@ -883,7 +883,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     <>
       {structuredData()}
       {isRentCollectionFeature ? renderRentCollectionHero() : isMaintenanceTrackingFeature ? renderMaintenanceTrackingHero() : (
-        <div className="relative overflow-hidden bg-white">
+        <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
           <div className="relative">
             {renderHero(
               restWords ? <>{restWords} <span className="text-green-600">{accentWord}</span></> : <span className="text-green-600">{accentWord}</span>,

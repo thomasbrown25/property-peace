@@ -13,6 +13,7 @@
     "test:marketing-shell": "npm run build && npm run test:navigation-surface && node --test scripts/navigation-render.contract.test.mjs",
     "test:visual-theme": "npm run build && node --test scripts/visual-theme.contract.test.mjs",
     "test:hero-background": "npm run build && node --test scripts/hero-background.contract.test.mjs",
+    "test:light-heroes": "npm run build && node --test scripts/light-hero.contract.test.mjs",
     "test:marketing-claims": "node scripts/check-marketing-claims.mjs",
     "generate-sitemap": "node scripts/generate-sitemap.mjs",
     "generate-rss": "node scripts/generate-rss.mjs"

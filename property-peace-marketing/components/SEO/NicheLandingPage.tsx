@@ -82,15 +82,18 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
     <div className="min-h-screen bg-white">
       {pageStructuredData && <StructuredData data={pageStructuredData} />}
       <main>
-        <section className="relative overflow-hidden bg-[#061e35] px-4 py-16 text-white sm:px-6 sm:py-24 lg:px-8">
+        <section
+          data-marketing-hero-theme="light"
+          className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
+        >
           <div className="relative z-10 mx-auto max-w-5xl text-center">
-            <p className="mb-5 inline-flex max-w-full items-center justify-center rounded-full border border-white/20 bg-white/[0.12] px-3.5 py-2 text-center text-[13px] font-semibold leading-snug text-blue-100 shadow-sm shadow-blue-950/20 backdrop-blur-sm sm:px-4 sm:text-sm">
+            <p className="mb-5 inline-flex max-w-full items-center justify-center rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-center text-[13px] font-semibold leading-snug text-[#16a34a] shadow-sm shadow-blue-950/20 backdrop-blur-sm sm:px-4 sm:text-sm">
               {config.eyebrow}
             </p>
-            <h1 className="mx-auto max-w-4xl text-[2.35rem] font-bold leading-[1.08] tracking-tight text-white drop-shadow-sm sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <h1 className="mx-auto max-w-4xl text-[2.35rem] font-bold leading-[1.08] tracking-tight text-[#061E35] drop-shadow-sm sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               {config.title}
             </h1>
-            <p className="mx-auto mt-5 max-w-3xl text-[17px] font-medium leading-8 text-white/[0.86] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="mx-auto mt-5 max-w-3xl text-[17px] font-medium leading-8 text-[#405A70] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
               {config.description}
             </p>
             <div className="mx-auto mt-7 grid max-w-[22rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:items-center sm:justify-center sm:gap-3">
@@ -98,14 +101,14 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
                 {config.primaryCta ?? 'Start free'}
                 <FiArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center rounded-none border border-white/25 bg-white/[0.12] px-4 py-3 text-sm font-bold text-white shadow-sm shadow-blue-950/20 backdrop-blur-sm transition hover:bg-white/[0.16] sm:min-h-[56px] rounded-none sm:px-7 sm:text-base">
+              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-bold text-[#061E35] shadow-sm shadow-blue-950/20 backdrop-blur-sm transition hover:bg-white/[0.16] sm:min-h-[56px] rounded-none sm:px-7 sm:text-base">
                 {config.secondaryCta ?? 'View pricing'}
               </Link>
             </div>
             <div className="mx-auto mt-7 grid max-w-[23rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center sm:gap-3">
               {config.proofPoints.map((point) => (
-                <span key={point} className="inline-flex min-h-[44px] items-center gap-2 rounded-2xl border border-white/12 bg-white/[0.105] px-3 py-2 text-left text-[13px] font-semibold leading-snug text-white/[0.90] shadow-sm shadow-blue-950/20 backdrop-blur-sm sm:min-h-0 sm:rounded-full sm:px-4 sm:text-sm">
-                  <FiCheck className="h-4 w-4 flex-shrink-0 text-blue-200" />
+                <span key={point} className="inline-flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 text-left text-[13px] font-semibold leading-snug text-[#405A70] shadow-sm shadow-blue-950/20 backdrop-blur-sm sm:min-h-0 sm:rounded-full sm:px-4 sm:text-sm">
+                  <FiCheck className="h-4 w-4 flex-shrink-0 text-[#16a34a]" />
                   {point}
                 </span>
               ))}

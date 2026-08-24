@@ -128,7 +128,10 @@ export default function FeatureLandingPage({
       <StructuredData data={softwareSchema} />
       {faqSchema && <StructuredData data={faqSchema} />}
 
-      <section className="relative overflow-hidden bg-white px-4 pt-20 pb-16 sm:px-6 sm:pt-24 sm:pb-20 lg:px-8">
+      <section
+        data-marketing-hero-theme="light"
+        className="relative overflow-hidden bg-white px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8"
+      >
         <div className="absolute left-1/2 top-0 h-[360px] w-[680px] -translate-x-1/2 rounded-full bg-green-200/50 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
           <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
