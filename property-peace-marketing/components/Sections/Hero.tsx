@@ -20,7 +20,7 @@ export default function Hero() {
         <div className="flex flex-col lg:min-h-[780px]">
 
           {/* Left Side - Content */}
-          <div className="flex items-start pb-14 pt-[7rem] sm:pt-28 lg:min-h-[780px] lg:w-[52%] lg:items-center lg:pt-[88px] xl:py-28 self-stretch">
+          <div className="flex items-start pb-14 pt-[7rem] sm:pt-28 lg:min-h-[780px] lg:w-[52%] lg:items-center lg:pt-[88px] xl:pb-28 self-stretch">
           <motion.div
             className="w-full text-center lg:text-left"
             initial={false}
