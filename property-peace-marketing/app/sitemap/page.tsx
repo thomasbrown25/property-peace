@@ -25,6 +25,8 @@ const sitemapSections = [
       { href: "/resources", label: "Landlord Resource Center" },
       { href: "/blog", label: "Blog" },
       { href: "/contact-us", label: "Contact" },
+      { href: "/about", label: "About Property Peace" },
+      { href: "/how-it-works", label: "How Property Peace Works" },
       { href: "/demo", label: "Watch Demo" },
     ],
   },

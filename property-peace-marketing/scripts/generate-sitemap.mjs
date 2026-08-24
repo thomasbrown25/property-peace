@@ -15,6 +15,8 @@ const staticPages = [
   { url: 'pricing', priority: '0.9', changefreq: 'monthly' },
   { url: 'resources', priority: '0.9', changefreq: 'weekly' },
   { url: 'resources/starter-pack', priority: '0.8', changefreq: 'monthly' },
+  { url: 'about', priority: '0.7', changefreq: 'monthly' },
+  { url: 'how-it-works', priority: '0.9', changefreq: 'monthly' },
   { url: 'comparison/turbotenant', priority: '0.8', changefreq: 'monthly' },
   { url: 'blog', priority: '0.8', changefreq: 'weekly' },
   { url: 'landlord-software', priority: '0.9', changefreq: 'monthly' },
