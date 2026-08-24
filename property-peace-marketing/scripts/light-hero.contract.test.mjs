@@ -49,37 +49,50 @@ test('shared feature pages render light heroes', () => {
   [...sharedFeatureRoutes, ...featureDetailRoutes].forEach(assertLightHero);
 });
 
-const readSource = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+function readLightHero(route) {
+  const html = readPage(route);
+  const openingMatch = html.match(lightTag);
+  assert.ok(openingMatch?.index !== undefined, `${route} should render a marked light hero`);
 
-function assertLightHeroPalette(source, label, hasQuietNavigation = false) {
-  ['#061E35', '#405A70', '#DCE6ED', '#16A34A'].forEach((token) => {
-    assert.ok(source.includes(token), `${label} should use ${token} in its marked light hero`);
-  });
+  const tagPattern = /<\/?(?:section|div)\b[^>]*>/gi;
+  tagPattern.lastIndex = openingMatch.index;
+  let depth = 0;
+
+  for (let tagMatch; (tagMatch = tagPattern.exec(html));) {
+    const tag = tagMatch[0];
+    if (tag.startsWith('</')) {
+      depth -= 1;
+    } else if (!tag.endsWith('/>')) {
+      depth += 1;
+    }
+
+    if (depth === 0) {
+      return html.slice(openingMatch.index, tagPattern.lastIndex);
+    }
+  }
+
+  assert.fail(`${route} should close its marked light hero`);
+}
+
+function assertRenderedLightHeroPalette(route, hasQuietNavigation = true) {
+  const hero = readLightHero(route);
+  assert.match(hero, /<h1[^>]*text-\[#061E35\]/, `${route} should render a navy heading`);
+  assert.match(hero, /<p[^>]*text-\[#405A70\]/, `${route} should render muted body copy`);
+  assert.match(hero, /<a(?=[^>]*href="\/pricing\/?")(?=[^>]*border-\[#DCE6ED\])(?=[^>]*text-\[#061E35\])[^>]*>/, `${route} should render a light bordered secondary action`);
+  assert.match(hero, /text-\[#16A34A\]/, `${route} should render green accents`);
 
   if (hasQuietNavigation) {
-    assert.ok(source.includes('#637083'), `${label} should use #637083 for quiet navigation`);
+    assert.match(hero, /text-\[#637083\]/, `${route} should render quiet navigation`);
   }
 }
 
-test('marked light hero sources use the shared palette', () => {
-  const featureLandingSource = readSource('components/Marketing/FeatureLandingPage.tsx');
-  const featureHeroStart = featureLandingSource.indexOf('data-marketing-hero-theme="light"');
-  const featureHero = featureLandingSource.slice(featureHeroStart, featureLandingSource.indexOf('<div className="rounded-[2rem]"', featureHeroStart));
+const paletteRoutes = [
+  ['lease/ai-lease-creation', true],
+  ['features/ai-summaries', true],
+  ['features/rent-collection', true],
+  ['features/lease-shield', false],
+];
 
-  const featureDetailSource = readSource('app/features/[slug]/page.tsx');
-  const sharedHeroStart = featureDetailSource.indexOf('const renderHero');
-  const sharedHero = featureDetailSource.slice(sharedHeroStart, featureDetailSource.indexOf('const renderMaintenanceTrackingHero', sharedHeroStart));
-  const rentHeroStart = featureDetailSource.indexOf('const renderRentCollectionHero');
-  const rentHero = featureDetailSource.slice(rentHeroStart, featureDetailSource.indexOf('return (', rentHeroStart));
-
-  const leaseShieldSource = readSource('app/features/lease-shield/page.tsx');
-  const leaseShieldHeroStart = leaseShieldSource.indexOf('data-marketing-hero-theme="light"');
-  const leaseShieldHero = leaseShieldSource.slice(leaseShieldHeroStart, leaseShieldSource.indexOf('<FeatureHeroMock', leaseShieldHeroStart));
-
-  [
-    [featureHero, 'FeatureLandingPage', true],
-    [sharedHero, 'shared feature detail hero', true],
-    [rentHero, 'Rent Collection hero', true],
-    [leaseShieldHero, 'LeaseShield hero'],
-  ].forEach(([source, label, hasQuietNavigation]) => assertLightHeroPalette(source, label, hasQuietNavigation));
+test('representative marked heroes render the shared palette', () => {
+  paletteRoutes.forEach(([route, hasQuietNavigation]) => assertRenderedLightHeroPalette(route, hasQuietNavigation));
 });
