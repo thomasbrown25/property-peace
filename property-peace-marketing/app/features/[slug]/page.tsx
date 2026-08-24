@@ -502,30 +502,30 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   const renderHero = (title: React.ReactNode, subtitle: string, badge?: string, ctaLabel?: string, trustItems?: string[]) => (
     <>
       <div className="mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
-        <Link href="/features" className="mb-10 inline-flex items-center text-[#516A80] transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
+        <Link href="/features" className="mb-10 inline-flex items-center text-[#637083] transition-colors hover:text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
             {badge && (
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-green-600 shadow-sm sm:px-4" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#16A34A] shadow-sm sm:px-4" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {badge}
               </div>
             )}
-            <h1 className="mb-5 text-[2.3rem] font-bold leading-[1.08] text-primary-main sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
-            <p className="mx-auto mb-7 max-w-2xl text-[17px] leading-relaxed text-[#737373] md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
+            <h1 className="mb-5 text-[2.3rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
+            <p className="mx-auto mb-7 max-w-2xl text-[17px] leading-relaxed text-[#405A70] md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
             <div className="mx-auto grid max-w-[22rem] grid-cols-2 justify-center gap-2.5 sm:flex sm:max-w-none sm:flex-row sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
               <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <FiZap className="h-4 w-4" />{ctaLabel ?? 'Get Started Free'}
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#E5E5E5] bg-white px-4 py-3 text-sm font-semibold text-primary-main shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-green-300 hover:text-green-600 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] hover:text-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 View Pricing
               </Link>
             </div>
             {(trustItems ?? []).length > 0 && (
-              <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-primary-main sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-[#405A70] sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {(trustItems ?? []).slice(0, 4).map((t) => (
-                  <span key={t} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#E5E5E5] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1"><FiCheck className="h-4 w-4 flex-shrink-0 text-green-600" />{t}</span>
+                  <span key={t} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1"><FiCheck className="h-4 w-4 flex-shrink-0 text-[#16A34A]" />{t}</span>
                 ))}
               </div>
             )}
@@ -784,7 +784,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
         <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
           <div className="relative">
             {renderHero(
-              <>Lease<span className="text-green-600">Shield</span></>,
+              <>Lease<span className="text-[#16A34A]">Shield</span></>,
               'Lease and landlord–tenant law answers sourced exclusively from government statutes, attorney general guides, and official .gov sites — never generic AI or random blogs.',
               'Premium Feature',
               'Try LeaseShield Free',
@@ -838,20 +838,20 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   const renderRentCollectionHero = () => (
     <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
       <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
-        <Link href="/features" className="mb-10 inline-flex items-center text-[#516A80] transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
+        <Link href="/features" className="mb-10 inline-flex items-center text-[#637083] transition-colors hover:text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
 
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#E5E5E5] bg-white px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-green-600 shadow-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#16A34A] shadow-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
               Rent Collection
             </div>
 
-            <h1 className="mb-5 text-[2.3rem] font-bold leading-[1.08] text-primary-main sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <h1 className="mb-5 text-[2.3rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               {rentCollectionHeroTitle}
             </h1>
-            <p className="mx-auto mb-7 max-w-2xl text-[17px] leading-relaxed text-[#737373] md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="mx-auto mb-7 max-w-2xl text-[17px] leading-relaxed text-[#405A70] md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
               {feature.shortDescription}
             </p>
 
@@ -859,15 +859,15 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
               <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <FiZap className="h-4 w-4" />Start free
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#E5E5E5] bg-white px-4 py-3 text-sm font-semibold text-primary-main shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-green-300 hover:text-green-600 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] hover:text-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 View Pricing
               </Link>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-primary-main sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-[#405A70] sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
               {['Track paid & overdue rent', 'Send reminders fast', 'Update the ledger automatically', 'Free for up to 5 units'].map((item) => (
-                <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#E5E5E5] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
-                  <FiCheck className="h-4 w-4 flex-shrink-0 text-green-600" />{item}
+                <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
+                  <FiCheck className="h-4 w-4 flex-shrink-0 text-[#16A34A]" />{item}
                 </span>
               ))}
             </div>
@@ -886,7 +886,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
         <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
           <div className="relative">
             {renderHero(
-              restWords ? <>{restWords} <span className="text-green-600">{accentWord}</span></> : <span className="text-green-600">{accentWord}</span>,
+              restWords ? <>{restWords} <span className="text-[#16A34A]">{accentWord}</span></> : <span className="text-[#16A34A]">{accentWord}</span>,
               feature.shortDescription,
               undefined,
               'Get Started Free',

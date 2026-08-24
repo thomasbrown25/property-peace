@@ -134,29 +134,29 @@ export default function FeatureLandingPage({
       >
         <div className="absolute left-1/2 top-0 h-[360px] w-[680px] -translate-x-1/2 rounded-full bg-green-200/50 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
-          <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition-colors hover:text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
+          <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-[#637083] transition-colors hover:text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>
             Features <FiChevronRight className="h-4 w-4" /> {categoryLabel}
           </Link>
 
           <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_0.98fr]">
             <div>
-              <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-3.5 py-2 text-[13px] font-bold leading-snug text-green-600 shadow-sm shadow-slate-950/20 backdrop-blur-sm sm:px-4 sm:text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
-                <Icon className="h-4 w-4 text-green-600" /> {eyebrow}
+              <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-[13px] font-bold leading-snug text-[#16A34A] shadow-sm shadow-slate-950/20 backdrop-blur-sm sm:px-4 sm:text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <Icon className="h-4 w-4 text-[#16A34A]" /> {eyebrow}
               </div>
-              <h1 className="mb-5 max-w-3xl text-[2.35rem] font-bold leading-[1.08] text-primary-main sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
-              <p className="mb-7 max-w-2xl text-[17px] leading-relaxed text-slate-600 md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
+              <h1 className="mb-5 max-w-3xl text-[2.35rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
+              <p className="mb-7 max-w-2xl text-[17px] leading-relaxed text-[#405A70] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
               <div className="grid max-w-[22rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:gap-3">
                 <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {primaryCta} <FiArrowRight className="h-4 w-4" />
                 </Link>
-                <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-[#061e35] shadow-sm shadow-slate-950/20 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-green-200 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm shadow-slate-950/20 backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {secondaryCta}
                 </Link>
               </div>
-              <div className="mt-7 grid max-w-[23rem] grid-cols-2 gap-2.5 text-[13px] font-medium text-slate-600 sm:flex sm:max-w-none sm:flex-wrap sm:gap-3 sm:text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mt-7 grid max-w-[23rem] grid-cols-2 gap-2.5 text-[13px] font-medium text-[#405A70] sm:flex sm:max-w-none sm:flex-wrap sm:gap-3 sm:text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {trustItems.map((item) => (
-                  <span key={item} className="inline-flex min-h-[44px] items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 leading-snug shadow-sm shadow-slate-950/20 backdrop-blur-sm sm:min-h-0 sm:rounded-full sm:py-1.5">
-                    <FiCheck className="h-4 w-4 text-green-600" /> {item}
+                  <span key={item} className="inline-flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 leading-snug shadow-sm shadow-slate-950/20 backdrop-blur-sm sm:min-h-0 sm:rounded-full sm:py-1.5">
+                    <FiCheck className="h-4 w-4 text-[#16A34A]" /> {item}
                   </span>
                 ))}
               </div>
