@@ -135,7 +135,7 @@ export default function LeaseShieldBlogPage() {
                 <p className="mb-3 text-sm font-semibold text-primary-main" style={{ fontFamily: '"Inter", sans-serif' }}>
                   “How long do I have to return a security deposit?”
                 </p>
-                <p className="mb-4 text-sm leading-relaxed text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="mb-4 text-sm leading-relaxed text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>
                   LeaseShield summarizes the applicable state rule, then links back to official statutes, housing agency pages, or attorney general guidance so you can verify the answer.
                 </p>
                 <div className="rounded-xl bg-[#f7fbff] p-4 text-sm text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>

@@ -86,6 +86,15 @@ function readLightHero(route) {
   assert.fail(`${route} should close its marked light hero`);
 }
 
+test('LeaseShield Blog preview renders approved body copy color', () => {
+  const hero = readLightHero('lease-shield/blog');
+  assert.match(
+    hero,
+    /<p(?=[^>]*text-\[#405A70\])[^>]*>LeaseShield summarizes the applicable state rule/,
+    'LeaseShield Blog preview should render #405A70 body copy',
+  );
+});
+
 function assertRenderedLightHeroPalette(route, hasQuietNavigation = true) {
   const hero = readLightHero(route);
   assert.match(hero, /<h1[^>]*text-\[#061E35\]/, `${route} should render a navy heading`);
