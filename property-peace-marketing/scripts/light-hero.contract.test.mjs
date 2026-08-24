@@ -49,6 +49,12 @@ test('shared feature pages render light heroes', () => {
   [...sharedFeatureRoutes, ...featureDetailRoutes].forEach(assertLightHero);
 });
 
+test('Maintenance Tracking renders a light framed-image hero', () => {
+  const html = readPage('features/maintenance-tracking');
+  assertLightHero('features/maintenance-tracking');
+  assert.match(html, /maintenance-tracking-hero\.jpg/);
+});
+
 const standaloneRoutes = [
   'about',
   'resources',

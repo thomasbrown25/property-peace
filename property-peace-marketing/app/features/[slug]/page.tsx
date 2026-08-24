@@ -541,39 +541,43 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
     const trustItems = feature.benefits.slice(0, 2);
 
     return (
-      <div className="relative overflow-hidden bg-[#061E35]">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/images/landing/maintenance-tracking-hero.jpg)' }}
-          aria-hidden="true"
-        />
-        <div className="absolute inset-0 bg-[#061E35]/68" aria-hidden="true" />
-        <div className="absolute inset-y-0 left-0 w-full bg-gradient-to-r from-[#061E35]/85 via-[#061E35]/58 to-[#061E35]/28" aria-hidden="true" />
-        <div className="relative mx-auto flex min-h-[560px] max-w-6xl flex-col justify-center px-4 pb-16 pt-28 text-center sm:min-h-[620px] sm:px-6 sm:pb-20 sm:pt-24 lg:min-h-[700px] lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-4xl">
-            <h1 className="mb-5 text-[2.3rem] font-bold leading-[1.08] text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Maintenance Tracking for <span className="text-green-400">Landlords</span>
+      <div
+        data-marketing-hero-theme="light"
+        className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC]"
+      >
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
+          <div className="text-center lg:text-left">
+            <Link href="/features" className="mb-8 inline-flex items-center text-sm font-semibold text-[#637083] hover:text-[#16a34a]">
+              <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
+            </Link>
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-[#16a34a]">Maintenance tracking</p>
+            <h1 className="text-[2.3rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl">
+              Maintenance Tracking for <span className="text-[#16a34a]">Landlords</span>
             </h1>
-            <p className="mx-auto mb-7 max-w-3xl text-[17px] leading-relaxed text-white/90 md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
-              {feature.shortDescription}
-            </p>
-
-            <div className="mx-auto grid max-w-[22rem] grid-cols-2 justify-center gap-2.5 sm:flex sm:max-w-none sm:flex-row sm:justify-center sm:gap-3">
-              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="mx-auto mt-6 max-w-2xl text-[17px] leading-relaxed text-[#405A70] md:text-xl lg:mx-0">{feature.shortDescription}</p>
+            <div className="mx-auto mt-8 grid max-w-[22rem] grid-cols-2 gap-3 sm:flex sm:max-w-none lg:mx-0">
+              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[56px] items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 font-semibold text-white hover:from-green-600 hover:to-green-700">
                 <FiZap className="h-4 w-4" />Get Started Free
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-white/60 bg-white/10 px-4 py-3 text-sm font-semibold text-white shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/20 sm:min-h-[56px] sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <Link href="/pricing" className="inline-flex min-h-[56px] items-center justify-center border border-[#DCE6ED] bg-white px-6 py-3 font-semibold text-[#061E35] hover:border-green-300 hover:text-[#16a34a]">
                 View Pricing
               </Link>
             </div>
-
-            <div className="mt-5 flex flex-wrap justify-center gap-2 text-[13px] font-semibold text-white/90" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <div className="mt-5 flex flex-wrap justify-center gap-2 text-[13px] font-semibold text-[#061E35] lg:justify-start">
               {trustItems.map((item) => (
-                <span key={item} className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-full border border-white/25 bg-white/15 px-3 py-1.5 leading-snug shadow-sm backdrop-blur-sm">
-                  <FiCheck className="h-4 w-4 flex-shrink-0 text-green-400" />{item}
+                <span key={item} className="inline-flex min-h-[38px] items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-3 py-1.5 shadow-sm">
+                  <FiCheck className="h-4 w-4 text-[#16a34a]" />{item}
                 </span>
               ))}
             </div>
+          </div>
+          <div className="overflow-hidden border border-[#DCE6ED] bg-white p-3 shadow-[0_24px_60px_rgba(6,30,53,0.12)]">
+            <div
+              className="min-h-[360px] bg-cover bg-center sm:min-h-[430px]"
+              style={{ backgroundImage: 'url(/images/landing/maintenance-tracking-hero.jpg)' }}
+              role="img"
+              aria-label="A landlord reviewing a maintenance visit at a rental property"
+            />
           </div>
         </div>
       </div>
