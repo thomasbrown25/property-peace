@@ -48,20 +48,20 @@ export default function ResourcesPage() {
     <main className="min-h-screen bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
 
-      <section className="relative overflow-hidden bg-[#061e35] px-4 pb-16 pt-32 text-white sm:px-6 md:pb-20 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-emerald-400/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl" />
+      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+        <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-[#16A34A]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
 
         <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#16A34A]">
               <FiCompass className="h-4 w-4" />
               Landlord Resource Center
             </div>
-            <h1 className="max-w-4xl text-4xl font-bold leading-tight sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <h1 className="max-w-4xl text-4xl font-bold leading-tight text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Clear guidance for the rental work that happens between the big moments.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/70 md:text-xl">
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#405A70] md:text-xl">
               Explore practical guides and checklists for leases, tenants, rent records, maintenance, and the day-to-day systems that keep a small portfolio organized.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -69,25 +69,25 @@ export default function ResourcesPage() {
                 Browse resources
                 <FiArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/blog" className="inline-flex min-h-[52px] items-center justify-center gap-2 border border-white/20 bg-white/[0.06] px-6 py-3.5 font-bold text-white transition hover:bg-white/10">
+              <Link href="/blog" className="inline-flex min-h-[52px] items-center justify-center gap-2 border border-[#DCE6ED] bg-white px-6 py-3.5 font-bold text-[#061E35] transition hover:bg-[#F7FAFC]">
                 View all articles
               </Link>
             </div>
           </div>
 
-          <div className="border border-white/12 bg-white/[0.07] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.22)] backdrop-blur-sm md:p-8">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Start with a practical resource</p>
-            <div className="mt-5 divide-y divide-white/10">
+          <div className="border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)] md:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#16A34A]">Start with a practical resource</p>
+            <div className="mt-5 divide-y divide-[#DCE6ED]">
               {featuredResources.map((resource) => (
                 <Link key={resource.slug} href={getResourceHref(resource)} className="group flex items-start gap-4 py-5 first:pt-0 last:pb-0">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center bg-emerald-300/12 text-emerald-200">
+                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center bg-[#F7FAFC] text-[#16A34A]">
                     <FiCheckCircle className="h-5 w-5" />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold uppercase tracking-[0.14em] text-white/50">{resource.type}</span>
-                    <span className="mt-1 block font-bold leading-snug text-white transition group-hover:text-emerald-200">{resource.title}</span>
+                    <span className="block text-xs font-bold uppercase tracking-[0.14em] text-[#637083]">{resource.type}</span>
+                    <span className="mt-1 block font-bold leading-snug text-[#061E35] transition group-hover:text-[#16A34A]">{resource.title}</span>
                   </span>
-                  <FiArrowRight className="mt-2 h-4 w-4 flex-shrink-0 text-white/45 transition group-hover:translate-x-1 group-hover:text-emerald-200" />
+                  <FiArrowRight className="mt-2 h-4 w-4 flex-shrink-0 text-[#637083] transition group-hover:translate-x-1 group-hover:text-[#16A34A]" />
                 </Link>
               ))}
             </div>

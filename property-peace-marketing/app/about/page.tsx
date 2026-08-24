@@ -62,44 +62,44 @@ export default function AboutPage() {
     <div className="min-h-screen bg-white">
       <StructuredData data={webPageSchema({ path: '/about/', name: 'About Property Peace', description })} />
 
-      <section className="relative overflow-hidden bg-[#061e35] px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-40 lg:px-8">
+      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
         <div className="pointer-events-none absolute -right-32 top-8 h-96 w-96 rounded-full bg-green-500/15 blur-3xl" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
           <div>
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.28em] text-[#22c55e]">About Property Peace</p>
-            <h1 className="max-w-3xl text-4xl font-bold leading-[1.02] tracking-[-0.045em] sm:text-5xl md:text-6xl lg:text-7xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="mb-5 text-xs font-bold uppercase tracking-[0.28em] text-[#16A34A]">About Property Peace</p>
+            <h1 className="max-w-3xl text-4xl font-bold leading-[1.02] tracking-[-0.045em] text-[#061E35] sm:text-5xl md:text-6xl lg:text-7xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Built for landlords who still know every door.
             </h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-white/70 md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-[#405A70] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
               Property Peace brings the daily work of a rental portfolio into one clear system, so independent landlords can spend less time rebuilding the story from spreadsheets, texts, and folders.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link href="/how-it-works" className="inline-flex min-h-12 items-center justify-center gap-2 px-7 py-3.5 font-bold text-white transition hover:brightness-95" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                 See how it works <FiArrowRight className="h-4 w-4" />
               </Link>
-              <Link href="/features" className="inline-flex min-h-12 items-center justify-center border border-white/20 px-7 py-3.5 font-semibold text-white transition hover:bg-white/10">
+              <Link href="/features" className="inline-flex min-h-12 items-center justify-center border border-[#DCE6ED] px-7 py-3.5 font-semibold text-[#061E35] transition hover:bg-[#F7FAFC]">
                 Explore features
               </Link>
             </div>
           </div>
 
-          <div className="relative mx-auto w-full max-w-lg border border-white/15 bg-white/[0.07] p-5 shadow-2xl backdrop-blur-sm sm:p-7">
-            <div className="mb-7 flex items-center justify-between border-b border-white/10 pb-5">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#22c55e]">Portfolio signal</span>
-              <span className="h-2.5 w-2.5 rounded-full bg-[#22c55e] shadow-[0_0_0_7px_rgba(34,197,94,0.16)]" />
+          <div className="relative mx-auto w-full max-w-lg border border-[#DCE6ED] bg-white p-5 shadow-[0_24px_60px_rgba(6,30,53,0.10)] sm:p-7">
+            <div className="mb-7 flex items-center justify-between border-b border-[#DCE6ED] pb-5">
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#061E35]">Portfolio signal</span>
+              <span className="h-2.5 w-2.5 rounded-full bg-[#16A34A] shadow-[0_0_0_7px_rgba(22,163,74,0.16)]" />
             </div>
             <div className="space-y-3">
               {['Leases stay connected', 'Rent records stay readable', 'Repairs keep their history', 'Documents stay with the property'].map((item, index) => (
-                <div key={item} className="flex items-center gap-4 border border-white/10 bg-[#082945] px-4 py-4">
-                  <span className="text-xs font-bold tabular-nums text-[#22c55e]">0{index + 1}</span>
-                  <span className="font-semibold text-white/90">{item}</span>
-                  <FiCheck className="ml-auto h-4 w-4 text-[#22c55e]" />
+                <div key={item} className="flex items-center gap-4 border border-[#DCE6ED] bg-[#F7FAFC] px-4 py-4">
+                  <span className="text-xs font-bold tabular-nums text-[#16A34A]">0{index + 1}</span>
+                  <span className="font-semibold text-[#061E35]">{item}</span>
+                  <FiCheck className="ml-auto h-4 w-4 text-[#16A34A]" />
                 </div>
               ))}
             </div>
-            <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-5">
+            <div className="mt-5 flex items-center gap-3 border-t border-[#DCE6ED] pt-5">
               <Image src="/images/logos/property-peace.png" alt="" width={150} height={44} className="h-auto w-32" />
-              <span className="ml-auto text-xs text-white/45">One calm record</span>
+              <span className="ml-auto text-xs text-[#405A70]">One calm record</span>
             </div>
           </div>
         </div>

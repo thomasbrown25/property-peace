@@ -49,6 +49,18 @@ test('shared feature pages render light heroes', () => {
   [...sharedFeatureRoutes, ...featureDetailRoutes].forEach(assertLightHero);
 });
 
+const standaloneRoutes = [
+  'about',
+  'resources',
+  'resources/starter-pack',
+  'comparison/turbotenant',
+  'lease-shield/blog',
+];
+
+test('standalone marketing pages render light heroes', () => {
+  standaloneRoutes.forEach(assertLightHero);
+});
+
 function readLightHero(route) {
   const html = readPage(route);
   const openingMatch = html.match(lightTag);
