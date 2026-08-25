@@ -5,7 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace brownstone_hub_api.Services.RentPaymentAccess;
 
-public sealed class RentPaymentAccessService(DataContext db, TimeProvider clock) : IRentPaymentAccessService
+public sealed class RentPaymentAccessService(
+    DataContext db,
+    TimeProvider clock,
+    IRentPaymentAccessNotificationService? notificationService = null,
+    ILogger<RentPaymentAccessService>? logger = null) : IRentPaymentAccessService
 {
     public async Task<RentPaymentAccessDto> GetForOrganizationAsync(
         int organizationId,
@@ -35,7 +39,9 @@ public sealed class RentPaymentAccessService(DataContext db, TimeProvider clock)
             if (request.Status == RentPaymentAccessStatus.Suspended)
                 throw new RentPaymentAccessInvalidTransitionException();
 
-            return MapOrganization(await ResubmitRejectedAsync(request, actorUserId, cancellationToken));
+            var resubmitted = await ResubmitRejectedAsync(request, actorUserId, cancellationToken);
+            await NotifyReviewersAsync(resubmitted, cancellationToken);
+            return MapOrganization(resubmitted);
         }
 
         var now = UtcNow();
@@ -58,6 +64,7 @@ public sealed class RentPaymentAccessService(DataContext db, TimeProvider clock)
         {
             await db.SaveChangesAsync(cancellationToken);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+            await NotifyReviewersAsync(request, cancellationToken);
             return MapOrganization(request);
         }
         catch (DbUpdateException exception) when (IsUniqueViolation(exception))
@@ -171,6 +178,46 @@ public sealed class RentPaymentAccessService(DataContext db, TimeProvider clock)
 
         await SaveMutationAsync(cancellationToken);
         return request;
+    }
+
+    private async Task NotifyReviewersAsync(
+        RentPaymentAccessRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (notificationService is null) return;
+
+        try
+        {
+            var detail = await MapAdminAsync(request, cancellationToken);
+            var result = await notificationService.NotifyReviewersAsync(detail, cancellationToken);
+            if (result.Failed > 0)
+            {
+                logger?.LogWarning(
+                    "Rent-payment access notification delivery for request {PublicId}, organization {OrganizationId}: {Attempted} attempted, {Accepted} accepted, {Failed} failed",
+                    request.PublicId,
+                    request.OrganizationId,
+                    result.Attempted,
+                    result.Accepted,
+                    result.Failed);
+            }
+            else
+            {
+                logger?.LogInformation(
+                    "Rent-payment access notification delivery for request {PublicId}, organization {OrganizationId}: {Attempted} attempted, {Accepted} accepted, {Failed} failed",
+                    request.PublicId,
+                    request.OrganizationId,
+                    result.Attempted,
+                    result.Accepted,
+                    result.Failed);
+            }
+        }
+        catch (Exception exception)
+        {
+            logger?.LogWarning(exception,
+                "Rent-payment access notification delivery failed for request {PublicId}, organization {OrganizationId}",
+                request.PublicId,
+                request.OrganizationId);
+        }
     }
 
     private async Task<RentPaymentAccessAdminDetailDto> TransitionAsync(

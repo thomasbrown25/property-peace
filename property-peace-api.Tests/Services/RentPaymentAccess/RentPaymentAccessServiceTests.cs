@@ -4,6 +4,7 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.RentPaymentAccess;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace brownstone_hub_api.Tests.Services.RentPaymentAccess;
@@ -16,7 +17,18 @@ public sealed class RentPaymentAccessServiceTests
     public async Task First_request_creates_pending_request_and_one_audit_event()
     {
         await using var db = CreateContext();
-        var service = CreateService(db);
+        var notifier = new RecordingNotifier
+        {
+            Handler = request =>
+            {
+                db.RentPaymentAccessRequests.Count().Should().Be(1);
+                db.RentPaymentAccessAuditEvents.Count().Should().Be(1);
+                request.Status.Should().Be("Pending");
+                return Task.FromResult(new RentPaymentAccessNotificationResult(2, 0, 2));
+            }
+        };
+        var logger = new CapturingLogger<RentPaymentAccessService>();
+        var service = CreateService(db, notifier: notifier, logger: logger);
 
         var result = await service.RequestAsync(701, 41, CancellationToken.None);
 
@@ -33,14 +45,23 @@ public sealed class RentPaymentAccessServiceTests
         audit.NextStatus.Should().Be(RentPaymentAccessStatus.Pending);
         audit.ActorUserId.Should().Be(41);
         audit.OccurredAtUtc.Should().Be(InitialNow.UtcDateTime);
+        notifier.Requests.Should().ContainSingle();
+        logger.Messages.Should().ContainSingle(message =>
+            message.Contains(result.PublicId!.Value.ToString(), StringComparison.Ordinal) &&
+            message.Contains("organization 701", StringComparison.OrdinalIgnoreCase) &&
+            message.Contains("2 attempted", StringComparison.OrdinalIgnoreCase) &&
+            message.Contains("0 accepted", StringComparison.OrdinalIgnoreCase) &&
+            message.Contains("2 failed", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public async Task Request_while_pending_returns_existing_request_without_another_audit_event()
     {
         await using var db = CreateContext();
-        var service = CreateService(db);
+        var notifier = new RecordingNotifier();
+        var service = CreateService(db, notifier: notifier);
         var first = await service.RequestAsync(701, 41, CancellationToken.None);
+        notifier.Requests.Clear();
 
         var duplicate = await service.RequestAsync(701, 99, CancellationToken.None);
 
@@ -48,6 +69,7 @@ public sealed class RentPaymentAccessServiceTests
         (await db.RentPaymentAccessRequests.CountAsync()).Should().Be(1);
         (await db.RentPaymentAccessAuditEvents.CountAsync()).Should().Be(1);
         (await db.RentPaymentAccessRequests.SingleAsync()).RequestedByUserId.Should().Be(41);
+        notifier.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -58,7 +80,8 @@ public sealed class RentPaymentAccessServiceTests
         AddAudit(db, request, null, RentPaymentAccessStatus.Pending, 41);
         AddAudit(db, request, RentPaymentAccessStatus.Pending, RentPaymentAccessStatus.Approved, 8);
         await db.SaveChangesAsync();
-        var service = CreateService(db);
+        var notifier = new RecordingNotifier();
+        var service = CreateService(db, notifier: notifier);
 
         var result = await service.RequestAsync(701, 99, CancellationToken.None);
 
@@ -66,6 +89,7 @@ public sealed class RentPaymentAccessServiceTests
         request.Status.Should().Be(RentPaymentAccessStatus.Approved);
         request.RequestedByUserId.Should().Be(41);
         (await db.RentPaymentAccessAuditEvents.CountAsync()).Should().Be(2);
+        notifier.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -79,7 +103,16 @@ public sealed class RentPaymentAccessServiceTests
         request.ReviewedAtUtc = InitialNow.UtcDateTime;
         await db.SaveChangesAsync();
         var clock = new MutableTimeProvider(InitialNow.AddDays(2));
-        var service = CreateService(db, clock);
+        var notifier = new RecordingNotifier
+        {
+            Handler = detail =>
+            {
+                db.RentPaymentAccessRequests.Single().Status.Should().Be(RentPaymentAccessStatus.Pending);
+                db.RentPaymentAccessAuditEvents.Single().NextStatus.Should().Be(RentPaymentAccessStatus.Pending);
+                return Task.FromResult(new RentPaymentAccessNotificationResult(1, 1, 0));
+            }
+        };
+        var service = CreateService(db, clock, notifier);
 
         var result = await service.RequestAsync(701, 52, CancellationToken.None);
 
@@ -93,6 +126,8 @@ public sealed class RentPaymentAccessServiceTests
         var audit = await db.RentPaymentAccessAuditEvents.SingleAsync();
         audit.PriorStatus.Should().Be(RentPaymentAccessStatus.Rejected);
         audit.NextStatus.Should().Be(RentPaymentAccessStatus.Pending);
+        notifier.Requests.Should().ContainSingle(detail =>
+            detail.PublicId == result.PublicId && detail.RequestedAtUtc == result.RequestedAtUtc);
     }
 
     [Fact]
@@ -352,8 +387,13 @@ public sealed class RentPaymentAccessServiceTests
         await act.Should().ThrowAsync<RentPaymentAccessNotFoundException>();
     }
 
-    private static RentPaymentAccessService CreateService(DataContext db, TimeProvider? clock = null) =>
-        new(db, clock ?? new MutableTimeProvider(InitialNow));
+    private static RentPaymentAccessService CreateService(
+        DataContext db,
+        TimeProvider? clock = null,
+        IRentPaymentAccessNotificationService? notifier = null,
+        ILogger<RentPaymentAccessService>? logger = null) =>
+        new(db, clock ?? new MutableTimeProvider(InitialNow), notifier ?? new RecordingNotifier(),
+            logger ?? new CapturingLogger<RentPaymentAccessService>());
 
     private static DataContext CreateContext() => new(
         new DbContextOptionsBuilder<DataContext>()
@@ -400,5 +440,29 @@ public sealed class RentPaymentAccessServiceTests
     private sealed class MutableTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    private sealed class RecordingNotifier : IRentPaymentAccessNotificationService
+    {
+        public List<RentPaymentAccessAdminDetailDto> Requests { get; } = [];
+        public Func<RentPaymentAccessAdminDetailDto, Task<RentPaymentAccessNotificationResult>> Handler { get; init; } =
+            _ => Task.FromResult(new RentPaymentAccessNotificationResult(0, 0, 0));
+
+        public async Task<RentPaymentAccessNotificationResult> NotifyReviewersAsync(
+            RentPaymentAccessAdminDetailDto request,
+            CancellationToken cancellationToken)
+        {
+            Requests.Add(request);
+            return await Handler(request);
+        }
+    }
+
+    private sealed class CapturingLogger<T> : ILogger<T>
+    {
+        public List<string> Messages { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
     }
 }
