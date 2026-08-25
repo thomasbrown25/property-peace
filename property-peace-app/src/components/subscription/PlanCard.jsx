@@ -154,21 +154,13 @@ export default function PlanCard({
             <Box sx={{ flexGrow: 1 }}>
               {features.map((feature, index) => {
                 const isOnlineRentCollectionFeature = /online rent/i.test(feature);
-                const operationallyReady = !isOnlineRentCollectionFeature || rentReadiness?.canInvoke === true;
                 return (
-                  <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
-                    {operationallyReady ? (
-                      <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main', mr: 1, mt: 0.15, flexShrink: 0 }} />
-                    ) : (
-                      <Chip
-                        label={`Operational status: ${rentReadiness?.title || 'Unavailable'}`}
-                        size="small"
-                        variant="outlined"
-                        color={rentReadiness?.severity === 'error' ? 'error' : 'warning'}
-                        sx={{ mr: 1, height: 22, flexShrink: 0 }}
-                      />
-                    )}
+                  <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mb: 1 }}>
+                    <CheckCircleIcon sx={{ fontSize: 18, color: 'success.main', mt: 0.15, flexShrink: 0 }} />
                     <Typography variant="body2">{feature}</Typography>
+                    {isOnlineRentCollectionFeature && (
+                      <Chip label="Approval required" size="small" variant="outlined" color={rentReadiness?.canInvoke ? 'success' : 'default'} sx={{ height: 22, flexShrink: 0 }} />
+                    )}
                   </Box>
                 );
               })}

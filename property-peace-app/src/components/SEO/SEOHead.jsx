@@ -16,7 +16,7 @@ import { useEffect } from 'react';
  */
 const SEOHead = ({
   title = 'Property Management Software for Landlords | Property Peace',
-  description = 'Property management software for landlords with rent records, tenant management, lease workflows, and maintenance tracking. Property Peace does not currently process online rent payments. Start Free — free for up to 5 units.',
+  description = 'Property management software for landlords with rent records, tenant management, lease workflows, maintenance tracking, and secure rent collection. Online rent payments are included in Free after organization approval and setup. Start Free — free for up to 5 units.',
   keywords = 'property management software, landlord software, rental property management, property management app, rent collection software, tenant management software, property management system, landlord management software, rental management software, property management platform, best property management software for landlords, property management software for small landlords, free property management software, online rent collection software, tenant portal software, lease management software, property accounting software',
   canonical,
   ogImage = '/logo-with-text.png',

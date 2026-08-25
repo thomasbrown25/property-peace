@@ -308,7 +308,7 @@ export default function AdminSettingsForm() {
                   Enable all premium features on free plan
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Grants access to LeaseShield, Rent Estimates, Reports, and Online Rent Collection regardless of subscription plan
+                  Grants access to LeaseShield, Rent Estimates, and Reports regardless of subscription plan. Online rent payments are included in Free but still require organization approval and setup.
                 </Typography>
               </Box>
             }
