@@ -17,8 +17,7 @@ public sealed class RentPaymentAccessNotificationService(
 {
     private const string Subject = "Online rent collection request";
     private const string ButtonLabel = "Review rent-payment request";
-    private readonly string _frontendBaseUrl =
-        (configuration["FrontendBaseUrl"] ?? "https://app.propertypeace.io").TrimEnd('/');
+    private readonly Uri _frontendBaseUri = NormalizeFrontendBaseUrl(configuration["FrontendBaseUrl"]);
 
     public async Task<RentPaymentAccessNotificationResult> NotifyReviewersAsync(
         RentPaymentAccessAdminDetailDto request,
@@ -34,7 +33,7 @@ public sealed class RentPaymentAccessNotificationService(
             try
             {
                 var settings = await ResolveSettingsAsync(admin);
-                if (!settings.AdminNewUserNotifications.Email) continue;
+                if (!settings.EmailEnabled || !settings.AdminNewUserNotifications.Email) continue;
                 if (string.IsNullOrWhiteSpace(settings.EmailAddress)) continue;
 
                 attempted++;
@@ -86,7 +85,7 @@ public sealed class RentPaymentAccessNotificationService(
     private Message BuildMessage(RentPaymentAccessAdminDetailDto request)
     {
         var routeValue = Uri.EscapeDataString(request.PublicId.ToString());
-        var reviewUrl = $"{_frontendBaseUrl}/admin/rent-payment-access/{routeValue}";
+        var reviewUrl = new Uri(_frontendBaseUri, $"admin/rent-payment-access/{routeValue}").AbsoluteUri;
         var encodedOrganization = WebUtility.HtmlEncode(request.OrganizationName);
         var encodedRequester = WebUtility.HtmlEncode(request.RequestedBy);
         var encodedRequestedAt = WebUtility.HtmlEncode(FormatUtc(request.RequestedAtUtc));
@@ -102,6 +101,27 @@ public sealed class RentPaymentAccessNotificationService(
                    $"Requested at: {FormatUtc(request.RequestedAtUtc)}\n\n" +
                    $"{ButtonLabel}\n{reviewUrl}";
         return new Message(html, text);
+    }
+
+    private static Uri NormalizeFrontendBaseUrl(string? configuredValue)
+    {
+        var value = configuredValue?.Trim();
+        if (string.IsNullOrWhiteSpace(value) ||
+            !Uri.TryCreate(value, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            value.IndexOfAny(['?', '#']) >= 0)
+        {
+            throw new InvalidOperationException(
+                "FrontendBaseUrl must be an absolute HTTP(S) URI without a query string or fragment.");
+        }
+
+        var normalizedPath = uri.AbsolutePath.TrimEnd('/') + "/";
+        return new UriBuilder(uri)
+        {
+            Path = normalizedPath,
+            Query = string.Empty,
+            Fragment = string.Empty
+        }.Uri;
     }
 
     private static string FormatUtc(DateTime value) =>

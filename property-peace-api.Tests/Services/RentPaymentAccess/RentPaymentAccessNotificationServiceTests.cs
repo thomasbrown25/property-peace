@@ -59,6 +59,26 @@ public sealed class RentPaymentAccessNotificationServiceTests
     }
 
     [Fact]
+    public async Task Does_not_send_when_master_email_switch_is_disabled_even_if_admin_preference_is_enabled()
+    {
+        var users = new Mock<IUserRepository>();
+        users.Setup(repository => repository.GetAdminUsersAsync()).ReturnsAsync(
+            [new User { Id = 14, FirstName = "Opted", LastName = "Out", Email = "admin@example.test" }]);
+        var notificationSettings = EnabledSettings(14, "admin@example.test");
+        notificationSettings.EmailEnabled = false;
+        var settings = new Mock<INotificationSettingRepository>();
+        settings.Setup(repository => repository.GetNotificationSettings(14))
+            .ReturnsAsync(notificationSettings);
+        var email = new RecordingEmailService();
+        var service = CreateService(users.Object, settings.Object, email);
+
+        var result = await service.NotifyReviewersAsync(Request(), CancellationToken.None);
+
+        result.Should().Be(new RentPaymentAccessNotificationResult(0, 0, 0));
+        email.Messages.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Builds_a_scanner_safe_review_message_with_a_stable_transition_idempotency_token()
     {
         var users = new Mock<IUserRepository>();
@@ -92,6 +112,45 @@ public sealed class RentPaymentAccessNotificationServiceTests
         reviewUri!.AbsolutePath.Should()
             .EndWith($"/admin/rent-payment-access/{PublicId}");
         reviewUri.Query.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("http://console.example.test/root/", "http://console.example.test/root/admin/rent-payment-access/38d406ae-e3ea-4b7f-a5bc-9964eff631a8")]
+    [InlineData("https://console.example.test/root///", "https://console.example.test/root/admin/rent-payment-access/38d406ae-e3ea-4b7f-a5bc-9964eff631a8")]
+    public async Task Accepts_absolute_http_or_https_base_urls_and_normalizes_the_review_route(
+        string frontendBaseUrl,
+        string expectedReviewUrl)
+    {
+        var users = new Mock<IUserRepository>();
+        users.Setup(repository => repository.GetAdminUsersAsync()).ReturnsAsync(
+            [new User { Id = 22, FirstName = "Review", LastName = "Admin", Email = "admin@example.test" }]);
+        var settings = new Mock<INotificationSettingRepository>();
+        settings.Setup(repository => repository.GetNotificationSettings(22))
+            .ReturnsAsync(EnabledSettings(22, "rent-review@example.test"));
+        var email = new RecordingEmailService();
+        var service = CreateService(users.Object, settings.Object, email, frontendBaseUrl);
+
+        await service.NotifyReviewersAsync(Request(), CancellationToken.None);
+
+        email.Messages.Should().ContainSingle().Subject.ReviewUrl.Should().Be(expectedReviewUrl);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("not-an-absolute-url")]
+    [InlineData("ftp://console.example.test/root")]
+    [InlineData("https://console.example.test/root?theme=dark")]
+    [InlineData("https://console.example.test/root#review")]
+    public void Rejects_blank_malformed_non_http_query_or_fragment_base_urls(string frontendBaseUrl)
+    {
+        var act = () => CreateService(
+            Mock.Of<IUserRepository>(),
+            Mock.Of<INotificationSettingRepository>(),
+            new RecordingEmailService(),
+            frontendBaseUrl);
+
+        act.Should().Throw<InvalidOperationException>()
+            .WithMessage("*FrontendBaseUrl*");
     }
 
     [Fact]
@@ -197,7 +256,8 @@ public sealed class RentPaymentAccessNotificationServiceTests
 
         private static string ExtractReviewUrl(string text) =>
             text.Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Single(line => line.StartsWith("https://", StringComparison.Ordinal));
+                .Single(line => line.StartsWith("http://", StringComparison.Ordinal) ||
+                                line.StartsWith("https://", StringComparison.Ordinal));
     }
 
     private sealed record Message(
