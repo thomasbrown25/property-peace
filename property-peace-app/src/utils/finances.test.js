@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import {
   normalizeFinancesTab, updateFinancesSearch, buildFinancesMoneyQuery,
   buildActivityEntries, selectNeedsReviewItems, buildAccountActivity,
-  buildUpcomingEntries, sumCollectedThisMonth
+  buildUpcomingEntries, sumCollectedThisMonth, updateFinancesPropertyScope
 } from './finances.js';
 
 test('finances defaults to Activity and keeps shared scope when tabs change', () => {
@@ -14,8 +14,29 @@ test('finances defaults to Activity and keeps shared scope when tabs change', ()
   assert.equal(next.toString(), 'period=ytd&propertyId=12&unitId=3&tab=payments&status=completed');
 });
 
-test('finances uses year to date when URL has no period', () => {
-  assert.equal(buildFinancesMoneyQuery(new URLSearchParams(), new Date('2026-08-25T12:00:00Z')).from, '2026-01-01T00:00:00.000Z');
+test('finances uses year to date when URL period is absent or unsupported', () => {
+  const expected = {
+    from: '2026-01-01T00:00:00.000Z',
+    to: '2026-08-25T12:00:00.000Z',
+    upcomingDays: 30
+  };
+  const now = new Date('2026-08-25T12:00:00Z');
+  assert.deepEqual(buildFinancesMoneyQuery(new URLSearchParams(), now), expected);
+  assert.deepEqual(buildFinancesMoneyQuery(new URLSearchParams('period=unsupported'), now), expected);
+});
+
+test('matching property hydration preserves the existing unit scope', () => {
+  const current = new URLSearchParams('period=ytd&propertyId=12&unitId=3&tab=activity&account=Repairs');
+  const next = updateFinancesPropertyScope(current, 12);
+  assert.equal(next?.toString(), 'period=ytd&propertyId=12&unitId=3&tab=activity&account=Repairs');
+});
+
+test('changing or clearing property removes incompatible unit scope', () => {
+  const current = new URLSearchParams('period=ytd&propertyId=12&unitId=3&tab=activity&account=Repairs');
+  const changed = updateFinancesPropertyScope(current, 14);
+  const cleared = updateFinancesPropertyScope(current, undefined);
+  assert.equal(changed?.toString(), 'period=ytd&propertyId=14&tab=activity&account=Repairs');
+  assert.equal(cleared?.toString(), 'period=ytd&tab=activity&account=Repairs');
 });
 
 test('activity normalizes posted cash directions, excludes non-cash, and calculates newest-first running balance', () => {

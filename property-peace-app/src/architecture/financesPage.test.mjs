@@ -31,11 +31,12 @@ test('unified Finances shell keeps the approved navigation, actions, and right r
   assert.match(page, /onRecordPayment=\{\(\) => drawer\.openPaymentAddDrawer\(\)\}/);
   assert.match(page, /exportState=\{activeExport\}/);
 
-  assert.match(page, /useFinancesMoneyData\(searchParams, drawer\.financeMutationVersion\)/);
+  assert.match(page, /useFinancesMoneyData\(effectiveSearchParams, drawer\.financeMutationVersion\)/);
   assert.match(page, /useFinancesPayments\(propertyId, drawer\.financeMutationVersion\)/);
   assert.match(page, /localSelectedProperty=\{selectedProperty \|\| ALL_PROPERTIES_SCOPE\}/);
+  assert.match(page, /updateFinancesPropertyScope\(searchParams, property\?\.id\)/);
   assert.match(page, /sumCollectedThisMonth\(paymentsData\.payments, new Date\(\), propertyId\)/);
-  assert.match(page, /collectedThisMonthAvailable=\{paymentsData\.available\}/);
+  assert.match(page, /collectedThisMonthAvailable=\{[^}]*paymentsData\.available\}/);
   assert.match(metrics, /overview\?\.fieldAvailability\?\.cameIn/);
   assert.match(metrics, /overview\?\.fieldAvailability\?\.wentOut/);
   assert.match(metrics, /overview\?\.fieldAvailability\?\.recordedNetCashFlow/);
@@ -58,4 +59,14 @@ test('unified Finances shell keeps the approved navigation, actions, and right r
   assert.doesNotMatch(combined, /Spend by category/i);
   assert.doesNotMatch(combined, /connect(?:ed|ing)?\s+(?:a\s+)?bank|plaid/i);
   assert.doesNotMatch(combined, /coming soon/i);
+});
+
+test('finance metrics suppress retained values while their requested scope is loading', async () => {
+  const page = await source('pages/landlord/finances.jsx');
+
+  assert.match(page, /overview=\{moneyData\.loading \|\| moneyScopeChanged \? null : moneyData\.overview\}/);
+  assert.match(
+    page,
+    /collectedThisMonthAvailable=\{!paymentsData\.loading && !paymentsScopeChanged && paymentsData\.available\}/
+  );
 });

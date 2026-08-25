@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { PlusOutlined } from '@ant-design/icons';
 import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
@@ -13,7 +13,14 @@ import AccountActivityCard from 'sections/landlord/finances/AccountActivityCard'
 import CalculationDisclosure from 'sections/landlord/finances/CalculationDisclosure';
 import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
 import FinancesMetrics from 'sections/landlord/finances/FinancesMetrics';
-import { buildFinancesMoneyQuery, normalizeFinancesTab, sumCollectedThisMonth, updateFinancesSearch } from 'utils/finances';
+import {
+  buildFinancesMoneyQuery,
+  normalizeFinancesPeriod,
+  normalizeFinancesTab,
+  sumCollectedThisMonth,
+  updateFinancesPropertyScope,
+  updateFinancesSearch
+} from 'utils/finances';
 
 const FINANCES_TAB_LABELS = [
   ['review', 'Needs review'],
@@ -31,7 +38,6 @@ const PERIOD_OPTIONS = [
   ['custom', 'Custom dates']
 ];
 
-const PERIOD_VALUES = new Set(PERIOD_OPTIONS.map(([value]) => value));
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ALL_PROPERTIES_SCOPE = Object.freeze({});
 
@@ -41,13 +47,27 @@ export default function FinancesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { properties } = useFetchProperties();
   const activeTab = normalizeFinancesTab(searchParams.get('tab'));
-  const requestedPeriod = searchParams.get('period');
-  const period = PERIOD_VALUES.has(requestedPeriod) ? requestedPeriod : 'ytd';
-  const scopedQuery = useMemo(() => buildFinancesMoneyQuery(searchParams), [searchParams]);
+  const period = normalizeFinancesPeriod(searchParams.get('period'));
+  const effectiveSearchParams = useMemo(() => {
+    const effective = new URLSearchParams(searchParams);
+    effective.set('period', period);
+    return effective;
+  }, [period, searchParams]);
+  const scopedQuery = useMemo(() => buildFinancesMoneyQuery(effectiveSearchParams), [effectiveSearchParams]);
   const propertyId = scopedQuery.propertyId;
   const selectedProperty = properties?.find((property) => Number(property.id) === Number(propertyId)) || null;
-  const moneyData = useFinancesMoneyData(searchParams, drawer.financeMutationVersion);
+  const moneyData = useFinancesMoneyData(effectiveSearchParams, drawer.financeMutationVersion);
   const paymentsData = useFinancesPayments(propertyId, drawer.financeMutationVersion);
+  const moneyScopeKey = JSON.stringify({ ...scopedQuery, mutationVersion: drawer.financeMutationVersion });
+  const paymentsScopeKey = `${propertyId ?? 'all'}:${drawer.financeMutationVersion ?? 0}`;
+  const previousMoneyScopeRef = useRef(moneyScopeKey);
+  const previousPaymentsScopeRef = useRef(paymentsScopeKey);
+  const moneyScopeChanged = previousMoneyScopeRef.current !== moneyScopeKey;
+  const paymentsScopeChanged = previousPaymentsScopeRef.current !== paymentsScopeKey;
+  useEffect(() => {
+    previousMoneyScopeRef.current = moneyScopeKey;
+    previousPaymentsScopeRef.current = paymentsScopeKey;
+  }, [moneyScopeKey, paymentsScopeKey]);
   const collectedThisMonth = useMemo(
     () => sumCollectedThisMonth(paymentsData.payments, new Date(), propertyId),
     [paymentsData.payments, propertyId]
@@ -57,6 +77,7 @@ export default function FinancesPage() {
   const customRangeValid = ISO_DATE.test(customFrom) && ISO_DATE.test(customTo) && customFrom <= customTo;
 
   const updateSearch = (changes) => setSearchParams(updateFinancesSearch(searchParams, changes), { replace: true });
+  const setPropertyScope = (property) => setSearchParams(updateFinancesPropertyScope(searchParams, property?.id), { replace: true });
   const setTab = (tab) => updateSearch({ tab });
   const setPeriod = (nextPeriod) => updateSearch({
     period: nextPeriod,
@@ -71,14 +92,14 @@ export default function FinancesPage() {
   };
 
   const handleAccountNavigation = (account) => updateSearch({ tab: 'activity', account });
-  const activityExportDisabled = moneyData.loading || Boolean(moneyData.itemsError);
+  const activityExportDisabled = moneyData.loading || moneyScopeChanged || Boolean(moneyData.itemsError);
   const activeExport = activeTab === 'activity'
     ? {
         label: 'Export activity',
         onExport: moneyData.exportActivity,
         busy: moneyData.exporting,
         disabled: activityExportDisabled,
-        disabledReason: moneyData.loading ? 'Activity is still loading.' : moneyData.itemsError ? 'Activity records are unavailable.' : ''
+        disabledReason: moneyData.loading || moneyScopeChanged ? 'Activity is still loading.' : moneyData.itemsError ? 'Activity records are unavailable.' : ''
       }
     : {
         label: 'Export',
@@ -104,7 +125,7 @@ export default function FinancesPage() {
               label="Property"
               localSelectedProperty={selectedProperty || ALL_PROPERTIES_SCOPE}
               requestedPropertyId={propertyId}
-              onPropertyChange={(property) => updateSearch({ propertyId: property?.id, unitId: undefined })}
+              onPropertyChange={setPropertyScope}
             />
           </Box>
           <FormControl size="small" sx={{ minWidth: 170 }}>
@@ -129,19 +150,19 @@ export default function FinancesPage() {
       )}
 
       <FinancesMetrics
-        overview={moneyData.overview}
+        overview={moneyData.loading || moneyScopeChanged ? null : moneyData.overview}
         collectedThisMonth={collectedThisMonth}
-        collectedThisMonthAvailable={paymentsData.available}
+        collectedThisMonthAvailable={!paymentsData.loading && !paymentsScopeChanged && paymentsData.available}
         onSelectMetric={handleMetricNavigation}
       />
 
       <CalculationDisclosure
-        overview={moneyData.overview}
-        itemsResponse={moneyData.itemsResponse}
-        loading={moneyData.loading}
-        overviewError={moneyData.overviewError}
-        itemsError={moneyData.itemsError}
-        paymentsError={paymentsData.error}
+        overview={moneyData.loading || moneyScopeChanged ? null : moneyData.overview}
+        itemsResponse={moneyData.loading || moneyScopeChanged ? null : moneyData.itemsResponse}
+        loading={moneyData.loading || moneyScopeChanged}
+        overviewError={moneyData.loading || moneyScopeChanged ? '' : moneyData.overviewError}
+        itemsError={moneyData.loading || moneyScopeChanged ? '' : moneyData.itemsError}
+        paymentsError={paymentsData.loading || paymentsScopeChanged ? '' : paymentsData.error}
         exportError={moneyData.exportError}
         onRetry={moneyData.retry}
         onRetryPayments={paymentsData.retry}
@@ -168,8 +189,8 @@ export default function FinancesPage() {
           <Stack spacing={2}>
             <AccountActivityCard
               accounts={moneyData.accountActivity}
-              available={!moneyData.loading && !moneyData.itemsError}
-              loading={moneyData.loading}
+              available={!moneyData.loading && !moneyScopeChanged && !moneyData.itemsError}
+              loading={moneyData.loading || moneyScopeChanged}
               onSelectAccount={handleAccountNavigation}
             />
 

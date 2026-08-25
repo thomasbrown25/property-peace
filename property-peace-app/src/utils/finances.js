@@ -1,6 +1,7 @@
 import { buildMoneyCenterQuery } from './moneyCenter.js';
 
 export const FINANCES_TABS = ['review', 'activity', 'expenses', 'payments', 'upcoming'];
+export const FINANCES_PERIODS = ['this-month', 'last-month', 'ytd', 'last-year', 'custom'];
 
 export function normalizeFinancesTab(value) {
   return FINANCES_TABS.includes(value) ? value : 'activity';
@@ -16,9 +17,27 @@ export function updateFinancesSearch(current, changes = {}) {
   return next;
 }
 
+export function normalizeFinancesPeriod(value) {
+  return FINANCES_PERIODS.includes(value) ? value : 'ytd';
+}
+
+const propertyIdentity = (value) => {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : undefined;
+};
+
+export function updateFinancesPropertyScope(current, propertyId) {
+  const currentPropertyId = propertyIdentity(new URLSearchParams(current).get('propertyId'));
+  const nextPropertyId = propertyIdentity(propertyId);
+  return updateFinancesSearch(current, {
+    propertyId: nextPropertyId,
+    ...(currentPropertyId === nextPropertyId ? {} : { unitId: undefined })
+  });
+}
+
 export function buildFinancesMoneyQuery(search, now = new Date()) {
   const scoped = new URLSearchParams(search);
-  if (!scoped.get('period')) scoped.set('period', 'ytd');
+  scoped.set('period', normalizeFinancesPeriod(scoped.get('period')));
   return buildMoneyCenterQuery(scoped, now);
 }
 
