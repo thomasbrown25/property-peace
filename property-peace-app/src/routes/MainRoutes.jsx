@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import PropTypes from 'prop-types';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 // project imports
@@ -9,7 +10,7 @@ import ScreeningStaffRoute from 'components/auth/ScreeningStaffRoute';
 import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
 import EntitlementGate from 'components/entitlements/EntitlementGate';
 import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
-
+import { buildLegacyFinancesRedirect } from './legacyFinancesRedirect';
 
 // landlord pages (lazy-loaded)
 const Dashboard = Loadable(lazy(() => import('pages/landlord/dashboard')));
@@ -82,9 +83,7 @@ const ContactUs = Loadable(lazy(() => import('pages/landlord/contact-us')));
 const Files = Loadable(lazy(() => import('pages/landlord/files')));
 const Documents = Loadable(lazy(() => import('pages/landlord/documents')));
 const ToolsTabs = Loadable(lazy(() => import('pages/landlord/tools-tabs')));
-const Expenses = Loadable(lazy(() => import('pages/landlord/expenses')));
-const Payments = Loadable(lazy(() => import('pages/landlord/payments')));
-const Ledger = Loadable(lazy(() => import('pages/landlord/ledger')));
+const Finances = Loadable(lazy(() => import('pages/landlord/finances')));
 const ExpensesProperty = Loadable(lazy(() => import('pages/landlord/expenses-property')));
 const ExpenseAddWorkflow = Loadable(lazy(() => import('pages/landlord/expense-add-workflow')));
 const Messages = Loadable(lazy(() => import('pages/landlord/messages')));
@@ -134,7 +133,6 @@ const CollectionsAgent = Loadable(lazy(() => import('pages/landlord/collections-
 const MaintenanceAgent = Loadable(lazy(() => import('pages/landlord/maintenance-agent')));
 const RentCollection = Loadable(lazy(() => import('pages/landlord/rent-collection')));
 const RentCollectionSingle = Loadable(lazy(() => import('pages/landlord/rent-collection-single')));
-const MoneyActivity = Loadable(lazy(() => import('pages/landlord/money-activity')));
 
 // tenant pages (lazy-loaded)
 const TenantDashboard = Loadable(lazy(() => import('pages/tenant/dashboard')));
@@ -189,14 +187,15 @@ function LegacyLeaseBuilderRedirect() {
   return <Navigate to={buildLeaseBuilderRedirect(search)} replace />;
 }
 
-function LegacyMoneyRedirect() {
+function LegacyFinancesRedirect({ tab }) {
   const { propertyId } = useParams();
   const { search } = useLocation();
-  const searchParams = new URLSearchParams(search);
-  if (propertyId) searchParams.set('propertyId', propertyId);
-  const destination = searchParams.size > 0 ? `/landlord/money?${searchParams.toString()}` : '/landlord/money';
-  return <Navigate to={destination} replace />;
+  return <Navigate to={buildLegacyFinancesRedirect(search, { tab, propertyId })} replace />;
 }
+
+LegacyFinancesRedirect.propTypes = {
+  tab: PropTypes.oneOf(['activity', 'expenses', 'payments']).isRequired
+};
 
 const MainRoutes = {
   path: '/',
@@ -860,28 +859,24 @@ const MainRoutes = {
           element: <LegacyInspectionRedirect />
         },
         {
-          path: 'landlord/expenses',
+          path: 'landlord/finances',
           element: (
             <SubscriptionPausedGuard>
-              <Expenses />
+              <Finances />
             </SubscriptionPausedGuard>
           )
+        },
+        {
+          path: 'landlord/expenses',
+          element: <LegacyFinancesRedirect tab="expenses" />
         },
         {
           path: 'landlord/payments',
-          element: (
-            <SubscriptionPausedGuard>
-              <Payments />
-            </SubscriptionPausedGuard>
-          )
+          element: <LegacyFinancesRedirect tab="payments" />
         },
         {
           path: 'landlord/ledger',
-          element: (
-            <SubscriptionPausedGuard>
-              <Ledger />
-            </SubscriptionPausedGuard>
-          )
+          element: <LegacyFinancesRedirect tab="activity" />
         },
         {
           path: 'landlord/expense/add-workflow',
@@ -1193,15 +1188,15 @@ const MainRoutes = {
         },
         {
           path: 'landlord/money',
-          element: <MoneyActivity />
+          element: <LegacyFinancesRedirect tab="activity" />
         },
         {
           path: 'landlord/money-activity',
-          element: <LegacyMoneyRedirect />
+          element: <LegacyFinancesRedirect tab="activity" />
         },
         {
           path: 'money-activity/:propertyId',
-          element: <LegacyMoneyRedirect />
+          element: <LegacyFinancesRedirect tab="activity" />
         },
         {
           path: 'contact-us',

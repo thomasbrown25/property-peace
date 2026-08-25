@@ -4,6 +4,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import pages from '../menu-items/pages.js';
+
 const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = (relativePath) => readFile(path.join(srcRoot, relativePath), 'utf8');
 
@@ -17,20 +19,14 @@ test('dashboard rent reminder uses canonical rent collection navigation and no l
   assert.match(dashboard, /onClick: \(\) => navigate\('\/landlord\/rent-collection'\)/);
   assert.doesNotMatch(organizationApi, /updateAgentSettings|agent-settings/);
   assert.doesNotMatch(sharedOrganizationApi, /updateAgentSettings|agent-settings/);
-  await assert.rejects(
-    access(path.join(srcRoot, 'components/drawers/SendRentReminderDrawer.jsx')),
-    (error) => error?.code === 'ENOENT'
-  );
+  await assert.rejects(access(path.join(srcRoot, 'components/drawers/SendRentReminderDrawer.jsx')), (error) => error?.code === 'ENOENT');
 });
 
 test('landlord settings does not expose or retain the legacy AI Summary surface', async () => {
   const settings = await source('pages/landlord/settings.jsx');
 
   assert.doesNotMatch(settings, /AISummarySettings|AI Summary|aisummary/);
-  await assert.rejects(
-    access(path.join(srcRoot, 'sections/landlord/settings/AISummarySettings.jsx')),
-    (error) => error?.code === 'ENOENT'
-  );
+  await assert.rejects(access(path.join(srcRoot, 'sections/landlord/settings/AISummarySettings.jsx')), (error) => error?.code === 'ENOENT');
 });
 
 test('maintenance header uses the canonical request workflow rather than the retired agent route', async () => {
@@ -51,6 +47,22 @@ test('collection history copy and breadcrumbs point to canonical rent collection
   assert.match(history, /Rent collection activity will appear here as follow-ups are recorded\./);
 });
 
+test('landlord finance lists consolidate into one Accounting workspace', async () => {
+  const routes = await source('routes/MainRoutes.jsx');
+  const destinations = pages.find(({ id }) => id === 'group-landlord-navigation')?.children ?? [];
+  const accounting = destinations.find(({ id }) => id === 'accounting');
+
+  assert.match(routes, /import\('pages\/landlord\/finances'\)/);
+  assert.doesNotMatch(routes, /import\('pages\/landlord\/(expenses|payments|ledger|money-activity)'\)/);
+  assert.equal(
+    destinations.some(({ id }) => id === 'money-center'),
+    false
+  );
+  assert.deepEqual(
+    accounting?.children.map(({ title }) => title),
+    ['Finances', 'Rent Collection', 'Tax Center', 'Reports & Analytics']
+  );
+});
 test('Percy starter prompts and composer fail closed when the runtime is unavailable', async () => {
   const aiCenter = await source('pages/landlord/ai-center.jsx');
   const mobilePanel = aiCenter.slice(aiCenter.indexOf('{mobilePanelOpen &&'));

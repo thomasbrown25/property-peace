@@ -4,39 +4,66 @@ import { readFile } from 'node:fs/promises';
 
 const read = (relativePath) => readFile(new URL(relativePath, import.meta.url), 'utf8');
 
-test('money has a canonical route and legacy redirects retain query/property scope', async () => {
+test('finances is the guarded canonical finance-list route', async () => {
   const routes = await read('./MainRoutes.jsx');
-  assert.match(routes, /path: 'landlord\/money'/);
-  assert.match(routes, /path: 'landlord\/money-activity'[\s\S]*LegacyMoneyRedirect/);
-  assert.match(routes, /path: 'money-activity\/:propertyId'[\s\S]*LegacyMoneyRedirect/);
-  assert.match(routes, /searchParams\.set\('propertyId', propertyId\)/);
-  assert.match(routes, /`\/landlord\/money\?\$\{searchParams\.toString\(\)\}`/);
+
+  assert.match(routes, /const Finances = Loadable\(lazy\(\(\) => import\('pages\/landlord\/finances'\)\)\);/);
+  assert.doesNotMatch(routes, /const (Expenses|Payments|Ledger|MoneyActivity) = Loadable/);
+  assert.match(
+    routes,
+    /path: 'landlord\/finances',[\s\S]{0,200}<SubscriptionPausedGuard>[\s\S]{0,100}<Finances \/>[\s\S]{0,100}<\/SubscriptionPausedGuard>/
+  );
 });
 
-test('landlord navigation exposes Money and a grouped Accounting workspace', async () => {
-  const menu = await read('../menu-items/pages.js');
-  assert.match(menu, /id: 'money'[\s\S]*title: 'Money'[\s\S]*url: '\/landlord\/money'/);
-  assert.match(menu, /id: 'accounting'[\s\S]*title: 'Accounting'[\s\S]*type: 'collapse'/);
-  for (const title of ['Rent Collection', 'Payments', 'Expenses', 'Ledger', 'Tax Center']) {
-    assert.ok(menu.includes(`title: '${title}'`), `missing Accounting child ${title}`);
-  }
-  assert.doesNotMatch(menu, /id: 'reports'/);
-  assert.match(menu, /url: '\/landlord\/accounting\/tax-center'/);
-
+test('legacy finance-list routes redirect directly to the intended Finances tab', async () => {
   const routes = await read('./MainRoutes.jsx');
-  assert.match(routes, /path: 'landlord\/accounting\/tax-center'/);
-  assert.match(routes, /path: 'landlord\/reports'[\s\S]*Navigate to="\/landlord\/accounting\/tax-center"/);
-  assert.match(routes, /path: 'landlord\/reports\/tax'[\s\S]*Navigate to="\/landlord\/accounting\/tax-center"/);
+  const redirects = [
+    ['landlord/expenses', 'expenses'],
+    ['landlord/payments', 'payments'],
+    ['landlord/ledger', 'activity'],
+    ['landlord/money', 'activity'],
+    ['landlord/money-activity', 'activity'],
+    ['money-activity/:propertyId', 'activity']
+  ];
 
+  for (const [legacyPath, tab] of redirects) {
+    const escapedPath = legacyPath.replace(/[.*+?^$()|[\]\\]/g, '\\$&');
+    assert.match(
+      routes,
+      new RegExp("path: '" + escapedPath + '\',[\\s\\S]{0,120}<LegacyFinancesRedirect tab="' + tab + '" \\/>'),
+      legacyPath + ' must redirect directly to the ' + tab + ' tab'
+    );
+  }
+
+  assert.doesNotMatch(routes, /<Expenses \/>|<Payments \/>|<Ledger \/>|<MoneyActivity \/>/);
+});
+
+test('payment workflows and both Tax Center aliases remain real routes', async () => {
+  const routes = await read('./MainRoutes.jsx');
+
+  assert.match(routes, /path: 'landlord\/payments\/record',[\s\S]{0,200}<RecordPaymentPage \/>/);
+  assert.match(routes, /path: 'landlord\/payments\/add',[\s\S]{0,200}<PaymentAddWorkflow \/>/);
+  assert.match(routes, /path: 'landlord\/accounting\/tax-center',\s*element: <EntitlementGate><TaxReports \/><\/EntitlementGate>/);
+  assert.match(routes, /path: 'landlord\/money\/tax-center',\s*element: <EntitlementGate><TaxReports \/><\/EntitlementGate>/);
+});
+
+test('mobile navigation still renders grouped landlord sections accessibly', async () => {
   const mobile = await read('../layout/Dashboard/BottomNavBar/index.jsx');
+
   assert.match(mobile, /mobileLandlordSections/);
   assert.match(mobile, /section\.title/);
   assert.match(mobile, /section\.children\.map/);
 });
-
 test('financial reports use the filter-only API signatures and distinguish empty from failure', async () => {
   const financial = await read('../pages/landlord/reports/financial.jsx');
-  for (const method of ['getExpenseReport', 'getExpenseReportSummary', 'getExpenseReportByCategory', 'getPropertyProfitability', 'getYearOverYearComparison', 'getIncomeByYear']) {
+  for (const method of [
+    'getExpenseReport',
+    'getExpenseReportSummary',
+    'getExpenseReportByCategory',
+    'getPropertyProfitability',
+    'getYearOverYearComparison',
+    'getIncomeByYear'
+  ]) {
     assert.doesNotMatch(financial, new RegExp(`${method}\\(landlordId,`), `${method} still uses stale landlordId signature`);
   }
   assert.match(financial, /Loading financial reports/);

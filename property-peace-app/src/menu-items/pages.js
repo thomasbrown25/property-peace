@@ -8,9 +8,7 @@ import {
   UserOutlined,
   RocketOutlined,
   FormOutlined,
-  ArrowUpOutlined,
   NotificationOutlined,
-  FallOutlined,
   SafetyCertificateOutlined,
   ShopOutlined,
   AuditOutlined,
@@ -29,9 +27,7 @@ const icons = {
   UserOutlined,
   RocketOutlined,
   FormOutlined,
-  ArrowUpOutlined,
   NotificationOutlined,
-  FallOutlined,
   SafetyCertificateOutlined,
   ShopOutlined,
   AuditOutlined,
@@ -150,28 +146,6 @@ const pages = [
         icon: icons.MessageOutlined
       },
       {
-        id: 'money-center',
-        title: 'Money Center',
-        type: 'collapse',
-        icon: icons.DollarCircleOutlined,
-        children: [
-          {
-            id: 'money',
-            title: 'Money',
-            type: 'item',
-            url: '/landlord/money',
-            icon: icons.DollarCircleOutlined
-          },
-          {
-            id: 'rent-collection',
-            title: 'Rent Collection',
-            type: 'item',
-            url: '/landlord/rent-collection',
-            icon: icons.DollarCircleOutlined
-          }
-        ]
-      },
-      {
         id: 'leads',
         title: 'Leads & Showings',
         type: 'item',
@@ -221,32 +195,24 @@ const pages = [
         icon: icons.FundOutlined,
         children: [
           {
-            id: 'payments',
-            title: 'Payments',
+            id: 'finances',
+            title: 'Finances',
             type: 'item',
-            url: '/landlord/payments',
-            icon: icons.ArrowUpOutlined
+            url: '/landlord/finances',
+            icon: icons.DollarCircleOutlined
           },
           {
-            id: 'expenses',
-            title: 'Expenses',
+            id: 'rent-collection',
+            title: 'Rent Collection',
             type: 'item',
-            url: '/landlord/expenses',
-            icon: icons.FallOutlined
-          },
-
-          {
-            id: 'ledger',
-            title: 'Ledger',
-            type: 'item',
-            url: '/landlord/ledger',
-            icon: icons.FormOutlined
+            url: '/landlord/rent-collection',
+            icon: icons.DollarCircleOutlined
           },
           {
             id: 'tax-center',
             title: 'Tax Center',
             type: 'item',
-            url: '/landlord/money/tax-center',
+            url: '/landlord/accounting/tax-center',
             icon: icons.AuditOutlined
           },
           {
