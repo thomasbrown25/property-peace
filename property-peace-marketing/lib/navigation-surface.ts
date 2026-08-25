@@ -10,6 +10,20 @@ export interface NavigationSurfaceInput {
   mobileMenuOpen: boolean;
 }
 
+export interface NavigationRouteTransitionStateInput {
+  scrollY: number;
+}
+
+export function getNavigationRouteTransitionState({
+  scrollY,
+}: NavigationRouteTransitionStateInput) {
+  return {
+    scrolled: scrollY > 24,
+    pointerInside: false,
+    focusInside: false,
+  };
+}
+
 export function getNavigationSurface({
   pathname,
   desktopIntentEnabled,

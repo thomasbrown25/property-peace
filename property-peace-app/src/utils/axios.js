@@ -6,9 +6,11 @@ import {
   getActiveAccessToken,
   getActiveOrganizationId,
   getImpersonationRefreshToken,
+  isAdminSessionPersistent,
   isImpersonating,
   normalizeImpersonationResponse,
   notifyImpersonationExpired,
+  setAdminAccessToken,
   updateImpersonationAccessToken
 } from 'utils/impersonationSession';
 import { removeInheritedAuthContext } from 'utils/authRequestContext';
@@ -41,10 +43,11 @@ export const shouldRefreshToken = (token, windowSeconds = REFRESH_WINDOW_SECONDS
 
 export const refreshAccessToken = async () => {
   if (!refreshPromise) {
+    const isPersistent = isAdminSessionPersistent();
     refreshPromise = refreshClient.post('/api/user/refresh').then((response) => {
       const token = response.data?.data?.jwtToken || response.data?.data?.JWTToken;
       if (!token) throw new Error('Refresh response did not include an access token');
-      localStorage.setItem('serviceToken', token);
+      setAdminAccessToken(token, isPersistent);
       return token;
     }).finally(() => { refreshPromise = null; });
   }
@@ -99,8 +102,7 @@ export const checkImpersonationStatus = async () => {
 };
 
 const handleTokenExpiration = () => {
-  localStorage.removeItem('serviceToken');
-  localStorage.removeItem('token');
+  setAdminAccessToken(null);
   store.dispatch(logout());
   if (window.location.pathname !== '/login' && !window.location.pathname.startsWith('/register')) window.location.href = '/login';
 };

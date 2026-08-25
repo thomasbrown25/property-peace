@@ -202,7 +202,12 @@ function Hero({ locked, showUpgrade, presentationKind }) {
         }
       }}
     >
-      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={3}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', md: 'center' }}
+        spacing={3}
+      >
         <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 700 }}>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
             <Chip
@@ -221,7 +226,11 @@ function Hero({ locked, showUpgrade, presentationKind }) {
           </Typography>
         </Box>
 
-        <Stack direction={{ xs: 'column', sm: 'row', md: 'column' }} spacing={1.25} sx={{ width: { xs: '100%', sm: 'auto' }, position: 'relative', zIndex: 1 }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row', md: 'column' }}
+          spacing={1.25}
+          sx={{ width: { xs: '100%', sm: 'auto' }, position: 'relative', zIndex: 1 }}
+        >
           {locked && showUpgrade ? (
             <Button
               variant="contained"
@@ -245,7 +254,12 @@ function Hero({ locked, showUpgrade, presentationKind }) {
                 variant="outlined"
                 endIcon={<ArrowRightOutlined />}
                 onClick={() => navigate('/landlord/reports/financial')}
-                sx={{ minHeight: 44, color: '#fff', borderColor: alpha('#fff', 0.32), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) } }}
+                sx={{
+                  minHeight: 44,
+                  color: '#fff',
+                  borderColor: alpha('#fff', 0.32),
+                  '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) }
+                }}
               >
                 View financials
               </Button>
@@ -282,16 +296,29 @@ function FeaturedReport({ report, locked }) {
         cursor: locked ? 'default' : 'pointer',
         boxShadow: `0 6px 24px ${alpha(NAVY, 0.055)}`,
         transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease',
-        '&:hover': locked ? {} : { transform: 'translateY(-3px)', borderColor: alpha(report.color, 0.45), boxShadow: `0 14px 32px ${alpha(report.color, 0.12)}` },
+        '&:hover': locked
+          ? {}
+          : {
+              transform: 'translateY(-3px)',
+              borderColor: alpha(report.color, 0.45),
+              boxShadow: `0 14px 32px ${alpha(report.color, 0.12)}`
+            },
         '&:focus-visible': { outline: `3px solid ${alpha(report.color, 0.25)}`, outlineOffset: 2 }
       }}
     >
       <Stack height="100%" justifyContent="space-between" spacing={2}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-          <Avatar variant="rounded" sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: alpha(report.color, 0.11), color: report.color, fontSize: 20 }}>
+          <Avatar
+            variant="rounded"
+            sx={{ width: 44, height: 44, borderRadius: 2, bgcolor: alpha(report.color, 0.11), color: report.color, fontSize: 20 }}
+          >
             {report.icon}
           </Avatar>
-          {locked ? <LockOutlined style={{ color: theme.palette.text.disabled }} /> : <ArrowRightOutlined style={{ color: report.color }} />}
+          {locked ? (
+            <LockOutlined style={{ color: theme.palette.text.disabled }} />
+          ) : (
+            <ArrowRightOutlined style={{ color: report.color }} />
+          )}
         </Stack>
         <Box>
           <Typography sx={{ fontSize: '0.7rem', color: report.color, fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase' }}>
@@ -329,22 +356,39 @@ function ReportCard({ report, locked }) {
         cursor: locked ? 'default' : 'pointer',
         boxShadow: `0 3px 16px ${alpha(NAVY, 0.04)}`,
         transition: 'border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease',
-        '&:hover': locked ? {} : { transform: 'translateY(-2px)', borderColor: alpha(report.color, 0.38), boxShadow: `0 10px 26px ${alpha(report.color, 0.09)}` },
+        '&:hover': locked
+          ? {}
+          : {
+              transform: 'translateY(-2px)',
+              borderColor: alpha(report.color, 0.38),
+              boxShadow: `0 10px 26px ${alpha(report.color, 0.09)}`
+            },
         '&:focus-visible': { outline: `3px solid ${alpha(report.color, 0.22)}`, outlineOffset: 2 }
       }}
     >
       <Stack direction="row" spacing={1.5} alignItems="flex-start">
-        <Avatar variant="rounded" sx={{ width: 42, height: 42, borderRadius: 1.7, bgcolor: alpha(report.color, 0.1), color: report.color, flexShrink: 0 }}>
+        <Avatar
+          variant="rounded"
+          sx={{ width: 42, height: 42, borderRadius: 1.7, bgcolor: alpha(report.color, 0.1), color: report.color, flexShrink: 0 }}
+        >
           {report.icon}
         </Avatar>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
             <Typography fontWeight={750}>{report.title}</Typography>
-            {locked ? <LockOutlined style={{ color: theme.palette.text.disabled }} /> : <ArrowRightOutlined style={{ color: theme.palette.text.secondary, fontSize: 13 }} />}
+            {locked ? (
+              <LockOutlined style={{ color: theme.palette.text.disabled }} />
+            ) : (
+              <ArrowRightOutlined style={{ color: theme.palette.text.secondary, fontSize: 13 }} />
+            )}
           </Stack>
           <Typography sx={{ mt: 0.45, color: 'text.secondary', fontSize: '0.76rem', lineHeight: 1.5 }}>{report.description}</Typography>
           <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1.2 }}>
-            <Chip size="small" label={report.group} sx={{ height: 22, fontSize: '0.66rem', bgcolor: alpha(report.color, 0.08), color: report.color, fontWeight: 650 }} />
+            <Chip
+              size="small"
+              label={report.group}
+              sx={{ height: 22, fontSize: '0.66rem', bgcolor: alpha(report.color, 0.08), color: report.color, fontWeight: 650 }}
+            />
             <Typography sx={{ color: 'text.secondary', fontSize: '0.68rem' }}>{report.eyebrow}</Typography>
           </Stack>
         </Box>
@@ -370,7 +414,9 @@ function ReportLibrary({ locked }) {
   return (
     <Stack spacing={2.5}>
       <Box>
-        <Typography variant="h4" fontWeight={750}>Recommended starting points</Typography>
+        <Typography variant="h4" fontWeight={750}>
+          Recommended starting points
+        </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
           The reports landlords use most often for monthly reviews and year-end preparation.
         </Typography>
@@ -385,9 +431,16 @@ function ReportLibrary({ locked }) {
       </Grid>
 
       <Box sx={{ pt: 1 }}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'flex-end' }} spacing={2}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'stretch', md: 'flex-end' }}
+          spacing={2}
+        >
           <Box>
-            <Typography variant="h4" fontWeight={750}>Report library</Typography>
+            <Typography variant="h4" fontWeight={750}>
+              Report library
+            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Find the exact view you need by topic or keyword.
             </Typography>
@@ -397,7 +450,11 @@ function ReportLibrary({ locked }) {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search reports"
-            startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+            startAdornment={
+              <InputAdornment position="start">
+                <SearchOutlined />
+              </InputAdornment>
+            }
             sx={{ width: { xs: '100%', md: 270 }, minHeight: 44, bgcolor: 'background.paper' }}
           />
         </Stack>
@@ -437,9 +494,22 @@ function ReportLibrary({ locked }) {
       ) : (
         <Box sx={{ py: 7, px: 2, textAlign: 'center', borderRadius: 2.5, border: `1px dashed ${alpha(theme.palette.divider, 0.35)}` }}>
           <SearchOutlined style={{ fontSize: 28, color: theme.palette.text.disabled }} />
-          <Typography fontWeight={700} sx={{ mt: 1.5 }}>No reports match your search</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Try another keyword or choose a different topic.</Typography>
-          <Button size="small" onClick={() => { setQuery(''); setFilter('All reports'); }} sx={{ mt: 1.5, minHeight: 44 }}>Clear filters</Button>
+          <Typography fontWeight={700} sx={{ mt: 1.5 }}>
+            No reports match your search
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Try another keyword or choose a different topic.
+          </Typography>
+          <Button
+            size="small"
+            onClick={() => {
+              setQuery('');
+              setFilter('All reports');
+            }}
+            sx={{ mt: 1.5, minHeight: 44 }}
+          >
+            Clear filters
+          </Button>
         </Box>
       )}
     </Stack>
@@ -473,15 +543,28 @@ function AccessNotice({ kind, refresh }) {
           };
 
   return (
-    <Box aria-live="polite" sx={{ px: { xs: 2, md: 2.5 }, py: 1.75, borderRadius: 2.25, border: `1px solid ${alpha(GREEN, 0.24)}`, bgcolor: alpha(GREEN, 0.055) }}>
+    <Box
+      aria-live="polite"
+      sx={{ px: { xs: 2, md: 2.5 }, py: 1.75, borderRadius: 2.25, border: `1px solid ${alpha(GREEN, 0.24)}`, bgcolor: alpha(GREEN, 0.055) }}
+    >
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25} alignItems={{ xs: 'stretch', sm: 'center' }}>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="body2" fontWeight={750}>{content.title}</Typography>
-          <Typography variant="caption" color="text.secondary">{content.message}</Typography>
+          <Typography variant="body2" fontWeight={750}>
+            {content.title}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {content.message}
+          </Typography>
         </Box>
         {setup && (
-          <Button component={RouterLink} to="/landlord/setup" variant="contained" startIcon={<SettingOutlined />} sx={{ minHeight: 44 }}>
-            Continue setup
+          <Button
+            component={RouterLink}
+            to="/landlord/admin-members"
+            variant="contained"
+            startIcon={<SettingOutlined />}
+            sx={{ minHeight: 44 }}
+          >
+            Choose organization
           </Button>
         )}
         {unavailable && (
@@ -490,7 +573,13 @@ function AccessNotice({ kind, refresh }) {
           </Button>
         )}
         {upgrade && (
-          <Button component={RouterLink} to="/landlord/settings?tab=subscription" variant="contained" startIcon={<RocketOutlined />} sx={{ minHeight: 44 }}>
+          <Button
+            component={RouterLink}
+            to="/landlord/settings?tab=subscription"
+            variant="contained"
+            startIcon={<RocketOutlined />}
+            sx={{ minHeight: 44 }}
+          >
             View subscription
           </Button>
         )}
@@ -512,7 +601,11 @@ export default function ReportsDashboard() {
     return (
       <Box>
         <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Reports & Analytics' }]} />
-        <Box aria-live="polite" aria-busy="true" sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+        <Box
+          aria-live="polite"
+          aria-busy="true"
+          sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, justifyContent: 'center', alignItems: 'center', minHeight: 400 }}
+        >
           <CircularProgress aria-label="Checking reporting access" />
           <Typography color="text.secondary">Checking your reporting access…</Typography>
         </Box>

@@ -11974,6 +11974,9 @@ namespace brownstone_hub_api.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsPersistent")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ReplacedByTokenHash")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");

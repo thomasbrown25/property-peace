@@ -10,10 +10,8 @@ import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
 import EntitlementGate from 'components/entitlements/EntitlementGate';
 import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
 
-
 // landlord pages (lazy-loaded)
 const Dashboard = Loadable(lazy(() => import('pages/landlord/dashboard')));
-const LandlordSetup = Loadable(lazy(() => import('pages/landlord/setup')));
 const Calendar = Loadable(lazy(() => import('pages/landlord/calendar')));
 const Properties = Loadable(lazy(() => import('pages/landlord/properties')));
 const Tenants = Loadable(lazy(() => import('pages/landlord/tenants')));
@@ -178,9 +176,7 @@ const MaintenanceComingSoon = Loadable(lazy(() => import('pages/maintenance/comi
 
 function LegacyInspectionRedirect() {
   const { propertyId, unitId } = useParams();
-  const path = unitId
-    ? `/landlord/checklists/property/${propertyId}/unit/${unitId}`
-    : `/landlord/checklists/property/${propertyId}`;
+  const path = unitId ? `/landlord/checklists/property/${propertyId}/unit/${unitId}` : `/landlord/checklists/property/${propertyId}`;
   return <Navigate to={path} replace />;
 }
 
@@ -216,10 +212,6 @@ const MainRoutes = {
               <Dashboard />
             </SubscriptionPausedGuard>
           )
-        },
-        {
-          path: 'landlord/setup',
-          element: <LandlordSetup />
         },
         {
           path: 'landlord/calendar',
@@ -909,11 +901,19 @@ const MainRoutes = {
         },
         {
           path: 'landlord/accounting/tax-center',
-          element: <EntitlementGate><TaxReports /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <TaxReports />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/money/tax-center',
-          element: <EntitlementGate><TaxReports /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <TaxReports />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports',
@@ -921,51 +921,99 @@ const MainRoutes = {
         },
         {
           path: 'landlord/reports/occupancy',
-          element: <EntitlementGate><OccupancyReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <OccupancyReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/revenue-per-unit',
-          element: <EntitlementGate><RevenuePerUnitReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <RevenuePerUnitReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/units-per-client',
-          element: <EntitlementGate><UnitsPerClientReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <UnitsPerClientReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/client-churn',
-          element: <EntitlementGate><ClientChurnReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <ClientChurnReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/units-per-employee',
-          element: <EntitlementGate><UnitsPerEmployeeReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <UnitsPerEmployeeReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/closing-rate',
-          element: <EntitlementGate><ClosingRateReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <ClosingRateReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/median-dom',
-          element: <EntitlementGate><MedianDomReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <MedianDomReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/median-ttt',
-          element: <EntitlementGate><MedianTttReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <MedianTttReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/nps-client',
-          element: <EntitlementGate><NpsClientReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <NpsClientReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/nps-tenant',
-          element: <EntitlementGate><NpsTenantReport /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <NpsTenantReport />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/financial',
-          element: <EntitlementGate><FinancialReports /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <FinancialReports />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/reports/tax',
-          element: <EntitlementGate><TaxReports /></EntitlementGate>
+          element: (
+            <EntitlementGate>
+              <TaxReports />
+            </EntitlementGate>
+          )
         },
         {
           path: 'landlord/upcoming-features',

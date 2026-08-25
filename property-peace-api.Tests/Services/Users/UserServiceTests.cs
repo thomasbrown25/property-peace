@@ -15,6 +15,8 @@ using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Tests.Helpers;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -324,6 +326,52 @@ namespace brownstone_hub_api.Tests.Services.Users
             result.Success.Should().BeTrue(result.Message);
             result.Data.Should().NotBeNull();
             result.Data!.JWTToken.Should().NotBeNullOrEmpty();
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task RefreshSession_PreservesBrowserSessionPersistenceAcrossRotation(bool isPersistent)
+        {
+            _userRepo.Setup(repository => repository.GetUser(1)).ReturnsAsync(MakeUser(1));
+            _userRepo.Setup(repository => repository.GetUserByEmailAsync("john@test.com"))
+                .ReturnsAsync(MakeLoadUserDto(1));
+            await using var connection = new SqliteConnection("Data Source=:memory:");
+            await connection.OpenAsync();
+            await using var relationalContext = new Data.DataContext(
+                new DbContextOptionsBuilder<Data.DataContext>().UseSqlite(connection).Options);
+            await relationalContext.Database.ExecuteSqlRawAsync(
+                """
+                CREATE TABLE UserRefreshTokens (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    UserId INTEGER NOT NULL,
+                    TokenHash TEXT NOT NULL,
+                    CreatedAt TEXT NOT NULL,
+                    ExpiresAt TEXT NOT NULL,
+                    IsPersistent INTEGER NOT NULL,
+                    RevokedAt TEXT NULL,
+                    ReplacedByTokenHash TEXT NULL
+                );
+                """);
+
+            var sut = new UserService(
+                _userRepo.Object,
+                _roleRepo.Object,
+                _configuration,
+                Mock.Of<ILogger<UserService>>(),
+                _googleAuth.Object,
+                _appleAuth.Object,
+                relationalContext,
+                organizationInviteService: _orgInviteService.Object,
+                tenantInviteService: _tenantInviteService.Object,
+                tenantRepository: _tenantRepo.Object);
+
+            var created = await sut.CreateRefreshSession(1, isPersistent);
+            created.IsPersistent.Should().Be(isPersistent);
+
+            var rotated = await sut.RefreshSession(created.RefreshToken);
+            rotated.Should().NotBeNull();
+            rotated!.IsPersistent.Should().Be(isPersistent);
         }
 
         // ── Login ─────────────────────────────────────────────────────────────────
