@@ -411,9 +411,11 @@ export default function PaymentAddWorkflow() {
       transitionToStep(STEPS.WHO_MADE_PAYMENT, 'right');
     } else if (action === 'viewHistory') {
       if (selectedLease?.id) {
-        navigate(`/landlord/payments?leaseId=${selectedLease.id}`);
+        const search = new URLSearchParams({ tab: 'payments' });
+        search.set('leaseId', String(selectedLease.id));
+        navigate(`/landlord/finances?${search.toString()}`);
       } else {
-        navigate('/landlord/payments');
+        navigate('/landlord/finances?tab=payments');
       }
     }
   };
@@ -422,7 +424,7 @@ export default function PaymentAddWorkflow() {
     if (action === 'tryAgain') {
       transitionToStep(STEPS.PAYMENT_SUMMARY, 'right');
     } else if (action === 'cancel') {
-      navigate('/landlord/payments');
+      navigate('/landlord/finances?tab=payments');
     }
   };
 

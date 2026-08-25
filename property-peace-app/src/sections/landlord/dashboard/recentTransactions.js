@@ -17,7 +17,7 @@ function buildPaymentItem(payment) {
     title: [propertyName, unitName].filter(Boolean).join(' · ') || 'Rent payment',
     sub: 'Rent payment',
     amount: Number(read(payment, 'amount', 'Amount') || 0),
-    onClick: propertyId ? `/landlord/property/${propertyId}` : '/landlord/ledger'
+    onClick: propertyId ? `/landlord/property/${propertyId}` : '/landlord/finances?tab=activity'
   };
 }
 
@@ -40,7 +40,7 @@ function buildExpenseItem(expense) {
       'Expense',
     sub: [propertyName, unitName].filter(Boolean).join(' · '),
     amount: Math.abs(Number(read(expense, 'amount', 'Amount') || 0)),
-    onClick: '/landlord/expenses'
+    onClick: '/landlord/finances?tab=expenses'
   };
 }
 

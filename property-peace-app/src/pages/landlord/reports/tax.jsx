@@ -455,14 +455,14 @@ export default function TaxReports() {
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 480, mx: 'auto', mb: 3 }}>
             To see your tax report, go to your Expenses page and mark expenses as tax-deductible by assigning an IRS Schedule E category.
           </Typography>
-          <Button variant="contained" endIcon={<ArrowRightOutlined />} onClick={() => navigate('/landlord/expenses')}>
+          <Button variant="contained" endIcon={<ArrowRightOutlined />} onClick={() => navigate('/landlord/finances?tab=expenses')}>
             Go to Expenses
           </Button>
         </Box>
       )}
 
       {taxYearReport && taxCategorySummary.length === 0 && (
-        <Alert severity="info" sx={{ mb: 3 }} action={<Button size="small" color="inherit" onClick={() => navigate('/landlord/expenses')}>Go to Expenses</Button>}>
+        <Alert severity="info" sx={{ mb: 3 }} action={<Button size="small" color="inherit" onClick={() => navigate('/landlord/finances?tab=expenses')}>Go to Expenses</Button>}>
           <strong>Tip:</strong> You have income on record for {taxYear}, but no deductible expenses assigned yet. Assign IRS tax categories to unlock deduction charts and Schedule E data.
         </Alert>
       )}

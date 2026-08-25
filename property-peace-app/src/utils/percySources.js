@@ -1,6 +1,6 @@
 const ALLOWED_PERCY_WORKFLOW_ROUTES = new Set([
   '/landlord/properties',
-  '/landlord/payments',
+  '/landlord/finances?tab=payments',
   '/landlord/maintenances',
   '/landlord/leases',
   '/landlord/applications',

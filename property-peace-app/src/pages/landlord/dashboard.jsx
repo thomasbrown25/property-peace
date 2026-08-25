@@ -770,7 +770,7 @@ export default function Dashboard() {
             Add an Expense
           </Box>
         </MenuItem>
-        <MenuItem onClick={() => { handleCreateMenuClose(); navigate('/landlord/expenses'); }} sx={{ py: 1.25, px: 2 }}>
+        <MenuItem onClick={() => { handleCreateMenuClose(); navigate('/landlord/finances?tab=expenses'); }} sx={{ py: 1.25, px: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <UnorderedListOutlined style={{ fontSize: 16, color: '#fff' }} />
             View Expenses

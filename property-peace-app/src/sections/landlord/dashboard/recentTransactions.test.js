@@ -40,7 +40,7 @@ test('combines paid income and expenses in newest-first order', () => {
       title: 'Plumbing repair',
       sub: 'Maple House · Unit 2',
       amount: 225,
-      onClick: '/landlord/expenses'
+      onClick: '/landlord/finances?tab=expenses'
     },
     {
       id: 'payment-11',
@@ -74,4 +74,5 @@ test('returns only the six most recent transactions across both types', () => {
   assert.equal(result.length, 6);
   assert.equal(result[0].sub, '');
   assert.deepEqual(result.map((item) => item.id), ['expense-13', 'expense-12', 'expense-11', 'expense-10', 'payment-4', 'payment-3']);
+  assert.equal(result.at(-1).onClick, '/landlord/finances?tab=activity');
 });

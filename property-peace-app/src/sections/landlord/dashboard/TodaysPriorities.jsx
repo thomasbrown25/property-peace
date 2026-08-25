@@ -145,7 +145,7 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
           title: `Payment failed · ${label}`,
           description: amount != null ? `$${Number(amount).toFixed(2)} — retry or contact tenant` : 'Retry or contact tenant',
           actionLabel: 'View payment',
-          onAction: () => navigate('/landlord/payments')
+          onAction: () => navigate('/landlord/finances?tab=payments')
         });
       });
 

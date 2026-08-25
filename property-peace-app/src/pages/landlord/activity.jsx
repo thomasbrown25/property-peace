@@ -197,7 +197,7 @@ export default function Activity() {
   const handleActivityClick = (activity) => {
     switch (activity.activityType) {
       case 'Payment':
-        navigate('/landlord/payments');
+        navigate('/landlord/finances?tab=payments');
         break;
       case 'Maintenance':
         if (activity.relatedId) navigate(`/landlord/maintenance/${activity.relatedId}`);

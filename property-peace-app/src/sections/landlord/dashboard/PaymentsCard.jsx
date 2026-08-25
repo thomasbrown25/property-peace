@@ -38,7 +38,7 @@ export default function PaymentsCard() {
           size="small"
           variant="text"
           endIcon={<ArrowRightOutlined style={{ fontSize: 12 }} />}
-          onClick={() => navigate('/landlord/ledger')}
+          onClick={() => navigate('/landlord/finances?tab=activity')}
           sx={{
             textTransform: 'none',
             fontSize: '0.8rem',

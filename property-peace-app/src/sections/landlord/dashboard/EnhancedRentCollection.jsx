@@ -163,7 +163,7 @@ export default function EnhancedRentCollection({ summary, loading, expenses: ini
             value={collected}
             percent={collectedPercentDisplay}
             color={theme.palette.success.main}
-            onClick={() => navigate('/landlord/payments')}
+            onClick={() => navigate('/landlord/finances?tab=payments')}
           />
           <OverviewCard
             title="Overdue"
@@ -177,7 +177,7 @@ export default function EnhancedRentCollection({ summary, loading, expenses: ini
             value={expensesAmount}
             percent={expensesPercent}
             color={theme.palette.warning.main}
-            onClick={() => navigate('/landlord/expenses')}
+            onClick={() => navigate('/landlord/finances?tab=expenses')}
           />
           <OverviewCard
             title="Remaining"

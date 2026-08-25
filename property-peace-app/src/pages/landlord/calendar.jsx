@@ -744,7 +744,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
     ? 'Rent & payment'
     : event?.category === 'Inspection' ? 'Checklist' : event?.category;
   const destination = event?.category === 'RentPayment'
-    ? (event.leaseId ? `/landlord/leases/${event.leaseId}/payment-history` : '/landlord/payments')
+    ? (event.leaseId ? `/landlord/leases/${event.leaseId}/payment-history` : '/landlord/finances?tab=payments')
     : event?.category === 'Maintenance' && event.maintenanceId ? `/landlord/maintenance/${event.maintenanceId}`
     : event?.category === 'Lease' && event.leaseId ? `/landlord/leases/${event.leaseId}`
     : event?.source === 'inspection' && checklistPropertyId

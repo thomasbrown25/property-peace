@@ -238,12 +238,12 @@ export default function UnitPage() {
   const handleViewPayments = () => {
     if (property?.id) {
       dispatch(setProperty(property));
-      const params = new URLSearchParams();
-      params.append('propertyId', property.id);
+      const params = new URLSearchParams({ tab: 'payments' });
+      params.set('propertyId', String(property.id));
       if (unit?.id) {
-        params.append('unitId', unit.id);
+        params.set('unitId', String(unit.id));
       }
-      navigate('/landlord/payments');
+      navigate(`/landlord/finances?${params.toString()}`);
     }
   };
 

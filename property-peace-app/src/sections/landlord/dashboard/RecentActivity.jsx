@@ -77,7 +77,7 @@ export default function RecentActivity() {
     // Navigate based on activity type
     switch (activity.activityType) {
       case 'Payment':
-        navigate('/landlord/payments');
+        navigate('/landlord/finances?tab=payments');
         break;
       case 'Maintenance':
         if (activity.relatedId) {

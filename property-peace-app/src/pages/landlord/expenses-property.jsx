@@ -122,6 +122,12 @@ export default function ExpensesProperty() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { propertyId } = useParams();
+  const expensesSearch = new URLSearchParams({ tab: 'expenses' });
+  if (propertyId) {
+    expensesSearch.set('propertyId', propertyId);
+  }
+  const expensesPath = `/landlord/finances?${expensesSearch.toString()}`;
+
   const { user } = useAuth();
   const theme = useTheme();
 
@@ -539,7 +545,7 @@ export default function ExpensesProperty() {
       <PageBreadcrumbs
         items={[
           { label: 'Dashboard', to: '/landlord/dashboard' },
-          { label: 'Expenses', to: '/landlord/expenses' },
+          { label: 'Expenses', to: expensesPath },
           { label: property?.name || 'Property Expenses' }
         ]}
       />

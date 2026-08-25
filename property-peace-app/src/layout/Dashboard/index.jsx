@@ -48,7 +48,6 @@ export default function DashboardLayout() {
     isDashboardLoading, 
     isPropertyLoading, 
     isPropertiesLoading, 
-    isExpensesLoading, 
     isLeasesLoading, 
     isLeaseLoading, 
     isMaintenancesLoading, 
@@ -100,8 +99,8 @@ export default function DashboardLayout() {
   const isPropertyPage = pathname.match(/\/property\/\d+/) !== null;
   // Check if it's the properties list page (e.g., /landlord/properties)
   const isPropertiesPage = pathname === '/landlord/properties' || pathname.startsWith('/landlord/properties?');
-  // Check if it's the expenses page (e.g., /landlord/expenses)
-  const isExpensesPage = pathname === '/landlord/expenses' || pathname.startsWith('/landlord/expenses?');
+  // Check if it's the canonical Finances workspace.
+  const isFinancesPage = pathname === '/landlord/finances';
   // Check if it's the leases page (e.g., /landlord/leases)
   const isLeasesPage = pathname === '/landlord/leases' || pathname.startsWith('/landlord/leases?');
   // Check if it's a specific lease page (e.g., /landlord/lease/123)
@@ -132,7 +131,7 @@ export default function DashboardLayout() {
     (isDashboardPage && isDashboardLoading) || 
     (isPropertyPage && isPropertyLoading) || 
     (isPropertiesPage && isPropertiesLoading) ||
-    (isExpensesPage && isExpensesLoading) ||
+    (isFinancesPage && isAccountingLoading) ||
     (isLeasesPage && isLeasesLoading) ||
     (isLeasePage && isLeaseLoading) ||
     (isMaintenancesPage && isMaintenancesLoading) ||

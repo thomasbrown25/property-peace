@@ -489,7 +489,7 @@ export default function TaxReports() {
                 <Button
                   variant="contained"
                   endIcon={<ArrowRightOutlined />}
-                  onClick={() => navigate('/landlord/expenses')}
+                  onClick={() => navigate('/landlord/finances?tab=expenses')}
                 >
                   Go to Expenses
                 </Button>
@@ -504,7 +504,7 @@ export default function TaxReports() {
             <Alert
               severity="info"
               action={
-                <Button size="small" color="inherit" onClick={() => navigate('/landlord/expenses')}>
+                <Button size="small" color="inherit" onClick={() => navigate('/landlord/finances?tab=expenses')}>
                   Go to Expenses
                 </Button>
               }

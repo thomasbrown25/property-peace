@@ -250,7 +250,7 @@ export default function LeasePaymentHistory() {
             size="small"
             variant="text"
             startIcon={<DollarOutlined style={{ fontSize: 16 }} />}
-            onClick={() => navigate('/landlord/payments')}
+            onClick={() => navigate('/landlord/finances?tab=payments')}
             sx={{
               color: 'primary.main',
               textTransform: 'none',

@@ -378,10 +378,10 @@ export default function Ledger() {
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button variant="outlined" onClick={() => navigate('/landlord/payments')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none', '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) } }}>
+            <Button variant="outlined" onClick={() => navigate('/landlord/finances?tab=payments')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none', '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) } }}>
               View payments
             </Button>
-            <Button variant="outlined" onClick={() => navigate('/landlord/expenses')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none', '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) } }}>
+            <Button variant="outlined" onClick={() => navigate('/landlord/finances?tab=expenses')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.35), bgcolor: alpha('#fff', 0.06), textTransform: 'none', '&:hover': { borderColor: alpha('#fff', 0.65), bgcolor: alpha('#fff', 0.12) } }}>
               Manage expenses
             </Button>
             <CSVLink data={csvData} filename={`ledger-${toDateInput(new Date())}.csv`} style={{ textDecoration: 'none' }}>
@@ -466,7 +466,7 @@ export default function Ledger() {
             <Box sx={{ p: 2, bgcolor: alpha(theme.palette.info.main, theme.palette.mode === 'dark' ? 0.1 : 0.045), border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`, borderRadius: 3 }}>
               <Stack direction="row" spacing={1} alignItems="center"><CalendarOutlined /><Typography fontWeight={750}>How this ledger works</Typography></Stack>
               <Typography sx={{ mt: 0.7, fontSize: '0.78rem', color: 'text.secondary', lineHeight: 1.55 }}>Only posted rent payments and expenses marked paid are included. Unpaid and scheduled expenses stay on the Expenses page until they affect cash flow.</Typography>
-              <Button size="small" onClick={() => navigate('/landlord/expenses')} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>Review unpaid expenses</Button>
+              <Button size="small" onClick={() => navigate('/landlord/finances?tab=expenses')} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>Review unpaid expenses</Button>
             </Box>
           </Stack>
         </Grid>

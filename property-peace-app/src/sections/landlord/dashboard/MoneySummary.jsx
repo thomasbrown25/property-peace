@@ -106,7 +106,7 @@ export default function MoneySummary({ summary = {}, lifetimeSummary = {}, total
           size="small"
           variant="text"
           endIcon={<ArrowRightOutlined style={{ fontSize: 12 }} />}
-          onClick={() => navigate('/landlord/money-activity')}
+          onClick={() => navigate('/landlord/finances?tab=activity')}
           sx={{
             display: { xs: 'none', sm: 'inline-flex' },
             textTransform: 'none',

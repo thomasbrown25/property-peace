@@ -114,7 +114,7 @@ export default function BottomNavBar() {
     setPlusMenuAnchor(null);
     if (action === 'property') drawer.openPropertyAddWorkflowDrawer();
     else if (action === 'expense') drawer.openExpenseAddDrawer();
-    else if (action === 'viewExpenses') navigate('/landlord/expenses');
+    else if (action === 'viewExpenses') navigate('/landlord/finances?tab=expenses');
     else if (action === 'payment') drawer.openPaymentAddDrawer();
     else if (action === 'maintenance') drawer.openMaintenanceAddDrawer();
   };

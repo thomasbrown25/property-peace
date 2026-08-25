@@ -187,6 +187,14 @@ export default function PropertyCard({ property, rentRecords = [] }) {
     navigate(`/landlord/property/${propertyId}`);
   };
 
+  const handleViewExpenses = () => {
+    const search = new URLSearchParams({ tab: 'expenses' });
+    if (propertyId !== undefined && propertyId !== null) {
+      search.set('propertyId', String(propertyId));
+    }
+    navigate(`/landlord/finances?${search.toString()}`);
+  };
+
   const accentColor = statusColor === 'error'
     ? theme.palette.error.main
     : statusColor === 'warning'
@@ -437,7 +445,7 @@ export default function PropertyCard({ property, rentRecords = [] }) {
       <Divider sx={{ borderColor: 'rgba(0,0,0,0.07)' }} />
       <Stack direction="row" divider={<Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(0,0,0,0.07)' }} />}>
         <ActionBtn icon={<MessageOutlined />} label="Message" onClick={() => navigate('/landlord/messages')} />
-        <ActionBtn icon={<DollarOutlined />} label="Expense" onClick={() => navigate(`/landlord/expenses`)} />
+        <ActionBtn icon={<DollarOutlined />} label="Expense" onClick={handleViewExpenses} />
         <ActionBtn icon={<FileTextOutlined />} label="Lease" onClick={() => { dispatch(setProperty(property)); drawer.openLeaseAddDrawer(); }} />
         <ActionBtn icon={<ToolOutlined />} label="Ticket" onClick={() => navigate(`/landlord/maintenances/add?propertyId=${propertyId}`)} />
         <ActionBtn icon={<EyeOutlined />} label="Open" onClick={() => { dispatch(setProperty(property)); navigate(`/landlord/property/${propertyId}`); }} />

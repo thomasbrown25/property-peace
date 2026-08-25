@@ -5,7 +5,7 @@ import { mapPercySource, safePercyWorkflowRoute } from './percySources.js';
 test('safe Percy workflow routes use an explicit landlord allowlist', () => {
   const allowed = [
     '/landlord/properties',
-    '/landlord/payments',
+    '/landlord/finances?tab=payments',
     '/landlord/maintenances',
     '/landlord/leases',
     '/landlord/applications',
