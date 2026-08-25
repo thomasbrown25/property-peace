@@ -11,6 +11,7 @@ import useFinancesMoneyData from 'hooks/useFinancesMoneyData';
 import useFinancesPayments from 'hooks/useFinancesPayments';
 import AccountActivityCard from 'sections/landlord/finances/AccountActivityCard';
 import ActivityTab from 'sections/landlord/finances/ActivityTab';
+import ExpensesTab from 'sections/landlord/finances/ExpensesTab';
 import CalculationDisclosure from 'sections/landlord/finances/CalculationDisclosure';
 import FinanceDetailDrawer from 'sections/landlord/finances/FinanceDetailDrawer';
 import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
@@ -25,6 +26,7 @@ import {
   updateFinancesPropertyScope,
   updateFinancesSearch
 } from 'utils/finances';
+import { maskExpenseMetricsAvailability } from 'utils/expensesTab';
 
 const FINANCES_TAB_LABELS = [
   ['review', 'Needs review'],
@@ -50,6 +52,7 @@ export default function FinancesPage() {
   const drawer = useDrawer();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [expensesAvailable, setExpensesAvailable] = useState(false);
   const { properties } = useFetchProperties();
   const activeTab = normalizeFinancesTab(searchParams.get('tab'));
   const period = normalizeFinancesPeriod(searchParams.get('period'));
@@ -65,6 +68,7 @@ export default function FinancesPage() {
   const paymentsData = useFinancesPayments(propertyId, drawer.financeMutationVersion);
   const moneyScopeKey = JSON.stringify({ ...scopedQuery, mutationVersion: drawer.financeMutationVersion });
   const paymentsScopeKey = `${propertyId ?? 'all'}:${drawer.financeMutationVersion ?? 0}`;
+  const expenseAvailabilityScopeKey = `${propertyId ?? 'all'}:${scopedQuery.from}:${scopedQuery.to}:${drawer.financeMutationVersion ?? 0}`;
   const previousMoneyScopeRef = useRef(moneyScopeKey);
   const previousPaymentsScopeRef = useRef(paymentsScopeKey);
   const moneyScopeChanged = previousMoneyScopeRef.current !== moneyScopeKey;
@@ -73,10 +77,17 @@ export default function FinancesPage() {
     previousMoneyScopeRef.current = moneyScopeKey;
     previousPaymentsScopeRef.current = paymentsScopeKey;
   }, [moneyScopeKey, paymentsScopeKey]);
+  useEffect(() => {
+    setExpensesAvailable(false);
+  }, [expenseAvailabilityScopeKey]);
   const collectedThisMonth = useMemo(
     () => sumCollectedThisMonth(paymentsData.payments, new Date(), propertyId),
     [paymentsData.payments, propertyId]
   );
+  const metricsOverview = useMemo(() => maskExpenseMetricsAvailability(
+    moneyData.loading || moneyScopeChanged ? null : moneyData.overview,
+    expensesAvailable
+  ), [expensesAvailable, moneyData.loading, moneyData.overview, moneyScopeChanged]);
   const customFrom = searchParams.get('from') || '';
   const customTo = searchParams.get('to') || '';
   const customRangeValid = ISO_DATE.test(customFrom) && ISO_DATE.test(customTo) && customFrom <= customTo;
@@ -177,7 +188,7 @@ export default function FinancesPage() {
       )}
 
       <FinancesMetrics
-        overview={moneyData.loading || moneyScopeChanged ? null : moneyData.overview}
+        overview={metricsOverview}
         collectedThisMonth={collectedThisMonth}
         collectedThisMonthAvailable={!paymentsData.loading && !paymentsScopeChanged && paymentsData.available}
         onSelectMetric={handleMetricNavigation}
@@ -228,6 +239,19 @@ export default function FinancesPage() {
                   onRetry={moneyData.retry}
                   initialAccount={searchParams.get('account') || ''}
                   onSelectItem={openFinanceDetail}
+                  registrationKey={exportRegistrationKey}
+                  registerExport={registerExport}
+                />
+              )}
+              {activeTab === 'expenses' && (
+                <ExpensesTab
+                  propertyId={propertyId}
+                  sharedPeriod={period}
+                  sharedFrom={scopedQuery.from}
+                  sharedTo={scopedQuery.to}
+                  mutationVersion={drawer.financeMutationVersion}
+                  onMutation={drawer.notifyFinanceMutation}
+                  onAvailabilityChange={setExpensesAvailable}
                   registrationKey={exportRegistrationKey}
                   registerExport={registerExport}
                 />

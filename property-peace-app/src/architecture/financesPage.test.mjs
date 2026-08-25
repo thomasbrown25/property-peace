@@ -152,3 +152,65 @@ test('Activity item errors remain retry states and detail uses original Money Ce
   assert.match(drawer, /item\.hasReceipt === false/);
   assert.match(drawer, /aria-labelledby="finance-detail-title"/);
 });
+test('Expenses keeps editable transaction behavior inside the shared Finances scope', async () => {
+  const [page, expenses, row] = await Promise.all([
+    source('pages/landlord/finances.jsx'),
+    source('sections/landlord/finances/ExpensesTab.jsx'),
+    source('sections/landlord/finances/ExpenseRow.jsx')
+  ]);
+
+  assert.match(page, /<ExpensesTab/);
+  assert.match(page, /propertyId=\{propertyId\}/);
+  assert.match(page, /sharedPeriod=\{period\}/);
+  assert.match(page, /sharedFrom=\{scopedQuery\.from\}/);
+  assert.match(page, /sharedTo=\{scopedQuery\.to\}/);
+  assert.match(page, /mutationVersion=\{drawer\.financeMutationVersion\}/);
+  assert.match(page, /onMutation=\{drawer\.notifyFinanceMutation\}/);
+  assert.match(page, /onAvailabilityChange=\{setExpensesAvailable\}/);
+  assert.match(page, /registrationKey=\{exportRegistrationKey\}/);
+  assert.match(page, /registerExport=\{registerExport\}/);
+
+  assert.match(expenses, /useFetchExpenses/);
+  assert.match(expenses, /TransactionFilterToolbar/);
+  assert.match(expenses, /period="shared"/);
+  assert.match(expenses, /Paid/);
+  assert.match(expenses, /Unpaid/);
+  assert.match(expenses, /Tax deductible/);
+  assert.match(expenses, /Missing receipt/);
+  assert.match(expenses, /Category/);
+  assert.match(expenses, /search=\{search\}/);
+  assert.match(expenses, /sort=\{sort\}/);
+  assert.match(expenses, /<Pagination/);
+  assert.match(expenses, /<CSVLink/);
+  assert.match(expenses, /<ExpenseEditDrawer/);
+  assert.match(expenses, /updateExpenseAction/);
+  assert.match(expenses, /deleteExpenseAction/);
+  assert.match(expenses, /onClick=\{refetch\}/);
+  assert.match(expenses, /useLayoutEffect\(\(\) => registerExport\('expenses', registrationKey, exportState\)/);
+  assert.match(row, /Receipt/);
+  assert.match(row, /Mark as paid/);
+  assert.match(row, /Edit expense/);
+  assert.match(row, /Delete expense/);
+
+  const combined = [expenses, row].join('\n');
+  assert.doesNotMatch(combined, /PageBreadcrumbs/);
+  assert.doesNotMatch(combined, /FinancesMetrics|MetricCard/);
+  assert.doesNotMatch(combined, /PropertySelect/);
+  assert.doesNotMatch(combined, /ExpenseAddDrawer/);
+  assert.doesNotMatch(combined, /Spend by category/i);
+  assert.doesNotMatch(combined, /Recurring|Upcoming/);
+});
+
+test('expense source availability gates expense-dependent metrics for the current shared scope', async () => {
+  const [page, expenses] = await Promise.all([
+    source('pages/landlord/finances.jsx'),
+    source('sections/landlord/finances/ExpensesTab.jsx')
+  ]);
+
+  assert.match(page, /const \[expensesAvailable, setExpensesAvailable\] = useState\(false\)/);
+  assert.ok(page.indexOf('const [expensesAvailable, setExpensesAvailable]') < page.indexOf('const metricsOverview'));
+  assert.match(page, /setExpensesAvailable\(false\)/);
+  assert.match(page, /expensesAvailable/);
+  assert.match(expenses, /onAvailabilityChange\(false\)/);
+  assert.match(expenses, /onAvailabilityChange\(true\)/);
+});
