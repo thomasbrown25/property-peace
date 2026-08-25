@@ -20,12 +20,14 @@ const formatDate = (value) => {
 export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy = false }) {
   const theme = useTheme();
   const recurring = entry.type === 'Recurring';
+  const cleanupPending = Boolean(entry.cleanupPending);
   const name = entry.name || 'Untitled expense';
   const propertyName = entry.propertyName || 'Property not recorded';
   const unitName = entry.unitName && entry.unitName !== 'Property level' ? entry.unitName : '';
   const timingLabel = recurring ? 'Next due' : 'Due date';
   const toggleLabel = entry.isPaused ? 'Resume schedule' : 'Pause schedule';
   const deleteLabel = recurring ? 'Delete recurring schedule' : 'Delete one-time expense';
+  const recordLabel = cleanupPending ? 'Retry scheduled cleanup' : 'Record as paid';
 
   return (
     <Box
@@ -45,7 +47,9 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
           {recurring ? <ReloadOutlined /> : <ClockCircleOutlined />}
         </Avatar>
         <Box minWidth={0}>
-          <Typography fontWeight={700} noWrap>{name}</Typography>
+          <Typography fontWeight={700} noWrap>
+            {name}
+          </Typography>
           <Stack direction="row" spacing={0.6} alignItems="center" sx={{ mt: 0.35 }}>
             <Chip
               label={entry.type}
@@ -56,20 +60,37 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
             />
             <Typography noWrap sx={{ fontSize: '0.72rem', color: 'text.secondary' }}>
               {entry.category || 'Uncategorized'}
+              {cleanupPending && (
+                <Chip
+                  label="Expense recorded · cleanup needed"
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  sx={{ height: 20, fontSize: '0.65rem' }}
+                />
+              )}
             </Typography>
           </Stack>
         </Box>
       </Stack>
 
       <Box sx={{ mt: { xs: 1.05, md: 0 } }}>
-        <Typography component="span" sx={{ display: { md: 'none' }, mr: 0.6, fontSize: '0.7rem', color: 'text.secondary' }}>Property:</Typography>
-        <Typography component="span" sx={{ fontSize: '0.82rem', fontWeight: 650 }}>{propertyName}</Typography>
+        <Typography component="span" sx={{ display: { md: 'none' }, mr: 0.6, fontSize: '0.7rem', color: 'text.secondary' }}>
+          Property:
+        </Typography>
+        <Typography component="span" sx={{ fontSize: '0.82rem', fontWeight: 650 }}>
+          {propertyName}
+        </Typography>
         {unitName && <Typography sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>{unitName}</Typography>}
       </Box>
 
       <Box sx={{ mt: { xs: 0.8, md: 0 } }}>
-        <Typography component="span" sx={{ display: { md: 'none' }, mr: 0.6, fontSize: '0.7rem', color: 'text.secondary' }}>{timingLabel}:</Typography>
-        <Typography component="span" sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{formatDate(entry.actionDate)}</Typography>
+        <Typography component="span" sx={{ display: { md: 'none' }, mr: 0.6, fontSize: '0.7rem', color: 'text.secondary' }}>
+          {timingLabel}:
+        </Typography>
+        <Typography component="span" sx={{ fontSize: '0.8rem', fontWeight: 650 }}>
+          {formatDate(entry.actionDate)}
+        </Typography>
         {recurring && (
           <Stack direction="row" spacing={0.6} sx={{ mt: 0.45 }}>
             <Chip
@@ -84,21 +105,35 @@ export default function UpcomingRow({ entry, onRecord, onToggle, onDelete, busy 
       </Box>
 
       <Typography sx={{ mt: { xs: 0.8, md: 0 }, fontSize: '0.92rem', fontWeight: 750, textAlign: { md: 'right' } }}>
-        <Box component="span" sx={{ display: { md: 'none' }, mr: 0.6, fontSize: '0.7rem', fontWeight: 400, color: 'text.secondary' }}>Amount:</Box>
+        <Box component="span" sx={{ display: { md: 'none' }, mr: 0.6, fontSize: '0.7rem', fontWeight: 400, color: 'text.secondary' }}>
+          Amount:
+        </Box>
         {money.format(Number(entry.amount) || 0)}
       </Typography>
 
       <Stack direction="row" spacing={0.4} justifyContent={{ xs: 'flex-end', md: 'flex-start' }} sx={{ mt: { xs: 0.75, md: 0 } }}>
-        <Tooltip title="Record as paid">
-          <span><IconButton size="small" color="success" disabled={busy} aria-label={`Record ${name} as paid`} onClick={() => onRecord(entry)}><CheckCircleOutlined /></IconButton></span>
+        <Tooltip title={recordLabel}>
+          <span>
+            <IconButton size="small" color="success" disabled={busy} aria-label={`${recordLabel}: ${name}`} onClick={() => onRecord(entry)}>
+              {cleanupPending ? <ReloadOutlined /> : <CheckCircleOutlined />}
+            </IconButton>
+          </span>
         </Tooltip>
         {recurring && (
           <Tooltip title={toggleLabel}>
-            <span><IconButton size="small" disabled={busy} aria-label={`${toggleLabel} for ${name}`} onClick={() => onToggle(entry)}>{entry.isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}</IconButton></span>
+            <span>
+              <IconButton size="small" disabled={busy} aria-label={`${toggleLabel} for ${name}`} onClick={() => onToggle(entry)}>
+                {entry.isPaused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
+              </IconButton>
+            </span>
           </Tooltip>
         )}
         <Tooltip title={deleteLabel}>
-          <span><IconButton size="small" color="error" disabled={busy} aria-label={`${deleteLabel}: ${name}`} onClick={() => onDelete(entry)}><DeleteOutlined /></IconButton></span>
+          <span>
+            <IconButton size="small" color="error" disabled={busy} aria-label={`${deleteLabel}: ${name}`} onClick={() => onDelete(entry)}>
+              <DeleteOutlined />
+            </IconButton>
+          </span>
         </Tooltip>
       </Stack>
     </Box>
@@ -117,7 +152,8 @@ UpcomingRow.propTypes = {
     actionDate: PropTypes.string,
     frequency: PropTypes.string,
     isPaused: PropTypes.bool,
-    source: PropTypes.object.isRequired
+    source: PropTypes.object.isRequired,
+    cleanupPending: PropTypes.object
   }).isRequired,
   onRecord: PropTypes.func.isRequired,
   onToggle: PropTypes.func.isRequired,

@@ -18,7 +18,10 @@ test('unified Finances shell keeps the approved navigation, actions, and right r
   const combined = [page, header, metrics, accountActivity, disclosure].join('\n');
 
   assert.match(header, />Finances<\/Typography>/);
-  assert.match(page, /const FINANCES_TAB_LABELS = \[\s*\['review', 'Needs review'\],\s*\['activity', 'Activity'\],\s*\['expenses', 'Expenses'\],\s*\['payments', 'Payments'\],\s*\['upcoming', 'Upcoming'\]\s*\];/);
+  assert.match(
+    page,
+    /const FINANCES_TAB_LABELS = \[\s*\['review', 'Needs review'\],\s*\['activity', 'Activity'\],\s*\['expenses', 'Expenses'\],\s*\['payments', 'Payments'\],\s*\['upcoming', 'Upcoming'\]\s*\];/
+  );
   assert.match(metrics, /label: 'Income'/);
   assert.match(metrics, /label: 'Expenses'/);
   assert.match(metrics, /label: 'Net cash flow'/);
@@ -65,10 +68,7 @@ test('finance metrics suppress retained values while their requested scope is lo
   const page = await source('pages/landlord/finances.jsx');
 
   assert.match(page, /overview=\{moneyData\.loading \|\| moneyScopeChanged \? null : moneyData\.overview\}/);
-  assert.match(
-    page,
-    /collectedThisMonthAvailable=\{!paymentsData\.loading && !paymentsScopeChanged && paymentsData\.available\}/
-  );
+  assert.match(page, /collectedThisMonthAvailable=\{!paymentsData\.loading && !paymentsScopeChanged && paymentsData\.available\}/);
 });
 test('Needs review renders and exports real review records without fabricating bank connection rows', async () => {
   const [page, review] = await Promise.all([
@@ -294,13 +294,18 @@ test('Payments keeps the complete editable list while the page owns its one shar
 });
 
 test('Upcoming combines scheduled expenses with scoped filters, truthful states, export, and preserved mutations', async () => {
-  const [page, upcoming, row, expenseAction, upcomingSelection] = await Promise.all([
-    source('pages/landlord/finances.jsx'),
-    source('sections/landlord/finances/UpcomingTab.jsx'),
-    source('sections/landlord/finances/UpcomingRow.jsx'),
-    source('store/expense/expense.action.js'),
-    source('utils/upcomingTab.js')
-  ]);
+  const [page, upcoming, row, expenseAction, upcomingSelection, recurringSelector, futureSelector, futureAction, futureReducer] =
+    await Promise.all([
+      source('pages/landlord/finances.jsx'),
+      source('sections/landlord/finances/UpcomingTab.jsx'),
+      source('sections/landlord/finances/UpcomingRow.jsx'),
+      source('store/expense/expense.action.js'),
+      source('utils/upcomingTab.js'),
+      source('store/recurring-expense/recurring-expense.selector.js'),
+      source('store/future-expense/future-expense.selector.js'),
+      source('store/future-expense/future-expense.action.js'),
+      source('store/future-expense/future-expense.reducer.js')
+    ]);
 
   assert.match(page, /<UpcomingTab/);
   assert.match(page, /propertyId=\{propertyId\}/);
@@ -312,9 +317,14 @@ test('Upcoming combines scheduled expenses with scoped filters, truthful states,
   assert.match(upcoming, /buildUpcomingEntries\(recurringExpenses, futureExpenses\)/);
   assert.equal((upcoming.match(/dispatch\(getRecurringExpensesAction/g) || []).length, 1);
   assert.equal((upcoming.match(/dispatch\(getFutureExpensesAction/g) || []).length, 1);
-  assert.match(upcoming, /getRecurringExpensesAction\(landlordId, \{ propertyId \}\)/);
-  assert.match(upcoming, /getFutureExpensesAction\(landlordId, \{ propertyId \}\)/);
-  assert.match(upcoming, /\[dispatch, landlordId, mutationVersion, propertyId, retryVersion\]/);
+  assert.match(upcoming, /getRecurringExpensesAction\(landlordId, \{ propertyId \}, requestScopeKey\)/);
+  assert.match(upcoming, /getFutureExpensesAction\(landlordId, \{ propertyId \}, requestScopeKey\)/);
+  assert.match(upcoming, /requestScopeKey[\s\S]*landlordId[\s\S]*propertyId[\s\S]*mutationVersion[\s\S]*retryVersion/);
+  assert.match(recurringSelector, /selectRecurringExpenseListSettledRequestKey/);
+  assert.match(futureSelector, /selectFutureExpenseListSettledRequestKey/);
+  assert.match(upcoming, /recurringListSettledRequestKey === requestScopeKey/);
+  assert.match(upcoming, /futureListSettledRequestKey === requestScopeKey/);
+  assert.match(upcoming, /\[dispatch, landlordId, requestScopeKey\]/);
   assert.match(upcoming, /TransactionFilterToolbar/);
   assert.match(upcoming, /search=\{search\}/);
   assert.match(upcoming, /selectUpcomingEntries\(combinedEntries, \{ propertyId, search, type: typeFilter \}\)/);
@@ -345,8 +355,20 @@ test('Upcoming combines scheduled expenses with scoped filters, truthful states,
 
   assert.match(upcoming, /addExpenseAction\(\{/);
   for (const field of [
-    'landlordId', 'propertyId', 'unitId', 'name', 'category', 'amount', 'expenseDate', 'vendor',
-    'paymentMethod', 'isRecurring', 'isTaxDeductible', 'maintenanceRequestId', 'isPaid', 'paidDate'
+    'landlordId',
+    'propertyId',
+    'unitId',
+    'name',
+    'category',
+    'amount',
+    'expenseDate',
+    'vendor',
+    'paymentMethod',
+    'isRecurring',
+    'isTaxDeductible',
+    'maintenanceRequestId',
+    'isPaid',
+    'paidDate'
   ]) {
     assert.match(upcoming, new RegExp(`${field}:`));
   }
@@ -356,8 +378,18 @@ test('Upcoming combines scheduled expenses with scoped filters, truthful states,
   assert.match(upcoming, /resumeRecurringExpenseAction/);
   assert.match(upcoming, /deleteRecurringExpenseAction/);
   assert.match(upcoming, /deleteFutureExpenseAction/);
+  assert.match(upcoming, /selectFutureExpenseCleanupById/);
+  assert.match(upcoming, /markFutureExpenseCleanupPendingAction/);
+  assert.match(upcoming, /const addedExpense = await dispatch\s*\(\s*addExpenseAction/);
+  assert.match(upcoming, /if \(cleanupPending\)[\s\S]*reconcileFutureExpense/);
+  assert.match(upcoming, /Expense recorded, but the scheduled item could not be removed/);
+  assert.match(row, /Expense recorded · cleanup needed/);
+  assert.match(row, /Retry scheduled cleanup/);
+  assert.match(futureAction, /MARK_FUTURE_EXPENSE_CLEANUP_PENDING/);
+  assert.match(futureReducer, /recordedExpenseCleanupById/);
+  assert.match(futureReducer, /GET_FUTURE_EXPENSES_SUCCESS[\s\S]*recordedExpenseCleanupById/);
   assert.match(upcoming, /<ConfirmationDialog/);
-  assert.match(upcoming, /const notifyMutationSuccess = useCallback[\s\S]*onMutation\(\)/);
+  assert.match(upcoming, /const notifyFinanceMutation = useCallback[\s\S]*onMutation\(\)/);
   assert.equal((upcoming.match(/onMutation\(\)/g) || []).length, 1);
 
   const combined = [upcoming, row].join('\n');

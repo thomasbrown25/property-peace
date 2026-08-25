@@ -10,8 +10,18 @@ import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
 import useAuth from 'hooks/useAuth';
 import { addExpenseAction } from 'store/expense/expense.action';
-import { deleteFutureExpenseAction, getFutureExpensesAction } from 'store/future-expense/future-expense.action';
-import { selectFutureExpenses } from 'store/future-expense/future-expense.selector';
+import {
+  deleteFutureExpenseAction,
+  getFutureExpensesAction,
+  markFutureExpenseCleanupPendingAction
+} from 'store/future-expense/future-expense.action';
+import {
+  selectFutureExpenseCleanupById,
+  selectFutureExpenseListError,
+  selectFutureExpenseListLoading,
+  selectFutureExpenseListSettledRequestKey,
+  selectFutureExpenses
+} from 'store/future-expense/future-expense.selector';
 import {
   deleteRecurringExpenseAction,
   getRecurringExpensesAction,
@@ -19,8 +29,9 @@ import {
   resumeRecurringExpenseAction
 } from 'store/recurring-expense/recurring-expense.action';
 import {
-  selectRecurringExpenseError,
-  selectRecurringExpenseLoading,
+  selectRecurringExpenseListError,
+  selectRecurringExpenseListLoading,
+  selectRecurringExpenseListSettledRequestKey,
   selectRecurringExpenses
 } from 'store/recurring-expense/recurring-expense.selector';
 import { buildUpcomingEntries } from 'utils/finances';
@@ -36,8 +47,7 @@ const SCHEDULED_PERIOD_OPTIONS = [{ value: 'shared', label: 'Scheduled dates' }]
 const keepScheduledPeriod = () => undefined;
 const readScheduled = (item, camel, pascal) => item?.[camel] ?? item?.[pascal];
 const scheduledId = (item) => readScheduled(item, 'id', 'Id');
-const selectFutureExpenseLoading = (state) => Boolean(state.futureExpense?.loading);
-const selectFutureExpenseError = (state) => state.futureExpense?.error || null;
+const PARTIAL_CLEANUP_MESSAGE = 'Expense recorded, but the scheduled item could not be removed';
 
 const toDateInput = (date) => {
   const year = date.getFullYear();
@@ -46,7 +56,7 @@ const toDateInput = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-const csvDate = (value) => Number.isFinite(Date.parse(value || '')) ? value : 'Date not set';
+const csvDate = (value) => (Number.isFinite(Date.parse(value || '')) ? value : 'Date not set');
 
 function buildUpcomingCsvRows(entries) {
   return entries.map((entry) => ({
@@ -57,7 +67,11 @@ function buildUpcomingCsvRows(entries) {
     Property: entry.propertyName,
     Unit: entry.unitName,
     Frequency: entry.type === 'Recurring' ? entry.frequency || 'Active' : '',
-    Status: entry.type === 'Recurring' && entry.isPaused ? 'Paused' : 'Scheduled',
+    Status: entry.cleanupPending
+      ? 'Expense recorded · cleanup needed'
+      : entry.type === 'Recurring' && entry.isPaused
+        ? 'Paused'
+        : 'Scheduled',
     Amount: Number(entry.amount) || 0
   }));
 }
@@ -68,23 +82,20 @@ const errorText = (error) => {
   return error ? 'A scheduled expense request failed.' : '';
 };
 
-export default function UpcomingTab({
-  propertyId,
-  mutationVersion,
-  onMutation,
-  registrationKey,
-  registerExport
-}) {
+export default function UpcomingTab({ propertyId, mutationVersion, onMutation, registrationKey, registerExport }) {
   const dispatch = useDispatch();
   const theme = useTheme();
   const { user } = useAuth();
   const landlordId = user?.id || user?.Id;
-  const recurringExpenses = useSelector(selectRecurringExpenses);
-  const recurringLoading = useSelector(selectRecurringExpenseLoading);
-  const recurringError = useSelector(selectRecurringExpenseError);
-  const futureExpenses = useSelector(selectFutureExpenses);
-  const futureLoading = useSelector(selectFutureExpenseLoading);
-  const futureError = useSelector(selectFutureExpenseError);
+  const recurringExpenseCollection = useSelector(selectRecurringExpenses);
+  const recurringLoading = useSelector(selectRecurringExpenseListLoading);
+  const recurringError = useSelector(selectRecurringExpenseListError);
+  const recurringListSettledRequestKey = useSelector(selectRecurringExpenseListSettledRequestKey);
+  const futureExpenseCollection = useSelector(selectFutureExpenses);
+  const futureLoading = useSelector(selectFutureExpenseListLoading);
+  const futureError = useSelector(selectFutureExpenseListError);
+  const futureListSettledRequestKey = useSelector(selectFutureExpenseListSettledRequestKey);
+  const futureExpenseCleanupById = useSelector(selectFutureExpenseCleanupById);
   const csvLinkRef = useRef(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -92,6 +103,25 @@ export default function UpcomingTab({
   const [requestPending, setRequestPending] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [mutatingKey, setMutatingKey] = useState('');
+  const requestScopeKey = useMemo(
+    () => `upcoming:${landlordId ?? 'pending'}:${propertyId ?? 'all'}:${mutationVersion}:${retryVersion}`,
+    [landlordId, mutationVersion, propertyId, retryVersion]
+  );
+  const recurringExpenses = recurringListSettledRequestKey === requestScopeKey ? recurringExpenseCollection : [];
+  const futureExpenses = useMemo(() => {
+    const settledExpenses = futureListSettledRequestKey === requestScopeKey ? futureExpenseCollection : [];
+    const settledIds = new Set(settledExpenses.map((expense) => String(scheduledId(expense))));
+    const pendingSources = Object.values(futureExpenseCleanupById)
+      .filter((marker) => String(marker.landlordId) === String(landlordId) && marker.source)
+      .map((marker) => marker.source)
+      .filter((source) => {
+        const sourceId = String(scheduledId(source));
+        const sourcePropertyId = readScheduled(source, 'propertyId', 'PropertyId');
+        return !settledIds.has(sourceId) && (!propertyId || String(sourcePropertyId) === String(propertyId));
+      });
+    return [...settledExpenses, ...pendingSources];
+  }, [futureExpenseCleanupById, futureExpenseCollection, futureListSettledRequestKey, landlordId, propertyId, requestScopeKey]);
+  const scopesSettled = recurringListSettledRequestKey === requestScopeKey && futureListSettledRequestKey === requestScopeKey;
 
   useEffect(() => {
     if (!landlordId) {
@@ -102,8 +132,8 @@ export default function UpcomingTab({
     let current = true;
     setRequestPending(true);
     Promise.all([
-      dispatch(getRecurringExpensesAction(landlordId, { propertyId })),
-      dispatch(getFutureExpensesAction(landlordId, { propertyId }))
+      dispatch(getRecurringExpensesAction(landlordId, { propertyId }, requestScopeKey)),
+      dispatch(getFutureExpensesAction(landlordId, { propertyId }, requestScopeKey))
     ]).finally(() => {
       if (current) setRequestPending(false);
     });
@@ -111,34 +141,43 @@ export default function UpcomingTab({
     return () => {
       current = false;
     };
-  }, [dispatch, landlordId, mutationVersion, propertyId, retryVersion]);
+  }, [dispatch, landlordId, requestScopeKey]);
 
   const combinedEntries = useMemo(
-    () => buildUpcomingEntries(recurringExpenses, futureExpenses),
-    [futureExpenses, recurringExpenses]
+    () =>
+      buildUpcomingEntries(recurringExpenses, futureExpenses).map((entry) => {
+        if (entry.type !== 'One-time') return entry;
+        const cleanupPending = futureExpenseCleanupById[String(scheduledId(entry.source))];
+        return cleanupPending ? { ...entry, cleanupPending } : entry;
+      }),
+    [futureExpenseCleanupById, futureExpenses, recurringExpenses]
   );
   const filteredEntries = useMemo(
     () => selectUpcomingEntries(combinedEntries, { propertyId, search, type: typeFilter }),
     [combinedEntries, propertyId, search, typeFilter]
   );
-  const loading = requestPending || recurringLoading || futureLoading;
+  const loading = requestPending || recurringLoading || futureLoading || (Boolean(landlordId) && !scopesSettled);
   const loadError = recurringError || futureError;
+  const hasCleanupPending = combinedEntries.some((entry) => Boolean(entry.cleanupPending));
   const hasClientFilters = Boolean(search.trim()) || typeFilter !== 'all';
   const hasFilters = hasClientFilters || Boolean(propertyId);
   const csvRows = useMemo(() => buildUpcomingCsvRows(filteredEntries), [filteredEntries]);
   const exportFilteredRows = useCallback(() => csvLinkRef.current?.link?.click(), []);
-  const exportState = useMemo(() => ({
-    label: 'Export upcoming',
-    onExport: exportFilteredRows,
-    disabled: loading || Boolean(loadError) || filteredEntries.length === 0,
-    disabledReason: loading
-      ? 'Upcoming expenses are still loading.'
-      : loadError
-        ? 'Upcoming expense records are unavailable.'
-        : filteredEntries.length === 0
-          ? 'There are no upcoming expenses to export.'
-          : ''
-  }), [exportFilteredRows, filteredEntries.length, loadError, loading]);
+  const exportState = useMemo(
+    () => ({
+      label: 'Export upcoming',
+      onExport: exportFilteredRows,
+      disabled: loading || Boolean(loadError) || filteredEntries.length === 0,
+      disabledReason: loading
+        ? 'Upcoming expenses are still loading.'
+        : loadError
+          ? 'Upcoming expense records are unavailable.'
+          : filteredEntries.length === 0
+            ? 'There are no upcoming expenses to export.'
+            : ''
+    }),
+    [exportFilteredRows, filteredEntries.length, loadError, loading]
+  );
   useLayoutEffect(() => registerExport('upcoming', registrationKey, exportState), [exportState, registerExport, registrationKey]);
 
   const changeType = useCallback((value) => setTypeFilter(value), []);
@@ -147,38 +186,104 @@ export default function UpcomingTab({
     setTypeFilter('all');
   }, []);
   const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
-  const notifyMutationSuccess = useCallback((message) => {
+  const notifyFinanceMutation = useCallback(() => {
     onMutation();
-    openSnackbar({ open: true, message, variant: 'alert', alert: { color: 'success' } });
   }, [onMutation]);
+  const notifyMutationSuccess = useCallback(
+    (message) => {
+      notifyFinanceMutation();
+      openSnackbar({ open: true, message, variant: 'alert', alert: { color: 'success' } });
+    },
+    [notifyFinanceMutation]
+  );
+
+  const reconcileFutureExpense = async (entry, marker, successMessage) => {
+    const futureExpenseId = scheduledId(entry.source);
+    try {
+      await dispatch(deleteFutureExpenseAction(futureExpenseId));
+      if (successMessage) {
+        openSnackbar({ open: true, message: successMessage, variant: 'alert', alert: { color: 'success' } });
+      }
+      return true;
+    } catch (cleanupError) {
+      dispatch(
+        markFutureExpenseCleanupPendingAction(futureExpenseId, {
+          ...marker,
+          cleanupError: PARTIAL_CLEANUP_MESSAGE
+        })
+      );
+      openSnackbar({
+        open: true,
+        message: `${PARTIAL_CLEANUP_MESSAGE}. Retry scheduled cleanup from this row.`,
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+      return false;
+    }
+  };
 
   const recordAsPaid = async (entry) => {
     setMutatingKey(entry.key);
+    const cleanupPending = entry.cleanupPending;
+    if (cleanupPending) {
+      try {
+        await reconcileFutureExpense(entry, cleanupPending, 'Scheduled item removed');
+      } finally {
+        setMutatingKey('');
+      }
+      return;
+    }
+
     try {
       const source = entry.source;
       const now = new Date();
-      await dispatch(addExpenseAction({
-        landlordId: landlordId,
-        propertyId: readScheduled(source, 'propertyId', 'PropertyId'),
-        unitId: readScheduled(source, 'unitId', 'UnitId') || null,
-        name: readScheduled(source, 'name', 'Name') || '',
-        category: readScheduled(source, 'category', 'Category') || 'Other',
-        amount: Number(entry.amount) || 0,
-        expenseDate: toDateInput(now),
-        vendor: readScheduled(source, 'vendor', 'Vendor') || null,
-        paymentMethod: readScheduled(source, 'paymentMethod', 'PaymentMethod') || null,
-        isRecurring: entry.type === 'Recurring',
-        isTaxDeductible: Boolean(readScheduled(source, 'isTaxDeductible', 'IsTaxDeductible')),
-        maintenanceRequestId: readScheduled(source, 'maintenanceRequestId', 'MaintenanceRequestId') || null,
-        isPaid: true,
-        paidDate: now.toISOString()
-      }));
+      const addedExpense = await dispatch(
+        addExpenseAction({
+          landlordId: landlordId,
+          propertyId: readScheduled(source, 'propertyId', 'PropertyId'),
+          unitId: readScheduled(source, 'unitId', 'UnitId') || null,
+          name: readScheduled(source, 'name', 'Name') || '',
+          category: readScheduled(source, 'category', 'Category') || 'Other',
+          amount: Number(entry.amount) || 0,
+          expenseDate: toDateInput(now),
+          vendor: readScheduled(source, 'vendor', 'Vendor') || null,
+          paymentMethod: readScheduled(source, 'paymentMethod', 'PaymentMethod') || null,
+          isRecurring: entry.type === 'Recurring',
+          isTaxDeductible: Boolean(readScheduled(source, 'isTaxDeductible', 'IsTaxDeductible')),
+          maintenanceRequestId: readScheduled(source, 'maintenanceRequestId', 'MaintenanceRequestId') || null,
+          isPaid: true,
+          paidDate: now.toISOString()
+        })
+      );
       if (entry.type === 'One-time') {
-        await dispatch(deleteFutureExpenseAction(scheduledId(source)));
+        const futureExpenseId = scheduledId(source);
+        const cleanupMarker = {
+          expenseId: scheduledId(addedExpense) || null,
+          cleanupError: null,
+          landlordId,
+          source
+        };
+        dispatch(markFutureExpenseCleanupPendingAction(futureExpenseId, cleanupMarker));
+        notifyFinanceMutation();
+        const reconciled = await reconcileFutureExpense(entry, cleanupMarker);
+        if (reconciled) {
+          openSnackbar({
+            open: true,
+            message: 'Planned expense recorded as paid',
+            variant: 'alert',
+            alert: { color: 'success' }
+          });
+        }
+      } else {
+        notifyMutationSuccess('Recurring expense recorded as paid');
       }
-      notifyMutationSuccess(entry.type === 'One-time' ? 'Planned expense recorded as paid' : 'Recurring expense recorded as paid');
     } catch (recordError) {
-      openSnackbar({ open: true, message: recordError?.response?.data?.message || 'Failed to record expense', variant: 'alert', alert: { color: 'error' } });
+      openSnackbar({
+        open: true,
+        message: recordError?.response?.data?.message || 'Failed to record expense',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
     } finally {
       setMutatingKey('');
     }
@@ -204,13 +309,23 @@ export default function UpcomingTab({
     try {
       if (deleteTarget.type === 'Recurring') {
         await dispatch(deleteRecurringExpenseAction(scheduledId(deleteTarget.source)));
+        setDeleteTarget(null);
+        notifyMutationSuccess('Expense deleted');
+      } else if (deleteTarget.cleanupPending) {
+        const reconciled = await reconcileFutureExpense(deleteTarget, deleteTarget.cleanupPending, 'Scheduled item removed');
+        if (reconciled) setDeleteTarget(null);
       } else {
         await dispatch(deleteFutureExpenseAction(scheduledId(deleteTarget.source)));
+        setDeleteTarget(null);
+        notifyMutationSuccess('Expense deleted');
       }
-      setDeleteTarget(null);
-      notifyMutationSuccess('Expense deleted');
     } catch (deleteError) {
-      openSnackbar({ open: true, message: deleteError?.response?.data?.message || 'Failed to delete expense', variant: 'alert', alert: { color: 'error' } });
+      openSnackbar({
+        open: true,
+        message: deleteError?.response?.data?.message || 'Failed to delete expense',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
     } finally {
       setMutatingKey('');
     }
@@ -226,14 +341,16 @@ export default function UpcomingTab({
       </Typography>
     </Box>
   );
-  const filterFields = [{
-    key: 'type',
-    label: 'Schedule type',
-    value: typeFilter,
-    defaultValue: 'all',
-    onChange: changeType,
-    options: TYPE_OPTIONS
-  }];
+  const filterFields = [
+    {
+      key: 'type',
+      label: 'Schedule type',
+      value: typeFilter,
+      defaultValue: 'all',
+      onChange: changeType,
+      options: TYPE_OPTIONS
+    }
+  ];
   const activeChips = typeFilter === 'all' ? [] : [{ key: 'type', label: typeFilter, onDelete: () => changeType('all') }];
 
   return (
@@ -259,41 +376,95 @@ export default function UpcomingTab({
           filters={filterFields}
           activeChips={activeChips}
           onClearAll={clearFilters}
-          resultSummary={!loading && !loadError
-            ? `${filteredEntries.length} upcoming ${filteredEntries.length === 1 ? 'expense' : 'expenses'} match this view`
-            : undefined}
+          resultSummary={
+            !loading && !loadError
+              ? `${filteredEntries.length} upcoming ${filteredEntries.length === 1 ? 'expense' : 'expenses'} match this view`
+              : undefined
+          }
         />
       </Box>
 
+      {hasCleanupPending && (
+        <Box sx={{ p: 2, pb: 0 }}>
+          <Alert severity="warning">
+            <Typography fontWeight={700}>{PARTIAL_CLEANUP_MESSAGE}</Typography>
+            The paid expense is saved. Retry scheduled cleanup from the affected row; retry will not create another expense.
+          </Alert>
+        </Box>
+      )}
+
       {loadError && (
         <Box sx={{ p: 2, pb: filteredEntries.length ? 0 : 2 }}>
-          <Alert severity="warning" action={<Button color="inherit" onClick={retry}>Try again</Button>}>
+          <Alert
+            severity="warning"
+            action={
+              <Button color="inherit" onClick={retry}>
+                Try again
+              </Button>
+            }
+          >
             <Typography fontWeight={700}>Upcoming expenses could not be loaded</Typography>
-            {[errorText(recurringError), errorText(futureError)].filter(Boolean).join(' ')} This view may be incomplete; retry before treating it as an empty schedule.
+            {[errorText(recurringError), errorText(futureError)].filter(Boolean).join(' ')} This view may be incomplete; retry before
+            treating it as an empty schedule.
           </Alert>
         </Box>
       )}
 
       {loading ? (
-        <Box role="status" aria-live="polite" aria-label="Loading upcoming expenses" sx={{ minHeight: 280, display: 'grid', placeItems: 'center' }}>
+        <Box
+          role="status"
+          aria-live="polite"
+          aria-label="Loading upcoming expenses"
+          sx={{ minHeight: 280, display: 'grid', placeItems: 'center' }}
+        >
           <CircularProgress />
         </Box>
       ) : !loadError && filteredEntries.length === 0 ? (
         <Box role="status" aria-live="polite" sx={{ px: 3, py: 7, textAlign: 'center' }}>
-          <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><CalendarOutlined /></Avatar>
+          <Avatar sx={{ width: 52, height: 52, mx: 'auto', bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+            <CalendarOutlined />
+          </Avatar>
           <Typography variant="h6" sx={{ mt: 1.5 }}>
             {hasFilters ? 'No upcoming expenses match these filters' : 'No upcoming expenses are scheduled'}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.6, fontSize: '0.84rem' }}>
-            {hasFilters ? 'Adjust the Upcoming filters or shared property scope to see more schedules.' : 'Recurring and one-time expenses will appear here when they are scheduled.'}
+            {hasFilters
+              ? 'Adjust the Upcoming filters or shared property scope to see more schedules.'
+              : 'Recurring and one-time expenses will appear here when they are scheduled.'}
           </Typography>
-          {hasClientFilters && <Button onClick={clearFilters} sx={{ mt: 1.5, textTransform: 'none' }}>Clear Upcoming filters</Button>}
+          {hasClientFilters && (
+            <Button onClick={clearFilters} sx={{ mt: 1.5, textTransform: 'none' }}>
+              Clear Upcoming filters
+            </Button>
+          )}
         </Box>
       ) : filteredEntries.length > 0 ? (
         <>
-          <Box sx={{ px: 2, py: 1, display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(180px, 1fr) minmax(145px, .8fr) minmax(105px, .58fr) minmax(130px, .7fr)', gap: 2, bgcolor: alpha(theme.palette.primary.main, 0.025), borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+          <Box
+            sx={{
+              px: 2,
+              py: 1,
+              display: { xs: 'none', md: 'grid' },
+              gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(180px, 1fr) minmax(145px, .8fr) minmax(105px, .58fr) minmax(130px, .7fr)',
+              gap: 2,
+              bgcolor: alpha(theme.palette.primary.main, 0.025),
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+            }}
+          >
             {['Schedule', 'Property', 'Timing', 'Amount', 'Actions'].map((label, index) => (
-              <Typography key={label} sx={{ fontSize: '0.68rem', fontWeight: 750, letterSpacing: 0.55, textTransform: 'uppercase', color: 'text.secondary', textAlign: index === 3 ? 'right' : 'left' }}>{label}</Typography>
+              <Typography
+                key={label}
+                sx={{
+                  fontSize: '0.68rem',
+                  fontWeight: 750,
+                  letterSpacing: 0.55,
+                  textTransform: 'uppercase',
+                  color: 'text.secondary',
+                  textAlign: index === 3 ? 'right' : 'left'
+                }}
+              >
+                {label}
+              </Typography>
             ))}
           </Box>
           {filteredEntries.map((entry) => (
@@ -314,7 +485,13 @@ export default function UpcomingTab({
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         title={deleteTarget?.type === 'Recurring' ? 'Delete recurring schedule' : 'Delete planned expense'}
-        message={deleteTarget?.type === 'Recurring' ? 'Delete this recurring schedule? Existing expense records will not be removed.' : 'Delete this expense? This action cannot be undone.'}
+        message={
+          deleteTarget?.type === 'Recurring'
+            ? 'Delete this recurring schedule? Existing expense records will not be removed.'
+            : deleteTarget?.cleanupPending
+              ? 'Remove the remaining scheduled item? The paid expense record will remain.'
+              : 'Delete this expense? This action cannot be undone.'
+        }
         confirmText="Delete"
         cancelText="Cancel"
         confirmColor="error"

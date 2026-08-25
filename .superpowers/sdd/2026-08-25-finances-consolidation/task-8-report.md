@@ -80,6 +80,39 @@ Focused ESLint was attempted for all six Task 8 source/test files and could not 
 - Confirmed active export uses the current registration key and every filtered row, and loading/error/empty states disable export truthfully.
 - Confirmed no page shell, breadcrumbs, PropertySelect, metrics, creation drawer, route/menu work, or legacy deletion moved into the tab.
 
+## Fix Round 1 — stale requests and partial commits
+
+The independent review's two Important findings are resolved.
+
+- Recurring and future list thunks now stamp every start/success/failure with a monotonic request ID and a caller-supplied request scope key. Each reducer accepts only the latest matching completion, so late property, retry, and pre-mutation responses cannot replace current scheduled data or status.
+- List loading/error/request state is separate from mutation loading/error. The legacy collection plus `loading`/`error` fields and selectors remain available for existing Expenses/property consumers; Upcoming uses the new list-specific selectors and renders/exports only collections settled for its landlord/property/mutation/retry key.
+- Successful scheduled mutations invalidate any older in-flight list identity after applying their local result, preventing a pre-pause or pre-delete response from restoring stale rows.
+- A successful one-time expense add immediately stores a Redux cleanup marker keyed by the future expense ID, including the future source snapshot, then advances the page finance mutation version exactly once. The normal delete and every later reconciliation are delete-only and never create a second expense or call the finance mutation callback again.
+- Delete failure preserves the marker and source row, shows `Expense recorded, but the scheduled item could not be removed`, and changes the row action to `Retry scheduled cleanup`. A successful delete or a current settled future list proving the source absent clears the marker.
+- The marker lives in Redux, so it survives Upcoming tab unmount/remount and route navigation in the current application session. Persisting it across a hard browser reload was intentionally rejected: repository state has no per-user persisted Redux pattern, and browser storage could leak one user's recovery state into another authenticated session. The hard-reload limitation is therefore explicit.
+
+### Fix RED
+
+The initial focused run produced 9 passing existing contracts and 6 direct failures: recurring/future stale success/failure overwrites, shared list/mutation state, missing cleanup marker reconciliation, and missing UI partial-recovery/current-scope integration.
+
+### Fix GREEN and final verification
+
+```text
+node --experimental-default-type=module --test src/store/scheduledExpenseRequest.test.js src/architecture/financesPage.test.mjs
+```
+
+Result: 17 passed, 0 failed. This includes executable recurring/future thunk tests with out-of-order settlement, direct reducer race/status/mutation invalidation tests, cleanup marker reconciliation, and the UI architecture contract.
+
+```text
+node --experimental-default-type=module --test src/architecture/financesPage.test.mjs src/architecture/financeDrawerRefresh.test.mjs src/architecture/financesDataFlow.test.mjs src/utils/finances.test.js src/utils/upcomingTab.test.js src/utils/paymentsTab.test.js src/utils/expensesTab.test.js src/store/expense/expenseListRequest.test.js src/store/scheduledExpenseRequest.test.js src/utils/moneyCenter.test.js src/api/moneyCenter.contract.test.js src/utils/expenseCategorization.test.js
+```
+
+Result: 90 passed, 0 failed, 0 skipped.
+
+Explicit Babel parsing passed for all 11 owned changed JavaScript/JSX/MJS files. The production build again transformed 17,817 modules and passed; only the existing mixed-import and large-chunk advisories remained.
+
+The fix commit uses the requested message `fix: stabilize upcoming finance mutations`; its hash is reported in the task handoff.
+
 ## Concerns
 
 - TransactionFilterToolbar tests remain unavailable until `vitest` is restored to installed dependencies.

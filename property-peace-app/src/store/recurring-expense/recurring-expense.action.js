@@ -1,54 +1,67 @@
-import { 
-  getRecurringExpenses, 
-  getRecurringExpenseById, 
-  addRecurringExpense, 
-  updateRecurringExpense, 
+import {
+  getRecurringExpenses,
+  getRecurringExpenseById,
+  addRecurringExpense,
+  updateRecurringExpense,
   deleteRecurringExpense,
   pauseRecurringExpense,
   resumeRecurringExpense
 } from 'api/recurringExpense';
 import { RECURRING_EXPENSE_ACTION_TYPES } from './recurring-expense.types';
 
-export const getRecurringExpensesAction = (landlordId, filters = {}) => async (dispatch) => {
-  try {
-    dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSES_START });
-    
-    const response = await getRecurringExpenses(landlordId, filters);
-    
-    // Handle ServiceResponse structure: 
-    // - response is the ServiceResponse object from the API
-    // - response.data (or response.Data) contains the actual array
-    // - Also handle case where response might be the array directly
-    let recurringExpenses = [];
-    if (Array.isArray(response)) {
-      recurringExpenses = response;
-    } else if (response?.data && Array.isArray(response.data)) {
-      recurringExpenses = response.data;
-    } else if (response?.Data && Array.isArray(response.Data)) {
-      recurringExpenses = response.Data;
+let recurringExpenseListRequestSequence = 0;
+
+const recurringExpenseRequestKey = (landlordId, filters) =>
+  `recurring:${landlordId ?? 'unknown'}:${filters?.propertyId ?? filters?.PropertyId ?? 'all'}`;
+
+export const getRecurringExpensesAction =
+  (landlordId, filters = {}, suppliedRequestKey) =>
+  async (dispatch) => {
+    const requestId = ++recurringExpenseListRequestSequence;
+    const requestKey = suppliedRequestKey || recurringExpenseRequestKey(landlordId, filters);
+    const meta = { requestId, requestKey };
+    try {
+      dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSES_START, meta });
+
+      const response = await getRecurringExpenses(landlordId, filters);
+
+      // Handle ServiceResponse structure:
+      // - response is the ServiceResponse object from the API
+      // - response.data (or response.Data) contains the actual array
+      // - Also handle case where response might be the array directly
+      let recurringExpenses = [];
+      if (Array.isArray(response)) {
+        recurringExpenses = response;
+      } else if (response?.data && Array.isArray(response.data)) {
+        recurringExpenses = response.data;
+      } else if (response?.Data && Array.isArray(response.Data)) {
+        recurringExpenses = response.Data;
+      }
+
+      dispatch({
+        type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSES_SUCCESS,
+        payload: recurringExpenses,
+        meta
+      });
+      return recurringExpenses;
+    } catch (error) {
+      dispatch({
+        type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSES_FAILURE,
+        payload: error?.response?.data?.errors || error.message,
+        meta
+      });
     }
-    
-    dispatch({
-      type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSES_SUCCESS,
-      payload: recurringExpenses
-    });
-  } catch (error) {
-    dispatch({
-      type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSES_FAILURE,
-      payload: error?.response?.data?.errors || error.message
-    });
-  }
-};
+  };
 
 export const getRecurringExpenseByIdAction = (recurringExpenseId) => async (dispatch) => {
   try {
     dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSE_BY_ID_START });
-    
+
     const response = await getRecurringExpenseById(recurringExpenseId);
-    
+
     // Handle ServiceResponse structure: response.data is the ServiceResponse, response.data.data is the actual object
     const recurringExpense = response?.data || response;
-    
+
     dispatch({
       type: RECURRING_EXPENSE_ACTION_TYPES.GET_RECURRING_EXPENSE_BY_ID_SUCCESS,
       payload: recurringExpense
@@ -65,10 +78,10 @@ export const addRecurringExpenseAction = (recurringExpense) => async (dispatch) 
   try {
     console.log('[Action] addRecurringExpenseAction called with:', JSON.stringify(recurringExpense, null, 2));
     dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.ADD_RECURRING_EXPENSE_START });
-    
+
     const response = await addRecurringExpense(recurringExpense);
     console.log('[Action] addRecurringExpense response:', response);
-    
+
     // Handle ServiceResponse structure: response is the ServiceResponse, response.data is the actual object
     let newRecurringExpense;
     if (response?.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
@@ -81,14 +94,14 @@ export const addRecurringExpenseAction = (recurringExpense) => async (dispatch) 
       // response itself is the object
       newRecurringExpense = response;
     }
-    
+
     console.log('[Action] Extracted recurring expense:', newRecurringExpense);
-    
+
     dispatch({
       type: RECURRING_EXPENSE_ACTION_TYPES.ADD_RECURRING_EXPENSE_SUCCESS,
       payload: newRecurringExpense
     });
-    
+
     return newRecurringExpense;
   } catch (error) {
     console.error('[Action] addRecurringExpenseAction error:', error);
@@ -104,14 +117,14 @@ export const addRecurringExpenseAction = (recurringExpense) => async (dispatch) 
 export const updateRecurringExpenseAction = (recurringExpenseId, recurringExpense) => async (dispatch) => {
   try {
     dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.UPDATE_RECURRING_EXPENSE_START });
-    
+
     const response = await updateRecurringExpense(recurringExpenseId, recurringExpense);
-    
+
     dispatch({
       type: RECURRING_EXPENSE_ACTION_TYPES.UPDATE_RECURRING_EXPENSE_SUCCESS,
       payload: response.data
     });
-    
+
     return response.data;
   } catch (error) {
     dispatch({
@@ -125,9 +138,9 @@ export const updateRecurringExpenseAction = (recurringExpenseId, recurringExpens
 export const deleteRecurringExpenseAction = (recurringExpenseId) => async (dispatch) => {
   try {
     dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.DELETE_RECURRING_EXPENSE_START });
-    
+
     await deleteRecurringExpense(recurringExpenseId);
-    
+
     dispatch({
       type: RECURRING_EXPENSE_ACTION_TYPES.DELETE_RECURRING_EXPENSE_SUCCESS,
       payload: recurringExpenseId
@@ -144,14 +157,14 @@ export const deleteRecurringExpenseAction = (recurringExpenseId) => async (dispa
 export const pauseRecurringExpenseAction = (recurringExpenseId) => async (dispatch) => {
   try {
     dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.PAUSE_RECURRING_EXPENSE_START });
-    
+
     const response = await pauseRecurringExpense(recurringExpenseId);
-    
+
     dispatch({
       type: RECURRING_EXPENSE_ACTION_TYPES.PAUSE_RECURRING_EXPENSE_SUCCESS,
       payload: response.data
     });
-    
+
     return response.data;
   } catch (error) {
     dispatch({
@@ -165,14 +178,14 @@ export const pauseRecurringExpenseAction = (recurringExpenseId) => async (dispat
 export const resumeRecurringExpenseAction = (recurringExpenseId) => async (dispatch) => {
   try {
     dispatch({ type: RECURRING_EXPENSE_ACTION_TYPES.RESUME_RECURRING_EXPENSE_START });
-    
+
     const response = await resumeRecurringExpense(recurringExpenseId);
-    
+
     dispatch({
       type: RECURRING_EXPENSE_ACTION_TYPES.RESUME_RECURRING_EXPENSE_SUCCESS,
       payload: response.data
     });
-    
+
     return response.data;
   } catch (error) {
     dispatch({
