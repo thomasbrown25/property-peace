@@ -38,7 +38,7 @@ export default function PropertyManagementAppPage() {
       price: '0',
       priceCurrency: 'USD',
     },
-    description: 'Mobile-friendly property management software for landlords. Review recorded rent status, tenant details, maintenance, and lease records from your phone. Online payment processing is not currently available.',
+    description: 'Mobile-friendly property management software for landlords. Review recorded rent status, tenant details, maintenance, and lease records from your phone. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
     featureList: appFeatures,
   };
 
@@ -119,7 +119,7 @@ export default function PropertyManagementAppPage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Review recorded rent status from your phone, including paid and overdue ledger entries. Online payment processing is not currently available in Property Peace.
+                Review recorded rent status from your phone, including paid and overdue ledger entries. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.
               </p>
             </div>
             <div>

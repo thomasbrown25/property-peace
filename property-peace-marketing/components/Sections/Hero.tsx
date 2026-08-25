@@ -49,7 +49,7 @@ export default function Hero() {
               className="mx-auto mb-7 max-w-[21.5rem] text-[1.02rem] leading-7 text-white/90 sm:max-w-lg sm:text-base md:text-lg sm:leading-relaxed sm:mb-10 lg:mx-0 lg:mb-8 lg:max-w-[36rem]"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              Manage tenants and leases, track rent and expenses, and stay ahead of maintenance, all in one place. Self-manage with free software that keeps the day-to-day work clear and under your control.
+              Manage tenants and leases, track rent and expenses, and stay ahead of maintenance, all in one place. Self-manage with free software that keeps the day-to-day work clear and under your control. Percy-assisted tools, currently in limited pilot, are available on Premium.
             </p>
 
             {/* Mobile CTA row — buttons only */}

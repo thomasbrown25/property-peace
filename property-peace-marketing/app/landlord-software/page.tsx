@@ -59,7 +59,7 @@ export default function LandlordSoftwarePage() {
             className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Complete property management software designed specifically for landlords managing 1-50 units. Streamline rent tracking, tenant management, and maintenance workflows—all in one platform. Online payment processing is not currently available.
+            Complete property management software designed specifically for landlords managing 1-50 units. Streamline rent tracking, tenant management, and maintenance workflows—all in one platform. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.
           </p>
           <Link
             href="https://app.propertypeace.io/register"

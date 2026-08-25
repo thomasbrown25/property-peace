@@ -88,11 +88,11 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
     twitterDescription: 'Simplify tenant maintenance & track work orders. Simple property tools for landlords, no enterprise bloat. #LandlordLife',
   },
   '/features/payment-processing/': {
-    title: 'Online Rent Payments Roadmap | Property Peace',
-    description: 'Online rent payment processing is not currently available in Property Peace. Use the live rent ledger, payment-history, late-fee, and reminder tools today.',
+    title: 'Online Rent Payments | Property Peace',
+    description: 'Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
     canonical: 'https://propertypeace.io/features/payment-processing',
-    openGraphDescription: 'Online payment processing is planned, not currently available. Property Peace currently provides rent tracking, payment records, late fees, and reminder workflows.',
-    twitterDescription: 'Online payment processing is planned, not currently available. Track rent records, balances, late fees, and reminders today.',
+    openGraphDescription: 'Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
+    twitterDescription: 'Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online. Track rent records, balances, late fees, and reminders today.',
   },
   '/features/property-management/': {
     canonical: 'https://propertypeace.io/features/property-management',
@@ -100,7 +100,7 @@ const ottoSeoOverrides: Record<string, OttoSeoOverride> = {
   },
   '/features/rent-collection/': {
     title: 'Rent Tracking and Reminder Software | Property Peace',
-    description: 'Track recorded rent payments, overdue balances, late fees, and reminders. Online payment processing is not currently available.',
+    description: 'Track recorded rent payments, overdue balances, late fees, and reminders. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
     canonical: 'https://propertypeace.io/features/rent-collection',
   },
   '/features/rent-estimate/': {

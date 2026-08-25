@@ -64,7 +64,7 @@ export default function PrivacyPage() {
             <ul className="list-disc pl-6 text-[#737373] space-y-2">
               <li>Account information (name, email address, password)</li>
               <li>Property and tenant information you enter into the platform</li>
-              <li>Payment information (processed securely through Stripe)</li>
+              <li>Payment provider identifiers, transaction status, and ledger records; Stripe processes initiated payments for approved organizations under its own terms.</li>
               <li>Communications and support requests</li>
               <li>Lease documents and related files</li>
             </ul>
@@ -113,7 +113,7 @@ export default function PrivacyPage() {
               We use trusted third-party services to operate our platform:
             </p>
             <ul className="list-disc pl-6 text-[#737373] space-y-2">
-              <li><strong>Stripe</strong> — A payment processing provider used only if and when online rent processing is operationally enabled. Online rent processing is currently unavailable.</li>
+              <li><strong>Stripe</strong> — For approved organizations and user-initiated payments, Stripe processes payment and connected-account information under its own terms. Property Peace stores provider identifiers, status, and ledger records, not raw bank/card credentials.</li>
               <li><strong>DocuSign</strong> — A document signing provider used only if and when integrated digital lease signing is operationally enabled. Integrated digital lease signing is currently unavailable.</li>
               <li><strong>Google</strong> — Optional authentication, aggregate analytics, and advertising measurement. Google storage is denied by default and is granted only after you accept analytics cookies.</li>
               <li><strong>Plausible Analytics</strong> — Privacy-focused aggregate measurement of marketing-site traffic and selected actions, without setting analytics cookies or collecting form contents.</li>

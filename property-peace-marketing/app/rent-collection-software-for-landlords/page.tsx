@@ -28,7 +28,7 @@ const config: NicheLandingPageConfig = {
   workflowTitle: 'A calmer monthly rent routine',
   workflowSteps: ['Add properties, units, tenants, and rent terms.', 'Track rent activity and overdue balances from your dashboard.', 'Use reminders and clear records to reduce manual chasing.', 'Review rent performance alongside expenses and reports.'],
   faq: [
-    { question: 'Can tenants currently pay rent online through Property Peace?', answer: 'No. Online payment processing is not currently available. Property Peace currently helps landlords record payment history, track overdue balances, configure late fees, and organize reminders.' },
+    { question: 'Can tenants currently pay rent online through Property Peace?', answer: 'Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online. Property Peace also helps landlords record payment history, track overdue balances, configure late fees, and organize reminders.' },
     { question: 'Is this useful if I only have a few units?', answer: 'Yes. The free plan is built for landlords with up to 5 units, and the product is designed around small-portfolio rent collection.' },
     { question: 'Does rent tracking connect to reports?', answer: 'Yes. Rent records and property financial details can be used with reporting workflows so you get a clearer view of property performance.' },
   ],
