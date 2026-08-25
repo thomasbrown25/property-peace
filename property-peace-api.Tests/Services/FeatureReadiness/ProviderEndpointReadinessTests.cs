@@ -2,6 +2,7 @@ using System.Reflection;
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Filters;
+using brownstone_hub_api.Services.RentPaymentAccess;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Xunit;
@@ -36,18 +37,19 @@ public class ProviderEndpointReadinessTests
         { typeof(AICopilotController), nameof(AICopilotController.GetAgentDashboardSummary), FeatureKeys.Percy },
         { typeof(AICopilotController), nameof(AICopilotController.GetCollectionsHistory), FeatureKeys.Percy },
         { typeof(AICopilotController), nameof(AICopilotController.ForceFollowUp), FeatureKeys.Percy },
-
-        { typeof(StripeController), nameof(StripeController.CreateConnectAccount), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.GetAccountStatus), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.CreateAccountLink), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.CreateLoginLink), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.CreateAccountSession), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.SyncBankAccount), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.CreateSetupIntent), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.CreatePaymentIntent), FeatureKeys.OnlineRentCollection },
-        { typeof(StripeController), nameof(StripeController.UpdatePaymentIntent), FeatureKeys.OnlineRentCollection },
     };
-
+    public static TheoryData<string, RentPaymentAction> StripeRentPaymentEndpoints => new()
+    {
+        { nameof(StripeController.CreateConnectAccount), RentPaymentAction.Configure },
+        { nameof(StripeController.GetAccountStatus), RentPaymentAction.Configure },
+        { nameof(StripeController.CreateAccountLink), RentPaymentAction.Configure },
+        { nameof(StripeController.CreateLoginLink), RentPaymentAction.Configure },
+        { nameof(StripeController.CreateAccountSession), RentPaymentAction.Configure },
+        { nameof(StripeController.SyncBankAccount), RentPaymentAction.Configure },
+        { nameof(StripeController.CreateSetupIntent), RentPaymentAction.Pay },
+        { nameof(StripeController.CreatePaymentIntent), RentPaymentAction.Pay },
+        { nameof(StripeController.UpdatePaymentIntent), RentPaymentAction.Pay }
+    };
     [Theory]
     [MemberData(nameof(ProviderEndpoints))]
     public void ProviderTouchingEndpoint_RequiresItsCanonicalReadinessFeature(
@@ -57,6 +59,21 @@ public class ProviderEndpointReadinessTests
             .Single(method => method.Name == actionName);
 
         GetRequiredFeatures(controllerType, action).Should().Contain(expectedFeature);
+    }
+
+    [Theory]
+    [MemberData(nameof(StripeRentPaymentEndpoints))]
+    public void StripeRentPaymentEndpoint_RequiresItsActionSpecificReadinessGate(
+        string actionName, RentPaymentAction expectedAction)
+    {
+        var action = typeof(StripeController).GetMethods(BindingFlags.Instance | BindingFlags.Public)
+            .Single(method => method.Name == actionName);
+
+        action.CustomAttributes
+            .Where(attribute => attribute.AttributeType == typeof(RequireRentPaymentActionReadyAttribute))
+            .Select(attribute => (RentPaymentAction)attribute.ConstructorArguments.Single().Value!)
+            .Should().ContainSingle()
+            .Which.Should().Be(expectedAction);
     }
 
     private static IEnumerable<string> GetRequiredFeatures(Type controllerType, MethodInfo action)
