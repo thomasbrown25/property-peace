@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PlusOutlined } from '@ant-design/icons';
 import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material';
-import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import PropertySelect from 'components/PropertySelect';
@@ -20,6 +20,7 @@ import {
   buildFinancesMoneyQuery,
   normalizeFinancesPeriod,
   normalizeFinancesTab,
+  selectFinancesExportState,
   sumCollectedThisMonth,
   updateFinancesPropertyScope,
   updateFinancesSearch
@@ -47,6 +48,7 @@ const ALL_PROPERTIES_SCOPE = Object.freeze({});
 export default function FinancesPage() {
   const theme = useTheme();
   const drawer = useDrawer();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { properties } = useFetchProperties();
   const activeTab = normalizeFinancesTab(searchParams.get('tab'));
@@ -78,11 +80,17 @@ export default function FinancesPage() {
   const customFrom = searchParams.get('from') || '';
   const customTo = searchParams.get('to') || '';
   const customRangeValid = ISO_DATE.test(customFrom) && ISO_DATE.test(customTo) && customFrom <= customTo;
-  const [tabExports, setTabExports] = useState({});
+  const exportRegistrationKey = `${location.key}:${activeTab}`;
+  const [exportRegistration, setExportRegistration] = useState(null);
   const [selectedFinanceItem, setSelectedFinanceItem] = useState(null);
 
-  const registerExport = useCallback((tab, exportState) => {
-    setTabExports((current) => current[tab] === exportState ? current : { ...current, [tab]: exportState });
+  const registerExport = useCallback((tab, registrationKey, exportState) => {
+    setExportRegistration({ tab, registrationKey, exportState });
+    return () => setExportRegistration((current) => (
+      current?.tab === tab && current.registrationKey === registrationKey && current.exportState === exportState
+        ? null
+        : current
+    ));
   }, []);
   const openFinanceDetail = useCallback((entry) => {
     const originalItem = moneyData.itemsResponse?.items?.find((item) => item.sourceId === entry.sourceId);
@@ -105,9 +113,16 @@ export default function FinancesPage() {
 
   const handleAccountNavigation = (account) => updateSearch({ tab: 'activity', account });
   const activityExportDisabled = moneyData.loading || moneyScopeChanged || Boolean(moneyData.itemsError);
-  const activityExport = tabExports.activity;
+  const registeredExportState = selectFinancesExportState(exportRegistration, activeTab, exportRegistrationKey);
   const activeExport = useMemo(() => {
-    if (activeTab === 'activity' && !activityExport?.hasClientFilters) {
+    if (!registeredExportState) {
+      return {
+        label: 'Export',
+        disabled: true,
+        disabledReason: `Export is unavailable until the ${FINANCES_TAB_LABELS.find(([value]) => value === activeTab)?.[1] || 'selected'} view is ready.`
+      };
+    }
+    if (activeTab === 'activity' && !registeredExportState.hasClientFilters) {
       return {
         label: 'Export activity',
         onExport: moneyData.exportActivity,
@@ -116,12 +131,8 @@ export default function FinancesPage() {
         disabledReason: moneyData.loading || moneyScopeChanged ? 'Activity is still loading.' : moneyData.itemsError ? 'Activity records are unavailable.' : ''
       };
     }
-    return tabExports[activeTab] || {
-      label: 'Export',
-      disabled: true,
-      disabledReason: `Export is unavailable for the ${FINANCES_TAB_LABELS.find(([value]) => value === activeTab)?.[1] || 'selected'} view.`
-    };
-  }, [activeTab, activityExport, activityExportDisabled, moneyData.exportActivity, moneyData.exporting, moneyData.itemsError, moneyData.loading, moneyScopeChanged, tabExports]);
+    return registeredExportState;
+  }, [activeTab, activityExportDisabled, moneyData.exportActivity, moneyData.exporting, moneyData.itemsError, moneyData.loading, moneyScopeChanged, registeredExportState]);
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -205,6 +216,7 @@ export default function FinancesPage() {
                   error={moneyData.itemsError}
                   onRetry={moneyData.retry}
                   onSelectItem={openFinanceDetail}
+                  registrationKey={exportRegistrationKey}
                   registerExport={registerExport}
                 />
               )}
@@ -216,6 +228,7 @@ export default function FinancesPage() {
                   onRetry={moneyData.retry}
                   initialAccount={searchParams.get('account') || ''}
                   onSelectItem={openFinanceDetail}
+                  registrationKey={exportRegistrationKey}
                   registerExport={registerExport}
                 />
               )}

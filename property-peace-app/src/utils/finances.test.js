@@ -5,7 +5,7 @@ import {
   buildActivityEntries, selectNeedsReviewItems, buildAccountActivity,
   buildUpcomingEntries, sumCollectedThisMonth, updateFinancesPropertyScope,
   buildActivityCsvRows, buildReviewCsvRows, getActivityAccountOptions,
-  selectActivityEntriesPage
+  selectActivityEntriesPage, selectFinancesExportState
 } from './finances.js';
 
 test('finances defaults to Activity and keeps shared scope when tabs change', () => {
@@ -71,6 +71,22 @@ test('review selection deduplicates reasons and covers all signals', () => {
   assert.deepEqual(result[2].reviewReasons, ['Settlement exception']);
 });
 
+test('export registration is current only for the exact active tab and navigation key', () => {
+  const registration = {
+    tab: 'activity',
+    registrationKey: 'navigation-b:activity',
+    exportState: { label: 'Export activity', mode: 'visible-client-page' }
+  };
+
+  assert.deepEqual(
+    selectFinancesExportState(registration, 'activity', 'navigation-b:activity'),
+    { label: 'Export activity', mode: 'visible-client-page' }
+  );
+  assert.equal(selectFinancesExportState(null, 'activity', 'navigation-b:activity'), null);
+  assert.equal(selectFinancesExportState(registration, 'review', 'navigation-b:activity'), null);
+  assert.equal(selectFinancesExportState(registration, 'activity', 'navigation-c:activity'), null);
+  assert.equal(selectFinancesExportState({ ...registration, exportState: null }, 'activity', 'navigation-b:activity'), null);
+});
 test('activity selection combines search, type, account, sort, and twelve-row pagination', () => {
   const entries = Array.from({ length: 14 }, (_, index) => ({
     sourceId: `expense-${index + 1}`,

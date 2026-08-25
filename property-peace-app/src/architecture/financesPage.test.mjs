@@ -110,21 +110,27 @@ test('Activity supports scoped filtering, responsive rows, retry, pagination, an
   assert.match(activity, /Running total of the posted activity shown here — not a bank balance\./);
 });
 
-test('active-tab export registration chooses the server only for unfiltered Activity', async () => {
+test('active-tab export registration requires the current mount and navigation before enabling export', async () => {
   const [page, activity, review] = await Promise.all([
     source('pages/landlord/finances.jsx'),
     source('sections/landlord/finances/ActivityTab.jsx'),
     source('sections/landlord/finances/NeedsReviewTab.jsx')
   ]);
 
+  assert.match(page, /useLocation\(\)/);
+  assert.match(page, /const exportRegistrationKey = `\$\{location\.key\}:\$\{activeTab\}`/);
   assert.match(page, /const registerExport = useCallback/);
-  assert.match(page, /activityExport\?\.hasClientFilters/);
+  assert.match(page, /return \(\) => setExportRegistration/);
+  assert.match(page, /selectFinancesExportState\(exportRegistration, activeTab, exportRegistrationKey\)/);
+  assert.match(page, /if \(!registeredExportState\)[\s\S]*disabled: true[\s\S]*if \(activeTab === 'activity'/);
+  assert.doesNotMatch(page, /tabExports|activityExport\?\./);
   assert.match(page, /onExport: moneyData\.exportActivity/);
+  assert.match(page, /registrationKey=\{exportRegistrationKey\}/);
+  assert.match(activity, /useLayoutEffect\(\(\) => registerExport\('activity', registrationKey, exportState\)/);
+  assert.match(review, /useLayoutEffect\(\(\) => registerExport\('review', registrationKey, exportState\)/);
   assert.match(activity, /hasClientFilters/);
   assert.match(activity, /buildActivityCsvRows\(visibleEntries\)/);
   assert.match(activity, /<CSVLink/);
-  assert.match(review, /registerExport\('review'/);
-  assert.match(activity, /registerExport\('activity'/);
 });
 
 test('Activity item errors remain retry states and detail uses original Money Center records', async () => {
@@ -139,6 +145,8 @@ test('Activity item errors remain retry states and detail uses original Money Ce
   assert.doesNotMatch(page, /overviewError[^\n]+ActivityTab/);
   assert.match(activity, /Activity records could not be loaded/);
   assert.match(activity, /This is not confirmation that the selected period has no posted activity\./);
+  assert.match(activity, /resultSummary=\{!loading && !error\s*\?/);
+  assert.doesNotMatch(activity, /resultSummary=\{`\$\{totalCount\} posted/);
   assert.match(drawer, /Source ID/);
   assert.match(drawer, /item\.needsAttention/);
   assert.match(drawer, /item\.hasReceipt === false/);

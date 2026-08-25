@@ -17,6 +17,10 @@ export function updateFinancesSearch(current, changes = {}) {
   return next;
 }
 
+export function selectFinancesExportState(registration, activeTab, registrationKey) {
+  if (!registration || registration.tab !== activeTab || registration.registrationKey !== registrationKey) return null;
+  return registration.exportState || null;
+}
 export function normalizeFinancesPeriod(value) {
   return FINANCES_PERIODS.includes(value) ? value : 'ytd';
 }

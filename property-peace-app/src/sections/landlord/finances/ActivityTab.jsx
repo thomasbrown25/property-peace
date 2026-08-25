@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { CSVLink } from 'react-csv';
 import {
@@ -27,7 +27,7 @@ const SORT_OPTIONS = [
   { value: 'balance-desc', label: 'Activity balance' }
 ];
 
-export default function ActivityTab({ entries = [], loading, error, onRetry, initialAccount = '', onSelectItem, registerExport }) {
+export default function ActivityTab({ entries = [], loading, error, onRetry, initialAccount = '', onSelectItem, registrationKey, registerExport }) {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down('md'));
   const csvLinkRef = useRef(null);
@@ -80,9 +80,7 @@ export default function ActivityTab({ entries = [], loading, error, onRetry, ini
           : ''
   }), [error, exportVisibleRows, hasClientFilters, loading, visibleEntries.length]);
 
-  useEffect(() => {
-    registerExport('activity', exportState);
-  }, [exportState, registerExport]);
+  useLayoutEffect(() => registerExport('activity', registrationKey, exportState), [exportState, registerExport, registrationKey]);
 
   const clearFilters = useCallback(() => {
     setSearch('');
@@ -131,7 +129,9 @@ export default function ActivityTab({ entries = [], loading, error, onRetry, ini
           filters={filterFields}
           activeChips={activeChips}
           onClearAll={clearFilters}
-          resultSummary={`${totalCount} posted ${totalCount === 1 ? 'entry' : 'entries'} match this view`}
+          resultSummary={!loading && !error
+            ? `${totalCount} posted ${totalCount === 1 ? 'entry' : 'entries'} match this view`
+            : undefined}
         />
         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.25 }}>
           Running total of the posted activity shown here — not a bank balance.
@@ -211,5 +211,6 @@ ActivityTab.propTypes = {
   onRetry: PropTypes.func.isRequired,
   initialAccount: PropTypes.string,
   onSelectItem: PropTypes.func.isRequired,
+  registrationKey: PropTypes.string.isRequired,
   registerExport: PropTypes.func.isRequired
 };

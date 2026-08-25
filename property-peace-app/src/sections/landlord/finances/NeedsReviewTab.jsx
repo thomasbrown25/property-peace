@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { CSVLink } from 'react-csv';
 import { Alert, alpha, Box, Button, Chip, Skeleton, Stack, Typography, useTheme } from '@mui/material';
@@ -9,7 +9,7 @@ import { formatMoneyCenterDate } from 'utils/moneyCenter';
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
-export default function NeedsReviewTab({ items = [], loading, error, onRetry, onSelectItem, registerExport }) {
+export default function NeedsReviewTab({ items = [], loading, error, onRetry, onSelectItem, registrationKey, registerExport }) {
   const theme = useTheme();
   const csvLinkRef = useRef(null);
   const csvRows = useMemo(() => buildReviewCsvRows(items), [items]);
@@ -27,9 +27,7 @@ export default function NeedsReviewTab({ items = [], loading, error, onRetry, on
           : ''
   }), [error, exportVisibleRows, items.length, loading]);
 
-  useEffect(() => {
-    registerExport('review', exportState);
-  }, [exportState, registerExport]);
+  useLayoutEffect(() => registerExport('review', registrationKey, exportState), [exportState, registerExport, registrationKey]);
 
   return (
     <Box sx={{ p: { xs: 1.5, md: 2 } }}>
@@ -120,5 +118,6 @@ NeedsReviewTab.propTypes = {
   error: PropTypes.string,
   onRetry: PropTypes.func.isRequired,
   onSelectItem: PropTypes.func.isRequired,
+  registrationKey: PropTypes.string.isRequired,
   registerExport: PropTypes.func.isRequired
 };
