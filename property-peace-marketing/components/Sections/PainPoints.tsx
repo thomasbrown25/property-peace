@@ -72,7 +72,6 @@ export default function PainPoints() {
             viewport={{ once: true, amount: 0.2 }}
             transition={{ duration: 0.6, ease: 'easeOut', delay: 0.08 }}
           >
-            <div className="absolute -inset-5 bg-[#edf6fa] sm:-inset-7" aria-hidden="true" />
             <div className="relative border border-[#b8c8d5] bg-white p-3 shadow-[0_28px_80px_rgba(6,30,53,0.16)] sm:p-5">
               <div
                 className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-xs"

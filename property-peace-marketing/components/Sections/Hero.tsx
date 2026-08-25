@@ -33,8 +33,8 @@ export default function Hero() {
               className="mx-auto mb-5 max-w-[22rem] text-[2.9rem] font-semibold tracking-[-0.055em] text-white sm:max-w-none sm:text-[2.45rem] sm:font-bold sm:tracking-[-0.045em] md:text-4xl xl:text-5xl lg:mx-0"
               style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.12' }}
             >
-              Your rentals, finally{' '}
-              <span className="text-green-600">under one roof.</span>
+              A clearer way to manage every rental,{' '}
+              <span className="text-green-600">all under one roof.</span>
             </h1>
 
             {/* Subheadline */}
