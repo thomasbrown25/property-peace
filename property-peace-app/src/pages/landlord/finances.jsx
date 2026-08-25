@@ -19,6 +19,7 @@ import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
 import FinancesMetrics from 'sections/landlord/finances/FinancesMetrics';
 import NeedsReviewTab from 'sections/landlord/finances/NeedsReviewTab';
 import PaymentsTab from 'sections/landlord/finances/PaymentsTab';
+import UpcomingTab from 'sections/landlord/finances/UpcomingTab';
 import {
   buildFinancesMoneyQuery,
   normalizeFinancesPeriod,
@@ -279,6 +280,15 @@ export default function FinancesPage() {
                   loading={paymentsData.loading || paymentsScopeChanged}
                   error={paymentsData.error}
                   onRetry={paymentsData.retry}
+                />
+              )}
+              {activeTab === 'upcoming' && (
+                <UpcomingTab
+                  propertyId={propertyId}
+                  mutationVersion={drawer.financeMutationVersion}
+                  onMutation={drawer.notifyFinanceMutation}
+                  registrationKey={exportRegistrationKey}
+                  registerExport={registerExport}
                 />
               )}
             </Box>

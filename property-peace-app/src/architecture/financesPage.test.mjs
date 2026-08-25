@@ -292,3 +292,74 @@ test('Payments keeps the complete editable list while the page owns its one shar
   assert.doesNotMatch(combined, /PageBreadcrumbs|PropertySelect|FinancesMetrics|MetricCard/);
   assert.doesNotMatch(combined, /useEffect[\s\S]*isOpenPaymentAdd/);
 });
+
+test('Upcoming combines scheduled expenses with scoped filters, truthful states, export, and preserved mutations', async () => {
+  const [page, upcoming, row, expenseAction, upcomingSelection] = await Promise.all([
+    source('pages/landlord/finances.jsx'),
+    source('sections/landlord/finances/UpcomingTab.jsx'),
+    source('sections/landlord/finances/UpcomingRow.jsx'),
+    source('store/expense/expense.action.js'),
+    source('utils/upcomingTab.js')
+  ]);
+
+  assert.match(page, /<UpcomingTab/);
+  assert.match(page, /propertyId=\{propertyId\}/);
+  assert.match(page, /mutationVersion=\{drawer\.financeMutationVersion\}/);
+  assert.match(page, /onMutation=\{drawer\.notifyFinanceMutation\}/);
+  assert.match(page, /registrationKey=\{exportRegistrationKey\}/);
+  assert.match(page, /registerExport=\{registerExport\}/);
+
+  assert.match(upcoming, /buildUpcomingEntries\(recurringExpenses, futureExpenses\)/);
+  assert.equal((upcoming.match(/dispatch\(getRecurringExpensesAction/g) || []).length, 1);
+  assert.equal((upcoming.match(/dispatch\(getFutureExpensesAction/g) || []).length, 1);
+  assert.match(upcoming, /getRecurringExpensesAction\(landlordId, \{ propertyId \}\)/);
+  assert.match(upcoming, /getFutureExpensesAction\(landlordId, \{ propertyId \}\)/);
+  assert.match(upcoming, /\[dispatch, landlordId, mutationVersion, propertyId, retryVersion\]/);
+  assert.match(upcoming, /TransactionFilterToolbar/);
+  assert.match(upcoming, /search=\{search\}/);
+  assert.match(upcoming, /selectUpcomingEntries\(combinedEntries, \{ propertyId, search, type: typeFilter \}\)/);
+  assert.match(upcomingSelection, /entry\?\.source\?\.propertyId \?\? entry\?\.source\?\.PropertyId/);
+  assert.match(upcoming, /\{ value: 'all', label: 'All' \}/);
+  assert.match(upcoming, /\{ value: 'Recurring', label: 'Recurring' \}/);
+  assert.match(upcoming, /\{ value: 'One-time', label: 'One-time' \}/);
+  assert.doesNotMatch(upcoming, /<Tabs|<Tab\s/);
+
+  assert.match(row, /label=\{entry\.type\}/);
+  assert.match(row, /entry\.type === 'Recurring'/);
+  assert.match(row, /Date not set/);
+  assert.match(row, /display: \{ xs: 'block', md: 'grid' \}/);
+  assert.match(row, /Record as paid/);
+  assert.match(row, /Pause schedule/);
+  assert.match(row, /Resume schedule/);
+  assert.match(row, /Delete recurring schedule/);
+  assert.match(row, /Delete one-time expense/);
+
+  assert.match(upcoming, /buildUpcomingCsvRows\(filteredEntries\)/);
+  assert.match(upcoming, /<CSVLink/);
+  assert.match(upcoming, /useLayoutEffect\(\(\) => registerExport\('upcoming', registrationKey, exportState\)/);
+  assert.doesNotMatch(upcoming, /<Pagination|visibleEntries/);
+  assert.match(upcoming, /No upcoming expenses are scheduled/);
+  assert.match(upcoming, /No upcoming expenses match these filters/);
+  assert.match(upcoming, /Upcoming expenses could not be loaded/);
+  assert.match(upcoming, /onClick=\{retry\}/);
+
+  assert.match(upcoming, /addExpenseAction\(\{/);
+  for (const field of [
+    'landlordId', 'propertyId', 'unitId', 'name', 'category', 'amount', 'expenseDate', 'vendor',
+    'paymentMethod', 'isRecurring', 'isTaxDeductible', 'maintenanceRequestId', 'isPaid', 'paidDate'
+  ]) {
+    assert.match(upcoming, new RegExp(`${field}:`));
+  }
+  assert.match(expenseAction, /ADD_EXPENSE_SUCCESS[\s\S]*meta: \{ invalidateLists \}/);
+  assert.doesNotMatch(upcoming, /useFetchExpenses|getExpensesAction|refetchExpenses/);
+  assert.match(upcoming, /pauseRecurringExpenseAction/);
+  assert.match(upcoming, /resumeRecurringExpenseAction/);
+  assert.match(upcoming, /deleteRecurringExpenseAction/);
+  assert.match(upcoming, /deleteFutureExpenseAction/);
+  assert.match(upcoming, /<ConfirmationDialog/);
+  assert.match(upcoming, /const notifyMutationSuccess = useCallback[\s\S]*onMutation\(\)/);
+  assert.equal((upcoming.match(/onMutation\(\)/g) || []).length, 1);
+
+  const combined = [upcoming, row].join('\n');
+  assert.doesNotMatch(combined, /PageBreadcrumbs|PropertySelect|FinancesMetrics|MetricCard|ExpenseAddDrawer/);
+});
