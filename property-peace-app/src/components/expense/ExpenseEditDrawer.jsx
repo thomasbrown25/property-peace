@@ -31,6 +31,7 @@ import { getTodayLocalDate } from 'utils/formatters';
 import {
   deleteExpenseReceiptAction,
   getExpenseReceiptsAction,
+  runCompositeExpenseMutation,
   updateExpenseAction,
   uploadExpenseReceiptsAction
 } from 'store/expense/expense.action';
@@ -218,7 +219,7 @@ export default function ExpenseEditDrawer({ open, expense, onClose, onSuccess, t
     setProcessing(true);
     setError(null);
 
-    try {
+    const updateCompositeExpense = async (commitCoreMutation) => {
       const payload = {
         id: expenseId,
         landlordId: user?.id || user?.Id || expense.landlordId || expense.LandlordId,
@@ -249,7 +250,7 @@ export default function ExpenseEditDrawer({ open, expense, onClose, onSuccess, t
         paidDate: formData.isPaid ? (expense.paidDate || formData.expenseDate) : null
       };
 
-      await dispatch(updateExpenseAction(expenseId, payload));
+      await commitCoreMutation(updateExpenseAction(expenseId, payload, { invalidateLists: false }));
 
       for (const receiptId of deletedReceiptIds) {
         try {
@@ -284,6 +285,10 @@ export default function ExpenseEditDrawer({ open, expense, onClose, onSuccess, t
         variant: 'alert',
         alert: { color: 'success' }
       });
+    };
+
+    try {
+      await runCompositeExpenseMutation(dispatch, updateCompositeExpense);
       await onSuccess?.();
       onClose?.();
     } catch (submitError) {

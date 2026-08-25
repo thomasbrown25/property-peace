@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  getExpensesAction,
+  getRegisteredExpensesAction,
   getStaleExpensesAction,
   getTotalExpensesAction,
   registerExpenseListScopeAction,
@@ -27,8 +27,8 @@ export default function useFetchExpenses(filters = {}) {
     if (!landlordId) return;
 
     const currentFilters = filtersRef.current;
-    dispatch(getExpensesAction(landlordId, currentFilters, requestKey));
-    dispatch(getTotalExpensesAction(landlordId, currentFilters));
+    const request = dispatch(getRegisteredExpensesAction(landlordId, currentFilters, requestKey));
+    if (request) dispatch(getTotalExpensesAction(landlordId, currentFilters));
   }, [dispatch, landlordId, requestKey]);
 
   const refreshStale = useCallback(() => {

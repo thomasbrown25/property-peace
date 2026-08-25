@@ -37,7 +37,11 @@ import PropertySelect from 'components/PropertySelect';
 import Autocomplete from 'components/@extended/AutoComplete';
 import MaintenanceSelect from 'components/MaintenanceSelect';
 import ExpenseReceiptUpload from 'components/expense/ExpenseReceiptUpload';
-import { addExpenseAction, uploadExpenseReceiptsAction } from 'store/expense/expense.action';
+import {
+  addExpenseAction,
+  runCompositeExpenseMutation,
+  uploadExpenseReceiptsAction
+} from 'store/expense/expense.action';
 import { addRecurringExpenseAction } from 'store/recurring-expense/recurring-expense.action';
 import { addFutureExpenseAction } from 'store/future-expense/future-expense.action';
 import { openSnackbar } from 'api/snackbar';
@@ -282,7 +286,7 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
   const handleCreateExpense = async () => {
     setError(null);
     setProcessing(true);
-    try {
+    const createCompositeExpense = async (commitCoreMutation) => {
       const aiResult = categorizeExpenseLocally(formData.expenseDescription);
       setAiResult(aiResult);
       const dayOfPeriod = formData.isRecurring ? new Date(formData.expenseDate).getDate() : null;
@@ -339,7 +343,7 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
                 isPaid: true,
                 paidDate: new Date().toISOString()
               };
-              try { await dispatch(addExpenseAction(pastPayload)); } catch { /* non-critical */ }
+              try { await commitCoreMutation(addExpenseAction(pastPayload, { invalidateLists: false })); } catch { /* non-critical */ }
             }
           }
           const payload = {
@@ -364,7 +368,7 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
             isPaid: true,
             paidDate: new Date().toISOString()
           };
-          const result = await dispatch(addExpenseAction(payload));
+          const result = await commitCoreMutation(addExpenseAction(payload, { invalidateLists: false }));
           expenseId = result?.id || result?.data?.id;
         } else if (receiptFiles.length > 0) {
           const payload = {
@@ -389,7 +393,7 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
             isPaid: false,
             paidDate: null
           };
-          const result = await dispatch(addExpenseAction(payload));
+          const result = await commitCoreMutation(addExpenseAction(payload, { invalidateLists: false }));
           expenseId = result?.id || result?.data?.id;
         }
       } else {
@@ -429,7 +433,7 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
             isPaid: !isFutureDate,
             paidDate: isFutureDate ? null : new Date().toISOString()
           };
-          const result = await dispatch(addExpenseAction(payload));
+          const result = await commitCoreMutation(addExpenseAction(payload, { invalidateLists: false }));
           expenseId = result?.id || result?.data?.id;
         }
       }
@@ -472,11 +476,14 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
         await dispatch(uploadExpenseReceiptsAction(expenseId, receiptFiles));
       }
 
-      setTimeout(() => {
-        setProcessing(false);
-        transitionToStep(STEPS.SUCCESS, 'left');
-        onSuccess?.();
-      }, 1000);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setProcessing(false);
+      transitionToStep(STEPS.SUCCESS, 'left');
+    };
+
+    try {
+      await runCompositeExpenseMutation(dispatch, createCompositeExpense);
+      onSuccess?.();
     } catch (error) {
       console.error('[ExpenseAddDrawer] Error creating expense:', error);
       setError(error?.response?.data?.message || error?.message || 'Failed to create expense');

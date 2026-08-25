@@ -12,6 +12,20 @@ const executableSource = reducerSource.replace(
   `const EXPENSE_ACTION_TYPES = ${JSON.stringify(TYPES)};`
 );
 const { default: expenseReducer } = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(executableSource)}`);
+const expenseApi = {};
+globalThis.__expenseListRequestTestApi = expenseApi;
+const expenseActionSource = await readFile(new URL('./expense.action.js', import.meta.url), 'utf8');
+const executableActionSource = expenseActionSource
+  .replace("import { expenseAPI } from 'api';", 'const expenseAPI = globalThis.__expenseListRequestTestApi;')
+  .replace(
+    "import { buildExpenseListRequestKey } from 'utils/expensesTab';",
+    "const buildExpenseListRequestKey = (landlordId, filters) => `${landlordId}:${JSON.stringify(filters)}`;"
+  )
+  .replace(
+    /import \{ EXPENSE_ACTION_TYPES \} from '\.\/expense\.types';/,
+    `const EXPENSE_ACTION_TYPES = ${JSON.stringify(TYPES)};`
+  );
+const expenseActions = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(executableActionSource)}`);
 
 const action = (type, payload, requestId, requestKey) => ({
   type,
@@ -37,6 +51,25 @@ const createMountedScopeState = () => {
   state = expenseReducer(state, action(TYPES.GET_EXPENSES_START, undefined, 41, paymentsCardKey));
   state = expenseReducer(state, action(TYPES.GET_EXPENSES_SUCCESS, [{ id: 1, name: 'All expense' }], 41, paymentsCardKey));
   return { state, dashboardKey, paymentsCardKey };
+};
+const createStore = (initialExpenseState) => {
+  let expenseState = initialExpenseState;
+  const dispatchedActions = [];
+  const getState = () => ({ expense: expenseState });
+  const dispatch = (dispatched) => {
+    if (typeof dispatched === 'function') return dispatched(dispatch, getState);
+    dispatchedActions.push(dispatched);
+    expenseState = expenseReducer(expenseState, dispatched);
+    return dispatched;
+  };
+
+  return {
+    dispatch,
+    get expenseState() {
+      return expenseState;
+    },
+    dispatchedActions
+  };
 };
 
 test('late expense-list responses cannot overwrite a newer request for the same key', () => {
@@ -207,4 +240,128 @@ test('scope registrations retain shared consumers and release the final cache en
   assert.deepEqual(expenseSelectors.selectExpenses(rootState(state)), [{ id: 'late' }]);
   assert.deepEqual(Object.keys(state.listRequestsByKey), []);
   assert.deepEqual(Object.keys(state.listRequestRefCounts), []);
+});
+
+test('composite add waits for receipt settlement, invalidates once, and explicit refetch claims the stale scope', async () => {
+  const mounted = createMountedScopeState();
+  const store = createStore(mounted.state);
+  let finishUpload;
+  let signalUploadStarted;
+  let listCalls = 0;
+  const uploadStarted = new Promise((resolve) => { signalUploadStarted = resolve; });
+
+  expenseApi.addExpense = async () => ({ data: { id: 2, name: 'Added with receipt', receipts: [] } });
+  expenseApi.uploadExpenseReceipts = async () => {
+    signalUploadStarted();
+    return new Promise((resolve) => {
+      finishUpload = () => resolve({ data: [{ id: 91, expenseId: 2 }] });
+    });
+  };
+  expenseApi.getExpenses = async () => {
+    listCalls += 1;
+    return { data: [{ id: 2, receipts: [{ id: 91 }] }] };
+  };
+
+  const composite = expenseActions.runCompositeExpenseMutation(store.dispatch, async (commitCoreMutation) => {
+    const added = await commitCoreMutation(
+      expenseActions.addExpenseAction({ name: 'Added with receipt' }, { invalidateLists: false })
+    );
+    await store.dispatch(expenseActions.uploadExpenseReceiptsAction(added.id, [{}]));
+  });
+
+  await uploadStarted;
+  assert.equal(selectRequest(store.expenseState, mounted.dashboardKey)?.stale, false, 'core add is deferred while receipt upload is pending');
+  assert.equal(store.dispatchedActions.filter(({ type }) => type === TYPES.INVALIDATE_EXPENSE_LISTS).length, 0);
+
+  finishUpload();
+  await composite;
+  assert.equal(selectRequest(store.expenseState, mounted.dashboardKey)?.stale, true);
+  assert.equal(selectRequest(store.expenseState, mounted.paymentsCardKey)?.stale, true);
+  assert.equal(store.dispatchedActions.filter(({ type }) => type === TYPES.INVALIDATE_EXPENSE_LISTS).length, 1);
+
+  const explicitRefresh = store.dispatch(
+    expenseActions.getRegisteredExpensesAction(44, { propertyId: 12 }, mounted.dashboardKey)
+  );
+  const observerRefresh = store.dispatch(
+    expenseActions.getStaleExpensesAction(44, { propertyId: 12 }, mounted.dashboardKey)
+  );
+  assert.equal(observerRefresh, null, 'the synchronous explicit refresh claims stale before the hook observer');
+  await explicitRefresh;
+  assert.equal(listCalls, 1);
+  assert.equal(
+    store.dispatchedActions.filter(({ type, meta }) => type === TYPES.GET_EXPENSES_START && meta?.requestKey === mounted.dashboardKey).length,
+    1
+  );
+});
+
+test('a receipt failure after a deferred update invalidates once, while a failed core mutation does not invalidate', async () => {
+  const mounted = createMountedScopeState();
+  const partialStore = createStore(mounted.state);
+  expenseApi.updateExpense = async (_expenseId, expense) => ({ data: expense });
+  expenseApi.deleteExpenseReceipt = async () => { throw new Error('receipt delete failed'); };
+
+  await assert.rejects(
+    expenseActions.runCompositeExpenseMutation(partialStore.dispatch, async (commitCoreMutation) => {
+      await commitCoreMutation(
+        expenseActions.updateExpenseAction(1, { id: 1, name: 'Updated' }, { invalidateLists: false })
+      );
+      await partialStore.dispatch(expenseActions.deleteExpenseReceiptAction(91));
+    }),
+    /receipt delete failed/
+  );
+  assert.equal(selectRequest(partialStore.expenseState, mounted.dashboardKey)?.stale, true);
+  assert.equal(partialStore.dispatchedActions.filter(({ type }) => type === TYPES.INVALIDATE_EXPENSE_LISTS).length, 1);
+
+  const failedStore = createStore(createMountedScopeState().state);
+  expenseApi.addExpense = async () => { throw new Error('core add failed'); };
+  await assert.rejects(
+    expenseActions.runCompositeExpenseMutation(failedStore.dispatch, async (commitCoreMutation) => {
+      await commitCoreMutation(
+        expenseActions.addExpenseAction({ name: 'Never added' }, { invalidateLists: false })
+      );
+    }),
+    /core add failed/
+  );
+  assert.equal(selectRequest(failedStore.expenseState, mounted.dashboardKey)?.stale, false);
+  assert.equal(failedStore.dispatchedActions.filter(({ type }) => type === TYPES.INVALIDATE_EXPENSE_LISTS).length, 0);
+});
+
+test('standalone add, update, and delete actions retain automatic list invalidation', async () => {
+  expenseApi.addExpense = async (expense) => ({ data: { id: 2, ...expense } });
+  expenseApi.updateExpense = async (_expenseId, expense) => ({ data: expense });
+  expenseApi.deleteExpense = async () => undefined;
+
+  const mutations = [
+    (store) => store.dispatch(expenseActions.addExpenseAction({ name: 'Standalone add' })),
+    (store) => store.dispatch(expenseActions.updateExpenseAction(1, { id: 1, name: 'Standalone update' })),
+    (store) => store.dispatch(expenseActions.deleteExpenseAction(1))
+  ];
+
+  for (const mutate of mutations) {
+    const mounted = createMountedScopeState();
+    const store = createStore(mounted.state);
+    await mutate(store);
+    assert.equal(selectRequest(store.expenseState, mounted.dashboardKey)?.stale, true);
+    assert.equal(selectRequest(store.expenseState, mounted.paymentsCardKey)?.stale, true);
+  }
+});
+
+test('a captured explicit refetch cannot recreate a scope after its final release', async () => {
+  const mounted = createMountedScopeState();
+  const store = createStore(mounted.state);
+  let listCalls = 0;
+  expenseApi.getExpenses = async () => {
+    listCalls += 1;
+    return { data: [] };
+  };
+
+  store.dispatch(scopeAction(TYPES.RELEASE_EXPENSE_LIST_SCOPE, mounted.dashboardKey));
+  const result = store.dispatch(
+    expenseActions.getRegisteredExpensesAction(44, { propertyId: 12 }, mounted.dashboardKey)
+  );
+
+  assert.equal(result, null);
+  assert.equal(listCalls, 0);
+  assert.equal(selectRequest(store.expenseState, mounted.dashboardKey), null);
+  assert.equal(store.expenseState.listRequestRefCounts[mounted.dashboardKey], undefined);
 });

@@ -64,6 +64,12 @@ function expenseReducer(state = initialState, action) {
         listRequestsByKey: omitExpenseListKey(state.listRequestsByKey, requestKey)
       };
     }
+    case EXPENSE_ACTION_TYPES.INVALIDATE_EXPENSE_LISTS:
+      return {
+        ...state,
+        listRequestsByKey: invalidateExpenseListRequests(state.listRequestsByKey)
+      };
+
     case EXPENSE_ACTION_TYPES.GET_EXPENSES_START: {
       const requestKey = meta?.requestKey;
       const previousRequest = requestKey ? state.listRequestsByKey?.[requestKey] : null;
@@ -214,7 +220,7 @@ function expenseReducer(state = initialState, action) {
       return {
         ...state,
         expenses: [...state.expenses, payload],
-        listRequestsByKey: invalidateExpenseListRequests(state.listRequestsByKey),
+        listRequestsByKey: meta?.invalidateLists === false ? state.listRequestsByKey : invalidateExpenseListRequests(state.listRequestsByKey),
         selectedExpense: payload,
         loading: false,
         error: null
@@ -247,7 +253,7 @@ function expenseReducer(state = initialState, action) {
         expenses: state.expenses.map((expense) =>
           expense.id === payload.id ? updatedExpense : expense
         ),
-        listRequestsByKey: invalidateExpenseListRequests(state.listRequestsByKey),
+        listRequestsByKey: meta?.invalidateLists === false ? state.listRequestsByKey : invalidateExpenseListRequests(state.listRequestsByKey),
         selectedExpense: updatedExpense,
         loading: false,
         error: null

@@ -14,6 +14,10 @@ export const releaseExpenseListScopeAction = (requestKey) => ({
   meta: { requestKey }
 });
 
+export const invalidateExpenseListsAction = () => ({
+  type: EXPENSE_ACTION_TYPES.INVALIDATE_EXPENSE_LISTS
+});
+
 export const getExpensesAction = (landlordId, filters = {}, suppliedRequestKey) => async (dispatch) => {
   const requestId = ++expenseListRequestSequence;
   const requestKey = suppliedRequestKey ?? buildExpenseListRequestKey(landlordId, filters);
@@ -38,10 +42,21 @@ export const getExpensesAction = (landlordId, filters = {}, suppliedRequestKey) 
   }
 };
 
+export const getRegisteredExpensesAction = (landlordId, filters = {}, suppliedRequestKey) => (dispatch, getState) => {
+  const requestKey = suppliedRequestKey ?? buildExpenseListRequestKey(landlordId, filters);
+  const expenseState = getState()?.expense;
+  const registered = (expenseState?.listRequestRefCounts?.[requestKey] || 0) > 0;
+  const loading = Boolean(expenseState?.listRequestsByKey?.[requestKey]?.loading);
+  if (!registered || loading) return null;
+
+  return dispatch(getExpensesAction(landlordId, filters, requestKey));
+};
+
 export const getStaleExpensesAction = (landlordId, filters = {}, suppliedRequestKey) => (dispatch, getState) => {
   const requestKey = suppliedRequestKey ?? buildExpenseListRequestKey(landlordId, filters);
-  const request = getState()?.expense?.listRequestsByKey?.[requestKey];
-  if (!request?.stale || request.loading) return null;
+  const expenseState = getState()?.expense;
+  const request = expenseState?.listRequestsByKey?.[requestKey];
+  if (!(expenseState?.listRequestRefCounts?.[requestKey] > 0) || !request?.stale || request.loading) return null;
 
   return dispatch(getExpensesAction(landlordId, filters, requestKey));
 };
@@ -81,7 +96,7 @@ export const getTotalExpensesAction = (landlordId, filters = {}) => async (dispa
   }
 };
 
-export const addExpenseAction = (expense) => async (dispatch) => {
+export const addExpenseAction = (expense, { invalidateLists = true } = {}) => async (dispatch) => {
   try {
     dispatch({ type: EXPENSE_ACTION_TYPES.ADD_EXPENSE_START });
     
@@ -89,7 +104,8 @@ export const addExpenseAction = (expense) => async (dispatch) => {
     
     dispatch({
       type: EXPENSE_ACTION_TYPES.ADD_EXPENSE_SUCCESS,
-      payload: response.data
+      payload: response.data,
+      meta: { invalidateLists }
     });
     
     return response.data;
@@ -102,7 +118,7 @@ export const addExpenseAction = (expense) => async (dispatch) => {
   }
 };
 
-export const updateExpenseAction = (expenseId, expense) => async (dispatch) => {
+export const updateExpenseAction = (expenseId, expense, { invalidateLists = true } = {}) => async (dispatch) => {
   try {
     dispatch({ type: EXPENSE_ACTION_TYPES.UPDATE_EXPENSE_START });
     
@@ -110,7 +126,8 @@ export const updateExpenseAction = (expenseId, expense) => async (dispatch) => {
     
     dispatch({
       type: EXPENSE_ACTION_TYPES.UPDATE_EXPENSE_SUCCESS,
-      payload: response.data
+      payload: response.data,
+      meta: { invalidateLists }
     });
     
     return response.data;
@@ -120,6 +137,21 @@ export const updateExpenseAction = (expenseId, expense) => async (dispatch) => {
       payload: error?.response?.data?.errors || error.message
     });
     throw error;
+  }
+};
+
+export const runCompositeExpenseMutation = async (dispatch, operation) => {
+  let coreMutationCommitted = false;
+  const commitCoreMutation = async (mutationAction) => {
+    const result = await dispatch(mutationAction);
+    coreMutationCommitted = true;
+    return result;
+  };
+
+  try {
+    return await operation(commitCoreMutation);
+  } finally {
+    if (coreMutationCommitted) dispatch(invalidateExpenseListsAction());
   }
 };
 
