@@ -110,6 +110,13 @@ const adminPages = {
       icon: icons.SafetyCertificateOutlined
     },
     {
+      id: 'admin-rent-payment-access',
+      title: 'Rent payment access',
+      type: 'item',
+      url: '/admin/rent-payment-access',
+      icon: icons.SafetyCertificateOutlined
+    },
+    {
       id: 'admin-settings',
       title: 'Settings',
       type: 'item',

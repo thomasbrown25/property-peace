@@ -158,6 +158,7 @@ const AdminUserDetail = Loadable(lazy(() => import('pages/admin/user-detail')));
 const AdminStorage = Loadable(lazy(() => import('pages/admin/storage')));
 const AdminSettings = Loadable(lazy(() => import('pages/admin/settings')));
 const AdminStripePayees = Loadable(lazy(() => import('pages/admin/stripe-payees')));
+const AdminRentPaymentAccess = Loadable(lazy(() => import('pages/admin/rent-payment-access')));
 const AdminMessages = Loadable(lazy(() => import('pages/admin/messages')));
 const AdminUpcomingFeatures = Loadable(lazy(() => import('pages/admin/upcoming-features')));
 const AdminJobs = Loadable(lazy(() => import('pages/admin/jobs')));
@@ -1382,6 +1383,22 @@ const MainRoutes = {
           element: (
             <AdminRoute>
               <AdminStripePayees />
+            </AdminRoute>
+          )
+        },
+        {
+          path: 'admin/rent-payment-access',
+          element: (
+            <AdminRoute>
+              <AdminRentPaymentAccess />
+            </AdminRoute>
+          )
+        },
+        {
+          path: 'admin/rent-payment-access/:publicId',
+          element: (
+            <AdminRoute>
+              <AdminRentPaymentAccess />
             </AdminRoute>
           )
         },

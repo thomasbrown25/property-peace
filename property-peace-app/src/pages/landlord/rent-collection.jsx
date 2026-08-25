@@ -54,9 +54,8 @@ import RentCollectionEmptyState from 'sections/landlord/rent-collection/RentColl
 import RentCard from 'components/cards/RentCard';
 import MainCard from 'components/MainCard';
 import BankAccountBanner from 'components/rent-collection/BankAccountBanner';
-import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
-import useFeatureReadiness from 'hooks/useFeatureReadiness';
-import { FEATURE_KEYS } from 'utils/featureReadiness';
+import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
+import RentPaymentAccessPanel from 'components/rent-payments/RentPaymentAccessPanel';
 
 export default function RentCollection() {
   const modal = useModal();
@@ -68,7 +67,8 @@ export default function RentCollection() {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuth();
-  const { presentation: rentReadiness, canInvoke: rentCanInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
+  const rentPaymentAccess = useRentPaymentAccess();
+  const rentCanInvoke = rentPaymentAccess.presentation.canPay;
   const [accountStatus, setAccountStatus] = useState(null);
   const [checkingBankStatus, setCheckingBankStatus] = useState(false);
 
@@ -372,7 +372,7 @@ export default function RentCollection() {
     <Box>
       {/* Enhanced Header */}
       <RentCollectionHeader />
-      <FeatureReadinessNotice presentation={rentReadiness} featureName="Online rent collection" />
+      <RentPaymentAccessPanel {...rentPaymentAccess} onRequest={rentPaymentAccess.requestAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={() => navigate('/landlord/settings?tab=payments')} />
 
       {/* Bank Account Banner - Show if bank account is not connected */}
       {rentCanInvoke && !checkingBankStatus && !isBankConnected && (
