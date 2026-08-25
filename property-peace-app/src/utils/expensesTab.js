@@ -30,7 +30,7 @@ const isoDate = (value) => {
   return Number.isNaN(date.valueOf()) ? null : date.toISOString().slice(0, 10);
 };
 
-export function buildExpenseHookFilters({ propertyId, sharedFrom, sharedTo, mutationVersion } = {}) {
+export function buildExpenseHookFilters({ propertyId, sharedFrom, sharedTo } = {}) {
   const exclusiveEnd = new Date(sharedTo || '');
   const inclusiveEnd = Number.isNaN(exclusiveEnd.valueOf())
     ? null
@@ -38,8 +38,7 @@ export function buildExpenseHookFilters({ propertyId, sharedFrom, sharedTo, muta
   return {
     propertyId: propertyId || null,
     startDate: isoDate(sharedFrom),
-    endDate: inclusiveEnd,
-    mutationVersion
+    endDate: inclusiveEnd
   };
 }
 

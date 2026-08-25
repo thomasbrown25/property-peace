@@ -69,9 +69,8 @@ export default function FinancesPage() {
   const expenseFilters = useMemo(() => buildExpenseHookFilters({
     propertyId,
     sharedFrom: scopedQuery.from,
-    sharedTo: scopedQuery.to,
-    mutationVersion: drawer.financeMutationVersion
-  }), [drawer.financeMutationVersion, propertyId, scopedQuery.from, scopedQuery.to]);
+    sharedTo: scopedQuery.to
+  }), [propertyId, scopedQuery.from, scopedQuery.to]);
   const expensesData = useFetchExpenses(expenseFilters);
   const moneyScopeKey = JSON.stringify({ ...scopedQuery, mutationVersion: drawer.financeMutationVersion });
   const paymentsScopeKey = `${propertyId ?? 'all'}:${drawer.financeMutationVersion ?? 0}`;

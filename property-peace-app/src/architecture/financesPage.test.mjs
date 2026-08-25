@@ -221,10 +221,14 @@ test('page-owned keyed expense data gates metrics without excluding concurrent c
   assert.doesNotMatch(page, /expensesAvailable|setExpensesAvailable/);
   assert.match(hook, /selectExpenseListRequest/);
   assert.match(hook, /buildExpenseListRequestKey/);
-  assert.match(hook, /\[dispatch, landlordId, requestKey, serializedFilters\]/);
+  assert.match(hook, /registerExpenseListScopeAction/);
+  assert.match(hook, /releaseExpenseListScopeAction/);
+  assert.match(hook, /getStaleExpensesAction/);
+  assert.match(hook, /listRequest?.stale/);
   assert.match(hook, /available/);
   assert.match(action, /requestId/);
   assert.match(action, /requestKey/);
   assert.match(reducer, /listRequestsByKey/);
+  assert.match(reducer, /listRequestRefCounts/);
   assert.match(selectors, /selectExpenseListRequest/);
 });

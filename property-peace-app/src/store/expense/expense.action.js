@@ -4,6 +4,16 @@ import { EXPENSE_ACTION_TYPES } from './expense.types';
 
 let expenseListRequestSequence = 0;
 
+export const registerExpenseListScopeAction = (requestKey) => ({
+  type: EXPENSE_ACTION_TYPES.REGISTER_EXPENSE_LIST_SCOPE,
+  meta: { requestKey }
+});
+
+export const releaseExpenseListScopeAction = (requestKey) => ({
+  type: EXPENSE_ACTION_TYPES.RELEASE_EXPENSE_LIST_SCOPE,
+  meta: { requestKey }
+});
+
 export const getExpensesAction = (landlordId, filters = {}, suppliedRequestKey) => async (dispatch) => {
   const requestId = ++expenseListRequestSequence;
   const requestKey = suppliedRequestKey ?? buildExpenseListRequestKey(landlordId, filters);
@@ -28,6 +38,13 @@ export const getExpensesAction = (landlordId, filters = {}, suppliedRequestKey) 
   }
 };
 
+export const getStaleExpensesAction = (landlordId, filters = {}, suppliedRequestKey) => (dispatch, getState) => {
+  const requestKey = suppliedRequestKey ?? buildExpenseListRequestKey(landlordId, filters);
+  const request = getState()?.expense?.listRequestsByKey?.[requestKey];
+  if (!request?.stale || request.loading) return null;
+
+  return dispatch(getExpensesAction(landlordId, filters, requestKey));
+};
 export const getExpenseByIdAction = (expenseId) => async (dispatch) => {
   try {
     dispatch({ type: EXPENSE_ACTION_TYPES.GET_EXPENSE_BY_ID_START });

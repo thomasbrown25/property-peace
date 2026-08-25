@@ -53,14 +53,12 @@ test('expense hook filters translate shared half-open dates without mutating the
   assert.deepEqual(buildExpenseHookFilters(customScope), {
     propertyId: 12,
     startDate: '2026-08-01',
-    endDate: '2026-08-31',
-    mutationVersion: 4
+    endDate: '2026-08-31'
   });
   assert.deepEqual(buildExpenseHookFilters(currentDayScope), {
     propertyId: null,
     startDate: '2026-08-01',
-    endDate: '2026-08-25',
-    mutationVersion: 5
+    endDate: '2026-08-25'
   });
   assert.deepEqual(customScope, {
     propertyId: 12,

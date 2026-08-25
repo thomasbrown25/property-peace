@@ -1,6 +1,12 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getExpensesAction, getTotalExpensesAction } from 'store/expense/expense.action';
+import {
+  getExpensesAction,
+  getStaleExpensesAction,
+  getTotalExpensesAction,
+  registerExpenseListScopeAction,
+  releaseExpenseListScopeAction
+} from 'store/expense/expense.action';
 import { selectTotalExpenses, selectExpenseListRequest } from 'store/expense/expense.selector';
 import { buildExpenseListRequestKey } from 'utils/expensesTab';
 import useAuth from './useAuth';
@@ -9,13 +15,8 @@ export default function useFetchExpenses(filters = {}) {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const landlordId = user?.id;
-  const serializedFilters = JSON.stringify(filters);
   const filtersRef = useRef(filters);
-  const serializedFiltersRef = useRef(serializedFilters);
-  if (serializedFiltersRef.current !== serializedFilters) {
-    filtersRef.current = filters;
-    serializedFiltersRef.current = serializedFilters;
-  }
+  filtersRef.current = filters;
 
   const requestKey = buildExpenseListRequestKey(landlordId, filters);
   const listRequest = useSelector((state) => selectExpenseListRequest(state, requestKey));
@@ -28,13 +29,32 @@ export default function useFetchExpenses(filters = {}) {
     const currentFilters = filtersRef.current;
     dispatch(getExpensesAction(landlordId, currentFilters, requestKey));
     dispatch(getTotalExpensesAction(landlordId, currentFilters));
-  }, [dispatch, landlordId, requestKey, serializedFilters]);
+  }, [dispatch, landlordId, requestKey]);
+
+  const refreshStale = useCallback(() => {
+    if (!landlordId) return;
+
+    const currentFilters = filtersRef.current;
+    const request = dispatch(getStaleExpensesAction(landlordId, currentFilters, requestKey));
+    if (request) dispatch(getTotalExpensesAction(landlordId, currentFilters));
+  }, [dispatch, landlordId, requestKey]);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+
+    dispatch(registerExpenseListScopeAction(requestKey));
+    return () => dispatch(releaseExpenseListScopeAction(requestKey));
+  }, [dispatch, enabled, requestKey]);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
 
-  const loading = enabled && (!listRequest || listRequest.loading);
+  useEffect(() => {
+    if (listRequest?.stale && !listRequest.loading) refreshStale();
+  }, [listRequest?.loading, listRequest?.stale, refreshStale]);
+
+  const loading = enabled && (!listRequest || listRequest.loading || listRequest.stale);
   const error = listRequest?.error ?? null;
   const expenses = listRequest?.expenses || [];
   const available = enabled && Boolean(listRequest?.settled) && !loading && !error;

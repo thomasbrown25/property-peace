@@ -1,5 +1,18 @@
 import { EXPENSE_ACTION_TYPES } from './expense.types';
 
+const invalidateExpenseListRequests = (requests = {}) => Object.fromEntries(
+  Object.entries(requests).map(([requestKey, request]) => [
+    requestKey,
+    { ...request, stale: true }
+  ])
+);
+
+const omitExpenseListKey = (collection = {}, requestKey) => {
+  const next = { ...collection };
+  delete next[requestKey];
+  return next;
+};
+
 const initialState = {
   expenses: [], // Each expense contains a receipts array
   selectedExpense: null,
@@ -10,6 +23,7 @@ const initialState = {
   listRequestKey: null,
   listSettledRequestKey: null,
   listRequestsByKey: {},
+  listRequestRefCounts: {},
   loading: false,
   error: null
 };
@@ -19,6 +33,37 @@ function expenseReducer(state = initialState, action) {
 
   switch (type) {
     // GET_EXPENSES cases
+    case EXPENSE_ACTION_TYPES.REGISTER_EXPENSE_LIST_SCOPE: {
+      const requestKey = meta?.requestKey;
+      if (!requestKey) return state;
+      return {
+        ...state,
+        listRequestRefCounts: {
+          ...state.listRequestRefCounts,
+          [requestKey]: (state.listRequestRefCounts?.[requestKey] || 0) + 1
+        }
+      };
+    }
+
+    case EXPENSE_ACTION_TYPES.RELEASE_EXPENSE_LIST_SCOPE: {
+      const requestKey = meta?.requestKey;
+      const currentCount = requestKey ? state.listRequestRefCounts?.[requestKey] || 0 : 0;
+      if (!requestKey || currentCount === 0) return state;
+      if (currentCount > 1) {
+        return {
+          ...state,
+          listRequestRefCounts: {
+            ...state.listRequestRefCounts,
+            [requestKey]: currentCount - 1
+          }
+        };
+      }
+      return {
+        ...state,
+        listRequestRefCounts: omitExpenseListKey(state.listRequestRefCounts, requestKey),
+        listRequestsByKey: omitExpenseListKey(state.listRequestsByKey, requestKey)
+      };
+    }
     case EXPENSE_ACTION_TYPES.GET_EXPENSES_START: {
       const requestKey = meta?.requestKey;
       const previousRequest = requestKey ? state.listRequestsByKey?.[requestKey] : null;
@@ -35,7 +80,8 @@ function expenseReducer(state = initialState, action) {
             loading: true,
             error: null,
             expenses: previousRequest?.expenses || [],
-            settled: previousRequest?.settled || false
+            settled: previousRequest?.settled || false,
+            stale: false
           }
         } : state.listRequestsByKey,
         loading: true,
@@ -46,7 +92,7 @@ function expenseReducer(state = initialState, action) {
     case EXPENSE_ACTION_TYPES.GET_EXPENSES_SUCCESS: {
       const requestKey = meta?.requestKey;
       const currentRequest = requestKey ? state.listRequestsByKey?.[requestKey] : null;
-      const staleKeyedRequest = requestKey && meta?.requestId !== undefined && currentRequest?.requestId !== meta.requestId;
+      const staleKeyedRequest = requestKey && currentRequest && meta?.requestId !== undefined && currentRequest.requestId !== meta.requestId;
       const staleLegacyRequest = !requestKey && meta?.requestId !== undefined && state.listRequestId !== meta.requestId;
       if (staleKeyedRequest || staleLegacyRequest) return state;
       const updateLegacyState = meta?.requestId === undefined || state.listRequestId === meta.requestId;
@@ -62,14 +108,15 @@ function expenseReducer(state = initialState, action) {
           loading: false,
           error: null
         } : {}),
-        listRequestsByKey: requestKey ? {
+        listRequestsByKey: requestKey && currentRequest ? {
           ...state.listRequestsByKey,
           [requestKey]: {
             requestId: meta?.requestId ?? currentRequest?.requestId ?? null,
             loading: false,
             error: null,
             expenses: payload,
-            settled: true
+            settled: true,
+            stale: currentRequest?.stale || false
           }
         } : state.listRequestsByKey
       };
@@ -78,7 +125,7 @@ function expenseReducer(state = initialState, action) {
     case EXPENSE_ACTION_TYPES.GET_EXPENSES_FAILURE: {
       const requestKey = meta?.requestKey;
       const currentRequest = requestKey ? state.listRequestsByKey?.[requestKey] : null;
-      const staleKeyedRequest = requestKey && meta?.requestId !== undefined && currentRequest?.requestId !== meta.requestId;
+      const staleKeyedRequest = requestKey && currentRequest && meta?.requestId !== undefined && currentRequest.requestId !== meta.requestId;
       const staleLegacyRequest = !requestKey && meta?.requestId !== undefined && state.listRequestId !== meta.requestId;
       if (staleKeyedRequest || staleLegacyRequest) return state;
       const updateLegacyState = meta?.requestId === undefined || state.listRequestId === meta.requestId;
@@ -94,14 +141,15 @@ function expenseReducer(state = initialState, action) {
           loading: false,
           error: payload
         } : {}),
-        listRequestsByKey: requestKey ? {
+        listRequestsByKey: requestKey && currentRequest ? {
           ...state.listRequestsByKey,
           [requestKey]: {
             requestId: meta?.requestId ?? currentRequest?.requestId ?? null,
             loading: false,
             error: payload,
             expenses: currentRequest?.expenses || [],
-            settled: true
+            settled: true,
+            stale: currentRequest?.stale || false
           }
         } : state.listRequestsByKey
       };
@@ -166,6 +214,7 @@ function expenseReducer(state = initialState, action) {
       return {
         ...state,
         expenses: [...state.expenses, payload],
+        listRequestsByKey: invalidateExpenseListRequests(state.listRequestsByKey),
         selectedExpense: payload,
         loading: false,
         error: null
@@ -198,6 +247,7 @@ function expenseReducer(state = initialState, action) {
         expenses: state.expenses.map((expense) =>
           expense.id === payload.id ? updatedExpense : expense
         ),
+        listRequestsByKey: invalidateExpenseListRequests(state.listRequestsByKey),
         selectedExpense: updatedExpense,
         loading: false,
         error: null
@@ -222,6 +272,7 @@ function expenseReducer(state = initialState, action) {
       return {
         ...state,
         expenses: state.expenses.filter((expense) => expense.id !== payload),
+        listRequestsByKey: invalidateExpenseListRequests(state.listRequestsByKey),
         selectedExpense: state.selectedExpense?.id === payload ? null : state.selectedExpense,
         loading: false,
         error: null
