@@ -111,18 +111,35 @@ test('tax workspace header keeps utility controls distinct from primary actions'
   assert.doesNotMatch(tax, /calc\(100% - 140px\)/);
 });
 
-test('Money Center and mobile Accounting navigation expose state to assistive technology', async () => {
-  const money = await read('../components/money-center/MoneyCenter.jsx');
+test('Finances and mobile Accounting navigation expose state to assistive technology', async () => {
+  const [finances, disclosure, activity, drawer] = await Promise.all([
+    read('../pages/landlord/finances.jsx'),
+    read('../sections/landlord/finances/CalculationDisclosure.jsx'),
+    read('../sections/landlord/finances/ActivityTab.jsx'),
+    read('../sections/landlord/finances/FinanceDetailDrawer.jsx')
+  ]);
   const mobile = await read('../layout/Dashboard/BottomNavBar/index.jsx');
-  assert.match(money, /role="status" aria-live="polite"/);
-  assert.match(money, /aria-controls="money-calculation-details"/);
-  assert.match(money, /aria-labelledby': 'money-detail-title'/);
-  assert.match(money, /The CSV could not be prepared/);
-  assert.match(money, /matching loaded source records/);
-  assert.match(money, /Some activity response fields were unavailable/);
-  assert.match(money, /Summary totals are unavailable/);
-  assert.match(money, /error && itemsError/);
-  assert.match(money, /not confirmation that the period has no records/);
+
+  assert.match(finances, /<CalculationDisclosure/);
+  assert.match(finances, /<ActivityTab/);
+  assert.match(finances, /<FinanceDetailDrawer/);
+  assert.match(disclosure, /<Box aria-live="polite" aria-atomic="false">/);
+  assert.match(disclosure, /role="status"/);
+  assert.match(activity, /role="status" aria-live="polite"/);
+  assert.match(disclosure, /aria-controls="finances-calculation-details"/);
+  assert.match(disclosure, /aria-expanded={expanded}/);
+  assert.match(disclosure, /<Collapse id="finances-calculation-details"/);
+  assert.match(drawer, /aria-labelledby="finance-detail-title"/);
+  assert.match(drawer, /id="finance-detail-title"/);
+  assert.match(disclosure, /The activity export could not be prepared/);
+  assert.match(disclosure, /Some financial fields were unavailable\. Available recorded values are shown; missing values and sections are not estimated\./);
+  assert.match(disclosure, /overviewError && itemsError/);
+  assert.match(disclosure, /Summary totals are unavailable\. Activity records that loaded successfully remain available\./);
+  assert.match(disclosure, /Activity records are unavailable\. Summary totals that loaded successfully remain available\./);
+  assert.match(
+    activity,
+    /\) : error \? \([\s\S]*This is not confirmation that the selected period has no posted activity\.[\s\S]*\) : visibleEntries\.length === 0 \? \(/
+  );
   assert.match(mobile, /aria-expanded={moreOpen}/);
   assert.match(mobile, /aria-controls="mobile-more-navigation"/);
   assert.match(mobile, /'aria-label': 'More landlord navigation'/);

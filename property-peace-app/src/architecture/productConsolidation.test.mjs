@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +8,14 @@ import pages from '../menu-items/pages.js';
 
 const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = (relativePath) => readFile(path.join(srcRoot, relativePath), 'utf8');
+const listFiles = async (directory) => {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(entries.map((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    return entry.isDirectory() ? listFiles(entryPath) : [entryPath];
+  }));
+  return nested.flat();
+};
 
 test('dashboard rent reminder uses canonical rent collection navigation and no legacy mutation drawer', async () => {
   const dashboard = await source('pages/landlord/dashboard.jsx');
@@ -63,6 +71,38 @@ test('landlord finance lists consolidate into one Accounting workspace', async (
     ['Finances', 'Rent Collection', 'Tax Center', 'Reports & Analytics']
   );
 });
+
+test('retired standalone finance modules are absent and no production source imports MoneyCenter', async () => {
+  const retiredModules = [
+    'pages/landlord/expenses.jsx',
+    'pages/landlord/payments.jsx',
+    'pages/landlord/ledger.jsx',
+    'pages/landlord/money-activity.jsx',
+    'components/money-center/MoneyCenter.jsx'
+  ];
+
+  await Promise.all(retiredModules.map((relativePath) => (
+    assert.rejects(
+      access(path.join(srcRoot, relativePath)),
+      (error) => error?.code === 'ENOENT',
+      `${relativePath} must be retired`
+    )
+  )));
+
+  const productionFiles = (await listFiles(srcRoot)).filter((filePath) => (
+    /\.(?:js|jsx|mjs|ts|tsx)$/.test(filePath) && !/\.test\./.test(filePath)
+  ));
+  const moneyCenterImporters = [];
+  for (const filePath of productionFiles) {
+    const fileSource = await readFile(filePath, 'utf8');
+    if (/components[\\/]money-center[\\/]MoneyCenter(?:\.jsx)?/.test(fileSource)) {
+      moneyCenterImporters.push(path.relative(srcRoot, filePath));
+    }
+  }
+
+  assert.deepEqual(moneyCenterImporters, []);
+});
+
 test('Percy starter prompts and composer fail closed when the runtime is unavailable', async () => {
   const aiCenter = await source('pages/landlord/ai-center.jsx');
   const mobilePanel = aiCenter.slice(aiCenter.indexOf('{mobilePanelOpen &&'));
