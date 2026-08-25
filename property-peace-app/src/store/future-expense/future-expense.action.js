@@ -4,7 +4,8 @@ import { FUTURE_EXPENSE_ACTION_TYPES } from './future-expense.types';
 let futureExpenseListRequestSequence = 0;
 
 const futureExpenseRequestKey = (landlordId, filters) =>
-  `future:${landlordId ?? 'unknown'}:${filters?.propertyId ?? filters?.PropertyId ?? 'all'}`;
+  `future:${landlordId ?? 'unknown'}:${filters?.organizationId ?? filters?.OrganizationId ?? 'unknown'}:${
+    filters?.propertyId ?? filters?.PropertyId ?? 'all'}`;
 
 export const getFutureExpensesAction =
   (landlordId, filters = {}, suppliedRequestKey) =>
@@ -12,7 +13,8 @@ export const getFutureExpensesAction =
     const requestId = ++futureExpenseListRequestSequence;
     const requestKey = suppliedRequestKey || futureExpenseRequestKey(landlordId, filters);
     const propertyId = filters?.propertyId ?? filters?.PropertyId ?? null;
-    const meta = { requestId, requestKey, landlordId, propertyId };
+    const organizationId = filters?.organizationId ?? filters?.OrganizationId ?? null;
+    const meta = { requestId, requestKey, landlordId, organizationId, propertyId };
     try {
       dispatch({ type: FUTURE_EXPENSE_ACTION_TYPES.GET_FUTURE_EXPENSES_START, meta });
 
@@ -103,7 +105,7 @@ export const clearFutureExpenseCleanupPendingAction = (futureExpenseId) => ({
   payload: futureExpenseId
 });
 
-export const hydrateFutureExpenseCleanupAction = (landlordId, markers) => ({
+export const hydrateFutureExpenseCleanupAction = (landlordId, organizationId, markers) => ({
   type: FUTURE_EXPENSE_ACTION_TYPES.HYDRATE_FUTURE_EXPENSE_CLEANUP,
-  payload: { landlordId, markers }
+  payload: { landlordId, organizationId, markers }
 });

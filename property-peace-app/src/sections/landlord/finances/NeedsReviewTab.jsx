@@ -9,7 +9,11 @@ import { formatMoneyCenterDate } from 'utils/moneyCenter';
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
-export default function NeedsReviewTab({ items = [], loading, error, onRetry, onSelectItem, registrationKey, registerExport }) {
+export default function NeedsReviewTab({ items = [],
+  partial = false,
+  loadedCount = 0,
+  totalCount = 0,
+  loading, error, onRetry, onSelectItem, registrationKey, registerExport }) {
   const theme = useTheme();
   const csvLinkRef = useRef(null);
   const csvRows = useMemo(() => buildReviewCsvRows(items), [items]);
@@ -17,15 +21,17 @@ export default function NeedsReviewTab({ items = [], loading, error, onRetry, on
   const exportState = useMemo(() => ({
     label: 'Export review',
     onExport: exportVisibleRows,
-    disabled: loading || Boolean(error) || items.length === 0,
+    disabled: loading || Boolean(error) || partial || items.length === 0,
     disabledReason: loading
       ? 'Review records are still loading.'
       : error
         ? 'Review records are unavailable.'
-        : items.length === 0
+        : partial
+            ? 'Review export is unavailable while this view is partial.'
+            : items.length === 0
           ? 'There are no review records to export.'
           : ''
-  }), [error, exportVisibleRows, items.length, loading]);
+  }), [error, exportVisibleRows, items.length, loading, partial]);
 
   useLayoutEffect(() => registerExport('review', registrationKey, exportState), [exportState, registerExport, registrationKey]);
 
@@ -47,6 +53,15 @@ export default function NeedsReviewTab({ items = [], loading, error, onRetry, on
         </Typography>
       </Box>
 
+      {partial && !loading && !error && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography fontWeight={700}>
+            Showing ${loadedCount} of ${totalCount} source records.
+          </Typography>
+          This review list is partial, so it cannot confirm that all records are caught up. Review export is unavailable while this view is
+          partial.
+        </Alert>
+      )}
       {loading ? (
         <Stack role="status" aria-live="polite" spacing={1.2} aria-label="Loading review records">
           {[1, 2, 3].map((row) => <Skeleton key={row} variant="rounded" height={82} />)}
@@ -63,9 +78,13 @@ export default function NeedsReviewTab({ items = [], loading, error, onRetry, on
       ) : items.length === 0 ? (
         <Box role="status" aria-live="polite" sx={{ py: { xs: 5, md: 7 }, px: 2, textAlign: 'center' }}>
           <CheckCircleOutline color="success" sx={{ fontSize: 44 }} />
-          <Typography variant="h6" sx={{ mt: 1.25 }}>Your books are caught up.</Typography>
+          <Typography variant="h6" sx={{ mt: 1.25 }}>
+            {partial ? 'No review records in the loaded subset.' : 'Your books are caught up.'}
+          </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.65 }}>
-            Imported bank transactions will also appear here after bank connections are added.
+            {partial
+              ? 'The remaining source records were not loaded, so additional review items may exist.'
+              : 'Imported bank transactions will also appear here after bank connections are added.'}
           </Typography>
         </Box>
       ) : (
@@ -116,6 +135,9 @@ NeedsReviewTab.propTypes = {
   })),
   loading: PropTypes.bool.isRequired,
   error: PropTypes.string,
+  partial: PropTypes.bool,
+  loadedCount: PropTypes.number,
+  totalCount: PropTypes.number,
   onRetry: PropTypes.func.isRequired,
   onSelectItem: PropTypes.func.isRequired,
   registrationKey: PropTypes.string.isRequired,

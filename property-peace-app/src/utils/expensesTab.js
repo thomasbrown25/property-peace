@@ -30,13 +30,14 @@ const isoDate = (value) => {
   return Number.isNaN(date.valueOf()) ? null : date.toISOString().slice(0, 10);
 };
 
-export function buildExpenseHookFilters({ propertyId, sharedFrom, sharedTo } = {}) {
+export function buildExpenseHookFilters({ propertyId, unitId, sharedFrom, sharedTo } = {}) {
   const exclusiveEnd = new Date(sharedTo || '');
   const inclusiveEnd = Number.isNaN(exclusiveEnd.valueOf())
     ? null
     : new Date(exclusiveEnd.valueOf() - 1).toISOString().slice(0, 10);
   return {
     propertyId: propertyId || null,
+    ...(unitId ? { unitId } : {}),
     startDate: isoDate(sharedFrom),
     endDate: inclusiveEnd
   };
@@ -62,8 +63,9 @@ const expenseTimestamp = (expense) => {
   return Number.isNaN(timestamp) ? null : timestamp;
 };
 
-const isInSharedScope = (expense, { propertyId, from, to }) => {
+const isInSharedScope = (expense, { propertyId, unitId, from, to }) => {
   if (propertyId && Number(readExpense(expense, 'propertyId', 'PropertyId')) !== Number(propertyId)) return false;
+  if (unitId && Number(readExpense(expense, 'unitId', 'UnitId')) !== Number(unitId)) return false;
   const fromTimestamp = Date.parse(from || '');
   const toTimestamp = Date.parse(to || '');
   if (Number.isNaN(fromTimestamp) && Number.isNaN(toTimestamp)) return true;

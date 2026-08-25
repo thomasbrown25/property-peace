@@ -131,3 +131,19 @@ test('URL scope serialization clears incompatible unit selection', () => {
   const next = moneyCenterScopeToSearch(new URLSearchParams('period=ytd&propertyId=1&unitId=2'), { propertyId: 3 });
   assert.equal(next.toString(), 'period=ytd&propertyId=3');
 });
+
+test('item normalization marks the fixed-limit response truncated when total exceeds loaded rows', () => {
+  const truncated = normalizeMoneyCenterItemsResponse({
+    items: [{ sourceId: 'payment:1' }],
+    totalCount: 2,
+    disclosures: []
+  });
+  assert.equal(truncated.loadedCount, 1);
+  assert.equal(truncated.totalCount, 2);
+  assert.equal(truncated.isTruncated, true);
+  assert.equal(truncated.isPartial, true);
+  assert.equal(
+    normalizeMoneyCenterItemsResponse({ items: [{ sourceId: 'payment:1' }], totalCount: 1, disclosures: [] }).isTruncated,
+    false
+  );
+});

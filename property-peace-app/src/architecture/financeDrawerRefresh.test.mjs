@@ -28,16 +28,26 @@ test('expense success navigation uses the canonical finances expenses destinatio
   assert.match(expenseDrawer, /navigate\('\/landlord\/finances\?tab=expenses'\)/);
 });
 
-test('composite expense drawers invalidate only after their receipt work and immediately before success', async () => {
+test('composite expense drawers invalidate once and add receipt failure completes as truthful partial success', async () => {
   const addDrawer = await source('components/expense/ExpenseAddDrawer.jsx');
   const editDrawer = await source('components/expense/ExpenseEditDrawer.jsx');
 
   assert.equal((addDrawer.match(/\{ invalidateLists: false \}/g) || []).length, 4, 'every core add in the composite drawer defers invalidation');
   assert.equal((editDrawer.match(/\{ invalidateLists: false \}/g) || []).length, 1, 'the core edit defers invalidation');
+  assert.equal(
+    (addDrawer.match(/createExpenseWithReceipts\(\{/g) || []).length,
+    3,
+    'every primary create uses the create-once receipt seam'
+  );
   assert.match(
     addDrawer,
-    /uploadExpenseReceiptsAction[\s\S]*?await runCompositeExpenseMutation\(dispatch, createCompositeExpense\);\s*onSuccess\?\.\(\);/
+    /const creationResult = await runCompositeExpenseMutation\(dispatch, createCompositeExpense\);\s*onSuccess\?\.\(\);\s*if \(creationResult\?\.status === 'created-without-receipts'\)/
   );
+  assert.match(
+    addDrawer,
+    /Expense created, but receipt upload failed[\s\S]*Open the expense in Finances and use Edit to retry the receipt/
+  );
+  assert.equal((addDrawer.match(/onSuccess\?\.\(\)/g) || []).length, 1);
   assert.match(
     editDrawer,
     /deleteExpenseReceiptAction[\s\S]*?uploadExpenseReceiptsAction[\s\S]*?await runCompositeExpenseMutation\(dispatch, updateCompositeExpense\);\s*await onSuccess\?\.\(\);/

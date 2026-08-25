@@ -46,9 +46,7 @@ test('shared Money data hook makes one coordinated request pair per scope', asyn
   assert.match(hook, /buildFinancesMoneyQuery\(searchParams\)/);
   assert.match(hook, /normalizeMoneyCenterOverview\(overviewResult\.value\)/);
   assert.match(hook, /normalizeMoneyCenterItemsResponse\(itemsResult\.value\)/);
-  assert.match(hook, /buildActivityEntries\(/);
-  assert.match(hook, /selectNeedsReviewItems\(/);
-  assert.match(hook, /buildAccountActivity\(/);
+  assert.match(hook, /deriveFinancesMoneyItems\(itemsResponse\)/);
   assert.match(hook, /downloadMoneyCenterExport\(await moneyCenterAPI\.export\(params\)\)/);
   assert.match(hook, /return \(\) => controller\.abort\(\);/);
 });
@@ -62,7 +60,8 @@ test('shared Payments hook is the only Finances owner of the payment list endpoi
   const componentSources = (await Promise.all(financeFiles.map(sourceIfPresent))).filter(Boolean);
 
   assert.equal(occurrences(hook, /['"]\/api\/payment\/all['"]/g), 1);
-  assert.match(hook, /const params = propertyId \? \{ propertyId \} : undefined;/);
+  assert.match(hook, /buildFinancesPaymentRequestScope\(propertyId, unitId\)/);
+  assert.match(hook, /\[propertyId, unitId, mutationVersion, retryVersion\]/);
   assert.match(hook, /axiosServices\.get\('\/api\/payment\/all', \{ params, signal: controller\.signal \}\)/);
   assert.match(hook, /response\?\.data\?\.data/);
   assert.match(hook, /response\?\.data\?\.Data/);
@@ -71,4 +70,31 @@ test('shared Payments hook is the only Finances owner of the payment list endpoi
   assert.match(hook, /if \(requestId !== requestIdRef\.current \|\| controller\.signal\.aborted\) return;/);
   assert.match(hook, /return \(\) => controller\.abort\(\);/);
   componentSources.forEach((component) => assert.doesNotMatch(component, /\/api\/payment\/all/));
+});
+test('truncated Money Center rows stay explicitly partial without adding another request owner', async () => {
+  const [hook, page, activity, row, review, account, api] = await Promise.all([
+    source('hooks/useFinancesMoneyData.js'),
+    source('pages/landlord/finances.jsx'),
+    source('sections/landlord/finances/ActivityTab.jsx'),
+    source('sections/landlord/finances/ActivityRow.jsx'),
+    source('sections/landlord/finances/NeedsReviewTab.jsx'),
+    source('sections/landlord/finances/AccountActivityCard.jsx'),
+    source('api/moneyCenter.js')
+  ]);
+
+  assert.match(hook, /clientDerivationsAvailable/);
+  assert.match(page, /<ActivityTab[\s\S]*partial=\{Boolean\(moneyData\.itemsResponse\?\.isTruncated\)\}/);
+  assert.match(page, /<NeedsReviewTab[\s\S]*partial=\{Boolean\(moneyData\.itemsResponse\?\.isTruncated\)\}/);
+  assert.match(page, /<AccountActivityCard[\s\S]*partial=\{Boolean\(moneyData\.itemsResponse\?\.isTruncated\)\}/);
+  assert.match(activity, /partial && hasClientFilters/);
+  assert.match(activity, /Showing \$\{loadedCount\} of \$\{sourceTotalCount\}/);
+  assert.match(activity, /Filtered activity export is unavailable while this view is partial/);
+  assert.match(review, /partial/);
+  assert.match(review, /Showing \$\{loadedCount\} of \$\{totalCount\}/);
+  assert.match(review, /Review export is unavailable while this view is partial/);
+  assert.match(account, /Account totals are unavailable because only/);
+  assert.match(row, /entry\.runningBalance == null \? 'Unavailable'/);
+  assert.match(api, /items: .*limit: 1000/);
+  assert.match(api, /export: .*contractParams\(params\).*responseType: 'blob'/);
+  assert.doesNotMatch(api, /offset|pageSize/);
 });

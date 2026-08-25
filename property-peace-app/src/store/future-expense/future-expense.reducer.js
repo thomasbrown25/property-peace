@@ -3,7 +3,7 @@ import { FUTURE_EXPENSE_ACTION_TYPES } from './future-expense.types';
 const initialState = {
   futureExpenses: [],
   recordedExpenseCleanupById: {},
-  cleanupHydratedLandlordId: null,
+  cleanupHydratedIdentity: null,
   listLoading: false,
   listError: null,
   listRequestId: null,
@@ -84,9 +84,17 @@ const keepMarkersForExpenses = (markers, expenses, meta) => {
   const presentIds = new Set((expenses || []).map((expense) => String(futureExpenseId(expense))));
   return Object.fromEntries(
     Object.entries(markers || {}).filter(([id, marker]) => {
-      if (meta?.landlordId == null) return presentIds.has(String(id));
-      if (marker?.landlordId == null || String(marker.landlordId) !== String(meta.landlordId)) return true;
-      if (meta.propertyId != null) {
+      if (meta?.landlordId == null && meta?.organizationId == null) return presentIds.has(String(id));
+      if (meta?.landlordId != null && (marker?.landlordId == null || String(marker.landlordId) !== String(meta.landlordId))) {
+        return true;
+      }
+      if (
+        meta?.organizationId != null &&
+        (marker?.organizationId == null || String(marker.organizationId) !== String(meta.organizationId))
+      ) {
+        return true;
+      }
+      if (meta?.propertyId != null) {
         if (marker.propertyId == null || String(marker.propertyId) !== String(meta.propertyId)) return true;
       }
       return presentIds.has(String(id));
@@ -139,10 +147,19 @@ function futureExpenseReducer(state = initialState, action) {
   }
 
   if (action.type === FUTURE_EXPENSE_ACTION_TYPES.HYDRATE_FUTURE_EXPENSE_CLEANUP) {
+    const landlordId = action.payload?.landlordId;
+    const organizationId = action.payload?.organizationId;
     return {
       ...nextState,
+      futureExpenses: [],
       recordedExpenseCleanupById: action.payload?.markers || {},
-      cleanupHydratedLandlordId: String(action.payload?.landlordId)
+      cleanupHydratedIdentity:
+        landlordId == null || organizationId == null ? null : { landlordId: String(landlordId), organizationId: String(organizationId) },
+      listLoading: false,
+      listError: null,
+      listRequestId: null,
+      listRequestKey: null,
+      listSettledRequestKey: null
     };
   }
 

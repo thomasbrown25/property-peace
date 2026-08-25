@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import * as financesModel from './finances.js';
 import {
   normalizeFinancesTab, updateFinancesSearch, buildFinancesMoneyQuery,
   buildActivityEntries, selectNeedsReviewItems, buildAccountActivity,
@@ -40,6 +41,17 @@ test('changing or clearing property removes incompatible unit scope', () => {
   const cleared = updateFinancesPropertyScope(current, undefined);
   assert.equal(changed?.toString(), 'period=ytd&propertyId=14&tab=activity&account=Repairs');
   assert.equal(cleared?.toString(), 'period=ytd&tab=activity&account=Repairs');
+});
+
+test('Activity account selection and every clear path update the canonical URL state', () => {
+  assert.equal(typeof financesModel.updateFinancesActivityAccount, 'function');
+  const current = new URLSearchParams('period=ytd&propertyId=12&unitId=3&tab=activity');
+  const selected = financesModel.updateFinancesActivityAccount(current, 'Repairs');
+  const cleared = financesModel.updateFinancesActivityAccount(selected, 'all');
+
+  assert.equal(selected.toString(), 'period=ytd&propertyId=12&unitId=3&tab=activity&account=Repairs');
+  assert.equal(cleared.toString(), 'period=ytd&propertyId=12&unitId=3&tab=activity');
+  assert.equal(financesModel.updateFinancesActivityAccount(selected, '').toString(), cleared.toString());
 });
 
 test('finances page loading covers every core data source and scope transition', () => {
@@ -85,6 +97,19 @@ test('review selection deduplicates reasons and covers all signals', () => {
   assert.deepEqual(result[0].reviewReasons, ['Uncategorized', 'Missing receipt']);
   assert.deepEqual(result[1].reviewReasons, ['Overdue obligation']);
   assert.deepEqual(result[2].reviewReasons, ['Settlement exception']);
+});
+
+test('review selection treats malformed non-string categories as uncategorized input without throwing', () => {
+  const result = selectNeedsReviewItems([
+    { sourceId: 'numeric', sourceType: 'expense', direction: 'wentOut', category: 42, hasReceipt: true },
+    { sourceId: 'object', sourceType: 'expense', direction: 'wentOut', category: { label: 'Other' }, hasReceipt: false }
+  ]);
+
+  assert.deepEqual(
+    result.map((item) => item.sourceId),
+    ['object']
+  );
+  assert.deepEqual(result[0].reviewReasons, ['Missing receipt']);
 });
 
 test('export registration is current only for the exact active tab and navigation key', () => {
@@ -201,4 +226,50 @@ test('collected this month accepts status and casing aliases and scope', () => {
   ];
   assert.equal(sumCollectedThisMonth(payments, now, 12), 100);
   assert.equal(sumCollectedThisMonth(payments, now), 120);
+});
+
+test('collected this month uses the same requested unit as editable payment rows', () => {
+  const now = new Date('2026-08-25T12:00:00Z');
+  const payments = [
+    { Amount: 100, Status: 'Completed', PaidAt: '2026-08-05', PropertyId: 12, UnitId: 301 },
+    { amount: 250, status: 'completed', paidAt: '2026-08-06', propertyId: 12, unitId: 302 }
+  ];
+
+  assert.equal(sumCollectedThisMonth(payments, now, 12, 302), 250);
+});
+
+test('truncated Money Center rows never produce authoritative running or account totals', () => {
+  assert.equal(typeof financesModel.deriveFinancesMoneyItems, 'function');
+  const items = [
+    {
+      sourceId: 'payment:1',
+      sourceType: 'payment',
+      direction: 'cameIn',
+      amount: 100,
+      occurredAt: '2026-08-01',
+      category: 'Rent'
+    },
+    {
+      sourceId: 'expense:2',
+      sourceType: 'expense',
+      direction: 'wentOut',
+      amount: 25,
+      occurredAt: '2026-08-02',
+      category: 'Uncategorized',
+      hasReceipt: false
+    }
+  ];
+  const partial = financesModel.deriveFinancesMoneyItems({ items, totalCount: 3, isTruncated: true });
+  assert.equal(partial.clientDerivationsAvailable, false);
+  assert.deepEqual(
+    partial.activityEntries.map((entry) => entry.runningBalance),
+    [null, null]
+  );
+  assert.deepEqual(partial.accountActivity, []);
+  assert.equal(partial.reviewItems.length, 1);
+
+  const complete = financesModel.deriveFinancesMoneyItems({ items, totalCount: 2, isTruncated: false });
+  assert.equal(complete.clientDerivationsAvailable, true);
+  assert.equal(complete.activityEntries[0].runningBalance, 75);
+  assert.equal(complete.accountActivity.length, 2);
 });

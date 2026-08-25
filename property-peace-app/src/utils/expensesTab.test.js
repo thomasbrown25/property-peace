@@ -68,6 +68,51 @@ test('expense hook filters translate shared half-open dates without mutating the
   });
 });
 
+test('expense request and selection keep the requested unit across camel and Pascal payloads', () => {
+  const filters = buildExpenseHookFilters({
+    propertyId: 12,
+    unitId: 302,
+    sharedFrom: '2026-08-01T00:00:00.000Z',
+    sharedTo: '2026-09-01T00:00:00.000Z'
+  });
+
+  assert.deepEqual(filters, {
+    propertyId: 12,
+    unitId: 302,
+    startDate: '2026-08-01',
+    endDate: '2026-08-31'
+  });
+  assert.equal(
+    buildExpenseListRequestKey(44, filters),
+    '44:{"propertyId":12,"unitId":302,"startDate":"2026-08-01","endDate":"2026-08-31"}'
+  );
+
+  const selected = selectExpensesPage(
+    [
+      { id: 1, propertyId: 12, unitId: 301, expenseDate: '2026-08-04', name: 'Unit 301', amount: 10 },
+      { Id: 2, PropertyId: 12, UnitId: 302, ExpenseDate: '2026-08-05', Name: 'Unit 302 Pascal', Amount: 20 },
+      { id: 3, propertyId: 12, unitId: 302, expenseDate: '2026-08-06', name: 'Unit 302 camel', amount: 30 }
+    ],
+    {
+      propertyId: 12,
+      unitId: 302,
+      from: '2026-08-01T00:00:00.000Z',
+      to: '2026-09-01T00:00:00.000Z',
+      page: 1,
+      pageSize: 10
+    }
+  );
+
+  assert.deepEqual(
+    selected.filteredExpenses.map((expense) => expense.Id ?? expense.id),
+    [3, 2]
+  );
+  assert.deepEqual(
+    buildExpenseCsvRows(selected.filteredExpenses).map((row) => row.Amount),
+    [30, 20]
+  );
+});
+
 test('expense selection enforces shared scope plus search, category, status, receipt, deductible, and sort filters', () => {
   const expenses = [
     { id: 1, propertyId: 12, expenseDate: '2026-08-04', name: 'Roof patch', vendor: 'Oak Supply', category: 'Repairs', amount: 80, isPaid: false, isTaxDeductible: true, receipts: [] },

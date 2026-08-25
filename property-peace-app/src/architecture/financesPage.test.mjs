@@ -35,10 +35,10 @@ test('unified Finances shell keeps the approved navigation, actions, and right r
   assert.match(page, /exportState=\{activeExport\}/);
 
   assert.match(page, /useFinancesMoneyData\(effectiveSearchParams, drawer\.financeMutationVersion\)/);
-  assert.match(page, /useFinancesPayments\(propertyId, drawer\.financeMutationVersion\)/);
+  assert.match(page, /useFinancesPayments\(propertyId, scopedQuery\.unitId, drawer\.financeMutationVersion\)/);
   assert.match(page, /localSelectedProperty=\{selectedProperty \|\| ALL_PROPERTIES_SCOPE\}/);
   assert.match(page, /updateFinancesPropertyScope\(searchParams, property\?\.id\)/);
-  assert.match(page, /sumCollectedThisMonth\(paymentsData\.payments, new Date\(\), propertyId\)/);
+  assert.match(page, /sumCollectedThisMonth\(paymentsData\.payments, new Date\(\), propertyId, scopedQuery\.unitId\)/);
   assert.match(page, /collectedThisMonthAvailable=\{[^}]*paymentsData\.available\}/);
   assert.match(metrics, /overview\?\.fieldAvailability\?\.cameIn/);
   assert.match(metrics, /overview\?\.fieldAvailability\?\.wentOut/);
@@ -95,8 +95,13 @@ test('Activity supports scoped filtering, responsive rows, retry, pagination, an
   ]);
 
   assert.match(page, /entries=\{moneyData\.activityEntries\}/);
-  assert.match(page, /initialAccount=\{searchParams\.get\('account'\) \|\| ''\}/);
+  assert.match(page, /account=\{searchParams\.get\('account'\) \|\| 'all'\}/);
+  assert.match(page, /onAccountChange=\{setActivityAccount\}/);
   assert.match(activity, /TransactionFilterToolbar/);
+  assert.doesNotMatch(activity, /useState\(\(\) => initialAccount/);
+  assert.equal((activity.match(/defaultValue: 'all'/g) || []).length, 2);
+  assert.match(activity, /searchLabel="Search posted activity"/);
+  assert.match(activity, /onAccountChange\('all'\)/);
   assert.match(activity, /period="shared"/);
   assert.doesNotMatch(activity, /period=\{type\}/);
   assert.match(activity, /\{ value: 'all', label: 'All' \}/);
@@ -165,6 +170,7 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
 
   assert.match(page, /<ExpensesTab/);
   assert.match(page, /propertyId=\{propertyId\}/);
+  assert.match(page, /<ExpensesTab[\s\S]*?unitId=\{scopedQuery\.unitId\}/);
   assert.match(page, /sharedPeriod=\{period\}/);
   assert.match(page, /sharedFrom=\{scopedQuery\.from\}/);
   assert.match(page, /sharedTo=\{scopedQuery\.to\}/);
@@ -179,6 +185,7 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
 
   assert.doesNotMatch(expenses, /useFetchExpenses/);
   assert.match(expenses, /TransactionFilterToolbar/);
+  assert.match(expenses, /searchLabel="Search expenses"/);
   assert.match(expenses, /period="shared"/);
   assert.match(expenses, /Paid/);
   assert.match(expenses, /Unpaid/);
@@ -212,12 +219,13 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
 });
 
 test('page-owned keyed expense data gates metrics without excluding concurrent consumers', async () => {
-  const [page, hook, action, reducer, selectors] = await Promise.all([
+  const [page, hook, action, reducer, selectors, expenseApi] = await Promise.all([
     source('pages/landlord/finances.jsx'),
     source('hooks/useFetchExpenses.js'),
     source('store/expense/expense.action.js'),
     source('store/expense/expense.reducer.js'),
-    source('store/expense/expense.selector.js')
+    source('store/expense/expense.selector.js'),
+    source('api/expense.js')
   ]);
 
   assert.match(page, /useFetchExpenses\(expenseFilters\)/);
@@ -235,6 +243,8 @@ test('page-owned keyed expense data gates metrics without excluding concurrent c
   assert.match(reducer, /listRequestsByKey/);
   assert.match(reducer, /listRequestRefCounts/);
   assert.match(selectors, /selectExpenseListRequest/);
+  assert.match(expenseApi, /const \{ propertyId, unitId, startDate/);
+  assert.match(expenseApi, /params\.append\('unitId', unitId\)/);
 });
 
 test('Payments keeps the complete editable list while the page owns its one shared collection', async () => {
@@ -246,9 +256,10 @@ test('Payments keeps the complete editable list while the page owns its one shar
     source('layout/Dashboard/index.jsx')
   ]);
 
-  assert.match(page, /const paymentsData = useFinancesPayments\(propertyId, drawer\.financeMutationVersion\)/);
-  assert.match(page, /sumCollectedThisMonth\(paymentsData\.payments, new Date\(\), propertyId\)/);
+  assert.match(page, /const paymentsData = useFinancesPayments\(propertyId, scopedQuery\.unitId, drawer\.financeMutationVersion\)/);
+  assert.match(page, /sumCollectedThisMonth\(paymentsData\.payments, new Date\(\), propertyId, scopedQuery\.unitId\)/);
   assert.match(page, /<PaymentsTab/);
+  assert.match(page, /<PaymentsTab[\s\S]*?unitId=\{scopedQuery\.unitId\}/);
   assert.match(page, /payments=\{paymentsData\.payments\}/);
   assert.match(page, /loading=\{paymentsData\.loading/);
   assert.match(page, /error=\{paymentsData\.error\}/);
@@ -267,6 +278,7 @@ test('Payments keeps the complete editable list while the page owns its one shar
   assert.doesNotMatch(payments, /\/api\/payment\/all/);
   assert.doesNotMatch(row, /\/api\/payment\/all/);
   assert.match(payments, /TransactionFilterToolbar/);
+  assert.match(payments, /searchLabel="Search payments"/);
   assert.match(payments, /period="shared"/);
   assert.match(payments, /Rent/);
   assert.match(payments, /Fees/);
@@ -329,20 +341,24 @@ test('Upcoming combines scheduled expenses with scoped filters, truthful states,
   assert.match(page, /registrationKey=\{exportRegistrationKey\}/);
   assert.match(page, /registerExport=\{registerExport\}/);
 
+  assert.match(upcoming, /useOrganization/);
+  assert.match(upcoming, /const \{ currentOrganization \} = useOrganization\(\)/);
+  assert.match(upcoming, /organizationId = currentOrganization\?\.id \?\? currentOrganization\?\.Id \?\? null/);
   assert.match(upcoming, /buildUpcomingEntries\(recurringExpenses, futureExpenses\)/);
   assert.equal((upcoming.match(/dispatch\(getRecurringExpensesAction/g) || []).length, 1);
   assert.equal((upcoming.match(/dispatch\(getFutureExpensesAction/g) || []).length, 1);
-  assert.match(upcoming, /getRecurringExpensesAction\(landlordId, \{ propertyId \}, requestScopeKey\)/);
-  assert.match(upcoming, /getFutureExpensesAction\(landlordId, \{ propertyId \}, requestScopeKey\)/);
-  assert.match(upcoming, /requestScopeKey[\s\S]*landlordId[\s\S]*propertyId[\s\S]*mutationVersion[\s\S]*retryVersion/);
+  assert.match(upcoming, /getRecurringExpensesAction\(landlordId, \{ propertyId, organizationId \}, requestScopeKey\)/);
+  assert.match(upcoming, /getFutureExpensesAction\(landlordId, \{ propertyId, organizationId \}, requestScopeKey\)/);
+  assert.match(upcoming, /requestScopeKey[\s\S]*landlordId[\s\S]*organizationId[\s\S]*propertyId[\s\S]*mutationVersion[\s\S]*retryVersion/);
   assert.match(recurringSelector, /selectRecurringExpenseListSettledRequestKey/);
   assert.match(futureSelector, /selectFutureExpenseListSettledRequestKey/);
   assert.match(upcoming, /recurringListSettledRequestKey === requestScopeKey/);
   assert.match(upcoming, /futureListSettledRequestKey === requestScopeKey/);
-  assert.match(upcoming, /\[cleanupHydrated, dispatch, landlordId, requestScopeKey\]/);
+  assert.match(upcoming, /\[cleanupHydrated, dispatch, landlordId, organizationId, requestScopeKey\]/);
   assert.match(upcoming, /if \(!cleanupHydrated\)[\s\S]*return undefined;[\s\S]*dispatch\(getRecurringExpensesAction/);
   assert.ok(upcoming.indexOf('hydrateFutureExpenseCleanupAction') < upcoming.indexOf('dispatch(getRecurringExpensesAction'));
   assert.match(upcoming, /TransactionFilterToolbar/);
+  assert.match(upcoming, /searchLabel="Search upcoming expenses"/);
   assert.match(upcoming, /search=\{search\}/);
   assert.match(upcoming, /selectUpcomingEntries\(combinedEntries, \{ propertyId, search, type: typeFilter \}\)/);
   assert.match(upcomingSelection, /entry\?\.source\?\.propertyId \?\? entry\?\.source\?\.PropertyId/);
@@ -400,24 +416,29 @@ test('Upcoming combines scheduled expenses with scoped filters, truthful states,
   assert.match(upcoming, /await dispatch\s*\(\s*addExpenseAction/);
   assert.match(upcoming, /if \(cleanupPending\)[\s\S]*reconcileFutureExpense[\s\S]*return;[\s\S]*await dispatch\s*\(\s*addExpenseAction/);
   assert.match(upcoming, /hydrateFutureExpenseCleanupAction/);
-  assert.match(upcoming, /selectFutureExpenseCleanupHydratedLandlordId/);
+  assert.match(upcoming, /selectFutureExpenseCleanupHydratedIdentity/);
   assert.match(upcoming, /readFutureExpenseCleanupMarkers/);
   assert.match(upcoming, /writeFutureExpenseCleanupMarkers/);
   assert.match(upcoming, /upsertFutureExpenseCleanupMarker/);
   assert.match(upcoming, /removeFutureExpenseCleanupMarker/);
+  assert.match(upcoming, /hydrateFutureExpenseCleanupAction\(\s*landlordId,\s*organizationId,/);
+  assert.match(upcoming, /readFutureExpenseCleanupMarkers\(cleanupStorage, landlordId, organizationId\)/);
+  assert.match(upcoming, /writeFutureExpenseCleanupMarkers\(cleanupStorage, landlordId, organizationId,/);
+  assert.match(upcoming, /removeFutureExpenseCleanupMarker\(cleanupStorage, landlordId, organizationId, futureExpenseId\)/);
   assert.match(upcoming, /cleanupHydrated[\s\S]*requestPending/);
-  assert.match(cleanupStorage, /property-peace:future-expense-cleanup:v1/);
+  assert.match(cleanupStorage, /property-peace:future-expense-cleanup:v2/);
   assert.match(cleanupStorage, /landlordId/);
+  assert.match(cleanupStorage, /organizationId/);
   assert.match(cleanupStorage, /futureExpenseId/);
   assert.match(cleanupStorage, /propertyId/);
   assert.doesNotMatch(cleanupStorage, /expenseId|source|propertyName|name:/);
-  assert.match(futureAction, /meta[\s\S]*landlordId[\s\S]*propertyId/);
+  assert.match(futureAction, /meta[\s\S]*landlordId[\s\S]*organizationId[\s\S]*propertyId/);
   assert.match(futureReducer, /HYDRATE_FUTURE_EXPENSE_CLEANUP/);
-  assert.match(futureReducer, /cleanupHydratedLandlordId/);
+  assert.match(futureReducer, /cleanupHydratedIdentity/);
   const cleanupMarker = upcoming.match(/const cleanupMarker = \{([\s\S]*?)\n\s*\};/)?.[1] || '';
   assert.deepEqual(
     new Set(cleanupMarker.match(/[a-zA-Z]+(?=:)/g)),
-    new Set(['futureExpenseId', 'propertyId', 'landlordId', 'cleanupError'])
+    new Set(['futureExpenseId', 'propertyId', 'landlordId', 'organizationId', 'cleanupError'])
   );
   assert.match(upcoming, /Expense recorded, but the scheduled item could not be removed/);
   assert.match(row, /Expense recorded · cleanup needed/);

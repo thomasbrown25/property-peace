@@ -365,3 +365,38 @@ test('a captured explicit refetch cannot recreate a scope after its final releas
   assert.equal(selectRequest(store.expenseState, mounted.dashboardKey), null);
   assert.equal(store.expenseState.listRequestRefCounts[mounted.dashboardKey], undefined);
 });
+
+test('create success with receipt failure stays committed and receipt retry never invokes add again', async () => {
+  const mounted = createMountedScopeState();
+  const store = createStore(mounted.state);
+  let addCalls = 0;
+  let uploadCalls = 0;
+
+  expenseApi.addExpense = async () => {
+    addCalls += 1;
+    return { data: { id: 73, name: 'Created once' } };
+  };
+  expenseApi.uploadExpenseReceipts = async () => {
+    uploadCalls += 1;
+    throw new Error('receipt upload failed');
+  };
+
+  const result = await expenseActions.runCompositeExpenseMutation(store.dispatch, async (commitCoreMutation) => {
+    return expenseActions.createExpenseWithReceipts({
+      commitCoreMutation,
+      dispatch: store.dispatch,
+      createAction: expenseActions.addExpenseAction({ name: 'Created once' }, { invalidateLists: false }),
+      receiptFiles: [{}]
+    });
+  });
+
+  assert.equal(result.status, 'created-without-receipts');
+  assert.equal(result.expenseId, 73);
+  assert.equal(addCalls, 1);
+  assert.equal(uploadCalls, 1);
+  assert.equal(store.dispatchedActions.filter(({ type }) => type === TYPES.INVALIDATE_EXPENSE_LISTS).length, 1);
+
+  await assert.rejects(result.retryReceipt(), /receipt upload failed/);
+  assert.equal(addCalls, 1);
+  assert.equal(uploadCalls, 2);
+});

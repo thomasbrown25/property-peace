@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 import { alpha, Box, Stack, Typography, useTheme } from '@mui/material';
 
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
@@ -9,7 +10,10 @@ function formatSignedMoney(value) {
   return money.format(0);
 }
 
-export default function AccountActivityCard({ accounts = [], available, loading, onSelectAccount }) {
+export default function AccountActivityCard({ accounts = [], available,
+  partial = false,
+  loadedCount = 0,
+  totalCount = 0, loading, onSelectAccount }) {
   const theme = useTheme();
   const maxMagnitude = Math.max(0, ...accounts.map((account) => Math.abs(account.signedTotal)));
 
@@ -20,6 +24,10 @@ export default function AccountActivityCard({ accounts = [], available, loading,
       <Stack spacing={1.5} sx={{ mt: 2 }}>
         {loading ? (
           <Typography role="status" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Loading account activity…</Typography>
+        ) : partial ? (
+          <Typography role="status" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
+            Account totals are unavailable because only ${loadedCount} of ${totalCount} source records loaded.
+          </Typography>
         ) : !available ? (
           <Typography role="status" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Account activity is unavailable.</Typography>
         ) : accounts.length === 0 ? (
@@ -51,3 +59,19 @@ export default function AccountActivityCard({ accounts = [], available, loading,
     </Box>
   );
 }
+
+AccountActivityCard.propTypes = {
+  accounts: PropTypes.arrayOf(
+    PropTypes.shape({
+      account: PropTypes.string.isRequired,
+      signedTotal: PropTypes.number.isRequired,
+      count: PropTypes.number.isRequired
+    })
+  ),
+  available: PropTypes.bool.isRequired,
+  partial: PropTypes.bool,
+  loadedCount: PropTypes.number,
+  totalCount: PropTypes.number,
+  loading: PropTypes.bool.isRequired,
+  onSelectAccount: PropTypes.func.isRequired
+};

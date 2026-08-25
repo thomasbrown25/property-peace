@@ -4,4 +4,4 @@ export const selectFutureExpenseListError = (state) => state.futureExpense?.list
 export const selectFutureExpenseListRequestKey = (state) => state.futureExpense?.listRequestKey || null;
 export const selectFutureExpenseListSettledRequestKey = (state) => state.futureExpense?.listSettledRequestKey || null;
 export const selectFutureExpenseCleanupById = (state) => state.futureExpense?.recordedExpenseCleanupById || {};
-export const selectFutureExpenseCleanupHydratedLandlordId = (state) => state.futureExpense?.cleanupHydratedLandlordId || null;
+export const selectFutureExpenseCleanupHydratedIdentity = (state) => state.futureExpense?.cleanupHydratedIdentity || null;

@@ -81,6 +81,7 @@ const errorMessage = (error) => {
 
 export default function PaymentsTab({
   propertyId,
+  unitId,
   sharedPeriod,
   sharedFrom,
   sharedTo,
@@ -95,7 +96,7 @@ export default function PaymentsTab({
   const theme = useTheme();
   const drawer = useDrawer();
   const csvLinkRef = useRef(null);
-  const scopeKey = `${propertyId ?? 'all'}:${sharedFrom || ''}:${sharedTo || ''}`;
+  const scopeKey = `${propertyId ?? 'all'}:${unitId ?? 'all'}:${sharedFrom || ''}:${sharedTo || ''}`;
   const previousScopeKeyRef = useRef(scopeKey);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('all');
@@ -111,7 +112,8 @@ export default function PaymentsTab({
   const requestedPage = scopeChanged ? 1 : page;
   const selection = useMemo(() => selectPaymentsPage(payments, {
     propertyId,
-    from: sharedFrom,
+        unitId,
+        from: sharedFrom,
     to: sharedTo,
     search,
     type,
@@ -120,7 +122,7 @@ export default function PaymentsTab({
     sort,
     page: requestedPage,
     pageSize: PAGE_SIZE
-  }), [payments, propertyId, requestedPage, search, sharedFrom, sharedTo, sort, source, status, type]);
+  }), [payments, propertyId, requestedPage, search, sharedFrom, sharedTo, sort, source, status, type, unitId]);
   const { filteredPayments, totalCount, totalPages, visiblePayments } = selection;
 
   useEffect(() => {
@@ -226,6 +228,7 @@ export default function PaymentsTab({
           onSearchChange={changeSearch}
           searchPlaceholder="Search tenant, reference, property, unit, or method"
           propertyControl={propertyScopeControl}
+          searchLabel="Search payments"
           period="shared"
           onPeriodChange={keepSharedPeriod}
           periodOptions={sharedPeriodOptions}
@@ -321,6 +324,7 @@ export default function PaymentsTab({
 PaymentsTab.propTypes = {
   propertyId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   sharedPeriod: PropTypes.string.isRequired,
+  unitId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   sharedFrom: PropTypes.string.isRequired,
   sharedTo: PropTypes.string.isRequired,
   mutationVersion: PropTypes.number,

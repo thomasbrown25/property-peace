@@ -29,10 +29,11 @@ import {
   selectFinancesExportState,
   sumCollectedThisMonth,
   updateFinancesPropertyScope,
+  updateFinancesActivityAccount,
   updateFinancesSearch
 } from 'utils/finances';
 import { buildExpenseHookFilters, maskExpenseMetricsAvailability } from 'utils/expensesTab';
-import { maskPaymentMetricsAvailability } from 'utils/paymentsTab';
+import { buildFinancesPaymentRequestScope, maskPaymentMetricsAvailability } from 'utils/paymentsTab';
 
 const FINANCES_TAB_LABELS = [
   ['review', 'Needs review'],
@@ -71,15 +72,17 @@ export default function FinancesPage() {
   const propertyId = scopedQuery.propertyId;
   const selectedProperty = properties?.find((property) => Number(property.id) === Number(propertyId)) || null;
   const moneyData = useFinancesMoneyData(effectiveSearchParams, drawer.financeMutationVersion);
-  const paymentsData = useFinancesPayments(propertyId, drawer.financeMutationVersion);
+  const paymentsData = useFinancesPayments(propertyId, scopedQuery.unitId, drawer.financeMutationVersion);
   const expenseFilters = useMemo(() => buildExpenseHookFilters({
     propertyId,
-    sharedFrom: scopedQuery.from,
+        unitId: scopedQuery.unitId,
+        sharedFrom: scopedQuery.from,
     sharedTo: scopedQuery.to
-  }), [propertyId, scopedQuery.from, scopedQuery.to]);
+  }), [propertyId, scopedQuery.from, scopedQuery.to, scopedQuery.unitId]);
   const expensesData = useFetchExpenses(expenseFilters);
   const moneyScopeKey = JSON.stringify({ ...scopedQuery, mutationVersion: drawer.financeMutationVersion });
-  const paymentsScopeKey = `${propertyId ?? 'all'}:${drawer.financeMutationVersion ?? 0}`;
+  const paymentRequestScope = buildFinancesPaymentRequestScope(propertyId, scopedQuery.unitId);
+  const paymentsScopeKey = `${paymentRequestScope.key}:${drawer.financeMutationVersion ?? 0}`;
   const previousMoneyScopeRef = useRef(moneyScopeKey);
   const previousPaymentsScopeRef = useRef(paymentsScopeKey);
   const moneyScopeChanged = previousMoneyScopeRef.current !== moneyScopeKey;
@@ -104,8 +107,8 @@ export default function FinancesPage() {
   }, [setAccountingLoading]);
 
   const collectedThisMonth = useMemo(
-    () => sumCollectedThisMonth(paymentsData.payments, new Date(), propertyId),
-    [paymentsData.payments, propertyId]
+    () => sumCollectedThisMonth(paymentsData.payments, new Date(), propertyId, scopedQuery.unitId),
+    [paymentsData.payments, propertyId, scopedQuery.unitId]
   );
   const metricsOverview = useMemo(() => maskPaymentMetricsAvailability(
     maskExpenseMetricsAvailability(
@@ -136,6 +139,12 @@ export default function FinancesPage() {
   const updateSearch = (changes) => setSearchParams(updateFinancesSearch(searchParams, changes), { replace: true });
   const setPropertyScope = (property) => setSearchParams(updateFinancesPropertyScope(searchParams, property?.id), { replace: true });
   const setTab = (tab) => updateSearch({ tab });
+  const setActivityAccount = useCallback(
+    (account) => {
+      setSearchParams(updateFinancesActivityAccount(searchParams, account), { replace: true });
+    },
+    [searchParams, setSearchParams]
+  );
   const setPeriod = (nextPeriod) => updateSearch({
     period: nextPeriod,
     ...(nextPeriod === 'custom' ? {} : { from: undefined, to: undefined })
@@ -249,6 +258,9 @@ export default function FinancesPage() {
               {activeTab === 'review' && (
                 <NeedsReviewTab
                   items={moneyData.reviewItems}
+                  partial={Boolean(moneyData.itemsResponse?.isTruncated)}
+                  loadedCount={moneyData.itemsResponse?.loadedCount || 0}
+                  totalCount={moneyData.itemsResponse?.totalCount || 0}
                   loading={moneyData.loading || moneyScopeChanged}
                   error={moneyData.itemsError}
                   onRetry={moneyData.retry}
@@ -261,9 +273,13 @@ export default function FinancesPage() {
                 <ActivityTab
                   entries={moneyData.activityEntries}
                   loading={moneyData.loading || moneyScopeChanged}
+                  partial={Boolean(moneyData.itemsResponse?.isTruncated)}
+                  loadedCount={moneyData.itemsResponse?.loadedCount || 0}
+                  sourceTotalCount={moneyData.itemsResponse?.totalCount || 0}
                   error={moneyData.itemsError}
                   onRetry={moneyData.retry}
-                  initialAccount={searchParams.get('account') || ''}
+                  account={searchParams.get('account') || 'all'}
+                  onAccountChange={setActivityAccount}
                   onSelectItem={openFinanceDetail}
                   registrationKey={exportRegistrationKey}
                   registerExport={registerExport}
@@ -278,6 +294,7 @@ export default function FinancesPage() {
                   propertyId={propertyId}
                   sharedPeriod={period}
                   sharedFrom={scopedQuery.from}
+                  unitId={scopedQuery.unitId}
                   sharedTo={scopedQuery.to}
                   onMutation={drawer.notifyFinanceMutation}
                   registrationKey={exportRegistrationKey}
@@ -289,6 +306,7 @@ export default function FinancesPage() {
                   propertyId={propertyId}
                   sharedPeriod={period}
                   sharedFrom={scopedQuery.from}
+                  unitId={scopedQuery.unitId}
                   sharedTo={scopedQuery.to}
                   mutationVersion={drawer.financeMutationVersion}
                   onMutation={drawer.notifyFinanceMutation}
@@ -317,7 +335,10 @@ export default function FinancesPage() {
           <Stack spacing={2}>
             <AccountActivityCard
               accounts={moneyData.accountActivity}
-              available={!moneyData.loading && !moneyScopeChanged && !moneyData.itemsError}
+              partial={Boolean(moneyData.itemsResponse?.isTruncated)}
+              loadedCount={moneyData.itemsResponse?.loadedCount || 0}
+              totalCount={moneyData.itemsResponse?.totalCount || 0}
+              available={!moneyData.loading && !moneyScopeChanged && !moneyData.itemsError && moneyData.clientDerivationsAvailable}
               loading={moneyData.loading || moneyScopeChanged}
               onSelectAccount={handleAccountNavigation}
             />

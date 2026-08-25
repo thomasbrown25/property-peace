@@ -25,6 +25,7 @@ const keyboardAction = (action) => ({
 export default function ActivityRow({ entry, mobile, onSelect }) {
   const theme = useTheme();
   const type = entryType(entry);
+  const activityBalance = entry.runningBalance == null ? 'Unavailable' : money.format(Number(entry.runningBalance) || 0);
   const tone = entry.direction === 'cameIn' ? 'success' : 'error';
   const openDetails = () => onSelect(entry);
 
@@ -57,7 +58,7 @@ export default function ActivityRow({ entry, mobile, onSelect }) {
           </Box>
           <Box textAlign="right">
             <Typography variant="caption" color="text.secondary">Activity balance</Typography>
-            <Typography variant="body2" fontWeight={700}>{money.format(Number(entry.runningBalance) || 0)}</Typography>
+            <Typography variant="body2" fontWeight={700}>{activityBalance}</Typography>
           </Box>
         </Stack>
       </Box>
@@ -85,7 +86,7 @@ export default function ActivityRow({ entry, mobile, onSelect }) {
       <TableCell><Chip size="small" label={type} color={tone} variant="outlined" /></TableCell>
       <TableCell align="right"><Typography fontWeight={750} color={`${tone}.main`}>{signedMoney(entry.signedAmount)}</Typography></TableCell>
       <TableCell align="right">
-        <Typography fontWeight={700}>{money.format(Number(entry.runningBalance) || 0)}</Typography>
+        <Typography fontWeight={700}>{activityBalance}</Typography>
         <Typography variant="caption" color="text.secondary">Activity balance</Typography>
       </TableCell>
     </TableRow>
@@ -102,7 +103,7 @@ ActivityRow.propTypes = {
     unitName: PropTypes.string.isRequired,
     occurredAt: PropTypes.string,
     signedAmount: PropTypes.number.isRequired,
-    runningBalance: PropTypes.number.isRequired
+    runningBalance: PropTypes.number
   }).isRequired,
   mobile: PropTypes.bool.isRequired,
   onSelect: PropTypes.func.isRequired

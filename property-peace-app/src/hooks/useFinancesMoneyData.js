@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { downloadMoneyCenterExport, moneyCenterAPI, moneyCenterErrorMessage } from 'api/moneyCenter';
 import { normalizeMoneyCenterItemsResponse, normalizeMoneyCenterOverview } from 'utils/moneyCenter';
-import {
-  buildAccountActivity,
-  buildActivityEntries,
-  buildFinancesMoneyQuery,
-  selectNeedsReviewItems
-} from 'utils/finances';
+import { buildFinancesMoneyQuery, deriveFinancesMoneyItems } from 'utils/finances';
 
 export default function useFinancesMoneyData(searchParams, mutationVersion) {
   const [overview, setOverview] = useState(null);
@@ -53,9 +48,9 @@ export default function useFinancesMoneyData(searchParams, mutationVersion) {
     return () => controller.abort();
   }, [params.from, params.to, params.propertyId, params.unitId, params.upcomingDays, mutationVersion, retryVersion]);
 
-  const activityEntries = useMemo(() => buildActivityEntries(itemsResponse?.items), [itemsResponse]);
-  const reviewItems = useMemo(() => selectNeedsReviewItems(itemsResponse?.items), [itemsResponse]);
-  const accountActivity = useMemo(() => buildAccountActivity(activityEntries), [activityEntries]);
+  const { activityEntries, reviewItems, accountActivity, clientDerivationsAvailable } = useMemo(
+    () => deriveFinancesMoneyItems(itemsResponse),
+    [itemsResponse]);
   const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
   const exportActivity = useCallback(async () => {
     setExportError('');
@@ -75,6 +70,7 @@ export default function useFinancesMoneyData(searchParams, mutationVersion) {
     activityEntries,
     reviewItems,
     accountActivity,
+    clientDerivationsAvailable,
     loading,
     overviewError,
     itemsError,

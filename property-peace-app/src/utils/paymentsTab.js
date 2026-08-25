@@ -13,6 +13,17 @@ export const getPaymentAmount = (payment) => {
   return Number.isFinite(amount) ? amount : 0;
 };
 
+export function buildFinancesPaymentRequestScope(propertyId, unitId) {
+  const params = {
+    ...(propertyId ? { propertyId } : {}),
+    ...(unitId ? { unitId } : {})
+  };
+  return {
+    key: `${propertyId ?? 'all'}:${unitId ?? 'all'}`,
+    params: Object.keys(params).length ? params : undefined
+  };
+}
+
 export function normalizePaymentStatus(payment) {
   const status = String(readPayment(payment, 'status', 'Status') || 'Completed').trim().toLowerCase();
   if (['completed', 'succeeded', 'paid'].includes(status)) return 'completed';
@@ -90,8 +101,9 @@ const paymentTimestamp = (payment) => {
   return Number.isNaN(timestamp) ? null : timestamp;
 };
 
-const isInSharedScope = (payment, { propertyId, from, to }) => {
+const isInSharedScope = (payment, { propertyId, unitId, from, to }) => {
   if (propertyId && Number(readPayment(payment, 'propertyId', 'PropertyId')) !== Number(propertyId)) return false;
+  if (unitId && Number(readPayment(payment, 'unitId', 'UnitId')) !== Number(unitId)) return false;
   const fromTimestamp = Date.parse(from || '');
   const toTimestamp = Date.parse(to || '');
   if (Number.isNaN(fromTimestamp) && Number.isNaN(toTimestamp)) return true;

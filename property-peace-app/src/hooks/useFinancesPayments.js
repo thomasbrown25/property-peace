@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axiosServices from 'utils/axios';
+import { buildFinancesPaymentRequestScope } from 'utils/paymentsTab';
 
 const paymentsFrom = (response) => {
   const data = Array.isArray(response?.data)
@@ -8,7 +9,7 @@ const paymentsFrom = (response) => {
   return Array.isArray(data) ? data : [];
 };
 
-export default function useFinancesPayments(propertyId, mutationVersion) {
+export default function useFinancesPayments(propertyId, unitId, mutationVersion) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,7 +19,7 @@ export default function useFinancesPayments(propertyId, mutationVersion) {
   useEffect(() => {
     const controller = new AbortController();
     const requestId = requestIdRef.current += 1;
-    const params = propertyId ? { propertyId } : undefined;
+    const { params } = buildFinancesPaymentRequestScope(propertyId, unitId);
     setLoading(true);
     setError('');
 
@@ -36,7 +37,7 @@ export default function useFinancesPayments(propertyId, mutationVersion) {
       });
 
     return () => controller.abort();
-  }, [propertyId, mutationVersion, retryVersion]);
+  }, [propertyId, unitId, mutationVersion, retryVersion]);
 
   const retry = useCallback(() => setRetryVersion((version) => version + 1), []);
 

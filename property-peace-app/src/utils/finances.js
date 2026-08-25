@@ -17,6 +17,11 @@ export function updateFinancesSearch(current, changes = {}) {
   return next;
 }
 
+export function updateFinancesActivityAccount(current, account) {
+  const nextAccount = typeof account === 'string' && account.trim() && account !== 'all' ? account.trim() : undefined;
+  return updateFinancesSearch(current, { tab: 'activity', account: nextAccount });
+}
+
 export function selectFinancesExportState(registration, activeTab, registrationKey) {
   if (!registration || registration.tab !== activeTab || registration.registrationKey !== registrationKey) return null;
   return registration.exportState || null;
@@ -110,7 +115,8 @@ export function selectNeedsReviewItems(items) {
   const byId = new Map();
   list(items).forEach((item) => {
     const reasons = [];
-    if (item?.sourceType === 'expense' && item.direction === 'wentOut' && item.category?.trim().toLowerCase() === 'uncategorized') reasons.push('Uncategorized');
+    const category = typeof item?.category === 'string' ? item.category.trim().toLowerCase() : '';
+    if (item?.sourceType === 'expense' && item.direction === 'wentOut' && category === 'uncategorized') reasons.push('Uncategorized');
     if (item?.sourceType === 'expense' && item.direction === 'wentOut' && !item.hasReceipt) reasons.push('Missing receipt');
     if (item?.direction === 'obligation' && item.needsAttention) reasons.push('Overdue obligation');
     if (item?.sourceType === 'payment' && item.needsAttention) reasons.push('Settlement exception');
@@ -181,7 +187,7 @@ export function buildActivityCsvRows(entries) {
     'Property / unit': propertyUnitLabel(entry),
     Account: entry?.account || 'Uncategorized',
     Amount: Number(entry?.signedAmount) || 0,
-    'Activity balance': Number(entry?.runningBalance) || 0,
+    'Activity balance': entry?.runningBalance == null ? 'Unavailable' : Number(entry.runningBalance) || 0,
     'Source type': entry?.sourceType || ''
   }));
 }
@@ -211,6 +217,21 @@ export function buildAccountActivity(entries, limit) {
   return limit === undefined ? result : result.slice(0, limit);
 }
 
+export function deriveFinancesMoneyItems(itemsResponse) {
+  const derivedActivityEntries = buildActivityEntries(itemsResponse?.items);
+  const clientDerivationsAvailable = Boolean(itemsResponse) && !itemsResponse.isTruncated;
+  return {
+    activityEntries: clientDerivationsAvailable
+      ? derivedActivityEntries
+      : derivedActivityEntries.map((entry) => ({ ...entry, runningBalance: null })),
+    reviewItems: selectNeedsReviewItems(itemsResponse?.items),
+    accountActivity: clientDerivationsAvailable ? buildAccountActivity(derivedActivityEntries) : [],
+    clientDerivationsAvailable,
+    loadedCount: itemsResponse?.loadedCount ?? derivedActivityEntries.length,
+    totalCount: itemsResponse?.totalCount ?? derivedActivityEntries.length
+  };
+}
+
 export function buildUpcomingEntries(recurring, future) {
   const normalize = (item, type, actionDate) => {
     const id = item.id ?? item.sourceId;
@@ -233,13 +254,15 @@ export function buildUpcomingEntries(recurring, future) {
     return ad - bd;
   });
 }
-export function sumCollectedThisMonth(payments, now = new Date(), propertyId) {
+export function sumCollectedThisMonth(payments, now = new Date(), propertyId, unitId) {
   const year = now.getUTCFullYear(), month = now.getUTCMonth();
   return list(payments).reduce((total, payment) => {
     const status = String(payment.status ?? payment.Status ?? '').toLowerCase();
     if (!['completed', 'succeeded', 'paid'].includes(status)) return total;
     const selectedProperty = payment.propertyId ?? payment.PropertyId;
     if (propertyId !== undefined && Number(selectedProperty) !== Number(propertyId)) return total;
+    const selectedUnit = payment.unitId ?? payment.UnitId;
+    if (unitId !== undefined && Number(selectedUnit) !== Number(unitId)) return total;
     const paidAt = payment.paidAt ?? payment.PaidAt ?? payment.paymentDate ?? payment.PaymentDate ?? payment.createdAt;
     const date = dateValue(paidAt);
     if (date === null) return total;

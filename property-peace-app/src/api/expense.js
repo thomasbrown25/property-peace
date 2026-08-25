@@ -1,11 +1,12 @@
 import axiosServices from 'utils/axios';
 
 export const getExpenses = async (filters = {}) => {
-  const { propertyId, startDate, endDate, category } = filters;
+  const { propertyId, unitId, startDate, endDate, category } = filters;
   const params = new URLSearchParams();
   
   if (propertyId) params.append('propertyId', propertyId);
   if (startDate) params.append('startDate', startDate);
+  if (unitId) params.append('unitId', unitId);
   if (endDate) params.append('endDate', endDate);
   if (category) params.append('category', category);
 

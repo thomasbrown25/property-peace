@@ -161,12 +161,17 @@ export function normalizeMoneyCenterItemsResponse(raw = {}) {
   const totalCountAvailable = hasNumber(raw?.totalCount);
   const suppliedTotalCount = totalCountAvailable ? Math.max(0, count(raw.totalCount)) : items.length;
   const totalCountConsistent = suppliedTotalCount >= items.length;
+  const loadedCount = items.length;
+  const isTruncated = totalCountAvailable && totalCountConsistent && suppliedTotalCount > loadedCount;
   return {
     ...(raw && typeof raw === 'object' ? raw : {}),
     items,
     totalCount: Math.max(items.length, suppliedTotalCount),
+    loadedCount,
+    isTruncated,
     disclosures: list(raw?.disclosures),
-    isPartial: !Array.isArray(raw?.items) || !totalCountAvailable || !totalCountConsistent || !Array.isArray(raw?.disclosures)
+    isPartial:
+      isTruncated || !Array.isArray(raw?.items) || !totalCountAvailable || !totalCountConsistent || !Array.isArray(raw?.disclosures)
   };
 }
 

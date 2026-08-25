@@ -27,13 +27,20 @@ const SORT_OPTIONS = [
   { value: 'balance-desc', label: 'Activity balance' }
 ];
 
-export default function ActivityTab({ entries = [], loading, error, onRetry, initialAccount = '', onSelectItem, registrationKey, registerExport }) {
+export default function ActivityTab({ entries = [],
+  partial = false,
+  loadedCount = 0,
+  sourceTotalCount = 0,
+  loading,
+  error,
+  onRetry,
+  account = 'all',
+  onAccountChange, onSelectItem, registrationKey, registerExport }) {
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down('md'));
   const csvLinkRef = useRef(null);
   const [search, setSearch] = useState('');
   const [type, setType] = useState('all');
-  const [account, setAccount] = useState(() => initialAccount || 'all');
   const [sort, setSort] = useState('newest');
   const [page, setPage] = useState(1);
   const accounts = useMemo(() => getActivityAccountOptions(entries), [entries]);
@@ -44,11 +51,12 @@ export default function ActivityTab({ entries = [], loading, error, onRetry, ini
 
   useEffect(() => {
     if (loading) return;
-    const requested = String(initialAccount || '').trim();
-    const matched = accounts.find((value) => value.toLocaleLowerCase() === requested.toLocaleLowerCase());
-    setAccount(matched || 'all');
+    const requested = String(account || 'all').trim();
+    const matched = requested === 'all' ? undefined : accounts.find((value) => value.toLocaleLowerCase() === requested.toLocaleLowerCase());
+    const normalizedAccount = matched || 'all';
+    if (normalizedAccount !== account) onAccountChange(normalizedAccount);
     setPage(1);
-  }, [accounts, initialAccount, loading]);
+  }, [account, accounts, loading, onAccountChange]);
 
   useEffect(() => {
     setPage(1);
@@ -70,34 +78,36 @@ export default function ActivityTab({ entries = [], loading, error, onRetry, ini
     label: 'Export activity',
     onExport: exportVisibleRows,
     hasClientFilters,
-    disabled: loading || Boolean(error) || (hasClientFilters && visibleEntries.length === 0),
+    disabled: loading || Boolean(error) || (partial && hasClientFilters) || (hasClientFilters && visibleEntries.length === 0),
     disabledReason: loading
       ? 'Activity is still loading.'
       : error
         ? 'Activity records are unavailable.'
-        : hasClientFilters && visibleEntries.length === 0
+        : partial && hasClientFilters
+            ? 'Filtered activity export is unavailable while this view is partial.'
+            : hasClientFilters && visibleEntries.length === 0
           ? 'No visible filtered activity is available to export.'
           : ''
-  }), [error, exportVisibleRows, hasClientFilters, loading, visibleEntries.length]);
+  }), [error, exportVisibleRows, hasClientFilters, loading, partial, visibleEntries.length]);
 
   useLayoutEffect(() => registerExport('activity', registrationKey, exportState), [exportState, registerExport, registrationKey]);
 
   const clearFilters = useCallback(() => {
     setSearch('');
     setType('all');
-    setAccount('all');
-  }, []);
+    onAccountChange('all');
+  }, [onAccountChange]);
   const activeChips = [
     ...(type !== 'all' ? [{ key: 'type', label: `Type: ${TYPE_OPTIONS.find((option) => option.value === type)?.label}`, onDelete: () => setType('all') }] : []),
-    ...(account !== 'all' ? [{ key: 'account', label: `Account: ${account}`, onDelete: () => setAccount('all') }] : [])
+    ...(account !== 'all' ? [{ key: 'account', label: `Account: ${account}`, onDelete: () => onAccountChange('all') }] : [])
   ];
   const filterFields = [
-    { key: 'type', label: 'Type', value: type, onChange: setType, options: TYPE_OPTIONS },
-    { key: 'account', label: 'Account', value: account, onChange: setAccount, options: accountOptions }
+    { key: 'type', label: 'Type', value: type, defaultValue: 'all', onChange: setType, options: TYPE_OPTIONS },
+    { key: 'account', label: 'Account', value: account, defaultValue: 'all', onChange: onAccountChange, options: accountOptions }
   ];
   const accountControl = (
     <FormControl fullWidth size="small">
-      <Select value={account} onChange={(event) => setAccount(event.target.value)} inputProps={{ 'aria-label': 'Account' }}>
+      <Select value={account} onChange={(event) => onAccountChange(event.target.value)} inputProps={{ 'aria-label': 'Account' }}>
         {accountOptions.map((option) => <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>)}
       </Select>
     </FormControl>
@@ -118,6 +128,7 @@ export default function ActivityTab({ entries = [], loading, error, onRetry, ini
         <TransactionFilterToolbar
           search={search}
           onSearchChange={setSearch}
+          searchLabel="Search posted activity"
           searchPlaceholder="Search description, source, account, property, or reference"
           propertyControl={accountControl}
           period="shared"
@@ -137,6 +148,18 @@ export default function ActivityTab({ entries = [], loading, error, onRetry, ini
           Running total of the posted activity shown here — not a bank balance.
         </Typography>
       </Box>
+
+      {partial && !loading && !error && (
+        <Box sx={{ px: 2, pt: 2 }}>
+          <Alert severity="warning">
+            <Typography fontWeight={700}>
+              Showing ${loadedCount} of ${sourceTotalCount} source records.
+            </Typography>
+            Running totals and filtered activity export are unavailable because this view is partial. Use the unfiltered Export activity
+            action for the complete server export.
+          </Alert>
+        </Box>
+      )}
 
       {loading ? (
         <Stack role="status" aria-live="polite" spacing={1.2} sx={{ p: 2 }} aria-label="Loading posted activity">
@@ -206,10 +229,14 @@ export default function ActivityTab({ entries = [], loading, error, onRetry, ini
 
 ActivityTab.propTypes = {
   entries: PropTypes.arrayOf(PropTypes.object),
+  partial: PropTypes.bool,
+  loadedCount: PropTypes.number,
+  sourceTotalCount: PropTypes.number,
   loading: PropTypes.bool.isRequired,
   error: PropTypes.string,
   onRetry: PropTypes.func.isRequired,
-  initialAccount: PropTypes.string,
+  account: PropTypes.string,
+  onAccountChange: PropTypes.func.isRequired,
   onSelectItem: PropTypes.func.isRequired,
   registrationKey: PropTypes.string.isRequired,
   registerExport: PropTypes.func.isRequired

@@ -8,6 +8,7 @@ import { Alert, alpha, Avatar, Box, Button, CircularProgress, Stack, Typography,
 import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
+import { useOrganization } from 'contexts/OrganizationContext';
 import useAuth from 'hooks/useAuth';
 import { addExpenseAction } from 'store/expense/expense.action';
 import {
@@ -18,7 +19,7 @@ import {
 } from 'store/future-expense/future-expense.action';
 import {
   selectFutureExpenseCleanupById,
-  selectFutureExpenseCleanupHydratedLandlordId,
+  selectFutureExpenseCleanupHydratedIdentity,
   selectFutureExpenseListError,
   selectFutureExpenseListLoading,
   selectFutureExpenseListSettledRequestKey,
@@ -95,7 +96,9 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
   const dispatch = useDispatch();
   const theme = useTheme();
   const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
   const landlordId = user?.id || user?.Id;
+  const organizationId = currentOrganization?.id ?? currentOrganization?.Id ?? null;
   const recurringExpenseCollection = useSelector(selectRecurringExpenses);
   const recurringLoading = useSelector(selectRecurringExpenseListLoading);
   const recurringError = useSelector(selectRecurringExpenseListError);
@@ -105,7 +108,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
   const futureError = useSelector(selectFutureExpenseListError);
   const futureListSettledRequestKey = useSelector(selectFutureExpenseListSettledRequestKey);
   const futureExpenseCleanupById = useSelector(selectFutureExpenseCleanupById);
-  const cleanupHydratedLandlordId = useSelector(selectFutureExpenseCleanupHydratedLandlordId);
+  const cleanupHydratedIdentity = useSelector(selectFutureExpenseCleanupHydratedIdentity);
   const cleanupStorage = useMemo(() => getFutureExpenseCleanupStorage(), []);
   const csvLinkRef = useRef(null);
   const [search, setSearch] = useState('');
@@ -115,26 +118,30 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [mutatingKey, setMutatingKey] = useState('');
   const requestScopeKey = useMemo(
-    () => `upcoming:${landlordId ?? 'pending'}:${propertyId ?? 'all'}:${mutationVersion}:${retryVersion}`,
-    [landlordId, mutationVersion, propertyId, retryVersion]
+    () => `upcoming:${landlordId ?? 'pending'}:${organizationId ?? 'pending'}:${propertyId ?? 'all'}:${mutationVersion}:${retryVersion}`,
+    [landlordId, mutationVersion, organizationId, propertyId, retryVersion]
   );
   const recurringExpenses = recurringListSettledRequestKey === requestScopeKey ? recurringExpenseCollection : [];
   const futureExpenses = futureListSettledRequestKey === requestScopeKey ? futureExpenseCollection : [];
-  const cleanupHydrated = Boolean(landlordId) && String(cleanupHydratedLandlordId) === String(landlordId);
+  const cleanupHydrated = Boolean(landlordId && organizationId) &&
+    String(cleanupHydratedIdentity?.landlordId) === String(landlordId) &&
+    String(cleanupHydratedIdentity?.organizationId) === String(organizationId);
   const scopesSettled = recurringListSettledRequestKey === requestScopeKey && futureListSettledRequestKey === requestScopeKey;
 
   useEffect(() => {
-    if (!landlordId) return;
-    dispatch(hydrateFutureExpenseCleanupAction(landlordId, readFutureExpenseCleanupMarkers(cleanupStorage, landlordId)));
-  }, [cleanupStorage, dispatch, landlordId]);
+    if (!landlordId || !organizationId) return;
+    dispatch(hydrateFutureExpenseCleanupAction(landlordId,
+        organizationId,
+        readFutureExpenseCleanupMarkers(cleanupStorage, landlordId, organizationId)));
+  }, [cleanupStorage, dispatch, landlordId, organizationId]);
 
   useEffect(() => {
     if (!cleanupHydrated) return;
-    writeFutureExpenseCleanupMarkers(cleanupStorage, landlordId, futureExpenseCleanupById);
-  }, [cleanupHydrated, cleanupStorage, futureExpenseCleanupById, landlordId]);
+    writeFutureExpenseCleanupMarkers(cleanupStorage, landlordId, organizationId, futureExpenseCleanupById);
+  }, [cleanupHydrated, cleanupStorage, futureExpenseCleanupById, landlordId, organizationId]);
 
   useEffect(() => {
-    if (!landlordId) {
+    if (!landlordId || !organizationId) {
       setRequestPending(false);
       return undefined;
     }
@@ -146,8 +153,8 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     let current = true;
     setRequestPending(true);
     Promise.all([
-      dispatch(getRecurringExpensesAction(landlordId, { propertyId }, requestScopeKey)),
-      dispatch(getFutureExpensesAction(landlordId, { propertyId }, requestScopeKey))
+      dispatch(getRecurringExpensesAction(landlordId, { propertyId, organizationId }, requestScopeKey)),
+      dispatch(getFutureExpensesAction(landlordId, { propertyId, organizationId }, requestScopeKey))
     ]).finally(() => {
       if (current) setRequestPending(false);
     });
@@ -155,7 +162,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     return () => {
       current = false;
     };
-  }, [cleanupHydrated, dispatch, landlordId, requestScopeKey]);
+  }, [cleanupHydrated, dispatch, landlordId, organizationId, requestScopeKey]);
 
   const combinedEntries = useMemo(
     () =>
@@ -170,7 +177,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     () => selectUpcomingEntries(combinedEntries, { propertyId, search, type: typeFilter }),
     [combinedEntries, propertyId, search, typeFilter]
   );
-  const loading = requestPending || recurringLoading || futureLoading || (Boolean(landlordId) && (!cleanupHydrated || !scopesSettled));
+  const loading = requestPending || recurringLoading || futureLoading || (Boolean(landlordId && organizationId) && (!cleanupHydrated || !scopesSettled));
   const loadError = recurringError || futureError;
   const hasCleanupPending = combinedEntries.some((entry) => Boolean(entry.cleanupPending));
   const hasClientFilters = Boolean(search.trim()) || typeFilter !== 'all';
@@ -215,7 +222,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     const futureExpenseId = scheduledId(entry.source);
     try {
       await dispatch(deleteFutureExpenseAction(futureExpenseId));
-      removeFutureExpenseCleanupMarker(cleanupStorage, landlordId, futureExpenseId);
+      removeFutureExpenseCleanupMarker(cleanupStorage, landlordId, organizationId, futureExpenseId);
       if (successMessage) {
         openSnackbar({ open: true, message: successMessage, variant: 'alert', alert: { color: 'success' } });
       }
@@ -273,6 +280,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
           futureExpenseId: futureExpenseId,
           propertyId: readScheduled(source, 'propertyId', 'PropertyId'),
           landlordId: landlordId,
+          organizationId: organizationId,
           cleanupError: null
         };
         upsertFutureExpenseCleanupMarker(cleanupStorage, cleanupMarker);
@@ -382,6 +390,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
           search={search}
           onSearchChange={setSearch}
           searchPlaceholder="Search name, vendor, category, or property"
+          searchLabel="Search upcoming expenses"
           propertyControl={propertyScopeControl}
           period="shared"
           onPeriodChange={keepScheduledPeriod}

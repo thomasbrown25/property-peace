@@ -5,3 +5,8 @@ export function getActiveFilterCount(filters = []) {
 export function hasActiveToolbarFilters(search = '', activeChips = []) {
   return search.trim().length > 0 || activeChips.length > 0;
 }
+
+export function resolveTransactionSearchLabel(value) {
+  const label = typeof value === 'string' ? value.trim() : '';
+  return label || 'Search financial records';
+}

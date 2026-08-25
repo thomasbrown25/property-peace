@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import * as paymentsTab from './paymentsTab.js';
 import {
   buildPaymentCsvRows,
   getPaymentReference,
@@ -83,7 +84,42 @@ test('payment selection applies property and half-open period scope before clien
 
   assert.equal(selected.unfilteredCount, 2);
   assert.deepEqual(selected.filteredPayments.map((payment) => payment.Id ?? payment.id), [2, 1]);
-  assert.equal(selected.filteredPayments.some((payment) => (payment.Id ?? payment.id) === 4), false);
+  assert.equal(selected.filteredPayments.some((payment) => (payment.Id ?? payment.id) === 4), false
+  );
+});
+
+test('payment request identity, rows, and CSV keep the requested unit across response casing', () => {
+  assert.equal(typeof paymentsTab.buildFinancesPaymentRequestScope, 'function');
+  assert.deepEqual(paymentsTab.buildFinancesPaymentRequestScope(10, 102), {
+    key: '10:102',
+    params: { propertyId: 10, unitId: 102 }
+  });
+  assert.notEqual(paymentsTab.buildFinancesPaymentRequestScope(10, 101).key, paymentsTab.buildFinancesPaymentRequestScope(10, 102).key);
+
+  const selected = selectPaymentsPage(
+    [
+      { Id: 11, PropertyId: 10, UnitId: 101, PaymentDate: '2026-08-01', Amount: 100 },
+      { id: 12, propertyId: 10, unitId: 102, paymentDate: '2026-08-02', amount: 200 },
+      { Id: 13, PropertyId: 10, UnitId: 102, PaymentDate: '2026-08-03', Amount: 300 }
+    ],
+    {
+      propertyId: 10,
+      unitId: 102,
+      from: '2026-08-01T00:00:00.000Z',
+      to: '2026-09-01T00:00:00.000Z',
+      page: 1,
+      pageSize: 10
+    }
+  );
+
+  assert.deepEqual(
+    selected.filteredPayments.map((payment) => payment.Id ?? payment.id),
+    [13, 12]
+  );
+  assert.deepEqual(
+    buildPaymentCsvRows(selected.filteredPayments).map((row) => row.Amount),
+    [300, 200]
+  );
 });
 
 test('payment selection retains failed and disputed records while filtering and sorting editable rows', () => {

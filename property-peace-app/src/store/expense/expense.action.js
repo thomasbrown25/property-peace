@@ -199,6 +199,30 @@ export const uploadExpenseReceiptsAction = (expenseId, files) => async (dispatch
   }
 };
 
+export const createExpenseWithReceipts = async ({ commitCoreMutation, dispatch, createAction, receiptFiles = [] }) => {
+  const expense = await commitCoreMutation(createAction);
+  const expenseId = expense?.id ?? expense?.Id ?? expense?.data?.id ?? expense?.data?.Id;
+  const files = Array.isArray(receiptFiles) ? receiptFiles : [];
+  if (files.length === 0) return { status: 'created', expense, expenseId };
+  const retryReceipt = () => {
+    if (!expenseId)
+      return Promise.reject(new Error('The expense was created, but its receipt cannot be uploaded because the record ID is unavailable.'));
+    return dispatch(uploadExpenseReceiptsAction(expenseId, files));
+  };
+  try {
+    await retryReceipt();
+    return { status: 'created', expense, expenseId };
+  } catch (receiptError) {
+    return {
+      status: 'created-without-receipts',
+      expense,
+      expenseId,
+      receiptError,
+      retryReceipt
+    };
+  }
+};
+
 export const getExpenseReceiptsAction = (expenseId) => async (dispatch) => {
   try {
     dispatch({ type: EXPENSE_ACTION_TYPES.GET_EXPENSE_RECEIPTS_START });

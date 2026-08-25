@@ -38,10 +38,7 @@ import Autocomplete from 'components/@extended/AutoComplete';
 import MaintenanceSelect from 'components/MaintenanceSelect';
 import ExpenseReceiptUpload from 'components/expense/ExpenseReceiptUpload';
 import {
-  addExpenseAction,
-  runCompositeExpenseMutation,
-  uploadExpenseReceiptsAction
-} from 'store/expense/expense.action';
+  addExpenseAction, createExpenseWithReceipts, runCompositeExpenseMutation } from 'store/expense/expense.action';
 import { addRecurringExpenseAction } from 'store/recurring-expense/recurring-expense.action';
 import { addFutureExpenseAction } from 'store/future-expense/future-expense.action';
 import { openSnackbar } from 'api/snackbar';
@@ -315,6 +312,7 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
       };
 
       let expenseId = null;
+      let receiptOutcome = null;
 
       if (formData.isRecurring) {
         if (formData.alreadyPaid) {
@@ -368,8 +366,13 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
             isPaid: true,
             paidDate: new Date().toISOString()
           };
-          const result = await commitCoreMutation(addExpenseAction(payload, { invalidateLists: false }));
-          expenseId = result?.id || result?.data?.id;
+          receiptOutcome = await createExpenseWithReceipts({
+            commitCoreMutation,
+            dispatch,
+            createAction: addExpenseAction(payload, { invalidateLists: false }),
+            receiptFiles
+          });
+          expenseId = receiptOutcome.expenseId;
         } else if (receiptFiles.length > 0) {
           const payload = {
             landlordId: user.id || user.Id,
@@ -393,8 +396,13 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
             isPaid: false,
             paidDate: null
           };
-          const result = await commitCoreMutation(addExpenseAction(payload, { invalidateLists: false }));
-          expenseId = result?.id || result?.data?.id;
+          receiptOutcome = await createExpenseWithReceipts({
+            commitCoreMutation,
+            dispatch,
+            createAction: addExpenseAction(payload, { invalidateLists: false }),
+            receiptFiles
+          });
+          expenseId = receiptOutcome.expenseId;
         }
       } else {
         if (isFutureDate && receiptFiles.length === 0) {
@@ -433,8 +441,13 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
             isPaid: !isFutureDate,
             paidDate: isFutureDate ? null : new Date().toISOString()
           };
-          const result = await commitCoreMutation(addExpenseAction(payload, { invalidateLists: false }));
-          expenseId = result?.id || result?.data?.id;
+          receiptOutcome = await createExpenseWithReceipts({
+            commitCoreMutation,
+            dispatch,
+            createAction: addExpenseAction(payload, { invalidateLists: false }),
+            receiptFiles
+          });
+          expenseId = receiptOutcome.expenseId;
         }
       }
 
@@ -469,21 +482,23 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
         }
       }
 
-      if (receiptFiles.length > 0) {
-        if (!expenseId) {
-          throw new Error('Receipts can only be saved after an expense record is created. Please try again.');
-        }
-        await dispatch(uploadExpenseReceiptsAction(expenseId, receiptFiles));
-      }
-
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setProcessing(false);
       transitionToStep(STEPS.SUCCESS, 'left');
+      return receiptOutcome;
     };
 
     try {
-      await runCompositeExpenseMutation(dispatch, createCompositeExpense);
+      const creationResult = await runCompositeExpenseMutation(dispatch, createCompositeExpense);
       onSuccess?.();
+      if (creationResult?.status === 'created-without-receipts') {
+        openSnackbar({
+          open: true,
+          message: 'Expense created, but receipt upload failed. Open the expense in Finances and use Edit to retry the receipt.',
+          variant: 'alert',
+          alert: { color: 'warning' }
+        });
+      }
     } catch (error) {
       console.error('[ExpenseAddDrawer] Error creating expense:', error);
       setError(error?.response?.data?.message || error?.message || 'Failed to create expense');

@@ -53,6 +53,7 @@ export default function ExpensesTab({
   error,
   onRetry,
   propertyId,
+  unitId,
   sharedPeriod,
   sharedFrom,
   sharedTo,
@@ -64,7 +65,7 @@ export default function ExpensesTab({
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down('md'));
   const csvLinkRef = useRef(null);
-  const scopeKey = `${propertyId ?? 'all'}:${sharedFrom || ''}:${sharedTo || ''}`;
+  const scopeKey = `${propertyId ?? 'all'}:${unitId ?? 'all'}:${sharedFrom || ''}:${sharedTo || ''}`;
   const previousScopeKeyRef = useRef(scopeKey);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
@@ -78,7 +79,8 @@ export default function ExpensesTab({
   const requestedPage = scopeChanged ? 1 : page;
   const selection = useMemo(() => selectExpensesPage(expenses, {
     propertyId,
-    from: sharedFrom,
+        unitId,
+        from: sharedFrom,
     to: sharedTo,
     search,
     category,
@@ -86,7 +88,7 @@ export default function ExpensesTab({
     sort,
     page: requestedPage,
     pageSize: PAGE_SIZE
-  }), [category, expenses, propertyId, requestedPage, search, sharedFrom, sharedTo, sort, status]);
+  }), [category, expenses, propertyId, requestedPage, search, sharedFrom, sharedTo, sort, status, unitId]);
   const { filteredExpenses, totalCount, totalPages, visibleExpenses } = selection;
 
   useEffect(() => {
@@ -233,6 +235,7 @@ export default function ExpensesTab({
           onSearchChange={changeSearch}
           searchPlaceholder="Search name, vendor, category, or property"
           propertyControl={propertyScopeControl}
+          searchLabel="Search expenses"
           period="shared"
           onPeriodChange={keepSharedPeriod}
           periodOptions={sharedPeriodOptions}
@@ -321,6 +324,7 @@ ExpensesTab.propTypes = {
   onRetry: PropTypes.func.isRequired,
   propertyId: PropTypes.number,
   sharedPeriod: PropTypes.string.isRequired,
+  unitId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   sharedFrom: PropTypes.string.isRequired,
   sharedTo: PropTypes.string.isRequired,
   onMutation: PropTypes.func.isRequired,

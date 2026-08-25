@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import { CloseOutlined, FilterOutlined, SearchOutlined, SortAscendingOutlined } from '@ant-design/icons';
 
-import { getActiveFilterCount, hasActiveToolbarFilters } from './transactionFilterToolbarUtils';
+import { getActiveFilterCount, hasActiveToolbarFilters, resolveTransactionSearchLabel } from './transactionFilterToolbarUtils';
 
 const controlSx = {
   height: 40,
@@ -80,6 +80,7 @@ export default function TransactionFilterToolbar({
   search,
   onSearchChange,
   searchPlaceholder,
+  searchLabel,
   propertyControl,
   period,
   onPeriodChange,
@@ -134,6 +135,7 @@ export default function TransactionFilterToolbar({
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder={searchPlaceholder}
+          inputProps={{ 'aria-label': resolveTransactionSearchLabel(searchLabel) }}
           size="small"
           startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
           sx={{ flex: { xs: '0 0 auto', md: '1 1 270px' }, minWidth: 0, width: { xs: '100%', md: 'auto' }, borderRadius: 1.75 }}
@@ -226,6 +228,7 @@ TransactionFilterToolbar.propTypes = {
   search: PropTypes.string.isRequired,
   onSearchChange: PropTypes.func.isRequired,
   searchPlaceholder: PropTypes.string.isRequired,
+  searchLabel: PropTypes.string,
   propertyControl: PropTypes.node.isRequired,
   period: PropTypes.string.isRequired,
   onPeriodChange: PropTypes.func.isRequired,

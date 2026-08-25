@@ -255,35 +255,107 @@ test('property-scoped future success reconciles only markers in that property wh
   assert.deepEqual(state.recordedExpenseCleanupById, {});
 });
 
-test('future cleanup hydration restores one landlord runtime map before list reconciliation', () => {
-  const marker44 = { futureExpenseId: 9, propertyId: 12, landlordId: 44 };
+test('future cleanup hydration restores one organization runtime map before list reconciliation', () => {
+  const marker44 = { futureExpenseId: 9, propertyId: 12, landlordId: 44, organizationId: 7 };
   let state = futureReducer(undefined, { type: '@@init' });
   state = futureReducer(state, {
     type: futureTypes.HYDRATE_FUTURE_EXPENSE_CLEANUP,
-    payload: { landlordId: 44, markers: { '9': marker44 } }
+    payload: { landlordId: 44, organizationId: 7, markers: { '9': marker44 } }
   });
 
-  assert.equal(state.cleanupHydratedLandlordId, '44');
+  assert.deepEqual(state.cleanupHydratedIdentity, { landlordId: '44', organizationId: '7' });
   assert.deepEqual(state.recordedExpenseCleanupById, { '9': marker44 });
 
   state = futureReducer(state, {
     type: futureTypes.GET_FUTURE_EXPENSES_START,
-    meta: { requestId: 20, requestKey: 'restored', landlordId: 44, propertyId: 12 }
+    meta: { requestId: 20, requestKey: 'restored', landlordId: 44, organizationId: 7, propertyId: 12 }
   });
   state = futureReducer(state, {
     type: futureTypes.GET_FUTURE_EXPENSES_SUCCESS,
     payload: [{ id: 9, propertyId: 12, name: 'Server row after reload' }],
-    meta: { requestId: 20, requestKey: 'restored', landlordId: 44, propertyId: 12 }
+    meta: { requestId: 20, requestKey: 'restored', landlordId: 44, organizationId: 7, propertyId: 12 }
   });
 
   assert.deepEqual(state.recordedExpenseCleanupById, { '9': marker44 });
 
   state = futureReducer(state, {
     type: futureTypes.HYDRATE_FUTURE_EXPENSE_CLEANUP,
-    payload: { landlordId: 55, markers: {} }
+    payload: { landlordId: 44, organizationId: 8, markers: {} }
   });
-  assert.equal(state.cleanupHydratedLandlordId, '55');
+  assert.deepEqual(state.cleanupHydratedIdentity, { landlordId: '44', organizationId: '8' });
   assert.deepEqual(state.recordedExpenseCleanupById, {});
+});
+
+test('future cleanup organization switch isolates colliding IDs and scoped authoritative cleanup', () => {
+  const organization7 = { futureExpenseId: 9, propertyId: 12, landlordId: 44, organizationId: 7 };
+  const organization8Collision = { futureExpenseId: 9, propertyId: 12, landlordId: 44, organizationId: 8 };
+  const organization8Other = { futureExpenseId: 10, propertyId: 13, landlordId: 44, organizationId: 8 };
+  let state = futureReducer(undefined, { type: '@@init' });
+
+  state = futureReducer(state, {
+    type: futureTypes.HYDRATE_FUTURE_EXPENSE_CLEANUP,
+    payload: { landlordId: 44, organizationId: 7, markers: { 9: organization7 } }
+  });
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_START,
+    meta: {
+      requestId: 20,
+      requestKey: 'organization:7:property:12',
+      landlordId: 44,
+      organizationId: 7,
+      propertyId: 12
+    }
+  });
+  state = futureReducer(state, {
+    type: futureTypes.HYDRATE_FUTURE_EXPENSE_CLEANUP,
+    payload: {
+      landlordId: 44,
+      organizationId: 8,
+      markers: { 9: organization8Collision, 10: organization8Other } }
+  });
+  assert.deepEqual(state.recordedExpenseCleanupById, {
+    9: organization8Collision,
+    10: organization8Other
+  });
+
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_SUCCESS,
+    payload: [],
+    meta: {
+      requestId: 20,
+      requestKey: 'organization:7:property:12',
+      landlordId: 44,
+      organizationId: 7,
+      propertyId: 12
+    }
+  });
+  assert.deepEqual(state.recordedExpenseCleanupById, {
+    9: organization8Collision,
+    10: organization8Other
+  });
+
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_START,
+    meta: {
+      requestId: 21,
+      requestKey: 'organization:8:property:12',
+      landlordId: 44,
+      organizationId: 8,
+      propertyId: 12
+    }
+  });
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_SUCCESS,
+    payload: [],
+    meta: {
+      requestId: 21,
+      requestKey: 'organization:8:property:12',
+      landlordId: 44,
+      organizationId: 8,
+      propertyId: 12
+    }
+  });
+  assert.deepEqual(state.recordedExpenseCleanupById, { 10: organization8Other });
 });
 
 const deferred = () => {
