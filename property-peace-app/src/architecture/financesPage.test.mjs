@@ -150,7 +150,11 @@ test('Activity item errors remain retry states and detail uses original Money Ce
   assert.match(drawer, /Source ID/);
   assert.match(drawer, /item\.needsAttention/);
   assert.match(drawer, /item\.hasReceipt === false/);
-  assert.match(drawer, /aria-labelledby="finance-detail-title"/);
+  assert.match(
+    drawer,
+    /slotProps={{\s*paper: {\s*role: 'dialog',\s*'aria-modal': true,\s*'aria-labelledby': 'finance-detail-title',/
+  );
+  assert.doesNotMatch(drawer, /onClose={onClose}\s+aria-labelledby=/);
 });
 test('Expenses keeps editable transaction behavior inside the shared Finances scope', async () => {
   const [page, expenses, row] = await Promise.all([

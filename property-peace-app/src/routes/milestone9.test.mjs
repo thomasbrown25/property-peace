@@ -129,7 +129,11 @@ test('Finances and mobile Accounting navigation expose state to assistive techno
   assert.match(disclosure, /aria-controls="finances-calculation-details"/);
   assert.match(disclosure, /aria-expanded={expanded}/);
   assert.match(disclosure, /<Collapse id="finances-calculation-details"/);
-  assert.match(drawer, /aria-labelledby="finance-detail-title"/);
+  assert.match(
+    drawer,
+    /slotProps={{\s*paper: {\s*role: 'dialog',\s*'aria-modal': true,\s*'aria-labelledby': 'finance-detail-title',/
+  );
+  assert.doesNotMatch(drawer, /onClose={onClose}\s+aria-labelledby=/);
   assert.match(drawer, /id="finance-detail-title"/);
   assert.match(disclosure, /The activity export could not be prepared/);
   assert.match(disclosure, /Some financial fields were unavailable\. Available recorded values are shown; missing values and sections are not estimated\./);

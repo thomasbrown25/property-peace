@@ -27,8 +27,14 @@ export default function FinanceDetailDrawer({ item, onClose }) {
       anchor="right"
       open={Boolean(item)}
       onClose={onClose}
-      aria-labelledby="finance-detail-title"
-      slotProps={{ paper: { sx: { width: { xs: '100%', sm: 440 }, p: { xs: 2, sm: 3 } } } }}
+      slotProps={{
+        paper: {
+          role: 'dialog',
+          'aria-modal': true,
+          'aria-labelledby': 'finance-detail-title',
+          sx: { width: { xs: '100%', sm: 440 }, p: { xs: 2, sm: 3 } }
+        }
+      }}
     >
       {item && (
         <>

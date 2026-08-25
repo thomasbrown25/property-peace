@@ -16,6 +16,28 @@ const listFiles = async (directory) => {
   }));
   return nested.flat();
 };
+const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?)$/i;
+const TEST_OR_FIXTURE_PATH_PATTERN = /(?:^|[\\/])(?:__tests__|__fixtures__|tests?|fixtures?)(?:[\\/]|$)/i;
+const TEST_FILE_PATTERN = /\.(?:test|spec)\.[cm]?[jt]sx?$/i;
+const retiredMoneyCenterPath = path.join(srcRoot, 'components/money-center/MoneyCenter');
+const withoutModuleExtension = (value) => value.replace(/\.[cm]?[jt]sx?$/i, '');
+const isProductionSourceFile = (filePath) => (
+  SOURCE_FILE_PATTERN.test(filePath)
+  && !TEST_OR_FIXTURE_PATH_PATTERN.test(path.relative(srcRoot, filePath))
+  && !TEST_FILE_PATTERN.test(filePath)
+);
+const referencesRetiredMoneyCenter = (filePath, fileSource) => {
+  const references = fileSource.matchAll(/['"`]([^'"`\r\n]+)['"`]/g);
+  for (const [, reference] of references) {
+    const normalizedReference = reference.replaceAll('\\', '/');
+    if (normalizedReference.includes('money-center/MoneyCenter')) return true;
+    if (normalizedReference.startsWith('.')) {
+      const resolvedReference = withoutModuleExtension(path.resolve(path.dirname(filePath), reference));
+      if (resolvedReference === retiredMoneyCenterPath) return true;
+    }
+  }
+  return false;
+};
 
 test('dashboard rent reminder uses canonical rent collection navigation and no legacy mutation drawer', async () => {
   const dashboard = await source('pages/landlord/dashboard.jsx');
@@ -72,7 +94,29 @@ test('landlord finance lists consolidate into one Accounting workspace', async (
   );
 });
 
-test('retired standalone finance modules are absent and no production source imports MoneyCenter', async () => {
+test('retired MoneyCenter reference detection covers aliases and relative paths without scanning tests or fixtures', () => {
+  const importCases = [
+    [path.join(srcRoot, 'pages/example.jsx'), "import MoneyCenter from 'components/money-center/MoneyCenter';"],
+    [path.join(srcRoot, 'components/money-center/index.js'), "export { default } from './MoneyCenter';"],
+    [path.join(srcRoot, 'pages/landlord/example.jsx'), "const load = () => import('../../components/money-center/MoneyCenter.jsx');"]
+  ];
+
+  for (const [filePath, fileSource] of importCases) {
+    assert.equal(referencesRetiredMoneyCenter(filePath, fileSource), true, fileSource);
+  }
+  assert.equal(
+    referencesRetiredMoneyCenter(
+      path.join(srcRoot, 'components/money-center/Summary.jsx'),
+      "import MoneyCenterSummary from './MoneyCenterSummary';"
+    ),
+    false
+  );
+  assert.equal(isProductionSourceFile(path.join(srcRoot, 'pages/example.test.mjs')), false);
+  assert.equal(isProductionSourceFile(path.join(srcRoot, '__fixtures__/money-center.jsx')), false);
+  assert.equal(isProductionSourceFile(path.join(srcRoot, 'pages/example.jsx')), true);
+});
+
+test('retired standalone finance modules are absent and no production source references MoneyCenter', async () => {
   const retiredModules = [
     'pages/landlord/expenses.jsx',
     'pages/landlord/payments.jsx',
@@ -89,18 +133,16 @@ test('retired standalone finance modules are absent and no production source imp
     )
   )));
 
-  const productionFiles = (await listFiles(srcRoot)).filter((filePath) => (
-    /\.(?:js|jsx|mjs|ts|tsx)$/.test(filePath) && !/\.test\./.test(filePath)
-  ));
-  const moneyCenterImporters = [];
+  const productionFiles = (await listFiles(srcRoot)).filter(isProductionSourceFile);
+  const moneyCenterReferences = [];
   for (const filePath of productionFiles) {
     const fileSource = await readFile(filePath, 'utf8');
-    if (/components[\\/]money-center[\\/]MoneyCenter(?:\.jsx)?/.test(fileSource)) {
-      moneyCenterImporters.push(path.relative(srcRoot, filePath));
+    if (referencesRetiredMoneyCenter(filePath, fileSource)) {
+      moneyCenterReferences.push(path.relative(srcRoot, filePath));
     }
   }
 
-  assert.deepEqual(moneyCenterImporters, []);
+  assert.deepEqual(moneyCenterReferences, []);
 });
 
 test('Percy starter prompts and composer fail closed when the runtime is unavailable', async () => {
