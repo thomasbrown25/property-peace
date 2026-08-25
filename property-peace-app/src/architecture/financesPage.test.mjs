@@ -232,3 +232,63 @@ test('page-owned keyed expense data gates metrics without excluding concurrent c
   assert.match(reducer, /listRequestRefCounts/);
   assert.match(selectors, /selectExpenseListRequest/);
 });
+
+test('Payments keeps the complete editable list while the page owns its one shared collection', async () => {
+  const [page, payments, row, hook, dashboard] = await Promise.all([
+    source('pages/landlord/finances.jsx'),
+    source('sections/landlord/finances/PaymentsTab.jsx'),
+    source('sections/landlord/finances/PaymentRow.jsx'),
+    source('hooks/useFinancesPayments.js'),
+    source('layout/Dashboard/index.jsx')
+  ]);
+
+  assert.match(page, /const paymentsData = useFinancesPayments\(propertyId, drawer\.financeMutationVersion\)/);
+  assert.match(page, /sumCollectedThisMonth\(paymentsData\.payments, new Date\(\), propertyId\)/);
+  assert.match(page, /<PaymentsTab/);
+  assert.match(page, /payments=\{paymentsData\.payments\}/);
+  assert.match(page, /loading=\{paymentsData\.loading/);
+  assert.match(page, /error=\{paymentsData\.error\}/);
+  assert.match(page, /onRetry=\{paymentsData\.retry\}/);
+  assert.match(page, /mutationVersion=\{drawer\.financeMutationVersion\}/);
+  assert.match(page, /onMutation=\{drawer\.notifyFinanceMutation\}/);
+  assert.match(page, /registrationKey=\{exportRegistrationKey\}/);
+  assert.match(page, /registerExport=\{registerExport\}/);
+  assert.match(page, /maskPaymentMetricsAvailability/);
+  assert.match(
+    page,
+    /expensesData\.available\s*\n\s*\),\s*\n\s*!paymentsData\.loading && !paymentsScopeChanged && paymentsData\.available\s*\n\s*\), \[/
+  );
+
+  assert.match(hook, /axiosServices\.get\('\/api\/payment\/all'/);
+  assert.doesNotMatch(payments, /\/api\/payment\/all/);
+  assert.doesNotMatch(row, /\/api\/payment\/all/);
+  assert.match(payments, /TransactionFilterToolbar/);
+  assert.match(payments, /period="shared"/);
+  assert.match(payments, /Rent/);
+  assert.match(payments, /Fees/);
+  assert.match(payments, /Deposits/);
+  assert.match(payments, /Completed/);
+  assert.match(payments, /Processing/);
+  assert.match(payments, /Failed/);
+  assert.match(payments, /Disputed/);
+  assert.match(payments, /Canceled/);
+  assert.match(payments, /Online/);
+  assert.match(payments, /Manual/);
+  assert.match(payments, /search=\{search\}/);
+  assert.match(payments, /sort=\{sort\}/);
+  assert.match(payments, /<Pagination/);
+  assert.match(payments, /<CSVLink/);
+  assert.match(payments, /buildPaymentCsvRows\(filteredPayments\)/);
+  assert.match(payments, /useLayoutEffect\(\(\) => registerExport\('payments', registrationKey, exportState\)/);
+  assert.match(payments, /<PaymentEditDrawer/);
+  assert.match(payments, /axiosServices\.delete\(`\/api\/payment\/\$\{paymentId\}`\)/);
+  assert.match(payments, /openPaymentAddDrawer\(\)/);
+  assert.match(payments, /onClick=\{onRetry\}/);
+  assert.match(row, /Edit payment/);
+  assert.match(row, /Delete payment/);
+  assert.match(dashboard, /<RecordPaymentDrawer onSuccess=\{drawer\.notifyFinanceMutation\}/);
+
+  const combined = [payments, row].join('\n');
+  assert.doesNotMatch(combined, /PageBreadcrumbs|PropertySelect|FinancesMetrics|MetricCard/);
+  assert.doesNotMatch(combined, /useEffect[\s\S]*isOpenPaymentAdd/);
+});

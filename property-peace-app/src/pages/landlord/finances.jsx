@@ -18,6 +18,7 @@ import FinanceDetailDrawer from 'sections/landlord/finances/FinanceDetailDrawer'
 import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
 import FinancesMetrics from 'sections/landlord/finances/FinancesMetrics';
 import NeedsReviewTab from 'sections/landlord/finances/NeedsReviewTab';
+import PaymentsTab from 'sections/landlord/finances/PaymentsTab';
 import {
   buildFinancesMoneyQuery,
   normalizeFinancesPeriod,
@@ -28,6 +29,7 @@ import {
   updateFinancesSearch
 } from 'utils/finances';
 import { buildExpenseHookFilters, maskExpenseMetricsAvailability } from 'utils/expensesTab';
+import { maskPaymentMetricsAvailability } from 'utils/paymentsTab';
 
 const FINANCES_TAB_LABELS = [
   ['review', 'Needs review'],
@@ -86,10 +88,13 @@ export default function FinancesPage() {
     () => sumCollectedThisMonth(paymentsData.payments, new Date(), propertyId),
     [paymentsData.payments, propertyId]
   );
-  const metricsOverview = useMemo(() => maskExpenseMetricsAvailability(
-    moneyData.loading || moneyScopeChanged ? null : moneyData.overview,
-    expensesData.available
-  ), [expensesData.available, moneyData.loading, moneyData.overview, moneyScopeChanged]);
+  const metricsOverview = useMemo(() => maskPaymentMetricsAvailability(
+    maskExpenseMetricsAvailability(
+      moneyData.loading || moneyScopeChanged ? null : moneyData.overview,
+      expensesData.available
+    ),
+    !paymentsData.loading && !paymentsScopeChanged && paymentsData.available
+  ), [expensesData.available, moneyData.loading, moneyData.overview, moneyScopeChanged, paymentsData.available, paymentsData.loading, paymentsScopeChanged]);
   const customFrom = searchParams.get('from') || '';
   const customTo = searchParams.get('to') || '';
   const customRangeValid = ISO_DATE.test(customFrom) && ISO_DATE.test(customTo) && customFrom <= customTo;
@@ -258,6 +263,22 @@ export default function FinancesPage() {
                   onMutation={drawer.notifyFinanceMutation}
                   registrationKey={exportRegistrationKey}
                   registerExport={registerExport}
+                />
+              )}
+              {activeTab === 'payments' && (
+                <PaymentsTab
+                  propertyId={propertyId}
+                  sharedPeriod={period}
+                  sharedFrom={scopedQuery.from}
+                  sharedTo={scopedQuery.to}
+                  mutationVersion={drawer.financeMutationVersion}
+                  onMutation={drawer.notifyFinanceMutation}
+                  registrationKey={exportRegistrationKey}
+                  registerExport={registerExport}
+                  payments={paymentsData.payments}
+                  loading={paymentsData.loading || paymentsScopeChanged}
+                  error={paymentsData.error}
+                  onRetry={paymentsData.retry}
                 />
               )}
             </Box>
