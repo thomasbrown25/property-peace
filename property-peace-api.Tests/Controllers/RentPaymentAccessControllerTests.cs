@@ -87,6 +87,23 @@ public sealed class RentPaymentAccessControllerTests
         service.VerifyAll();
     }
 
+    [Fact]
+    public async Task Request_SuspendedAccessRequest_ReturnsSafeConflict()
+    {
+        var service = new Mock<IRentPaymentAccessService>(MockBehavior.Strict);
+        var authority = ActiveAuthority("Owner");
+        service.Setup(candidate => candidate.RequestAsync((int)OrganizationId, (int)UserId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new RentPaymentAccessInvalidTransitionException());
+        var controller = CreateController(service.Object, authority.Object);
+
+        var result = await controller.Request(CancellationToken.None);
+
+        var conflict = Assert.IsType<ConflictObjectResult>(result.Result);
+        var message = conflict.Value!.GetType().GetProperty("message")!.GetValue(conflict.Value) as string;
+        Assert.Equal("The rent-payment access request cannot be made in its current state.", message);
+        service.VerifyAll();
+    }
+
     private static Mock<IOrganizationAuthorityResolver> ActiveAuthority(string role)
     {
         var authority = new Mock<IOrganizationAuthorityResolver>(MockBehavior.Strict);

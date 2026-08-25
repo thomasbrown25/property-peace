@@ -30,10 +30,17 @@ public sealed class RentPaymentAccessController(
         var context = await ResolveAuthorizedContextAsync(cancellationToken);
         if (context.Result is not null) return context.Result;
 
-        return Ok(await service.RequestAsync(
-            context.OrganizationId!.Value,
-            context.UserId!.Value,
-            cancellationToken));
+        try
+        {
+            return Ok(await service.RequestAsync(
+                context.OrganizationId!.Value,
+                context.UserId!.Value,
+                cancellationToken));
+        }
+        catch (RentPaymentAccessInvalidTransitionException)
+        {
+            return Conflict(new { message = "The rent-payment access request cannot be made in its current state." });
+        }
     }
 
     private async Task<TrustedContext> ResolveAuthorizedContextAsync(CancellationToken cancellationToken)
