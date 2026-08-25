@@ -153,7 +153,7 @@ export default function ActivityTab({ entries = [],
         <Box sx={{ px: 2, pt: 2 }}>
           <Alert severity="warning">
             <Typography fontWeight={700}>
-              Showing ${loadedCount} of ${sourceTotalCount} source records.
+              Showing {loadedCount} of {sourceTotalCount} source records.
             </Typography>
             Running totals and filtered activity export are unavailable because this view is partial. Use the unfiltered Export activity
             action for the complete server export.

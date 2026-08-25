@@ -87,12 +87,16 @@ test('truncated Money Center rows stay explicitly partial without adding another
   assert.match(page, /<NeedsReviewTab[\s\S]*partial=\{Boolean\(moneyData\.itemsResponse\?\.isTruncated\)\}/);
   assert.match(page, /<AccountActivityCard[\s\S]*partial=\{Boolean\(moneyData\.itemsResponse\?\.isTruncated\)\}/);
   assert.match(activity, /partial && hasClientFilters/);
-  assert.match(activity, /Showing \$\{loadedCount\} of \$\{sourceTotalCount\}/);
+  assert.match(activity, /Showing \{loadedCount\} of \{sourceTotalCount\}/);
+  assert.doesNotMatch(activity, /Showing \$\{loadedCount\}/);
   assert.match(activity, /Filtered activity export is unavailable while this view is partial/);
   assert.match(review, /partial/);
-  assert.match(review, /Showing \$\{loadedCount\} of \$\{totalCount\}/);
+  assert.match(review, /Showing \{loadedCount\} of \{totalCount\}/);
+  assert.doesNotMatch(review, /Showing \$\{loadedCount\}/);
   assert.match(review, /Review export is unavailable while this view is partial/);
   assert.match(account, /Account totals are unavailable because only/);
+  assert.match(account, /only \{loadedCount\} of \{totalCount\} source records loaded/);
+  assert.doesNotMatch(account, /only \$\{loadedCount\}/);
   assert.match(row, /entry\.runningBalance == null \? 'Unavailable'/);
   assert.match(api, /items: .*limit: 1000/);
   assert.match(api, /export: .*contractParams\(params\).*responseType: 'blob'/);

@@ -43,6 +43,13 @@ export function buildExpenseHookFilters({ propertyId, unitId, sharedFrom, shared
   };
 }
 
+export function buildExpenseRequestPlan(filters = {}, options = {}) {
+  return {
+    filters,
+    includeTotal: options.includeTotal !== false
+  };
+}
+
 export function buildExpenseListRequestKey(landlordId, filters = {}) {
   const scopeFilters = { ...filters };
   delete scopeFilters.mutationVersion;

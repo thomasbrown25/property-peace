@@ -79,7 +79,7 @@ export default function FinancesPage() {
         sharedFrom: scopedQuery.from,
     sharedTo: scopedQuery.to
   }), [propertyId, scopedQuery.from, scopedQuery.to, scopedQuery.unitId]);
-  const expensesData = useFetchExpenses(expenseFilters);
+  const expensesData = useFetchExpenses(expenseFilters, { includeTotal: false });
   const moneyScopeKey = JSON.stringify({ ...scopedQuery, mutationVersion: drawer.financeMutationVersion });
   const paymentRequestScope = buildFinancesPaymentRequestScope(propertyId, scopedQuery.unitId);
   const paymentsScopeKey = `${paymentRequestScope.key}:${drawer.financeMutationVersion ?? 0}`;

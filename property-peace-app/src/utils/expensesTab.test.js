@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import * as expensesTab from './expensesTab.js';
 import {
   buildExpenseCsvRows,
   buildExpenseHookFilters,
@@ -7,6 +8,37 @@ import {
   maskExpenseMetricsAvailability,
   selectExpensesPage
 } from './expensesTab.js';
+
+const expenseRequestPlan = (...args) => {
+  assert.equal(typeof expensesTab.buildExpenseRequestPlan, 'function');
+  return expensesTab.buildExpenseRequestPlan(...args);
+};
+
+test('expense request plan includes the legacy total request by default without changing list filters', () => {
+  const filters = { propertyId: 12, unitId: 302, startDate: '2026-08-01', endDate: '2026-08-31' };
+  const plan = expenseRequestPlan(filters);
+
+  assert.equal(plan.includeTotal, true);
+  assert.strictEqual(plan.filters, filters);
+  assert.equal(Object.hasOwn(plan.filters, 'includeTotal'), false);
+  assert.equal(
+    buildExpenseListRequestKey(44, plan.filters),
+    '44:{"propertyId":12,"unitId":302,"startDate":"2026-08-01","endDate":"2026-08-31"}'
+  );
+});
+
+test('expense request plan disables only the singleton total request and preserves list identity', () => {
+  const filters = { propertyId: 12, unitId: 302, startDate: '2026-08-01', endDate: '2026-08-31' };
+  const plan = expenseRequestPlan(filters, { includeTotal: false });
+
+  assert.equal(plan.includeTotal, false);
+  assert.strictEqual(plan.filters, filters);
+  assert.equal(Object.hasOwn(plan.filters, 'includeTotal'), false);
+  assert.equal(
+    buildExpenseListRequestKey(44, plan.filters),
+    '44:{"propertyId":12,"unitId":302,"startDate":"2026-08-01","endDate":"2026-08-31"}'
+  );
+});
 
 test('expense request identity excludes mutation version but retains logical scope', () => {
   const filters = {

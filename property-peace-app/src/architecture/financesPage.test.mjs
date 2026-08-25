@@ -174,7 +174,7 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
   assert.match(page, /sharedPeriod=\{period\}/);
   assert.match(page, /sharedFrom=\{scopedQuery\.from\}/);
   assert.match(page, /sharedTo=\{scopedQuery\.to\}/);
-  assert.match(page, /const expensesData = useFetchExpenses\(expenseFilters\)/);
+  assert.match(page, /const expensesData = useFetchExpenses\(expenseFilters, \{ includeTotal: false \}\)/);
   assert.match(page, /expenses=\{expensesData\.expenses\}/);
   assert.match(page, /loading=\{expensesData\.loading\}/);
   assert.match(page, /error=\{expensesData\.error\}/);
@@ -228,7 +228,7 @@ test('page-owned keyed expense data gates metrics without excluding concurrent c
     source('api/expense.js')
   ]);
 
-  assert.match(page, /useFetchExpenses\(expenseFilters\)/);
+  assert.match(page, /useFetchExpenses\(expenseFilters, \{ includeTotal: false \}\)/);
   assert.match(page, /maskExpenseMetricsAvailability\([\s\S]*expensesData\.available/);
   assert.doesNotMatch(page, /expensesAvailable|setExpensesAvailable/);
   assert.match(hook, /selectExpenseListRequest/);
@@ -236,6 +236,8 @@ test('page-owned keyed expense data gates metrics without excluding concurrent c
   assert.match(hook, /registerExpenseListScopeAction/);
   assert.match(hook, /releaseExpenseListScopeAction/);
   assert.match(hook, /getStaleExpensesAction/);
+  assert.match(hook, /includeTotal/);
+  assert.match(hook, /request && includeTotal/);
   assert.match(hook, /listRequest?.stale/);
   assert.match(hook, /available/);
   assert.match(action, /requestId/);

@@ -56,7 +56,7 @@ export default function NeedsReviewTab({ items = [],
       {partial && !loading && !error && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           <Typography fontWeight={700}>
-            Showing ${loadedCount} of ${totalCount} source records.
+            Showing {loadedCount} of {totalCount} source records.
           </Typography>
           This review list is partial, so it cannot confirm that all records are caught up. Review export is unavailable while this view is
           partial.

@@ -8,17 +8,18 @@ import {
   releaseExpenseListScopeAction
 } from 'store/expense/expense.action';
 import { selectTotalExpenses, selectExpenseListRequest } from 'store/expense/expense.selector';
-import { buildExpenseListRequestKey } from 'utils/expensesTab';
+import { buildExpenseListRequestKey, buildExpenseRequestPlan } from 'utils/expensesTab';
 import useAuth from './useAuth';
 
-export default function useFetchExpenses(filters = {}) {
+export default function useFetchExpenses(filters = {}, options = {}) {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const landlordId = user?.id;
-  const filtersRef = useRef(filters);
-  filtersRef.current = filters;
+  const { filters: requestFilters, includeTotal } = buildExpenseRequestPlan(filters, options);
+  const filtersRef = useRef(requestFilters);
+  filtersRef.current = requestFilters;
 
-  const requestKey = buildExpenseListRequestKey(landlordId, filters);
+  const requestKey = buildExpenseListRequestKey(landlordId, requestFilters);
   const listRequest = useSelector((state) => selectExpenseListRequest(state, requestKey));
   const totalAmount = useSelector(selectTotalExpenses);
   const enabled = Boolean(landlordId);
@@ -28,16 +29,16 @@ export default function useFetchExpenses(filters = {}) {
 
     const currentFilters = filtersRef.current;
     const request = dispatch(getRegisteredExpensesAction(landlordId, currentFilters, requestKey));
-    if (request) dispatch(getTotalExpensesAction(landlordId, currentFilters));
-  }, [dispatch, landlordId, requestKey]);
+    if (request && includeTotal) dispatch(getTotalExpensesAction(landlordId, currentFilters));
+  }, [dispatch, includeTotal, landlordId, requestKey]);
 
   const refreshStale = useCallback(() => {
     if (!landlordId) return;
 
     const currentFilters = filtersRef.current;
     const request = dispatch(getStaleExpensesAction(landlordId, currentFilters, requestKey));
-    if (request) dispatch(getTotalExpensesAction(landlordId, currentFilters));
-  }, [dispatch, landlordId, requestKey]);
+    if (request && includeTotal) dispatch(getTotalExpensesAction(landlordId, currentFilters));
+  }, [dispatch, includeTotal, landlordId, requestKey]);
 
   useEffect(() => {
     if (!enabled) return undefined;

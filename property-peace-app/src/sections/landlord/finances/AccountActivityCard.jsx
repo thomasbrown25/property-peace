@@ -26,7 +26,7 @@ export default function AccountActivityCard({ accounts = [], available,
           <Typography role="status" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Loading account activity…</Typography>
         ) : partial ? (
           <Typography role="status" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>
-            Account totals are unavailable because only ${loadedCount} of ${totalCount} source records loaded.
+            Account totals are unavailable because only {loadedCount} of {totalCount} source records loaded.
           </Typography>
         ) : !available ? (
           <Typography role="status" sx={{ fontSize: '0.8rem', color: 'text.secondary' }}>Account activity is unavailable.</Typography>
