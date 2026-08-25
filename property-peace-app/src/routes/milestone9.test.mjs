@@ -35,14 +35,24 @@ test('legacy finance-list routes redirect directly to the intended Finances tab'
     );
   }
 
+  assert.match(
+    routes,
+    /function LegacyFinancesRedirect\(\{ tab \}\)[\s\S]{0,300}return <Navigate to=\{buildLegacyFinancesRedirect\(search, \{ tab, propertyId \}\)\} replace \/>;/
+  );
   assert.doesNotMatch(routes, /<Expenses \/>|<Payments \/>|<Ledger \/>|<MoneyActivity \/>/);
 });
 
 test('payment workflows and both Tax Center aliases remain real routes', async () => {
   const routes = await read('./MainRoutes.jsx');
 
-  assert.match(routes, /path: 'landlord\/payments\/record',[\s\S]{0,200}<RecordPaymentPage \/>/);
-  assert.match(routes, /path: 'landlord\/payments\/add',[\s\S]{0,200}<PaymentAddWorkflow \/>/);
+  assert.match(
+    routes,
+    /path: 'landlord\/payments\/record',[\s\S]{0,200}<SubscriptionPausedGuard>[\s\S]{0,100}<RecordPaymentPage \/>[\s\S]{0,100}<\/SubscriptionPausedGuard>/
+  );
+  assert.match(
+    routes,
+    /path: 'landlord\/payments\/add',[\s\S]{0,200}<SubscriptionPausedGuard>[\s\S]{0,100}<PaymentAddWorkflow \/>[\s\S]{0,100}<\/SubscriptionPausedGuard>/
+  );
   assert.match(routes, /path: 'landlord\/accounting\/tax-center',\s*element: <EntitlementGate><TaxReports \/><\/EntitlementGate>/);
   assert.match(routes, /path: 'landlord\/money\/tax-center',\s*element: <EntitlementGate><TaxReports \/><\/EntitlementGate>/);
 });
