@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { IconType } from "react-icons";
 import FeatureHeroMock from "@/components/Marketing/FeatureHeroMock";
 import MaintenanceTrackingFeatureSection from "@/components/Marketing/MaintenanceTrackingFeatureSection";
-import RentCollectionHeroMock from "@/components/Marketing/RentCollectionHeroMock";
+import RentCollectionHeroMock from "@/components/Marketing/RentCollectionHeroMock";`r`nimport RentCollectionFeaturePage from "@/components/Marketing/RentCollectionFeaturePage";
 import StructuredData from "@/components/SEO/StructuredData";
 import { applyOttoSeo } from "@/lib/otto-seo";
 import { webPageSchema } from "@/lib/structured-data";
@@ -417,6 +417,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const feature = featureDetails[slug];
+  if (slug === 'rent-collection') return <RentCollectionFeaturePage />;
 
   if (!feature) {
     return {
@@ -452,6 +453,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function FeatureDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const feature = featureDetails[slug];
+  if (slug === 'rent-collection') return <RentCollectionFeaturePage />;
 
   if (!feature) {
     notFound();
