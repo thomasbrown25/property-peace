@@ -14,7 +14,7 @@ The Finances workspace uses these top-level tabs:
 
 `Upcoming` combines recurring expenses and one-time future expenses in a single date-sorted list. The current Ledger page's `Account activity` card moves into the Finances right rail and replaces the Expenses page's `Spend by category` card.
 
-This change consolidates existing UI and data. It does not implement Plaid, connect a bank account, or create new bank-transaction classification behavior.
+This change also absorbs the existing server-backed Money page into Finances. The `/api/money-center` contract remains the authoritative source for overview, review, activity, and export data even though `Money Center` is retired as a user-facing name. It does not implement Plaid, connect a bank account, or create new bank-transaction classification behavior.
 
 ## Goals
 
@@ -22,6 +22,7 @@ This change consolidates existing UI and data. It does not implement Plaid, conn
 - Remove redundant Expenses, Payments, and Ledger destinations from the Accounting navigation.
 - Preserve all existing payment and expense record actions.
 - Preserve the useful combined chronological activity and account summary currently shown by Ledger.
+- Preserve the useful review, activity, calculation-disclosure, and export signals currently provided by Money Center.
 - Prepare a clear `Needs review` destination for future imported bank activity without claiming that bank sync already exists.
 - Keep old list-page URLs functional through redirects.
 - Avoid creating one oversized page component by separating tab content, presentation, and financial derivation logic.
@@ -38,12 +39,16 @@ This consolidation will not:
 - Change the persisted accounting treatment of rent, fees, deposits, or expenses.
 - Remove payment-recording workflow routes such as `/landlord/payments/record` or `/landlord/payments/add`.
 - Change backend API contracts.
+- Rename the internal `/api/money-center` route or its service contracts.
 
 ## Navigation and Routes
+
+Remove the `Money Center` navigation group. Move its `Rent Collection` destination into Accounting.
 
 The Accounting navigation becomes:
 
 - `Finances` at `/landlord/finances`
+- `Rent Collection` at `/landlord/rent-collection`
 - `Tax Center`
 - `Reports & Analytics`
 
@@ -54,6 +59,8 @@ Preserve existing bookmarks and internal links with redirects:
 - `/landlord/expenses` redirects to `/landlord/finances?tab=expenses`.
 - `/landlord/payments` redirects to `/landlord/finances?tab=payments`.
 - `/landlord/ledger` redirects to `/landlord/finances?tab=activity`.
+- `/landlord/money` redirects to `/landlord/finances?tab=activity`.
+- `/landlord/money-activity` and legacy property-scoped Money Activity URLs redirect to the equivalent Finances Activity scope.
 
 The list-page modules for Payments and Ledger are deleted after their required UI and behavior move into Finances. The existing Expenses list page is replaced by the Finances page rather than left as a second implementation.
 
@@ -95,18 +102,20 @@ Selecting Income opens or filters the Payments tab. Selecting Expenses opens or 
 
 ### Needs review
 
-This tab is the future home for imported bank activity that has not been classified or matched. In this consolidation release it shows an honest feature-ready state:
+This tab combines the existing Money Center attention signals and is also the future home for imported bank activity that has not been classified or matched. In this consolidation release it shows real source records for:
 
-- Count is `0` because there is no connected/imported transaction source in this scope.
-- Empty copy states that imported bank transactions will appear here after bank connections are added.
-- No disabled or nonfunctional connection button is shown.
-- The tab does not fabricate data from expenses or payments and does not call Plaid.
+- Uncategorized expenses.
+- Expenses missing receipts.
+- Overdue obligations.
+- Payment settlement exceptions.
+
+When none of those real records need review, the empty copy states that the books are caught up and that imported bank transactions will also appear here after bank connections are added. No disabled or nonfunctional connection button is shown. The tab does not fabricate source records and does not call Plaid.
 
 Future bank-sync work can replace this state without restructuring the Finances page.
 
 ### Activity
 
-Activity replaces the standalone Ledger page. It combines:
+Activity replaces the standalone Ledger page and the Money Center activity drill-down. The server-backed Money Center items endpoint is the primary source. It combines:
 
 - Completed payment records as positive activity.
 - Paid expense records as negative activity.
@@ -183,19 +192,20 @@ Required boundaries:
 - Upcoming uses a pure combiner that normalizes recurring and future expenses into a single scheduled-entry shape.
 - Account activity consumes already-derived Activity entries rather than fetching its own duplicate data.
 
-Fetch payments, expenses, recurring expenses, and future expenses once per relevant shared scope. Do not issue a second payments-and-expenses fetch solely for Activity or Account activity.
+Fetch the Money Center overview/items once per shared scope for cards, Needs review, Activity, Account activity, calculation disclosure, and export. Fetch payments, expenses, recurring expenses, and future expenses once per relevant shared scope for their editable tabs. Do not issue a second overview/items request solely for Account activity.
 
 The implementation may reuse existing row and filter components, but tab-specific behavior must remain understandable without reading the entire Finances page.
 
 ## Data and Refresh Flow
 
-1. Finances loads organization-scoped payments, expenses, recurring expenses, and future expenses for the selected property.
-2. Pure selectors apply the selected date scope to payments and paid expenses.
-3. The page derives overview metrics and Activity entries from that scoped data.
-4. Account activity derives its groups from the same Activity entries.
-5. Expenses and Payments tabs apply their own search, status, type, and sort filters.
-6. Upcoming combines and sorts recurring and one-time future expenses.
-7. After add, edit, mark-paid, pause/resume, or delete actions, only the affected data collection is refreshed unless the change also affects Activity metrics.
+1. Finances loads the organization-scoped Money Center overview and items for the selected date/property scope.
+2. Finances separately loads the editable payment, expense, recurring-expense, and future-expense collections required by their tabs.
+3. Needs review filters real Money Center items using the overview attention signals.
+4. Activity renders Money Center items and derives the view-relative running balance.
+5. Account activity groups the same Activity entries without another request.
+6. Expenses and Payments tabs apply their own search, status, type, and sort filters.
+7. Upcoming combines and sorts recurring and one-time future expenses.
+8. After add, edit, mark-paid, pause/resume, or delete actions, refresh the affected editable collection plus Money Center overview/items when the change affects review signals, Activity, or overview metrics.
 
 ## Loading, Empty, and Error States
 
@@ -254,6 +264,8 @@ Cover:
 - Accounting navigation contains Finances, Tax Center, and Reports & Analytics.
 - Standalone Payments, Expenses, and Ledger items are absent.
 - Legacy list URLs redirect to the intended Finances tab.
+- Legacy Money and Money Activity URLs redirect to Finances Activity.
+- Money Center navigation is absent and Rent Collection is present under Accounting.
 - Payment-recording workflow routes remain available.
 - Internal list links use canonical Finances URLs.
 
@@ -275,6 +287,8 @@ Expected areas include:
 - `property-peace-app/src/menu-items/pages.js`.
 - Internal navigation links that currently target the old list pages.
 - Existing payment and expense page code moved or decomposed into Finances tab modules.
+- Existing Money Center client/API utilities reused behind the Finances presentation.
+- Deletion or decomposition of `property-peace-app/src/components/money-center/MoneyCenter.jsx` and removal of the user-facing `money-activity.jsx` page wrapper after route migration.
 - Deletion of the standalone `property-peace-app/src/pages/landlord/payments.jsx` and `property-peace-app/src/pages/landlord/ledger.jsx` list pages after route migration.
 - Replacement of the old Expenses list-page module with the canonical Finances page.
 
