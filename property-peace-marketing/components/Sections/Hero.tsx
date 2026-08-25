@@ -28,6 +28,13 @@ export default function Hero() {
             transition={{ duration: 0.7, ease: 'easeOut' }}
           >
 
+            <p
+              className="mx-auto mb-5 w-fit whitespace-nowrap border border-green-300/60 bg-[#061E35]/45 px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.16em] text-green-100 backdrop-blur-sm lg:mx-0"
+              style={{ fontFamily: '"Inter", sans-serif' }}
+            >
+              #1 Property Management Software
+            </p>
+
             {/* Headline */}
             <h1
               className="mx-auto mb-5 max-w-[22rem] text-[2.9rem] font-semibold tracking-[-0.055em] text-white sm:max-w-none sm:text-[2.45rem] sm:font-bold sm:tracking-[-0.045em] md:text-4xl xl:text-5xl lg:mx-0"
