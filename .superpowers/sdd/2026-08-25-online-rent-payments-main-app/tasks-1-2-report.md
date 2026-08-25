@@ -36,3 +36,14 @@ node --experimental-default-type=module --test src/utils/rentPaymentAccess.test.
 node --experimental-default-type=module --test src/hooks/useRentPaymentAccess.test.js
 4 passed, 0 failed
 ```
+## Fix round 2/5
+
+Corrected the action-readiness client URL to the exact authenticated, action-interpolated endpoint: `/api/feature-readiness/rent-payments/${action}`. Added a source-contract regression and explicit Node syntax check so malformed JavaScript and missing action interpolation both fail verification.
+
+```text
+node --check src/api/rentPaymentAccess.js
+exit 0
+
+node --experimental-default-type=module --test src/hooks/useRentPaymentAccess.test.js
+5 passed, 0 failed
+```

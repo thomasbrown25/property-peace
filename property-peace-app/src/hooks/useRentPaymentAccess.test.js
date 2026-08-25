@@ -67,3 +67,7 @@ test('useRentPaymentAccess fetches aggregate and explicit action decisions with 
   assert.doesNotMatch(source, /canInvoke === true/);
   assert.match(source, /setRequestError|reportError/);
 });
+test('rent payment action readiness API preserves the requested action in an authenticated URL', async () => {
+  const source = await readFile(new URL('../api/rentPaymentAccess.js', import.meta.url), 'utf8');
+  assert.match(source, /api\.get\(`\/api\/feature-readiness\/rent-payments\/\$\{action\}`, \{ signal \}\)/);
+});
