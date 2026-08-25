@@ -70,6 +70,7 @@ using brownstone_hub_api.Services.HouseholdService;
 using brownstone_hub_api.Services.PaymentService;
 using brownstone_hub_api.Services.StripeService;
 using brownstone_hub_api.Services.StripeRentPayments;
+using brownstone_hub_api.Services.RentPaymentAccess;
 using brownstone_hub_api.Services.StorageService;
 using brownstone_hub_api.Repositories.Images;
 using brownstone_hub_api.Services.ImageService;
@@ -609,6 +610,9 @@ services.AddScoped<IStripeConnectedAccountGateway, StripeConnectedAccountGateway
 services.AddScoped<IStripeConnectedPayeeService, StripeConnectedPayeeService>();
 services.AddScoped<IStripeRentRiskService, StripeRentRiskService>();
 services.AddScoped<IStripeRentPaymentService, StripeRentPaymentService>();
+services.AddScoped<IRentPaymentAccessService, RentPaymentAccessService>();
+services.AddScoped<IRentPaymentAccessNotificationService, RentPaymentAccessNotificationService>();
+services.AddScoped<IRentPaymentActionReadinessService, RentPaymentActionReadinessService>();
 services.AddScoped<IStripeRentAllocationService, StripeRentAllocationService>();
 services.AddScoped<IStripeRentLossAccountingService, StripeRentLossAccountingService>();
 services.AddScoped<IStorageService, StorageService>();
