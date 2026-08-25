@@ -812,7 +812,7 @@ export default function ExpenseAddDrawer({ open, onClose, onSuccess, initialSele
               </Button>
               <Button
                 variant="contained"
-                onClick={() => { onClose(); navigate('/landlord/accounting?tab=1'); }}
+                onClick={() => { onClose(); navigate('/landlord/finances?tab=expenses'); }}
                 sx={{ textTransform: 'none', px: 3 }}
               >
                 View Expenses

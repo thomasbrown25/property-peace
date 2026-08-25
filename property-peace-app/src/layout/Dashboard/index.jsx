@@ -242,10 +242,11 @@ export default function DashboardLayout() {
           </Container>
         </Box>
         {hasLandlordRole && <NewMaintenancePanel />}
-        <RecordPaymentDrawer />
+        <RecordPaymentDrawer onSuccess={drawer.notifyFinanceMutation} />
         <ExpenseAddDrawer
           open={drawer.isOpenExpenseAdd}
           onClose={drawer.closeExpenseAddDrawer}
+          onSuccess={drawer.notifyFinanceMutation}
           initialSelection={drawer.expenseAddInitialSelection}
         />
         {showGlobalMaintenanceDrawer && <LandlordMaintenanceDrawer />}

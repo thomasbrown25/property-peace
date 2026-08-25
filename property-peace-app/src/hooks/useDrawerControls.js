@@ -40,6 +40,10 @@ export default function useDrawerControls() {
   const [onVendorAssignSuccess, setOnVendorAssignSuccess] = useState(null);
   const [isOpenScheduleInspection, setIsOpenScheduleInspection] = useState(false);
   const [scheduleInspectionPropertyId, setScheduleInspectionPropertyId] = useState(null);
+  const [financeMutationVersion, setFinanceMutationVersion] = useState(0);
+  const notifyFinanceMutation = useCallback(() => {
+    setFinanceMutationVersion((version) => version + 1);
+  }, []);
 
   return {
     isOpenUnits,
@@ -77,6 +81,8 @@ export default function useDrawerControls() {
     selectedListingDraft,
     isOpenVendorAssign,
     selectedMaintenanceForVendor,
+    financeMutationVersion,
+    notifyFinanceMutation,
     openUnitsDrawer: useCallback(() => setIsOpenUnits(true), []),
     closeUnitsDrawer: useCallback(() => setIsOpenUnits(false), []),
     openUnitAddDrawer: useCallback(() => setIsOpenUnitAdd(true), []),
