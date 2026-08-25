@@ -36,7 +36,8 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL_DEV }}
-          NEXT_PUBLIC_RENT_PAYMENT_LAUNCH: unavailable`r`n          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL_DEV }}
+          RENT_PAYMENTS_MARKETING_STATE: ${{ vars.RENT_PAYMENTS_MARKETING_STATE }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL_DEV }}
 
       - name: Deploy to Azure Static Web Apps dev
         working-directory: property-peace-marketing
