@@ -7,8 +7,16 @@ import StructuredData from '@/components/SEO/StructuredData';
 
 const faqs = [
   {
-    question: 'Is Property Peace built for small landlords?',
-    answer: 'Yes. Property Peace is designed for independent landlords and small portfolios, especially owners managing 1–50 units who want a calmer system without enterprise complexity.',
+    question: 'What is Property Peace?',
+    answer: 'Property Peace is all-in-one property management software for independent, self-managing landlords who want more of their time back. It brings rent tracking, tenant and lease records, maintenance, expenses, documents, messaging, and reporting into one calm workspace—replacing scattered spreadsheets, texts, and tools.',
+  },
+  {
+    question: 'Is Property Peace a good fit for hosts with 1–3 properties?',
+    answer: 'Yes. Property Peace is designed for independent hosts and landlords with small portfolios, including those managing just 1–3 rental properties. It gives you straightforward tools for staying organized without the cost or complexity of enterprise property-management software.',
+  },
+  {
+    question: 'How do I get started with Property Peace, and is there an onboarding process?',
+    answer: 'Getting started is straightforward. Create a free account, add or import your properties, tenants, leases, and rental history, then configure the workflows you need. There is no lengthy onboarding or IT setup, and if you want help, you can book a personalized walkthrough or contact support.',
   },
   {
     question: 'Can I start without a credit card?',

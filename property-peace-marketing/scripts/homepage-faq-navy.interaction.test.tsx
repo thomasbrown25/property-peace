@@ -35,14 +35,17 @@ after(async () => {
 
 test('expanded FAQ answers use the shared dark navy', () => {
   const { container, getByRole } = render(<FAQ />);
-  const firstQuestion = getByRole('button', {
-    name: /Is Property Peace built for small landlords\?/,
+  const fitQuestion = getByRole('button', {
+    name: /Is Property Peace a good fit for hosts with 1–3 properties\?/,
   });
 
-  fireEvent.click(firstQuestion);
+  const answerId = fitQuestion.getAttribute('aria-controls');
+  assert.ok(answerId, 'the FAQ question should identify its answer panel');
 
-  const answer = container.querySelector<HTMLElement>('#faq-answer-0 p');
-  assert.ok(answer, 'the first FAQ answer should render after its question is opened');
+  fireEvent.click(fitQuestion);
+
+  const answer = container.querySelector<HTMLElement>(`#${answerId} p`);
+  assert.ok(answer, 'the FAQ answer should render after its question is opened');
   assert.ok(
     answer.classList.contains('text-primary-deep'),
     'expanded FAQ answer text should use the shared dark navy',

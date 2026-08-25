@@ -36,7 +36,7 @@ test('resource and signup typography use the review-card navy', () => {
 test('FAQ heading and questions use the review-card navy', () => {
   for (const [tagName, text] of [
     ['h2', 'Questions landlords ask before getting started.'],
-    ['span', 'Is Property Peace built for small landlords?'],
+    ['span', 'Is Property Peace a good fit for hosts with 1–3 properties?'],
   ]) {
     assert.match(
       openingTagForText(tagName, text),
