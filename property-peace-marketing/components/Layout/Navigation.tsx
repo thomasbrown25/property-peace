@@ -1,6 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
@@ -32,8 +38,29 @@ import {
   FiShield
 } from 'react-icons/fi';
 
+const desktopNavigationQuery = '(min-width: 955px)';
+
+function subscribeDesktopNavigation(onStoreChange: () => void) {
+  const mediaQuery = window.matchMedia(desktopNavigationQuery);
+  mediaQuery.addEventListener('change', onStoreChange);
+  return () => mediaQuery.removeEventListener('change', onStoreChange);
+}
+
+function getDesktopNavigationSnapshot() {
+  return window.matchMedia(desktopNavigationQuery).matches;
+}
+
+function getServerDesktopNavigationSnapshot() {
+  return false;
+}
+
 export default function Navigation() {
   const pathname = usePathname();
+  const desktopIntentEnabled = useSyncExternalStore(
+    subscribeDesktopNavigation,
+    getDesktopNavigationSnapshot,
+    getServerDesktopNavigationSnapshot,
+  );
   const [scrolled, setScrolled] = useState(false);
   const [pointerInside, setPointerInside] = useState(false);
   const [focusInside, setFocusInside] = useState(false);
@@ -94,6 +121,7 @@ export default function Navigation() {
 
   const surface = getNavigationSurface({
     pathname,
+    desktopIntentEnabled,
     scrolled,
     pointerInside,
     focusInside,

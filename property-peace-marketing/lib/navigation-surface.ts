@@ -2,6 +2,7 @@ export type NavigationSurface = 'transparent' | 'white';
 
 export interface NavigationSurfaceInput {
   pathname: string;
+  desktopIntentEnabled: boolean;
   scrolled: boolean;
   pointerInside: boolean;
   focusInside: boolean;
@@ -11,6 +12,7 @@ export interface NavigationSurfaceInput {
 
 export function getNavigationSurface({
   pathname,
+  desktopIntentEnabled,
   scrolled,
   pointerInside,
   focusInside,
@@ -18,7 +20,7 @@ export function getNavigationSurface({
   mobileMenuOpen,
 }: NavigationSurfaceInput): NavigationSurface {
   if (pathname !== '/') return 'white';
-  return scrolled || pointerInside || focusInside || dropdownOpen || mobileMenuOpen
-    ? 'white'
-    : 'transparent';
+  const desktopIntentActive =
+    desktopIntentEnabled && (pointerInside || focusInside || dropdownOpen);
+  return scrolled || desktopIntentActive || mobileMenuOpen ? 'white' : 'transparent';
 }
