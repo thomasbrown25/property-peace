@@ -1,32 +1,34 @@
 'use client';
 
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { FiClipboard, FiDollarSign, FiUsers } from 'react-icons/fi';
+import { FiCompass, FiEye, FiFolder } from 'react-icons/fi';
 
-const pillars = [
+const principles = [
   {
-    icon: FiUsers,
-    title: 'Choose tenants with the full picture',
-    description:
-      'Keep applications, tenant details, and lease records connected so you can make informed decisions without piecing everything together.',
+    icon: FiEye,
+    title: 'See the whole picture',
+    description: 'A clear portfolio view keeps priorities visible across every property.',
   },
   {
-    icon: FiDollarSign,
-    title: 'Know where your money stands',
-    description:
-      'Track rent and expenses in one clear view, keep your records current, and spend less time rebuilding the story at tax time.',
+    icon: FiCompass,
+    title: 'Know what comes next',
+    description: 'Open work, important dates, and follow-ups stay easy to find.',
   },
   {
-    icon: FiClipboard,
-    title: 'Keep the day-to-day under control',
+    icon: FiFolder,
+    title: 'Keep the story intact',
     description:
-      'Maintenance requests, messages, documents, and important dates stay organized by rental so the details are there when you need them.',
+      'Messages, documents, rent records, and repairs stay connected to the right rental.',
   },
 ];
 
 export default function PainPoints() {
   return (
-    <section className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] bg-white px-4 py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:px-6 sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:px-8 lg:py-28">
+    <section
+      data-homepage-self-management="true"
+      className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] bg-white px-4 py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:px-6 sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:px-8 lg:py-28"
+    >
       <div
         className="pointer-events-none absolute left-1/2 top-0 h-px w-[min(90%,72rem)] -translate-x-1/2 bg-gradient-to-r from-transparent via-slate-200 to-transparent"
         aria-hidden="true"
@@ -39,55 +41,100 @@ export default function PainPoints() {
         viewport={{ once: true, amount: 0.15 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        <div className="grid gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-end lg:gap-20">
-          <h2
-            className="max-w-3xl text-3xl font-bold tracking-[-0.025em] text-[#061e35] sm:text-4xl lg:text-[3.25rem]"
-            style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.22 }}
+        <div className="grid lg:grid-cols-[0.82fr_1.18fr] lg:grid-rows-[auto_1fr] lg:gap-x-20">
+          <div className="lg:col-start-1 lg:row-start-1">
+            <p
+              className="text-xs font-bold uppercase tracking-[0.2em] text-green-700"
+              style={{ fontFamily: '"Inter", sans-serif' }}
+            >
+              Built for self-management
+            </p>
+            <h2
+              className="mt-4 max-w-2xl text-3xl font-bold tracking-[-0.03em] text-[#061e35] sm:text-4xl lg:text-[3.25rem]"
+              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.15 }}
+            >
+              Stay hands-on without holding{' '}
+              <span className="text-green-600">everything in your head.</span>
+            </h2>
+            <p
+              className="mt-6 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg"
+              style={{ fontFamily: '"Inter", sans-serif' }}
+            >
+              Property Peace turns scattered rental work into one clear operating rhythm, so you can see
+              what needs attention, move the next task forward, and keep the full history with the rental.
+            </p>
+          </div>
+
+          <motion.figure
+            className="relative mt-10 min-w-0 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0"
+            initial={{ opacity: 0, x: 24 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.6, ease: 'easeOut', delay: 0.08 }}
           >
-            Less busywork. More control.{' '}
-            <span className="text-green-600">Manage every rental with confidence.</span>
-          </h2>
-
-          <p
-            className="max-w-2xl text-base leading-8 text-slate-600 sm:text-lg lg:pb-1"
-            style={{ fontFamily: '"Inter", sans-serif' }}
-          >
-            One calm home base for independent landlords—whether you are managing your first rental, investing from out of state, or growing a small portfolio.
-          </p>
-        </div>
-
-        <div className="mt-14 grid gap-10 border-t border-slate-200 pt-10 md:grid-cols-3 md:gap-8 lg:mt-16 lg:gap-12 lg:pt-12">
-          {pillars.map((pillar, index) => {
-            const Icon = pillar.icon;
-
-            return (
-              <motion.article
-                key={pillar.title}
-                className="group relative"
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.45, ease: 'easeOut', delay: index * 0.08 }}
+            <div className="absolute -inset-5 bg-[#edf6fa] sm:-inset-7" aria-hidden="true" />
+            <div className="relative border border-[#b8c8d5] bg-white p-3 shadow-[0_28px_80px_rgba(6,30,53,0.16)] sm:p-5">
+              <div
+                className="mb-4 flex items-center justify-between border-b border-slate-200 pb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-xs"
+                style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                <div className="mb-6 flex h-14 w-14 items-center justify-center border border-green-200 bg-green-50 text-green-700 transition-colors duration-200 group-hover:border-green-300 group-hover:bg-green-100">
-                  <Icon className="h-6 w-6" aria-hidden="true" />
-                </div>
+                <span>Portfolio overview</span>
+                <span className="inline-flex items-center gap-2 text-green-700">
+                  <span className="h-2 w-2 bg-green-500" aria-hidden="true" />
+                  One calm view
+                </span>
+              </div>
+              <Image
+                src="/images/landing/dashboard.png"
+                alt="Property Peace dashboard overview for a rental portfolio"
+                width={1500}
+                height={1258}
+                className="h-auto w-full"
+                sizes="(min-width: 1024px) 52vw, 100vw"
+              />
+            </div>
+            <figcaption
+              className="relative mt-4 text-sm font-medium text-slate-500"
+              style={{ fontFamily: '"Inter", sans-serif' }}
+            >
+              One home base for the work behind every rental.
+            </figcaption>
+          </motion.figure>
 
-                <h3
-                  className="text-xl font-bold leading-snug text-[#061e35]"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
+          <div className="mt-10 divide-y divide-slate-200 border-y border-slate-200 lg:col-start-1 lg:row-start-2 lg:mt-12">
+            {principles.map((principle, index) => {
+              const Icon = principle.icon;
+
+              return (
+                <motion.article
+                  key={principle.title}
+                  className="group flex gap-4 py-6"
+                  initial={{ opacity: 0, y: 14 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ duration: 0.4, ease: 'easeOut', delay: index * 0.07 }}
                 >
-                  {pillar.title}
-                </h3>
-                <p
-                  className="mt-3 text-base leading-7 text-slate-600"
-                  style={{ fontFamily: '"Inter", sans-serif' }}
-                >
-                  {pillar.description}
-                </p>
-              </motion.article>
-            );
-          })}
+                  <div className="flex h-11 w-11 flex-none items-center justify-center border border-green-200 bg-green-50 text-green-700 transition-colors duration-200 group-hover:border-green-300 group-hover:bg-green-100">
+                    <Icon className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h3
+                      className="text-lg font-bold leading-snug text-[#061e35]"
+                      style={{ fontFamily: '"Poppins", sans-serif' }}
+                    >
+                      {principle.title}
+                    </h3>
+                    <p
+                      className="mt-1.5 text-[15px] leading-6 text-slate-600"
+                      style={{ fontFamily: '"Inter", sans-serif' }}
+                    >
+                      {principle.description}
+                    </p>
+                  </div>
+                </motion.article>
+              );
+            })}
+          </div>
         </div>
       </motion.div>
     </section>
