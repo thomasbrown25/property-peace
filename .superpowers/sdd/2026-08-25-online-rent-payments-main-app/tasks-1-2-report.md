@@ -17,3 +17,22 @@ node --experimental-default-type=module --test src/hooks/useRentPaymentAccess.te
 ```
 
 No lint or build was run because the assigned task explicitly limited verification to the two Node tests.
+
+## Fix round 1/5
+
+Added the authenticated read-only `GET /api/feature-readiness/rent-payments/{action}` seam, using only the trusted claim subject and middleware organization context. Invalid actions never reach the service. Action readiness now includes explicit `ConnectedPayeeExists`, which the app uses to distinguish onboarding from connected-account review.
+
+The app now fetches aggregate, Configure, and Pay readiness independently with `AbortSignal`; it does not infer authorization from aggregate `canInvoke`. Provider/global unavailable states override all access presentation. Request-post failures publish a retryable hook error, while duplicate suppression and stale/unmount protection remain in place.
+
+Focused verification:
+
+```text
+dotnet test ... --filter "FullyQualifiedName~RentPaymentActionReadinessServiceTests|FullyQualifiedName~FeatureReadinessControllerTests"
+35 passed, 0 failed
+
+node --experimental-default-type=module --test src/utils/rentPaymentAccess.test.js
+3 passed, 0 failed
+
+node --experimental-default-type=module --test src/hooks/useRentPaymentAccess.test.js
+4 passed, 0 failed
+```

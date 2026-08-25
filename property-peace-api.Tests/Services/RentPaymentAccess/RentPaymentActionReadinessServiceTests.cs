@@ -134,6 +134,7 @@ public sealed class RentPaymentActionReadinessServiceTests
             ActorUserId, OrganizationId, RentPaymentAction.Pay, CancellationToken.None);
         result.Allowed.Should().BeFalse();
         result.Blockers.Should().Contain(blocker);
+        result.ConnectedPayeeExists.Should().Be(status.HasValue);
         result.ConnectedPayeeApproved.Should().Be(status == StripePayeeReviewStatus.PayoutApproved);
         result.ConnectedPayeeReady.Should().BeFalse();
     }

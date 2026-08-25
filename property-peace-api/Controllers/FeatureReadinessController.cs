@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Services.FeatureReadiness;
+using brownstone_hub_api.Services.RentPaymentAccess;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,7 +10,9 @@ namespace brownstone_hub_api.Controllers;
 [ApiController]
 [Route("api/feature-readiness")]
 [Authorize]
-public sealed class FeatureReadinessController(IFeatureReadinessService readinessService) : ControllerBase
+public sealed class FeatureReadinessController(
+    IFeatureReadinessService readinessService,
+    IRentPaymentActionReadinessService rentPaymentActionReadinessService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<FeatureReadinessDto>>> GetAll()
@@ -33,6 +36,23 @@ public sealed class FeatureReadinessController(IFeatureReadinessService readines
         return Ok(readiness);
     }
 
+    [HttpGet("rent-payments/{action}")]
+    public async Task<ActionResult<RentPaymentActionReadiness>> GetRentPaymentActionReadiness(
+        string action,
+        CancellationToken cancellationToken)
+    {
+        if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ||
+            userId is <= 0 or > int.MaxValue ||
+            GetCanonicalOrganizationId() is not long organizationId ||
+            organizationId is <= 0 or > int.MaxValue)
+            return Forbid();
+
+        if (!Enum.TryParse<RentPaymentAction>(action, true, out var parsedAction) || !Enum.IsDefined(parsedAction))
+            return NotFound();
+
+        return Ok(await rentPaymentActionReadinessService.EvaluateAsync(
+            (int)userId, (int)organizationId, parsedAction, cancellationToken));
+    }
     private long? GetCanonicalOrganizationId() =>
         HttpContext.Items.TryGetValue("OrganizationId", out var value) && value is long organizationId && organizationId > 0
             ? organizationId

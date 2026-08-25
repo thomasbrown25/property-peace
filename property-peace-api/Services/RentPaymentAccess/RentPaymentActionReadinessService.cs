@@ -85,7 +85,8 @@ public sealed class RentPaymentActionReadinessService(
                 connectedPayeeApproved,
                 connectedPayeeReady,
                 transfersEnabled,
-                blockers);
+                blockers,
+                payee is not null);
         }
         catch (OperationCanceledException)
         {
@@ -217,5 +218,6 @@ public sealed class RentPaymentActionReadinessService(
         ConnectedPayeeApproved: false,
         ConnectedPayeeReady: false,
         TransfersEnabled: false,
-        Blockers: ["provider_disabled", "access_not_approved", "actor_not_authorized"]);
+        Blockers: ["provider_disabled", "access_not_approved", "actor_not_authorized"],
+        ConnectedPayeeExists: false);
 }

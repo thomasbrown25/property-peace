@@ -9,7 +9,8 @@ public sealed record RentPaymentActionReadiness(
     bool ConnectedPayeeApproved,
     bool ConnectedPayeeReady,
     bool TransfersEnabled,
-    IReadOnlyList<string> Blockers);
+    IReadOnlyList<string> Blockers,
+    bool ConnectedPayeeExists = false);
 
 public interface IRentPaymentActionReadinessService
 {

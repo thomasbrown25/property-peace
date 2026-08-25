@@ -1,7 +1,9 @@
 import api from 'utils/axios';
 
-export const getRentPaymentAccess = () => api.get('/api/rent-payment-access');
-export const requestRentPaymentAccess = () => api.post('/api/rent-payment-access/requests');
+export const getRentPaymentAccess = (signal) => api.get('/api/rent-payment-access', { signal });
+export const getRentPaymentFeatureReadiness = (signal) => api.get('/api/feature-readiness', { signal });
+export const getRentPaymentActionReadiness = (action, signal) => api.get(/api/feature-readiness/rent-payments/, { signal });
+export const requestRentPaymentAccess = (signal) => api.post('/api/rent-payment-access/requests', undefined, { signal });
 export const listRentPaymentAccessRequests = (status) => api.get('/api/admin/rent-payment-access/requests', { params: { status } });
 export const getRentPaymentAccessRequest = (publicId) => api.get(`/api/admin/rent-payment-access/requests/${publicId}`);
 export const approveRentPaymentAccessRequest = (publicId, review) => api.post(`/api/admin/rent-payment-access/requests/${publicId}/approve`, review);

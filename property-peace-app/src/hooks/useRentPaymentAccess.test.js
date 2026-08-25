@@ -41,3 +41,29 @@ test('useRentPaymentAccess keys authenticated organization data and refreshes af
   assert.match(source, /refresh\(\)/);
   assert.match(source, /requesting/);
 });
+
+test('rent payment access lifecycle clears errors, ignores unmount completions, and remains retryable', async () => {
+  const pending = deferred();
+  const updates = [];
+  const lifecycle = createRentPaymentAccessRequestLifecycle((state) => updates.push(structuredClone(state)));
+  const scope = makeRentPaymentAccessScopeKey({ userId: 7, organizationId: 101 });
+
+  await lifecycle.begin({ scopeKey: scope, request: async () => { throw new Error('request failed'); } });
+  assert.equal(updates.at(-1).error, 'request failed');
+
+  const completion = lifecycle.begin({ scopeKey: scope, request: () => pending.promise });
+  lifecycle.dispose();
+  const countAtDispose = updates.length;
+  pending.resolve({ access: { organizationId: 101 }, readiness: null });
+  await completion;
+  assert.equal(updates.length, countAtDispose);
+});
+
+test('useRentPaymentAccess fetches aggregate and explicit action decisions with abort signals', async () => {
+  const source = await readFile(new URL('./useRentPaymentAccess.js', import.meta.url), 'utf8');
+  assert.match(source, /getRentPaymentActionReadiness\('Configure', signal\)/);
+  assert.match(source, /getRentPaymentActionReadiness\('Pay', signal\)/);
+  assert.match(source, /getRentPaymentFeatureReadiness\(signal\)/);
+  assert.doesNotMatch(source, /canInvoke === true/);
+  assert.match(source, /setRequestError|reportError/);
+});
