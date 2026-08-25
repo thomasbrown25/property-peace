@@ -66,7 +66,7 @@ export default function AboutPage() {
         <div className="pointer-events-none absolute -right-32 top-8 h-96 w-96 rounded-full bg-green-500/15 blur-3xl" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
           <div>
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.28em] text-[#16A34A]">About Property Peace</p>
+            <p className="mb-5 text-xs font-bold uppercase tracking-[0.28em] text-[#15803D]">About Property Peace</p>
             <h1 className="max-w-3xl text-4xl font-bold leading-[1.02] tracking-[-0.045em] text-[#061E35] sm:text-5xl md:text-6xl lg:text-7xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Built for landlords who still know every door.
             </h1>
@@ -91,7 +91,7 @@ export default function AboutPage() {
             <div className="space-y-3">
               {['Leases stay connected', 'Rent records stay readable', 'Repairs keep their history', 'Documents stay with the property'].map((item, index) => (
                 <div key={item} className="flex items-center gap-4 border border-[#DCE6ED] bg-[#F7FAFC] px-4 py-4">
-                  <span className="text-xs font-bold tabular-nums text-[#16A34A]">0{index + 1}</span>
+                  <span className="text-xs font-bold tabular-nums text-[#15803D]">0{index + 1}</span>
                   <span className="font-semibold text-[#061E35]">{item}</span>
                   <FiCheck className="ml-auto h-4 w-4 text-[#16A34A]" />
                 </div>

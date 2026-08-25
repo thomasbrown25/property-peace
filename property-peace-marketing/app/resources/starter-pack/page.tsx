@@ -93,12 +93,12 @@ export default function LandlordStarterPackPage() {
         <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl">
-          <Link href="/resources" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-[#16A34A] transition hover:text-[#061E35]">
+          <Link href="/resources" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-[#15803D] transition hover:text-[#061E35]">
             <FiArrowLeft className="h-4 w-4" /> Back to the Resource Center
           </Link>
           <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#16A34A]">
+              <div className="mb-5 inline-flex items-center gap-2 border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">
                 <FiFileText className="h-4 w-4" /> Five real downloads
               </div>
               <h1 className="max-w-4xl text-4xl font-bold leading-tight text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -109,7 +109,7 @@ export default function LandlordStarterPackPage() {
               </p>
             </div>
             <div className="border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)] md:p-8">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#16A34A]">Download the complete pack</p>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Download the complete pack</p>
               <p className="mt-3 text-sm leading-6 text-[#405A70]">One ZIP containing four printable PDFs, one editable spreadsheet, and a short README.</p>
               <a href={`${base}/property-peace-landlord-starter-pack.zip`} download className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 px-6 py-3.5 font-bold text-white transition hover:brightness-95" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                 <FiDownload className="h-5 w-5" /> Download all five resources

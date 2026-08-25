@@ -29,6 +29,30 @@ test('shared SEO landing pages render light heroes', () => {
   nicheRoutes.forEach(assertLightHero);
 });
 
+test('shared SEO landing pages render split heroes with framed proof artifacts', () => {
+  for (const route of nicheRoutes) {
+    const hero = readLightHero(route);
+    assert.match(
+      hero,
+      /<div(?=[^>]*data-marketing-hero-layout="split")(?=[^>]*lg:grid-cols-)[^>]*>/,
+      `${route} should render a responsive two-column composition`,
+    );
+    assert.match(
+      hero,
+      /<div(?=[^>]*data-marketing-hero-proof="artifact")(?=[^>]*border-\[#DCE6ED\])(?=[^>]*bg-white)[^>]*>/,
+      `${route} should render proof in a framed white artifact`,
+    );
+  }
+});
+
+test('shared SEO hero renders an accessible green eyebrow token', () => {
+  const hero = readLightHero('free-landlord-software');
+  assert.match(
+    hero,
+    /<p(?=[^>]*data-marketing-hero-eyebrow="true")(?=[^>]*text-\[#15803D\])[^>]*>/,
+  );
+});
+
 const sharedFeatureRoutes = [
   'lease/ai-lease-creation',
   'lease/e-sign-docusign',
@@ -101,12 +125,25 @@ test('LeaseShield Blog preview renders approved body copy color', () => {
   );
 });
 
+test('LeaseShield Blog preview headings render explicit navy ink', () => {
+  const hero = readLightHero('lease-shield/blog');
+  const expectations = [
+    /<div(?=[^>]*text-\[#061E35\])[^>]*>[^<]*<svg[^>]*>.*?<\/svg> Sample source-backed answer<\/div>/,
+    /<p(?=[^>]*text-\[#061E35\])[^>]*>“How long do I have to return a security deposit\?”<\/p>/,
+    /<div(?=[^>]*text-\[#061E35\])[^>]*>[^<]*<svg[^>]*>.*?<\/svg> Example citations<\/div>/,
+  ];
+
+  for (const expectation of expectations) {
+    assert.match(hero, expectation);
+  }
+});
+
 function assertRenderedLightHeroPalette(route, hasQuietNavigation = true) {
   const hero = readLightHero(route);
   assert.match(hero, /<h1[^>]*text-\[#061E35\]/, `${route} should render a navy heading`);
   assert.match(hero, /<p[^>]*text-\[#405A70\]/, `${route} should render muted body copy`);
   assert.match(hero, /<a(?=[^>]*href="\/pricing\/?")(?=[^>]*border-\[#DCE6ED\])(?=[^>]*text-\[#061E35\])[^>]*>/, `${route} should render a light bordered secondary action`);
-  assert.match(hero, /text-\[#16A34A\]/, `${route} should render green accents`);
+  assert.match(hero, /text-\[#(?:15803D|16A34A)\]/, `${route} should render approved green accents`);
 
   if (hasQuietNavigation) {
     assert.match(hero, /text-\[#637083\]/, `${route} should render quiet navigation`);

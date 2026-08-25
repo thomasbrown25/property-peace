@@ -82,7 +82,7 @@ export default function LeaseShieldBlogPage() {
 
           <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
             <div>
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-[#15803D]" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <FiShield className="w-3.5 h-3.5" />
                 LeaseShield Blog
               </div>
@@ -127,19 +127,19 @@ export default function LeaseShieldBlogPage() {
             <div className="rounded-3xl border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)]">
               <div className="rounded-2xl border border-[#DCE6ED] bg-[#F7FAFC] p-5">
                 <div className="mb-4 flex items-center justify-between border-b border-[#DCE6ED] pb-3">
-                  <div className="flex items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  <div className="flex items-center gap-2 text-sm font-bold text-[#061E35]" style={{ fontFamily: '"Poppins", sans-serif' }}>
                     <FiShield className="h-4 w-4 text-[#2f5dff]" /> Sample source-backed answer
                   </div>
                   <span className="rounded-full bg-[#eef4ff] px-2.5 py-1 text-xs font-bold text-[#2f5dff]">.gov only</span>
                 </div>
-                <p className="mb-3 text-sm font-semibold text-primary-main" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="mb-3 text-sm font-semibold text-[#061E35]" style={{ fontFamily: '"Inter", sans-serif' }}>
                   “How long do I have to return a security deposit?”
                 </p>
                 <p className="mb-4 text-sm leading-relaxed text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>
                   LeaseShield summarizes the applicable state rule, then links back to official statutes, housing agency pages, or attorney general guidance so you can verify the answer.
                 </p>
                 <div className="rounded-xl bg-[#f7fbff] p-4 text-sm text-[#405a70]" style={{ fontFamily: '"Inter", sans-serif' }}>
-                  <div className="mb-2 flex items-center gap-2 font-semibold text-primary-main"><FiExternalLink className="h-4 w-4 text-[#2f5dff]" /> Example citations</div>
+                  <div className="mb-2 flex items-center gap-2 font-semibold text-[#061E35]"><FiExternalLink className="h-4 w-4 text-[#2f5dff]" /> Example citations</div>
                   <ul className="space-y-2">
                     <li>State property code section</li>
                     <li>Attorney general landlord guide</li>

@@ -54,7 +54,7 @@ export default function ResourcesPage() {
 
         <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#16A34A]">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">
               <FiCompass className="h-4 w-4" />
               Landlord Resource Center
             </div>
@@ -76,7 +76,7 @@ export default function ResourcesPage() {
           </div>
 
           <div className="border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)] md:p-8">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#16A34A]">Start with a practical resource</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Start with a practical resource</p>
             <div className="mt-5 divide-y divide-[#DCE6ED]">
               {featuredResources.map((resource) => (
                 <Link key={resource.slug} href={getResourceHref(resource)} className="group flex items-start gap-4 py-5 first:pt-0 last:pb-0">
@@ -85,7 +85,7 @@ export default function ResourcesPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-bold uppercase tracking-[0.14em] text-[#637083]">{resource.type}</span>
-                    <span className="mt-1 block font-bold leading-snug text-[#061E35] transition group-hover:text-[#16A34A]">{resource.title}</span>
+                    <span className="mt-1 block font-bold leading-snug text-[#061E35] transition group-hover:text-[#15803D]">{resource.title}</span>
                   </span>
                   <FiArrowRight className="mt-2 h-4 w-4 flex-shrink-0 text-[#637083] transition group-hover:translate-x-1 group-hover:text-[#16A34A]" />
                 </Link>

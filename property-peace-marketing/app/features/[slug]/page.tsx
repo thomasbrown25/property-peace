@@ -502,13 +502,13 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   const renderHero = (title: React.ReactNode, subtitle: string, badge?: string, ctaLabel?: string, trustItems?: string[]) => (
     <>
       <div className="mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
-        <Link href="/features" className="mb-10 inline-flex items-center text-[#637083] transition-colors hover:text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>
+        <Link href="/features" className="mb-10 inline-flex items-center text-[#637083] transition-colors hover:text-[#15803D]" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
             {badge && (
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#16A34A] shadow-sm sm:px-4" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#15803D] shadow-sm sm:px-4" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {badge}
               </div>
             )}
@@ -518,7 +518,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
               <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <FiZap className="h-4 w-4" />{ctaLabel ?? 'Get Started Free'}
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] hover:text-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#15803D] hover:text-[#15803D] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 View Pricing
               </Link>
             </div>
@@ -547,10 +547,10 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
       >
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
           <div className="text-center lg:text-left">
-            <Link href="/features" className="mb-8 inline-flex items-center text-sm font-semibold text-[#637083] hover:text-[#16a34a]">
+            <Link href="/features" className="mb-8 inline-flex items-center text-sm font-semibold text-[#637083] hover:text-[#15803D]">
               <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
             </Link>
-            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-[#16a34a]">Maintenance tracking</p>
+            <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-[#15803D]">Maintenance tracking</p>
             <h1 className="text-[2.3rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl">
               Maintenance Tracking for <span className="text-[#16a34a]">Landlords</span>
             </h1>
@@ -559,7 +559,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
               <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[56px] items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 font-semibold text-white hover:from-green-600 hover:to-green-700">
                 <FiZap className="h-4 w-4" />Get Started Free
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[56px] items-center justify-center border border-[#DCE6ED] bg-white px-6 py-3 font-semibold text-[#061E35] hover:border-green-300 hover:text-[#16a34a]">
+              <Link href="/pricing" className="inline-flex min-h-[56px] items-center justify-center border border-[#DCE6ED] bg-white px-6 py-3 font-semibold text-[#061E35] hover:border-green-300 hover:text-[#15803D]">
                 View Pricing
               </Link>
             </div>
@@ -842,13 +842,13 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   const renderRentCollectionHero = () => (
     <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
       <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
-        <Link href="/features" className="mb-10 inline-flex items-center text-[#637083] transition-colors hover:text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>
+        <Link href="/features" className="mb-10 inline-flex items-center text-[#637083] transition-colors hover:text-[#15803D]" style={{ fontFamily: '"Inter", sans-serif' }}>
           <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
         </Link>
 
         <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#16A34A] shadow-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#15803D] shadow-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
               Rent Collection
             </div>
 
@@ -863,7 +863,7 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
               <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <FiZap className="h-4 w-4" />Start free
               </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] hover:text-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#15803D] hover:text-[#15803D] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                 View Pricing
               </Link>
             </div>

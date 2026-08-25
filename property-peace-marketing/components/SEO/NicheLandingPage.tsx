@@ -86,32 +86,42 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           data-marketing-hero-theme="light"
           className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
         >
-          <div className="relative z-10 mx-auto max-w-5xl text-center">
-            <p className="mb-5 inline-flex max-w-full items-center justify-center rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-center text-[13px] font-semibold leading-snug text-[#16a34a] shadow-sm shadow-blue-950/20 backdrop-blur-sm sm:px-4 sm:text-sm">
-              {config.eyebrow}
-            </p>
-            <h1 className="mx-auto max-w-4xl text-[2.35rem] font-bold leading-[1.08] tracking-tight text-[#061E35] drop-shadow-sm sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              {config.title}
-            </h1>
-            <p className="mx-auto mt-5 max-w-3xl text-[17px] font-medium leading-8 text-[#405A70] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
-              {config.description}
-            </p>
-            <div className="mx-auto mt-7 grid max-w-[22rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:items-center sm:justify-center sm:gap-3">
-              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-slate-950/25 transition hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] sm:min-h-[56px] rounded-none sm:px-7 sm:text-base">
-                {config.primaryCta ?? 'Start free'}
-                <FiArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-bold text-[#061E35] shadow-sm shadow-blue-950/20 backdrop-blur-sm transition hover:bg-white/[0.16] sm:min-h-[56px] rounded-none sm:px-7 sm:text-base">
-                {config.secondaryCta ?? 'View pricing'}
-              </Link>
+          <div
+            data-marketing-hero-layout="split"
+            className="relative z-10 mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-14"
+          >
+            <div className="text-center lg:text-left">
+              <p data-marketing-hero-eyebrow="true" className="mb-5 inline-flex max-w-full items-center justify-center rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-center text-[13px] font-semibold leading-snug text-[#15803D] shadow-sm shadow-blue-950/20 sm:px-4 sm:text-sm">
+                {config.eyebrow}
+              </p>
+              <h1 className="mx-auto max-w-4xl text-[2.35rem] font-bold leading-[1.08] tracking-tight text-[#061E35] sm:text-5xl md:text-6xl lg:mx-0" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                {config.title}
+              </h1>
+              <p className="mx-auto mt-5 max-w-3xl text-[17px] font-medium leading-8 text-[#405A70] md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
+                {config.description}
+              </p>
+              <div className="mx-auto mt-7 grid max-w-[22rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:items-center sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
+                <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-slate-950/25 transition hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 hover:shadow-[0_10px_24px_rgba(34,197,94,0.25)] sm:min-h-[56px] sm:px-7 sm:text-base">
+                  {config.primaryCta ?? 'Start free'}
+                  <FiArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
+                </Link>
+                <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-bold text-[#061E35] shadow-sm shadow-blue-950/20 transition hover:bg-[#F7FAFC] sm:min-h-[56px] sm:px-7 sm:text-base">
+                  {config.secondaryCta ?? 'View pricing'}
+                </Link>
+              </div>
             </div>
-            <div className="mx-auto mt-7 grid max-w-[23rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center sm:gap-3">
+            <div
+              data-marketing-hero-proof="artifact"
+              className="border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)] sm:p-8"
+            >
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
               {config.proofPoints.map((point) => (
-                <span key={point} className="inline-flex min-h-[44px] items-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 text-left text-[13px] font-semibold leading-snug text-[#405A70] shadow-sm shadow-blue-950/20 backdrop-blur-sm sm:min-h-0 sm:rounded-full sm:px-4 sm:text-sm">
+                <span key={point} className="inline-flex min-h-[52px] items-center gap-3 border border-[#DCE6ED] bg-[#F7FAFC] px-4 py-3 text-left text-sm font-semibold leading-snug text-[#405A70]">
                   <FiCheck className="h-4 w-4 flex-shrink-0 text-[#16a34a]" />
                   {point}
                 </span>
               ))}
+              </div>
             </div>
           </div>
         </section>

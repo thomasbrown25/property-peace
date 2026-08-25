@@ -1,10 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { getNavigationSurface } from '@/lib/navigation-surface';
+import {
+  getFeaturesDropdownKeyAction,
+  shouldOpenFeaturesDropdownOnFocus,
+} from '@/lib/navigation-features-key-action';
 import {
   FiMenu,
   FiX,
@@ -36,7 +40,11 @@ export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileFeaturesOpen, setMobileFeaturesOpen] = useState(false);
   const [featuresDropdownOpen, setFeaturesDropdownOpen] = useState(false);
-  const [featuresDropdownTimeout, setFeaturesDropdownTimeout] = useState<NodeJS.Timeout | null>(null);
+  const navigationRef = useRef<HTMLElement>(null);
+  const featuresTriggerRef = useRef<HTMLButtonElement>(null);
+  const firstFeatureLinkRef = useRef<HTMLAnchorElement>(null);
+  const featuresDropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoringFeaturesTriggerFocusRef = useRef(false);
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.propertypeace.io').replace(/\/$/, '');
   const loginUrl = `${appUrl}/login`;
   const registerUrl = `${appUrl}/register`;
@@ -72,6 +80,10 @@ export default function Navigation() {
   }, []);
 
   useEffect(() => {
+    if (featuresDropdownTimeoutRef.current) {
+      clearTimeout(featuresDropdownTimeoutRef.current);
+      featuresDropdownTimeoutRef.current = null;
+    }
     const resetNavigation = window.setTimeout(() => {
       setMobileMenuOpen(false);
       setMobileFeaturesOpen(false);
@@ -90,27 +102,81 @@ export default function Navigation() {
   });
   const whiteSurface = surface === 'white';
 
-  const handleFeaturesMouseEnter = () => {
-    if (featuresDropdownTimeout) {
-      clearTimeout(featuresDropdownTimeout);
-      setFeaturesDropdownTimeout(null);
+  const clearFeaturesDropdownTimeout = () => {
+    if (featuresDropdownTimeoutRef.current) {
+      clearTimeout(featuresDropdownTimeoutRef.current);
+      featuresDropdownTimeoutRef.current = null;
     }
+  };
+
+  const handleFeaturesMouseEnter = () => {
+    clearFeaturesDropdownTimeout();
     setFeaturesDropdownOpen(true);
   };
 
   const handleFeaturesMouseLeave = () => {
+    clearFeaturesDropdownTimeout();
     const timeout = setTimeout(() => {
+      if (navigationRef.current?.contains(document.activeElement)) return;
       setFeaturesDropdownOpen(false);
     }, 150);
-    setFeaturesDropdownTimeout(timeout);
+    featuresDropdownTimeoutRef.current = timeout;
   };
 
   const closeFeaturesDropdown = () => {
-    if (featuresDropdownTimeout) {
-      clearTimeout(featuresDropdownTimeout);
-      setFeaturesDropdownTimeout(null);
-    }
+    clearFeaturesDropdownTimeout();
     setFeaturesDropdownOpen(false);
+  };
+
+  const handleFeaturesTriggerFocus = () => {
+    const restoringFocus = restoringFeaturesTriggerFocusRef.current;
+    restoringFeaturesTriggerFocusRef.current = false;
+
+    if (shouldOpenFeaturesDropdownOnFocus({ restoringFocus })) {
+      handleFeaturesMouseEnter();
+    }
+  };
+
+  const focusFirstFeatureLink = () => {
+    window.requestAnimationFrame(() => firstFeatureLinkRef.current?.focus());
+  };
+
+  const handleFeaturesTriggerKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const action = getFeaturesDropdownKeyAction({
+      key: event.key,
+      shiftKey: event.shiftKey,
+      dropdownOpen: featuresDropdownOpen,
+      target: 'trigger',
+    });
+
+    if (action === 'open-and-focus-first-link') {
+      event.preventDefault();
+      clearFeaturesDropdownTimeout();
+      setFeaturesDropdownOpen(true);
+      focusFirstFeatureLink();
+    } else if (action === 'focus-first-link') {
+      event.preventDefault();
+      focusFirstFeatureLink();
+    }
+  };
+
+  const handleNavigationKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    const action = getFeaturesDropdownKeyAction({
+      key: event.key,
+      dropdownOpen: featuresDropdownOpen,
+      target: 'navigation',
+    });
+
+    if (action === 'close-and-restore-trigger') {
+      event.preventDefault();
+      closeFeaturesDropdown();
+      const trigger = featuresTriggerRef.current;
+      if (trigger && document.activeElement !== trigger) {
+        restoringFeaturesTriggerFocusRef.current = true;
+        trigger.focus();
+        restoringFeaturesTriggerFocusRef.current = false;
+      }
+    }
   };
 
   const featuresCategories = [
@@ -241,14 +307,19 @@ export default function Navigation() {
   return (
     <>
       <nav
+        ref={navigationRef}
         className="marketing-nav fixed inset-x-0 top-0 z-50 w-full min-w-0"
         data-navigation-surface={surface}
         data-navigation-height="88"
         onMouseEnter={() => setPointerInside(true)}
         onMouseLeave={() => setPointerInside(false)}
         onFocusCapture={() => setFocusInside(true)}
+        onKeyDownCapture={handleNavigationKeyDown}
         onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocusInside(false);
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setFocusInside(false);
+            closeFeaturesDropdown();
+          }
         }}
         style={{ fontFamily: '"Poppins", sans-serif' }}
       >
@@ -258,7 +329,7 @@ export default function Navigation() {
           <div className="nav:hidden flex h-11 w-[76px] flex-shrink-0 items-center justify-start">
             <button
               className={`inline-flex h-11 items-center justify-start gap-2 rounded-xl pr-2 transition-colors duration-300 ${
-                whiteSurface ? 'text-[#061E35] hover:text-[#16a34a]' : 'text-white hover:text-white'
+                whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
               }`}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
@@ -306,8 +377,8 @@ export default function Navigation() {
           <div className="nav:hidden flex h-11 w-16 flex-shrink-0 items-center justify-end">
             <Link
               href={loginUrl}
-              className={`inline-flex h-11 min-w-11 items-center justify-end rounded-xl px-1 text-sm font-medium transition-all duration-300 ${
-                whiteSurface ? 'text-[#061E35] hover:text-[#16a34a]' : 'text-white hover:text-white'
+              className={`inline-flex h-11 min-w-11 items-center justify-end rounded-xl px-1 text-sm font-medium transition-colors duration-[220ms] motion-reduce:transition-none ${
+                whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
               }`}
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
             >
@@ -323,31 +394,38 @@ export default function Navigation() {
               onMouseEnter={handleFeaturesMouseEnter}
               onMouseLeave={handleFeaturesMouseLeave}
             >
-              <Link
-                href="/features"
-                className={`flex items-center space-x-1 font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
+              <button
+                ref={featuresTriggerRef}
+                type="button"
+                id="desktop-features-trigger"
+                aria-haspopup="true"
+                aria-expanded={featuresDropdownOpen}
+                aria-controls="desktop-features-dropdown"
+                onFocus={handleFeaturesTriggerFocus}
+                onKeyDown={handleFeaturesTriggerKeyDown}
+                className={`flex items-center space-x-1 border-b-2 border-transparent py-2 font-medium transition-[color,border-color] duration-[220ms] motion-reduce:transition-none ${
                   whiteSurface
-                    ? 'text-[#061E35] hover:text-[#16a34a]'
+                    ? 'text-[#061E35] hover:text-[#15803D]'
                     : 'text-white hover:text-white'
                 }`}
               >
                 <span>Features</span>
                 <FiChevronDown className="w-4 h-4" />
-              </Link>
+              </button>
             </div>
 
             <Link href="/listings" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#16a34a]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
             }`}>
               Listings
             </Link>
             <Link href="/pricing" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#16a34a]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
             }`}>
               Pricing
             </Link>
             <Link href="/resources" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
-              whiteSurface ? 'text-[#061E35] hover:text-[#16a34a]' : 'text-white hover:text-white'
+              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
             }`}>
               Resources
             </Link>
@@ -363,7 +441,7 @@ export default function Navigation() {
               Login
             </Link>
             <Link href={registerUrl}
-              className={`${whiteSurface ? 'text-white shadow-lg shadow-emerald-600/25' : 'text-[#061E35] shadow-[0_12px_30px_rgba(1,12,28,0.18)]'} px-7 py-3.5 rounded-none font-bold text-center transition-all duration-300 hover:-translate-y-0.5`}
+              className={`text-[#061E35] ${whiteSurface ? 'shadow-lg shadow-emerald-600/25 hover:shadow-xl' : 'shadow-[0_12px_30px_rgba(1,12,28,0.18)]'} px-7 py-3.5 rounded-none font-bold text-center transition-[color,border-color,box-shadow,opacity] duration-[220ms] motion-reduce:transition-none`}
               style={{
                 fontFamily: '"Inter", "Inter Placeholder", sans-serif',
                 background: whiteSurface ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#ffffff',
@@ -377,10 +455,14 @@ export default function Navigation() {
 
       {/* Features Dropdown */}
       <div
-        className={`marketing-nav-dropdown hidden nav:block absolute inset-x-0 top-full z-50 transition-transform duration-300 ease-out ${
+        id="desktop-features-dropdown"
+        data-navigation-features-panel="true"
+        aria-labelledby="desktop-features-trigger"
+        aria-hidden={!featuresDropdownOpen}
+        className={`marketing-nav-dropdown hidden nav:block absolute inset-x-0 top-full z-50 transition-opacity duration-[220ms] ease-out motion-reduce:transition-none ${
           featuresDropdownOpen
-            ? 'visible translate-y-0 pointer-events-auto'
-            : 'invisible translate-y-4 pointer-events-none'
+            ? 'visible opacity-100 pointer-events-auto'
+            : 'invisible opacity-0 pointer-events-none'
         }`}
         onMouseEnter={handleFeaturesMouseEnter}
         onMouseLeave={handleFeaturesMouseLeave}
@@ -388,9 +470,9 @@ export default function Navigation() {
         <div className="h-2" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full min-w-0">
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 lg:gap-8">
-            {featuresCategories.map((category, index) => (
-              <div key={index}>
-                <h3 className="text-xs font-semibold text-[#16a34a] uppercase tracking-wide mb-6">
+            {featuresCategories.map((category, categoryIndex) => (
+              <div key={category.title}>
+                <h3 className="text-xs font-semibold text-[#15803D] uppercase tracking-wide mb-6">
                   {category.title}
                 </h3>
                 <ul className="space-y-4">
@@ -399,13 +481,14 @@ export default function Navigation() {
                     return (
                       <li key={feature.slug}>
                         <Link
+                          ref={categoryIndex === 0 && feature.slug === 'rental-applications' ? firstFeatureLinkRef : undefined}
                           href={feature.href ?? `/features/${feature.slug}`}
                           className="block group"
                           onClick={closeFeaturesDropdown}
                         >
                           <div className="flex items-start space-x-3 mb-1">
                             <IconComponent className="w-5 h-5 text-[#16a34a] flex-shrink-0 mt-0.5 group-hover:text-[#16a34a] transition-colors" />
-                            <span className="text-sm font-semibold text-[#061E35] group-hover:text-[#16a34a] transition-colors" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                            <span className="text-sm font-semibold text-[#061E35] group-hover:text-[#15803D] transition-colors" style={{ fontFamily: '"Poppins", sans-serif' }}>
                               {feature.title}
                             </span>
                           </div>
@@ -423,7 +506,7 @@ export default function Navigation() {
           <div className="mt-8 pt-6 border-t border-[#DCE6ED]">
             <Link
               href="/features"
-              className="text-sm font-medium text-[#16a34a] hover:text-[#16a34a] transition-colors inline-flex items-center"
+              className="text-sm font-medium text-[#15803D] hover:text-[#15803D] transition-colors inline-flex items-center"
               style={{ fontFamily: '"Inter", sans-serif' }}
               onClick={closeFeaturesDropdown}
             >
@@ -624,7 +707,7 @@ export default function Navigation() {
               </Link>
               <Link
                 href={registerUrl}
-                className="inline-flex min-h-[52px] items-center justify-center rounded-none px-4 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition-all duration-300"
+                className="inline-flex min-h-[52px] items-center justify-center rounded-none px-4 text-sm font-bold text-[#061E35] shadow-lg shadow-emerald-600/25 transition-[color,border-color,box-shadow,opacity] duration-[220ms] motion-reduce:transition-none"
                 style={{
                   fontFamily: '"Inter", "Inter Placeholder", sans-serif',
                   background: 'linear-gradient(135deg, #22c55e, #16a34a)'

@@ -134,13 +134,13 @@ export default function FeatureLandingPage({
       >
         <div className="absolute left-1/2 top-0 h-[360px] w-[680px] -translate-x-1/2 rounded-full bg-green-200/50 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
-          <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-[#637083] transition-colors hover:text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>
+          <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-[#637083] transition-colors hover:text-[#15803D]" style={{ fontFamily: '"Inter", sans-serif' }}>
             Features <FiChevronRight className="h-4 w-4" /> {categoryLabel}
           </Link>
 
           <div className="grid items-center gap-12 lg:grid-cols-[1.02fr_0.98fr]">
             <div>
-              <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-[13px] font-bold leading-snug text-[#16A34A] shadow-sm shadow-slate-950/20 backdrop-blur-sm sm:px-4 sm:text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-[13px] font-bold leading-snug text-[#15803D] shadow-sm shadow-slate-950/20 backdrop-blur-sm sm:px-4 sm:text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <Icon className="h-4 w-4 text-[#16A34A]" /> {eyebrow}
               </div>
               <h1 className="mb-5 max-w-3xl text-[2.35rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
