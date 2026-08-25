@@ -13,15 +13,24 @@ import { addExpenseAction } from 'store/expense/expense.action';
 import {
   deleteFutureExpenseAction,
   getFutureExpensesAction,
+  hydrateFutureExpenseCleanupAction,
   markFutureExpenseCleanupPendingAction
 } from 'store/future-expense/future-expense.action';
 import {
   selectFutureExpenseCleanupById,
+  selectFutureExpenseCleanupHydratedLandlordId,
   selectFutureExpenseListError,
   selectFutureExpenseListLoading,
   selectFutureExpenseListSettledRequestKey,
   selectFutureExpenses
 } from 'store/future-expense/future-expense.selector';
+import {
+  getFutureExpenseCleanupStorage,
+  readFutureExpenseCleanupMarkers,
+  removeFutureExpenseCleanupMarker,
+  upsertFutureExpenseCleanupMarker,
+  writeFutureExpenseCleanupMarkers
+} from 'store/future-expense/future-expense.cleanup-storage';
 import {
   deleteRecurringExpenseAction,
   getRecurringExpensesAction,
@@ -96,6 +105,8 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
   const futureError = useSelector(selectFutureExpenseListError);
   const futureListSettledRequestKey = useSelector(selectFutureExpenseListSettledRequestKey);
   const futureExpenseCleanupById = useSelector(selectFutureExpenseCleanupById);
+  const cleanupHydratedLandlordId = useSelector(selectFutureExpenseCleanupHydratedLandlordId);
+  const cleanupStorage = useMemo(() => getFutureExpenseCleanupStorage(), []);
   const csvLinkRef = useRef(null);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -108,24 +119,27 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     [landlordId, mutationVersion, propertyId, retryVersion]
   );
   const recurringExpenses = recurringListSettledRequestKey === requestScopeKey ? recurringExpenseCollection : [];
-  const futureExpenses = useMemo(() => {
-    const settledExpenses = futureListSettledRequestKey === requestScopeKey ? futureExpenseCollection : [];
-    const settledIds = new Set(settledExpenses.map((expense) => String(scheduledId(expense))));
-    const pendingSources = Object.values(futureExpenseCleanupById)
-      .filter((marker) => String(marker.landlordId) === String(landlordId) && marker.source)
-      .map((marker) => marker.source)
-      .filter((source) => {
-        const sourceId = String(scheduledId(source));
-        const sourcePropertyId = readScheduled(source, 'propertyId', 'PropertyId');
-        return !settledIds.has(sourceId) && (!propertyId || String(sourcePropertyId) === String(propertyId));
-      });
-    return [...settledExpenses, ...pendingSources];
-  }, [futureExpenseCleanupById, futureExpenseCollection, futureListSettledRequestKey, landlordId, propertyId, requestScopeKey]);
+  const futureExpenses = futureListSettledRequestKey === requestScopeKey ? futureExpenseCollection : [];
+  const cleanupHydrated = Boolean(landlordId) && String(cleanupHydratedLandlordId) === String(landlordId);
   const scopesSettled = recurringListSettledRequestKey === requestScopeKey && futureListSettledRequestKey === requestScopeKey;
+
+  useEffect(() => {
+    if (!landlordId) return;
+    dispatch(hydrateFutureExpenseCleanupAction(landlordId, readFutureExpenseCleanupMarkers(cleanupStorage, landlordId)));
+  }, [cleanupStorage, dispatch, landlordId]);
+
+  useEffect(() => {
+    if (!cleanupHydrated) return;
+    writeFutureExpenseCleanupMarkers(cleanupStorage, landlordId, futureExpenseCleanupById);
+  }, [cleanupHydrated, cleanupStorage, futureExpenseCleanupById, landlordId]);
 
   useEffect(() => {
     if (!landlordId) {
       setRequestPending(false);
+      return undefined;
+    }
+    if (!cleanupHydrated) {
+      setRequestPending(true);
       return undefined;
     }
 
@@ -141,7 +155,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     return () => {
       current = false;
     };
-  }, [dispatch, landlordId, requestScopeKey]);
+  }, [cleanupHydrated, dispatch, landlordId, requestScopeKey]);
 
   const combinedEntries = useMemo(
     () =>
@@ -156,7 +170,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     () => selectUpcomingEntries(combinedEntries, { propertyId, search, type: typeFilter }),
     [combinedEntries, propertyId, search, typeFilter]
   );
-  const loading = requestPending || recurringLoading || futureLoading || (Boolean(landlordId) && !scopesSettled);
+  const loading = requestPending || recurringLoading || futureLoading || (Boolean(landlordId) && (!cleanupHydrated || !scopesSettled));
   const loadError = recurringError || futureError;
   const hasCleanupPending = combinedEntries.some((entry) => Boolean(entry.cleanupPending));
   const hasClientFilters = Boolean(search.trim()) || typeFilter !== 'all';
@@ -201,17 +215,15 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     const futureExpenseId = scheduledId(entry.source);
     try {
       await dispatch(deleteFutureExpenseAction(futureExpenseId));
+      removeFutureExpenseCleanupMarker(cleanupStorage, landlordId, futureExpenseId);
       if (successMessage) {
         openSnackbar({ open: true, message: successMessage, variant: 'alert', alert: { color: 'success' } });
       }
       return true;
-    } catch (cleanupError) {
-      dispatch(
-        markFutureExpenseCleanupPendingAction(futureExpenseId, {
-          ...marker,
-          cleanupError: PARTIAL_CLEANUP_MESSAGE
-        })
-      );
+    } catch {
+      const failedMarker = { ...marker, cleanupError: PARTIAL_CLEANUP_MESSAGE };
+      upsertFutureExpenseCleanupMarker(cleanupStorage, failedMarker);
+      dispatch(markFutureExpenseCleanupPendingAction(futureExpenseId, failedMarker));
       openSnackbar({
         open: true,
         message: `${PARTIAL_CLEANUP_MESSAGE}. Retry scheduled cleanup from this row.`,
@@ -237,7 +249,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
     try {
       const source = entry.source;
       const now = new Date();
-      const addedExpense = await dispatch(
+      await dispatch(
         addExpenseAction({
           landlordId: landlordId,
           propertyId: readScheduled(source, 'propertyId', 'PropertyId'),
@@ -258,11 +270,12 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
       if (entry.type === 'One-time') {
         const futureExpenseId = scheduledId(source);
         const cleanupMarker = {
-          expenseId: scheduledId(addedExpense) || null,
-          cleanupError: null,
-          landlordId,
-          source
+          futureExpenseId: futureExpenseId,
+          propertyId: readScheduled(source, 'propertyId', 'PropertyId'),
+          landlordId: landlordId,
+          cleanupError: null
         };
+        upsertFutureExpenseCleanupMarker(cleanupStorage, cleanupMarker);
         dispatch(markFutureExpenseCleanupPendingAction(futureExpenseId, cleanupMarker));
         notifyFinanceMutation();
         const reconciled = await reconcileFutureExpense(entry, cleanupMarker);

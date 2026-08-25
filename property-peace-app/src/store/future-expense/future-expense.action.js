@@ -11,7 +11,8 @@ export const getFutureExpensesAction =
   async (dispatch) => {
     const requestId = ++futureExpenseListRequestSequence;
     const requestKey = suppliedRequestKey || futureExpenseRequestKey(landlordId, filters);
-    const meta = { requestId, requestKey };
+    const propertyId = filters?.propertyId ?? filters?.PropertyId ?? null;
+    const meta = { requestId, requestKey, landlordId, propertyId };
     try {
       dispatch({ type: FUTURE_EXPENSE_ACTION_TYPES.GET_FUTURE_EXPENSES_START, meta });
 
@@ -100,4 +101,9 @@ export const markFutureExpenseCleanupPendingAction = (futureExpenseId, marker) =
 export const clearFutureExpenseCleanupPendingAction = (futureExpenseId) => ({
   type: FUTURE_EXPENSE_ACTION_TYPES.CLEAR_FUTURE_EXPENSE_CLEANUP_PENDING,
   payload: futureExpenseId
+});
+
+export const hydrateFutureExpenseCleanupAction = (landlordId, markers) => ({
+  type: FUTURE_EXPENSE_ACTION_TYPES.HYDRATE_FUTURE_EXPENSE_CLEANUP,
+  payload: { landlordId, markers }
 });

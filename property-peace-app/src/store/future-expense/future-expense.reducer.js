@@ -3,6 +3,7 @@ import { FUTURE_EXPENSE_ACTION_TYPES } from './future-expense.types';
 const initialState = {
   futureExpenses: [],
   recordedExpenseCleanupById: {},
+  cleanupHydratedLandlordId: null,
   listLoading: false,
   listError: null,
   listRequestId: null,
@@ -79,9 +80,18 @@ const mutationFailureTypes = new Set([
 ]);
 const futureExpenseId = (expense) => expense?.id ?? expense?.Id;
 
-const keepMarkersForExpenses = (markers, expenses) => {
+const keepMarkersForExpenses = (markers, expenses, meta) => {
   const presentIds = new Set((expenses || []).map((expense) => String(futureExpenseId(expense))));
-  return Object.fromEntries(Object.entries(markers || {}).filter(([id]) => presentIds.has(String(id))));
+  return Object.fromEntries(
+    Object.entries(markers || {}).filter(([id, marker]) => {
+      if (meta?.landlordId == null) return presentIds.has(String(id));
+      if (marker?.landlordId == null || String(marker.landlordId) !== String(meta.landlordId)) return true;
+      if (meta.propertyId != null) {
+        if (marker.propertyId == null || String(marker.propertyId) !== String(meta.propertyId)) return true;
+      }
+      return presentIds.has(String(id));
+    })
+  );
 };
 
 const isCurrentListCompletion = (state, action) => {
@@ -109,7 +119,7 @@ function futureExpenseReducer(state = initialState, action) {
   if (action.type === listSuccessType) {
     return {
       ...nextState,
-      recordedExpenseCleanupById: keepMarkersForExpenses(state.recordedExpenseCleanupById, nextState.futureExpenses),
+      recordedExpenseCleanupById: keepMarkersForExpenses(state.recordedExpenseCleanupById, nextState.futureExpenses, action.meta),
       listLoading: false,
       listError: null,
       listRequestId: null,
@@ -125,6 +135,14 @@ function futureExpenseReducer(state = initialState, action) {
       listError: action.payload,
       listRequestId: null,
       listSettledRequestKey: action.meta?.requestKey ?? state.listRequestKey
+    };
+  }
+
+  if (action.type === FUTURE_EXPENSE_ACTION_TYPES.HYDRATE_FUTURE_EXPENSE_CLEANUP) {
+    return {
+      ...nextState,
+      recordedExpenseCleanupById: action.payload?.markers || {},
+      cleanupHydratedLandlordId: String(action.payload?.landlordId)
     };
   }
 

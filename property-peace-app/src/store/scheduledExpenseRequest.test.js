@@ -205,6 +205,87 @@ test('future cleanup marker survives failures and is reconciled by deletion or a
   assert.deepEqual(state.recordedExpenseCleanupById, {});
 });
 
+test('property-scoped future success reconciles only markers in that property while portfolio success reconciles all', () => {
+  const markType = futureTypes.MARK_FUTURE_EXPENSE_CLEANUP_PENDING;
+  let state = futureReducer(undefined, { type: '@@init' });
+  for (const marker of [
+    { futureExpenseId: 9, propertyId: 12, landlordId: 44 },
+    { futureExpenseId: 13, propertyId: 13, landlordId: 44 }
+  ]) {
+    state = futureReducer(state, {
+      type: markType,
+      payload: { futureExpenseId: marker.futureExpenseId, marker }
+    });
+  }
+
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_START,
+    meta: { requestId: 10, requestKey: 'property:13', landlordId: 44, propertyId: 13 }
+  });
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_SUCCESS,
+    payload: [{ id: 13, propertyId: 13 }],
+    meta: { requestId: 10, requestKey: 'property:13', landlordId: 44, propertyId: 13 }
+  });
+
+  assert.deepEqual(Object.keys(state.recordedExpenseCleanupById).sort(), ['13', '9']);
+
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_START,
+    meta: { requestId: 11, requestKey: 'property:13:empty', landlordId: 44, propertyId: 13 }
+  });
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_SUCCESS,
+    payload: [],
+    meta: { requestId: 11, requestKey: 'property:13:empty', landlordId: 44, propertyId: 13 }
+  });
+
+  assert.deepEqual(Object.keys(state.recordedExpenseCleanupById), ['9']);
+
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_START,
+    meta: { requestId: 12, requestKey: 'portfolio', landlordId: 44, propertyId: null }
+  });
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_SUCCESS,
+    payload: [],
+    meta: { requestId: 12, requestKey: 'portfolio', landlordId: 44, propertyId: null }
+  });
+
+  assert.deepEqual(state.recordedExpenseCleanupById, {});
+});
+
+test('future cleanup hydration restores one landlord runtime map before list reconciliation', () => {
+  const marker44 = { futureExpenseId: 9, propertyId: 12, landlordId: 44 };
+  let state = futureReducer(undefined, { type: '@@init' });
+  state = futureReducer(state, {
+    type: futureTypes.HYDRATE_FUTURE_EXPENSE_CLEANUP,
+    payload: { landlordId: 44, markers: { '9': marker44 } }
+  });
+
+  assert.equal(state.cleanupHydratedLandlordId, '44');
+  assert.deepEqual(state.recordedExpenseCleanupById, { '9': marker44 });
+
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_START,
+    meta: { requestId: 20, requestKey: 'restored', landlordId: 44, propertyId: 12 }
+  });
+  state = futureReducer(state, {
+    type: futureTypes.GET_FUTURE_EXPENSES_SUCCESS,
+    payload: [{ id: 9, propertyId: 12, name: 'Server row after reload' }],
+    meta: { requestId: 20, requestKey: 'restored', landlordId: 44, propertyId: 12 }
+  });
+
+  assert.deepEqual(state.recordedExpenseCleanupById, { '9': marker44 });
+
+  state = futureReducer(state, {
+    type: futureTypes.HYDRATE_FUTURE_EXPENSE_CLEANUP,
+    payload: { landlordId: 55, markers: {} }
+  });
+  assert.equal(state.cleanupHydratedLandlordId, '55');
+  assert.deepEqual(state.recordedExpenseCleanupById, {});
+});
+
 const deferred = () => {
   let resolve;
   let reject;

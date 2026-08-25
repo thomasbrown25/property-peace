@@ -294,18 +294,29 @@ test('Payments keeps the complete editable list while the page owns its one shar
 });
 
 test('Upcoming combines scheduled expenses with scoped filters, truthful states, export, and preserved mutations', async () => {
-  const [page, upcoming, row, expenseAction, upcomingSelection, recurringSelector, futureSelector, futureAction, futureReducer] =
-    await Promise.all([
-      source('pages/landlord/finances.jsx'),
-      source('sections/landlord/finances/UpcomingTab.jsx'),
-      source('sections/landlord/finances/UpcomingRow.jsx'),
-      source('store/expense/expense.action.js'),
-      source('utils/upcomingTab.js'),
-      source('store/recurring-expense/recurring-expense.selector.js'),
-      source('store/future-expense/future-expense.selector.js'),
-      source('store/future-expense/future-expense.action.js'),
-      source('store/future-expense/future-expense.reducer.js')
-    ]);
+  const [
+    page,
+    upcoming,
+    row,
+    expenseAction,
+    upcomingSelection,
+    recurringSelector,
+    futureSelector,
+    futureAction,
+    futureReducer,
+    cleanupStorage
+  ] = await Promise.all([
+    source('pages/landlord/finances.jsx'),
+    source('sections/landlord/finances/UpcomingTab.jsx'),
+    source('sections/landlord/finances/UpcomingRow.jsx'),
+    source('store/expense/expense.action.js'),
+    source('utils/upcomingTab.js'),
+    source('store/recurring-expense/recurring-expense.selector.js'),
+    source('store/future-expense/future-expense.selector.js'),
+    source('store/future-expense/future-expense.action.js'),
+    source('store/future-expense/future-expense.reducer.js'),
+    source('store/future-expense/future-expense.cleanup-storage.js')
+  ]);
 
   assert.match(page, /<UpcomingTab/);
   assert.match(page, /propertyId=\{propertyId\}/);
@@ -324,7 +335,9 @@ test('Upcoming combines scheduled expenses with scoped filters, truthful states,
   assert.match(futureSelector, /selectFutureExpenseListSettledRequestKey/);
   assert.match(upcoming, /recurringListSettledRequestKey === requestScopeKey/);
   assert.match(upcoming, /futureListSettledRequestKey === requestScopeKey/);
-  assert.match(upcoming, /\[dispatch, landlordId, requestScopeKey\]/);
+  assert.match(upcoming, /\[cleanupHydrated, dispatch, landlordId, requestScopeKey\]/);
+  assert.match(upcoming, /if \(!cleanupHydrated\)[\s\S]*return undefined;[\s\S]*dispatch\(getRecurringExpensesAction/);
+  assert.ok(upcoming.indexOf('hydrateFutureExpenseCleanupAction') < upcoming.indexOf('dispatch(getRecurringExpensesAction'));
   assert.match(upcoming, /TransactionFilterToolbar/);
   assert.match(upcoming, /search=\{search\}/);
   assert.match(upcoming, /selectUpcomingEntries\(combinedEntries, \{ propertyId, search, type: typeFilter \}\)/);
@@ -380,8 +393,28 @@ test('Upcoming combines scheduled expenses with scoped filters, truthful states,
   assert.match(upcoming, /deleteFutureExpenseAction/);
   assert.match(upcoming, /selectFutureExpenseCleanupById/);
   assert.match(upcoming, /markFutureExpenseCleanupPendingAction/);
-  assert.match(upcoming, /const addedExpense = await dispatch\s*\(\s*addExpenseAction/);
-  assert.match(upcoming, /if \(cleanupPending\)[\s\S]*reconcileFutureExpense/);
+  assert.match(upcoming, /await dispatch\s*\(\s*addExpenseAction/);
+  assert.match(upcoming, /if \(cleanupPending\)[\s\S]*reconcileFutureExpense[\s\S]*return;[\s\S]*await dispatch\s*\(\s*addExpenseAction/);
+  assert.match(upcoming, /hydrateFutureExpenseCleanupAction/);
+  assert.match(upcoming, /selectFutureExpenseCleanupHydratedLandlordId/);
+  assert.match(upcoming, /readFutureExpenseCleanupMarkers/);
+  assert.match(upcoming, /writeFutureExpenseCleanupMarkers/);
+  assert.match(upcoming, /upsertFutureExpenseCleanupMarker/);
+  assert.match(upcoming, /removeFutureExpenseCleanupMarker/);
+  assert.match(upcoming, /cleanupHydrated[\s\S]*requestPending/);
+  assert.match(cleanupStorage, /property-peace:future-expense-cleanup:v1/);
+  assert.match(cleanupStorage, /landlordId/);
+  assert.match(cleanupStorage, /futureExpenseId/);
+  assert.match(cleanupStorage, /propertyId/);
+  assert.doesNotMatch(cleanupStorage, /expenseId|source|propertyName|name:/);
+  assert.match(futureAction, /meta[\s\S]*landlordId[\s\S]*propertyId/);
+  assert.match(futureReducer, /HYDRATE_FUTURE_EXPENSE_CLEANUP/);
+  assert.match(futureReducer, /cleanupHydratedLandlordId/);
+  const cleanupMarker = upcoming.match(/const cleanupMarker = \{([\s\S]*?)\n\s*\};/)?.[1] || '';
+  assert.deepEqual(
+    new Set(cleanupMarker.match(/[a-zA-Z]+(?=:)/g)),
+    new Set(['futureExpenseId', 'propertyId', 'landlordId', 'cleanupError'])
+  );
   assert.match(upcoming, /Expense recorded, but the scheduled item could not be removed/);
   assert.match(row, /Expense recorded · cleanup needed/);
   assert.match(row, /Retry scheduled cleanup/);
