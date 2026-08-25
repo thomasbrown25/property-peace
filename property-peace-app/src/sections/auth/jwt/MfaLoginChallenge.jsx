@@ -25,7 +25,7 @@ export default function MfaLoginChallenge({ challenge, onCancel }) {
     try {
       setVerifying(true);
       setError('');
-      await verifyMfaLogin(challenge.challengeId, code);
+      await verifyMfaLogin(challenge.challengeId, code, challenge.rememberMe);
     } catch (verifyError) {
       setError(errorMessage(verifyError, 'That code could not be verified.'));
       setVerifying(false);
@@ -86,7 +86,8 @@ MfaLoginChallenge.propTypes = {
   challenge: PropTypes.shape({
     challengeId: PropTypes.string.isRequired,
     expiresAt: PropTypes.string,
-    methods: PropTypes.arrayOf(PropTypes.shape({ type: PropTypes.oneOf(['sms', 'totp']).isRequired, maskedDestination: PropTypes.string })).isRequired
+    methods: PropTypes.arrayOf(PropTypes.shape({ type: PropTypes.oneOf(['sms', 'totp']).isRequired, maskedDestination: PropTypes.string })).isRequired,
+    rememberMe: PropTypes.bool
   }).isRequired,
   onCancel: PropTypes.func.isRequired
 };

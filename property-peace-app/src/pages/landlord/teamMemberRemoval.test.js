@@ -32,3 +32,13 @@ test('uses the member email when a display name is unavailable', () => {
   assert.equal(model.initials, 'VI');
   assert.equal(model.consequence, 'viewer@example.com will immediately lose access to Brownstone Hub LLC.');
 });
+
+test('uses fallback removal details while the closed dialog has null inputs', () => {
+  const model = createTeamMemberRemovalModel(null, null);
+
+  assert.equal(model.name, 'This team member');
+  assert.equal(model.email, '');
+  assert.equal(model.role, 'Viewer');
+  assert.equal(model.initials, '?');
+  assert.equal(model.consequence, 'This team member will immediately lose access to this organization.');
+});

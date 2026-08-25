@@ -2,6 +2,7 @@ import { jwtDecode } from 'jwt-decode';
 
 const SESSION_KEY = 'impersonationSession';
 const LEGACY_KEYS = ['impersonationAccessToken', 'impersonationRefreshToken', 'impersonationMetadata'];
+const ADMIN_TOKEN_KEYS = ['serviceToken', 'token'];
 const TAB_NAME_PREFIX = '__propertyPeaceTab=';
 let failedClosed = false;
 
@@ -77,7 +78,22 @@ export const getImpersonationRefreshToken = () => readSession()?.refreshToken ||
 export const getImpersonationMetadata = () => readSession()?.metadata || null;
 export const isImpersonating = () => Boolean(readSession());
 
+export const isAdminSessionPersistent = () =>
+  ADMIN_TOKEN_KEYS.some((key) => Boolean(localStorage.getItem(key)));
+
+export const setAdminAccessToken = (token, isPersistent = true) => {
+  ADMIN_TOKEN_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+  if (token) {
+    const storage = isPersistent ? localStorage : sessionStorage;
+    storage.setItem('serviceToken', token);
+  }
+};
+
 export const getAdminAccessToken = () =>
+  sessionStorage.getItem('serviceToken') || sessionStorage.getItem('token') ||
   localStorage.getItem('serviceToken') || localStorage.getItem('token');
 
 // Never fall back to an administrator credential when impersonation storage is present but invalid.

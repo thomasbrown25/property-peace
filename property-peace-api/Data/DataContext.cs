@@ -26,6 +26,7 @@ namespace brownstone_hub_api.Data
             RejectAppendOnly<ConversationTimelineEntry>();
             RejectAppendOnly<MaintenanceActivityEvent>();
             RejectAppendOnly<ActivationMilestoneOccurrence>();
+            RejectAppendOnly<RentPaymentAccessAuditEvent>();
             RejectInvalidMessageDeliveryEvidenceMutation();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
@@ -39,6 +40,7 @@ namespace brownstone_hub_api.Data
             RejectAppendOnly<ConversationTimelineEntry>();
             RejectAppendOnly<MaintenanceActivityEvent>();
             RejectAppendOnly<ActivationMilestoneOccurrence>();
+            RejectAppendOnly<RentPaymentAccessAuditEvent>();
             RejectInvalidMessageDeliveryEvidenceMutation();
             var now = DateTime.Now;
 
@@ -274,6 +276,8 @@ namespace brownstone_hub_api.Data
         public DbSet<StripeWebhookEvent> StripeWebhookEvents => Set<StripeWebhookEvent>();
         public DbSet<StripeRentPayment> StripeRentPayments => Set<StripeRentPayment>();
         public DbSet<StripeConnectedPayeeReview> StripeConnectedPayeeReviews => Set<StripeConnectedPayeeReview>();
+        public DbSet<RentPaymentAccessRequest> RentPaymentAccessRequests => Set<RentPaymentAccessRequest>();
+        public DbSet<RentPaymentAccessAuditEvent> RentPaymentAccessAuditEvents => Set<RentPaymentAccessAuditEvent>();
         public DbSet<StorageObject> StorageObjects => Set<StorageObject>();
         public DbSet<Deposit> Deposits => Set<Deposit>();
         public DbSet<Expense> Expenses => Set<Expense>();

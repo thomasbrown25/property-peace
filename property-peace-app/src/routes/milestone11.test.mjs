@@ -287,11 +287,11 @@ test('Milestone 11 public offer copy uses the free tier instead of a stale trial
   assert.doesNotMatch(register, /30-day trial/i);
   assert.match(seo, /Start Free/);
   assert.match(seo, /free for up to 5 units/i);
-  assert.match(seo, /does not currently process online rent payments/i);
+  assert.match(seo, /online rent payments are included in Free after organization approval and setup/i);
   assert.doesNotMatch(seo, /30-day trial/i);
   assert.match(metadata, /Start Free/i);
   assert.match(metadata, /Free (?:for )?up to 5 units/i);
-  assert.match(metadata, /online rent (?:payment )?processing is not currently available/i);
+  assert.match(metadata, /online rent payments are included in Free after organization approval and setup/i);
   assert.doesNotMatch(metadata, /(?:free )?30-day trial|30-day free trial|start free trial/i);
   assert.match(trialBanner, /Start Free/);
   assert.match(trialBanner, /Free (?:for )?up to 5 units/i);

@@ -1,6 +1,16 @@
 # Stripe Connect payee-risk rollout runbook
 
-Status: **implemented locally in the `dev` checkout; uncommitted, not enabled, and not deployed**
+Status: **Accounts v2 compatibility gate BLOCKED; approval/UI work may continue only behind disabled payment and transfer flags**
+
+## SDK and Accounts v2 compatibility gate (2026-08-25)
+
+- Repository baseline: Stripe.net `47.0.0`; the API builds successfully on this version.
+- Required stable target checked: Stripe.net `52.2.0`.
+- Stripe.net `52.2.0` exposes typed `StripeClient.V2.Core.Accounts`, recipient configuration, and `configuration.recipient.capabilities.stripe_balance.stripe_transfers.status` models.
+- The upgrade does not compile against the existing billing/webhook integration: subscription period fields and invoice-to-subscription relationships moved, affecting dozens of existing call sites. Stripe.net `51.0.0` exposes Accounts v2 but has the same billing-model break; `50.0.0` has the break without the required typed account models.
+- Decision: keep the known-working `47.0.0` package and keep `Stripe:RentPaymentsEnabled=false` and `Stripe:TransfersEnabled=false` until a separately reviewed billing/webhook SDK migration lands.
+- Sandbox provider validation was not attempted because the compile-time gate failed. Do not enable live provider access based on this runbook until the SDK migration, typed mapper/gateway tests, and non-destructive sandbox checks pass.
+
 
 This runbook is the operational checklist for enabling Property Peace rent payments after the application changes, database migration, Stripe Dashboard controls, and live-mode verification are complete. The payment and transfer kill switches must remain off until every required gate is signed off.
 

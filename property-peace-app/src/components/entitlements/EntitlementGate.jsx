@@ -54,30 +54,59 @@ export default function EntitlementGate({ children, feature = ADVANCED_REPORTING
     <Paper
       aria-live="polite"
       sx={{
-        position: 'relative', overflow: 'hidden', p: { xs: 2.5, sm: 4 }, borderRadius: 3,
+        position: 'relative',
+        overflow: 'hidden',
+        p: { xs: 2.5, sm: 4 },
+        borderRadius: 3,
         border: (theme) => `1px solid ${alpha(theme.palette.success.main, 0.22)}`,
         background: (theme) => `linear-gradient(135deg, ${theme.palette.background.paper}, ${alpha(theme.palette.success.light, 0.08)})`
       }}
     >
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
-        <Box sx={{ width: 52, height: 52, borderRadius: 2, display: 'grid', placeItems: 'center', bgcolor: 'primary.main', color: 'primary.contrastText', fontSize: 23 }}>
+        <Box
+          sx={{
+            width: 52,
+            height: 52,
+            borderRadius: 2,
+            display: 'grid',
+            placeItems: 'center',
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            fontSize: 23
+          }}
+        >
           {setup ? <HomeOutlined aria-hidden="true" /> : <LockOutlined aria-hidden="true" />}
         </Box>
         <Box sx={{ flex: 1 }}>
-          <Typography component="h1" variant="h4" fontWeight={750}>{state.title}</Typography>
+          <Typography component="h1" variant="h4" fontWeight={750}>
+            {state.title}
+          </Typography>
           <Typography color="text.secondary" sx={{ mt: 0.75, maxWidth: 680, lineHeight: 1.65 }}>
-            {state.message}{unauthorized ? ' No billing changes are needed.' : ''}
+            {state.message}
+            {unauthorized ? ' No billing changes are needed.' : ''}
           </Typography>
         </Box>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ flexShrink: 0 }}>
           {upgrade && showUpgrade && (
-            <Button component={RouterLink} to="/landlord/settings?tab=subscription" variant="contained" startIcon={<LockOutlined />} sx={{ minHeight: 44 }}>
+            <Button
+              component={RouterLink}
+              to="/landlord/settings?tab=subscription"
+              variant="contained"
+              startIcon={<LockOutlined />}
+              sx={{ minHeight: 44 }}
+            >
               View subscription
             </Button>
           )}
           {setup && (
-            <Button component={RouterLink} to="/landlord/setup" variant="contained" startIcon={<SettingOutlined />} sx={{ minHeight: 44 }}>
-              Continue setup
+            <Button
+              component={RouterLink}
+              to="/landlord/admin-members"
+              variant="contained"
+              startIcon={<SettingOutlined />}
+              sx={{ minHeight: 44 }}
+            >
+              Choose organization
             </Button>
           )}
           {unavailable && (

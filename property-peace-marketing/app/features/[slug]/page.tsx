@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { IconType } from "react-icons";
 import FeatureHeroMock from "@/components/Marketing/FeatureHeroMock";
 import MaintenanceTrackingFeatureSection from "@/components/Marketing/MaintenanceTrackingFeatureSection";
-import RentCollectionHeroMock from "@/components/Marketing/RentCollectionHeroMock";
+import RentCollectionFeaturePage from "@/components/Marketing/RentCollectionFeaturePage";
 import StructuredData from "@/components/SEO/StructuredData";
 import { applyOttoSeo } from "@/lib/otto-seo";
 import { webPageSchema } from "@/lib/structured-data";
@@ -183,9 +183,9 @@ const featureDetails: Record<string, {
   },
   'rent-collection': {
     icon: FiDollarSign,
-    title: 'Rent Tracking and Reminders',
-    shortDescription: 'Record payments, calculate overdue balances, and keep reminder workflows organized. Online payment processing is not currently available.',
-    description: 'Keep rent records, overdue calculations, reminders, late fees, and rent-roll reports in one landlord-focused workflow. Property Peace does not currently process online rent payments. SMS reminders require Premium; one dedicated organization number is included, with activation and configuration required.',
+    title: 'Online Rent Collection',
+    shortDescription: 'Custom late fees, automatic AI follow-ups, and secure bank connections keep rent collection organized. Online payments require organization request, approval, and payment setup.',
+    description: 'Online rent payments are included in Free after organization request, approval, and payment setup. connected payee review is separate, and availability remains fail-closed until provider compatibility is confirmed.',
     benefits: [
       'Recorded payment tracking',
       'Overdue calculations',
@@ -452,6 +452,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function FeatureDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const feature = featureDetails[slug];
+  if (slug === 'rent-collection') return <RentCollectionFeaturePage />;
 
   if (!feature) {
     notFound();
@@ -834,59 +835,12 @@ export default async function FeatureDetailPage({ params }: { params: Promise<{ 
   const accentWord = titleWords.slice(-1)[0];
   const restWords  = titleWords.slice(0, -1).join(' ');
   const ottoFeatureH2 = ottoFeatureH2Overrides[slug];
-  const isRentCollectionFeature = slug === 'rent-collection';
   const isMaintenanceTrackingFeature = slug === 'maintenance-tracking';
-
-  const rentCollectionHeroTitle = ottoFeatureH1Overrides[slug] ?? 'Online Rent Collection for Independent Landlords';
-
-  const renderRentCollectionHero = () => (
-    <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
-      <div className="relative mx-auto max-w-6xl px-4 pb-14 pt-32 sm:px-6 sm:pb-18 sm:pt-36 lg:px-8 lg:pb-20">
-        <Link href="/features" className="mb-10 inline-flex items-center text-[#637083] transition-colors hover:text-[#15803D]" style={{ fontFamily: '"Inter", sans-serif' }}>
-          <FiArrowLeft className="mr-2 h-4 w-4" />Back to Features
-        </Link>
-
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
-          <div className="text-center lg:text-left">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-xs font-semibold uppercase leading-snug tracking-widest text-[#15803D] shadow-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
-              Rent Collection
-            </div>
-
-            <h1 className="mb-5 text-[2.3rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              {rentCollectionHeroTitle}
-            </h1>
-            <p className="mx-auto mb-7 max-w-2xl text-[17px] leading-relaxed text-[#405A70] md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
-              {feature.shortDescription}
-            </p>
-
-            <div className="mx-auto grid max-w-[22rem] grid-cols-2 justify-center gap-2.5 sm:flex sm:max-w-none sm:flex-row sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
-              <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
-                <FiZap className="h-4 w-4" />Start free
-              </Link>
-              <Link href="/pricing" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#15803D] hover:text-[#15803D] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
-                View Pricing
-              </Link>
-            </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-[#405A70] sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
-              {['Track paid & overdue rent', 'Send reminders fast', 'Update the ledger automatically', 'Free for up to 5 units'].map((item) => (
-                <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
-                  <FiCheck className="h-4 w-4 flex-shrink-0 text-[#16A34A]" />{item}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <RentCollectionHeroMock />
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <>
       {structuredData()}
-      {isRentCollectionFeature ? renderRentCollectionHero() : isMaintenanceTrackingFeature ? renderMaintenanceTrackingHero() : (
+      {isMaintenanceTrackingFeature ? renderMaintenanceTrackingHero() : (
         <div data-marketing-hero-theme="light" className="relative overflow-hidden bg-white">
           <div className="relative">
             {renderHero(

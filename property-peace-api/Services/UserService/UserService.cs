@@ -966,7 +966,10 @@ namespace brownstone_hub_api.Services.UserService
             return loadedUser;
         }
 
-        public async Task<RefreshSessionDto> CreateRefreshSession(long userId)
+        public Task<RefreshSessionDto> CreateRefreshSession(long userId) =>
+            CreateRefreshSession(userId, isPersistent: true);
+
+        public async Task<RefreshSessionDto> CreateRefreshSession(long userId, bool isPersistent)
         {
             var user = await _userRepository.GetUser(userId)
                 ?? throw new InvalidOperationException("User not found");
@@ -985,7 +988,8 @@ namespace brownstone_hub_api.Services.UserService
             {
                 UserId = userId,
                 TokenHash = HashRefreshToken(refreshToken),
-                ExpiresAt = expiresAt
+                ExpiresAt = expiresAt,
+                IsPersistent = isPersistent,
             });
 
             var expiredTokens = await _dataContext.UserRefreshTokens
@@ -999,7 +1003,8 @@ namespace brownstone_hub_api.Services.UserService
             {
                 User = loadedUser,
                 RefreshToken = refreshToken,
-                RefreshTokenExpiresAt = expiresAt
+                RefreshTokenExpiresAt = expiresAt,
+                IsPersistent = isPersistent
             };
         }
 
@@ -1013,18 +1018,19 @@ namespace brownstone_hub_api.Services.UserService
             var tokenHash = HashRefreshToken(refreshToken);
             var storedToken = await _dataContext.UserRefreshTokens
                 .AsNoTracking()
-                .Include(token => token.User)
                 .SingleOrDefaultAsync(token => token.TokenHash == tokenHash);
 
             var now = DateTime.UtcNow;
             if (storedToken == null || storedToken.RevokedAt != null || storedToken.ExpiresAt <= now ||
-                storedToken.User.IsDeleted || storedToken.User.IsSuspended ||
                 (expectedUserId != 0 && storedToken.UserId != expectedUserId))
             {
                 return null;
             }
 
-            var loadedUser = await _userRepository.GetUserByEmailAsync(storedToken.User.Email);
+            var user = await _userRepository.GetUser(storedToken.UserId);
+            if (user == null || user.IsDeleted || user.IsSuspended) return null;
+
+            var loadedUser = await _userRepository.GetUserByEmailAsync(user.Email);
             if (loadedUser == null) return null;
 
             var replacementToken = GenerateRefreshToken();
@@ -1048,7 +1054,8 @@ namespace brownstone_hub_api.Services.UserService
             {
                 UserId = storedToken.UserId,
                 TokenHash = replacementHash,
-                ExpiresAt = expiresAt
+                ExpiresAt = expiresAt,
+                IsPersistent = storedToken.IsPersistent,
             });
             await _dataContext.SaveChangesAsync();
             if (transaction != null) await transaction.CommitAsync();
@@ -1058,7 +1065,8 @@ namespace brownstone_hub_api.Services.UserService
             {
                 User = loadedUser,
                 RefreshToken = replacementToken,
-                RefreshTokenExpiresAt = expiresAt
+                RefreshTokenExpiresAt = expiresAt,
+                IsPersistent = storedToken.IsPersistent
             };
         }
 

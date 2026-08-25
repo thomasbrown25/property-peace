@@ -16,6 +16,8 @@ import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
 import useFetchPayments from 'hooks/useFetchPayments';
 import axiosServices from 'utils/axios';
+import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
+import RentPaymentAccessPanel from 'components/rent-payments/RentPaymentAccessPanel';
 
 // Enhanced components
 import RentCollectionSingleHeader from 'sections/landlord/rent-collection/RentCollectionSingleHeader';
@@ -27,6 +29,7 @@ export default function RentCollectionSingle() {
   const { leaseId } = useParams();
   const navigate = useNavigate();
   const modal = useModal();
+  const rentPaymentAccess = useRentPaymentAccess();
 
   // Fetch all rent records (no property filter) to find the specific lease
   const { summary, rentRecords, loading, refetch: refetchRentCollection } = useFetchRentCollection(null, true);
@@ -121,6 +124,7 @@ export default function RentCollectionSingle() {
     <Box>
       {/* Enhanced Header */}
       <RentCollectionSingleHeader rent={rent} />
+      <RentPaymentAccessPanel {...rentPaymentAccess} onRequest={rentPaymentAccess.requestAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={() => navigate('/landlord/settings?tab=payments')} compact />
 
       {/* Enhanced Metrics */}
       <RentCollectionSingleMetrics rent={rent} collectedLifetime={collectedLifetime} outstanding={outstanding} />

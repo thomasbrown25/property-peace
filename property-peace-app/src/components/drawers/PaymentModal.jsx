@@ -38,6 +38,7 @@ import { normalizeRentBalance } from 'utils/rentBalance';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
+import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import moment from 'moment';
 
 // Initialize Stripe
@@ -48,6 +49,12 @@ const getStripe = () => {
     stripePromise = loadStripe(''); // Will be set dynamically
   }
   return stripePromise;
+};
+
+const onlinePaymentErrorMessage = (error, fallback) => {
+  const status = error?.response?.status;
+  if (status === 403 || status === 409) return 'Online rent payments are not available right now. Please close this window and refresh.';
+  return error?.response?.data?.message || fallback;
 };
 
 // Helper function to format date as local string (YYYY-MM-DDTHH:mm:ss)
@@ -963,7 +970,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
       } catch (err) {
         if (requestId !== paymentIntentRequestRef.current) return;
         console.error('Error syncing payment intent amount:', err);
-        setError(err?.response?.data?.message || 'Failed to update payment amount. Please try again.');
+        setError(onlinePaymentErrorMessage(err, 'Failed to update payment amount. Please try again.'));
         setIntentAmount(0);
       }
     };
@@ -1037,13 +1044,12 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
 export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp, onSuccess: onSuccessProp, presentation = 'dialog' }) {
   const modal = useModal();
   const auth = useAuth();
-  const [publishableKey, setPublishableKey] = useState(null);
-  const [loadingKey, setLoadingKey] = useState(true);
-
-  // Check if user is a landlord
   const userRoles = Array.isArray(auth?.user?.Roles) ? auth?.user?.Roles : Array.isArray(auth?.user?.roles) ? auth?.user?.roles : [];
   const normalizedRoles = userRoles.map((r) => String(r).toLowerCase().trim());
   const isLandlord = normalizedRoles.includes('landlord');
+  const { canInvoke, isLoading: readinessLoading } = useRentPaymentActionReadiness('Pay', !isLandlord);
+  const [publishableKey, setPublishableKey] = useState(null);
+  const [loadingKey, setLoadingKey] = useState(true);
   const open = modal.openPayment;
   const useDrawerShell = presentation === 'drawer';
   const title = rent?.isDeposit
@@ -1081,10 +1087,9 @@ export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp
       }
     };
 
-    if (open) {
-      fetchPublishableKey();
-    }
-  }, [open, isLandlord]);
+    if (!open || !canInvoke) return;
+    fetchPublishableKey();
+  }, [open, isLandlord, canInvoke]);
 
   const handleClose = () => {
     if (onCloseProp) {
@@ -1093,6 +1098,13 @@ export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp
       modal.closePaymentModal();
     }
   };
+
+  useEffect(() => {
+    if (open && !isLandlord && !canInvoke && !readinessLoading) {
+      if (onCloseProp) onCloseProp();
+      else modal.closePaymentModal();
+    }
+  }, [open, isLandlord, canInvoke, readinessLoading, onCloseProp, modal]);
 
   const handleSuccess = () => {
     // Call onSuccess callback if provided (for refreshing data)
@@ -1113,7 +1125,9 @@ export default function PaymentModal({ rent, defaultAmount, onClose: onCloseProp
     }
   };
 
-  const content = loadingKey ? (
+  const content = !isLandlord && !readinessLoading && !canInvoke ? (
+    <Box sx={{ p: 3 }}><Alert severity="warning">Online rent payments are not available right now.</Alert></Box>
+  ) : loadingKey || (!isLandlord && readinessLoading) ? (
     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 240 }}>
       <CircularProgress />
     </Box>

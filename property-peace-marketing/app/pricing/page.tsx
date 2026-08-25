@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import PricingPlans from '@/components/Sections/PricingPlans';
 import FAQ from '@/components/Sections/FAQ';
-import CTA from '@/components/Sections/CTA';
 import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/pricing/', {
@@ -18,7 +17,6 @@ export default function PricingPage() {
       <main>
         <PricingPlans />
         <FAQ />
-        <CTA />
       </main>
     </div>
   );

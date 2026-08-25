@@ -30,6 +30,20 @@ const checks = [
 ];
 
 const required = [
+  ['components/Sections/PricingPlans.tsx', /Online rent payments \(approval required\)/i],
+  ['components/Sections/PricingPlans.tsx', /name: 'Free Plan for Small Portfolios'[\s\S]{0,600}Online rent payments \(approval required\)/i],
+  ['components/Sections/PricingPlans.tsx', /name: 'Premium'[\s\S]{0,900}one dedicated organization SMS number included with Premium/i],
+  ['app/privacy/page.tsx', /approved organizations[\s\S]{0,300}Stripe processes payment[\s\S]{0,300}provider identifiers, status, and ledger records[\s\S]{0,180}not raw bank\/card credentials/i],
+  ['lib/otto-seo.ts', /Online rent payments are included with Free[\s\S]{0,180}request access[\s\S]{0,180}secure payment setup/i],
+  ['components/Sections/FeaturesSection.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['components/Marketing/FeatureHeroMock.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/small-landlord-tools/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/rental-management-software/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/rent-collection-software-for-landlords/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/landlord-software/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/features/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/blog/[slug]/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
+  ['app/property-management-app/page.tsx', /Online rent payments are included with Free[\s\S]{0,180}request access/i],
   ['app/comparison/turbotenant/page.tsx', /checkedOn = 'August 11, 2026'/i],
   ['app/comparison/turbotenant/page.tsx', /dateModified: '2026-08-11'/i],
   ['app/comparison/turbotenant/page.tsx', /Free[^\r\n]{0,80}\$0[^\r\n]{0,80}5 total units/i],
@@ -54,10 +68,10 @@ const required = [
   ['app/listings/page.tsx', /does not currently syndicate/i],
   ['app/features/[slug]/page.tsx', /does not currently provide credit, criminal, eviction/i],
   ['components/Sections/PricingPlans.tsx', /Percy Pilot/i],
-  ['components/Marketing/FeatureHeroMock.tsx', /Online payment processing[\s\S]{0,80}not currently available/i],
+
   ['lib/otto-seo.ts', /limited Percy Pilot/i],
   ['components/Sections/Hero.tsx', /Percy-assisted tools, currently in limited pilot/i],
-  ['app/privacy/page.tsx', /<li><strong>Stripe<\/strong>[\s\S]{0,300}only if and when online rent processing is operationally enabled[\s\S]{0,150}currently unavailable[\s\S]{0,100}<\/li>/i],
+
   ['app/privacy/page.tsx', /<li><strong>DocuSign<\/strong>[\s\S]{0,300}only if and when integrated digital lease signing is operationally enabled[\s\S]{0,150}currently unavailable[\s\S]{0,100}<\/li>/i],
   ['components/Sections/PricingPlans.tsx', /name: 'Free Plan for Small Portfolios'[\s\S]{0,250}'Up to 5 units'/i],
   ['components/Sections/PricingPlans.tsx', /name: 'Premium'[\s\S]{0,120}monthlyPrice: 14\.99[\s\S]{0,120}annualTotal: 152\.90/i],
@@ -69,6 +83,25 @@ const required = [
   ['lib/blog-posts.ts', /Current records across supported property-management workflows/i],
 ];
 
+
+const claimSurfaceFiles = [
+  'components/Sections/PricingPlans.tsx',
+  'lib/otto-seo.ts',
+  'components/Sections/FeaturesSection.tsx',
+  'components/Marketing/FeatureHeroMock.tsx',
+  'app/small-landlord-tools/page.tsx',
+  'app/rental-management-software/page.tsx',
+  'app/rent-collection-software-for-landlords/page.tsx',
+  'app/landlord-software/page.tsx',
+  'app/features/page.tsx',
+  'app/blog/[slug]/page.tsx',
+  'app/property-management-app/page.tsx',
+];
+const forbiddenClaims = /autopay|instant payout|credit reporting|autonomous AI|guaranteed approval|bypass(?:ed|ing)? verification|online (?:payment|rent) processing[^.]{0,80}currently unavailable|online payments roadmap/i;
+for (const file of claimSurfaceFiles) {
+  const source = await readFile(new URL(`../${file}`, import.meta.url), 'utf8');
+  if (forbiddenClaims.test(source)) failures.push(`${file}: stale or unsupported rent-payment claim`);
+}
 const failures = [];
 
 async function sourceFiles(directory) {

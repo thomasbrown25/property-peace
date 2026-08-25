@@ -146,7 +146,7 @@ export default function SmallLandlordToolsPage() {
                 className="text-[#737373]"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
-                Professional tools help you present yourself as a serious landlord. Organized rent records, communication, and quick responses improve tenant relationships and attract better tenants. Online payment processing is not currently available.
+                Professional tools help you present yourself as a serious landlord. Organized rent records, communication, and quick responses improve tenant relationships and attract better tenants. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.
               </p>
             </div>
             <div>

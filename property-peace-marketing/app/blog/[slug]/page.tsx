@@ -105,7 +105,7 @@ function getPostCta(post: ReturnType<typeof getBlogPost>): BlogCta {
     return {
       eyebrow: 'Rent tracking tools',
       title: 'Keep rent records organized this month',
-      body: 'Record payment history, track overdue rent, and organize reminders. Online payment processing is not currently available.',
+      body: 'Record payment history, track overdue rent, and organize reminders. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
       href: '/features/rent-collection',
       label: 'See Rent Collection',
     };

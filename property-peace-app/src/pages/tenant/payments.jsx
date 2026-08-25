@@ -42,8 +42,7 @@ import moment from 'moment';
 import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
-import useFeatureReadiness from 'hooks/useFeatureReadiness';
-import { FEATURE_KEYS } from 'utils/featureReadiness';
+import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
 
@@ -208,7 +207,7 @@ export default function TenantPayments() {
   const theme = useTheme();
   const { user } = useAuth();
   const modal = useModal();
-  const { presentation: rentReadiness, canInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
+  const { presentation: rentReadiness, canInvoke } = useRentPaymentActionReadiness('Pay');
 
   const [leases, setLeases] = useState([]);
   const [selectedLeaseId, setSelectedLeaseId] = useState(null);
@@ -687,6 +686,7 @@ export default function TenantPayments() {
                                       variant="outlined"
                                       color="warning"
                                       onClick={openPaymentForSelectedLease}
+                                      disabled={!canInvoke}
                                       sx={{ textTransform: 'none' }}
                                     >
                                       Retry
@@ -784,7 +784,7 @@ export default function TenantPayments() {
                               </Stack>
 
                               {showRetry && (
-                                <Button fullWidth size="small" variant="outlined" color="warning" onClick={openPaymentForSelectedLease} sx={{ textTransform: 'none' }}>
+                                <Button fullWidth size="small" variant="outlined" color="warning" onClick={openPaymentForSelectedLease} disabled={!canInvoke} sx={{ textTransform: 'none' }}>
                                   Retry payment
                                 </Button>
                               )}

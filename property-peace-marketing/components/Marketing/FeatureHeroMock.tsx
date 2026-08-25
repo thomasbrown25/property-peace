@@ -613,7 +613,7 @@ const featureSteps: Record<string, MockStep[]> = {
         { label: 'Received via', value: 'Bank transfer', status: 'Outside app', tone: 'gray' },
         { label: 'Received date', value: 'May 1', status: 'Selected', tone: 'green' },
       ],
-      note: 'Online payment processing is not currently available in Property Peace.',
+      note: 'Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
     },
     {
       label: 'Save status',

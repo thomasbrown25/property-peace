@@ -6,7 +6,7 @@ import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/rental-management-software/', {
   title: "Rental Management Software for Independent Landlords | Property Peace",
-  description: "Rental management software for independent landlords. Organize tenants, rent records, maintenance, leases, expenses, and reports. Online payments are not currently available.",
+  description: "Rental management software for independent landlords. Organize tenants, rent records, maintenance, leases, expenses, and reports. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.",
   keywords: "rental management software, rental property management software, rental management system, property rental software, rental management tools",
   openGraph: {
     title: "Rental Management Software for Independent Landlords | Property Peace",
@@ -40,7 +40,7 @@ export default function RentalManagementSoftwarePage() {
       price: '0',
       priceCurrency: 'USD',
     },
-    description: 'Rental management software for landlords to manage tenants, record rent, track maintenance, organize lease documents, and generate financial reports. Online payment processing is not currently available.',
+    description: 'Rental management software for landlords to manage tenants, record rent, track maintenance, organize lease documents, and generate financial reports. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
     featureList: rentalFeatures,
   };
 
@@ -59,7 +59,7 @@ export default function RentalManagementSoftwarePage() {
             className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Keep tenant management, rent records, maintenance tracking, lease documents, and financial reporting in one platform. Online payment processing and integrated e-signature are not currently available.
+            Keep tenant management, rent records, maintenance tracking, lease documents, and financial reporting in one platform. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online. Integrated e-signature is not currently available.
           </p>
           <Link
             href="https://app.propertypeace.io/register"

@@ -39,6 +39,8 @@ jobs:
       - name: Build Next.js app
         working-directory: property-peace-marketing
         run: npm run build
+        env:
+          RENT_PAYMENTS_MARKETING_STATE: ${{ vars.RENT_PAYMENTS_MARKETING_STATE }}
 
       - name: Deploy to Azure Static Web Apps
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

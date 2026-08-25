@@ -22,6 +22,7 @@ const plans = [
       'Maintenance request tracking',
       'Lease management',
       'Basic rent & expense tracking',
+      'Online rent payments (approval required)',
       'Digital rental applications',
       'Document storage',
     ],

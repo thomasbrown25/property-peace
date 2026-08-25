@@ -11,7 +11,7 @@ public sealed class MfaOptions
 
 public sealed record MfaStatusDto(bool SmsEnabled, string? MaskedPhone, bool TotpEnabled);
 public sealed record SmsEnrollmentRequest(string PhoneNumber);
-public sealed record VerifyMfaRequest(Guid ChallengeId, string Code);
+public sealed record VerifyMfaRequest(Guid ChallengeId, string Code, bool? RememberMe = null);
 public sealed record MfaChallengeDto(Guid ChallengeId, MfaMethod Method, DateTime ExpiresAt, string? MaskedPhone, bool Success = true);
 public sealed record TotpEnrollmentDto(Guid ChallengeId, string Secret, string OtpAuthUri);
 public sealed record MfaEnrollmentResult(bool Success, bool Enabled, MfaError Error = MfaError.None);

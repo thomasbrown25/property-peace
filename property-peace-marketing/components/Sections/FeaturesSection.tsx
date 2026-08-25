@@ -18,7 +18,7 @@ export default function FeaturesSection() {
     {
       icon: FiCreditCard,
       title: 'Track Rent and Reminders',
-      description: 'Record payments, see overdue balances, calculate late fees, and manage reminders. Online payment processing is not currently available.',
+      description: 'Record payments, see overdue balances, calculate late fees, and manage reminders. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.',
       gradient: 'from-orange-50 to-orange-100',
       iconColor: 'text-orange-600',
       iconBg: 'bg-orange-100',

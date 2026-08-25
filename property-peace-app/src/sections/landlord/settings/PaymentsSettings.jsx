@@ -26,9 +26,8 @@ import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import { bankAccountAPI } from 'api';
 import useFetchProperties from 'hooks/useFetchProperties';
-import useFeatureReadiness from 'hooks/useFeatureReadiness';
-import { FEATURE_KEYS } from 'utils/featureReadiness';
-import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
+import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
+import RentPaymentAccessPanel from 'components/rent-payments/RentPaymentAccessPanel';
 import { Grid, Card, CardContent } from '@mui/material';
 
 function DemoStripePaymentsPreview() {
@@ -153,12 +152,13 @@ export default function PaymentsSettings() {
   const theme = useTheme();
   const { user } = useAuth();
   const { properties } = useFetchProperties();
+  const rentPaymentAccess = useRentPaymentAccess();
   const {
-    canInvoke: rentCanInvoke,
     presentation: rentPresentation,
-    isLoading: rentReadinessLoading,
+    loading: rentReadinessLoading,
     error: rentReadinessError
-  } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
+  } = rentPaymentAccess;
+  const rentCanInvoke = rentPresentation?.canConfigure === true;
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [accountStatus, setAccountStatus] = useState(null);
@@ -575,21 +575,18 @@ export default function PaymentsSettings() {
     }
   };
 
-  if (!rentCanInvoke) {
-    return (
-      <Box>
-        <FeatureReadinessNotice
-          title="Online rent collection"
-          presentation={rentPresentation}
-          isLoading={rentReadinessLoading}
-          error={rentReadinessError}
-        />
-      </Box>
-    );
-  }
-
   if (isDemo) {
     return <DemoStripePaymentsPreview />;
+  }
+
+  if (!rentCanInvoke) {
+    return (
+      <RentPaymentAccessPanel
+        {...rentPaymentAccess}
+        onRequest={rentPaymentAccess.requestAccess}
+        onRefresh={rentPaymentAccess.refresh}
+      />
+    );
   }
 
   if (checkingStatus) {
@@ -608,6 +605,7 @@ export default function PaymentsSettings() {
   return (
     <Box>
       <Stack spacing={3}>
+        <RentPaymentAccessPanel {...rentPaymentAccess} onRequest={rentPaymentAccess.requestAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={openEmbeddedOnboarding} />
         <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

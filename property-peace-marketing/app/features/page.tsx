@@ -61,13 +61,13 @@ const featureCategories = [
         slug: 'rent-collection',
         icon: FiDollarSign,
         title: 'Rent Collection',
-        description: 'Collect rent on time with automated reminders and clear rent rolls. See who’s paid, who’s overdue, and send gentle nudges without the awkward texts.'
+        description: 'Collect rent on time with automated reminders and clear rent rolls. See who’s paid, who’s overdue, and send gentle nudges without the awkward texts. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.'
       },
       {
         slug: 'payment-processing',
         icon: FiCreditCard,
-        title: 'Online Payments Roadmap',
-        description: 'Online payment processing is not currently available. Use rent records, overdue balances, late fees, and reminder workflows today.'
+        title: 'Online Rent Payments',
+        description: 'Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.'
       },
       {
         slug: 'financial-reports',

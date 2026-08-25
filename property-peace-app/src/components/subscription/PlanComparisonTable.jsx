@@ -82,8 +82,8 @@ export default function PlanComparisonTable({ plans = [], currentPlanId, current
     if (!hasFeature(plan, feature.check)) {
       return <Typography component="span" color="text.disabled" sx={{ fontSize: 18, lineHeight: 1 }}>—</Typography>;
     }
-    if (feature.check === 'online rent' && !rentReadiness.canInvoke) {
-      return <Chip label={rentReadiness.title} size="small" variant="outlined" color={rentReadiness.severity === 'error' ? 'error' : 'default'} />;
+    if (feature.check === 'online rent') {
+      return <Chip label="Included · Approval required" size="small" variant="outlined" color="success" />;
     }
     if (feature.check === 'external listing' && !syndicationReadiness.canInvoke) {
       return <Chip label={syndicationReadiness.title} size="small" variant="outlined" color={syndicationReadiness.severity === 'error' ? 'error' : 'default'} />;

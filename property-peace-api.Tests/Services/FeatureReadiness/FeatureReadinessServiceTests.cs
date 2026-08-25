@@ -90,7 +90,7 @@ public class FeatureReadinessServiceTests
     }
 
     [Fact]
-    public async Task OnlineRentCollection_RemainsGloballySuspendedWithoutLeaseScopedEntitlement()
+    public async Task OnlineRentCollection_Reports_actual_available_provider_state()
     {
         var service = CreateService(
             FeatureReadinessState.Available,
@@ -104,8 +104,53 @@ public class FeatureReadinessServiceTests
 
         var result = await service.GetAsync(42, 17, FeatureKeys.OnlineRentCollection);
 
-        result.State.Should().Be(FeatureReadinessState.Suspended);
-        result.GlobalGateEnabled.Should().BeFalse();
+        result.State.Should().Be(FeatureReadinessState.Available);
+        result.GlobalGateEnabled.Should().BeTrue();
+        result.OrganizationReady.Should().BeTrue();
+        result.ProviderConfigured.Should().BeTrue();
+        result.CanInvoke.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OnlineRentCollection_Pilot_does_not_require_legacy_organization_allowlist()
+    {
+        var service = CreateService(
+            FeatureReadinessState.Pilot,
+            organizationId: 17,
+            feature: FeatureKeys.OnlineRentCollection,
+            providerSettings: new Dictionary<string, string?>
+            {
+                ["Stripe:RentPaymentsEnabled"] = "true",
+                ["Stripe:SecretKey"] = "stripe-secret"
+            });
+
+        var result = await service.GetAsync(42, 17, FeatureKeys.OnlineRentCollection);
+
+        result.State.Should().Be(FeatureReadinessState.Pilot);
+        result.OrganizationReady.Should().BeTrue();
+        result.CanInvoke.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("false", "stripe-secret")]
+    [InlineData("true", null)]
+    public async Task OnlineRentCollection_Remains_unavailable_when_provider_flag_or_secret_is_missing(
+        string enabled,
+        string? secret)
+    {
+        var service = CreateService(
+            FeatureReadinessState.Available,
+            organizationId: 17,
+            feature: FeatureKeys.OnlineRentCollection,
+            providerSettings: new Dictionary<string, string?>
+            {
+                ["Stripe:RentPaymentsEnabled"] = enabled,
+                ["Stripe:SecretKey"] = secret
+            });
+
+        var result = await service.GetAsync(42, 17, FeatureKeys.OnlineRentCollection);
+
+        result.ProviderConfigured.Should().BeFalse();
         result.CanInvoke.Should().BeFalse();
     }
 

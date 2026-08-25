@@ -7878,6 +7878,107 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("RentEstimateCache", "rentcast");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.RentPaymentAccessAuditEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActorUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NextStatus")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PriorStatus")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("RentPaymentAccessRequestId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SafeMetadataJson")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "OccurredAtUtc");
+
+                    b.HasIndex("RentPaymentAccessRequestId", "OccurredAtUtc");
+
+                    b.ToTable("RentPaymentAccessAuditEvents", "financial");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.RentPaymentAccessRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DecisionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("InternalNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PublicId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("RequestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RequestedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReviewedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ReviewedByUserId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<DateTime>("StatusChangedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId")
+                        .IsUnique();
+
+                    b.HasIndex("PublicId")
+                        .IsUnique();
+
+                    b.ToTable("RentPaymentAccessRequests", "financial");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.RentalApplication", b =>
                 {
                     b.Property<long>("Id")
@@ -11974,6 +12075,9 @@ namespace brownstone_hub_api.Migrations
                     b.Property<DateTime>("ExpiresAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsPersistent")
+                        .HasColumnType("bit");
+
                     b.Property<string>("ReplacedByTokenHash")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
@@ -14353,6 +14457,17 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Unit");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.RentPaymentAccessAuditEvent", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.RentPaymentAccessRequest", "RentPaymentAccessRequest")
+                        .WithMany("AuditEvents")
+                        .HasForeignKey("RentPaymentAccessRequestId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RentPaymentAccessRequest");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.RentalApplication", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.Lease", "ConvertedToLease")
@@ -15572,6 +15687,11 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("MaintenanceRequests");
 
                     b.Navigation("Units");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.RentPaymentAccessRequest", b =>
+                {
+                    b.Navigation("AuditEvents");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Role", b =>

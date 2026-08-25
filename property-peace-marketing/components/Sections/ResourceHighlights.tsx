@@ -32,7 +32,7 @@ export default function ResourceHighlights() {
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
             <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-700">Landlord Resource Center</p>
-            <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <h2 className="text-3xl font-bold text-primary-deep md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Useful before you ever open the app
             </h2>
             <p className="mt-4 text-lg leading-8 text-[#637083]">Practical education for the actual work: documenting a turnover, understanding cash flow, and staying ahead of repairs.</p>
@@ -52,7 +52,7 @@ export default function ResourceHighlights() {
                   <span className="flex h-11 w-11 items-center justify-center bg-[#061e35] text-white transition group-hover:bg-green-600"><Icon className="h-5 w-5" /></span>
                   <span className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">{highlight.type}</span>
                 </div>
-                <h3 className="mt-6 text-xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>{highlight.title}</h3>
+                <h3 className="mt-6 text-xl font-bold text-primary-deep" style={{ fontFamily: '"Poppins", sans-serif' }}>{highlight.title}</h3>
                 <p className="mt-3 flex-1 leading-7 text-[#637083]">{highlight.description}</p>
                 <span className="mt-5 inline-flex items-center gap-2 border-t border-slate-100 pt-4 font-bold text-green-700">Open resource <FiArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
               </Link>
