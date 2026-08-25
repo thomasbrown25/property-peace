@@ -160,7 +160,6 @@ public sealed class RentPaymentActionReadinessServiceTests
     [Theory]
     [InlineData(RentPaymentAction.RequestAccess)]
     [InlineData(RentPaymentAction.Configure)]
-    [InlineData(RentPaymentAction.Pay)]
     [InlineData(RentPaymentAction.Transfer)]
     public async Task Missing_active_actor_blocks_all_actions(RentPaymentAction action)
     {
@@ -173,6 +172,135 @@ public sealed class RentPaymentActionReadinessServiceTests
             ActorUserId, OrganizationId, action, CancellationToken.None);
         result.Allowed.Should().BeFalse();
         result.Blockers.Should().Contain("actor_not_authorized");
+    }
+
+    [Fact]
+    public async Task Pay_allows_authenticated_tenant_without_organization_membership_to_reach_inner_validation()
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, null);
+        SeedAccess(db, RentPaymentAccessStatus.Approved);
+        SeedPayee(db, StripePayeeReviewStatus.PayoutApproved, true);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Pay, CancellationToken.None);
+
+        result.Allowed.Should().BeTrue(
+            "lease and tenant authorization remains the responsibility of the inner payment service");
+        result.Blockers.Should().NotContain("actor_not_authorized");
+    }
+
+    [Fact]
+    public async Task Newer_payee_review_scoped_to_another_organization_does_not_mask_target_payee()
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, "Viewer");
+        SeedAccess(db, RentPaymentAccessStatus.Approved);
+        SeedPayee(db, StripePayeeReviewStatus.PayoutApproved, true);
+        db.OrganizationMembers.Add(new OrganizationMember
+        {
+            OrganizationId = OrganizationId, UserId = 11, Role = "Owner", IsActive = true
+        });
+        db.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            UserId = 11,
+            StripeAccountId = "acct_other_org",
+            Status = StripePayeeReviewStatus.PayoutApproved,
+            ApprovedAt = Now.AddMinutes(1),
+            ApprovedOrganizationId = 999,
+            PropertyAuthorityAttested = true,
+            LastStripeSnapshotAt = Now,
+            StripeDetailsSubmitted = true,
+            StripePayoutsEnabled = true,
+            StripeTransfersActive = true,
+            StripeTransferCapabilityStatus = "active",
+            ExternalAccountFingerprint = "other-fingerprint",
+            PayoutSchedulePolicy = "manual",
+            InstantPayoutsAllowed = false,
+            CreatedAt = Now.AddMinutes(1),
+            UpdatedAt = Now.AddMinutes(1)
+        });
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Pay, CancellationToken.None);
+
+        result.Allowed.Should().BeTrue();
+        result.ConnectedPayeeApproved.Should().BeTrue();
+        result.ConnectedPayeeReady.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Operation_cancellation_from_dependency_is_rethrown()
+    {
+        await using var db = CreateContext();
+        var authority = new Mock<IOrganizationAuthorityResolver>();
+        authority.Setup(x => x.ResolveActiveMemberAsync(
+                ActorUserId, OrganizationId, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException(CancellationToken.None));
+
+        var act = () => CreateService(db, authority: authority.Object).EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Pay, CancellationToken.None);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+    }
+
+    [Fact]
+    public async Task Approval_service_veto_blocks_pay_when_local_snapshot_looks_ready()
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, "Viewer");
+        SeedAccess(db, RentPaymentAccessStatus.Approved);
+        SeedPayee(db, StripePayeeReviewStatus.PayoutApproved, true);
+        await db.SaveChangesAsync();
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.IsApprovedDestinationAsync(
+                PayeeUserId, OrganizationId, "acct_ready", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var result = await CreateService(db, payeeService: payeeService.Object).EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Pay, CancellationToken.None);
+
+        result.Allowed.Should().BeFalse();
+        result.ConnectedPayeeApproved.Should().BeFalse();
+        result.Blockers.Should().Contain("connected_payee_under_review");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("[REDACTED]")]
+    [InlineData("changeme")]
+    public async Task Missing_or_placeholder_provider_secret_blocks_configure(string? secret)
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, "Manager");
+        SeedAccess(db, RentPaymentAccessStatus.Approved);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db, secret: secret).EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Configure, CancellationToken.None);
+
+        result.Allowed.Should().BeFalse();
+        result.ProviderEnabled.Should().BeFalse();
+        result.Blockers.Should().Contain("provider_disabled");
+    }
+
+    [Fact]
+    public async Task Transfer_inherits_connected_payee_failure_when_transfer_flag_is_enabled()
+    {
+        await using var db = CreateContext();
+        SeedOrganization(db, "Viewer");
+        SeedAccess(db, RentPaymentAccessStatus.Approved);
+        SeedPayee(db, StripePayeeReviewStatus.UnderReview, false);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db, transfersEnabled: true).EvaluateAsync(
+            ActorUserId, OrganizationId, RentPaymentAction.Transfer, CancellationToken.None);
+
+        result.Allowed.Should().BeFalse();
+        result.Blockers.Should().Contain("connected_payee_under_review");
+        result.Blockers.Should().NotContain("transfers_disabled");
     }
 
     [Fact]
@@ -195,12 +323,13 @@ public sealed class RentPaymentActionReadinessServiceTests
         bool providerEnabled = true,
         bool transfersEnabled = true,
         IOrganizationAuthorityResolver? authority = null,
-        IStripeConnectedPayeeService? payeeService = null)
+        IStripeConnectedPayeeService? payeeService = null,
+        string? secret = "stripe-secret")
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Stripe:RentPaymentsEnabled"] = providerEnabled.ToString(),
-            ["Stripe:SecretKey"] = "stripe-secret",
+            ["Stripe:SecretKey"] = secret,
             ["Stripe:TransfersEnabled"] = transfersEnabled.ToString()
         }).Build();
         return new RentPaymentActionReadinessService(

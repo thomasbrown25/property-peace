@@ -41,6 +41,9 @@ public sealed class RentPaymentActionReadinessService(
                         where payeeMember.OrganizationId == organizationId
                             && payeeMember.IsActive
                             && (payeeMember.Role == "Owner" || payeeMember.Role == "Manager")
+                            && (review.ApprovedOrganizationId == organizationId ||
+                                (review.Status != StripePayeeReviewStatus.PayoutApproved &&
+                                 review.ApprovedOrganizationId == null))
                         orderby review.Status == StripePayeeReviewStatus.PayoutApproved descending,
                             review.UpdatedAt descending,
                             review.Id
@@ -84,7 +87,7 @@ public sealed class RentPaymentActionReadinessService(
                 transfersEnabled,
                 blockers);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
             throw;
         }
@@ -108,9 +111,16 @@ public sealed class RentPaymentActionReadinessService(
         bool transfersEnabled)
     {
         var blockers = new List<string>();
-        var actorAuthorized = action is RentPaymentAction.RequestAccess or RentPaymentAction.Configure
-            ? IsOwnerOrManager(member?.Role)
-            : IsKnownActiveRole(member?.Role);
+        var actorAuthorized = action switch
+        {
+            RentPaymentAction.RequestAccess or RentPaymentAction.Configure =>
+                IsOwnerOrManager(member?.Role),
+            // The outer Pay gate admits any authenticated actor. Lease and tenant authorization
+            // remains an inner-service defense with the payment's lease context available.
+            RentPaymentAction.Pay => true,
+            RentPaymentAction.Transfer => IsKnownActiveRole(member?.Role),
+            _ => false
+        };
         if (!actorAuthorized) blockers.Add("actor_not_authorized");
 
         if (action == RentPaymentAction.RequestAccess)
