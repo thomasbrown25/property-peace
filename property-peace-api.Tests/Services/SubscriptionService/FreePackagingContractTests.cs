@@ -63,6 +63,9 @@ public sealed class FreePackagingContractTests
         var premium = await context.SubscriptionPlans.SingleAsync(plan => plan.Name == "Premium");
         var features = JsonSerializer.Deserialize<string[]>(premium.Features!).Should().NotBeNull().And.Subject!;
         features.Should().NotContain(feature => feature.Contains("priority support", StringComparison.OrdinalIgnoreCase));
+        features.Should().NotContain("Online rent payments (approval required)");
+        features.Should().Contain(feature => feature.Contains("Percy", StringComparison.OrdinalIgnoreCase));
+        features.Should().Contain(feature => feature.Contains("SMS", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

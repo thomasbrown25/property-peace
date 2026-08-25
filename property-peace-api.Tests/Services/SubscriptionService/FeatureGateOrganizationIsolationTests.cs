@@ -1,3 +1,4 @@
+using brownstone_hub_api.Config;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.User;
 using brownstone_hub_api.Models;
@@ -92,6 +93,28 @@ public class FeatureGateOrganizationIsolationTests
         entitlement.MaxActiveExternalListings.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Free_organization_can_advertise_online_rent_entitlement_without_borrowing_owner_plan()
+    {
+        await using var context = CreateContext();
+        context.Organizations.Add(new Organization { Id = 17, OwnerId = 99, Name = "Managed org" });
+        await context.SaveChangesAsync();
+
+        var subscriptions = new Mock<ISubscriptionRepository>();
+        subscriptions
+            .Setup(repository => repository.GetSubscriptionByOrganizationIdAsync(17))
+            .ReturnsAsync(CreateSubscription("Free"));
+        subscriptions
+            .Setup(repository => repository.GetSubscriptionByOwnerUserIdAsync(42))
+            .ReturnsAsync(CreateSubscription("Premium Plan"));
+
+        var service = CreateService(context, subscriptions, userId: 42, organizationId: 17);
+
+        (await service.HasPlanFeatureAccessAsync(42, FeatureKeys.OnlineRentCollection)).Should().BeTrue();
+        (await service.HasFeatureAccessAsync(42, FeatureKeys.OnlineRentCollection)).Should().BeFalse(
+            "global provider readiness remains a separate gate");
+        subscriptions.Verify(repository => repository.GetSubscriptionByOwnerUserIdAsync(It.IsAny<long>()), Times.Never);
+    }
     private static DataContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<DataContext>()
