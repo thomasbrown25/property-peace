@@ -96,16 +96,20 @@ export function buildAccountActivity(entries, limit) {
 }
 
 export function buildUpcomingEntries(recurring, future) {
-  return list(recurring).map((item) => {
-    const type = item.type ?? item.sourceType;
+  const normalize = (item, type, actionDate) => {
     const id = item.id ?? item.sourceId;
     return {
       key: `${type}:${id}`, id, type, name: item.name || item.description || '',
       category: item.category || 'Uncategorized', propertyName: item.propertyName || 'Property not recorded',
-      unitName: item.unitName || 'Property level', amount: amountOf(item), actionDate: item.actionDate ?? item.dueDate ?? item.nextDate,
+      unitName: item.unitName || 'Property level', amount: amountOf(item), actionDate,
       frequency: item.frequency || '', isPaused: Boolean(item.isPaused), source: item
     };
-  }).sort((a, b) => {
+  };
+  const entries = [
+    ...list(recurring).map((item) => normalize(item, 'Recurring', item.nextOccurrenceDate)),
+    ...list(future).map((item) => normalize(item, 'One-time', item.dueDate))
+  ];
+  return entries.sort((a, b) => {
     const ad = dateValue(a.actionDate), bd = dateValue(b.actionDate);
     if (ad === null && bd === null) return 0;
     if (ad === null) return 1;
@@ -113,7 +117,6 @@ export function buildUpcomingEntries(recurring, future) {
     return ad - bd;
   });
 }
-
 export function sumCollectedThisMonth(payments, now = new Date(), propertyId) {
   const year = now.getUTCFullYear(), month = now.getUTCMonth();
   return list(payments).reduce((total, payment) => {

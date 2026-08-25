@@ -58,16 +58,17 @@ test('account activity groups signed totals and ranks by absolute total with alp
   ]);
 });
 
-test('upcoming entries normalize fields and sort invalid dates last', () => {
+test('upcoming entries merge recurring and future entries and sort invalid dates last', () => {
   const result = buildUpcomingEntries([
-    { id: 2, type: 'expense', name: 'Later', category: 'Rent', propertyName: 'P', unitName: '1', amount: '20', actionDate: '2026-09-02', frequency: 'monthly', isPaused: true },
-    { id: 1, type: 'payment', name: 'Soon', amount: 10, actionDate: '2026-09-01' },
-    { id: 3, name: 'Unknown', actionDate: 'bad' }
-  ]);
-  assert.deepEqual(result.map((x) => x.key), ['payment:1', 'expense:2', 'undefined:3']);
-  assert.equal(result[0].source.id, 1);
-  assert.equal(result[1].isPaused, true);
-  assert.equal(result[2].actionDate, 'bad');
+    { id: 2, name: 'Later', category: 'Rent', propertyName: 'P', unitName: '1', amount: '20', nextOccurrenceDate: '2026-09-02', frequency: 'monthly', isPaused: true },
+    { id: 1, name: 'Soon', amount: 10, nextOccurrenceDate: '2026-09-01' },
+    { id: 3, name: 'Unknown', nextOccurrenceDate: 'bad' }
+  ], [ { id: 4, name: 'One time', amount: 30, dueDate: '2026-09-01' } ]);
+  assert.deepEqual(result.map((x) => x.key), ['Recurring:1', 'One-time:4', 'Recurring:2', 'Recurring:3']);
+  assert.equal(result[1].type, 'One-time');
+  assert.equal(result[1].source.id, 4);
+  assert.equal(result[2].isPaused, true);
+  assert.equal(result[3].actionDate, 'bad');
 });
 
 test('collected this month accepts status and casing aliases and scope', () => {
@@ -77,6 +78,7 @@ test('collected this month accepts status and casing aliases and scope', () => {
     { amount: 20, status: 'succeeded', paidAt: '2026-08-06', propertyId: 13 },
     { amount: 30, status: 'paid', paidAt: '2026-07-06', propertyId: 12 },
     { amount: 40, status: 'failed', paidAt: '2026-08-07', propertyId: 12 },
+    { amount: 50, status: 'processing', paidAt: '2026-08-08', propertyId: 12 },
     { amount: 'nope', status: 'paid', paidAt: '2026-08-08', propertyId: 12 }
   ];
   assert.equal(sumCollectedThisMonth(payments, now, 12), 100);
