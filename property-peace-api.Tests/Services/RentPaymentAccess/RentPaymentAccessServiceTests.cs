@@ -381,12 +381,17 @@ public sealed class RentPaymentAccessServiceTests
         await using var db = CreateContext();
         db.Organizations.Add(new Organization { Id = 701, Name = "Pine Property Group" });
         db.Users.Add(new User { Id = 41, FirstName = "Avery", LastName = "Landlord" });
+        db.OrganizationMembers.Add(new OrganizationMember
+        {
+            OrganizationId = 701, UserId = 41, Role = "Owner", IsActive = true
+        });
         var request = AddRequest(db, RentPaymentAccessStatus.Approved, organizationId: 701);
         db.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
         {
             UserId = 41,
-            StripeAccountId = "acct_reviewed",
-            ApprovedOrganizationId = 701
+            StripeAccountId = "acct_under_review",
+            Status = StripePayeeReviewStatus.UnderReview,
+            ApprovedOrganizationId = null
         });
         await db.SaveChangesAsync();
 

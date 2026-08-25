@@ -300,8 +300,18 @@ public sealed class RentPaymentAccessService(
                 .ToListAsync(cancellationToken);
         }
 
-        var connectedPayeeExists = await db.StripeConnectedPayeeReviews.AsNoTracking()
-            .AnyAsync(candidate => candidate.ApprovedOrganizationId == request.OrganizationId, cancellationToken);
+        var connectedPayeeExists = await (
+                from review in db.StripeConnectedPayeeReviews.AsNoTracking()
+                join member in db.OrganizationMembers.AsNoTracking()
+                    on review.UserId equals member.UserId
+                where member.OrganizationId == request.OrganizationId
+                    && member.IsActive
+                    && (member.Role == "Owner" || member.Role == "Manager")
+                    && (review.ApprovedOrganizationId == request.OrganizationId ||
+                        (review.Status != StripePayeeReviewStatus.PayoutApproved &&
+                         review.ApprovedOrganizationId == null))
+                select review)
+            .AnyAsync(cancellationToken);
 
         return new RentPaymentAccessAdminDetailDto(
             request.PublicId,
