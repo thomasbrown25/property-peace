@@ -20,6 +20,7 @@ const SOURCE_FILE_PATTERN = /\.(?:[cm]?[jt]sx?)$/i;
 const TEST_OR_FIXTURE_PATH_PATTERN = /(?:^|[\\/])(?:__tests__|__fixtures__|tests?|fixtures?)(?:[\\/]|$)/i;
 const TEST_FILE_PATTERN = /\.(?:test|spec)\.[cm]?[jt]sx?$/i;
 const retiredMoneyCenterPath = path.join(srcRoot, 'components/money-center/MoneyCenter');
+const RETIRED_MONEY_CENTER_REFERENCE_PATTERN = /(?:^|\/)money-center\/MoneyCenter(?:\.[cm]?[jt]sx?)?$/;
 const withoutModuleExtension = (value) => value.replace(/\.[cm]?[jt]sx?$/i, '');
 const isProductionSourceFile = (filePath) => (
   SOURCE_FILE_PATTERN.test(filePath)
@@ -30,7 +31,7 @@ const referencesRetiredMoneyCenter = (filePath, fileSource) => {
   const references = fileSource.matchAll(/['"`]([^'"`\r\n]+)['"`]/g);
   for (const [, reference] of references) {
     const normalizedReference = reference.replaceAll('\\', '/');
-    if (normalizedReference.includes('money-center/MoneyCenter')) return true;
+    if (RETIRED_MONEY_CENTER_REFERENCE_PATTERN.test(normalizedReference)) return true;
     if (normalizedReference.startsWith('.')) {
       const resolvedReference = withoutModuleExtension(path.resolve(path.dirname(filePath), reference));
       if (resolvedReference === retiredMoneyCenterPath) return true;
@@ -104,13 +105,24 @@ test('retired MoneyCenter reference detection covers aliases and relative paths 
   for (const [filePath, fileSource] of importCases) {
     assert.equal(referencesRetiredMoneyCenter(filePath, fileSource), true, fileSource);
   }
-  assert.equal(
-    referencesRetiredMoneyCenter(
+  const adjacentModuleCases = [
+    [
       path.join(srcRoot, 'components/money-center/Summary.jsx'),
       "import MoneyCenterSummary from './MoneyCenterSummary';"
-    ),
-    false
-  );
+    ],
+    [
+      path.join(srcRoot, 'pages/example.jsx'),
+      "import MoneyCenterSummary from 'components/money-center/MoneyCenterSummary';"
+    ],
+    [
+      path.join(srcRoot, 'pages/example.jsx'),
+      "import MoneyCenterCard from 'components/money-center/MoneyCenterCard.jsx';"
+    ]
+  ];
+
+  for (const [filePath, fileSource] of adjacentModuleCases) {
+    assert.equal(referencesRetiredMoneyCenter(filePath, fileSource), false, fileSource);
+  }
   assert.equal(isProductionSourceFile(path.join(srcRoot, 'pages/example.test.mjs')), false);
   assert.equal(isProductionSourceFile(path.join(srcRoot, '__fixtures__/money-center.jsx')), false);
   assert.equal(isProductionSourceFile(path.join(srcRoot, 'pages/example.jsx')), true);
