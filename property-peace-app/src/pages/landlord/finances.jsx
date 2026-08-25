@@ -1,0 +1,190 @@
+import { useMemo } from 'react';
+import { PlusOutlined } from '@ant-design/icons';
+import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material';
+import { Link as RouterLink, useSearchParams } from 'react-router-dom';
+
+import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import PropertySelect from 'components/PropertySelect';
+import { useDrawer } from 'contexts/DrawerContext';
+import useFetchProperties from 'hooks/useFetchProperties';
+import useFinancesMoneyData from 'hooks/useFinancesMoneyData';
+import useFinancesPayments from 'hooks/useFinancesPayments';
+import AccountActivityCard from 'sections/landlord/finances/AccountActivityCard';
+import CalculationDisclosure from 'sections/landlord/finances/CalculationDisclosure';
+import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
+import FinancesMetrics from 'sections/landlord/finances/FinancesMetrics';
+import { buildFinancesMoneyQuery, normalizeFinancesTab, sumCollectedThisMonth, updateFinancesSearch } from 'utils/finances';
+
+const FINANCES_TAB_LABELS = [
+  ['review', 'Needs review'],
+  ['activity', 'Activity'],
+  ['expenses', 'Expenses'],
+  ['payments', 'Payments'],
+  ['upcoming', 'Upcoming']
+];
+
+const PERIOD_OPTIONS = [
+  ['this-month', 'This month'],
+  ['last-month', 'Last month'],
+  ['ytd', 'This year'],
+  ['last-year', 'Last year'],
+  ['custom', 'Custom dates']
+];
+
+const PERIOD_VALUES = new Set(PERIOD_OPTIONS.map(([value]) => value));
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ALL_PROPERTIES_SCOPE = Object.freeze({});
+
+export default function FinancesPage() {
+  const theme = useTheme();
+  const drawer = useDrawer();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { properties } = useFetchProperties();
+  const activeTab = normalizeFinancesTab(searchParams.get('tab'));
+  const requestedPeriod = searchParams.get('period');
+  const period = PERIOD_VALUES.has(requestedPeriod) ? requestedPeriod : 'ytd';
+  const scopedQuery = useMemo(() => buildFinancesMoneyQuery(searchParams), [searchParams]);
+  const propertyId = scopedQuery.propertyId;
+  const selectedProperty = properties?.find((property) => Number(property.id) === Number(propertyId)) || null;
+  const moneyData = useFinancesMoneyData(searchParams, drawer.financeMutationVersion);
+  const paymentsData = useFinancesPayments(propertyId, drawer.financeMutationVersion);
+  const collectedThisMonth = useMemo(
+    () => sumCollectedThisMonth(paymentsData.payments, new Date(), propertyId),
+    [paymentsData.payments, propertyId]
+  );
+  const customFrom = searchParams.get('from') || '';
+  const customTo = searchParams.get('to') || '';
+  const customRangeValid = ISO_DATE.test(customFrom) && ISO_DATE.test(customTo) && customFrom <= customTo;
+
+  const updateSearch = (changes) => setSearchParams(updateFinancesSearch(searchParams, changes), { replace: true });
+  const setTab = (tab) => updateSearch({ tab });
+  const setPeriod = (nextPeriod) => updateSearch({
+    period: nextPeriod,
+    ...(nextPeriod === 'custom' ? {} : { from: undefined, to: undefined })
+  });
+
+  const handleMetricNavigation = (metric) => {
+    if (metric === 'income') updateSearch({ tab: 'payments' });
+    if (metric === 'expenses') updateSearch({ tab: 'expenses' });
+    if (metric === 'net-cash-flow') updateSearch({ tab: 'activity' });
+    if (metric === 'collected-this-month') updateSearch({ tab: 'payments', period: 'this-month', from: undefined, to: undefined });
+  };
+
+  const handleAccountNavigation = (account) => updateSearch({ tab: 'activity', account });
+  const activityExportDisabled = moneyData.loading || Boolean(moneyData.itemsError);
+  const activeExport = activeTab === 'activity'
+    ? {
+        label: 'Export activity',
+        onExport: moneyData.exportActivity,
+        busy: moneyData.exporting,
+        disabled: activityExportDisabled,
+        disabledReason: moneyData.loading ? 'Activity is still loading.' : moneyData.itemsError ? 'Activity records are unavailable.' : ''
+      }
+    : {
+        label: 'Export',
+        disabled: true,
+        disabledReason: `Export is unavailable for the ${FINANCES_TAB_LABELS.find(([value]) => value === activeTab)?.[1] || 'selected'} view.`
+      };
+
+  return (
+    <Box sx={{ pb: 4 }}>
+      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Finances' }]} />
+      <FinancesHeader
+        activeTab={activeTab}
+        onAddExpense={() => drawer.openExpenseAddDrawer()}
+        onRecordPayment={() => drawer.openPaymentAddDrawer()}
+        exportState={activeExport}
+      />
+
+      <Box sx={{ p: 2, mb: 2.5, bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 2.5 }}>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
+          <Box sx={{ minWidth: { xs: '100%', md: 260 } }}>
+            <PropertySelect
+              width="100%"
+              label="Property"
+              localSelectedProperty={selectedProperty || ALL_PROPERTIES_SCOPE}
+              requestedPropertyId={propertyId}
+              onPropertyChange={(property) => updateSearch({ propertyId: property?.id, unitId: undefined })}
+            />
+          </Box>
+          <FormControl size="small" sx={{ minWidth: 170 }}>
+            <InputLabel id="finances-period-label">Period</InputLabel>
+            <Select labelId="finances-period-label" label="Period" value={period} onChange={(event) => setPeriod(event.target.value)}>
+              {PERIOD_OPTIONS.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
+            </Select>
+          </FormControl>
+          {period === 'custom' && (
+            <>
+              <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={customFrom} onChange={(event) => updateSearch({ period: 'custom', from: event.target.value })} />
+              <TextField size="small" type="date" label="Through" InputLabelProps={{ shrink: true }} value={customTo} onChange={(event) => updateSearch({ period: 'custom', to: event.target.value })} />
+            </>
+          )}
+        </Stack>
+      </Box>
+
+      {period === 'custom' && !customRangeValid && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Enter a valid From and Through date. Until then, recorded activity for the current month through now is shown.
+        </Alert>
+      )}
+
+      <FinancesMetrics
+        overview={moneyData.overview}
+        collectedThisMonth={collectedThisMonth}
+        collectedThisMonthAvailable={paymentsData.available}
+        onSelectMetric={handleMetricNavigation}
+      />
+
+      <CalculationDisclosure
+        overview={moneyData.overview}
+        itemsResponse={moneyData.itemsResponse}
+        loading={moneyData.loading}
+        overviewError={moneyData.overviewError}
+        itemsError={moneyData.itemsError}
+        paymentsError={paymentsData.error}
+        exportError={moneyData.exportError}
+        onRetry={moneyData.retry}
+        onRetryPayments={paymentsData.retry}
+      />
+
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, xl: 9 }}>
+          <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, overflow: 'hidden', minHeight: 300 }}>
+            <Box sx={{ px: { xs: 1, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+              <Tabs value={activeTab} onChange={(_, tab) => setTab(tab)} variant="scrollable" scrollButtons="auto" aria-label="Finances views">
+                {FINANCES_TAB_LABELS.map(([value, label]) => <Tab key={value} value={value} label={label} id={`finances-${value}-tab`} aria-controls={`finances-${value}-panel`} />)}
+              </Tabs>
+            </Box>
+            <Box
+              role="tabpanel"
+              id={`finances-${activeTab}-panel`}
+              aria-labelledby={`finances-${activeTab}-tab`}
+              sx={{ minHeight: 240 }}
+            />
+          </Box>
+        </Grid>
+
+        <Grid size={{ xs: 12, xl: 3 }}>
+          <Stack spacing={2}>
+            <AccountActivityCard
+              accounts={moneyData.accountActivity}
+              available={!moneyData.loading && !moneyData.itemsError}
+              loading={moneyData.loading}
+              onSelectAccount={handleAccountNavigation}
+            />
+
+            <Box sx={{ p: 2, bgcolor: alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.1 : 0.045), border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`, borderRadius: 3 }}>
+              <Typography fontWeight={750}>Keep records tax-ready</Typography>
+              <Typography sx={{ mt: 0.6, fontSize: '0.78rem', color: 'text.secondary', lineHeight: 1.55 }}>
+                Attach receipts while the details are fresh, and mark deductible expenses so reports need less cleanup later.
+              </Typography>
+              <Button component={RouterLink} to="/landlord/accounting/tax-center" size="small" startIcon={<PlusOutlined />} sx={{ mt: 1.2, px: 0, textTransform: 'none' }}>
+                Open Tax Center
+              </Button>
+            </Box>
+          </Stack>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+}
