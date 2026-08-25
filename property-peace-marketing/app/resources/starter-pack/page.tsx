@@ -88,34 +88,33 @@ export default function LandlordStarterPackPage() {
     <main className="min-h-screen bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
 
-      <section className="relative overflow-hidden bg-[#061e35] px-4 pb-16 pt-32 text-white sm:px-6 md:pb-20 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-        <div className="pointer-events-none absolute -right-20 top-16 h-96 w-96 rounded-full bg-emerald-400/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl" />
+      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+        <div className="pointer-events-none absolute -right-20 top-16 h-96 w-96 rounded-full bg-[#16A34A]/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl">
-          <Link href="/resources" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-emerald-200 transition hover:text-white">
+          <Link href="/resources" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-[#15803D] transition hover:text-[#061E35]">
             <FiArrowLeft className="h-4 w-4" /> Back to the Resource Center
           </Link>
           <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">
+              <div className="mb-5 inline-flex items-center gap-2 border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">
                 <FiFileText className="h-4 w-4" /> Five real downloads
               </div>
-              <h1 className="max-w-4xl text-4xl font-bold leading-tight sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h1 className="max-w-4xl text-4xl font-bold leading-tight text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 A landlord starter pack you can actually use.
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-white/70 md:text-xl">
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-[#405A70] md:text-xl">
                 Print the checklists. Edit the cash-flow workbook. Keep clean records from the first prospect conversation through move-out and the next turnover.
               </p>
             </div>
-            <div className="border border-white/15 bg-white/[0.07] p-6 shadow-[0_28px_80px_rgba(0,0,0,0.22)] backdrop-blur-sm md:p-8">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Download the complete pack</p>
-              <p className="mt-3 text-sm leading-6 text-white/65">One ZIP containing four printable PDFs, one editable spreadsheet, and a short README.</p>
-              <a href={`${base}/property-peace-landlord-starter-pack.zip`} download className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 bg-green-700 px-6 py-3.5 font-bold text-white transition hover:bg-green-600">
+            <div className="border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)] md:p-8">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Download the complete pack</p>
+              <p className="mt-3 text-sm leading-6 text-[#405A70]">One ZIP containing four printable PDFs, one editable spreadsheet, and a short README.</p>
+              <a href={`${base}/property-peace-landlord-starter-pack.zip`} download className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 px-6 py-3.5 font-bold text-white transition hover:brightness-95" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
                 <FiDownload className="h-5 w-5" /> Download all five resources
               </a>
-              <p className="mt-3 text-center text-xs text-white/50">ZIP file • no email required</p>
+              <p className="mt-3 text-center text-xs text-[#637083]">ZIP file • no email required</p>
             </div>
           </div>
         </div>

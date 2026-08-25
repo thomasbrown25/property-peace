@@ -3,7 +3,7 @@ import type { ComponentProps } from "react";
 import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import Navigation from "@/components/Layout/Navigation";
-import Footer from "@/components/Layout/Footer";
+import Footer from "@/components/Layout/SiteFooter";
 import StickyCTA from "@/components/Layout/StickyCTA";
 import CookieConsent from "@/components/Layout/CookieConsent";
 import MarketingAnalytics from "@/components/Analytics/MarketingAnalytics";

@@ -20,6 +20,7 @@ import { EyeInvisibleOutlined, EyeOutlined } from '@ant-design/icons';
 import * as Yup from 'yup';
 import { Formik } from 'formik';
 import axiosServices from 'utils/axios';
+import TurnstileCheckbox from 'components/auth/TurnstileCheckbox';
 import useAuth from 'hooks/useAuth';
 import { passwordRequirementStatuses, validatePassword } from 'utils/password-validation';
 
@@ -146,7 +147,11 @@ export default function EmailEntryForm({
   const [showPassword, setShowPassword] = useState(false);
   const [googleError, setGoogleError] = useState(null);
   const [popupLoading, setPopupLoading] = useState(false);
+  const [botChallengeToken, setBotChallengeToken] = useState(null);
+  const [botChallengeResetKey, setBotChallengeResetKey] = useState(0);
   const oauthEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() || '';
+  const turnstileRequired = Boolean(turnstileSiteKey) && !emailAlreadyVerified;
 
   useEffect(() => {
     if (!oauthEnabled) return undefined;
@@ -187,6 +192,11 @@ export default function EmailEntryForm({
       })}
       onSubmit={async (values, { setErrors, setSubmitting }) => {
         const email = values.email.trim().toLowerCase();
+        if (turnstileRequired && !botChallengeToken) {
+          setErrors({ submit: 'Please check the box to verify you are human.' });
+          setSubmitting(false);
+          return;
+        }
         try {
           sessionStorage.setItem('registerUserType', userType);
           // Explicitly switch away from any earlier Google attempt before continuing with credentials.
@@ -202,12 +212,19 @@ export default function EmailEntryForm({
             navigate(`${isDemo ? '/auth/login' : '/login'}?error=email-exists&email=${encodeURIComponent(email)}`, { replace: true });
             return;
           }
-          const response = await axiosServices.post('/api/user/send-verification-code', { email });
+          const response = await axiosServices.post('/api/user/send-verification-code', {
+            email,
+            botChallengeToken: turnstileRequired ? botChallengeToken : null
+          });
           if (!response.data?.success) throw new Error(response.data?.message || 'We could not send a verification code.');
           sessionStorage.setItem('registerEmail', email);
           sessionStorage.removeItem('emailVerified');
           onNext ? onNext(email, values.password, false) : navigate('/register/email-verifier');
         } catch (error) {
+          if (turnstileRequired) {
+            setBotChallengeToken(null);
+            setBotChallengeResetKey((current) => current + 1);
+          }
           setErrors({
             submit: error.response?.data?.message || error.message || 'We could not send the code. Check your connection and try again.'
           });
@@ -330,6 +347,19 @@ export default function EmailEntryForm({
                   </Box>
                 )}
               </Box>
+              {turnstileRequired && (
+                <Box>
+                  <Typography variant="body2" fontWeight={600} sx={{ mb: 1, textAlign: 'center' }}>
+                    Security check
+                  </Typography>
+                  <TurnstileCheckbox
+                    siteKey={turnstileSiteKey}
+                    resetKey={botChallengeResetKey}
+                    onToken={setBotChallengeToken}
+                    onError={() => setBotChallengeToken(null)}
+                  />
+                </Box>
+              )}
               {(errors.submit || googleError) && (
                 <FormHelperText error role="alert">
                   {errors.submit || googleError} You can retry or use the other sign-up method.
@@ -341,7 +371,7 @@ export default function EmailEntryForm({
                   size="large"
                   type="submit"
                   variant="contained"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (turnstileRequired && !botChallengeToken)}
                   sx={{ py: 1.4, textTransform: 'none', fontWeight: 700 }}
                 >
                   {isSubmitting ? 'Please wait…' : emailAlreadyVerified ? 'Continue securely' : 'Send verification code'}

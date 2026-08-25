@@ -183,23 +183,23 @@ export default function LeaseShieldPage() {
     <div className="min-h-screen bg-white">
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-white px-4 pb-20 pt-28 sm:px-6 lg:px-8">
+      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-white px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:px-8">
         <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-50/80 via-white to-white" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-green-500/20 bg-green-50 px-4 py-1.5 shadow-sm">
-              <FiShield className="h-3.5 w-3.5 text-green-600" />
-              <span className="text-sm font-semibold text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>Premium Feature</span>
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-4 py-1.5 shadow-sm">
+              <FiShield className="h-3.5 w-3.5 text-[#16A34A]" />
+              <span className="text-sm font-semibold text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>Premium Feature</span>
             </div>
             <h1
-              className="mb-6 text-4xl font-bold leading-tight text-primary-main md:text-5xl lg:text-6xl"
+              className="mb-6 text-4xl font-bold leading-tight text-[#061E35] md:text-5xl lg:text-6xl"
               style={{ fontFamily: '"Poppins", sans-serif' }}
             >
               Know your rights.<br />
-              <span className="text-green-600">Know the law.</span>
+              <span className="text-[#16A34A]">Know the law.</span>
             </h1>
             <p
-              className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-[#737373] md:text-xl lg:mx-0"
+              className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-[#405A70] md:text-xl lg:mx-0"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               LeaseShield is a Percy Pilot legal assistant that answers your landlord-tenant questions using only official government statutes — so you always have a defensible, sourced answer.
@@ -215,16 +215,16 @@ export default function LeaseShieldPage() {
               </Link>
               <Link
                 href="/pricing"
-                className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#E5E5E5] bg-white px-4 py-3 text-sm font-semibold text-primary-main shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-green-300 hover:text-green-600 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base"
+                className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none border border-[#DCE6ED] bg-white px-4 py-3 text-sm font-semibold text-[#061E35] shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-[#16A34A] hover:text-[#16A34A] sm:min-h-[56px] rounded-none sm:px-8 sm:text-base"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 View pricing
               </Link>
             </div>
-            <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-primary-main sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <div className="mt-5 grid grid-cols-2 gap-2 text-[13px] font-semibold text-[#405A70] sm:flex sm:flex-wrap lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
               {BENEFITS.slice(0, 4).map((item) => (
-                <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#E5E5E5] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
-                  <FiCheck className="h-4 w-4 flex-shrink-0 text-green-600" />{item}
+                <span key={item} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-2xl border border-[#DCE6ED] bg-white px-3 py-2 leading-snug shadow-sm sm:min-h-0 sm:rounded-full sm:py-1">
+                  <FiCheck className="h-4 w-4 flex-shrink-0 text-[#16A34A]" />{item}
                 </span>
               ))}
             </div>

@@ -5,14 +5,14 @@ import { motion } from 'framer-motion';
 
 export default function Hero() {
   return (
-    <section className="relative overflow-hidden bg-[#061E35] lg:min-h-[780px]">
+    <section data-marketing-hero="home-image" className="relative overflow-hidden bg-[#061E35] lg:min-h-[780px]">
       <div
         className="absolute inset-0 bg-cover bg-[position:72%_center] bg-no-repeat sm:bg-[position:68%_center] lg:bg-[position:62%_center]"
         style={{ backgroundImage: 'url(/images/landing/hero-smart-home-entry.jpg)' }}
         aria-hidden="true"
       />
       <div
-        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,30,53,0.97)_0%,rgba(6,30,53,0.92)_42%,rgba(6,30,53,0.62)_72%,rgba(6,30,53,0.16)_100%)] sm:bg-[linear-gradient(90deg,rgba(6,30,53,0.97)_0%,rgba(6,30,53,0.91)_40%,rgba(6,30,53,0.48)_68%,rgba(6,30,53,0.08)_100%)] lg:bg-[linear-gradient(90deg,rgba(6,30,53,0.98)_0%,rgba(6,30,53,0.94)_34%,rgba(6,30,53,0.58)_55%,rgba(6,30,53,0.16)_75%,rgba(6,30,53,0.02)_100%)]"
+        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,30,53,0.97)_0%,rgba(6,30,53,0.91)_44%,rgba(6,30,53,0.54)_72%,rgba(6,30,53,0.16)_100%)] sm:bg-[linear-gradient(90deg,rgba(6,30,53,0.95)_0%,rgba(6,30,53,0.88)_40%,rgba(6,30,53,0.44)_68%,rgba(6,30,53,0.08)_100%)] lg:bg-[linear-gradient(90deg,rgba(6,30,53,0.94)_0%,rgba(6,30,53,0.86)_36%,rgba(6,30,53,0.48)_60%,rgba(6,30,53,0.10)_80%,rgba(6,30,53,0.02)_100%)]"
         aria-hidden="true"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-[#061E35]/15 via-transparent to-[#061E35]/30" aria-hidden="true" />
@@ -20,7 +20,7 @@ export default function Hero() {
         <div className="flex flex-col lg:min-h-[780px]">
 
           {/* Left Side - Content */}
-          <div className="flex items-start pb-14 pt-[7rem] sm:pt-28 lg:min-h-[780px] lg:w-[52%] lg:items-center lg:py-20 xl:py-28 self-stretch">
+          <div className="flex items-start pb-14 pt-[7rem] sm:pt-28 lg:min-h-[780px] lg:w-[52%] lg:items-center lg:pt-[88px] xl:pb-28 self-stretch">
           <motion.div
             className="w-full text-center lg:text-left"
             initial={false}

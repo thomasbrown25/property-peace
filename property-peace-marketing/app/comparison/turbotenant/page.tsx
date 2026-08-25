@@ -152,22 +152,21 @@ export default function TurboTenantComparisonPage() {
     <main className="min-h-screen bg-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
 
-      <section className="relative overflow-hidden bg-[#061e35] px-4 pb-16 pt-32 text-white sm:px-6 md:pb-20 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-        <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-blue-400/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-emerald-400/15 blur-3xl" />
+      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+        <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-[#16A34A]/10 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
-          <Link href="/" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-emerald-200 transition hover:text-white"><FiArrowLeft className="h-4 w-4" /> Back to Property Peace</Link>
+          <Link href="/" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-[#15803D] transition hover:text-[#061E35]"><FiArrowLeft className="h-4 w-4" /> Back to Property Peace</Link>
           <div className="grid gap-10 lg:grid-cols-[1.12fr_0.88fr] lg:items-end">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-emerald-200"><FiInfo className="h-4 w-4" /> Information checked {checkedOn}</div>
-              <h1 className="max-w-4xl text-4xl font-bold leading-tight sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Property Peace vs. TurboTenant—without hiding who pays.</h1>
-              <p className="mt-6 max-w-3xl text-lg leading-8 text-white/70 md:text-xl">Both products offer a free landlord starting point. The meaningful differences are billing cadence, portfolio pricing, renter and applicant costs, property-first organization, and which workflows are actually available today.</p>
+              <div className="mb-5 inline-flex items-center gap-2 border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]"><FiInfo className="h-4 w-4" /> Information checked {checkedOn}</div>
+              <h1 className="max-w-4xl text-4xl font-bold leading-tight text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Property Peace vs. TurboTenant—without hiding who pays.</h1>
+              <p className="mt-6 max-w-3xl text-lg leading-8 text-[#405A70] md:text-xl">Both products offer a free landlord starting point. The meaningful differences are billing cadence, portfolio pricing, renter and applicant costs, property-first organization, and which workflows are actually available today.</p>
             </div>
-            <div className="border border-white/15 bg-white/[0.07] p-6 backdrop-blur-sm md:p-8">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-200">Our comparison standard</p>
-              <ul className="mt-5 space-y-4 text-sm leading-6 text-white/75">
-                {['Landlord, applicant, and tenant costs shown separately', 'Annual billing shown as annual billing', 'Unavailable and provider-dependent features labeled plainly', 'Official source links and a visible checked date'].map((item) => <li key={item} className="flex gap-3"><FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-emerald-300" />{item}</li>)}
+            <div className="border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)] md:p-8">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Our comparison standard</p>
+              <ul className="mt-5 space-y-4 text-sm leading-6 text-[#405A70]">
+                {['Landlord, applicant, and tenant costs shown separately', 'Annual billing shown as annual billing', 'Unavailable and provider-dependent features labeled plainly', 'Official source links and a visible checked date'].map((item) => <li key={item} className="flex gap-3"><FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-[#16A34A]" />{item}</li>)}
               </ul>
             </div>
           </div>

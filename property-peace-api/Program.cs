@@ -136,6 +136,7 @@ using brownstone_hub_api.Repositories.Subscriptions;
 using brownstone_hub_api.Services.BackgroundServices;
 using brownstone_hub_api.Services.DailySummaryEmailService;
 using brownstone_hub_api.Services.EmailVerificationService;
+using brownstone_hub_api.Services.BotChallenge;
 using brownstone_hub_api.Repositories.StateLateFeeLaws;
 using brownstone_hub_api.Repositories.StateDepositLaws;
 using brownstone_hub_api.Repositories.JobRunHistories;
@@ -521,6 +522,9 @@ services.AddSingleton<ImpersonationHubFilter>();
 services.AddScoped<IImpersonationService, ImpersonationService>();
 services.AddScoped<IUserContextService, UserContextService>();
 services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+services.Configure<TurnstileOptions>(builder.Configuration.GetSection(TurnstileOptions.SectionName));
+services.AddHttpClient<IBotChallengeVerifier, TurnstileBotChallengeVerifier>(client =>
+    client.Timeout = TimeSpan.FromSeconds(5));
 services.AddScoped<IPropertyService, PropertyService>();
 services.AddScoped<IPropertyPortfolioService, PropertyPortfolioService>();
 services.AddScoped<IMaintenanceRequestService, MaintenanceRequestService>();
