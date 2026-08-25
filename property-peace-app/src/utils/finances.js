@@ -101,6 +101,81 @@ export function selectNeedsReviewItems(items) {
   return [...byId.values()];
 }
 
+const activityType = (entry) => entry?.direction === 'cameIn' ? 'income' : entry?.direction === 'wentOut' ? 'expense' : '';
+const activitySearchText = (entry) => [
+  entry?.sourceId, entry?.description, entry?.account, entry?.propertyName, entry?.unitName,
+  entry?.counterparty, entry?.reference, entry?.sourceType
+].filter(Boolean).join(' ').toLocaleLowerCase();
+const propertyUnitLabel = (item) => `${item?.propertyName || 'Property not recorded'} / ${item?.unitName || 'Property level'}`;
+
+export function getActivityAccountOptions(entries) {
+  const unique = new Map();
+  list(entries).forEach((entry) => {
+    const account = typeof entry?.account === 'string' ? entry.account.trim() : '';
+    const key = account.toLocaleLowerCase();
+    if (account && !unique.has(key)) unique.set(key, account);
+  });
+  return [...unique.values()].sort((a, b) => a.localeCompare(b));
+}
+
+export function selectActivityEntriesPage(entries, filters = {}) {
+  const search = String(filters.search || '').trim().toLocaleLowerCase();
+  const type = ['income', 'expense'].includes(filters.type) ? filters.type : 'all';
+  const account = String(filters.account || 'all').trim().toLocaleLowerCase();
+  const sort = filters.sort || 'newest';
+  const pageSize = Number.isSafeInteger(filters.pageSize) && filters.pageSize > 0 ? filters.pageSize : 12;
+  const filteredEntries = list(entries).filter((entry) => {
+    if (search && !activitySearchText(entry).includes(search)) return false;
+    if (type !== 'all' && activityType(entry) !== type) return false;
+    if (account !== 'all' && String(entry?.account || '').trim().toLocaleLowerCase() !== account) return false;
+    return true;
+  }).sort((a, b) => {
+    const bySource = String(a?.sourceId ?? '').localeCompare(String(b?.sourceId ?? ''));
+    if (sort === 'oldest') return (a?.timestamp ?? Number.POSITIVE_INFINITY) - (b?.timestamp ?? Number.POSITIVE_INFINITY) || bySource;
+    if (sort === 'amount-desc') return Math.abs(Number(b?.signedAmount) || 0) - Math.abs(Number(a?.signedAmount) || 0) || bySource;
+    if (sort === 'amount-asc') return Math.abs(Number(a?.signedAmount) || 0) - Math.abs(Number(b?.signedAmount) || 0) || bySource;
+    if (sort === 'balance-desc') return (Number(b?.runningBalance) || 0) - (Number(a?.runningBalance) || 0) || bySource;
+    return (b?.timestamp ?? Number.NEGATIVE_INFINITY) - (a?.timestamp ?? Number.NEGATIVE_INFINITY) || bySource;
+  });
+  const totalCount = filteredEntries.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const requestedPage = Number.isSafeInteger(filters.page) ? filters.page : Number(filters.page);
+  const page = Math.min(totalPages, Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1));
+  return {
+    filteredEntries,
+    visibleEntries: filteredEntries.slice((page - 1) * pageSize, page * pageSize),
+    totalCount,
+    totalPages,
+    page
+  };
+}
+
+export function buildActivityCsvRows(entries) {
+  return list(entries).map((entry) => ({
+    'Source ID': entry?.sourceId || '',
+    Date: entry?.occurredAt || '',
+    Type: activityType(entry) === 'income' ? 'Income' : 'Expense',
+    Description: entry?.description || '',
+    'Property / unit': propertyUnitLabel(entry),
+    Account: entry?.account || 'Uncategorized',
+    Amount: Number(entry?.signedAmount) || 0,
+    'Activity balance': Number(entry?.runningBalance) || 0,
+    'Source type': entry?.sourceType || ''
+  }));
+}
+
+export function buildReviewCsvRows(items) {
+  return list(items).map((item) => ({
+    'Source ID': item?.sourceId || '',
+    Date: item?.occurredAt || '',
+    Reasons: list(item?.reviewReasons).join('; '),
+    Description: item?.description || item?.category || '',
+    'Property / unit': propertyUnitLabel(item),
+    Category: item?.category || 'Uncategorized',
+    Amount: amountOf(item),
+    'Source type': item?.sourceType || ''
+  }));
+}
 export function buildAccountActivity(entries, limit) {
   const grouped = new Map();
   list(entries).forEach((entry) => {

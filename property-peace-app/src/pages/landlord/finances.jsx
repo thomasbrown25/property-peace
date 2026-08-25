@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PlusOutlined } from '@ant-design/icons';
 import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
@@ -10,9 +10,12 @@ import useFetchProperties from 'hooks/useFetchProperties';
 import useFinancesMoneyData from 'hooks/useFinancesMoneyData';
 import useFinancesPayments from 'hooks/useFinancesPayments';
 import AccountActivityCard from 'sections/landlord/finances/AccountActivityCard';
+import ActivityTab from 'sections/landlord/finances/ActivityTab';
 import CalculationDisclosure from 'sections/landlord/finances/CalculationDisclosure';
+import FinanceDetailDrawer from 'sections/landlord/finances/FinanceDetailDrawer';
 import FinancesHeader from 'sections/landlord/finances/FinancesHeader';
 import FinancesMetrics from 'sections/landlord/finances/FinancesMetrics';
+import NeedsReviewTab from 'sections/landlord/finances/NeedsReviewTab';
 import {
   buildFinancesMoneyQuery,
   normalizeFinancesPeriod,
@@ -75,7 +78,16 @@ export default function FinancesPage() {
   const customFrom = searchParams.get('from') || '';
   const customTo = searchParams.get('to') || '';
   const customRangeValid = ISO_DATE.test(customFrom) && ISO_DATE.test(customTo) && customFrom <= customTo;
+  const [tabExports, setTabExports] = useState({});
+  const [selectedFinanceItem, setSelectedFinanceItem] = useState(null);
 
+  const registerExport = useCallback((tab, exportState) => {
+    setTabExports((current) => current[tab] === exportState ? current : { ...current, [tab]: exportState });
+  }, []);
+  const openFinanceDetail = useCallback((entry) => {
+    const originalItem = moneyData.itemsResponse?.items?.find((item) => item.sourceId === entry.sourceId);
+    setSelectedFinanceItem(originalItem || entry);
+  }, [moneyData.itemsResponse]);
   const updateSearch = (changes) => setSearchParams(updateFinancesSearch(searchParams, changes), { replace: true });
   const setPropertyScope = (property) => setSearchParams(updateFinancesPropertyScope(searchParams, property?.id), { replace: true });
   const setTab = (tab) => updateSearch({ tab });
@@ -93,19 +105,23 @@ export default function FinancesPage() {
 
   const handleAccountNavigation = (account) => updateSearch({ tab: 'activity', account });
   const activityExportDisabled = moneyData.loading || moneyScopeChanged || Boolean(moneyData.itemsError);
-  const activeExport = activeTab === 'activity'
-    ? {
+  const activityExport = tabExports.activity;
+  const activeExport = useMemo(() => {
+    if (activeTab === 'activity' && !activityExport?.hasClientFilters) {
+      return {
         label: 'Export activity',
         onExport: moneyData.exportActivity,
         busy: moneyData.exporting,
         disabled: activityExportDisabled,
         disabledReason: moneyData.loading || moneyScopeChanged ? 'Activity is still loading.' : moneyData.itemsError ? 'Activity records are unavailable.' : ''
-      }
-    : {
-        label: 'Export',
-        disabled: true,
-        disabledReason: `Export is unavailable for the ${FINANCES_TAB_LABELS.find(([value]) => value === activeTab)?.[1] || 'selected'} view.`
       };
+    }
+    return tabExports[activeTab] || {
+      label: 'Export',
+      disabled: true,
+      disabledReason: `Export is unavailable for the ${FINANCES_TAB_LABELS.find(([value]) => value === activeTab)?.[1] || 'selected'} view.`
+    };
+  }, [activeTab, activityExport, activityExportDisabled, moneyData.exportActivity, moneyData.exporting, moneyData.itemsError, moneyData.loading, moneyScopeChanged, tabExports]);
 
   return (
     <Box sx={{ pb: 4 }}>
@@ -181,7 +197,29 @@ export default function FinancesPage() {
               id={`finances-${activeTab}-panel`}
               aria-labelledby={`finances-${activeTab}-tab`}
               sx={{ minHeight: 240 }}
-            />
+            >
+              {activeTab === 'review' && (
+                <NeedsReviewTab
+                  items={moneyData.reviewItems}
+                  loading={moneyData.loading || moneyScopeChanged}
+                  error={moneyData.itemsError}
+                  onRetry={moneyData.retry}
+                  onSelectItem={openFinanceDetail}
+                  registerExport={registerExport}
+                />
+              )}
+              {activeTab === 'activity' && (
+                <ActivityTab
+                  entries={moneyData.activityEntries}
+                  loading={moneyData.loading || moneyScopeChanged}
+                  error={moneyData.itemsError}
+                  onRetry={moneyData.retry}
+                  initialAccount={searchParams.get('account') || ''}
+                  onSelectItem={openFinanceDetail}
+                  registerExport={registerExport}
+                />
+              )}
+            </Box>
           </Box>
         </Grid>
 
@@ -206,6 +244,8 @@ export default function FinancesPage() {
           </Stack>
         </Grid>
       </Grid>
+
+      <FinanceDetailDrawer item={selectedFinanceItem} onClose={() => setSelectedFinanceItem(null)} />
     </Box>
   );
 }

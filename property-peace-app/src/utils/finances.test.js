@@ -3,7 +3,9 @@ import { test } from 'node:test';
 import {
   normalizeFinancesTab, updateFinancesSearch, buildFinancesMoneyQuery,
   buildActivityEntries, selectNeedsReviewItems, buildAccountActivity,
-  buildUpcomingEntries, sumCollectedThisMonth, updateFinancesPropertyScope
+  buildUpcomingEntries, sumCollectedThisMonth, updateFinancesPropertyScope,
+  buildActivityCsvRows, buildReviewCsvRows, getActivityAccountOptions,
+  selectActivityEntriesPage
 } from './finances.js';
 
 test('finances defaults to Activity and keeps shared scope when tabs change', () => {
@@ -69,6 +71,69 @@ test('review selection deduplicates reasons and covers all signals', () => {
   assert.deepEqual(result[2].reviewReasons, ['Settlement exception']);
 });
 
+test('activity selection combines search, type, account, sort, and twelve-row pagination', () => {
+  const entries = Array.from({ length: 14 }, (_, index) => ({
+    sourceId: `expense-${index + 1}`,
+    occurredAt: `2026-08-${String(index + 1).padStart(2, '0')}T12:00:00Z`,
+    timestamp: Date.parse(`2026-08-${String(index + 1).padStart(2, '0')}T12:00:00Z`),
+    direction: 'wentOut',
+    description: index === 13 ? 'Emergency roof repair' : `Repair ${index + 1}`,
+    account: index === 13 ? 'Capital improvements' : 'Repairs',
+    propertyName: 'Oak House',
+    unitName: 'Unit 2',
+    signedAmount: -(index + 1),
+    runningBalance: 200 - index
+  }));
+  entries.push({
+    sourceId: 'income-1', occurredAt: '2026-08-20T12:00:00Z', timestamp: Date.parse('2026-08-20T12:00:00Z'),
+    direction: 'cameIn', description: 'August rent', account: 'Rent', propertyName: 'Pine House',
+    unitName: 'Unit 1', counterparty: 'Avery Tenant', reference: 'R-100', signedAmount: 900, runningBalance: 1100
+  });
+
+  const firstPage = selectActivityEntriesPage(entries, { search: 'repair', type: 'expense', account: 'Repairs', sort: 'oldest', page: 1 });
+  const clampedPage = selectActivityEntriesPage(entries, { search: 'oak', type: 'expense', account: 'all', sort: 'amount-desc', page: 99 });
+  const referenceMatch = selectActivityEntriesPage(entries, { search: 'r-100', type: 'all', account: 'all', sort: 'newest', page: 1 });
+
+  assert.equal(firstPage.totalCount, 13);
+  assert.equal(firstPage.totalPages, 2);
+  assert.equal(firstPage.page, 1);
+  assert.equal(firstPage.visibleEntries.length, 12);
+  assert.equal(firstPage.visibleEntries[0].sourceId, 'expense-1');
+  assert.equal(firstPage.visibleEntries[11].sourceId, 'expense-12');
+  assert.equal(clampedPage.page, 2);
+  assert.deepEqual(clampedPage.visibleEntries.map((entry) => entry.sourceId), ['expense-2', 'expense-1']);
+  assert.deepEqual(referenceMatch.visibleEntries.map((entry) => entry.sourceId), ['income-1']);
+});
+
+test('activity account options are unique, alphabetical, and derived from real entries', () => {
+  assert.deepEqual(getActivityAccountOptions([
+    { account: 'Repairs' }, { account: 'Rent' }, { account: 'repairs' }, { account: '' }, { account: 'Utilities' }
+  ]), ['Rent', 'Repairs', 'Utilities']);
+});
+
+test('visible activity and review CSV rows retain truthful source fields', () => {
+  const activityRows = buildActivityCsvRows([{
+    sourceId: 'payment-4', occurredAt: '2026-08-05T00:00:00Z', direction: 'cameIn', description: 'August rent',
+    propertyName: 'Oak House', unitName: 'Unit 2', account: 'Rent', signedAmount: 1200, runningBalance: 2200,
+    sourceType: 'payment'
+  }]);
+  const reviewRows = buildReviewCsvRows([{
+    sourceId: 'expense-9', occurredAt: '2026-08-06T00:00:00Z', reviewReasons: ['Uncategorized', 'Missing receipt'],
+    description: 'Hardware store', propertyName: 'Pine House', unitName: '', category: 'Uncategorized', amount: 78.5,
+    sourceType: 'expense'
+  }]);
+
+  assert.deepEqual(activityRows, [{
+    'Source ID': 'payment-4', Date: '2026-08-05T00:00:00Z', Type: 'Income', Description: 'August rent',
+    'Property / unit': 'Oak House / Unit 2', Account: 'Rent', Amount: 1200, 'Activity balance': 2200,
+    'Source type': 'payment'
+  }]);
+  assert.deepEqual(reviewRows, [{
+    'Source ID': 'expense-9', Date: '2026-08-06T00:00:00Z', Reasons: 'Uncategorized; Missing receipt',
+    Description: 'Hardware store', 'Property / unit': 'Pine House / Property level', Category: 'Uncategorized',
+    Amount: 78.5, 'Source type': 'expense'
+  }]);
+});
 test('account activity groups signed totals and ranks by absolute total with alphabetical ties', () => {
   const result = buildAccountActivity([
     { account: 'Zed', signedAmount: -5 }, { account: 'Alpha', signedAmount: 5 }, { account: 'Zed', signedAmount: 2 }
