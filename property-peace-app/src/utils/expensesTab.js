@@ -108,6 +108,7 @@ export function selectExpensesPage(expenses, filters = {}) {
     totalCount,
     totalPages,
     page,
+    filteredExpenses,
     visibleExpenses
   };
 }

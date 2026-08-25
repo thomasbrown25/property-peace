@@ -4,34 +4,51 @@ const initialState = {
   expenses: [], // Each expense contains a receipts array
   selectedExpense: null,
   totalAmount: 0,
+  listLoading: false,
+  listError: null,
+  listRequestId: null,
+  listRequestKey: null,
+  listSettledRequestKey: null,
   loading: false,
   error: null
 };
 
 function expenseReducer(state = initialState, action) {
-  const { type, payload } = action;
+  const { type, payload, meta } = action;
 
   switch (type) {
     // GET_EXPENSES cases
     case EXPENSE_ACTION_TYPES.GET_EXPENSES_START:
       return {
         ...state,
+        listLoading: true,
+        listError: null,
+        listRequestId: meta?.requestId ?? null,
+        listRequestKey: meta?.requestKey ?? null,
         loading: true,
         error: null
       };
 
     case EXPENSE_ACTION_TYPES.GET_EXPENSES_SUCCESS:
+      if (meta?.requestId !== undefined && state.listRequestId !== meta.requestId) return state;
       return {
         ...state,
         expenses: payload,
+        listLoading: false,
+        listError: null,
+        listSettledRequestKey: meta?.requestKey ?? state.listRequestKey,
         loading: false,
         error: null
       };
 
     case EXPENSE_ACTION_TYPES.GET_EXPENSES_FAILURE:
+      if (meta?.requestId !== undefined && state.listRequestId !== meta.requestId) return state;
       return {
         ...state,
         expenses: [],
+        listLoading: false,
+        listError: payload,
+        listSettledRequestKey: meta?.requestKey ?? state.listRequestKey,
         loading: false,
         error: payload
       };

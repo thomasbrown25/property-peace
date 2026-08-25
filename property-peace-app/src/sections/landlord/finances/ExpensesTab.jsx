@@ -9,11 +9,9 @@ import { openSnackbar } from 'api/snackbar';
 import ConfirmationDialog from 'components/dialogs/ConfirmationDialog';
 import ExpenseEditDrawer from 'components/expense/ExpenseEditDrawer';
 import TransactionFilterToolbar from 'components/filters/TransactionFilterToolbar';
-import useFetchExpenses from 'hooks/useFetchExpenses';
 import { deleteExpenseAction, updateExpenseAction } from 'store/expense/expense.action';
 import {
   buildExpenseCsvRows,
-  buildExpenseHookFilters,
   getExpenseAmount,
   getExpenseId,
   readExpense,
@@ -50,13 +48,15 @@ const SHARED_PERIOD_LABELS = {
 const keepSharedPeriod = () => undefined;
 
 export default function ExpensesTab({
+  expenses = [],
+  loading,
+  error,
+  onRetry,
   propertyId,
   sharedPeriod,
   sharedFrom,
   sharedTo,
-  mutationVersion,
   onMutation,
-  onAvailabilityChange,
   registrationKey,
   registerExport
 }) {
@@ -64,8 +64,8 @@ export default function ExpensesTab({
   const theme = useTheme();
   const mobile = useMediaQuery(theme.breakpoints.down('md'));
   const csvLinkRef = useRef(null);
-  const observedLoadingKeyRef = useRef(null);
-  const [readyRequestKey, setReadyRequestKey] = useState(null);
+  const scopeKey = `${propertyId ?? 'all'}:${sharedFrom || ''}:${sharedTo || ''}`;
+  const previousScopeKeyRef = useRef(scopeKey);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [status, setStatus] = useState('all');
@@ -74,14 +74,8 @@ export default function ExpensesTab({
   const [editExpense, setEditExpense] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const expenseFilters = useMemo(() => buildExpenseHookFilters({
-    propertyId,
-    sharedFrom,
-    sharedTo,
-    mutationVersion
-  }), [mutationVersion, propertyId, sharedFrom, sharedTo]);
-  const requestKey = `${propertyId ?? 'all'}:${sharedFrom || ''}:${sharedTo || ''}:${mutationVersion ?? 0}`;
-  const { expenses = [], loading, error, refetch } = useFetchExpenses(expenseFilters);
+  const scopeChanged = previousScopeKeyRef.current !== scopeKey;
+  const requestedPage = scopeChanged ? 1 : page;
   const selection = useMemo(() => selectExpensesPage(expenses, {
     propertyId,
     from: sharedFrom,
@@ -90,60 +84,51 @@ export default function ExpensesTab({
     category,
     status,
     sort,
-    page,
+    page: requestedPage,
     pageSize: PAGE_SIZE
-  }), [category, expenses, page, propertyId, search, sharedFrom, sharedTo, sort, status]);
-  const { totalCount, totalPages, visibleExpenses } = selection;
-  const requestReady = readyRequestKey === requestKey;
+  }), [category, expenses, propertyId, requestedPage, search, sharedFrom, sharedTo, sort, status]);
+  const { filteredExpenses, totalCount, totalPages, visibleExpenses } = selection;
 
   useEffect(() => {
-    observedLoadingKeyRef.current = null;
-    setReadyRequestKey(null);
-    onAvailabilityChange(false);
-  }, [onAvailabilityChange, requestKey]);
-
-  useEffect(() => {
-    if (loading) {
-      observedLoadingKeyRef.current = requestKey;
-      setReadyRequestKey(null);
-      onAvailabilityChange(false);
+    if (scopeChanged) {
+      previousScopeKeyRef.current = scopeKey;
+      if (page !== 1) setPage(1);
       return;
     }
-    if (error) {
-      setReadyRequestKey(null);
-      onAvailabilityChange(false);
-      return;
-    }
-    if (observedLoadingKeyRef.current === requestKey) {
-      setReadyRequestKey(requestKey);
-      onAvailabilityChange(true);
-    }
-  }, [error, loading, onAvailabilityChange, requestKey]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [category, propertyId, search, sharedFrom, sharedTo, sort, status]);
-
-  useEffect(() => {
     if (selection.page !== page) setPage(selection.page);
-  }, [page, selection.page]);
+  }, [page, scopeChanged, scopeKey, selection.page]);
 
+  const changeSearch = useCallback((value) => {
+    setSearch(value);
+    setPage(1);
+  }, []);
+  const changeCategory = useCallback((value) => {
+    setCategory(value);
+    setPage(1);
+  }, []);
+  const changeStatus = useCallback((value) => {
+    setStatus(value);
+    setPage(1);
+  }, []);
+  const changeSort = useCallback((value) => {
+    setSort(value);
+    setPage(1);
+  }, []);
   const hasClientFilters = Boolean(search.trim()) || category !== 'all' || status !== 'all' || sort !== 'newest';
-  const csvRows = useMemo(() => buildExpenseCsvRows(visibleExpenses), [visibleExpenses]);
-  const exportVisibleRows = useCallback(() => csvLinkRef.current?.link?.click(), []);
+  const csvRows = useMemo(() => buildExpenseCsvRows(filteredExpenses), [filteredExpenses]);
+  const exportFilteredRows = useCallback(() => csvLinkRef.current?.link?.click(), []);
   const exportState = useMemo(() => ({
     label: 'Export expenses',
-    onExport: exportVisibleRows,
-    disabled: !requestReady || loading || Boolean(error) || visibleExpenses.length === 0,
-    disabledReason: !requestReady || loading
+    onExport: exportFilteredRows,
+    disabled: loading || Boolean(error) || filteredExpenses.length === 0,
+    disabledReason: loading
       ? 'Expenses are still loading.'
       : error
         ? 'Expense records are unavailable.'
-        : visibleExpenses.length === 0
-          ? 'There are no visible expenses to export.'
+        : filteredExpenses.length === 0
+          ? 'There are no expenses to export.'
           : ''
-  }), [error, exportVisibleRows, loading, requestReady, visibleExpenses.length]);
-
+  }), [error, exportFilteredRows, filteredExpenses.length, loading]);
   useLayoutEffect(() => registerExport('expenses', registrationKey, exportState), [exportState, registerExport, registrationKey]);
 
   const sharedPeriodOptions = useMemo(() => [{
@@ -166,7 +151,7 @@ export default function ExpensesTab({
       label: 'Category',
       value: category,
       defaultValue: 'all',
-      onChange: setCategory,
+      onChange: changeCategory,
       options: [{ value: 'all', label: 'All categories' }, ...EXPENSE_CATEGORIES.map((item) => ({ value: item, label: item }))]
     },
     {
@@ -174,20 +159,21 @@ export default function ExpensesTab({
       label: 'Record status',
       value: status,
       defaultValue: 'all',
-      onChange: setStatus,
+      onChange: changeStatus,
       options: STATUS_OPTIONS
     }
   ];
   const activeChips = [
-    ...(category !== 'all' ? [{ key: 'category', label: category, onDelete: () => setCategory('all') }] : []),
-    ...(status !== 'all' ? [{ key: 'status', label: STATUS_OPTIONS.find((option) => option.value === status)?.label || status, onDelete: () => setStatus('all') }] : []),
-    ...(sort !== 'newest' ? [{ key: 'sort', label: EXPENSE_SORT_OPTIONS.find((option) => option.value === sort)?.label || sort, onDelete: () => setSort('newest') }] : [])
+    ...(category !== 'all' ? [{ key: 'category', label: category, onDelete: () => changeCategory('all') }] : []),
+    ...(status !== 'all' ? [{ key: 'status', label: STATUS_OPTIONS.find((option) => option.value === status)?.label || status, onDelete: () => changeStatus('all') }] : []),
+    ...(sort !== 'newest' ? [{ key: 'sort', label: EXPENSE_SORT_OPTIONS.find((option) => option.value === sort)?.label || sort, onDelete: () => changeSort('newest') }] : [])
   ];
   const clearFilters = useCallback(() => {
     setSearch('');
     setCategory('all');
     setStatus('all');
     setSort('newest');
+    setPage(1);
   }, []);
 
   const markExpensePaid = async (expense) => {
@@ -229,7 +215,6 @@ export default function ExpensesTab({
     onMutation();
   }, [onMutation]);
   const errorText = Array.isArray(error) ? error.join(' ') : typeof error === 'string' ? error : error ? 'The expense request failed.' : '';
-  const initialLoading = !requestReady && !error;
 
   return (
     <Box>
@@ -245,25 +230,25 @@ export default function ExpensesTab({
       <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
         <TransactionFilterToolbar
           search={search}
-          onSearchChange={setSearch}
+          onSearchChange={changeSearch}
           searchPlaceholder="Search name, vendor, category, or property"
           propertyControl={propertyScopeControl}
           period="shared"
           onPeriodChange={keepSharedPeriod}
           periodOptions={sharedPeriodOptions}
           sort={sort}
-          onSortChange={setSort}
+          onSortChange={changeSort}
           sortOptions={EXPENSE_SORT_OPTIONS}
           filters={filterFields}
           activeChips={activeChips}
           onClearAll={clearFilters}
-          resultSummary={requestReady && !loading && !error
+          resultSummary={!loading && !error
             ? `${totalCount} ${totalCount === 1 ? 'expense' : 'expenses'} match this view`
             : undefined}
         />
       </Box>
 
-      {loading || initialLoading ? (
+      {loading ? (
         <Box role="status" aria-live="polite" aria-label="Loading expense records" sx={{ minHeight: 280, display: 'grid', placeItems: 'center' }}>
           <CircularProgress />
         </Box>
@@ -271,7 +256,7 @@ export default function ExpensesTab({
         <Box sx={{ p: 2 }}>
           <Alert
             severity="warning"
-            action={<Button color="inherit" onClick={refetch}>Try again</Button>}
+            action={<Button color="inherit" onClick={onRetry}>Try again</Button>}
           >
             <Typography fontWeight={700}>Expense records could not be loaded</Typography>
             {errorText} This is not confirmation that there are no expenses in the selected scope.
@@ -330,13 +315,15 @@ export default function ExpensesTab({
 }
 
 ExpensesTab.propTypes = {
+  expenses: PropTypes.arrayOf(PropTypes.object).isRequired,
+  loading: PropTypes.bool.isRequired,
+  error: PropTypes.oneOfType([PropTypes.string, PropTypes.array, PropTypes.object]),
+  onRetry: PropTypes.func.isRequired,
   propertyId: PropTypes.number,
   sharedPeriod: PropTypes.string.isRequired,
   sharedFrom: PropTypes.string.isRequired,
   sharedTo: PropTypes.string.isRequired,
-  mutationVersion: PropTypes.number,
   onMutation: PropTypes.func.isRequired,
-  onAvailabilityChange: PropTypes.func.isRequired,
   registrationKey: PropTypes.string.isRequired,
   registerExport: PropTypes.func.isRequired
 };

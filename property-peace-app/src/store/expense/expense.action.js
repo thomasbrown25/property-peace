@@ -1,20 +1,28 @@
 import { expenseAPI } from 'api';
 import { EXPENSE_ACTION_TYPES } from './expense.types';
 
-export const getExpensesAction = (landlordId, filters = {}) => async (dispatch) => {
+let expenseListRequestSequence = 0;
+
+export const getExpensesAction = (landlordId, filters = {}, suppliedRequestKey) => async (dispatch) => {
+  const requestId = ++expenseListRequestSequence;
+  const requestKey = suppliedRequestKey ?? String(landlordId ?? 'anonymous') + ':' + JSON.stringify(filters);
+  const meta = { requestId, requestKey };
+
   try {
-    dispatch({ type: EXPENSE_ACTION_TYPES.GET_EXPENSES_START });
+    dispatch({ type: EXPENSE_ACTION_TYPES.GET_EXPENSES_START, meta });
     
     const response = await expenseAPI.getExpenses(filters);
     
     dispatch({
       type: EXPENSE_ACTION_TYPES.GET_EXPENSES_SUCCESS,
-      payload: response.data || []
+      payload: response.data || [],
+      meta
     });
   } catch (error) {
     dispatch({
       type: EXPENSE_ACTION_TYPES.GET_EXPENSES_FAILURE,
-      payload: error?.response?.data?.errors || error.message
+      payload: error?.response?.data?.errors || error.message,
+      meta
     });
   }
 };

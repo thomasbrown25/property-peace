@@ -164,13 +164,16 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
   assert.match(page, /sharedPeriod=\{period\}/);
   assert.match(page, /sharedFrom=\{scopedQuery\.from\}/);
   assert.match(page, /sharedTo=\{scopedQuery\.to\}/);
-  assert.match(page, /mutationVersion=\{drawer\.financeMutationVersion\}/);
+  assert.match(page, /const expensesData = useFetchExpenses\(expenseFilters\)/);
+  assert.match(page, /expenses=\{expensesData\.expenses\}/);
+  assert.match(page, /loading=\{expensesData\.loading\}/);
+  assert.match(page, /error=\{expensesData\.error\}/);
+  assert.match(page, /onRetry=\{expensesData\.refetch\}/);
   assert.match(page, /onMutation=\{drawer\.notifyFinanceMutation\}/);
-  assert.match(page, /onAvailabilityChange=\{setExpensesAvailable\}/);
   assert.match(page, /registrationKey=\{exportRegistrationKey\}/);
   assert.match(page, /registerExport=\{registerExport\}/);
 
-  assert.match(expenses, /useFetchExpenses/);
+  assert.doesNotMatch(expenses, /useFetchExpenses/);
   assert.match(expenses, /TransactionFilterToolbar/);
   assert.match(expenses, /period="shared"/);
   assert.match(expenses, /Paid/);
@@ -185,8 +188,11 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
   assert.match(expenses, /<ExpenseEditDrawer/);
   assert.match(expenses, /updateExpenseAction/);
   assert.match(expenses, /deleteExpenseAction/);
-  assert.match(expenses, /onClick=\{refetch\}/);
+  assert.match(expenses, /onClick=\{onRetry\}/);
   assert.match(expenses, /useLayoutEffect\(\(\) => registerExport\('expenses', registrationKey, exportState\)/);
+  assert.match(expenses, /buildExpenseCsvRows\(filteredExpenses\)/);
+  assert.match(expenses, /const requestedPage = scopeChanged \? 1 : page/);
+  assert.doesNotMatch(expenses, /useEffect\(\(\) => \{\s*setPage\(1\);\s*\}, \[category,/);
   assert.match(row, /Receipt/);
   assert.match(row, /Mark as paid/);
   assert.match(row, /Edit expense/);
@@ -201,16 +207,26 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
   assert.doesNotMatch(combined, /Recurring|Upcoming/);
 });
 
-test('expense source availability gates expense-dependent metrics for the current shared scope', async () => {
-  const [page, expenses] = await Promise.all([
+test('page-owned request-identified expense data gates metrics on every active tab', async () => {
+  const [page, hook, action, reducer, selectors] = await Promise.all([
     source('pages/landlord/finances.jsx'),
-    source('sections/landlord/finances/ExpensesTab.jsx')
+    source('hooks/useFetchExpenses.js'),
+    source('store/expense/expense.action.js'),
+    source('store/expense/expense.reducer.js'),
+    source('store/expense/expense.selector.js')
   ]);
 
-  assert.match(page, /const \[expensesAvailable, setExpensesAvailable\] = useState\(false\)/);
-  assert.ok(page.indexOf('const [expensesAvailable, setExpensesAvailable]') < page.indexOf('const metricsOverview'));
-  assert.match(page, /setExpensesAvailable\(false\)/);
-  assert.match(page, /expensesAvailable/);
-  assert.match(expenses, /onAvailabilityChange\(false\)/);
-  assert.match(expenses, /onAvailabilityChange\(true\)/);
+  assert.match(page, /useFetchExpenses\(expenseFilters\)/);
+  assert.match(page, /maskExpenseMetricsAvailability\([\s\S]*expensesData\.available/);
+  assert.doesNotMatch(page, /expensesAvailable|setExpensesAvailable/);
+  assert.match(hook, /selectExpenseListLoading/);
+  assert.match(hook, /selectExpenseListError/);
+  assert.match(hook, /settledRequestKey === requestKey/);
+  assert.match(hook, /available/);
+  assert.match(action, /requestId/);
+  assert.match(action, /requestKey/);
+  assert.match(reducer, /listRequestId/);
+  assert.match(reducer, /listSettledRequestKey/);
+  assert.match(selectors, /selectExpenseListLoading/);
+  assert.match(selectors, /selectExpenseListError/);
 });

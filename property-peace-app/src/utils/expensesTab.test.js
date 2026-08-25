@@ -75,6 +75,8 @@ test('expense pagination clamps after deletion or filter changes', () => {
   assert.equal(beforeDelete.page, 2);
   assert.equal(beforeDelete.totalPages, 2);
   assert.deepEqual(beforeDelete.visibleExpenses.map((item) => item.id), [11]);
+  assert.deepEqual(beforeDelete.filteredExpenses?.map((item) => item.id), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.equal(buildExpenseCsvRows(beforeDelete.filteredExpenses || []).length, 11);
   assert.equal(afterDelete.page, 1);
   assert.equal(afterDelete.totalPages, 1);
   assert.deepEqual(afterDelete.visibleExpenses.map((item) => item.id), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
