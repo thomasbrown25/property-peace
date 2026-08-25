@@ -47,6 +47,30 @@ public sealed class RequireRentPaymentActionReadyAttributeTests
     }
 
     [Fact]
+    public async Task Returned_unavailable_readiness_returns_service_unavailable_with_its_stable_blocker_codes()
+    {
+        var readiness = new Mock<IRentPaymentActionReadinessService>(MockBehavior.Strict);
+        readiness.Setup(service => service.EvaluateAsync(42, 71, RentPaymentAction.Configure, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Unavailable(RentPaymentAction.Configure, "provider_disabled", "access_not_approved"));
+        var fixture = CreateFixture(readiness.Object);
+
+        await fixture.InvokeAsync();
+
+        fixture.NextCalled.Should().BeFalse();
+        var result = fixture.Context.Result.Should().BeOfType<ObjectResult>().Subject;
+        result.StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
+        GetBlockers(result).Should().Equal("provider_disabled", "access_not_approved");
+    }
+
+    [Fact]
+    public void Request_access_cannot_use_the_action_readiness_filter()
+    {
+        var act = () => new RequireRentPaymentActionReadyAttribute(RentPaymentAction.RequestAccess);
+
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Fact]
     public async Task Missing_middleware_scope_fails_closed_without_calling_readiness_service()
     {
         var readiness = new Mock<IRentPaymentActionReadinessService>(MockBehavior.Strict);
@@ -101,6 +125,9 @@ public sealed class RequireRentPaymentActionReadyAttributeTests
 
     private static RentPaymentActionReadiness Denied(RentPaymentAction action, params string[] blockers) => new(
         action, false, "NotRequested", false, false, false, false, false, blockers);
+
+    private static RentPaymentActionReadiness Unavailable(RentPaymentAction action, params string[] blockers) => new(
+        action, false, "Unavailable", false, false, false, false, false, blockers);
 
     private sealed class Fixture(ActionExecutingContext context, RequireRentPaymentActionReadyAttribute attribute)
     {

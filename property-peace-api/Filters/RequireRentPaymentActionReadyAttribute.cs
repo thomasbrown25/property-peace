@@ -37,7 +37,9 @@ public sealed class RequireRentPaymentActionReadyAttribute : Attribute, IAsyncAc
             var readiness = await service.EvaluateAsync(userId, organizationId, _action, context.HttpContext.RequestAborted);
             if (!readiness.Allowed)
             {
-                context.Result = Denied(_action, readiness.Blockers);
+                context.Result = string.Equals(readiness.AccessStatus, "Unavailable", StringComparison.OrdinalIgnoreCase)
+                    ? Unavailable(_action, readiness.Blockers)
+                    : Denied(_action, readiness.Blockers);
                 return;
             }
         }
@@ -61,11 +63,11 @@ public sealed class RequireRentPaymentActionReadyAttribute : Attribute, IAsyncAc
         Blockers = blockers
     }) { StatusCode = StatusCodes.Status403Forbidden };
 
-    private static ObjectResult Unavailable(RentPaymentAction action) => new(new
+    private static ObjectResult Unavailable(RentPaymentAction action, IReadOnlyList<string>? blockers = null) => new(new
     {
         Message = "Rent-payment availability cannot be confirmed right now.",
         Action = action,
-        Blockers = UnavailableBlockers
+        Blockers = blockers ?? UnavailableBlockers
     }) { StatusCode = StatusCodes.Status503ServiceUnavailable };
 
     private static bool TryGetPositiveId(object? value, out int id)
