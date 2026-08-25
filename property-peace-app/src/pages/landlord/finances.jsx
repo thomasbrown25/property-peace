@@ -6,6 +6,7 @@ import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-d
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import PropertySelect from 'components/PropertySelect';
 import { useDrawer } from 'contexts/DrawerContext';
+import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useFetchExpenses from 'hooks/useFetchExpenses';
 import useFinancesMoneyData from 'hooks/useFinancesMoneyData';
@@ -22,6 +23,7 @@ import PaymentsTab from 'sections/landlord/finances/PaymentsTab';
 import UpcomingTab from 'sections/landlord/finances/UpcomingTab';
 import {
   buildFinancesMoneyQuery,
+  isFinancesPageLoading,
   normalizeFinancesPeriod,
   normalizeFinancesTab,
   selectFinancesExportState,
@@ -54,9 +56,10 @@ const ALL_PROPERTIES_SCOPE = Object.freeze({});
 export default function FinancesPage() {
   const theme = useTheme();
   const drawer = useDrawer();
+  const { setAccountingLoading } = useDashboardLoading();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { properties } = useFetchProperties();
+  const { properties, isLoading: propertiesLoading } = useFetchProperties();
   const activeTab = normalizeFinancesTab(searchParams.get('tab'));
   const period = normalizeFinancesPeriod(searchParams.get('period'));
   const effectiveSearchParams = useMemo(() => {
@@ -81,10 +84,25 @@ export default function FinancesPage() {
   const previousPaymentsScopeRef = useRef(paymentsScopeKey);
   const moneyScopeChanged = previousMoneyScopeRef.current !== moneyScopeKey;
   const paymentsScopeChanged = previousPaymentsScopeRef.current !== paymentsScopeKey;
+  const pageLoading = isFinancesPageLoading({
+    propertiesLoading,
+    moneyLoading: moneyData.loading,
+    moneyScopeChanged,
+    paymentsLoading: paymentsData.loading,
+    paymentsScopeChanged,
+    expensesLoading: expensesData.loading
+  });
   useEffect(() => {
     previousMoneyScopeRef.current = moneyScopeKey;
     previousPaymentsScopeRef.current = paymentsScopeKey;
   }, [moneyScopeKey, paymentsScopeKey]);
+  useEffect(() => {
+    setAccountingLoading(pageLoading);
+  }, [pageLoading, setAccountingLoading]);
+  useEffect(() => () => {
+    setAccountingLoading(false);
+  }, [setAccountingLoading]);
+
   const collectedThisMonth = useMemo(
     () => sumCollectedThisMonth(paymentsData.payments, new Date(), propertyId),
     [paymentsData.payments, propertyId]

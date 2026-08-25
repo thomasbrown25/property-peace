@@ -5,7 +5,8 @@ import {
   buildActivityEntries, selectNeedsReviewItems, buildAccountActivity,
   buildUpcomingEntries, sumCollectedThisMonth, updateFinancesPropertyScope,
   buildActivityCsvRows, buildReviewCsvRows, getActivityAccountOptions,
-  selectActivityEntriesPage, selectFinancesExportState
+  selectActivityEntriesPage, selectFinancesExportState,
+  isFinancesPageLoading
 } from './finances.js';
 
 test('finances defaults to Activity and keeps shared scope when tabs change', () => {
@@ -39,6 +40,21 @@ test('changing or clearing property removes incompatible unit scope', () => {
   const cleared = updateFinancesPropertyScope(current, undefined);
   assert.equal(changed?.toString(), 'period=ytd&propertyId=14&tab=activity&account=Repairs');
   assert.equal(cleared?.toString(), 'period=ytd&tab=activity&account=Repairs');
+});
+
+test('finances page loading covers every core data source and scope transition', () => {
+  assert.equal(isFinancesPageLoading(), false);
+
+  for (const loadingKey of [
+    'propertiesLoading',
+    'moneyLoading',
+    'moneyScopeChanged',
+    'paymentsLoading',
+    'paymentsScopeChanged',
+    'expensesLoading'
+  ]) {
+    assert.equal(isFinancesPageLoading({ [loadingKey]: true }), true, loadingKey);
+  }
 });
 
 test('activity normalizes posted cash directions, excludes non-cash, and calculates newest-first running balance', () => {

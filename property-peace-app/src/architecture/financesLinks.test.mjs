@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const srcRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const mainRoutesPath = path.join(srcRoot, 'routes', 'MainRoutes.jsx');
+const percySourcesPath = path.join(srcRoot, 'utils', 'percySources.js');
 const sourceExtensions = new Set(['.js', '.jsx', '.mjs']);
 const legacyListPath = /^\/?landlord\/(expenses|payments|ledger|money|money-activity)$/;
 const allowedRedirectPaths = new Map([
@@ -31,6 +32,12 @@ async function sourceFiles(directory) {
 function isPathnameCheck(line, literalIndex) {
   const prefix = line.slice(0, literalIndex);
   return /(?:location\.)?pathname\s*===\s*$/.test(prefix) || /(?:location\.)?pathname\.startsWith\(\s*$/.test(prefix);
+}
+
+function isAllowedPercySourceTranslation(filePath, line, destination) {
+  // This exact pair normalizes trusted backend data; it is not an application navigation destination.
+  return filePath === percySourcesPath && destination === '/landlord/payments' &&
+    /^\s*\['\/landlord\/payments', '\/landlord\/finances\?tab=payments'\]\s*$/.test(line);
 }
 
 function isAllowedCompatibilityDeclaration(filePath, lines, lineIndex, literalIndex, destination) {
@@ -63,6 +70,7 @@ async function findLegacyListDestinations() {
         }
         if (!legacyListPath.test(pathname)) continue;
         if (isPathnameCheck(line, match.index)) continue;
+        if (isAllowedPercySourceTranslation(filePath, line, destination)) continue;
         if (isAllowedCompatibilityDeclaration(filePath, lines, index, match.index, destination)) continue;
         violations.push(`${path.relative(srcRoot, filePath)}:${index + 1} ${destination}`);
       }
@@ -77,8 +85,27 @@ test('app navigation uses canonical Finances tab destinations', async () => {
 
 test('Dashboard loading follows canonical Finances through accounting state', async () => {
   const dashboard = await readFile(path.join(srcRoot, 'layout', 'Dashboard', 'index.jsx'), 'utf8');
+  const finances = await readFile(path.join(srcRoot, 'pages', 'landlord', 'finances.jsx'), 'utf8');
 
   assert.match(dashboard, /const isFinancesPage = pathname === '\/landlord\/finances'/);
   assert.match(dashboard, /\(isFinancesPage && isAccountingLoading\)/);
   assert.doesNotMatch(dashboard, /isExpensesPage|isExpensesLoading/);
+  assert.match(finances, /import \{ useDashboardLoading \} from 'contexts\/DashboardLoadingContext';/);
+  assert.match(finances, /const \{ setAccountingLoading \} = useDashboardLoading\(\);/);
+  assert.match(
+    finances,
+    /const pageLoading = isFinancesPageLoading\(\{[\s\S]*propertiesLoading,[\s\S]*moneyLoading: moneyData\.loading,[\s\S]*moneyScopeChanged,[\s\S]*paymentsLoading: paymentsData\.loading,[\s\S]*paymentsScopeChanged,[\s\S]*expensesLoading: expensesData\.loading[\s\S]*\}\);/
+  );
+  assert.match(
+    finances,
+    /useEffect\(\(\) => \{\s*setAccountingLoading\(pageLoading\);\s*\}, \[pageLoading, setAccountingLoading\]\);/
+  );
+  assert.match(
+    finances,
+    /useEffect\(\(\) => \(\) => \{\s*setAccountingLoading\(false\);\s*\}, \[setAccountingLoading\]\);/
+  );
+  assert.doesNotMatch(
+    finances,
+    /useEffect\(\(\) => \{\s*setAccountingLoading\(pageLoading\);\s*return \(\) => setAccountingLoading\(false\);/
+  );
 });

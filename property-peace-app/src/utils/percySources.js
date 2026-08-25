@@ -1,3 +1,7 @@
+const PERCY_WORKFLOW_ROUTE_TRANSLATIONS = new Map([
+  ['/landlord/payments', '/landlord/finances?tab=payments']
+]);
+
 const ALLOWED_PERCY_WORKFLOW_ROUTES = new Set([
   '/landlord/properties',
   '/landlord/finances?tab=payments',
@@ -9,8 +13,11 @@ const ALLOWED_PERCY_WORKFLOW_ROUTES = new Set([
 
 const readField = (value, camel, pascal) => value?.[camel] ?? value?.[pascal];
 
-export const safePercyWorkflowRoute = (route) =>
-  typeof route === 'string' && ALLOWED_PERCY_WORKFLOW_ROUTES.has(route) ? route : null;
+export const safePercyWorkflowRoute = (route) => {
+  if (typeof route !== 'string') return null;
+  const canonicalRoute = PERCY_WORKFLOW_ROUTE_TRANSLATIONS.get(route) ?? route;
+  return ALLOWED_PERCY_WORKFLOW_ROUTES.has(canonicalRoute) ? canonicalRoute : null;
+};
 
 export const mapPercySource = (source) => ({
   kind: String(readField(source, 'kind', 'Kind') || '').slice(0, 40),

@@ -21,6 +21,24 @@ export function selectFinancesExportState(registration, activeTab, registrationK
   if (!registration || registration.tab !== activeTab || registration.registrationKey !== registrationKey) return null;
   return registration.exportState || null;
 }
+
+export function isFinancesPageLoading({
+  propertiesLoading = false,
+  moneyLoading = false,
+  moneyScopeChanged = false,
+  paymentsLoading = false,
+  paymentsScopeChanged = false,
+  expensesLoading = false
+} = {}) {
+  return Boolean(
+    propertiesLoading ||
+    moneyLoading ||
+    moneyScopeChanged ||
+    paymentsLoading ||
+    paymentsScopeChanged ||
+    expensesLoading
+  );
+}
 export function normalizeFinancesPeriod(value) {
   return FINANCES_PERIODS.includes(value) ? value : 'ytd';
 }
