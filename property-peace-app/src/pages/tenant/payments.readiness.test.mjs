@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const tenantPage = () => readFile(new URL('./payments.jsx', import.meta.url), 'utf8');
 const modal = () => readFile(new URL('../../components/drawers/PaymentModal.jsx', import.meta.url), 'utf8');
+const dashboard = () => readFile(new URL('./dashboard.jsx', import.meta.url), 'utf8');
 const hook = () => readFile(new URL('../../hooks/useRentPaymentActionReadiness.js', import.meta.url), 'utf8');
 
 test('tenant payment entry points use the action-specific Pay readiness gate', async () => {
@@ -16,6 +17,13 @@ test('tenant payment entry points use the action-specific Pay readiness gate', a
   assert.doesNotMatch(source, /useFeatureReadiness\(FEATURE_KEYS\.onlineRentCollection\)/);
 });
 
+test('tenant dashboard payment and payment-method actions use Pay readiness', async () => {
+  const source = await dashboard();
+  assert.match(source, /useRentPaymentActionReadiness\('Pay'\)/);
+  assert.match(source, /disabled=\{!canInvoke \|\| !paymentAllocation/);
+  assert.match(source, /\{canInvoke && paymentMethodModalOpen/);
+  assert.match(source, /\{canInvoke && lease && \(\s*<PaymentModal/s);
+});
 test('tenant payment modal independently fails closed before loading Stripe', async () => {
   const source = await modal();
   assert.match(source, /useRentPaymentActionReadiness\('Pay'/);

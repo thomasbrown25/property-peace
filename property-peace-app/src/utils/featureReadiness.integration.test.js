@@ -23,7 +23,7 @@ const listingCreatePath = '../pages/landlord/listing-create.jsx';
 
 test('tenant payments fail closed and never mount or open payment UI while rent collection is blocked', async () => {
   const text = await source(tenantPaymentsPath);
-  assert.match(text, /useFeatureReadiness\(FEATURE_KEYS\.onlineRentCollection\)/);
+  assert.match(text, /useRentPaymentActionReadiness\('Pay'\)/);
   assert.match(text, /if \(!canInvoke\) return;/);
   assert.match(text, /disabled=\{!canInvoke\}/);
   assert.match(text, /\{canInvoke && \(\s*<PaymentModal/s);
@@ -32,7 +32,7 @@ test('tenant payments fail closed and never mount or open payment UI while rent 
 
 test('tenant dashboard gates payment, payment-method setup, Stripe initialization, and providers', async () => {
   const text = await source(tenantDashboardPath);
-  assert.match(text, /useFeatureReadiness\(FEATURE_KEYS\.onlineRentCollection\)/);
+  assert.match(text, /useRentPaymentActionReadiness\('Pay'\)/);
   assert.match(text, /if \(!open \|\| !canInvoke\) return;/);
   assert.match(text, /disabled=\{!canInvoke \|\| !paymentAllocation \|\| totalAmountDue <= 0\}/);
   assert.match(text, /disabled=\{!canInvoke\}[\s\S]*Edit payment method/);

@@ -56,8 +56,7 @@ import LeaseSelector from 'components/LeaseSelector';
 import { openSnackbar } from 'api/snackbar';
 import moment from 'moment';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
-import useFeatureReadiness from 'hooks/useFeatureReadiness';
-import { FEATURE_KEYS } from 'utils/featureReadiness';
+import useRentPaymentActionReadiness from 'hooks/useRentPaymentActionReadiness';
 import { classifyPaymentStatus, isBalanceCreditingPayment } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
 
@@ -523,7 +522,7 @@ export default function TenantDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const modal = useModal();
-  const { presentation: rentReadiness, canInvoke } = useFeatureReadiness(FEATURE_KEYS.onlineRentCollection);
+  const { presentation: rentReadiness, canInvoke } = useRentPaymentActionReadiness('Pay');
   const { getSelectedLease, selectedLeaseId, leases: contextLeases, setLeases: setContextLeases, selectLease } = useLease();
 
   // Track previous lease ID to prevent unnecessary re-fetches
