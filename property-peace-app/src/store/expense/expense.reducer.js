@@ -9,6 +9,7 @@ const initialState = {
   listRequestId: null,
   listRequestKey: null,
   listSettledRequestKey: null,
+  listRequestsByKey: {},
   loading: false,
   error: null
 };
@@ -18,41 +19,93 @@ function expenseReducer(state = initialState, action) {
 
   switch (type) {
     // GET_EXPENSES cases
-    case EXPENSE_ACTION_TYPES.GET_EXPENSES_START:
+    case EXPENSE_ACTION_TYPES.GET_EXPENSES_START: {
+      const requestKey = meta?.requestKey;
+      const previousRequest = requestKey ? state.listRequestsByKey?.[requestKey] : null;
       return {
         ...state,
         listLoading: true,
         listError: null,
         listRequestId: meta?.requestId ?? null,
-        listRequestKey: meta?.requestKey ?? null,
+        listRequestKey: requestKey ?? null,
+        listRequestsByKey: requestKey ? {
+          ...state.listRequestsByKey,
+          [requestKey]: {
+            requestId: meta?.requestId ?? null,
+            loading: true,
+            error: null,
+            expenses: previousRequest?.expenses || [],
+            settled: previousRequest?.settled || false
+          }
+        } : state.listRequestsByKey,
         loading: true,
         error: null
       };
+    }
 
-    case EXPENSE_ACTION_TYPES.GET_EXPENSES_SUCCESS:
-      if (meta?.requestId !== undefined && state.listRequestId !== meta.requestId) return state;
+    case EXPENSE_ACTION_TYPES.GET_EXPENSES_SUCCESS: {
+      const requestKey = meta?.requestKey;
+      const currentRequest = requestKey ? state.listRequestsByKey?.[requestKey] : null;
+      const staleKeyedRequest = requestKey && meta?.requestId !== undefined && currentRequest?.requestId !== meta.requestId;
+      const staleLegacyRequest = !requestKey && meta?.requestId !== undefined && state.listRequestId !== meta.requestId;
+      if (staleKeyedRequest || staleLegacyRequest) return state;
+      const updateLegacyState = meta?.requestId === undefined || state.listRequestId === meta.requestId;
       return {
         ...state,
-        expenses: payload,
-        listLoading: false,
-        listError: null,
-        listSettledRequestKey: meta?.requestKey ?? state.listRequestKey,
-        loading: false,
-        error: null
+        ...(updateLegacyState ? {
+          expenses: payload,
+          listLoading: false,
+          listError: null,
+          listRequestId: meta?.requestId ?? state.listRequestId,
+          listRequestKey: requestKey ?? state.listRequestKey,
+          listSettledRequestKey: requestKey ?? state.listRequestKey,
+          loading: false,
+          error: null
+        } : {}),
+        listRequestsByKey: requestKey ? {
+          ...state.listRequestsByKey,
+          [requestKey]: {
+            requestId: meta?.requestId ?? currentRequest?.requestId ?? null,
+            loading: false,
+            error: null,
+            expenses: payload,
+            settled: true
+          }
+        } : state.listRequestsByKey
       };
+    }
 
-    case EXPENSE_ACTION_TYPES.GET_EXPENSES_FAILURE:
-      if (meta?.requestId !== undefined && state.listRequestId !== meta.requestId) return state;
+    case EXPENSE_ACTION_TYPES.GET_EXPENSES_FAILURE: {
+      const requestKey = meta?.requestKey;
+      const currentRequest = requestKey ? state.listRequestsByKey?.[requestKey] : null;
+      const staleKeyedRequest = requestKey && meta?.requestId !== undefined && currentRequest?.requestId !== meta.requestId;
+      const staleLegacyRequest = !requestKey && meta?.requestId !== undefined && state.listRequestId !== meta.requestId;
+      if (staleKeyedRequest || staleLegacyRequest) return state;
+      const updateLegacyState = meta?.requestId === undefined || state.listRequestId === meta.requestId;
       return {
         ...state,
-        expenses: [],
-        listLoading: false,
-        listError: payload,
-        listSettledRequestKey: meta?.requestKey ?? state.listRequestKey,
-        loading: false,
-        error: payload
+        ...(updateLegacyState ? {
+          expenses: [],
+          listLoading: false,
+          listError: payload,
+          listRequestId: meta?.requestId ?? state.listRequestId,
+          listRequestKey: requestKey ?? state.listRequestKey,
+          listSettledRequestKey: requestKey ?? state.listRequestKey,
+          loading: false,
+          error: payload
+        } : {}),
+        listRequestsByKey: requestKey ? {
+          ...state.listRequestsByKey,
+          [requestKey]: {
+            requestId: meta?.requestId ?? currentRequest?.requestId ?? null,
+            loading: false,
+            error: payload,
+            expenses: currentRequest?.expenses || [],
+            settled: true
+          }
+        } : state.listRequestsByKey
       };
-
+    }
     // GET_EXPENSE_BY_ID cases
     case EXPENSE_ACTION_TYPES.GET_EXPENSE_BY_ID_START:
       return {

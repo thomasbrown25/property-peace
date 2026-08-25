@@ -3,9 +3,38 @@ import { test } from 'node:test';
 import {
   buildExpenseCsvRows,
   buildExpenseHookFilters,
+  buildExpenseListRequestKey,
   maskExpenseMetricsAvailability,
   selectExpensesPage
 } from './expensesTab.js';
+
+test('expense request identity excludes mutation version but retains logical scope', () => {
+  const filters = {
+    propertyId: 12,
+    startDate: '2026-08-01',
+    endDate: '2026-08-31',
+    mutationVersion: 4
+  };
+
+  assert.equal(
+    buildExpenseListRequestKey(44, filters),
+    '44:{"propertyId":12,"startDate":"2026-08-01","endDate":"2026-08-31"}'
+  );
+  assert.equal(
+    buildExpenseListRequestKey(44, { ...filters, mutationVersion: 5 }),
+    '44:{"propertyId":12,"startDate":"2026-08-01","endDate":"2026-08-31"}'
+  );
+  assert.notEqual(
+    buildExpenseListRequestKey(44, { ...filters, propertyId: 13 }),
+    '44:{"propertyId":12,"startDate":"2026-08-01","endDate":"2026-08-31"}'
+  );
+  assert.deepEqual(filters, {
+    propertyId: 12,
+    startDate: '2026-08-01',
+    endDate: '2026-08-31',
+    mutationVersion: 4
+  });
+});
 
 test('expense hook filters translate shared half-open dates without mutating the URL scope', () => {
   const customScope = {

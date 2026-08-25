@@ -43,6 +43,12 @@ export function buildExpenseHookFilters({ propertyId, sharedFrom, sharedTo, muta
   };
 }
 
+export function buildExpenseListRequestKey(landlordId, filters = {}) {
+  const scopeFilters = { ...filters };
+  delete scopeFilters.mutationVersion;
+  return `${String(landlordId ?? 'anonymous')}:${JSON.stringify(scopeFilters)}`;
+}
+
 const searchText = (expense) => [
   readExpense(expense, 'name', 'Name'),
   readExpense(expense, 'category', 'Category'),

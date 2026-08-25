@@ -7,6 +7,7 @@ export const selectExpenseListLoading = (state) => state.expense?.listLoading ||
 export const selectExpenseListError = (state) => state.expense?.listError;
 export const selectExpenseListRequestKey = (state) => state.expense?.listRequestKey;
 export const selectExpenseListSettledRequestKey = (state) => state.expense?.listSettledRequestKey;
+export const selectExpenseListRequest = (state, requestKey) => state.expense?.listRequestsByKey?.[requestKey] || null;
 // Get receipts from within the expense object
 export const selectExpenseReceipts = (state, expenseId) => {
   const expense = state.expense?.expenses?.find(e => e.id === expenseId);

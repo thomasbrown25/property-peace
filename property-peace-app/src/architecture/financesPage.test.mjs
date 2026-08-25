@@ -207,7 +207,7 @@ test('Expenses keeps editable transaction behavior inside the shared Finances sc
   assert.doesNotMatch(combined, /Recurring|Upcoming/);
 });
 
-test('page-owned request-identified expense data gates metrics on every active tab', async () => {
+test('page-owned keyed expense data gates metrics without excluding concurrent consumers', async () => {
   const [page, hook, action, reducer, selectors] = await Promise.all([
     source('pages/landlord/finances.jsx'),
     source('hooks/useFetchExpenses.js'),
@@ -219,14 +219,12 @@ test('page-owned request-identified expense data gates metrics on every active t
   assert.match(page, /useFetchExpenses\(expenseFilters\)/);
   assert.match(page, /maskExpenseMetricsAvailability\([\s\S]*expensesData\.available/);
   assert.doesNotMatch(page, /expensesAvailable|setExpensesAvailable/);
-  assert.match(hook, /selectExpenseListLoading/);
-  assert.match(hook, /selectExpenseListError/);
-  assert.match(hook, /settledRequestKey === requestKey/);
+  assert.match(hook, /selectExpenseListRequest/);
+  assert.match(hook, /buildExpenseListRequestKey/);
+  assert.match(hook, /\[dispatch, landlordId, requestKey, serializedFilters\]/);
   assert.match(hook, /available/);
   assert.match(action, /requestId/);
   assert.match(action, /requestKey/);
-  assert.match(reducer, /listRequestId/);
-  assert.match(reducer, /listSettledRequestKey/);
-  assert.match(selectors, /selectExpenseListLoading/);
-  assert.match(selectors, /selectExpenseListError/);
+  assert.match(reducer, /listRequestsByKey/);
+  assert.match(selectors, /selectExpenseListRequest/);
 });

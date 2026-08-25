@@ -1,26 +1,13 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getExpensesAction, getTotalExpensesAction } from 'store/expense/expense.action';
-import {
-  selectExpenses,
-  selectTotalExpenses,
-  selectExpenseListLoading,
-  selectExpenseListError,
-  selectExpenseListRequestKey,
-  selectExpenseListSettledRequestKey
-} from 'store/expense/expense.selector';
+import { selectTotalExpenses, selectExpenseListRequest } from 'store/expense/expense.selector';
+import { buildExpenseListRequestKey } from 'utils/expensesTab';
 import useAuth from './useAuth';
 
 export default function useFetchExpenses(filters = {}) {
   const dispatch = useDispatch();
   const { user } = useAuth();
-  const storedExpenses = useSelector(selectExpenses);
-  const totalAmount = useSelector(selectTotalExpenses);
-  const listLoading = useSelector(selectExpenseListLoading);
-  const listError = useSelector(selectExpenseListError);
-  const activeRequestKey = useSelector(selectExpenseListRequestKey);
-  const settledRequestKey = useSelector(selectExpenseListSettledRequestKey);
-
   const landlordId = user?.id;
   const serializedFilters = JSON.stringify(filters);
   const filtersRef = useRef(filters);
@@ -29,9 +16,10 @@ export default function useFetchExpenses(filters = {}) {
     filtersRef.current = filters;
     serializedFiltersRef.current = serializedFilters;
   }
-  const requestKey = String(landlordId ?? 'anonymous') + ':' + serializedFilters;
-  const currentRequest = activeRequestKey === requestKey;
-  const requestSettled = settledRequestKey === requestKey;
+
+  const requestKey = buildExpenseListRequestKey(landlordId, filters);
+  const listRequest = useSelector((state) => selectExpenseListRequest(state, requestKey));
+  const totalAmount = useSelector(selectTotalExpenses);
   const enabled = Boolean(landlordId);
 
   const refetch = useCallback(() => {
@@ -40,16 +28,16 @@ export default function useFetchExpenses(filters = {}) {
     const currentFilters = filtersRef.current;
     dispatch(getExpensesAction(landlordId, currentFilters, requestKey));
     dispatch(getTotalExpensesAction(landlordId, currentFilters));
-  }, [dispatch, landlordId, requestKey]);
+  }, [dispatch, landlordId, requestKey, serializedFilters]);
 
   useEffect(() => {
     refetch();
   }, [refetch]);
 
-  const loading = enabled && (!currentRequest || listLoading);
-  const error = currentRequest ? listError : null;
-  const expenses = currentRequest && requestSettled ? storedExpenses : [];
-  const available = enabled && currentRequest && requestSettled && !listLoading && !listError;
+  const loading = enabled && (!listRequest || listRequest.loading);
+  const error = listRequest?.error ?? null;
+  const expenses = listRequest?.expenses || [];
+  const available = enabled && Boolean(listRequest?.settled) && !loading && !error;
 
   return {
     expenses,

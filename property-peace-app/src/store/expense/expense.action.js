@@ -1,11 +1,12 @@
 import { expenseAPI } from 'api';
+import { buildExpenseListRequestKey } from 'utils/expensesTab';
 import { EXPENSE_ACTION_TYPES } from './expense.types';
 
 let expenseListRequestSequence = 0;
 
 export const getExpensesAction = (landlordId, filters = {}, suppliedRequestKey) => async (dispatch) => {
   const requestId = ++expenseListRequestSequence;
-  const requestKey = suppliedRequestKey ?? String(landlordId ?? 'anonymous') + ':' + JSON.stringify(filters);
+  const requestKey = suppliedRequestKey ?? buildExpenseListRequestKey(landlordId, filters);
   const meta = { requestId, requestKey };
 
   try {
