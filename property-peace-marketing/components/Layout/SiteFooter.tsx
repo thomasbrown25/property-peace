@@ -91,13 +91,13 @@ export default function SiteFooter() {
         </div>
 
         <div className="mt-12 grid grid-cols-1 items-center gap-4 border-t border-white/15 pt-8 text-sm text-white/55 md:grid-cols-3">
-          <p className="order-2 text-center md:order-1 md:text-left">© 2026 Property Peace. All rights reserved.</p>
+          <p className="order-2 text-center text-white md:order-1 md:text-left">© 2026 Property Peace. All rights reserved.</p>
           <div className="order-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 md:order-2">
             <Link href="/terms" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Terms of Use</Link>
             <Link href="/privacy" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Privacy Policy</Link>
             <Link href="/sitemap" className="inline-flex min-h-10 items-center font-semibold text-[#22c55e] transition-colors hover:text-green-400">Sitemap</Link>
           </div>
-          <p className="order-3 text-center md:text-right">Created by Brownstone Hub LLC</p>
+          <p className="order-3 text-center text-white md:text-right">Created by Brownstone Hub LLC</p>
         </div>
       </div>
     </footer>

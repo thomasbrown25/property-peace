@@ -10,7 +10,10 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { getNavigationSurface } from '@/lib/navigation-surface';
+import {
+  getNavigationRouteTransitionState,
+  getNavigationSurface,
+} from '@/lib/navigation-surface';
 import {
   getFeaturesDropdownKeyAction,
   shouldOpenFeaturesDropdownOnFocus,
@@ -100,7 +103,10 @@ export default function Navigation() {
   }, [mobileMenuOpen]);
 
   useEffect(() => {
-    const update = () => setScrolled(window.scrollY > 24);
+    const update = () =>
+      setScrolled(
+        getNavigationRouteTransitionState({ scrollY: window.scrollY }).scrolled,
+      );
     update();
     window.addEventListener('scroll', update, { passive: true });
     return () => window.removeEventListener('scroll', update);
@@ -112,6 +118,10 @@ export default function Navigation() {
       featuresDropdownTimeoutRef.current = null;
     }
     const resetNavigation = window.setTimeout(() => {
+      const routeState = getNavigationRouteTransitionState({ scrollY: window.scrollY });
+      setScrolled(routeState.scrolled);
+      setPointerInside(routeState.pointerInside);
+      setFocusInside(routeState.focusInside);
       setMobileMenuOpen(false);
       setMobileFeaturesOpen(false);
       setFeaturesDropdownOpen(false);

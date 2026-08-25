@@ -90,7 +90,7 @@ namespace brownstone_hub_api.Controllers
             if (response.Data != null)
             {
                 var session = await _userService.CreateRefreshSession(response.Data.Id);
-                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
                 Response.Cookies.Delete(EmailVerificationCookieName, new CookieOptions { Path = "/" });
             }
@@ -123,8 +123,8 @@ namespace brownstone_hub_api.Controllers
                     }
                 }
 
-                var session = await _userService.CreateRefreshSession(response.Data.Id);
-                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                var session = await _userService.CreateRefreshSession(response.Data.Id, request.RememberMe);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
             }
             return Ok(new PasswordLoginResponseDto { Success = true, Data = response.Data, Message = response.Message });
@@ -165,7 +165,7 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 var session = await _userService.CreateRefreshSession(response.Data.Id);
-                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
             }
 
@@ -218,7 +218,7 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 var session = await _userService.CreateRefreshSession(response.Data.Id);
-                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+                SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
             }
 
@@ -248,7 +248,7 @@ namespace brownstone_hub_api.Controllers
                 return Unauthorized(new ServiceResponse<LoadUserDto> { Success = false, Message = "Refresh session is invalid or expired" });
             }
 
-            SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+            SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
             return Ok(new ServiceResponse<LoadUserDto> { Success = true, Data = session.User });
         }
 
@@ -265,17 +265,18 @@ namespace brownstone_hub_api.Controllers
             return NoContent();
         }
 
-        private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt)
+        private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt, bool isPersistent)
         {
             var secure = !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment() || Request.IsHttps;
-            Response.Cookies.Append("refreshToken", refreshToken, new CookieOptions
+            var options = new CookieOptions
             {
                 HttpOnly = true,
                 Secure = secure,
                 SameSite = secure ? SameSiteMode.None : SameSiteMode.Lax,
-                Expires = expiresAt,
                 Path = "/"
-            });
+            };
+            if (isPersistent) options.Expires = expiresAt;
+            Response.Cookies.Append("refreshToken", refreshToken, options);
         }
 
         private void ClearRefreshTokenCookie()

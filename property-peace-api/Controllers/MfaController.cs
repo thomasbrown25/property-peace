@@ -59,8 +59,9 @@ public sealed class MfaController(IMfaService mfa, IUserService users, IWebHostE
         if (!verified.Success || !verified.UserId.HasValue)
             return Unauthorized(new PasswordLoginResponseDto { Success = false, Message = "The MFA challenge is invalid or expired." });
 
-        var session = await users.CreateRefreshSession(verified.UserId.Value);
-        SetRefreshCookie(session.RefreshToken, session.RefreshTokenExpiresAt);
+        var isPersistent = request.RememberMe ?? true;
+        var session = await users.CreateRefreshSession(verified.UserId.Value, isPersistent);
+        SetRefreshCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
         return Ok(new PasswordLoginResponseDto { Success = true, Data = session.User });
     }
 
@@ -72,13 +73,15 @@ public sealed class MfaController(IMfaService mfa, IUserService users, IWebHostE
         return long.TryParse(value, out var id) ? id : throw new UnauthorizedAccessException();
     }
 
-    private void SetRefreshCookie(string token, DateTime expires)
+    private void SetRefreshCookie(string token, DateTime expires, bool isPersistent)
     {
         var secure = !environment.IsDevelopment() || Request.IsHttps;
-        Response.Cookies.Append("refreshToken", token, new CookieOptions
+        var options = new CookieOptions
         {
             HttpOnly = true, Secure = secure, SameSite = secure ? SameSiteMode.None : SameSiteMode.Lax,
-            Expires = expires, Path = "/"
-        });
+            Path = "/"
+        };
+        if (isPersistent) options.Expires = expires;
+        Response.Cookies.Append("refreshToken", token, options);
     }
 }

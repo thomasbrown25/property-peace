@@ -1,14 +1,13 @@
 import type { Metadata } from 'next';
 import { applyOttoSeo } from '@/lib/otto-seo';
 import Hero from '@/components/Sections/Hero';
-import PainPoints from '@/components/Sections/PainPoints';
+import PropertyManagementWheel from '@/components/Sections/PropertyManagementWheel';
+import CustomerReviewMarquee from '@/components/Sections/CustomerReviewMarquee';
 import CTA from '@/components/Sections/CTA';
 // import Features from '@/components/Sections/Features'; // Hidden for now
-import TrustClarity from '@/components/Sections/TrustClarity';
 import FAQ from '@/components/Sections/FAQ';
 // Testimonials/SocialProof section is temporarily hidden; keep the component for later re-enable.
 // import SocialProof from '@/components/Sections/SocialProof';
-import SeoPathways from '@/components/Sections/SeoPathways';
 import ResourceHighlights from '@/components/Sections/ResourceHighlights';
 
 export const metadata: Metadata = applyOttoSeo('/', {
@@ -25,16 +24,14 @@ export default function Home() {
         <div className="relative overflow-hidden bg-white">
           <div className="relative z-10">
             <Hero />
-            <PainPoints />
-            <CTA />
+            <PropertyManagementWheel />
+            <CustomerReviewMarquee />
           </div>
         </div>
 
-        <SeoPathways />
         <ResourceHighlights />
 
-        {/* Zone 2: Feature sections — light */}
-        <TrustClarity />
+        <CTA />
         <FAQ />
 
         {/* Zone 3: Social proof + Compare — hidden for now */}

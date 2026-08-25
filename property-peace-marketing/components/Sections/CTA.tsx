@@ -88,7 +88,7 @@ export default function CTA({ featured = false }: CTAProps) {
     <section className="py-12 sm:py-14 px-4 sm:px-6 lg:px-8 bg-white">
       <div className="max-w-4xl mx-auto text-center">
         <motion.h2
-          className="text-4xl md:text-5xl font-bold text-primary-main mb-4"
+          className="text-4xl md:text-5xl font-bold text-primary-deep mb-4"
           style={{ fontFamily: '"Poppins", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -108,7 +108,7 @@ export default function CTA({ featured = false }: CTAProps) {
           Clean. Simple.
         </motion.p>
         <motion.ul
-          className="flex flex-wrap justify-center gap-x-8 gap-y-2 mb-8 text-primary-main font-medium"
+          className="flex flex-wrap justify-center gap-x-8 gap-y-2 mb-8 text-primary-deep font-medium"
           style={{ fontFamily: '"Inter", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

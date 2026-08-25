@@ -15,6 +15,10 @@
     "test:visual-theme": "npm run build && node --test scripts/visual-theme.contract.test.mjs",
     "test:hero-background": "npm run build && node --test scripts/hero-background.contract.test.mjs",
     "test:light-heroes": "npm run build && node --test scripts/light-hero.contract.test.mjs",
+    "test:cookie-consent": "node --test scripts/cookie-consent.contract.test.mjs",
+    "test:homepage-order": "node --test scripts/homepage-section-order.contract.test.mjs",
+    "test:feature-wheel": "npm run build && node --test scripts/property-management-wheel.contract.test.mjs && tsx --test scripts/property-management-wheel.interaction.test.tsx",
+    "test:mobile-hero-actions": "node --test scripts/mobile-hero-actions.contract.test.mjs",
     "test:marketing-claims": "node scripts/check-marketing-claims.mjs",
     "generate-sitemap": "node scripts/generate-sitemap.mjs",
     "generate-rss": "node scripts/generate-rss.mjs"
@@ -29,14 +33,19 @@
     "react-icons": "^5.5.0"
   },
   "devDependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.23",
     "eslint": "^9",
     "eslint-config-next": "16.1.5",
+    "global-jsdom": "^29.0.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.23.12",
     "typescript": "5.9.3"
   }
 }

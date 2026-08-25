@@ -57,3 +57,24 @@ test('generated sitemap publishes the new trust and product-explanation pages', 
   assert.match(sitemap, /<loc>https:\/\/propertypeace\.io\/about\/<\/loc>/);
   assert.match(sitemap, /<loc>https:\/\/propertypeace\.io\/how-it-works\/<\/loc>/);
 });
+
+
+test('footer copyright and creator labels render in solid white', () => {
+  const homepage = fs.readFileSync(path.join(projectRoot, 'out', 'index.html'), 'utf8');
+
+  for (const label of [
+    '© 2026 Property Peace. All rights reserved.',
+    'Created by Brownstone Hub LLC',
+  ]) {
+    const labelIndex = homepage.indexOf(label);
+    assert.notEqual(labelIndex, -1, `footer should render “${label}”`);
+
+    const paragraphStart = homepage.lastIndexOf('<p', labelIndex);
+    const paragraphEnd = homepage.indexOf('</p>', labelIndex);
+    assert.notEqual(paragraphStart, -1, `“${label}” should render in a paragraph`);
+    assert.notEqual(paragraphEnd, -1, `“${label}” paragraph should close`);
+
+    const paragraph = homepage.slice(paragraphStart, paragraphEnd);
+    assert.match(paragraph, /class="[^"]*\btext-white\b[^"]*"/, `“${label}” should use solid white text`);
+  }
+});

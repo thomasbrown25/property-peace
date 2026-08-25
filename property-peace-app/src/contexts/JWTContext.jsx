@@ -18,11 +18,13 @@ import { USER_ACTION_TYPES } from 'store/user/user.types';
 import { getBrowserTimezone } from 'utils/browserTimezone';
 import { getPostLoginRedirectPath } from 'utils/authRedirect';
 import { normalizeLoginResult } from 'utils/mfaChallenge';
-import { verifyMfaChallenge } from 'api/security';
+import { createAuthenticationApi } from 'api/authentication';
 import { createPasswordResetApi } from 'api/passwordReset';
 import {
   clearImpersonationSession,
   getActiveAccessToken,
+  isAdminSessionPersistent,
+  setAdminAccessToken,
   getImpersonationMetadata,
   getUserOrganizationId,
   isImpersonating,
@@ -33,6 +35,7 @@ import {
 
 const chance = new Chance();
 const passwordResetApi = createPasswordResetApi(axios);
+const authenticationApi = createAuthenticationApi(axios);
 
 // constant
 const initialState = {
@@ -52,12 +55,11 @@ const verifyToken = (serviceToken) => {
   }
 };
 
-const setSession = (serviceToken) => {
+const setSession = (serviceToken, isPersistent = true) => {
+  setAdminAccessToken(serviceToken, isPersistent);
   if (serviceToken) {
-    localStorage.setItem('serviceToken', serviceToken);
     axios.defaults.headers.common.Authorization = `Bearer ${serviceToken}`;
   } else {
-    localStorage.removeItem('serviceToken');
     delete axios.defaults.headers.common.Authorization;
   }
 };
@@ -123,7 +125,7 @@ export const JWTProvider = ({ children }) => {
         }
 
         if (serviceToken && verifyToken(serviceToken)) {
-          if (!isImpersonating()) setSession(serviceToken);
+          if (!isImpersonating()) setSession(serviceToken, isAdminSessionPersistent());
           if (isImpersonating()) {
             await checkImpersonationStatus();
           }
@@ -163,8 +165,8 @@ export const JWTProvider = ({ children }) => {
     if (!state.isInitialized) init();
   }, [state.isInitialized]);
 
-  const completeLogin = async (user, explicitInviteToken = null) => {
-    setSession(user.jwtToken);
+  const completeLogin = async (user, explicitInviteToken = null, rememberMe = true) => {
+    setSession(user.jwtToken, rememberMe);
     dispatch({
       type: LOGIN,
       payload: {
@@ -227,21 +229,21 @@ export const JWTProvider = ({ children }) => {
     }, 100);
   };
 
-  const login = async (email, password) => {
-    const response = await axios.post('/api/user/login', { email, password });
+  const login = async (email, password, rememberMe = false) => {
+    const response = await authenticationApi.login(email, password, rememberMe);
     const result = normalizeLoginResult(response.data);
     if (result.kind === 'challenge') return result.challenge;
-    await completeLogin(result.user);
+    await completeLogin(result.user, null, rememberMe);
     return null;
   };
 
-  const verifyMfaLogin = async (challengeId, code) => {
-    const response = await verifyMfaChallenge(challengeId, code);
-    const result = normalizeLoginResult(response);
+  const verifyMfaLogin = async (challengeId, code, rememberMe = false) => {
+    const response = await authenticationApi.verifyMfa(challengeId, code, rememberMe);
+    const result = normalizeLoginResult(response.data);
     if (result.kind !== 'authenticated' || !result.user?.jwtToken) {
       throw new Error('Multi-factor verification did not return a valid sign-in session.');
     }
-    await completeLogin(result.user);
+    await completeLogin(result.user, null, rememberMe);
   };
 
   const passkeyLogin = async () => {

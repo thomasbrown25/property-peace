@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Script from "next/script";
 import { FiX } from "react-icons/fi";
-import { LuCookie } from "react-icons/lu";
 
 type ConsentChoice = "essential" | "all";
 
@@ -124,10 +123,6 @@ export default function CookieConsent({ gaId, googleAdsId, clarityId }: CookieCo
           >
             <FiX aria-hidden="true" />
           </button>
-
-          <div className="cookieConsent__icon" aria-hidden="true">
-            <LuCookie />
-          </div>
 
           <div className="cookieConsent__content">
             <h2 className="cookieConsent__title">Cookies & privacy</h2>

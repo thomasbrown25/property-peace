@@ -140,19 +140,7 @@ export default function AuthLogin({ isDemo = false }) {
     typeof window !== 'undefined' && typeof navigator !== 'undefined' && !!window.PublicKeyCredential && !!navigator.credentials;
   const { login, passkeyLogin, googleLogin } = useAuth();
 
-  const [rememberedEmail, setRememberedEmail] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('rememberedEmail') || '';
-    }
-    return '';
-  });
-
-  const [rememberEmail, setRememberEmail] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return !!localStorage.getItem('rememberedEmail');
-    }
-    return false;
-  });
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleClickShowPassword = () => {
     setShowPassword(!showPassword);
@@ -221,7 +209,7 @@ export default function AuthLogin({ isDemo = false }) {
     <>
       <Formik
         initialValues={{
-          email: rememberedEmail || '',
+          email: '',
           password: '',
           submit: null
         }}
@@ -238,18 +226,9 @@ export default function AuthLogin({ isDemo = false }) {
             // Login with email and password
             const trimmedEmail = values.email.trim();
 
-            // Save email to localStorage if "Remember Me" is checked
-            if (rememberEmail) {
-              localStorage.setItem('rememberedEmail', trimmedEmail);
-              setRememberedEmail(trimmedEmail);
-            } else {
-              localStorage.removeItem('rememberedEmail');
-              setRememberedEmail('');
-            }
-
-            const challenge = await login(trimmedEmail, values.password);
+            const challenge = await login(trimmedEmail, values.password, rememberMe);
             if (challenge?.requiresMfa) {
-              setMfaChallenge(challenge);
+              setMfaChallenge({ ...challenge, rememberMe });
             } else {
               setStatus({ success: true });
             }
@@ -436,7 +415,7 @@ export default function AuthLogin({ isDemo = false }) {
                     </Box>
                   </motion.div>
 
-                  {/* Remember Email Checkbox and Forgot Password Link */}
+                  {/* Session persistence and password recovery */}
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -446,17 +425,9 @@ export default function AuthLogin({ isDemo = false }) {
                       <FormControlLabel
                         control={
                           <Checkbox
-                            checked={rememberEmail}
-                            onChange={(e) => {
-                              const isChecked = e.target.checked;
-                              setRememberEmail(isChecked);
-                              // If unchecking, clear the remembered email
-                              if (!isChecked) {
-                                localStorage.removeItem('rememberedEmail');
-                                setRememberedEmail('');
-                              }
-                            }}
-                            name="rememberEmail"
+                            checked={rememberMe}
+                            onChange={(event) => setRememberMe(event.target.checked)}
+                            name="rememberMe"
                             color="primary"
                             size="small"
                           />

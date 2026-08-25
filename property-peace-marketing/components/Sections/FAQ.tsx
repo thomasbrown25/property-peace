@@ -70,7 +70,7 @@ export default function FAQ() {
             FAQ
           </span>
           <h2
-            className="mb-4 text-3xl font-bold text-primary-main md:text-4xl lg:text-5xl"
+            className="mb-4 text-3xl font-bold text-primary-deep md:text-4xl lg:text-5xl"
             style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.15' }}
           >
             Questions landlords ask before getting started.
@@ -106,7 +106,7 @@ export default function FAQ() {
                   onClick={() => toggleQuestion(faq.question)}
                 >
                   <span
-                    className="text-base font-semibold text-primary-main"
+                    className="text-base font-semibold text-primary-deep"
                     style={{ fontFamily: '"Inter", sans-serif' }}
                   >
                     {faq.question}
@@ -130,7 +130,7 @@ export default function FAQ() {
                       className="overflow-hidden"
                     >
                       <p
-                        className="mt-4 border-l-2 border-green-400 pl-4 text-sm leading-6 text-[#516A80]"
+                        className="mt-4 border-l-2 border-green-400 pl-4 text-sm leading-6 text-primary-deep"
                         style={{ fontFamily: '"Inter", sans-serif' }}
                       >
                         {faq.answer}

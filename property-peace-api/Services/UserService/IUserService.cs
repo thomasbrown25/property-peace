@@ -10,6 +10,7 @@ namespace brownstone_hub_api.Services.UserService
         Task<ServiceResponse<LoadUserDto>> Login(string email, string password);
         Task<LoadUserDto> CreateAccessToken(long userId);
         Task<RefreshSessionDto> CreateRefreshSession(long userId);
+        Task<RefreshSessionDto> CreateRefreshSession(long userId, bool isPersistent);
         Task<RefreshSessionDto?> RefreshSession(string refreshToken);
         Task<RefreshSessionDto?> RotateRefreshSessionForUser(string refreshToken, long expectedUserId);
         Task RevokeRefreshToken(string refreshToken);
