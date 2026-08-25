@@ -40,17 +40,13 @@ public sealed class FeatureReadinessService(
                 string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase));
             var authorized = isStaff;
             var state = options.Value.GetState(canonicalFeature);
-            // Aggregate readiness has no lease-scoped entitlement context. Do not infer tenant
-            // payment access from a user subscription or globally enable rent movement.
-            if (canonicalFeature == FeatureKeys.OnlineRentCollection &&
-                state is FeatureReadinessState.Available or FeatureReadinessState.Pilot)
-                state = FeatureReadinessState.Suspended;
 
             // The request's canonical organization is supplied explicitly by callers from
             // OrganizationContextMiddleware. Never fall back to the user's persisted current org:
             // one user can be a member of multiple organizations with different rollout status.
             var organizationReady = organizationId is > 0 &&
-                                    (state != FeatureReadinessState.Pilot ||
+                                    (canonicalFeature == FeatureKeys.OnlineRentCollection ||
+                                     state != FeatureReadinessState.Pilot ||
                                      options.Value.IsPilotOrganization(canonicalFeature, organizationId.Value));
             // Readiness is operational rollout/provider state only. Plan authority belongs solely to
             // the centralized entitlement decision service at the action boundary.
