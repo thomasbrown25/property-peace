@@ -376,6 +376,25 @@ public sealed class RentPaymentAccessServiceTests
     }
 
     [Fact]
+    public async Task Admin_detail_reports_when_the_organization_has_a_connected_payee()
+    {
+        await using var db = CreateContext();
+        db.Organizations.Add(new Organization { Id = 701, Name = "Pine Property Group" });
+        db.Users.Add(new User { Id = 41, FirstName = "Avery", LastName = "Landlord" });
+        var request = AddRequest(db, RentPaymentAccessStatus.Approved, organizationId: 701);
+        db.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
+        {
+            UserId = 41,
+            StripeAccountId = "acct_reviewed",
+            ApprovedOrganizationId = 701
+        });
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db).GetForAdminAsync(request.PublicId, CancellationToken.None);
+
+        result!.ConnectedPayeeExists.Should().BeTrue();
+    }
+    [Fact]
     public async Task Admin_transition_for_missing_public_id_returns_typed_not_found()
     {
         await using var db = CreateContext();

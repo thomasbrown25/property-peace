@@ -43,4 +43,7 @@ public sealed record RentPaymentAccessAdminDetailDto(
     string? DecisionReason,
     string? InternalNotes,
     byte[] RowVersion,
-    IReadOnlyList<RentPaymentAccessAuditEventDto> AuditEvents);
+    IReadOnlyList<RentPaymentAccessAuditEventDto> AuditEvents)
+{
+    public bool ConnectedPayeeExists { get; init; }
+}

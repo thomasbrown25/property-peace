@@ -300,6 +300,9 @@ public sealed class RentPaymentAccessService(
                 .ToListAsync(cancellationToken);
         }
 
+        var connectedPayeeExists = await db.StripeConnectedPayeeReviews.AsNoTracking()
+            .AnyAsync(candidate => candidate.ApprovedOrganizationId == request.OrganizationId, cancellationToken);
+
         return new RentPaymentAccessAdminDetailDto(
             request.PublicId,
             request.OrganizationId,
@@ -322,7 +325,10 @@ public sealed class RentPaymentAccessService(
                     audit.ActorUserId,
                     audit.OccurredAtUtc,
                     audit.SafeMetadataJson))
-                .ToArray());
+                .ToArray())
+        {
+            ConnectedPayeeExists = connectedPayeeExists
+        };
     }
 
     private void AddAudit(

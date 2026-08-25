@@ -8,7 +8,7 @@ export default function RentPaymentAccessPanel({ presentation, loading = false, 
   const isApproved = approvedStates.has(state);
   const primaryLabel = presentation?.actionLabel;
   const disabled = requesting || loading;
-  const action = presentation?.canRequest ? onRequest : presentation?.canConfigure ? onConfigure : onRefresh;
+  const action = presentation?.canRequest ? onRequest : primaryLabel === 'Finish payment setup' ? onConfigure : onRefresh;
 
   return (
     <Paper variant="outlined" sx={{ p: compact ? 2 : 2.5, mb: 3, borderColor: state === 'ready' ? 'success.light' : 'divider' }}>
@@ -32,7 +32,7 @@ export default function RentPaymentAccessPanel({ presentation, loading = false, 
         )}
         {primaryLabel && action && (
           <Box>
-            <Button variant="contained" onClick={action} disabled={disabled || (presentation.canConfigure && !onConfigure)} startIcon={primaryLabel === 'Refresh status' ? <ReloadOutlined /> : undefined} sx={{ '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.light', outlineOffset: 2 } }}>
+            <Button variant="contained" onClick={action} disabled={disabled || (primaryLabel === 'Finish payment setup' && !onConfigure)} startIcon={primaryLabel === 'Refresh status' ? <ReloadOutlined /> : undefined} sx={{ '&:focus-visible': { outline: '3px solid', outlineColor: 'primary.light', outlineOffset: 2 } }}>
               {requesting ? 'Submitting…' : loading ? 'Loading…' : primaryLabel}
             </Button>
           </Box>
