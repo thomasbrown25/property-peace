@@ -27,12 +27,6 @@ export default function Hero() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
           >
-            <p
-              className="mx-auto mb-4 inline-flex border border-emerald-300/35 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-emerald-200 lg:mx-0"
-              style={{ fontFamily: '"Inter", sans-serif' }}
-            >
-              The #1 Free Rental Management Software
-            </p>
 
             {/* Headline */}
             <h1
@@ -48,8 +42,7 @@ export default function Hero() {
               className="mx-auto mb-7 max-w-[21.5rem] text-[1.02rem] leading-7 text-white/90 sm:max-w-lg sm:text-base md:text-lg sm:leading-relaxed sm:mb-10 lg:mx-0"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
-              <span className="sm:hidden">Property Peace brings lease administration, maintenance operations, and portfolio analytics together, with Percy-assisted tools, currently in limited pilot.</span>
-              <span className="hidden sm:inline">Property Peace brings lease administration, maintenance operations, and portfolio analytics together for independent landlords, with Percy-assisted tools, currently in limited pilot.</span>
+              Manage tenants and leases, track rent and expenses, and stay ahead of maintenance, all in one place. Self-manage with free software that keeps the day-to-day work clear and under your control.
             </p>
 
             {/* Mobile start card - Innago-inspired, Property Peace-branded signup panel */}
@@ -84,9 +77,6 @@ export default function Hero() {
                     Book Demo
                   </Link>
                 </div>
-                <p className="mt-3 text-sm font-medium text-blue-100/90" style={{ fontFamily: '"Inter", sans-serif' }}>
-                  No credit card required
-                </p>
               </div>
             </div>
 
@@ -113,17 +103,8 @@ export default function Hero() {
                 </Link>
               </div>
 
-              <p className="mt-3 text-center text-xs text-white/75 lg:text-left" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Simple landlord accounting · No credit card required
-              </p>
             </div>
 
-            {/* Factual proof */}
-            <div className="mt-5 hidden justify-center gap-2 text-[13px] text-white/90 sm:flex sm:flex-wrap sm:text-xs lg:justify-start" style={{ fontFamily: '"Inter", sans-serif' }}>
-              <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-3 py-1 leading-snug shadow-sm backdrop-blur-sm">Replace spreadsheet sprawl</span>
-              <span className="inline-flex items-center rounded-full border border-white/25 bg-white/15 px-3 py-1 leading-snug shadow-sm backdrop-blur-sm">Track rent and maintenance</span>
-              <span className="inline-flex items-center justify-center rounded-full border border-white/25 bg-white/15 px-3 py-1 leading-snug shadow-sm backdrop-blur-sm">See what needs attention</span>
-            </div>
           </motion.div>
         </div>
 
