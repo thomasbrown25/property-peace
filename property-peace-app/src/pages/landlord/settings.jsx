@@ -17,7 +17,7 @@ import NotificationSettings from 'sections/landlord/settings/NotificationSetting
 import GeneralSettings from 'sections/landlord/settings/GeneralSettings';
 import AppearanceSettings from 'sections/landlord/settings/AppearanceSettings';
 import AccountSettings from 'sections/landlord/settings/AccountSettings';
-import PaymentsSettings from 'sections/landlord/settings/PaymentsSettings';
+import OnlineRentPaymentsSettings from 'sections/landlord/settings/PaymentsSettings';
 import ProfileSettings from 'sections/landlord/settings/ProfileSettings';
 import SmsNumberSettings from 'sections/landlord/settings/SmsNumberSettings';
 import SubscriptionSettings from 'sections/landlord/settings/SubscriptionSettings';
@@ -42,7 +42,7 @@ const tabConfig = [
   { key: 'profile', label: 'Profile', description: 'Your name, contact details, and public identity.', icon: ProfileOutlined, component: ProfileSettings },
   { key: 'account', label: 'Account Settings', description: 'Login, security, and account-level controls.', icon: UserOutlined, component: AccountSettings },
   { key: 'subscription', label: 'Manage Subscription', description: 'Plans, portfolio usage, billing details, and invoices.', icon: CreditCardOutlined, component: SubscriptionSettings },
-  { key: 'payments', label: 'Bank Settings', description: 'Payment accounts, payouts, and billing rails.', icon: DollarOutlined, component: PaymentsSettings },
+  { key: 'payments', label: 'Online Rent Payments', description: 'Request access, complete Stripe setup, and manage rent payouts.', icon: DollarOutlined, component: OnlineRentPaymentsSettings },
   { key: 'smsnumber', label: 'SMS Number Settings', description: 'Dedicated tenant texting number, routing, and setup.', icon: MobileOutlined, component: SmsNumberSettings },
   { key: 'notifications', label: 'Notifications', description: 'Alerts, reminders, and communication preferences.', icon: BellOutlined, component: NotificationSettings },
   { key: 'appearance', label: 'Appearance', description: 'Theme, color, and display customization.', icon: HighlightOutlined, component: AppearanceSettings }

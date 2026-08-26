@@ -26,9 +26,9 @@ export default function BankAccountBanner() {
       }}
       onClick={handleConnectBank}
     >
-      <AlertTitle sx={{ fontWeight: 600, mb: 0.5 }}>Connect Your Bank Account</AlertTitle>
+      <AlertTitle sx={{ fontWeight: 600, mb: 0.5 }}>Finish online payment setup</AlertTitle>
       <Typography variant="body2">
-        You must connect a bank account to start collecting rent. Click anywhere on this banner to connect your bank account.
+        Complete your Stripe payout setup before tenants can pay rent online. Select this banner to continue.
       </Typography>
     </Alert>
   );

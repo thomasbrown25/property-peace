@@ -125,14 +125,14 @@ export default function RentCollectionHeader() {
               bgcolor: isBankConnected ? theme.palette.success.main : undefined
             }}
           >
-            {checkingStatus ? 'Checking...' : isBankConnected ? 'Bank Connected' : 'Connect Bank Account'}
+            {checkingStatus ? 'Checking...' : isBankConnected ? 'Online Payments Ready' : 'Set Up Rent Payments'}
           </Button>
           <Button
             variant="outlined"
             startIcon={<SettingOutlined />}
             onClick={handleSettingsClick}
           >
-            Settings
+            Payment Settings
           </Button>
         </Stack>
       </Stack>

@@ -241,7 +241,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
               onClick={(e) => handleClick(e, true)}
               sx={(theme) => ({
                 pl: drawerOpen ? `${level * 28}px` : 1.5,
-                py: !drawerOpen && level === 1 ? 1.25 : 1,
+                py: 0.5,
                 ...(drawerOpen && {
                   '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.08)' },
                   '&.Mui-selected': {

@@ -37,7 +37,7 @@ export default function RentPaymentAccessPanel({ presentation, loading = false, 
             </Button>
           </Box>
         )}
-        <Typography variant="caption" color="text.secondary">Manual rent records remain available separately from online collection readiness.</Typography>
+        <Typography variant="caption" color="text.secondary">Included with the Free plan. Organization approval and Stripe setup are required before tenants can pay online. Manual rent records remain available separately.</Typography>
       </Stack>
     </Paper>
   );

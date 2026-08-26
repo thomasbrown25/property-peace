@@ -611,7 +611,7 @@ export default function PaymentsSettings() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CreditCardOutlined style={{ fontSize: 20, color: '#1890ff' }} />
               <Typography variant="h6" fontWeight="bold">
-                Stripe Payment Processing
+                Online rent payment account
               </Typography>
             </Box>
             {accountStatus?.AccountId && (
@@ -662,7 +662,7 @@ export default function PaymentsSettings() {
             )}
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Connect your bank account to receive payments from tenants. Your account information is securely processed by Stripe.
+            Complete Stripe's secure setup to accept tenant payments and route approved rent payouts to your bank account.
           </Typography>
 
           <Divider sx={{ my: 3 }} />
@@ -724,11 +724,11 @@ export default function PaymentsSettings() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
             <BankOutlined style={{ fontSize: 20, color: '#1890ff' }} />
             <Typography variant="h6" fontWeight="bold">
-              Connected Bank Accounts
+              Rent payout accounts
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            View all bank accounts and the properties connected to each account.
+            View the Stripe-managed payout accounts used for rent collection and the properties assigned to each one.
           </Typography>
           <Button
             variant="text"
@@ -755,7 +755,7 @@ export default function PaymentsSettings() {
             </Box>
           ) : bankAccounts.length === 0 ? (
             <Alert severity="info">
-              No bank accounts found. Add a bank account to get started.
+              No payout account found. Complete Stripe setup to add the bank account that will receive rent payouts.
             </Alert>
           ) : (
             <Grid container spacing={2}>
