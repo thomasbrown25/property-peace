@@ -23,7 +23,7 @@ export default function RentCollectionSingleHeader({ rent }) {
       <PageBreadcrumbs
         items={[
           { label: 'Dashboard', path: '/landlord/dashboard' },
-          { label: 'Rent Collection', path: '/landlord/rent-collection' },
+          { label: 'Leases', path: '/landlord/leases' },
           { label: displayName || 'Rent Details' }
         ]}
       />

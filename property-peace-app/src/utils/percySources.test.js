@@ -9,7 +9,7 @@ test('safe Percy workflow routes canonicalize trusted payment sources and reject
     canonicalPaymentsRoute,
     '/landlord/maintenances',
     '/landlord/leases',
-    '/landlord/applications',
+    '/landlord/listings?tab=applications',
     '/landlord/urgent-messages'
   ];
 

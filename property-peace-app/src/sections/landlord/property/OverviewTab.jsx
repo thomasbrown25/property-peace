@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { Box, Grid, Stack, Typography, Card, CardContent, Button, alpha, useTheme, Divider, Link, Chip, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
-import { UserOutlined, FileTextOutlined, DollarOutlined, PlusOutlined, ToolOutlined, KeyOutlined, EditOutlined, SendOutlined, SearchOutlined, RightOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
+import { UserOutlined, FileTextOutlined, DollarOutlined, PlusOutlined, ToolOutlined, KeyOutlined, EditOutlined, SendOutlined, RightOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { formatCurrency, formatDate } from 'utils/formatters';
 import { applicationAPI } from 'api';
@@ -212,11 +212,7 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
           label: 'Invite to Apply',
           onClick: () => navigate(`/landlord/invite-renter${propertyId ? `?propertyId=${propertyId}` : ''}`)
         },
-        {
-          icon: <SearchOutlined style={{ fontSize: 20 }} />,
-          label: 'Screen a Tenant',
-          onClick: () => navigate(`/landlord/screenings`)
-        },
+
         {
           icon: <FileTextOutlined style={{ fontSize: 20 }} />,
           label: 'Build a Lease Agreement',
@@ -524,7 +520,7 @@ export default function OverviewTab({ property, propertyId, selectedProperty, le
 
             <Grid size={{ xs: 12, sm: 6 }}>
               <Card
-                onClick={() => navigate(`/landlord/applications?propertyId=${propertyId}`)}
+                onClick={() => navigate(`/landlord/listings?tab=applications&propertyId=${propertyId}`)}
                 sx={{
                   bgcolor: (t) => alpha(t.palette.info.main, 0.08),
                   border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,

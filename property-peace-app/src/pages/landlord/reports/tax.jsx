@@ -306,33 +306,30 @@ export default function TaxReports() {
       {/* Operational hero */}
       <Box
         sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          bgcolor: NAVY,
-          color: '#fff',
-          borderRadius: 3,
-          px: { xs: 2, md: 2.75 },
-          py: { xs: 2.25, md: 2.5 },
-          mb: 2,
-          boxShadow: `0 16px 40px ${alpha(NAVY, 0.18)}`,
-          '&::after': { content: '\"\"', position: 'absolute', width: 240, height: 240, borderRadius: '50%', bgcolor: alpha(GREEN, 0.13), top: -150, right: -65 }
+          color: 'text.primary',
+          py: { xs: 0.5, md: 1 },
+          mb: 2
         }}
       >
-        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} spacing={2} sx={{ position: 'relative', zIndex: 1 }}>
+        <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', lg: 'center' }} spacing={2}>
           <Box sx={{ maxWidth: 640 }}>
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
-              <Chip size="small" icon={<CalculatorOutlined />} label={`${taxYear} tax workspace`} sx={{ bgcolor: alpha('#fff', 0.12), color: '#fff', '& .MuiChip-icon': { color: GREEN } }} />
+              <Chip size="small" icon={<CalculatorOutlined />} label={`${taxYear} tax workspace`} sx={{ bgcolor: alpha(GREEN, 0.1), color: 'success.dark', '& .MuiChip-icon': { color: GREEN } }} />
               {taxReadiness && (
                 <Chip
                   size="small"
                   icon={readinessStatus === 'Ready' ? <CheckCircleOutlined /> : <WarningOutlined />}
                   label={readinessReviewCount ? `${readinessReviewCount} items to review` : readinessStatus}
-                  sx={{ bgcolor: alpha('#fff', 0.08), color: '#fff', '& .MuiChip-icon': { color: readinessStatus === 'Ready' ? GREEN : '#fbbf24' } }}
+                  sx={{
+                    bgcolor: alpha(readinessStatus === 'Ready' ? GREEN : theme.palette.warning.main, 0.1),
+                    color: readinessStatus === 'Ready' ? 'success.dark' : 'warning.dark',
+                    '& .MuiChip-icon': { color: readinessStatus === 'Ready' ? GREEN : 'warning.main' }
+                  }}
                 />
               )}
             </Stack>
-            <Typography variant="h2" sx={{ color: '#fff', fontWeight: 780, letterSpacing: -0.6 }}>Tax Center</Typography>
-            <Typography sx={{ mt: 0.75, color: alpha('#fff', 0.7), lineHeight: 1.6 }}>
+            <Typography variant="h3" sx={{ color: 'text.primary', fontWeight: 700, letterSpacing: -0.4 }}>Tax Center</Typography>
+            <Typography sx={{ mt: 0.5, color: 'text.secondary', lineHeight: 1.6 }}>
               Review Schedule E figures, work through preparation checks, and download files for accountant review.
             </Typography>
           </Box>
@@ -345,13 +342,14 @@ export default function TaxReports() {
               flexShrink: 0,
               p: 1.25,
               borderRadius: 2,
-              bgcolor: alpha('#fff', 0.055),
-              border: `1px solid ${alpha('#fff', 0.12)}`
+              bgcolor: 'background.paper',
+              border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+              boxShadow: `0 4px 18px ${alpha(NAVY, 0.04)}`
             }}
           >
             <Stack direction="row" spacing={1} alignItems="flex-end" justifyContent="space-between">
               <Box sx={{ flex: 1, maxWidth: { sm: 150 } }}>
-                <Typography component="label" htmlFor="tax-year-select" sx={{ display: 'block', mb: 0.5, color: alpha('#fff', 0.66), fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.55, textTransform: 'uppercase' }}>
+                <Typography component="label" htmlFor="tax-year-select" sx={{ display: 'block', mb: 0.5, color: 'text.secondary', fontSize: '0.7rem', fontWeight: 700, letterSpacing: 0.55, textTransform: 'uppercase' }}>
                   Tax year
                 </Typography>
                 <FormControl fullWidth size="small">
@@ -361,12 +359,7 @@ export default function TaxReports() {
                     onChange={(event) => setTaxYear(Number(event.target.value))}
                     inputProps={{ 'aria-label': 'Tax year' }}
                     sx={{
-                      color: '#fff',
-                      bgcolor: alpha('#fff', 0.08),
                       fontWeight: 700,
-                      '& .MuiSelect-icon': { color: alpha('#fff', 0.78) },
-                      '& .MuiOutlinedInput-notchedOutline': { borderColor: alpha('#fff', 0.3) },
-                      '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: alpha('#fff', 0.55) },
                       '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: GREEN }
                     }}
                   >
@@ -382,10 +375,11 @@ export default function TaxReports() {
                   width: 40,
                   height: 40,
                   flexShrink: 0,
-                  color: '#fff',
-                  border: `1px solid ${alpha('#fff', 0.34)}`,
+                  color: 'text.secondary',
+                  border: '1px solid',
+                  borderColor: 'divider',
                   borderRadius: 1.5,
-                  '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) }
+                  '&:hover': { borderColor: 'text.secondary', bgcolor: 'action.hover' }
                 }}
               >
                 {taxLoading ? <CircularProgress size={18} color="inherit" /> : <ReloadOutlined />}
@@ -395,10 +389,11 @@ export default function TaxReports() {
               <Button
                 fullWidth
                 variant="contained"
+                color="success"
                 startIcon={actionLoading === 'schedule-e' ? <CircularProgress size={15} color="inherit" /> : <FilePdfOutlined />}
                 onClick={handleDownloadScheduleE}
                 disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
-                sx={{ minHeight: 40, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#41a541', color: '#fff' } }}
+                sx={{ minHeight: 40, fontWeight: 750 }}
               >
                 Download Schedule E
               </Button>
@@ -411,7 +406,7 @@ export default function TaxReports() {
                 aria-expanded={Boolean(taxExportMenuAnchor)}
                 aria-controls={taxExportMenuAnchor ? 'tax-export-menu' : undefined}
                 disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
-                sx={{ color: '#fff', borderColor: alpha('#fff', 0.34), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) } }}
+                sx={{ fontWeight: 700 }}
               >
                 {actionLoading && actionLoading !== 'schedule-e' ? 'Preparing…' : 'Export packages'}
               </Button>
@@ -718,7 +713,16 @@ export default function TaxReports() {
           </Stack>
 
           {/* Toolbar */}
-          <Box sx={{ ...cardSx, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'minmax(220px, 2fr) repeat(2, minmax(150px, 1fr)) minmax(220px, 2fr)' }, gap: 1, alignItems: 'center', mb: 1.25, p: 1.25 }}>
+          <Box
+            data-testid="tax-expense-filters"
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'minmax(220px, 2fr) repeat(2, minmax(150px, 1fr)) minmax(220px, 2fr)' },
+              gap: 1,
+              alignItems: 'center',
+              mb: 2
+            }}
+          >
             <OutlinedInput
               size="small"
               placeholder="Search description, vendor, category…"
@@ -756,7 +760,7 @@ export default function TaxReports() {
             </Box>
           </Box>
 
-          <MainCard content={false} sx={{ ...cardSx, mb: 2, overflow: 'hidden' }}>
+          <MainCard data-testid="tax-expense-table" content={false} sx={{ ...cardSx, mb: 2, overflow: 'hidden' }}>
             {filteredDeductibleExpenses.length === 0 ? (
               <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography variant="body2" color="text.secondary">No expenses match your filters.</Typography>

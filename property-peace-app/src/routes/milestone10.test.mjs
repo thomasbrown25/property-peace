@@ -54,14 +54,13 @@ test('rent detail routes never put a property id in the lease-id path', async ()
   const propertyActions = await source('../store/property/property.action.js');
   const leaseTenant = await source('../pages/landlord/lease-add-tenant.jsx');
 
-  assert.doesNotMatch(rentCard, /rent-collection\/\$\{rent\.propertyId\}/);
-  assert.match(rentCard, /rent-collection\?propertyId=\$\{rent\.propertyId\}/);
-  assert.doesNotMatch(urgent, /rent-collection\/\$\{message\.propertyId\}/);
-  assert.match(urgent, /rent-collection\?propertyId=\$\{message\.propertyId\}/);
-  assert.doesNotMatch(lease, /rent-collection\/\$\{propertyId\}/);
-  assert.match(lease, /rent-collection\/\$\{leaseId\}/);
-  assert.doesNotMatch(notifications, /rent-collection\/\$\{propertyId\}/);
-  assert.match(notifications, /rent-collection\?propertyId=\$\{propertyId\}/);
+  assert.match(rentCard, /landlord\/leases\/\$\{rent\.leaseId\}/);
+  assert.doesNotMatch(urgent, /landlord\/rent-collection/);
+  assert.match(urgent, /landlord\/leases\/\$\{message\.leaseId\}/);
+  assert.doesNotMatch(lease, /landlord\/rent-collection/);
+  assert.match(lease, /build-lease-agreement\/rent-deposit-fees/);
+  assert.doesNotMatch(notifications, /landlord\/rent-collection/);
+  assert.match(notifications, /landlord\/leases\/\$\{leaseId\}/);
   assert.match(rentCollection, /requestedPropertyId=\{searchParams\.get\('propertyId'\)\}/);
   assert.match(propertySelect, /properties\?\.find\(\(property\) => String\(property\.id\) === requestedKey\)/);
   assert.match(propertySelect, /dispatch\(setProperty\(requestedProperty\)\)/);

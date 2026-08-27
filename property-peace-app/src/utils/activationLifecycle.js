@@ -128,10 +128,10 @@ function routeDescriptor(key, context, mode = 'vacant') {
     account: ['/landlord/settings?tab=profile', 'Open profile settings'],
     organization: ['/landlord/admin-members', 'Open organization settings'],
     'property-unit': [propertyId ? `/landlord/property/${propertyId}/add-units${mode === 'import' ? '/import' : ''}` : mode === 'import' ? '/landlord/properties/import' : '/landlord/properties/add', mode === 'import' ? 'Import properties or units' : 'Add property or unit'],
-    'listing-application': [listingId ? `/landlord/listings/${listingId}/setup` : applicationId ? `/landlord/applications?applicationId=${applicationId}` : `/landlord/listings/add${suffix ? `?${suffix}` : ''}`, listingId ? 'Continue listing' : applicationId ? 'Continue application' : 'Create listing'],
+    'listing-application': [listingId ? `/landlord/listings/${listingId}/setup` : applicationId ? `/landlord/listings?tab=applications&applicationId=${applicationId}` : `/landlord/listings/add${suffix ? `?${suffix}` : ''}`, listingId ? 'Continue listing' : applicationId ? 'Continue application' : 'Create listing'],
     lease: [leaseId ? `/landlord/leases/${leaseId}/builder` : `/landlord/leases/selection${suffix ? `?${suffix}` : ''}`, leaseId ? 'Continue lease' : 'Select lease property'],
     'tenant-invite': [leaseId ? `/landlord/leases/${leaseId}/add-tenant${tenantId ? `?tenantId=${tenantId}` : ''}` : tenantId ? `/landlord/renters/${tenantId}` : '/landlord/leases', leaseId ? 'Add or invite tenant' : tenantId ? 'Open renter' : 'Choose a lease'],
-    'rent-readiness': [leaseId ? `/landlord/rent-collection/${leaseId}` : '/landlord/leases', leaseId ? 'Open lease rent tracking' : 'Choose a configured lease'],
+    'rent-readiness': [leaseId ? `/landlord/leases/${leaseId}` : '/landlord/leases', leaseId ? 'Open lease rent tracking' : 'Choose a configured lease'],
     communication: ['/landlord/messages', 'Open messages']
   };
   const [route, label] = routes[key];

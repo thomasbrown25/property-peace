@@ -4,21 +4,6 @@ import { readFile } from 'node:fs/promises';
 
 const source = async (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('staff workflow uses server quote options, idempotency, criteria/report revisions, notices, and access revocation', async () => {
-  const page = await source('../pages/landlord/screenings.jsx');
-  const api = await source('../api/screening.js');
-  assert.match(page, /screeningApi\.quoteOptions\(id\)/);
-  assert.match(page, /getPayerLabel\(item\)/);
-  assert.match(page, /Authoritative fee breakdown/);
-  assert.match(page, /criteriaVersion, reportRevisionId: latestReportId, reasonCodes/);
-  assert.match(page, /screeningApi\.adverseAction/);
-  assert.match(page, /screeningApi\.retryAdverseAction/);
-  assert.match(page, /screeningApi\.revokeAccess/);
-  assert.match(page, /screeningApi\.reportAccess/);
-  assert.match(page, /getSafeNavigationUrl\(response\.data\?\.data \?\? response\.data, exchangeMetadata\(response\)\)/);
-  assert.match(page, /navigateTopLevel\(destination\)/);
-  assert.match(api, /'Idempotency-Key': idempotencyKey/);
-});
 
 test('applicant workflow handles terminal access states and only navigates after validated exchanges', async () => {
   const page = await source('../pages/apply/ApplicantScreeningPage.jsx');
@@ -43,11 +28,6 @@ test('applicant page does not render provider URLs, quote references, normalized
   assert.doesNotMatch(page, />\s*\{value\(invitation, 'quoteReference'\)\}/);
 });
 
-test('staff option selection does not pretend unquoted fees are authoritative', async () => {
-  const page = await source('../pages/landlord/screenings.jsx');
-  assert.match(page, /Exact fees are locked by the server when the\s+order is created/);
-  assert.doesNotMatch(page, /<QuoteBreakdown quote=\{optionQuote\}/);
-});
 
 test('public applicant token route is outside authenticated dashboard routes', async () => {
   const routes = await source('../routes/LoginRoutes.jsx');
@@ -82,26 +62,4 @@ test('applicant can submit a coded dispute bound to the latest report revision',
   assert.match(page, /issueCodes/);
   assert.match(page, /disputeNarrative/);
   assert.match(page, /Submit report dispute/);
-});
-
-test('staff decisions show frozen criteria and accept authoritative select-only reason codes', async () => {
-  const page = await source('../pages/landlord/screenings.jsx');
-  assert.match(page, /rentalCriteriaStatement/);
-  assert.match(page, /reasonCodeOptions/);
-  assert.match(page, /multiple/);
-  assert.doesNotMatch(page, /label="Reason codes"[\s\S]{0,200}TextField/);
-  assert.match(page, /labelId="decision-label"/);
-  assert.match(page, /labelId="reason-codes-label"/);
-  assert.match(page, /setDetail\(await screeningApi\.detail\(id\)\);[\s\S]*setReasonCodes\(\[\]\)/);
-  assert.match(page, /labelId="notice-stage-label"/);
-  assert.match(page, /labelId="delivery-channel-label"/);
-});
-
-test('both authorized staff roles can discover the guarded screening workspace', async () => {
-  const landlordMenu = await source('../menu-items/pages.js');
-  const adminMenu = await source('../menu-items/admin-pages.js');
-  const guard = await source('../components/auth/ScreeningStaffRoute.jsx');
-  assert.match(landlordMenu, /title: 'Screenings'[\s\S]{0,120}url: '\/landlord\/screenings'/);
-  assert.match(adminMenu, /title: 'Screenings'[\s\S]{0,120}url: '\/landlord\/screenings'/);
-  assert.match(guard, /role === 'landlord' \|\| role === 'admin'/);
 });

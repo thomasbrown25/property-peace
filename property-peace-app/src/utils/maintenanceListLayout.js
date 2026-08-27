@@ -3,9 +3,10 @@ export const maintenanceFilterGridSx = {
   gridTemplateColumns: {
     xs: 'minmax(0, 1fr)',
     md: 'repeat(2, minmax(0, 1fr))',
-    lg: 'repeat(4, minmax(0, 1fr))'
+    lg: 'repeat(6, minmax(0, 1fr))',
+    xl: 'repeat(8, minmax(0, 1fr))'
   },
-  gap: 1.1,
+  gap: 0.75,
   alignItems: 'center'
 };
 

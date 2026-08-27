@@ -192,6 +192,7 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
             <Button
               variant="contained"
+              color="success"
               size="large"
               onClick={handleStartSetupTasks}
               disabled={loading}
@@ -201,9 +202,8 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
                 textTransform: 'none',
                 fontWeight: 800,
                 borderRadius: 1.75,
-                bgcolor: '#41a541',
                 boxShadow: 'none',
-                '&:hover': { bgcolor: '#347f34', boxShadow: 'none' }
+                '&:hover': { boxShadow: 'none' }
               }}
             >
               View setup checklist

@@ -51,6 +51,7 @@ import useSignalRConversations from 'hooks/useSignalRConversations';
 import { openSnackbar } from 'api/snackbar';
 import AdminSupportWorkspace from 'sections/admin/support/AdminSupportWorkspace';
 import { getSendAttempt } from 'utils/clientRequestId';
+import { getConversationBubbleSx } from 'utils/conversationPresentation';
 
 // ==============================|| ADMIN MESSAGES PAGE ||============================== //
 
@@ -64,10 +65,9 @@ export default function AdminMessages() {
   // Main tab: 'support' or 'conversations'
   const [mainTab, setMainTab] = useState(searchParams.get('tab') === 'support' ? 'support' : 'conversations');
   const [supportRequestCount, setSupportRequestCount] = useState(0);
-  
+
   // Mobile state for conversations
   const [showConversationList, setShowConversationList] = useState(!isMobile);
-
 
   // Conversations state
   const [conversations, setConversations] = useState([]);
@@ -91,22 +91,17 @@ export default function AdminMessages() {
   const messagesEndRef = useRef(null);
   const sendAttemptRef = useRef(null);
 
-
   const loadConversations = useCallback(async () => {
     try {
       setLoadingConversations(true);
       const response = await axiosServices.get('/api/Conversation/admin/conversations?includeArchived=false');
-      
+
       if (response.data?.success && response.data?.data) {
         // Filter out conversations without messages
-        const conversationsWithMessages = response.data.data.filter(conv => 
-          conv.lastMessagePreview || conv.lastMessageAt
-        );
+        const conversationsWithMessages = response.data.data.filter((conv) => conv.lastMessagePreview || conv.lastMessageAt);
         setConversations(conversationsWithMessages);
       } else if (response.data?.data && Array.isArray(response.data.data)) {
-        const conversationsWithMessages = response.data.data.filter(conv => 
-          conv.lastMessagePreview || conv.lastMessageAt
-        );
+        const conversationsWithMessages = response.data.data.filter((conv) => conv.lastMessagePreview || conv.lastMessageAt);
         setConversations(conversationsWithMessages);
       }
     } catch (err) {
@@ -151,9 +146,7 @@ export default function AdminMessages() {
   // Handle conversation selection
   const handleSelectConversation = useCallback(
     (conversation) => {
-      const conversationId = typeof conversation === 'object' && conversation !== null 
-        ? conversation.id 
-        : conversation;
+      const conversationId = typeof conversation === 'object' && conversation !== null ? conversation.id : conversation;
 
       if (!conversationId) {
         return;
@@ -242,21 +235,21 @@ export default function AdminMessages() {
   // Listen for real-time message updates via SignalR
   useEffect(() => {
     if (!isConnected) return;
-    
+
     if (!selectedConversation?.id) return;
 
     const unsubscribe = onMessageUpdate((message) => {
       if (message?.conversationId === selectedConversation.id) {
         const messageExists = messages.some((msg) => msg.id === message.id);
-        
+
         if (!messageExists) {
           dispatch({
             type: 'message/ADD_MESSAGE_SUCCESS',
             payload: message
           });
-          
+
           loadConversations();
-          
+
           setTimeout(() => {
             messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
           }, 100);
@@ -294,7 +287,6 @@ export default function AdminMessages() {
     }
   }, [isMobile, selectedConversation]);
 
-
   return (
     <Grid container spacing={3}>
       <Grid size={12}>
@@ -313,62 +305,60 @@ export default function AdminMessages() {
                 setSearchParams(newValue === 'support' ? { tab: 'support' } : {});
               }}
             >
-              <Tab 
+              <Tab
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <MessageOutlined />
                     <span>Conversations</span>
                     {conversations.length > 0 && (
-                      <Chip 
-                        label={conversations.filter(c => c.unreadCount > 0).length} 
-                        size="small" 
+                      <Chip
+                        label={conversations.filter((c) => c.unreadCount > 0).length}
+                        size="small"
                         color="error"
                         sx={{ height: 20, minWidth: 20 }}
                       />
                     )}
                   </Box>
-                } 
-                value="conversations" 
+                }
+                value="conversations"
               />
-              <Tab 
+              <Tab
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <CustomerServiceOutlined />
                     <span>Support & Feedback</span>
-                    {supportRequestCount > 0 && (
-                      <Chip 
-                        label={supportRequestCount} 
-                        size="small" 
-                        sx={{ height: 20, minWidth: 20 }}
-                      />
-                    )}
+                    {supportRequestCount > 0 && <Chip label={supportRequestCount} size="small" sx={{ height: 20, minWidth: 20 }} />}
                   </Box>
-                } 
-                value="support" 
+                }
+                value="support"
               />
             </Tabs>
           </Box>
 
           {mainTab === 'conversations' ? (
             // Conversations View
-            <Box sx={{ 
-              height: { xs: 'calc(100vh - 200px)', md: 'calc(100vh - 350px)' }, 
-              minHeight: { xs: 400, md: 600 }, 
-              display: 'flex',
-              position: 'relative'
-            }}>
+            <Box
+              sx={{
+                height: { xs: 'calc(100vh - 200px)', md: 'calc(100vh - 350px)' },
+                minHeight: { xs: 400, md: 600 },
+                display: 'flex',
+                position: 'relative'
+              }}
+            >
               {/* Conversations Sidebar */}
-              <Box sx={{ 
-                width: { xs: '100%', md: 350 },
-                borderRight: { md: 1 },
-                borderColor: 'divider',
-                display: { xs: showConversationList ? 'flex' : 'none', md: 'flex' },
-                flexDirection: 'column',
-                position: { xs: 'absolute', md: 'relative' },
-                zIndex: { xs: 10, md: 1 },
-                bgcolor: { xs: 'background.paper', md: 'transparent' },
-                height: { xs: '100%', md: 'auto' }
-              }}>
+              <Box
+                sx={{
+                  width: { xs: '100%', md: 350 },
+                  borderRight: { md: 1 },
+                  borderColor: 'divider',
+                  display: { xs: showConversationList ? 'flex' : 'none', md: 'flex' },
+                  flexDirection: 'column',
+                  position: { xs: 'absolute', md: 'relative' },
+                  zIndex: { xs: 10, md: 1 },
+                  bgcolor: { xs: 'background.paper', md: 'transparent' },
+                  height: { xs: '100%', md: 'auto' }
+                }}
+              >
                 {/* Search */}
                 <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                   <TextField
@@ -452,16 +442,27 @@ export default function AdminMessages() {
               </Box>
 
               {/* Chat Area */}
-              <Box sx={{ 
-                flex: 1, 
-                display: { xs: selectedConversation ? 'flex' : 'none', md: 'flex' },
-                flexDirection: 'column',
-                width: '100%'
-              }}>
+              <Box
+                sx={{
+                  flex: 1,
+                  display: { xs: selectedConversation ? 'flex' : 'none', md: 'flex' },
+                  flexDirection: 'column',
+                  width: '100%'
+                }}
+              >
                 {selectedConversation ? (
                   <>
                     {/* Chat Header */}
-                    <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: 1, borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        p: { xs: 1.5, md: 2 },
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5
+                      }}
+                    >
                       {isMobile && (
                         <IconButton
                           onClick={() => {
@@ -474,14 +475,26 @@ export default function AdminMessages() {
                         </IconButton>
                       )}
                       <Avatar sx={{ bgcolor: 'primary.main', width: { xs: 32, md: 40 }, height: { xs: 32, md: 40 } }}>
-                        {selectedConversation.title?.charAt(0)?.toUpperCase() || selectedConversation.tenantName?.charAt(0)?.toUpperCase() || '?'}
+                        {selectedConversation.title?.charAt(0)?.toUpperCase() ||
+                          selectedConversation.tenantName?.charAt(0)?.toUpperCase() ||
+                          '?'}
                       </Avatar>
                       <Stack sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant={isMobile ? 'subtitle1' : 'h6'} sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {selectedConversation.title || selectedConversation.tenantName || selectedConversation.landlordName || 'Untitled Conversation'}
+                        <Typography
+                          variant={isMobile ? 'subtitle1' : 'h6'}
+                          sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          {selectedConversation.title ||
+                            selectedConversation.tenantName ||
+                            selectedConversation.landlordName ||
+                            'Untitled Conversation'}
                         </Typography>
                         {selectedConversation.propertyName && (
-                          <Typography variant="caption" color="text.secondary" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
                             {selectedConversation.propertyName}
                           </Typography>
                         )}
@@ -522,7 +535,7 @@ export default function AdminMessages() {
                             const isConsecutive = previousMessage && previousMessage.senderId === message.senderId;
                             const showAvatar = !isConsecutive;
                             const showSenderName = !isOwnMessage && !isConsecutive;
-                            
+
                             return (
                               <Box
                                 key={message.id}
@@ -532,7 +545,12 @@ export default function AdminMessages() {
                                   mt: isConsecutive ? 0.25 : 1.5
                                 }}
                               >
-                                <Stack direction="row" spacing={0.5} justifyContent={isOwnMessage ? 'flex-end' : 'flex-start'} sx={{ width: 'fit-content', maxWidth: { xs: '85%', md: '70%' } }}>
+                                <Stack
+                                  direction="row"
+                                  spacing={0.5}
+                                  justifyContent={isOwnMessage ? 'flex-end' : 'flex-start'}
+                                  sx={{ width: 'fit-content', maxWidth: { xs: '85%', md: '70%' } }}
+                                >
                                   {!isOwnMessage && (
                                     <Box sx={{ width: 32, flexShrink: 0, visibility: showAvatar ? 'visible' : 'hidden' }}>
                                       <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
@@ -547,13 +565,7 @@ export default function AdminMessages() {
                                         p: 1.5,
                                         width: 'fit-content',
                                         maxWidth: '100%',
-                                        bgcolor: isOwnMessage ? 'primary.main' : 'background.paper',
-                                        color: isOwnMessage ? 'primary.contrastText' : 'text.primary',
-                                        borderRadius: 2,
-                                        borderTopLeftRadius: isConsecutive ? 2 : (isOwnMessage ? 2 : 0),
-                                        borderTopRightRadius: isConsecutive ? 2 : (isOwnMessage ? 0 : 2),
-                                        borderBottomLeftRadius: 2,
-                                        borderBottomRightRadius: 2
+                                        ...getConversationBubbleSx({ isOwn: isOwnMessage, isConsecutive })
                                       }}
                                     >
                                       {showSenderName && (
@@ -667,15 +679,11 @@ export default function AdminMessages() {
                   </Box>
                 )}
               </Box>
-              
+
               {/* Mobile: Show conversation list toggle when no conversation selected */}
               {isMobile && !selectedConversation && !showConversationList && (
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', p: 3 }}>
-                  <Button
-                    variant="contained"
-                    startIcon={<MenuOutlined />}
-                    onClick={() => setShowConversationList(true)}
-                  >
+                  <Button variant="contained" startIcon={<MenuOutlined />} onClick={() => setShowConversationList(true)}>
                     View Conversations
                   </Button>
                 </Box>
@@ -689,4 +697,3 @@ export default function AdminMessages() {
     </Grid>
   );
 }
-

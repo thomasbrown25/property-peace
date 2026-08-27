@@ -1,7 +1,6 @@
 import { Suspense, Component } from 'react';
-import { Box, Button, Typography, Alert } from '@mui/material';
-
 // project imports
+import FriendlyLoadError from './FriendlyLoadError';
 import Loader from './Loader';
 
 // ==============================|| LOADABLE - LAZY LOADING ||============================== //
@@ -15,9 +14,11 @@ class LoadableErrorBoundary extends Component {
 
   static getDerivedStateFromError(error) {
     // Check if it's a dynamic import error
-    if (error?.message?.includes('Failed to fetch dynamically imported module') || 
-        error?.message?.includes('Loading chunk') ||
-        error?.name === 'ChunkLoadError') {
+    if (
+      error?.message?.includes('Failed to fetch dynamically imported module') ||
+      error?.message?.includes('Loading chunk') ||
+      error?.name === 'ChunkLoadError'
+    ) {
       return { hasError: true, error };
     }
     return { hasError: true, error };
@@ -39,21 +40,7 @@ class LoadableErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Alert severity="error" sx={{ mb: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              Failed to Load Module
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              There was an error loading this page. This can happen if the application was recently updated.
-            </Typography>
-            <Button variant="contained" onClick={this.handleRetry} sx={{ mt: 1 }}>
-              Reload Page
-            </Button>
-          </Alert>
-        </Box>
-      );
+      return <FriendlyLoadError onRetry={this.handleRetry} />;
     }
 
     return this.props.children;

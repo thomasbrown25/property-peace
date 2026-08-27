@@ -4,13 +4,12 @@ import { readFile } from 'node:fs/promises';
 
 const source = (path) => readFile(new URL(path, import.meta.url), 'utf8');
 
-test('landlord lead workspace has a guarded route and desktop/mobile navigation presence', async () => {
+test('landlord lead workspace source is preserved but hidden from navigation and routing', async () => {
   const [routes, menu, workspace] = await Promise.all([
     source('../routes/MainRoutes.jsx'), source('../menu-items/pages.js'), source('../pages/landlord/leads.jsx')
   ]);
-  assert.match(routes, /const Leads = Loadable\(lazy\(\(\) => import\('pages\/landlord\/leads'\)\)\)/);
-  assert.match(routes, /path: 'landlord\/leads'[\s\S]*<SubscriptionPausedGuard>[\s\S]*<Leads \/>/);
-  assert.match(menu, /id: 'leads'[\s\S]*title: 'Leads & Showings'[\s\S]*url: '\/landlord\/leads'/);
+  assert.doesNotMatch(routes, /pages\/landlord\/leads|path: 'landlord\/leads'/);
+  assert.doesNotMatch(menu, /id: 'leads'|title: 'Leads & Showings'|url: '\/landlord\/leads'/);
   assert.match(workspace, /LeadFilters/);
   assert.match(workspace, /LeadTable/);
   assert.match(workspace, /ShowingsPanel/);

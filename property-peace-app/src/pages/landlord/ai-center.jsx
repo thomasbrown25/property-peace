@@ -1086,7 +1086,7 @@ export default function AICenter() {
             <Stack spacing={0.25}>
               <Button
                 component={Link}
-                to="/landlord/rent-collection"
+                to="/landlord/leases"
                 startIcon={<DollarCircleOutlined />}
                 endIcon={<ArrowRightOutlined />}
                 sx={{
@@ -1096,7 +1096,7 @@ export default function AICenter() {
                   '& .MuiButton-endIcon': { ml: 'auto' }
                 }}
               >
-                Rent collection
+                Leases
               </Button>
               <Button
                 component={Link}

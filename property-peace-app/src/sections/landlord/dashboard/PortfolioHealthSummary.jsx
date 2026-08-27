@@ -101,7 +101,7 @@ export default function PortfolioHealthSummary({ properties, summary, totalExpen
         collectedThisMonth
       ],
       sparkColor: overdueAmount > 0 ? errorColor : successColor,
-      route: overdueAmount > 0 ? '/landlord/rent-collection' : '/landlord/accounting'
+      route: overdueAmount > 0 ? '/landlord/leases' : '/landlord/accounting'
     },
     {
       icon: <ToolOutlined />,

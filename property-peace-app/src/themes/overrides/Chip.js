@@ -18,14 +18,15 @@ function getColor({ color, theme }) {
 function getColorStyle({ color, theme }) {
   const colors = getColors(theme, color);
   const { light, lighter, main, darker } = colors;
+  const foregroundColor = color === 'success' ? theme.palette.common.black : main;
 
   return {
-    color: main,
+    color: foregroundColor,
     backgroundColor: lighter,
     borderColor: light,
-    ...theme.applyStyles('dark', { color: darker }),
+    ...theme.applyStyles('dark', { color: color === 'success' ? theme.palette.common.black : darker }),
     '& .MuiChip-deleteIcon': {
-      color: main,
+      color: foregroundColor,
       '&:hover': {
         color: light
       }
@@ -50,7 +51,16 @@ export default function Chip(theme) {
           '&.MuiChip-colorSecondary': getColor({ color: 'secondary', theme }),
           '&.MuiChip-colorError': getColor({ color: 'error', theme }),
           '&.MuiChip-colorInfo': getColor({ color: 'info', theme }),
-          '&.MuiChip-colorSuccess': getColor({ color: 'success', theme }),
+          '&.MuiChip-colorSuccess': {
+            ...getColor({ color: 'success', theme }),
+            color: theme.palette.common.black,
+            '& .MuiChip-icon': {
+              color: theme.palette.common.black
+            },
+            '& .MuiChip-deleteIcon': {
+              color: theme.palette.common.black
+            }
+          },
           '&.MuiChip-colorWarning': getColor({ color: 'warning', theme })
         },
         sizeLarge: {

@@ -7,7 +7,6 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Divider,
   IconButton,
   InputAdornment,
   Menu,
@@ -502,31 +501,7 @@ export default function TenantsContent({ embedded = false }) {
         />
       )}
 
-      {embedded && (
-        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" spacing={1} sx={{ mb: 1.5 }}>
-          <TenantCsvImportButton buttonProps={{ variant: 'outlined', sx: managementPageHeaderActionSx }} />
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<PlusOutlined />}
-            onClick={() => drawer.openTenantAddDrawer()}
-            sx={managementPageHeaderActionSx}
-          >
-            Add tenant
-          </Button>
-        </Stack>
-      )}
-
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-          borderRadius: 3,
-          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
-          overflow: 'hidden'
-        }}
-      >
-        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box data-testid="tenant-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
             <OutlinedInput
               value={search}
@@ -538,7 +513,7 @@ export default function TenantsContent({ embedded = false }) {
                   <SearchOutlined />
                 </InputAdornment>
               }
-              sx={{ flex: 1, minWidth: { lg: 260 }, borderRadius: 1.75 }}
+              sx={{ flex: 1, minWidth: { lg: 260 }, borderRadius: 1.75, bgcolor: 'background.paper' }}
             />
             <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
               <Select
@@ -546,7 +521,7 @@ export default function TenantsContent({ embedded = false }) {
                 value={recordStatus}
                 onChange={(event) => setRecordStatus(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 120, borderRadius: 1.75 }}
+                sx={{ minWidth: 120, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="active">Active</MenuItem>
                 <MenuItem value="archived">Archived</MenuItem>
@@ -557,7 +532,7 @@ export default function TenantsContent({ embedded = false }) {
                 value={propertyFilter}
                 onChange={(event) => setPropertyFilter(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 150, maxWidth: 210, borderRadius: 1.75 }}
+                sx={{ minWidth: 150, maxWidth: 210, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="all">All properties</MenuItem>
                 {propertyOptions.map(([id, name]) => (
@@ -571,7 +546,7 @@ export default function TenantsContent({ embedded = false }) {
                 value={leaseFilter}
                 onChange={(event) => setLeaseFilter(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 150, borderRadius: 1.75 }}
+                sx={{ minWidth: 150, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="all">All lease status</MenuItem>
                 <MenuItem value="leased">Assigned to lease</MenuItem>
@@ -583,7 +558,7 @@ export default function TenantsContent({ embedded = false }) {
                 value={accessFilter}
                 onChange={(event) => setAccessFilter(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 150, borderRadius: 1.75 }}
+                sx={{ minWidth: 150, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="all">All portal access</MenuItem>
                 <MenuItem value="active">Portal active</MenuItem>
@@ -596,7 +571,7 @@ export default function TenantsContent({ embedded = false }) {
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 145, borderRadius: 1.75 }}
+                sx={{ minWidth: 145, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="name">Sort: Name</MenuItem>
                 <MenuItem value="property">Sort: Property</MenuItem>
@@ -636,10 +611,18 @@ export default function TenantsContent({ embedded = false }) {
               </Button>
             )}
           </Stack>
-        </Box>
+      </Box>
 
-        <Divider />
-
+      <Box
+        data-testid="tenant-table"
+        sx={{
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
+          overflow: 'hidden'
+        }}
+      >
         <Box
           sx={{
             display: { xs: 'none', md: 'grid' },

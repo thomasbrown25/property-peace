@@ -178,28 +178,13 @@ const ACCESS_LABELS = {
 
 function Hero({ locked, showUpgrade, presentationKind }) {
   const navigate = useNavigate();
+  const theme = useTheme();
 
   return (
     <Box
       sx={{
-        position: 'relative',
-        overflow: 'hidden',
-        borderRadius: 3,
-        bgcolor: NAVY,
-        color: '#fff',
-        px: { xs: 2.5, md: 4 },
-        py: { xs: 3, md: 4 },
-        boxShadow: `0 18px 45px ${alpha(NAVY, 0.18)}`,
-        '&::after': {
-          content: '""',
-          position: 'absolute',
-          width: 320,
-          height: 320,
-          right: -100,
-          top: -180,
-          borderRadius: '50%',
-          bgcolor: alpha(GREEN, 0.14)
-        }
+        color: 'text.primary',
+        py: { xs: 0.5, md: 1 }
       }}
     >
       <Stack
@@ -208,20 +193,24 @@ function Hero({ locked, showUpgrade, presentationKind }) {
         alignItems={{ xs: 'flex-start', md: 'center' }}
         spacing={3}
       >
-        <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 700 }}>
+        <Box sx={{ maxWidth: 700 }}>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
             <Chip
               size="small"
               icon={locked ? <LockOutlined /> : <CheckCircleOutlined />}
               label={ACCESS_LABELS[presentationKind] || ACCESS_LABELS.unavailable}
-              sx={{ bgcolor: alpha('#fff', 0.12), color: '#fff', '& .MuiChip-icon': { color: locked ? '#fbbf24' : GREEN } }}
+              sx={{
+                bgcolor: alpha(locked ? theme.palette.warning.main : GREEN, 0.1),
+                color: locked ? 'warning.dark' : 'success.dark',
+                '& .MuiChip-icon': { color: locked ? 'warning.main' : GREEN }
+              }}
             />
-            <Chip size="small" label={`${REPORTS.length} live reports`} sx={{ bgcolor: alpha('#fff', 0.08), color: alpha('#fff', 0.82) }} />
+            <Chip size="small" label={`${REPORTS.length} live reports`} variant="outlined" sx={{ borderColor: 'divider', color: 'text.secondary' }} />
           </Stack>
-          <Typography variant="h2" sx={{ color: '#fff', fontWeight: 780, letterSpacing: -0.7 }}>
+          <Typography variant="h3" sx={{ color: 'text.primary', fontWeight: 700, letterSpacing: -0.4 }}>
             Turn portfolio data into better decisions.
           </Typography>
-          <Typography sx={{ mt: 1.25, color: alpha('#fff', 0.72), maxWidth: 620, lineHeight: 1.7 }}>
+          <Typography sx={{ mt: 0.75, color: 'text.secondary', maxWidth: 620, lineHeight: 1.7 }}>
             Review financial performance, tax readiness, occupancy, leasing velocity, and operating efficiency from one focused workspace.
           </Typography>
         </Box>
@@ -229,14 +218,15 @@ function Hero({ locked, showUpgrade, presentationKind }) {
         <Stack
           direction={{ xs: 'column', sm: 'row', md: 'column' }}
           spacing={1.25}
-          sx={{ width: { xs: '100%', sm: 'auto' }, position: 'relative', zIndex: 1 }}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           {locked && showUpgrade ? (
             <Button
               variant="contained"
+              color="success"
               startIcon={<RocketOutlined />}
               onClick={() => navigate('/landlord/settings?tab=subscription')}
-              sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#41a541', color: '#fff' } }}
+              sx={{ minHeight: 44, fontWeight: 750 }}
             >
               View subscription
             </Button>
@@ -244,9 +234,10 @@ function Hero({ locked, showUpgrade, presentationKind }) {
             <>
               <Button
                 variant="contained"
+                color="success"
                 startIcon={<FileDoneOutlined />}
                 onClick={() => navigate('/landlord/reports/tax')}
-                sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#41a541', color: '#fff' } }}
+                sx={{ minHeight: 44, fontWeight: 750 }}
               >
                 Open tax workspace
               </Button>
@@ -256,9 +247,7 @@ function Hero({ locked, showUpgrade, presentationKind }) {
                 onClick={() => navigate('/landlord/reports/financial')}
                 sx={{
                   minHeight: 44,
-                  color: '#fff',
-                  borderColor: alpha('#fff', 0.32),
-                  '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.06) }
+                  fontWeight: 700
                 }}
               >
                 View financials

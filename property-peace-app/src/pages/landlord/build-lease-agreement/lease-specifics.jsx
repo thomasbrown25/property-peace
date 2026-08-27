@@ -20,9 +20,8 @@ import {
   useTheme,
   CircularProgress
 } from '@mui/material';
-import { LocalizationProvider } from '@mui/x-date-pickers';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import MainCard from 'components/MainCard';
 import BuildLeaseAgreementHeader from 'sections/landlord/lease-builder/BuildLeaseAgreementHeader';
 import { openSnackbar } from 'api/snackbar';

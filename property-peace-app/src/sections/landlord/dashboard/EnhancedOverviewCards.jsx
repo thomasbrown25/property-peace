@@ -70,7 +70,7 @@ const EnhancedOverviewCards = ({ summary, previousMonthSummary }) => {
   const MetricCard = ({ title, value, subtitle, icon, color, borderColor, className, onClick, shouldPulse = false }) => {
     const isXs = useMediaQuery(theme.breakpoints.down('sm'));
     const handleCardClick = onClick || (() => {
-      navigate('/landlord/rent-collection');
+      navigate('/landlord/leases');
     });
 
     // Create pulse animation if needed

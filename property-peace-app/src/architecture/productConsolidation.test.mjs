@@ -40,14 +40,14 @@ const referencesRetiredMoneyCenter = (filePath, fileSource) => {
   return false;
 };
 
-test('dashboard rent reminder uses canonical rent collection navigation and no legacy mutation drawer', async () => {
+test('dashboard rent reminder routes to leases and does not restore the legacy mutation drawer', async () => {
   const dashboardOverview = await source('pages/landlord/dashboard-overview.jsx');
   const organizationApi = await source('api/organization.js');
   const sharedOrganizationApi = await readFile(path.resolve(srcRoot, '../../shared/api/organization.js'), 'utf8');
 
   assert.doesNotMatch(dashboardOverview, /SendRentReminderDrawer|rentReminderOpen|setRentReminderOpen/);
-  assert.match(dashboardOverview, /label: 'Rent Collection'/);
-  assert.match(dashboardOverview, /onClick: \(\) => navigate\('\/landlord\/rent-collection'\)/);
+  assert.match(dashboardOverview, /label: 'Leases'/);
+  assert.match(dashboardOverview, /onClick: \(\) => navigate\('\/landlord\/leases'\)/);
   assert.doesNotMatch(organizationApi, /updateAgentSettings|agent-settings/);
   assert.doesNotMatch(sharedOrganizationApi, /updateAgentSettings|agent-settings/);
   await assert.rejects(access(path.join(srcRoot, 'components/drawers/SendRentReminderDrawer.jsx')), (error) => error?.code === 'ENOENT');
@@ -68,11 +68,11 @@ test('maintenance header uses the canonical request workflow rather than the ret
   assert.match(maintenances, />New request<\/Button>/);
 });
 
-test('collection history copy and breadcrumbs point to canonical rent collection', async () => {
+test('collection history copy remains available and its breadcrumb returns to leases', async () => {
   const history = await source('pages/landlord/collections-history.jsx');
 
   assert.doesNotMatch(history, /Collections Agent|\/landlord\/ai-center\/collections-agent|Run the/);
-  assert.match(history, /\{ label: 'Rent collection', path: '\/landlord\/rent-collection' \}/);
+  assert.match(history, /\{ label: 'Leases', path: '\/landlord\/leases' \}/);
   assert.match(history, />Rent Collection History<\/Typography>/);
   assert.match(history, /Rent follow-up and collection activity across your leases\./);
   assert.match(history, /Rent collection activity will appear here as follow-ups are recorded\./);
@@ -80,18 +80,20 @@ test('collection history copy and breadcrumbs point to canonical rent collection
 
 test('landlord finance lists consolidate into one Accounting workspace', async () => {
   const routes = await source('routes/MainRoutes.jsx');
-  const destinations = pages.find(({ id }) => id === 'group-landlord-navigation')?.children ?? [];
-  const accounting = destinations.find(({ id }) => id === 'accounting');
+  const destinations = pages.flatMap(({ children = [] }) => children);
+  const accounting = pages.find(({ id }) => id === 'group-accounting');
 
   assert.match(routes, /import\('pages\/landlord\/finances'\)/);
-  assert.doesNotMatch(routes, /import\('pages\/landlord\/(expenses|payments|ledger|money-activity)'\)/);
+  assert.doesNotMatch(routes, /import\('pages\/landlord\/(expenses|payments|ledger|money-activity|rent-collection(?:-single)?)'\)/);
+  assert.match(routes, /function LegacyRentCollectionRedirect\(\)/);
+  assert.match(routes, /leaseId \? `\/landlord\/leases\/\$\{leaseId\}` : '\/landlord\/leases'/);
   assert.equal(
     destinations.some(({ id }) => id === 'money-center'),
     false
   );
   assert.deepEqual(
     accounting?.children.map(({ title }) => title),
-    ['Finances', 'Rent Collection', 'Tax Center', 'Reports & Analytics']
+    ['Finances', 'Tax Center', 'Reports']
   );
 });
 

@@ -28,8 +28,6 @@ import {
   ExclamationCircleOutlined,
   EyeOutlined,
   MoreOutlined,
-
-  RobotOutlined,
   SearchOutlined,
   PlusOutlined,
   ShopOutlined,
@@ -373,16 +371,17 @@ export default function Maintenances() {
       {loadError && <Alert severity="warning" sx={{ mb: 2 }}>{loadError} Existing maintenance data has been left visible.</Alert>}
       <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Maintenance' }]} />
 
-      <Box sx={{ mt: 2, mb: 3, p: { xs: 2.25, md: 3 }, borderRadius: 3, color: '#fff', background: `linear-gradient(125deg, ${NAVY} 0%, #0b3555 100%)`, boxShadow: `0 16px 38px ${alpha(NAVY, 0.18)}` }}>
+      <Box sx={{ mt: 2, mb: 3 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} spacing={2.5}>
           <Box>
-            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 780 }}>Maintenance</Typography>
-            <Typography sx={{ mt: 0.7, maxWidth: 650, color: alpha('#fff', 0.76), fontSize: { xs: '0.84rem', md: '0.92rem' } }}>Triage requests, coordinate vendors, and keep repairs moving across your portfolio.</Typography>
-            <Stack direction="row" spacing={0.8} alignItems="center" sx={{ mt: 1.5 }}><RobotOutlined /><Typography sx={{ fontSize: '0.74rem', color: alpha('#fff', 0.75) }}>{kpis.triage ? `${kpis.triage} ${kpis.triage === 1 ? 'request needs' : 'requests need'} review` : 'No requests are waiting for initial review'}</Typography></Stack>
+            <Typography variant="h3" sx={{ fontWeight: 780 }}>Maintenance</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              Triage requests, coordinate vendors, and keep repairs moving across your portfolio.
+            </Typography>
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Button variant="outlined" startIcon={<ShopOutlined />} onClick={() => navigate('/landlord/vendors')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.38), textTransform: 'none', '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>Vendors</Button>
-            <Button variant="outlined" startIcon={<PlusOutlined />} onClick={() => navigate('/landlord/maintenances/add')} sx={{ color: '#fff', borderColor: alpha('#fff', 0.38), textTransform: 'none', '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}>New request</Button>
+            <Button variant="outlined" startIcon={<ShopOutlined />} onClick={() => navigate('/landlord/vendors')} sx={{ textTransform: 'none' }}>Vendors</Button>
+            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => navigate('/landlord/maintenances/add')} sx={{ color: NAVY, textTransform: 'none', fontWeight: 700 }}>New request</Button>
           </Stack>
         </Stack>
       </Box>
@@ -396,8 +395,7 @@ export default function Maintenances() {
         ].map(({ key, ...cardProps }) => <Grid key={key} size={{ xs: 12, sm: 6, lg: 3 }}><MetricCard {...cardProps} active={metric === key && scope === 'active'} onClick={() => { setScope('active'); setMetric(key); }} /></Grid>)}
       </Grid>
 
-      <Box sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, bgcolor: 'background.paper', boxShadow: `0 6px 24px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
-        <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+      <Box data-testid="maintenance-filters" sx={{ mb: 2 }}>
           <Box sx={maintenanceFilterGridSx}>
             <OutlinedInput size="small" placeholder="Search requests, properties, vendors..." value={search} onChange={(event) => setSearch(event.target.value)} startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>} sx={maintenanceFilterControlSx} />
             <FormControl size="small" sx={maintenanceFilterControlSx}><Select value={selectedProperty?.id || ''} displayEmpty onChange={(event) => dispatch(setProperty(properties.find((property) => Number(property.id) === Number(event.target.value)) || null))}><MenuItem value="">All properties</MenuItem>{properties.map((property) => <MenuItem key={property.id} value={property.id}>{property.name?.trim() || property.streetAddress?.trim() || `Property ${property.id}`}</MenuItem>)}</Select></FormControl>
@@ -411,8 +409,9 @@ export default function Maintenances() {
               {hasRefinements && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Clear filters</Button>}
             </Box>
           </Box>
-        </Box>
+      </Box>
 
+      <Box data-testid="maintenance-table" sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, bgcolor: 'background.paper', boxShadow: `0 6px 24px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
         {busy ? <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box> : visibleRequests.length === 0 ? (
           <Box sx={{ py: 8, px: 2, textAlign: 'center' }}>
             <Avatar sx={{ mx: 'auto', mb: 1.5, width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.09), color: 'primary.main' }}><ToolOutlined /></Avatar>

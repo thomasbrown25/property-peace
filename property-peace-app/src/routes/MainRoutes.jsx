@@ -6,7 +6,7 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 import AdminRoute from 'components/auth/AdminRoute';
-import ScreeningStaffRoute from 'components/auth/ScreeningStaffRoute';
+
 import SubscriptionPausedGuard from 'components/auth/SubscriptionPausedGuard';
 import EntitlementGate from 'components/entitlements/EntitlementGate';
 import { buildLeaseBuilderRedirect } from './leaseBuilderRoutes';
@@ -22,7 +22,6 @@ const PropertyAddWorkflow = Loadable(lazy(() => import('pages/landlord/property-
 const PropertyImportPage = Loadable(lazy(() => import('pages/landlord/property-import')));
 const Leases = Loadable(lazy(() => import('pages/landlord/leases')));
 const Listings = Loadable(lazy(() => import('pages/landlord/listings')));
-const Leads = Loadable(lazy(() => import('pages/landlord/leads')));
 const ListingCreate = Loadable(lazy(() => import('pages/landlord/listing-create')));
 const ListingSetup = Loadable(lazy(() => import('pages/landlord/listing-setup')));
 const ListingSetupPhotos = Loadable(lazy(() => import('pages/landlord/listing-setup-photos')));
@@ -31,7 +30,7 @@ const ListingSetupApplication = Loadable(lazy(() => import('pages/landlord/listi
 const ListingSetupAmenities = Loadable(lazy(() => import('pages/landlord/listing-setup-amenities')));
 const ListingDetail = Loadable(lazy(() => import('pages/landlord/listing-detail')));
 const ListingSettings = Loadable(lazy(() => import('pages/landlord/listing-settings')));
-const Screenings = Loadable(lazy(() => import('pages/landlord/screenings')));
+
 const PublicListing = Loadable(lazy(() => import('pages/public/listing/[listingNumber]')));
 const LeasePage = Loadable(lazy(() => import('pages/landlord/lease')));
 const LeaseEditPage = Loadable(lazy(() => import('pages/landlord/lease-edit')));
@@ -110,13 +109,13 @@ const Vendors = Loadable(lazy(() => import('pages/landlord/vendors')));
 const Owners = Loadable(lazy(() => import('pages/landlord/owners')));
 const ClientAddWizard = Loadable(lazy(() => import('pages/landlord/clients/add')));
 const Team = Loadable(lazy(() => import('pages/landlord/team')));
-const Applications = Loadable(lazy(() => import('pages/landlord/applications')));
+
 const InviteRenter = Loadable(lazy(() => import('pages/landlord/invite-renter')));
 const UpcomingFeatures = Loadable(lazy(() => import('pages/landlord/upcoming-features')));
 const Help = Loadable(lazy(() => import('pages/landlord/help')));
 const Feedback = Loadable(lazy(() => import('pages/landlord/feedback')));
 const SubmitSupportTicket = Loadable(lazy(() => import('pages/landlord/support/ticket')));
-const LeaseShield = Loadable(lazy(() => import('pages/landlord/lease-shield')));
+
 const RecordPaymentPage = Loadable(lazy(() => import('pages/landlord/record-payment')));
 const PaymentAddWorkflow = Loadable(lazy(() => import('pages/landlord/payment-add-workflow')));
 const TimeTracking = Loadable(lazy(() => import('pages/landlord/time-tracking-coming-soon')));
@@ -129,8 +128,7 @@ const AICenter = Loadable(lazy(() => import('pages/landlord/ai-center')));
 const CollectionsHistory = Loadable(lazy(() => import('pages/landlord/collections-history')));
 const CollectionsAgent = Loadable(lazy(() => import('pages/landlord/collections-agent')));
 const MaintenanceAgent = Loadable(lazy(() => import('pages/landlord/maintenance-agent')));
-const RentCollection = Loadable(lazy(() => import('pages/landlord/rent-collection')));
-const RentCollectionSingle = Loadable(lazy(() => import('pages/landlord/rent-collection-single')));
+
 
 // tenant pages (lazy-loaded)
 const TenantDashboard = Loadable(lazy(() => import('pages/tenant/dashboard')));
@@ -189,6 +187,11 @@ function LegacyLeaseBuilderRedirect() {
 function LegacyTenantProfileRedirect() {
   const { tenantId } = useParams();
   return <Navigate to={`/landlord/renters/${tenantId}`} replace />;
+}
+
+function LegacyRentCollectionRedirect() {
+  const { leaseId } = useParams();
+  return <Navigate to={leaseId ? `/landlord/leases/${leaseId}` : '/landlord/leases'} replace />;
 }
 
 function LegacyFinancesRedirect({ tab }) {
@@ -653,14 +656,6 @@ const MainRoutes = {
           )
         },
         {
-          path: 'landlord/leads',
-          element: (
-            <SubscriptionPausedGuard>
-              <Leads />
-            </SubscriptionPausedGuard>
-          )
-        },
-        {
           path: 'landlord/listings',
           element: (
             <SubscriptionPausedGuard>
@@ -732,24 +727,7 @@ const MainRoutes = {
             </SubscriptionPausedGuard>
           )
         },
-        {
-          path: 'landlord/screenings',
-          element: (
-            <ScreeningStaffRoute>
-              <SubscriptionPausedGuard>
-                <Screenings />
-              </SubscriptionPausedGuard>
-            </ScreeningStaffRoute>
-          )
-        },
-        {
-          path: 'landlord/applications',
-          element: (
-            <SubscriptionPausedGuard>
-              <Applications />
-            </SubscriptionPausedGuard>
-          )
-        },
+
         {
           path: 'landlord/invite-renter',
           element: (
@@ -1010,14 +988,7 @@ const MainRoutes = {
             </SubscriptionPausedGuard>
           )
         },
-        {
-          path: 'landlord/lease-shield',
-          element: (
-            <SubscriptionPausedGuard>
-              <LeaseShield />
-            </SubscriptionPausedGuard>
-          )
-        },
+
         {
           path: 'landlord/ai-center',
           element: (
@@ -1176,11 +1147,11 @@ const MainRoutes = {
         },
         {
           path: 'landlord/rent-collection',
-          element: <RentCollection />
+          element: <LegacyRentCollectionRedirect />
         },
         {
           path: 'landlord/rent-collection/:leaseId',
-          element: <RentCollectionSingle />
+          element: <LegacyRentCollectionRedirect />
         },
         {
           path: 'landlord/money',

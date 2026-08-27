@@ -1,5 +1,5 @@
 const SAFE_ROUTES = Object.freeze({
-  viewApplication: ({ applicationId }) => `/landlord/applications${applicationId ? `?applicationId=${applicationId}` : ''}`,
+  viewApplication: ({ applicationId }) => `/landlord/listings?tab=applications${applicationId ? `&applicationId=${applicationId}` : ''}`,
   viewMaintenanceRequest: ({ maintenanceRequestId }) => `/landlord/maintenances${maintenanceRequestId ? `?requestId=${maintenanceRequestId}` : ''}`
 });
 

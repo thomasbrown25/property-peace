@@ -4,33 +4,24 @@ import { Box, Button, Typography } from '@mui/material';
 // material-ui
 import { Alert } from '@mui/material';
 
+import FriendlyLoadError from 'components/FriendlyLoadError';
+
+const reloadPage = () => window.location.reload();
+
 // ==============================|| ELEMENT ERROR - COMMON ||============================== //
 
 export default function ErrorBoundary() {
   const error = useRouteError();
 
   // Check if it's a chunk load error (dynamic import failure)
-  const isChunkError = error?.message?.includes('Failed to fetch dynamically imported module') ||
-                       error?.message?.includes('Loading chunk') ||
-                       error?.name === 'ChunkLoadError' ||
-                       (error?.message && typeof error.message === 'string' && error.message.includes('chunk'));
+  const isChunkError =
+    error?.message?.includes('Failed to fetch dynamically imported module') ||
+    error?.message?.includes('Loading chunk') ||
+    error?.name === 'ChunkLoadError' ||
+    (error?.message && typeof error.message === 'string' && error.message.includes('chunk'));
 
   if (isChunkError) {
-    return (
-      <Box sx={{ p: 3, textAlign: 'center', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Alert severity="error" sx={{ maxWidth: 600 }}>
-          <Typography variant="h6" gutterBottom>
-            Failed to Load Page
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            The page failed to load. This usually happens after a deployment. Please refresh the page.
-          </Typography>
-          <Button variant="contained" onClick={() => window.location.reload()} sx={{ mt: 1 }}>
-            Reload Page
-          </Button>
-        </Alert>
-      </Box>
-    );
+    return <FriendlyLoadError onRetry={reloadPage} fullPage />;
   }
 
   if (isRouteErrorResponse(error)) {

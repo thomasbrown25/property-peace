@@ -222,7 +222,7 @@ export default function PaymentsTab({
         aria-hidden="true"
       />
 
-      <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+      <Box data-testid="finance-payment-filters" sx={{ mb: 2 }}>
         <TransactionFilterToolbar
           search={search}
           onSearchChange={changeSearch}
@@ -242,6 +242,10 @@ export default function PaymentsTab({
         />
       </Box>
 
+      <Box
+        data-testid="finance-payment-table"
+        sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, overflow: 'hidden', minHeight: 300 }}
+      >
       {loading ? (
         <Box role="status" aria-live="polite" aria-label="Loading payment records" sx={{ minHeight: 280, display: 'grid', placeItems: 'center' }}>
           <CircularProgress />
@@ -291,6 +295,7 @@ export default function PaymentsTab({
           <Pagination count={totalPages} page={selection.page} onChange={(_, value) => setPage(value)} size="small" color="primary" aria-label="Payment pages" />
         </Stack>
       )}
+      </Box>
 
       <PaymentEditDrawer
         payment={editPayment}

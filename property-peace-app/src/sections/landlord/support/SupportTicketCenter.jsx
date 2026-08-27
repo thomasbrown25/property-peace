@@ -35,6 +35,8 @@ import {
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import { formatRelativeTime } from 'utils/formatters';
+import { getConversationBubbleSx } from 'utils/conversationPresentation';
+import { getSupportTicketDisplayMessages } from 'utils/supportTicketMessages';
 
 const CATEGORIES = [
   { value: 'general', label: 'General', helper: 'Account, billing, or how-to questions' },
@@ -119,23 +121,16 @@ function MessageBubble({ message }) {
   return (
     <Stack direction="row" justifyContent={fromSupport ? 'flex-start' : 'flex-end'}>
       <Box sx={{ maxWidth: { xs: '88%', md: '74%' } }}>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', mb: 0.5, textAlign: fromSupport ? 'left' : 'right' }}
-        >
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, textAlign: fromSupport ? 'left' : 'right' }}>
           {fromSupport ? 'Property Peace Support' : 'You'} · {formatRelativeTime(message.createdAt)}
         </Typography>
         <Paper
           elevation={0}
-          sx={(theme) => ({
+          sx={{
             px: 2,
             py: 1.5,
-            borderRadius: fromSupport ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
-            bgcolor: fromSupport ? 'background.paper' : 'primary.main',
-            color: fromSupport ? 'text.primary' : 'primary.contrastText',
-            border: fromSupport ? `1px solid ${theme.palette.divider}` : 0
-          })}
+            ...getConversationBubbleSx({ isOwn: !fromSupport })
+          }}
         >
           <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', lineHeight: 1.65 }}>
             {message.content}
@@ -165,23 +160,31 @@ export default function SupportTicketCenter() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ type: 'general', subject: '', message: '' });
 
-  const loadTickets = useCallback(async ({ keepSelection = true } = {}) => {
-    setLoading(true);
-    try {
-      const response = await axiosServices.get('/api/support/tickets');
-      const items = response.data?.data || [];
-      setTickets(items);
-      setSelectedId((current) => {
-        if (keepSelection && current && items.some((item) => item.id === current)) return current;
-        if (requestedTicketId && items.some((item) => item.id === Number(requestedTicketId))) return Number(requestedTicketId);
-        return mobile ? null : items[0]?.id || null;
-      });
-    } catch (error) {
-      openSnackbar({ open: true, message: error?.response?.data?.message || 'Could not load your support tickets.', variant: 'alert', alert: { color: 'error' } });
-    } finally {
-      setLoading(false);
-    }
-  }, [mobile, requestedTicketId]);
+  const loadTickets = useCallback(
+    async ({ keepSelection = true } = {}) => {
+      setLoading(true);
+      try {
+        const response = await axiosServices.get('/api/support/tickets');
+        const items = response.data?.data || [];
+        setTickets(items);
+        setSelectedId((current) => {
+          if (keepSelection && current && items.some((item) => item.id === current)) return current;
+          if (requestedTicketId && items.some((item) => item.id === Number(requestedTicketId))) return Number(requestedTicketId);
+          return mobile ? null : items[0]?.id || null;
+        });
+      } catch (error) {
+        openSnackbar({
+          open: true,
+          message: error?.response?.data?.message || 'Could not load your support tickets.',
+          variant: 'alert',
+          alert: { color: 'error' }
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [mobile, requestedTicketId]
+  );
 
   const loadTicket = useCallback(async (id) => {
     if (!id) {
@@ -195,7 +198,12 @@ export default function SupportTicketCenter() {
       setTickets((current) => current.map((item) => (item.id === id ? { ...item, unreadCount: 0 } : item)));
     } catch (error) {
       setTicket(null);
-      openSnackbar({ open: true, message: error?.response?.data?.message || 'Could not open this support ticket.', variant: 'alert', alert: { color: 'error' } });
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Could not open this support ticket.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
     } finally {
       setDetailLoading(false);
     }
@@ -214,15 +222,21 @@ export default function SupportTicketCenter() {
     }
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const displayMessages = useMemo(() => getSupportTicketDisplayMessages(ticket), [ticket]);
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [ticket?.messages?.length]);
+  }, [displayMessages.length]);
 
   const openCount = useMemo(() => tickets.filter((item) => !item.isResolved).length, [tickets]);
 
   const handleCreate = async () => {
     if (!form.subject.trim() || !form.message.trim()) {
-      openSnackbar({ open: true, message: 'Add a subject and message before creating the ticket.', variant: 'alert', alert: { color: 'error' } });
+      openSnackbar({
+        open: true,
+        message: 'Add a subject and message before creating the ticket.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
       return;
     }
     setCreating(true);
@@ -237,9 +251,19 @@ export default function SupportTicketCenter() {
       setCreateOpen(false);
       await loadTickets({ keepSelection: false });
       if (created?.id) setSelectedId(created.id);
-      openSnackbar({ open: true, message: `${created?.ticketNumber || 'Your ticket'} was created.`, variant: 'alert', alert: { color: 'success' } });
+      openSnackbar({
+        open: true,
+        message: `${created?.ticketNumber || 'Your ticket'} was created.`,
+        variant: 'alert',
+        alert: { color: 'success' }
+      });
     } catch (error) {
-      openSnackbar({ open: true, message: error?.response?.data?.message || 'Could not create your support ticket.', variant: 'alert', alert: { color: 'error' } });
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Could not create your support ticket.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
     } finally {
       setCreating(false);
     }
@@ -254,7 +278,12 @@ export default function SupportTicketCenter() {
       setReply('');
       await Promise.all([loadTicket(selectedId), loadTickets()]);
     } catch (error) {
-      openSnackbar({ open: true, message: error?.response?.data?.message || 'Could not send your reply.', variant: 'alert', alert: { color: 'error' } });
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Could not send your reply.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
     } finally {
       setReplying(false);
     }
@@ -266,9 +295,19 @@ export default function SupportTicketCenter() {
     try {
       await axiosServices.put(`/api/support/tickets/${ticket.id}/status`, { isResolved: !ticket.isResolved });
       await Promise.all([loadTicket(ticket.id), loadTickets()]);
-      openSnackbar({ open: true, message: ticket.isResolved ? 'Ticket reopened.' : 'Ticket closed.', variant: 'alert', alert: { color: 'success' } });
+      openSnackbar({
+        open: true,
+        message: ticket.isResolved ? 'Ticket reopened.' : 'Ticket closed.',
+        variant: 'alert',
+        alert: { color: 'success' }
+      });
     } catch (error) {
-      openSnackbar({ open: true, message: error?.response?.data?.message || 'Could not update the ticket.', variant: 'alert', alert: { color: 'error' } });
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Could not update the ticket.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
     } finally {
       setStatusUpdating(false);
     }
@@ -290,12 +329,20 @@ export default function SupportTicketCenter() {
       >
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ sm: 'center' }} justifyContent="space-between">
           <Box>
-            <Typography variant="h5" sx={{ fontWeight: 750 }}>Your support tickets</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 750 }}>
+              Your support tickets
+            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Keep every question and reply together in one place. {openCount} ticket{openCount === 1 ? '' : 's'} currently open.
             </Typography>
           </Box>
-          <Button variant="contained" startIcon={<PlusOutlined />} onClick={() => setCreateOpen(true)} sx={{ flexShrink: 0 }}>
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<PlusOutlined />}
+            onClick={() => setCreateOpen(true)}
+            sx={{ flexShrink: 0 }}
+          >
             New support ticket
           </Button>
         </Stack>
@@ -305,10 +352,19 @@ export default function SupportTicketCenter() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '360px minmax(0, 1fr)' }, minHeight: 560 }}>
           {showList && (
             <Box sx={{ borderRight: { md: 1 }, borderColor: 'divider', minWidth: 0 }}>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 2, py: 1.75, borderBottom: 1, borderColor: 'divider' }}>
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ px: 2, py: 1.75, borderBottom: 1, borderColor: 'divider' }}
+              >
                 <Box>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 750 }}>Tickets</Typography>
-                  <Typography variant="caption" color="text.secondary">{tickets.length} total</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 750 }}>
+                    Tickets
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {tickets.length} total
+                  </Typography>
                 </Box>
                 <Tooltip title="Refresh tickets">
                   <IconButton size="small" onClick={() => loadTickets()} disabled={loading} aria-label="Refresh tickets">
@@ -317,15 +373,21 @@ export default function SupportTicketCenter() {
                 </Tooltip>
               </Stack>
               {loading ? (
-                <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 360 }}><CircularProgress size={28} /></Stack>
+                <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 360 }}>
+                  <CircularProgress size={28} />
+                </Stack>
               ) : tickets.length === 0 ? (
                 <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 420, px: 4, textAlign: 'center' }}>
-                  <Avatar sx={{ width: 54, height: 54, bgcolor: 'primary.lighter', color: 'primary.main', mb: 2 }}><MessageOutlined /></Avatar>
+                  <Avatar sx={{ width: 54, height: 54, bgcolor: 'primary.lighter', color: 'primary.main', mb: 2 }}>
+                    <MessageOutlined />
+                  </Avatar>
                   <Typography variant="h6">No tickets yet</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, mb: 2.5 }}>
                     Start a conversation with support whenever you need help.
                   </Typography>
-                  <Button variant="outlined" startIcon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>Create your first ticket</Button>
+                  <Button variant="outlined" startIcon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+                    Create your first ticket
+                  </Button>
                 </Stack>
               ) : (
                 <Box sx={{ maxHeight: 650, overflowY: 'auto' }}>
@@ -342,24 +404,50 @@ export default function SupportTicketCenter() {
               {!selectedId ? (
                 <Stack alignItems="center" justifyContent="center" sx={{ flex: 1, minHeight: 500, px: 4, textAlign: 'center' }}>
                   <CustomerServiceOutlined style={{ fontSize: 34, color: theme.palette.text.disabled }} />
-                  <Typography variant="h6" sx={{ mt: 2 }}>Select a ticket</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Choose a ticket to see its conversation.</Typography>
+                  <Typography variant="h6" sx={{ mt: 2 }}>
+                    Select a ticket
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    Choose a ticket to see its conversation.
+                  </Typography>
                 </Stack>
               ) : detailLoading ? (
-                <Stack alignItems="center" justifyContent="center" sx={{ flex: 1, minHeight: 500 }}><CircularProgress size={30} /></Stack>
+                <Stack alignItems="center" justifyContent="center" sx={{ flex: 1, minHeight: 500 }}>
+                  <CircularProgress size={30} />
+                </Stack>
               ) : ticket ? (
                 <>
                   <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
                     <Stack direction="row" spacing={1.25} alignItems="flex-start">
                       {mobile && (
-                        <IconButton size="small" onClick={() => { setSelectedId(null); setTicket(null); }} aria-label="Back to tickets"><ArrowLeftOutlined /></IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setSelectedId(null);
+                            setTicket(null);
+                          }}
+                          aria-label="Back to tickets"
+                        >
+                          <ArrowLeftOutlined />
+                        </IconButton>
                       )}
                       <Box sx={{ minWidth: 0, flex: 1 }}>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ sm: 'center' }} justifyContent="space-between">
-                          <Typography variant="h6" sx={{ fontWeight: 750 }}>{capitalizeFirstLetter(ticket.subject)}</Typography>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          alignItems={{ sm: 'center' }}
+                          justifyContent="space-between"
+                        >
+                          <Typography variant="h6" sx={{ fontWeight: 750 }}>
+                            {capitalizeFirstLetter(ticket.subject)}
+                          </Typography>
                           <Stack direction="row" spacing={0.75}>
                             <Chip size="small" label={categoryLabel(ticket.subType)} variant="outlined" />
-                            <Chip size="small" label={ticket.isResolved ? 'Closed' : 'Open'} color={ticket.isResolved ? 'default' : 'success'} />
+                            <Chip
+                              size="small"
+                              label={ticket.isResolved ? 'Closed' : 'Open'}
+                              color={ticket.isResolved ? 'default' : 'success'}
+                            />
                           </Stack>
                         </Stack>
                         <Typography variant="caption" color="text.secondary">
@@ -371,14 +459,18 @@ export default function SupportTicketCenter() {
 
                   <Box sx={{ flex: 1, minHeight: 330, maxHeight: 500, overflowY: 'auto', bgcolor: 'grey.50', p: { xs: 2, md: 3 } }}>
                     <Stack spacing={2.25}>
-                      {(ticket.messages || []).map((message) => <MessageBubble key={message.id} message={message} />)}
+                      {displayMessages.map((message) => (
+                        <MessageBubble key={message.id} message={message} />
+                      ))}
                       <div ref={threadEndRef} />
                     </Stack>
                   </Box>
 
                   <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
                     {ticket.isResolved && (
-                      <Alert severity="info" sx={{ mb: 1.5 }}>This ticket is closed. Sending a reply will reopen it automatically.</Alert>
+                      <Alert severity="info" sx={{ mb: 1.5 }}>
+                        This ticket is closed. Sending a reply will reopen it automatically.
+                      </Alert>
                     )}
                     <TextField
                       value={reply}
@@ -424,17 +516,25 @@ export default function SupportTicketCenter() {
         <DialogTitle>
           <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 750 }}>New support ticket</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>We will keep all follow-up replies in this conversation.</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 750 }}>
+                New support ticket
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                We will keep all follow-up replies in this conversation.
+              </Typography>
             </Box>
-            <IconButton onClick={() => setCreateOpen(false)} disabled={creating} aria-label="Close"><CloseCircleOutlined /></IconButton>
+            <IconButton onClick={() => setCreateOpen(false)} disabled={creating} aria-label="Close">
+              <CloseCircleOutlined />
+            </IconButton>
           </Stack>
         </DialogTitle>
         <Divider />
         <DialogContent>
           <Stack spacing={2.25} sx={{ pt: 0.5 }}>
             <Box>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>What can we help with?</Typography>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                What can we help with?
+              </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
                 {CATEGORIES.map((category) => {
                   const selected = form.type === category.value;
@@ -455,8 +555,12 @@ export default function SupportTicketCenter() {
                         '&:hover': { borderColor: 'primary.main' }
                       })}
                     >
-                      <Typography variant="subtitle2" color={selected ? 'primary.main' : 'text.primary'}>{category.label}</Typography>
-                      <Typography variant="caption" color="text.secondary">{category.helper}</Typography>
+                      <Typography variant="subtitle2" color={selected ? 'primary.main' : 'text.primary'}>
+                        {category.label}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {category.helper}
+                      </Typography>
                     </Paper>
                   );
                 })}
@@ -486,7 +590,9 @@ export default function SupportTicketCenter() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
+          <Button onClick={() => setCreateOpen(false)} disabled={creating}>
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={handleCreate}

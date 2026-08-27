@@ -166,7 +166,7 @@ export default function RentCollectionTable({ sortedRents, sortField, sortOrder,
             };
 
             const handleViewPayments = () => {
-              navigate(`/landlord/rent-collection/${rent.leaseId}`);
+              navigate(`/landlord/leases/${rent.leaseId}`);
             };
 
             return (

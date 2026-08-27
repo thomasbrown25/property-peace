@@ -212,7 +212,7 @@ test('all advanced report routes are gated while the dashboard stays visible and
   const menu = await read('../menu-items/pages.js');
   assert.match(routes, /const ReportsDashboard = Loadable\(lazy\(\(\) => import\('pages\/landlord\/reports'\)\)\)/);
   assert.match(routes, /path: 'landlord\/reports'[\s\S]{0,120}element: <ReportsDashboard \/>/);
-  assert.match(menu, /title: 'Reports & Analytics'[\s\S]{0,100}url: '\/landlord\/reports'/);
+  assert.match(menu, /title: 'Reports'[\s\S]{0,100}url: '\/landlord\/reports'/);
   for (const slug of detailSlugs) {
     const route = new RegExp(`path: 'landlord\\/reports\\/${slug}'[\\s\\S]{0,260}<EntitlementGate`);
     assert.match(routes, route, `missing centralized gate for ${slug}`);

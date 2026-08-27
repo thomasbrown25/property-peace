@@ -915,9 +915,10 @@ export default function LeaseShield() {
                       </Paper>
                       <Button
                         variant="contained"
+                        color="success"
                         size="medium"
                         onClick={() => setUpgradeModalOpen(true)}
-                        sx={{ mx: 'auto', textTransform: 'none', fontWeight: 600, bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}
+                        sx={{ mx: 'auto', textTransform: 'none', fontWeight: 600 }}
                       >
                         Upgrade
                       </Button>
@@ -1216,8 +1217,9 @@ export default function LeaseShield() {
           <Button onClick={() => setUpgradeModalOpen(false)} sx={{ textTransform: 'none' }}>Cancel</Button>
           <Button
             variant="contained"
+            color="success"
             onClick={() => { setUpgradeModalOpen(false); navigate(subscriptionPlansUrl); }}
-            sx={{ textTransform: 'none', bgcolor: 'success.main', '&:hover': { bgcolor: 'success.dark' } }}
+            sx={{ textTransform: 'none' }}
           >
             Upgrade
           </Button>

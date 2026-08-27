@@ -241,7 +241,7 @@ function extractSuggestedActions(data) {
   if (data?.applications?.length > 1) {
     suggested.push({
       action: 'navigateToPage',
-      params: { route: '/landlord/applications' },
+      params: { route: '/landlord/listings?tab=applications' },
       label: 'View all applications',
       tooltip: 'View all applications'
     });
@@ -284,7 +284,7 @@ function getDetailModalData(item, summaryData) {
         { label: 'Days Pending', value: app?.daysPending != null ? `${app.daysPending} days` : '—' },
         { label: 'Submitted', value: app?.submittedAt ? new Date(app.submittedAt).toLocaleDateString() : '—' }
       ],
-      navigateTo: `/landlord/applications?applicationId=${params.applicationId}`,
+      navigateTo: `/landlord/listings?tab=applications&applicationId=${params.applicationId}`,
       navigateLabel: 'View Application'
     };
   }

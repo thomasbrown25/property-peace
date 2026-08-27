@@ -102,8 +102,8 @@ test('allowlists every projector action into truthful routes using validated IDs
     ['inviteApplicant', {}, 'Review listing', '/landlord/listings/31'],
     ['scheduleShowing', {}, 'Review listing', '/landlord/listings/31'],
     ['manageShowing', {}, 'Review listing', '/landlord/listings/31'],
-    ['requestScreening', { applicationId: 42 }, 'Review application', '/landlord/applications?applicationId=42'],
-    ['reviewApplication', {}, 'Review application', '/landlord/applications?applicationId=42'],
+    ['requestScreening', { applicationId: 42 }, 'Review application', '/landlord/listings?tab=applications&applicationId=42'],
+    ['reviewApplication', {}, 'Review application', '/landlord/listings?tab=applications&applicationId=42'],
     ['createLease', {}, 'Create lease', '/landlord/leases/selection'],
     ['sendForSignature', { leaseId: 53 }, 'Review lease', '/landlord/leases/53'],
     ['reviewLease', {}, 'Review lease', '/landlord/leases/53'],
@@ -121,7 +121,7 @@ test('allowlists every projector action into truthful routes using validated IDs
 });
 
 test('only permits real internal Property Peace action routes', () => {
-  assert.equal(isSafeLeasingRoute('/landlord/applications?applicationId=42'), true);
+  assert.equal(isSafeLeasingRoute('/landlord/listings?tab=applications&applicationId=42'), true);
   assert.equal(isSafeLeasingRoute('/landlord/leases/42'), true);
   assert.equal(isSafeLeasingRoute('/landlord/listings/42'), true);
   for (const route of ['https://evil.test', '//evil.test', 'javascript:alert(1)', '/admin/users', '/arbitrary/place', '/landlord/applications/42?token=secret']) {
