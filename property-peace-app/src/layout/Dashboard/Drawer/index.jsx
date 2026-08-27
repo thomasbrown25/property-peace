@@ -57,7 +57,7 @@ export default function MainDrawer({ window }) {
                 width: DRAWER_WIDTH,
                 borderRight: (theme) => `1px solid ${theme.palette.divider}`,
                 boxShadow: '4px 0 18px rgba(6, 30, 53, 0.1)',
-                background: 'common.white'
+                backgroundColor: (theme) => theme.palette.common.white
               }
             }
           }}
