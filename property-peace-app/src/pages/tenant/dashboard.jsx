@@ -111,7 +111,7 @@ function getPaymentStatusMeta(payment) {
         label: 'Paid',
         color: 'success',
         icon: <CheckCircleOutlined />,
-        iconColor: '#52c41a',
+        iconColor: '#41a541',
         accent: 'success',
         datePrefix: 'Paid on'
       };

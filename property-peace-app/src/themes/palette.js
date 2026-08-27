@@ -10,6 +10,15 @@ import { ThemeMode } from 'config';
 
 // ==============================|| DEFAULT THEME - PALETTE ||============================== //
 
+const secondaryGreen = {
+  lighter: '#edf7ed',
+  light: '#78c578',
+  main: '#41a541',
+  dark: '#347f34',
+  darker: '#235b23',
+  contrastText: '#fff'
+};
+
 export default function Palette(mode, presetColor) {
   const colors = mode === ThemeMode.DARK ? presetDarkPalettes : presetPalettes;
 
@@ -50,6 +59,7 @@ export default function Palette(mode, presetColor) {
         white: '#fff'
       },
       ...paletteColor,
+      success: secondaryGreen,
       button: paletteColor.button ?? paletteColor.primary,
       text: {
         primary: mode === ThemeMode.DARK ? '#f8fafc' : '#061e35', // Brand navy / marketing nav

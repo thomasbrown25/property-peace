@@ -6,7 +6,7 @@ export const linkedInColor = '#0e76a8';
 
 export const APP_DEFAULT_PATH = '/landlord/dashboard';
 export const HORIZONTAL_MAX_ITEM = 7;
-export const DRAWER_WIDTH = 220;
+export const DRAWER_WIDTH = 240;
 export const MINI_DRAWER_WIDTH = 60;
 
 export let SimpleLayoutType;

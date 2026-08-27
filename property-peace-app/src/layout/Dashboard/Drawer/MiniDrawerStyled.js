@@ -5,20 +5,22 @@ import { Drawer } from '@mui/material';
 // project imports
 import { DRAWER_WIDTH } from 'config';
 
-const getDrawerBackground = (theme, lightDrawerBackground) =>
-  theme.palette.mode === 'dark' ? theme.palette.background.default : lightDrawerBackground || theme.palette.primary.main;
+const getDrawerBackground = (theme) => theme.palette.common.white;
+
+const getDrawerEdge = (theme) => ({
+  borderRight: `1px solid ${theme.palette.divider}`,
+  boxShadow: '4px 0 18px rgba(6, 30, 53, 0.1)'
+});
 
 const openedMixin = (theme, lightDrawerBackground) => ({
   width: DRAWER_WIDTH,
-  borderRight: 'none',
+  ...getDrawerEdge(theme),
   background: getDrawerBackground(theme, lightDrawerBackground),
   transition: theme.transitions.create('width', {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.enteringScreen
   }),
-  overflowX: 'hidden',
-  boxShadow: 'none',
-  ...theme.applyStyles('dark', { boxShadow: theme.customShadows.z1 })
+  overflowX: 'hidden'
 });
 
 const closedMixin = (theme, lightDrawerBackground) => ({
@@ -28,8 +30,7 @@ const closedMixin = (theme, lightDrawerBackground) => ({
   }),
   overflowX: 'hidden',
   width: theme.spacing(7.5),
-  borderRight: 'none',
-  boxShadow: theme.customShadows.z1,
+  ...getDrawerEdge(theme),
   background: getDrawerBackground(theme, lightDrawerBackground)
 });
 

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import KeyboardArrowDown from '@mui/icons-material/KeyboardArrowDown';
-import { alpha, Box, Button, Menu, MenuItem, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Button, Menu, MenuItem, Stack, Tooltip } from '@mui/material';
+
+import ManagementPageHeader from 'components/headers/ManagementPageHeader';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 
 export default function FinancesHeader({ onAddExpense, onRecordPayment, exportState }) {
-  const theme = useTheme();
   const [anchorEl, setAnchorEl] = useState(null);
   const addMenuOpen = Boolean(anchorEl);
   const exportLabel = exportState?.label || 'Export';
@@ -17,24 +19,10 @@ export default function FinancesHeader({ onAddExpense, onRecordPayment, exportSt
   };
 
   return (
-    <Box
-      sx={{
-        mb: 2.5,
-        p: { xs: 2, md: 2.75 },
-        borderRadius: 3,
-        color: 'common.white',
-        background: `linear-gradient(120deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-        boxShadow: `0 16px 38px ${alpha(theme.palette.primary.dark, 0.18)}`
-      }}
-    >
-      <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
-        <Box>
-          <Typography variant="h2" color="inherit" fontWeight={800}>Finances</Typography>
-          <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.78), maxWidth: 680 }}>
-            Review recorded income, expenses, payments, and upcoming obligations across your portfolio.
-          </Typography>
-        </Box>
-
+    <ManagementPageHeader
+      title="Finances"
+      description="Review recorded income, expenses, payments, and upcoming obligations across your portfolio."
+      actions={
         <Stack direction="row" spacing={1} alignItems="center">
           <Tooltip title={exportDisabled ? exportReason : ''} describeChild>
             <span
@@ -47,7 +35,7 @@ export default function FinancesHeader({ onAddExpense, onRecordPayment, exportSt
                 onClick={exportState?.onExport}
                 disabled={exportDisabled}
                 aria-label={exportDisabled && exportReason ? `${exportLabel}. ${exportReason}` : exportLabel}
-                sx={{ color: '#fff', borderColor: alpha('#fff', 0.55), '&:hover': { borderColor: '#fff', bgcolor: alpha('#fff', 0.08) } }}
+                sx={managementPageHeaderActionSx}
               >
                 {exportState?.busy ? 'Exporting…' : exportLabel}
               </Button>
@@ -61,16 +49,21 @@ export default function FinancesHeader({ onAddExpense, onRecordPayment, exportSt
             aria-haspopup="menu"
             aria-expanded={addMenuOpen ? 'true' : undefined}
             onClick={(event) => setAnchorEl(event.currentTarget)}
-            sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+            sx={managementPageHeaderActionSx}
           >
             Add
           </Button>
-          <Menu anchorEl={anchorEl} open={addMenuOpen} onClose={() => setAnchorEl(null)} MenuListProps={{ 'aria-label': 'Add a financial record' }}>
+          <Menu
+            anchorEl={anchorEl}
+            open={addMenuOpen}
+            onClose={() => setAnchorEl(null)}
+            MenuListProps={{ 'aria-label': 'Add a financial record' }}
+          >
             <MenuItem onClick={() => runAddAction(onAddExpense)}>Add expense</MenuItem>
             <MenuItem onClick={() => runAddAction(onRecordPayment)}>Record payment</MenuItem>
           </Menu>
         </Stack>
-      </Stack>
-    </Box>
+      }
+    />
   );
 }

@@ -644,7 +644,7 @@ export default function AddTenantDialog({ open, onClose, onSuccess, unitId = nul
         <CheckCircleOutlined
           style={{
             fontSize: 64,
-            color: '#4caf50',
+            color: '#41a541',
             marginBottom: 16
           }}
         />

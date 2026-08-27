@@ -1410,7 +1410,7 @@ export default function LeaseEditPage() {
                                       <Stack spacing={1.5}>
                                         {tenant.email && (
                                           <Stack direction="row" spacing={1} alignItems="center">
-                                            <MailOutlined style={{ fontSize: 14, color: '#52c41a' }} />
+                                            <MailOutlined style={{ fontSize: 14, color: '#41a541' }} />
                                             <Typography variant="body2">{tenant.email}</Typography>
                                           </Stack>
                                         )}

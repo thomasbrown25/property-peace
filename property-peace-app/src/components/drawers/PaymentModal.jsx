@@ -391,7 +391,7 @@ function LandlordPaymentForm({ rent, onSuccess, onClose }) {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <DollarOutlined style={{ fontSize: 20, color: '#52c41a' }} />
+                <DollarOutlined style={{ fontSize: 20, color: '#41a541' }} />
               </InputAdornment>
             )
           }}
@@ -800,7 +800,7 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <DollarOutlined style={{ fontSize: 20, color: '#52c41a' }} />
+                      <DollarOutlined style={{ fontSize: 20, color: '#41a541' }} />
                     </InputAdornment>
                   )
                 }}

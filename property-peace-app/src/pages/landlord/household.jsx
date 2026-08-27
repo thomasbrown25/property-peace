@@ -144,7 +144,7 @@ export default function HouseholdPage() {
 
                     <Stack spacing={1} mt={1.5}>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <PhoneOutlined style={{ color: '#52c41a' }} />
+                        <PhoneOutlined style={{ color: '#41a541' }} />
                         <Typography variant="body2">{formatPhone(tenant.phoneNumber) || 'N/A'}</Typography>
                       </Stack>
 

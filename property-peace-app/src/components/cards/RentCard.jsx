@@ -68,7 +68,7 @@ export default function RentCard({ rent, onSendReminder }) {
           <Typography variant="body2">Due: {new Date(rent.dueDate).toLocaleDateString()}</Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <DollarOutlined style={{ color: '#52c41a' }} />
+          <DollarOutlined style={{ color: '#41a541' }} />
           <Typography variant="body2">Rent Due: {formatCurrency(rentDue)}</Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">

@@ -201,7 +201,7 @@ export default function AuthenticationMethodsCard() {
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, bgcolor: (theme) => alpha(theme.palette.background.paper, 0.72) }}>
       <Stack direction="row" spacing={1.25} alignItems="center">
-        <LockOutlined style={{ fontSize: 22, color: '#16a34a' }} />
+        <LockOutlined style={{ fontSize: 22, color: '#41a541' }} />
         <Box>
           <Typography variant="h5" fontWeight={800}>Authentication methods</Typography>
           <Typography variant="body2" color="text.secondary">Choose how you sign in and verify it’s really you.</Typography>

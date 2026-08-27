@@ -377,7 +377,7 @@ export default function RecordPaymentModal({ open, onClose, onSuccess }) {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <DollarOutlined style={{ fontSize: 20, color: '#52c41a' }} />
+                    <DollarOutlined style={{ fontSize: 20, color: '#41a541' }} />
                   </InputAdornment>
                 )
               }}

@@ -225,7 +225,7 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
               content: '""',
               position: 'absolute',
               inset: 0,
-              background: 'radial-gradient(circle at 82% 76%, rgba(34, 197, 94, 0.12), transparent 34%)',
+              background: 'radial-gradient(circle at 82% 76%, rgba(65, 165, 65, 0.12), transparent 34%)',
               zIndex: 0
             }
           }}
@@ -270,8 +270,8 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
                       width: 24,
                       height: 24,
                       borderRadius: '50%',
-                      bgcolor: 'rgba(34,197,94,.16)',
-                      color: '#4ade80',
+                      bgcolor: 'rgba(65, 165, 65,.16)',
+                      color: '#78c578',
                       display: 'grid',
                       placeItems: 'center',
                       fontWeight: 800

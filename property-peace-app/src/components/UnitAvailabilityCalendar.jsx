@@ -18,7 +18,7 @@ import { ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
 
 const COLORS = {
-  occupied: '#52c41a',
+  occupied: '#41a541',
   vacant: '#faad14',
   expired: '#ff4d4f',
   upcoming: '#1890ff'

@@ -38,7 +38,7 @@ export default function SubscriptionSuccess() {
               justifyContent: 'center'
             }}
           >
-            <CheckCircleOutlined style={{ fontSize: 48, color: '#52c41a' }} />
+            <CheckCircleOutlined style={{ fontSize: 48, color: '#41a541' }} />
           </Box>
           
           <Stack spacing={4} sx={{ textAlign: 'center', maxWidth: 500 }}>

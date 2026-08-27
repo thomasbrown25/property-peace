@@ -40,9 +40,9 @@ import { useNavigate } from 'react-router-dom';
 
 import { organizationSmsNumberAPI } from 'api/organizationSmsNumber';
 
-const SETUP_GREEN = '#16a34a';
+const SETUP_GREEN = '#41a541';
 const SETUP_NAVY = '#061e35';
-const SETUP_ACCENT_GREEN = '#22c55e';
+const SETUP_ACCENT_GREEN = '#41a541';
 
 const US_STATES = [
   { code: 'AL', label: 'Alabama' },
@@ -373,7 +373,7 @@ function SmsNumberSetupPanel({ step, onBack }) {
   );
 }
 
-export default function FinishSetup({ open, onOpen, onClose, steps, isLoading = false }) {
+export default function FinishSetup({ open, onOpen, onClose, onDismiss, isDismissing = false, steps, isLoading = false }) {
   const theme = useTheme();
   const [selectedStep, setSelectedStep] = useState(null);
   const completedCount = steps.filter((step) => step.completed).length;
@@ -405,59 +405,96 @@ export default function FinishSetup({ open, onOpen, onClose, steps, isLoading = 
         component="section"
         aria-labelledby="account-setup-card-title"
         elevation={0}
-        sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, boxShadow: 'none' }}
+        sx={{
+          position: 'relative',
+          minHeight: { xs: 220, sm: 240 },
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 2,
+          boxShadow: 'none'
+        }}
       >
-        <CardContent sx={{ p: { xs: 2, sm: 2.5 }, '&:last-child': { pb: { xs: 2, sm: 2.5 } } }}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ sm: 'center' }}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Stack direction="row" spacing={1.25} alignItems="center">
-                <Box
-                  sx={(t) => ({
-                    width: 36,
-                    height: 36,
-                    borderRadius: 1.5,
-                    display: 'grid',
-                    placeItems: 'center',
-                    color: 'primary.main',
-                    bgcolor: alpha(t.palette.primary.main, 0.09)
-                  })}
-                >
-                  <HomeOutlined />
-                </Box>
-                <Box>
-                  <Typography id="account-setup-card-title" component="h2" variant="h5" fontWeight={800}>
-                    Continue setting up your account
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" aria-live="polite" sx={{ mt: 0.25 }}>
-                    {isLoading ? 'Checking setup progress…' : completedCount + ' of ' + totalCount + ' account setup tasks complete'}
-                  </Typography>
-                </Box>
-              </Stack>
+        <IconButton
+          aria-label="Dismiss account setup"
+          title="Dismiss account setup"
+          onClick={onDismiss}
+          disabled={isDismissing}
+          sx={{
+            position: 'absolute',
+            top: 10,
+            right: 10,
+            zIndex: 1,
+            color: SETUP_NAVY,
+            '&:hover': { bgcolor: alpha(SETUP_NAVY, 0.08) }
+          }}
+        >
+          <CloseOutlined />
+        </IconButton>
 
-              {!isLoading && (
-                <Box sx={{ mt: 1.5, maxWidth: 520 }}>
-                  <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Account setup progress
-                    </Typography>
-                    <Typography variant="caption" fontWeight={700}>
-                      {progress}%
-                    </Typography>
-                  </Stack>
-                  <LinearProgress
-                    variant="determinate"
-                    value={progress}
-                    aria-label="Account setup progress"
-                    sx={{ height: 7, borderRadius: 1 }}
-                  />
-                </Box>
-              )}
-            </Box>
+        <CardContent
+          sx={{
+            minHeight: 'inherit',
+            display: 'flex',
+            flexDirection: 'column',
+            p: { xs: 2, sm: 2.5 },
+            pr: { xs: 6, sm: 6 },
+            '&:last-child': { pb: { xs: 2, sm: 2.5 } }
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Stack direction="row" spacing={1.25} alignItems="center">
+              <Box
+                sx={(t) => ({
+                  width: 36,
+                  height: 36,
+                  borderRadius: 1.5,
+                  display: 'grid',
+                  placeItems: 'center',
+                  flexShrink: 0,
+                  color: 'primary.main',
+                  bgcolor: alpha(t.palette.primary.main, 0.09)
+                })}
+              >
+                <HomeOutlined />
+              </Box>
+              <Box>
+                <Typography id="account-setup-card-title" component="h2" variant="h5" fontWeight={800}>
+                  Continue setting up your account
+                </Typography>
+                <Typography variant="body2" color="text.secondary" aria-live="polite" sx={{ mt: 0.25 }}>
+                  {isLoading ? 'Checking setup progress…' : completedCount + ' of ' + totalCount + ' account setup tasks complete'}
+                </Typography>
+              </Box>
+            </Stack>
 
-            <Button variant="contained" onClick={onOpen} endIcon={<RightOutlined />} sx={{ minHeight: 44, flexShrink: 0 }}>
-              Continue setup
-            </Button>
-          </Stack>
+            {!isLoading && (
+              <Box sx={{ mt: 2, maxWidth: 520 }}>
+                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Account setup progress
+                  </Typography>
+                  <Typography variant="caption" fontWeight={700}>
+                    {progress}%
+                  </Typography>
+                </Stack>
+                <LinearProgress
+                  variant="determinate"
+                  value={progress}
+                  aria-label="Account setup progress"
+                  sx={{ height: 7, borderRadius: 1 }}
+                />
+              </Box>
+            )}
+          </Box>
+
+          <Button
+            variant="contained"
+            onClick={onOpen}
+            endIcon={<RightOutlined />}
+            sx={{ minHeight: 44, mt: 'auto', alignSelf: 'flex-start', flexShrink: 0 }}
+          >
+            Continue setup
+          </Button>
         </CardContent>
       </Card>
 
@@ -623,6 +660,8 @@ FinishSetup.propTypes = {
   open: PropTypes.bool.isRequired,
   onOpen: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
+  onDismiss: PropTypes.func.isRequired,
+  isDismissing: PropTypes.bool,
   isLoading: PropTypes.bool,
   steps: PropTypes.arrayOf(
     PropTypes.shape({

@@ -5,13 +5,13 @@ import { Box } from '@mui/material';
 // ==============================|| DRAWER HEADER - STYLED ||============================== //
 
 const DrawerHeaderStyled = styled(Box, { shouldForwardProp: (prop) => prop !== 'open' && prop !== 'lightDrawerBackground' })(
-  ({ theme, lightDrawerBackground }) => ({
+  ({ theme }) => ({
     ...theme.mixins.toolbar,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     paddingLeft: theme.spacing(0),
-    background: theme.palette.mode === 'dark' ? theme.palette.background.default : lightDrawerBackground || theme.palette.primary.main,
+    background: theme.palette.common.white,
     variants: [
       {
         props: ({ open }) => open,

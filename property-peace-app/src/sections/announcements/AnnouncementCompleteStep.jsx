@@ -18,7 +18,7 @@ export default function AnnouncementCompleteStep({ sentCount, failedCount, onBac
 
   return (
     <Box sx={{ textAlign: 'center', py: 4 }}>
-      <CheckCircleOutlined style={{ fontSize: 80, color: '#4caf50', marginBottom: 16 }} />
+      <CheckCircleOutlined style={{ fontSize: 80, color: '#41a541', marginBottom: 16 }} />
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>
         {isScheduled ? 'Announcement Scheduled Successfully!' : 'Announcement Sent Successfully!'}
       </Typography>

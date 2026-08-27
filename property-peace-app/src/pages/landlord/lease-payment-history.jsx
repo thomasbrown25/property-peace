@@ -241,7 +241,7 @@ export default function LeasePaymentHistory() {
             >
               Back
             </Button>
-            <DollarOutlined style={{ fontSize: 24, color: '#52c41a' }} />
+            <DollarOutlined style={{ fontSize: 24, color: '#41a541' }} />
             <Typography variant="h4" fontWeight="bold">
               Payment History
             </Typography>

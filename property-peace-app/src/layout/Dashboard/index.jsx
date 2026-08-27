@@ -42,7 +42,7 @@ export default function DashboardLayout() {
   const userRoles = Array.isArray(user?.Roles) ? user?.Roles : Array.isArray(user?.roles) ? user?.roles : [];
   const hasLandlordRole = userRoles.map((r) => String(r).toLowerCase().trim()).includes('landlord');
 
-  const { container, miniDrawer, menuOrientation } = useConfig();
+  const { miniDrawer, menuOrientation } = useConfig();
   const [isLayoutLoading, setIsLayoutLoading] = useState(true);
   const { 
     isDashboardLoading, 
@@ -169,7 +169,7 @@ export default function DashboardLayout() {
           sx={{ 
             width: { xs: '100%', lg: drawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : `calc(100% - ${MINI_DRAWER_WIDTH}px)` }, 
             flexGrow: 1, 
-            p: { xs: 1, sm: 1.5 },
+            p: 2.5,
             pb: 0,
             display: 'flex',
             flexDirection: 'column',
@@ -182,7 +182,8 @@ export default function DashboardLayout() {
         >
           <Toolbar sx={{ mt: isHorizontal ? 8 : 'inherit' }} />
           <Container
-            maxWidth={container ? 'xl' : false}
+            maxWidth={false}
+            disableGutters
             sx={{
               position: 'relative',
               flexGrow: 1,

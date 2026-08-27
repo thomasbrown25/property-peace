@@ -36,7 +36,7 @@ const getMaintenanceStatusMeta = (status) => {
 };
 
 const TYPE_META = {
-  money:       { label: 'RENT RECEIVED', color: '#16a34a', icon: <DollarOutlined /> },
+  money:       { label: 'RENT RECEIVED', color: '#41a541', icon: <DollarOutlined /> },
   maintenance: { label: 'MAINTENANCE',   color: '#d97706', icon: <ToolOutlined /> },
   lease:       { label: 'LEASE STARTED', color: '#1464CC', icon: <FileTextOutlined /> },
   agent:       { label: 'AGENT',         color: '#7c3aed', icon: <RobotOutlined /> },
@@ -127,7 +127,7 @@ function StoryItem({ item, isLast }) {
               {formatEventDate(item.date)}
             </Typography>
             {item.amount > 0 && (
-              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#16a34a', ml: 'auto !important', fontSize: '1rem' }}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#41a541', ml: 'auto !important', fontSize: '1rem' }}>
                 +{formatCurrency(item.amount)}
               </Typography>
             )}

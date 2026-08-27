@@ -52,7 +52,7 @@ import {
 } from 'utils/aiCenterScope';
 
 const NAVY = '#061e35';
-const GREEN = '#16a34a';
+const GREEN = '#41a541';
 const STARTER_PROMPTS = [
   { label: 'Rent at risk', prompt: 'Which tenants are behind on rent?', icon: <DollarCircleOutlined /> },
   { label: 'Urgent maintenance', prompt: 'Summarize urgent maintenance.', icon: <ToolOutlined /> },

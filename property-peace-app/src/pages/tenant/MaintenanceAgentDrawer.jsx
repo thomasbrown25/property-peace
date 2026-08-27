@@ -390,8 +390,8 @@ export default function MaintenanceAgentDrawer({
           <Typography variant="subtitle1" fontWeight={600} lineHeight={1.2} sx={{ color: 'text.primary' }}>
             Maintenance Agent
           </Typography>
-          <Typography variant="caption" sx={{ color: '#16a34a', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#16a34a', display: 'inline-block' }} />
+          <Typography variant="caption" sx={{ color: '#41a541', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#41a541', display: 'inline-block' }} />
             {subtitle}
           </Typography>
         </Box>

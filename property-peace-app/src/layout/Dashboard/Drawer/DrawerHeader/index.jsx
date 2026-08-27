@@ -22,11 +22,11 @@ export default function DrawerHeader({ open, lightDrawerBackground }) {
       open={open}
       lightDrawerBackground={lightDrawerBackground}
       sx={{
-        minHeight: isHorizontal ? { xs: 40, md: 48 } : { xs: 57, sm: 61 },
-        height: isHorizontal ? { xs: 40, md: 48 } : { xs: 57, sm: 61 },
+        minHeight: isHorizontal ? { xs: 40, md: 48 } : { xs: 69, sm: 73 },
+        height: isHorizontal ? { xs: 40, md: 48 } : { xs: 69, sm: 73 },
         width: isHorizontal ? { xs: '100%', lg: '424px' } : 'initial',
         paddingTop: isHorizontal ? { xs: '8px', lg: '0' } : 0,
-        paddingBottom: isHorizontal ? { xs: '8px', lg: '2px' } : 0,
+        paddingBottom: isHorizontal ? { xs: '8px', lg: '2px' } : '12px',
         paddingLeft: isHorizontal ? { xs: '24px', lg: '0' } : open ? '24px' : 0,
         alignItems: isHorizontal ? 'flex-end' : 'center'
       }}
@@ -36,6 +36,7 @@ export default function DrawerHeader({ open, lightDrawerBackground }) {
           isIcon={!open}
           reverse={false}
           disableTopPadding
+          lightHeaderLogo
           width={open ? 142 : undefined}
           sx={{ width: open ? 'auto' : 35, height: open ? 'auto' : isHorizontal ? { xs: 28, lg: 30 } : 32, lineHeight: 0 }}
         />

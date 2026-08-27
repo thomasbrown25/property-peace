@@ -89,7 +89,7 @@ export default function Leads() {
   const filtersApplied = filters.followUp !== 'all' || filters.status !== 'all' || Boolean(filters.listingId || filters.ownerUserId);
 
   return <>
-    <PageBreadcrumbs title="Leads & Showings" links={[{ title: 'Dashboard', to: '/landlord/dashboard' }, { title: 'Leads & Showings' }]} />
+    <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Leads & Showings' }]} />
     <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1} sx={{ mb: 2 }}>
       <Box><Typography variant="h3">Leads & Showings</Typography><Typography color="text.secondary">Manage saved inquiries, follow-ups, showing availability, and applications.</Typography></Box>
       <Button startIcon={<ReloadOutlined />} onClick={() => { loadLeads(); loadShowings(); }} disabled={loading || showingsLoading}>Refresh</Button>

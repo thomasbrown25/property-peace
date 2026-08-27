@@ -121,8 +121,8 @@ function LeaseShieldMock2() {
             In California, a landlord must first serve written notice — typically a <strong>3-day notice to pay or quit</strong> for unpaid rent. If the tenant doesn't comply, the landlord may file an <em>unlawful detainer</em> action in Superior Court.
           </div>
           <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 5, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '4px 8px' }}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#16a34a' }}>CA CCP § 1161 — Official Source</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#41a541" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#41a541' }}>CA CCP § 1161 — Official Source</span>
           </div>
         </div>
       </div>
@@ -160,8 +160,8 @@ function LeaseShieldMock3() {
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#16a34a', fontWeight: 600 }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: '#41a541', fontWeight: 600 }}>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#41a541" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
           Sourced from California Civil Code
         </div>
       </div>

@@ -3,7 +3,7 @@ import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useEffect, useMemo, useState } from 'react';
 import {
   alpha, Box, Button, Chip, Drawer, FormControl, IconButton,
-  MenuItem, Select, Stack, TextField, Tooltip, Typography, useTheme, useMediaQuery
+  MenuItem, Select, Stack, Tooltip, Typography, useTheme, useMediaQuery
 } from '@mui/material';
 import {
   CloseOutlined, LeftOutlined,
@@ -24,8 +24,10 @@ import { createTask, updateTaskAction, deleteTaskAction, fetchTasks } from 'stor
 import useFetchTasks from 'hooks/useFetchTasks';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useFetchAllPayments from 'hooks/useFetchAllPayments';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import { checklistAPI } from 'api';
+import useAuth from 'hooks/useAuth';
+import DashboardHeader from 'sections/landlord/dashboard/DashboardHeader';
+import TaskEditorDrawer from 'sections/landlord/tasks/TaskEditorDrawer';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -34,7 +36,7 @@ const CATEGORY_COLORS = {
   Maintenance:  { bg: '#fee2e2', text: '#b91c1c', border: '#fca5a5', dot: '#ef4444' },
   Lease:        { bg: '#ede9fe', text: '#6d28d9', border: '#c4b5fd', dot: '#8b5cf6' },
   Inspection:   { bg: '#ffedd5', text: '#c2410c', border: '#fdba74', dot: '#f97316' },
-  Task:         { bg: '#dcfce7', text: '#15803d', border: '#86efac', dot: '#22c55e' },
+  Task:         { bg: '#dcfce7', text: '#347f34', border: '#86efac', dot: '#41a541' },
 };
 
 const FILTERS = [
@@ -46,8 +48,8 @@ const FILTERS = [
 ];
 
 const VIEWS = ['Month', 'Week', 'Agenda'];
-const TASK_CATEGORIES = ['RentPayment', 'Maintenance', 'Lease', 'Task'];
-const STATUS_FILTERS = ['All statuses', 'Upcoming', 'Overdue', 'Paid', 'Completed', 'Scheduled'];
+const TASK_CATEGORIES = ['Task', 'RentPayment', 'Maintenance', 'Lease'];
+const STATUS_FILTERS = ['All statuses', 'Upcoming', 'Overdue', 'Paid', 'Completed', 'Cancelled', 'Scheduled'];
 
 function getEventColors(event) {
   if (event?.category === 'RentPayment' && event.status === 'Paid') return CATEGORY_COLORS.Task;
@@ -83,13 +85,6 @@ const calendarAccentPanelSx = (accentColor, extra = {}) => ({
       : 'none'
   }
 });
-
-const RECURRENCE_TYPES = [
-  { value: 0, label: 'Does not repeat' },
-  { value: 2, label: 'Weekly' },
-  { value: 3, label: 'Monthly' },
-  { value: 4, label: 'Yearly' },
-];
 
 const MOVE_IN_CHECKLIST = 'moveInChecklist';
 const MOVE_OUT_CHECKLIST = 'moveOutChecklist';
@@ -273,7 +268,9 @@ function buildEvents(properties, allPayments, dashboardSummary, tasks, inspectio
       const date = typeof instance.dueDate === 'string' ? parseISO(instance.dueDate) : instance.dueDate;
       if (date < viewStart || date > viewEnd) return;
       const category = TASK_CATEGORIES[Number(task.category ?? task.Category ?? 3)] || 'Task';
-      const completed = Boolean(task.isCompleted ?? task.IsCompleted ?? task.completed ?? task.Completed);
+      const taskStatus = task.status ?? task.Status ?? 0;
+      const completed = taskStatus === 1 || String(taskStatus).toLowerCase() === 'done';
+      const cancelled = taskStatus === 2 || ['cancelled', 'canceled'].includes(String(taskStatus).toLowerCase());
       events.push({
         id: `task-${task.id || task.Id}-${format(date, 'yyyy-MM-dd')}`,
         title: task.title || task.Title,
@@ -284,163 +281,12 @@ function buildEvents(properties, allPayments, dashboardSummary, tasks, inspectio
         task,
         propertyId: task.propertyId || task.PropertyId || null,
         unitId: task.unitId || task.UnitId || null,
-        status: completed ? 'Completed' : date < today ? 'Overdue' : 'Upcoming'
+        status: cancelled ? 'Cancelled' : completed ? 'Completed' : date < today ? 'Overdue' : 'Upcoming'
       });
     });
   });
 
   return events.sort((a, b) => a.date - b.date);
-}
-
-// ─── Add Task Drawer ──────────────────────────────────────────────────────────
-
-function AddTaskDrawer({ open, onClose, onSave, defaultDate, properties, editTask }) {
-  const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
-  const taskDrawerBorder = isDarkMode ? alpha(theme.palette.primary.main, 0.18) : 'rgba(0,0,0,0.09)';
-  const taskDrawerSurface = isDarkMode ? theme.palette.background.default : '#fff';
-  const taskDrawerHeaderSurface = isDarkMode ? alpha(theme.palette.background.paper, 0.88) : '#fff';
-  const taskDrawerFooterSurface = isDarkMode ? alpha(theme.palette.background.paper, 0.94) : theme.palette.background.paper;
-  const [form, setForm] = useState({
-    title: '', dueDate: format(defaultDate || new Date(), "yyyy-MM-dd'T'HH:mm"),
-    category: 3, propertyId: '', unitId: '', isRecurring: false, recurrenceType: 0, recurrenceInterval: 1, recurrenceEndDate: ''
-  });
-
-  useEffect(() => {
-    if (editTask) {
-      setForm({
-        title: editTask.title || editTask.Title || '',
-        dueDate: format(parseISO(editTask.dueDate || editTask.DueDate), "yyyy-MM-dd'T'HH:mm"),
-        category: editTask.category ?? editTask.Category ?? 3,
-        propertyId: editTask.propertyId || editTask.PropertyId || '',
-        unitId: editTask.unitId || editTask.UnitId || '',
-        isRecurring: editTask.isRecurring || false,
-        recurrenceType: editTask.recurrenceType ?? 0,
-        recurrenceInterval: editTask.recurrenceInterval || 1,
-        recurrenceEndDate: editTask.recurrenceEndDate ? format(parseISO(editTask.recurrenceEndDate), 'yyyy-MM-dd') : ''
-      });
-    } else {
-      setForm(f => ({ ...f, dueDate: format(defaultDate || new Date(), "yyyy-MM-dd'T'HH:mm") }));
-    }
-  }, [editTask, defaultDate]);
-
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-  const handleSave = () => {
-    onSave({
-      ...form,
-      dueDate: new Date(form.dueDate).toISOString(),
-      category: Number(form.category),
-      propertyId: form.propertyId ? Number(form.propertyId) : null,
-      unitId: form.unitId ? Number(form.unitId) : null,
-      recurrenceType: Number(form.recurrenceType),
-      recurrenceInterval: Number(form.recurrenceInterval),
-      recurrenceEndDate: form.recurrenceEndDate ? new Date(form.recurrenceEndDate).toISOString() : null,
-    });
-    onClose();
-  };
-
-  return (
-    <ThemeAdaptiveDrawer
-      anchor="right"
-      open={open}
-      onClose={onClose}
-      PaperProps={{
-        sx: {
-          width: { xs: '100%', sm: 420 },
-          bgcolor: taskDrawerSurface,
-          backgroundImage: isDarkMode ? `linear-gradient(180deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, transparent 180px)` : 'none',
-          color: 'text.primary',
-          borderLeft: `1px solid ${taskDrawerBorder}`,
-          boxShadow: isDarkMode ? `-18px 0 44px ${alpha('#020617', 0.45)}` : undefined
-        }
-      }}
-    >
-      <Stack sx={{ height: '100%' }}>
-        {/* Header */}
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ px: 3, py: 2, borderBottom: `1px solid ${taskDrawerBorder}`, bgcolor: taskDrawerHeaderSurface }}>
-          <Typography variant="h6" fontWeight={700}>{editTask ? 'Edit task' : 'New task'}</Typography>
-          <IconButton size="small" onClick={onClose}><CloseOutlined /></IconButton>
-        </Stack>
-
-        {/* Fields */}
-        <Stack spacing={2.5} sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
-          <Stack spacing={0.75}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary">Title</Typography>
-            <TextField value={form.title} onChange={e => set('title', e.target.value)} fullWidth autoFocus size="small" placeholder="e.g. Schedule plumber visit" />
-          </Stack>
-          <Stack spacing={0.75}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary">Due date & time</Typography>
-            <TextField type="datetime-local" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} fullWidth size="small" InputLabelProps={{ shrink: true }} />
-          </Stack>
-          <Stack spacing={0.75}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary">Category</Typography>
-            <FormControl fullWidth size="small">
-              <Select value={form.category} onChange={e => set('category', e.target.value)}>
-                <MenuItem value={3}>Task</MenuItem>
-                <MenuItem value={0}>Rent & Payment</MenuItem>
-                <MenuItem value={1}>Maintenance</MenuItem>
-                <MenuItem value={2}>Lease</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
-          <Stack spacing={0.75}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary">Property (optional)</Typography>
-            <FormControl fullWidth size="small">
-              <Select value={form.propertyId} onChange={e => { set('propertyId', e.target.value); set('unitId', ''); }} displayEmpty renderValue={v => v ? (properties || []).find(p => String(p.id) === String(v))?.name || 'Property' : 'None'}>
-                <MenuItem value="">None</MenuItem>
-                {(properties || []).map(p => <MenuItem key={p.id} value={p.id}>{p.name || p.streetAddress}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Stack>
-          {(() => {
-            const selProp = form.propertyId ? (properties || []).find(p => String(p.id) === String(form.propertyId)) : null;
-            const units = selProp?.units || [];
-            if (units.length < 2) return null;
-            return (
-              <Stack spacing={0.75}>
-                <Typography variant="caption" fontWeight={600} color="text.secondary">Unit (optional)</Typography>
-                <FormControl fullWidth size="small">
-                  <Select value={form.unitId} onChange={e => set('unitId', e.target.value)} displayEmpty renderValue={v => v ? units.find(u => String(u.id) === String(v))?.name || 'Unit' : 'None'}>
-                    <MenuItem value="">None</MenuItem>
-                    {units.map(u => <MenuItem key={u.id} value={u.id}>{u.name}</MenuItem>)}
-                  </Select>
-                </FormControl>
-              </Stack>
-            );
-          })()}
-          <Stack spacing={0.75}>
-            <Typography variant="caption" fontWeight={600} color="text.secondary">Repeat</Typography>
-            <FormControl fullWidth size="small">
-              <Select value={form.recurrenceType} onChange={e => { set('recurrenceType', e.target.value); set('isRecurring', Number(e.target.value) !== 0); }}>
-                {RECURRENCE_TYPES.map(r => <MenuItem key={r.value} value={r.value}>{r.label}</MenuItem>)}
-              </Select>
-            </FormControl>
-          </Stack>
-          {form.isRecurring && (
-            <Stack direction="row" spacing={1.5}>
-              <Stack spacing={0.75} sx={{ width: 110 }}>
-                <Typography variant="caption" fontWeight={600} color="text.secondary">Every</Typography>
-                <TextField type="number" value={form.recurrenceInterval} onChange={e => set('recurrenceInterval', e.target.value)} size="small" inputProps={{ min: 1 }} placeholder="1" />
-              </Stack>
-              <Stack spacing={0.75} sx={{ flex: 1 }}>
-                <Typography variant="caption" fontWeight={600} color="text.secondary">End date (optional)</Typography>
-                <TextField type="date" value={form.recurrenceEndDate} onChange={e => set('recurrenceEndDate', e.target.value)} size="small" InputLabelProps={{ shrink: true }} />
-              </Stack>
-            </Stack>
-          )}
-        </Stack>
-
-        {/* Footer */}
-        <Stack direction="row" justifyContent="flex-end" spacing={1.5} sx={{ px: 3, py: 2, borderTop: `1px solid ${taskDrawerBorder}`, bgcolor: taskDrawerFooterSurface, boxShadow: isDarkMode ? `0 -12px 28px ${alpha('#020617', 0.22)}` : 'none' }}>
-          <Button onClick={onClose} sx={{ textTransform: 'none' }}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} disabled={!form.title.trim()} sx={{ textTransform: 'none', borderRadius: 1.5 }}>
-            {editTask ? 'Save changes' : 'Add task'}
-          </Button>
-        </Stack>
-      </Stack>
-    </ThemeAdaptiveDrawer>
-  );
 }
 
 // ─── Event pill ───────────────────────────────────────────────────────────────
@@ -832,7 +678,8 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function CalendarPage() {
+export default function CalendarPage({ embedded = false }) {
+  const { user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dispatch = useDispatch();
@@ -896,7 +743,7 @@ export default function CalendarPage() {
   // View range
   const { viewStart, viewEnd } = useMemo(() => {
     if (view === 'Month') {
-      return { viewStart: startOfMonth(addMonths(current, -1)), viewEnd: endOfMonth(addMonths(current, 1)) };
+      return { viewStart: startOfWeek(startOfMonth(current)), viewEnd: endOfWeek(endOfMonth(current)) };
     }
     if (view === 'Week') {
       return { viewStart: startOfWeek(current), viewEnd: endOfWeek(current) };
@@ -910,11 +757,6 @@ export default function CalendarPage() {
     [properties, allPayments, dashboardSummary, tasks, inspections, viewStart, viewEnd]
   );
 
-  const summaryEvents = useMemo(() => {
-    const now = new Date();
-    return buildEvents(properties, allPayments, dashboardSummary, tasks, inspections, startOfDay(addDays(now, -365)), endOfDay(addDays(now, 90)));
-  }, [properties, allPayments, dashboardSummary, tasks, inspections]);
-
   // Filtered
   const filteredEvents = useMemo(() =>
     allEvents
@@ -925,16 +767,16 @@ export default function CalendarPage() {
   );
 
   const summaryCards = useMemo(() => {
-    const now = new Date();
-    const inSevenDays = endOfDay(addDays(now, 7));
-    const scoped = summaryEvents.filter(event => !selectedProperty || String(event.propertyId) === String(selectedProperty));
-    return [
-      { label: 'Due next 7 days', value: scoped.filter(event => event.date >= now && event.date <= inSevenDays && !['Paid', 'Completed'].includes(event.status)).length, color: CATEGORY_COLORS.Task.dot },
-      { label: 'Overdue', value: scoped.filter(event => event.status === 'Overdue').length, color: CATEGORY_COLORS.Maintenance.dot },
-      { label: 'Lease milestones', value: scoped.filter(event => event.category === 'Lease' && event.date >= now).length, color: CATEGORY_COLORS.Lease.dot },
-      { label: 'Scheduled maintenance', value: scoped.filter(event => event.category === 'Maintenance' && event.status === 'Scheduled' && event.date >= now).length, color: CATEGORY_COLORS.Maintenance.text }
-    ];
-  }, [summaryEvents, selectedProperty]);
+    const today = startOfDay(new Date());
+    const upcomingVisibleEvents = filteredEvents.filter(event => event.date >= today);
+
+    return FILTERS.map(filter => ({
+      key: filter.key,
+      label: filter.label,
+      value: upcomingVisibleEvents.filter(event => event.category === filter.key).length,
+      colors: CATEGORY_COLORS[filter.key]
+    }));
+  }, [filteredEvents]);
 
   // Nav
   const goToday = () => { setCurrent(new Date()); setSelectedDay(new Date()); };
@@ -985,17 +827,14 @@ export default function CalendarPage() {
 
   return (
     <Box>
-      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Calendar' }]} />
+      {!embedded && <DashboardHeader userName={user?.firstname || user?.Firstname} />}
 
-      <Box sx={{ mb: 2, p: { xs: 2, sm: 3 }, borderRadius: 2.5, bgcolor: '#061e35', color: '#fff', backgroundImage: 'linear-gradient(120deg, #061e35 45%, #0b3653)' }}>
+      <Box sx={{ mb: 2.25 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
           <Box>
-            <Typography variant="h3" fontWeight={700} sx={{ color: '#fff' }}>Calendar</Typography>
-            <Typography variant="body2" sx={{ color: alpha('#fff', 0.72), mt: 0.5 }}>{title} · Keep rent, work, leases, and checklists moving.</Typography>
+            {!embedded && <Typography variant="h3" fontWeight={750}>Calendar</Typography>}
+            <Typography variant="body2" color="text.secondary" sx={{ mt: embedded ? 0 : 0.35 }}>{title} · Keep rent, work, leases, and checklists moving.</Typography>
           </Box>
-          <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => handleAddTask(selectedDay)} sx={{ flexShrink: 0, textTransform: 'none', fontWeight: 800, borderRadius: 1.5 }}>
-            Add task
-          </Button>
         </Stack>
       </Box>
 
@@ -1017,7 +856,7 @@ export default function CalendarPage() {
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center">
             <Stack direction="row" sx={{ border: (t) => `1px solid ${subtleBorder(t, 0.2)}`, borderRadius: 1.5, overflow: 'hidden' }}>
-              {VIEWS.map(v => <Box key={v} onClick={() => setView(v)} sx={{ px: { xs: 1.2, sm: 1.75 }, py: 0.6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, bgcolor: view === v ? 'success.main' : 'transparent', color: view === v ? 'success.contrastText' : 'text.secondary' }}>{v}</Box>)}
+              {VIEWS.map(v => <Box key={v} onClick={() => setView(v)} sx={{ px: { xs: 1.2, sm: 1.75 }, py: 0.6, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, bgcolor: view === v ? '#061e35' : 'transparent', color: view === v ? '#fff' : 'text.secondary' }}>{v}</Box>)}
             </Stack>
             <IconButton size="small" onClick={goPrev}><LeftOutlined /></IconButton>
             <Button size="small" onClick={goToday} variant="outlined" sx={{ textTransform: 'none' }}>Today</Button>
@@ -1048,10 +887,10 @@ export default function CalendarPage() {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.25, mb: 2 }}>
-        {summaryCards.map(card => <Box key={card.label} sx={{ p: 1.5, borderRadius: 2, bgcolor: 'background.paper', border: (t) => `1px solid ${subtleBorder(t)}`, borderTop: `3px solid ${card.color}` }}>
-          <Typography sx={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1 }}>{card.value}</Typography>
-          <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', mt: 0.4 }}>{card.label}</Typography>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(5, 1fr)' }, gap: 1.25, mb: 2 }}>
+        {summaryCards.map(card => <Box key={card.key} sx={{ p: 1.5, borderRadius: 2, bgcolor: card.colors.bg, border: `1px solid ${card.colors.border}`, borderTop: `3px solid ${card.colors.dot}` }}>
+          <Typography sx={{ fontSize: '1.45rem', fontWeight: 800, lineHeight: 1.1, color: card.colors.text }}>{card.value}</Typography>
+          <Typography sx={{ fontSize: '0.72rem', color: card.colors.text, fontWeight: 650, mt: 0.4 }}>{card.label}</Typography>
         </Box>)}
       </Box>
 
@@ -1076,7 +915,7 @@ export default function CalendarPage() {
       </Stack>
 
       {/* Add / Edit Task Drawer */}
-      <AddTaskDrawer
+      <TaskEditorDrawer
         open={addTaskOpen}
         onClose={() => { setAddTaskOpen(false); setEditTask(null); }}
         onSave={handleSaveTask}

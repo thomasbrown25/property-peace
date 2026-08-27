@@ -5,12 +5,11 @@ import { alpha, Box, Button, Stack, Typography, useTheme } from '@mui/material';
 import MainCard from 'components/MainCard';
 import CircularLoader from 'components/CircularLoader';
 import useFetchAllPayments from 'hooks/useFetchAllPayments';
-import useFetchExpenses from 'hooks/useFetchExpenses';
 import { selectAllPayments, selectAllPaymentsLoadedAt } from 'store/payment/payment.selector';
 import { formatCurrency } from 'utils/formatters';
 import moment from 'moment';
 import { ArrowRightOutlined, SwapOutlined } from '@ant-design/icons';
-import { buildRecentTransactions } from './recentTransactions';
+import { buildRecentPayments } from './recentTransactions';
 
 export default function PaymentsCard() {
   const theme = useTheme();
@@ -19,10 +18,9 @@ export default function PaymentsCard() {
   useFetchAllPayments();
   const payments = useSelector(selectAllPayments);
   const loadedAt = useSelector(selectAllPaymentsLoadedAt);
-  const { expenses, loading: expensesLoading } = useFetchExpenses();
-  const loading = !loadedAt || expensesLoading;
+  const loading = !loadedAt;
 
-  const items = useMemo(() => buildRecentTransactions(payments, expenses), [expenses, payments]);
+  const items = useMemo(() => buildRecentPayments(payments), [payments]);
 
   return (
     <MainCard
@@ -30,7 +28,7 @@ export default function PaymentsCard() {
       accentShadow
       title={
         <Typography variant="h5" fontWeight={700} sx={{ lineHeight: 1.2, color: 'text.primary' }}>
-          Recent Transactions
+          Payments
         </Typography>
       }
       secondary={
@@ -61,8 +59,7 @@ export default function PaymentsCard() {
       ) : items.length > 0 ? (
         <Stack>
           {items.map((item, i) => {
-            const isIncome = item.kind === 'income';
-            const accentColor = isIncome ? theme.palette.success.main : theme.palette.error.main;
+            const accentColor = theme.palette.success.main;
             return (
               <Box
                 key={item.id}
@@ -91,7 +88,7 @@ export default function PaymentsCard() {
                   <Stack direction="row" alignItems="center" spacing={0.75}>
                     <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.72rem' }}>
                       {moment(item.date).format('MMM D')}
-                      {` · ${isIncome ? 'Income' : 'Expense'}`}
+                      {' · Income'}
                       {item.sub ? ` · ${item.sub}` : ''}
                     </Typography>
                   </Stack>
@@ -99,7 +96,7 @@ export default function PaymentsCard() {
 
                 {/* Amount */}
                 <Typography variant="subtitle2" fontWeight={700} sx={{ flexShrink: 0, color: accentColor, fontSize: '0.9rem' }}>
-                  {isIncome ? '+' : '−'}
+                  +
                   {formatCurrency(item.amount)}
                 </Typography>
               </Box>
@@ -112,7 +109,7 @@ export default function PaymentsCard() {
             <SwapOutlined style={{ fontSize: 26, color: theme.palette.primary.main }} />
           </Box>
           <Typography variant="body2" color="text.secondary">
-            No recent transactions
+            No recent payments
           </Typography>
         </Box>
       )}

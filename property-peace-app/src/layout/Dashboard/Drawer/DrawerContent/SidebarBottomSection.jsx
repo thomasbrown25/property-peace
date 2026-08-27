@@ -43,12 +43,11 @@ export default function SidebarBottomSection() {
   };
 
   const getItemColors = (theme, selected) => {
-    const dark = theme.palette.mode === 'dark';
-    const hoverBg = 'rgba(255, 255, 255, 0.1)';
-    const selectedBg = dark ? alpha(theme.palette.primary.main, 0.22) : 'rgba(255, 255, 255, 0.18)';
-    const selectedColor = dark ? theme.palette.primary.light : '#fff';
-    const defaultTextColor = 'rgba(255, 255, 255, 0.9)';
-    const defaultIconColor = 'rgba(255, 255, 255, 0.78)';
+    const hoverBg = alpha('#061e35', 0.06);
+    const selectedBg = alpha('#061e35', 0.1);
+    const selectedColor = '#061e35';
+    const defaultTextColor = '#061e35';
+    const defaultIconColor = '#061e35';
 
     return {
       hoverBg,
@@ -56,8 +55,8 @@ export default function SidebarBottomSection() {
       selectedColor,
       textColor: selected ? selectedColor : defaultTextColor,
       iconColor: selected ? selectedColor : defaultIconColor,
-      dividerColor: 'rgba(255, 255, 255, 0.16)',
-      selectedBorderColor: dark ? theme.palette.primary.main : '#fff'
+      dividerColor: alpha('#061e35', 0.14),
+      selectedBorderColor: '#061e35'
     };
   };
 
@@ -110,17 +109,18 @@ export default function SidebarBottomSection() {
             mb: 2,
             p: 1.5,
             borderRadius: 2,
-            bgcolor: 'rgba(255, 255, 255, 0.07)',
-            border: '1px solid rgba(255, 255, 255, 0.12)'
+            bgcolor: alpha('#061e35', 0.04),
+            border: '1px solid',
+            borderColor: alpha('#061e35', 0.12)
           }}
         >
           <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.5 }}>
-            <StarOutlined style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }} />
-            <Typography variant="caption" fontWeight={700} sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.75rem' }}>
+            <StarOutlined style={{ fontSize: 13, color: '#061e35' }} />
+            <Typography variant="caption" fontWeight={700} sx={{ color: '#061e35', fontSize: '0.75rem' }}>
               Upgrade to Premium
             </Typography>
           </Stack>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.7rem', display: 'block', mb: 1.25 }}>
+          <Typography variant="caption" sx={{ color: alpha('#061e35', 0.68), fontSize: '0.7rem', display: 'block', mb: 1.25 }}>
             Unlimited agents &amp; more
           </Typography>
           <Button
@@ -158,7 +158,7 @@ export default function SidebarBottomSection() {
                   const colors = getItemColors(theme, helpSupportSelected);
                   return {
                     pl: drawerOpen ? 3 : 1.5,
-                    py: !drawerOpen ? 0.75 : 0.5,
+                    py: 1,
                     '&:hover': { bgcolor: colors.hoverBg },
                     '&.Mui-selected': {
                       bgcolor: drawerOpen ? colors.selectedBg : 'transparent',
@@ -204,7 +204,8 @@ export default function SidebarBottomSection() {
                         sx={(theme) => ({
                           color: getItemColors(theme, helpSupportSelected).textColor,
                           fontFamily: "'Inter', sans-serif",
-                          fontSize: '0.8125rem'
+                          fontSize: '0.875rem',
+                          fontWeight: 700
                         })}
                       >
                         Support
@@ -225,7 +226,7 @@ export default function SidebarBottomSection() {
                 const colors = getItemColors(theme, settingsSelected);
                 return {
                   pl: drawerOpen ? 3 : 1.5,
-                  py: !drawerOpen ? 0.75 : 0.5,
+                  py: 1,
                   '&:hover': { bgcolor: colors.hoverBg },
                   '&.Mui-selected': {
                     bgcolor: drawerOpen ? colors.selectedBg : 'transparent',
@@ -271,7 +272,8 @@ export default function SidebarBottomSection() {
                         sx={(theme) => ({
                           color: getItemColors(theme, settingsSelected).textColor,
                           fontFamily: "'Inter', sans-serif",
-                          fontSize: '0.8125rem'
+                          fontSize: '0.875rem',
+                          fontWeight: 700
                         })}
                       >
                         Settings

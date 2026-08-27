@@ -202,7 +202,7 @@ export default function AdminSettingsForm() {
 
         <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <ToolOutlined style={{ fontSize: 20, color: '#16a34a' }} />
+            <ToolOutlined style={{ fontSize: 20, color: '#41a541' }} />
             <Typography variant="h6" fontWeight="bold">
               Maintenance Mode
             </Typography>

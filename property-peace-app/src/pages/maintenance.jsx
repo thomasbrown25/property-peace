@@ -41,8 +41,8 @@ export default function MaintenancePage() {
         py: { xs: 4, sm: 6 },
         bgcolor: '#061e35',
         backgroundImage: `
-          radial-gradient(circle at 14% 18%, ${alpha('#22c55e', 0.18)}, transparent 30%),
-          radial-gradient(circle at 86% 82%, ${alpha('#22c55e', 0.12)}, transparent 34%),
+          radial-gradient(circle at 14% 18%, ${alpha('#41a541', 0.18)}, transparent 30%),
+          radial-gradient(circle at 86% 82%, ${alpha('#41a541', 0.12)}, transparent 34%),
           linear-gradient(135deg, #061e35 0%, #08233d 48%, #031426 100%)
         `
       }}
@@ -94,7 +94,7 @@ export default function MaintenancePage() {
             position: 'absolute',
             inset: 0,
             pointerEvents: 'none',
-            background: `linear-gradient(180deg, ${alpha('#22c55e', 0.08)}, transparent 32%)`
+            background: `linear-gradient(180deg, ${alpha('#41a541', 0.08)}, transparent 32%)`
           }
         }}
       >

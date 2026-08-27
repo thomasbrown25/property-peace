@@ -13,7 +13,6 @@ import {
   ShopOutlined,
   AuditOutlined,
   RobotOutlined,
-  CalendarOutlined,
   MessageOutlined
 } from '@ant-design/icons';
 
@@ -32,7 +31,6 @@ const icons = {
   ShopOutlined,
   AuditOutlined,
   RobotOutlined,
-  CalendarOutlined,
   MessageOutlined
 };
 
@@ -130,13 +128,6 @@ const pages = [
         type: 'item',
         url: '/landlord/ai-center',
         icon: icons.RobotOutlined
-      },
-      {
-        id: 'calendar',
-        title: 'Calendar',
-        type: 'item',
-        url: '/landlord/calendar',
-        icon: icons.CalendarOutlined
       },
       {
         id: 'messages',

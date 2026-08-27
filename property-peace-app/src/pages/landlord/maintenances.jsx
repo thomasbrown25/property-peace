@@ -62,7 +62,7 @@ const BOARD_COLUMNS = [
   { key: 'scheduled', label: 'Scheduled', color: '#2563eb' },
   { key: 'inprogress', label: 'In progress', color: '#7c3aed' },
   { key: 'awaitingtenant', label: 'Awaiting tenant', color: '#0f766e' },
-  { key: 'resolved', label: 'Resolved', color: '#16a34a' }
+  { key: 'resolved', label: 'Resolved', color: '#41a541' }
 ];
 const PRIORITY_OPTIONS = ['high', 'medium', 'low'];
 

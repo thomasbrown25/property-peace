@@ -400,7 +400,7 @@ export default function AnnouncementDetailsPage() {
             position: 'relative',
             color: '#fff',
             bgcolor: '#061e35',
-            backgroundImage: `radial-gradient(circle at 88% 15%, ${alpha('#22c55e', 0.22)}, transparent 32%)`,
+            backgroundImage: `radial-gradient(circle at 88% 15%, ${alpha('#41a541', 0.22)}, transparent 32%)`,
             boxShadow: `0 16px 38px ${alpha('#061e35', 0.18)}`
           }}
         >
@@ -441,7 +441,7 @@ export default function AnnouncementDetailsPage() {
               <Paper elevation={0} sx={surfaceSx}>
                 <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
                   <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Avatar sx={{ width: 42, height: 42, bgcolor: alpha('#22c55e', 0.12), color: '#16a34a' }}>
+                    <Avatar sx={{ width: 42, height: 42, bgcolor: alpha('#41a541', 0.12), color: '#41a541' }}>
                       <SendOutlined />
                     </Avatar>
                     <Box minWidth={0}>
@@ -516,7 +516,7 @@ export default function AnnouncementDetailsPage() {
                 <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
                   {isAllProperties ? (
                     <Stack direction="row" spacing={1.25} alignItems="center">
-                      <Avatar sx={{ width: 36, height: 36, bgcolor: alpha('#22c55e', 0.11), color: '#16a34a' }}><HomeOutlined /></Avatar>
+                      <Avatar sx={{ width: 36, height: 36, bgcolor: alpha('#41a541', 0.11), color: '#41a541' }}><HomeOutlined /></Avatar>
                       <Box>
                         <Typography fontWeight={700}>All eligible tenants</Typography>
                         <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>Across every property in {organizationName}</Typography>
@@ -583,7 +583,7 @@ export default function AnnouncementDetailsPage() {
                     ].map((channel) => (
                       <Stack key={channel.label} direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
                         <Stack direction="row" spacing={1.1} alignItems="center">
-                          <Avatar sx={{ width: 34, height: 34, bgcolor: channel.enabled ? alpha('#22c55e', 0.11) : alpha(theme.palette.text.secondary, 0.07), color: channel.enabled ? '#16a34a' : 'text.disabled' }}>
+                          <Avatar sx={{ width: 34, height: 34, bgcolor: channel.enabled ? alpha('#41a541', 0.11) : alpha(theme.palette.text.secondary, 0.07), color: channel.enabled ? '#41a541' : 'text.disabled' }}>
                             {channel.icon}
                           </Avatar>
                           <Typography sx={{ fontSize: '0.82rem', fontWeight: 650, color: channel.enabled ? 'text.primary' : 'text.disabled' }}>{channel.label}</Typography>

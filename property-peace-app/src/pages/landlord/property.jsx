@@ -101,6 +101,7 @@ import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadines
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import PropertyLeasingPipeline from 'components/leasing-pipeline/PropertyLeasingPipeline';
+import { recordRecentlyViewedProperty } from 'utils/recentlyViewedProperties';
 
 // Default payload for creating a draft listing (same as listing-create page)
 const DEFAULT_LISTING_CREATE_PAYLOAD = {
@@ -2355,6 +2356,14 @@ export default function Property() {
 
   const { selectedProperty, refetch: refetchProperty } = useFetchProperty(propertyId);
   const currentUser = useSelector(selectCurrentUser);
+
+  useEffect(() => {
+    const selectedPropertyId = selectedProperty?.id ?? selectedProperty?.Id;
+    if (selectedPropertyId && String(selectedPropertyId) === String(propertyId)) {
+      recordRecentlyViewedProperty(selectedPropertyId, currentUser);
+    }
+  }, [currentUser, propertyId, selectedProperty]);
+
   const { canInvoke: screeningCanInvoke } = useFeatureReadiness(FEATURE_KEYS.tenantScreening);
   const propertyLoading = useSelector(selectPropertyLoading);
   const maintenanceLoading = useSelector(selectMaintenanceLoading);

@@ -396,6 +396,11 @@ public class AutoMapperProfile : Profile
             .ForMember(dest => dest.UnitName, opt => opt.MapFrom(src => src.Lease.Unit.Name))
             .ForMember(dest => dest.UnitId, opt => opt.MapFrom(src => src.Lease.Unit.Id))
             .ForMember(dest => dest.PropertyName, opt => opt.MapFrom(src => src.Lease.Unit.Property.Name))
+            .ForMember(dest => dest.TenantName, opt => opt.MapFrom(src => src.Lease.TenantLeases
+                .OrderByDescending(tenantLease => src.CreatedByUserId.HasValue && tenantLease.Tenant.UserId == src.CreatedByUserId.Value)
+                .ThenBy(tenantLease => tenantLease.TenantId)
+                .Select(tenantLease => (tenantLease.Tenant.Firstname + " " + tenantLease.Tenant.Lastname).Trim())
+                .FirstOrDefault()))
             .ForMember(dest => dest.IsSingleUnitProperty, opt => opt.MapFrom(src => src.Lease.Unit.Property.PropertyType == EPropertyType.SingleFamily));
 
         // Notifications

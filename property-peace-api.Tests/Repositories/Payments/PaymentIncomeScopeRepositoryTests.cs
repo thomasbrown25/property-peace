@@ -56,6 +56,35 @@ public sealed class PaymentIncomeScopeRepositoryTests : IDisposable
         result.Select(x => (x.Id, x.Amount)).Should().BeEquivalentTo(new[] { (1L, 10m), (2L, 20m) });
     }
 
+    [Fact]
+    public async Task GetAllPaymentsByOrganizationId_ReturnsOneTenantFromTheLeaseWhenLandlordRecordedPayment()
+    {
+        SeedProperty(101, 1001, 2001, organizationId: 10);
+        _context.Tenants.AddRange(
+            new Tenant { Id = 301, UserId = 901, Firstname = "Other", Lastname = "Tenant", OrganizationId = 10 },
+            new Tenant { Id = 302, UserId = 902, Firstname = "Jordan", Lastname = "Lee", OrganizationId = 10 });
+        _context.TenantLeases.AddRange(
+            new TenantLease { TenantId = 301, LeaseId = 2001 },
+            new TenantLease { TenantId = 302, LeaseId = 2001 });
+        _context.Payments.Add(new Payment
+        {
+            Id = 1,
+            LeaseId = 2001,
+            PropertyId = 101,
+            OrganizationId = 10,
+            PaymentDate = new DateTime(2026, 8, 26),
+            Amount = 1450m,
+            Status = "Completed",
+            CreatedByUserId = 999
+        });
+        await _context.SaveChangesAsync();
+
+        var result = await _sut.GetAllPaymentsByOrganizationId(10);
+
+        result.Should().ContainSingle();
+        result[0].TenantName.Should().Be("Other Tenant");
+    }
+
     private void SeedProperty(long propertyId, long unitId, long leaseId, long organizationId)
     {
         _context.Properties.Add(new Property

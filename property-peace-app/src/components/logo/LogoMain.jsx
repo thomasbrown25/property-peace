@@ -22,7 +22,7 @@ function LogoMain({ reverse, width = 150, disableTopPadding = false, lightHeader
   const isDarkMode = theme.palette.mode === ThemeMode.DARK;
   // Use dark mode logo when reverse is true (for dark backgrounds like sidenav) or when in dark mode
   const useDarkLogo = reverse || isDarkMode;
-  const logoSrc = lightHeaderLogo && !isDarkMode ? logoLightHeader : useDarkLogo ? logoDark : logo;
+  const logoSrc = lightHeaderLogo ? logoLightHeader : useDarkLogo ? logoDark : logo;
   
   return (
     /**

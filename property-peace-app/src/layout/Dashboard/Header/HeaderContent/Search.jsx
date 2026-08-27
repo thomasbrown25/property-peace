@@ -195,7 +195,7 @@ export default function Search({ shrink = false }) {
                       <ListItem key={tenant.id} disablePadding>
                         <ListItemButton onClick={() => handleResultClick('tenant', tenant.id)}>
                           <ListItemIcon>
-                            <UserOutlined style={{ fontSize: 18, color: '#52c41a' }} />
+                            <UserOutlined style={{ fontSize: 18, color: '#41a541' }} />
                           </ListItemIcon>
                           <ListItemText
                             primary={`${tenant.firstname} ${tenant.lastname}`}
