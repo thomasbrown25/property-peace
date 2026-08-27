@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { alpha, Box, Button, LinearProgress, MenuItem, Select, Stack, Typography, useTheme } from '@mui/material';
+import { alpha, Box, Button, LinearProgress, MenuItem, Select, Stack, Tooltip as MuiTooltip, Typography, useTheme } from '@mui/material';
 import { ArrowRightOutlined } from '@ant-design/icons';
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import MainCard from 'components/MainCard';
 import { formatCurrency } from 'utils/formatters';
+import {
+  buildCurrentMonthMoneySeries,
+  normalizeRentCollectionMetrics,
+  summarizeCurrentMonthRentIncome
+} from 'utils/rentCollectionMetrics';
 
 function MoneyChartTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
@@ -80,100 +85,87 @@ function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, nav
   const theme = useTheme();
 
   return (
-    <Box
-      sx={{
-        gridColumn: '1 / -1',
-        px: { xs: 2, sm: 2.5 },
-        py: 2.25,
-        border: `1px solid ${theme.palette.mode === 'dark' ? alpha('#dbe7f3', 0.2) : alpha(theme.palette.divider, 0.8)}`,
-        borderRadius: 2.25,
-        bgcolor: 'background.paper',
-        backgroundImage:
-          theme.palette.mode === 'dark'
-            ? `linear-gradient(180deg, ${alpha('#ffffff', 0.045)} 0%, ${alpha(incomeColor, 0.025)} 100%)`
-            : 'none',
-        boxShadow:
-          theme.palette.mode === 'dark'
-            ? `0 16px 38px ${alpha(theme.palette.common.black, 0.24)}, 0 0 24px ${alpha(incomeColor, 0.1)}`
-            : `0 14px 36px ${alpha(theme.palette.common.black, 0.06)}`
-      }}
+    <MuiTooltip
+      title="This shows collection progress for the current month's rent only. Past-due rent from earlier months does not affect this metric."
+      placement="top"
+      arrow
+      describeChild
     >
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        alignItems={{ xs: 'stretch', sm: 'center' }}
-        spacing={1}
-        sx={{ mb: 1 }}
+      <Box
+        tabIndex={0}
+        sx={{
+          width: '100%',
+          height: '100%',
+          px: { xs: 2, sm: 2.5 },
+          py: 2.25,
+          border: `1px solid ${theme.palette.mode === 'dark' ? alpha('#dbe7f3', 0.2) : alpha(theme.palette.divider, 0.8)}`,
+          borderRadius: 2.25,
+          bgcolor: 'background.paper',
+          backgroundImage:
+            theme.palette.mode === 'dark'
+              ? `linear-gradient(180deg, ${alpha('#ffffff', 0.045)} 0%, ${alpha(incomeColor, 0.025)} 100%)`
+              : 'none',
+          boxShadow:
+            theme.palette.mode === 'dark'
+              ? `0 16px 38px ${alpha(theme.palette.common.black, 0.24)}, 0 0 24px ${alpha(incomeColor, 0.1)}`
+              : `0 14px 36px ${alpha(theme.palette.common.black, 0.06)}`,
+          cursor: 'help',
+          '&:focus-visible': {
+            outline: `2px solid ${theme.palette.primary.main}`,
+            outlineOffset: 2
+          }
+        }}
       >
-        <Stack direction="row" alignItems="baseline" spacing={0.75}>
-          <Typography variant="h5" fontWeight={700} sx={{ color: navy }}>
-            Rent Collection Progress
-          </Typography>
-          <Typography variant="h5" fontWeight={700} sx={{ color: collectionPct >= 100 ? incomeColor : navy }}>
-            {collectionPct.toFixed(0)}%
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          spacing={1}
+          sx={{ mb: 1 }}
+        >
+          <Stack direction="row" alignItems="baseline" spacing={0.75}>
+            <Typography variant="h5" fontWeight={700} sx={{ color: navy }}>
+              Rent Collection Progress
+            </Typography>
+            <Typography variant="h5" fontWeight={700} sx={{ color: collectionPct >= 100 ? incomeColor : navy }}>
+              {collectionPct.toFixed(0)}%
+            </Typography>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'right' }}>
+            {remainingRent > 0 ? `${formatCurrency(remainingRent)} remaining` : 'Expected rent collected'}
           </Typography>
         </Stack>
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'right' }}>
-          {remainingRent > 0 ? `${formatCurrency(remainingRent)} remaining` : 'Expected rent collected'}
-        </Typography>
-      </Stack>
 
-      <LinearProgress
-        variant="determinate"
-        value={collectionPct}
-        aria-label="Rent collection progress"
-        sx={{
-          height: 8,
-          borderRadius: 4,
-          bgcolor: alpha(incomeColor, 0.12),
-          '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: incomeColor }
-        }}
-      />
-    </Box>
+        <LinearProgress
+          variant="determinate"
+          value={collectionPct}
+          aria-label="Rent collection progress"
+          sx={{
+            height: 8,
+            borderRadius: 4,
+            bgcolor: alpha(incomeColor, 0.12),
+            '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: incomeColor }
+          }}
+        />
+      </Box>
+    </MuiTooltip>
   );
 }
 
-const readDate = (item, ...keys) => keys.map((key) => item?.[key]).find(Boolean);
-const readAmount = (item) => Number(item?.amount ?? item?.Amount) || 0;
+export function RentCollectionProgress({ summary = {} }) {
+  const theme = useTheme();
+  const { collectionPct, remainingRent } = normalizeRentCollectionMetrics(summary);
+  const incomeColor = theme.palette.success.main;
+  const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
 
-const toLocalDateKey = (value) => {
-  const date = new Date(value || '');
-  if (Number.isNaN(date.valueOf())) return null;
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-function buildDailyChartData(payments, expenses) {
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const daily = [];
-  const byDate = new Map();
-
-  for (let cursor = new Date(firstDay); cursor <= today; cursor.setDate(cursor.getDate() + 1)) {
-    const date = new Date(cursor);
-    const key = toLocalDateKey(date);
-    const point = {
-      label: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
-      income: 0,
-      expenses: 0
-    };
-    daily.push(point);
-    byDate.set(key, point);
-  }
-
-  (payments || []).forEach((payment) => {
-    const key = toLocalDateKey(readDate(payment, 'paymentDate', 'PaymentDate', 'createdAt', 'CreatedAt'));
-    if (byDate.has(key)) byDate.get(key).income += readAmount(payment);
-  });
-
-  (expenses || []).forEach((expense) => {
-    const key = toLocalDateKey(readDate(expense, 'paidDate', 'PaidDate', 'expenseDate', 'ExpenseDate'));
-    if (byDate.has(key)) byDate.get(key).expenses += readAmount(expense);
-  });
-
-  return daily;
+  return (
+    <CollectionProgressCard
+      collectionPct={collectionPct}
+      remainingRent={remainingRent}
+      incomeColor={incomeColor}
+      navy={navy}
+    />
+  );
 }
 
 export default function MoneySummary({
@@ -195,15 +187,18 @@ export default function MoneySummary({
   );
   const isAllTime = period === 'all-time';
   const currentOutstanding = Math.max(0, Number(summary?.outstanding ?? summary?.expectedThisMonth - summary?.collectedThisMonth) || 0);
-  const expectedRent = isAllTime ? allTimeCollected + currentOutstanding : Number(summary?.expectedThisMonth || 0);
-  const income = isAllTime ? allTimeCollected : Number(summary?.collectedThisMonth || 0);
+  const monthlyMetrics = normalizeRentCollectionMetrics(summary);
+  const paymentHistoryIncome = useMemo(() => summarizeCurrentMonthRentIncome(allPayments), [allPayments]);
+  const expectedRent = isAllTime ? allTimeCollected + currentOutstanding : monthlyMetrics.expectedRent;
+  const income = isAllTime ? allTimeCollected : Math.max(monthlyMetrics.income, paymentHistoryIncome);
   const expenses = Number(totalExpenses || 0);
-  const collectionPct = expectedRent > 0 ? Math.min(100, (income / expectedRent) * 100) : 0;
-  const remainingRent = Math.max(0, expectedRent - income);
   const incomeColor = theme.palette.success.main;
   const expenseColor = theme.palette.warning.main;
   const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
-  const dailyChartData = useMemo(() => buildDailyChartData(allPayments, expenseItems), [allPayments, expenseItems]);
+  const dailyChartData = useMemo(
+    () => buildCurrentMonthMoneySeries({ payments: allPayments, expenses: expenseItems }),
+    [allPayments, expenseItems]
+  );
   const chartData = isAllTime ? [{ label: 'All time', income, expenses }] : dailyChartData;
   const metricCards = [
     { label: 'Expected Rent', value: expectedRent, color: navy },
@@ -215,13 +210,13 @@ export default function MoneySummary({
     <Box
       sx={{
         display: 'grid',
+        width: '100%',
+        height: '100%',
         gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'minmax(0, 2.8fr) minmax(150px, 1fr)' },
         gap: 2.5,
         alignItems: 'stretch'
       }}
     >
-      <CollectionProgressCard collectionPct={collectionPct} remainingRent={remainingRent} incomeColor={incomeColor} navy={navy} />
-
       <MainCard
         accentColor={incomeColor}
         accentShadow
@@ -270,10 +265,10 @@ export default function MoneySummary({
             View all
           </Button>
         }
-        contentSX={{ pt: 1.5, pb: 0, display: 'flex', flexDirection: 'column' }}
+        contentSX={{ pt: 1.5, pb: 0, '&:last-child': { pb: 0 }, display: 'flex', flexDirection: 'column' }}
         sx={{
           height: '100%',
-          minHeight: { xs: 320, sm: 340 },
+          minHeight: { xs: 296, sm: 316 },
           '& .MuiCardHeader-root': { pb: 1, flexWrap: 'nowrap', alignItems: 'center' },
           '& .MuiCardHeader-content': { minWidth: 0, flex: '1 1 auto' },
           '& .MuiCardHeader-action': { flexShrink: 0, alignSelf: 'center' }

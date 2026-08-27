@@ -35,6 +35,11 @@ public sealed class MaintenanceRequestsController(
     public async Task<IActionResult> Acknowledge(long id, [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
         Result(await Command(key, "request.acknowledge", new { id }, token => service.AcknowledgeAsync(id, token), ct));
 
+    [HttpPost("{id:long}/status")]
+    public async Task<IActionResult> ChangeStatus(long id, [FromBody] ChangeMaintenanceStatusDto command,
+        [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>
+        Result(await Command(key, "request.change-status", new { id, command.Status, command.ExpectedStatus }, token => service.ChangeStatusAsync(id, command, token), ct));
+
     [HttpPost("{id:long}/percy/troubleshooting")]
     public async Task<IActionResult> Troubleshoot(long id, [FromBody] PercyTroubleshootingCommandDto command,
         [FromHeader(Name = "Idempotency-Key")] string? key, CancellationToken ct) =>

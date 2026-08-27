@@ -1188,16 +1188,7 @@ services.AddCors(options =>
                     // Credentialed requests must use an explicitly configured origin.
                     return false;
                 })
-                .WithHeaders(
-                    "Authorization",
-                    "Content-Type",
-                    "X-Requested-With",
-                    "Accept",
-                    "Origin",
-                    "x-signalr-user-agent", // Required for SignalR
-                    "x-requested-with", // Alternative casing
-                    "x-organization-id" // Required for organization context
-                )
+                .WithHeaders(brownstone_hub_api.Infrastructure.CorsConfiguration.AllowedHeaders)
                 .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS") // Specific methods only
                 .AllowCredentials() // Required for SignalR - this means we CANNOT use wildcard *
                 .SetPreflightMaxAge(TimeSpan.FromMinutes(10)); // Cache preflight requests

@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import {
   availableMaintenanceActions, buildCreateMaintenancePayload, classifySignals, emergencyInstructions,
   clearMaintenanceListFilters, createEvidenceUploadEntries, currentCycleTroubleshootingSteps, evidenceSelection, uploadPendingEvidence,
-  maintenanceActorForRoute, maintenanceActorFromUser, maintenanceUserId, normalizeWorkflowToken, safeTroubleshootingStep, slaState, statusLabel,
+  MAINTENANCE_STATUS_FLOW, maintenanceActorForRoute, maintenanceActorFromUser, maintenanceStatusSelectionCommand, maintenanceUserId, normalizeWorkflowToken, safeTroubleshootingStep, slaState, statusLabel,
   tenantEvidencePurpose, workflowActivitiesFromMaintenanceDetail, workflowFromMaintenanceDetail, workflowProjectionWarning
 } from './maintenanceWorkflow.js';
 import * as maintenanceWorkflow from './maintenanceWorkflow.js';
@@ -13,6 +13,30 @@ test('status contract normalizes numeric-style API names without collapsing work
   assert.equal(normalizeWorkflowToken('Awaiting_Approval'), 'awaitingapproval');
   assert.equal(statusLabel('InProgress'), 'In progress');
   assert.equal(statusLabel('AwaitingTenant'), 'Awaiting tenant');
+});
+
+test('landlord maintenance status flow exposes every canonical status in lifecycle order', () => {
+  assert.deepEqual(
+    MAINTENANCE_STATUS_FLOW.map(({ value }) => value),
+    ['Reported', 'Acknowledged', 'Assigned', 'AwaitingApproval', 'Scheduled', 'InProgress', 'AwaitingTenant', 'Resolved', 'Cancelled']
+  );
+});
+
+test('selecting Assigned creates the same self-assignment command as Assign to me', () => {
+  assert.deepEqual(
+    maintenanceStatusSelectionCommand({ status: 'Assigned', currentStatus: 'Acknowledged', userId: 42 }),
+    {
+      action: 'assign',
+      body: { assignedToType: 'Self', assignedToUserId: 42, vendorId: null, estimateRequired: false }
+    }
+  );
+});
+
+test('selecting another status preserves the direct status command', () => {
+  assert.deepEqual(
+    maintenanceStatusSelectionCommand({ status: 'Scheduled', currentStatus: 'Assigned', userId: 42 }),
+    { action: 'changeStatus', status: 'Scheduled', expectedStatus: 'Assigned' }
+  );
 });
 
 test('clearing maintenance list refinements preserves the selected lifecycle view', () => {
@@ -220,13 +244,40 @@ test('maintenance pages use readiness-scoped vendors, activity summaries, and no
   assert.doesNotMatch(list, /resolveMaintenanceRequest|reopenMaintenanceRequest|deleteMaintenance\(/);
 });
 
-test('landlord maintenance list has no fake create, legacy aggregate mutation, mounted legacy drawers, or drag affordance', async () => {
+test('landlord maintenance detail hides the top progress selector while preserving its reusable component contract', async () => {
+  const landlord = await readFile(new URL('../pages/landlord/maintenance.jsx', import.meta.url), 'utf8');
+  const component = await readFile(new URL('../components/maintenance/MaintenanceStatusFlow.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(landlord, /<MaintenanceStatusFlow/);
+  assert.match(landlord, /onStatusChange=\{handleStatusChange\}/);
+  assert.match(component, /MAINTENANCE_STATUS_FLOW\.map/);
+  assert.match(component, /onClick=\{\(\) => onChange\(status\.value\)\}/);
+  assert.match(component, /aria-current=\{isCurrent \? 'step' : undefined\}/);
+});
+
+test('landlord maintenance list opens the AI-first maintenance drawer without legacy mutation or drag affordances', async () => {
   const list = await readFile(new URL('../pages/landlord/maintenances.jsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(list, /openMaintenanceAddDrawer|New request|Create your first request/);
+  assert.match(list, /openMaintenanceAddDrawer/);
+  assert.match(list, /<LandlordMaintenanceDrawer[\s\S]*onAddSuccess/);
+  assert.doesNotMatch(list, /navigate\('\/landlord\/maintenances\/add'\)/);
   assert.doesNotMatch(list, /updateMaintenance|buildUpdatePayload|changePriority|changeStatus/);
-  assert.doesNotMatch(list, /LandlordMaintenanceDrawer|MaintenanceEditDrawer|VendorAssignDrawer/);
+  assert.doesNotMatch(list, /MaintenanceEditDrawer|VendorAssignDrawer/);
   assert.doesNotMatch(list, /@dnd-kit|DndContext|DragOverlay|useDraggable|useDroppable|Drop a request here|cursor:\s*[^,}]*grab/);
   assert.match(list, /Open request details/);
+});
+
+test('landlord AI maintenance drawer falls back safely without stale settings or duplicate-create risk', async () => {
+  const router = await readFile(new URL('../components/drawers/LandlordMaintenanceDrawer.jsx', import.meta.url), 'utf8');
+  const agent = await readFile(new URL('../pages/tenant/MaintenanceAgentDrawer.jsx', import.meta.url), 'utf8');
+  assert.match(router, /setAgentEnabled\(null\)/);
+  assert.match(router, /let isCurrent = true/);
+  assert.match(router, /if \(isCurrent\) setAgentEnabled/);
+  assert.match(router, /return \(\) => \{ isCurrent = false; \}/);
+  assert.match(router, /onUnavailable=\{handleAgentUnavailable\}/);
+  assert.match(agent, /sessionVersionRef/);
+  assert.match(agent, /if \(!openRef\.current \|\| sessionVersion !== sessionVersionRef\.current\) return/);
+  assert.match(agent, /typeof data\.message !== 'string' \|\| data\.message\.trim\(\) === ''/);
+  assert.match(agent, /onUnavailable\(err\)/);
+  assert.match(agent, /Maintenance request was created, but refresh failed/);
 });
 
 test('tenant maintenance detail renders and gates only current-cycle troubleshooting steps', async () => {

@@ -11,7 +11,6 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
-  Paper,
   alpha,
   FormControl,
   Select,
@@ -287,7 +286,7 @@ export default function Notifications() {
   if (notificationsError) {
     return (
       <Box>
-        <NotificationsHeader navigate={navigate} theme={theme} />
+        <NotificationsHeader navigate={navigate} />
         <MainCard>
           <Box sx={{ p: 3, textAlign: 'center' }}>
             <Typography variant="h6" color="error">Error loading notifications</Typography>
@@ -302,14 +301,65 @@ export default function Notifications() {
 
   return (
     <Box>
-      <NotificationsHeader navigate={navigate} theme={theme} />
+      <NotificationsHeader navigate={navigate} />
 
       {/* Primary tabs + actions row */}
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        spacing={2}
+        sx={{
+          mb: 2,
+          position: 'relative',
+          isolation: 'isolate',
+          width: '100%',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            left: 0,
+            height: '1px',
+            bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.22 : 0.12),
+            pointerEvents: 'none',
+            zIndex: 0
+          }
+        }}
+      >
         <Tabs
           value={filterReadStatus}
           onChange={(_, v) => setFilterReadStatus(v)}
-          sx={{ '& .MuiTab-root': { minHeight: 44, py: 1, textTransform: 'none', fontWeight: 500 } }}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            minHeight: 42,
+            minWidth: 0,
+            '& .MuiTab-root': {
+              minHeight: 42,
+              px: 1.25,
+              mr: 1.5,
+              borderRadius: 1.5,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 700,
+              color: 'text.secondary',
+              '&:hover': {
+                color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+                bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08)
+              },
+              '&.Mui-selected': {
+                color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+                bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04)
+              }
+            },
+            '& .MuiTabs-indicator': {
+              zIndex: 1,
+              height: 2,
+              borderRadius: 2,
+              bgcolor: 'primary.main'
+            }
+          }}
         >
           <Tab
             label={
@@ -346,7 +396,7 @@ export default function Notifications() {
           />
         </Tabs>
 
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ flexShrink: 0, pb: 0.75 }}>
           {totalUnread > 0 && (
             <Button
               variant="outlined"
@@ -359,24 +409,19 @@ export default function Notifications() {
               Mark all read
             </Button>
           )}
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<SettingOutlined />}
-            onClick={() => navigate('/landlord/settings?tab=notifications')}
-            sx={{ textTransform: 'none', fontWeight: 500 }}
-          >
-            Settings
-          </Button>
         </Stack>
       </Stack>
 
       {/* Secondary filters */}
-      <Paper
-        variant="outlined"
-        sx={{ mb: 2.5, p: 1.5, bgcolor: alpha(theme.palette.background.paper, 0.7) }}
+      <Box
+        sx={{
+          mb: 2.5,
+          '& .MuiOutlinedInput-root': {
+            bgcolor: 'background.paper'
+          }
+        }}
       >
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center">
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', sm: 'center' }}>
           <Box sx={{ flex: 1.2, minWidth: 0 }}>
             <PropertySelect disableAllOption={false} />
           </Box>
@@ -420,10 +465,10 @@ export default function Notifications() {
             </Button>
           )}
         </Stack>
-      </Paper>
+      </Box>
 
       {/* Notification list */}
-      <MainCard sx={{ bgcolor: alpha(theme.palette.background.paper, 0.6) }} contentSX={{ p: 0 }}>
+      <MainCard sx={{ bgcolor: 'background.paper' }} contentSX={{ p: 0 }}>
         {filteredNotifications.length === 0 ? (
           <Box sx={{ py: 8, textAlign: 'center' }}>
             <BellOutlined style={{ fontSize: 52, color: alpha(theme.palette.text.primary, 0.12) }} />
@@ -569,7 +614,7 @@ export default function Notifications() {
   );
 }
 
-function NotificationsHeader({ navigate, theme }) {
+function NotificationsHeader({ navigate }) {
   return (
     <Box sx={{ mb: 3 }}>
       <PageBreadcrumbs
@@ -578,29 +623,22 @@ function NotificationsHeader({ navigate, theme }) {
           { label: 'Notifications' }
         ]}
       />
-      <Stack direction="row" alignItems="center" justifyContent="space-between">
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: 2,
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}
-          >
-            <BellOutlined style={{ fontSize: 28, color: theme.palette.primary.main }} />
-          </Box>
-          <Box>
-            <Typography variant="h3" fontWeight={700}>Notifications</Typography>
-            <Typography variant="body1" color="text.secondary">
-              View and manage your alerts across all properties.
-            </Typography>
-          </Box>
-        </Stack>
+      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
+        <Box>
+          <Typography variant="h3" fontWeight={700}>Notifications</Typography>
+          <Typography variant="body1" color="text.secondary">
+            View and manage your alerts across all properties.
+          </Typography>
+        </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<SettingOutlined />}
+          onClick={() => navigate('/landlord/settings?tab=notifications')}
+          sx={{ mt: 0.5, flexShrink: 0, textTransform: 'none', fontWeight: 500 }}
+        >
+          Settings
+        </Button>
       </Stack>
     </Box>
   );

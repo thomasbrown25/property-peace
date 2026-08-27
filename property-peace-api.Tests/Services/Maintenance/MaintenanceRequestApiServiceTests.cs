@@ -117,6 +117,73 @@ public sealed class MaintenanceRequestApiServiceTests
         (await db.MaintenanceRequests.FindAsync(100L))!.Status.Should().Be(allowed ? EMaintenanceStatus.Acknowledged : EMaintenanceStatus.Reported);
     }
 
+    [Theory]
+    [InlineData(EMaintenanceStatus.Reported)]
+    [InlineData(EMaintenanceStatus.Acknowledged)]
+    [InlineData(EMaintenanceStatus.Assigned)]
+    [InlineData(EMaintenanceStatus.AwaitingApproval)]
+    [InlineData(EMaintenanceStatus.Scheduled)]
+    [InlineData(EMaintenanceStatus.InProgress)]
+    [InlineData(EMaintenanceStatus.AwaitingTenant)]
+    [InlineData(EMaintenanceStatus.Resolved)]
+    [InlineData(EMaintenanceStatus.Cancelled)]
+    public async Task ChangeStatus_AllowsPropertyLandlordToChooseEveryCanonicalStatus(EMaintenanceStatus status)
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
+        db.ChangeTracker.Entries<Property>().Single(x => x.Entity.Id == 40).Entity.LandlordId = 61;
+        db.MaintenanceRequests.Add(Request(100, 40, 50, 60));
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db, new MaintenanceActor(61, false, true))
+            .ChangeStatusAsync(100, new ChangeMaintenanceStatusDto(status));
+
+        result.Code.Should().Be(MaintenanceApiResultCode.Success);
+        result.Value!.Status.Should().Be(status);
+        var stored = await db.MaintenanceRequests.FindAsync(100L);
+        stored!.Status.Should().Be(status);
+        stored.CompletedAt.HasValue.Should().Be(status == EMaintenanceStatus.Resolved);
+    }
+
+    [Fact]
+    public async Task ChangeStatus_HidesRequestFromTenantAndRejectsUndefinedStatus()
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
+        db.ChangeTracker.Entries<Property>().Single(x => x.Entity.Id == 40).Entity.LandlordId = 61;
+        db.MaintenanceRequests.Add(Request(100, 40, 50, 60));
+        await db.SaveChangesAsync();
+
+        var tenantResult = await CreateService(db, new MaintenanceActor(10, true, false))
+            .ChangeStatusAsync(100, new ChangeMaintenanceStatusDto(EMaintenanceStatus.InProgress));
+        var invalidResult = await CreateService(db, new MaintenanceActor(61, false, true))
+            .ChangeStatusAsync(100, new ChangeMaintenanceStatusDto((EMaintenanceStatus)999));
+
+        tenantResult.Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        invalidResult.Code.Should().Be(MaintenanceApiResultCode.BadRequest);
+        (await db.MaintenanceRequests.FindAsync(100L))!.Status.Should().Be(EMaintenanceStatus.Reported);
+    }
+
+    [Fact]
+    public async Task ChangeStatus_RejectsAStaleExpectedStatusWithoutMutating()
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
+        db.ChangeTracker.Entries<Property>().Single(x => x.Entity.Id == 40).Entity.LandlordId = 61;
+        var request = Request(100, 40, 50, 60);
+        request.Status = EMaintenanceStatus.Acknowledged;
+        db.MaintenanceRequests.Add(request);
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db, new MaintenanceActor(61, false, true))
+            .ChangeStatusAsync(100, new ChangeMaintenanceStatusDto(
+                EMaintenanceStatus.InProgress,
+                EMaintenanceStatus.Reported));
+
+        result.Code.Should().Be(MaintenanceApiResultCode.Conflict);
+        (await db.MaintenanceRequests.FindAsync(100L))!.Status.Should().Be(EMaintenanceStatus.Acknowledged);
+    }
+
     [Fact]
     public async Task Percy_IsTenantOnly_DeniesEmergency_AndNeverPersistsClientInstruction()
     {

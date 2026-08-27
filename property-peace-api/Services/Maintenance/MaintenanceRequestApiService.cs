@@ -45,6 +45,7 @@ public interface IMaintenanceRequestApiService
     Task<MaintenanceApiResult<MaintenanceRequestDetailDto>> GetAsync(long id, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<IReadOnlyList<MaintenanceRequestDetailDto>>> ListAsync(CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceRequestDetailDto>> AcknowledgeAsync(long id, CancellationToken cancellationToken = default);
+    Task<MaintenanceApiResult<MaintenanceRequestDetailDto>> ChangeStatusAsync(long id, ChangeMaintenanceStatusDto command, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> TroubleshootAsync(long id, PercyTroubleshootingCommandDto command, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceTroubleshootingStepDto>> RecordTroubleshootingOutcomeAsync(long id, long stepId, PercyTroubleshootingOutcomeCommandDto command, CancellationToken cancellationToken = default);
     Task<MaintenanceApiResult<MaintenanceAssignmentDto>> AssignAsync(long id, AssignMaintenanceCommandDto command, CancellationToken cancellationToken = default);
@@ -201,6 +202,40 @@ public sealed partial class MaintenanceRequestApiService(
         await db.SaveChangesAsync(cancellationToken);
         await RecordActivity(request, actor.UserId, "request.acknowledged", "maintenanceRequest", request.Id,
             "Maintenance request acknowledged", MaintenanceActivityVisibility.Participants, request.Status.ToString(), cancellationToken: cancellationToken);
+        return MaintenanceApiResult<MaintenanceRequestDetailDto>.Success(Map(request));
+    }
+
+    public async Task<MaintenanceApiResult<MaintenanceRequestDetailDto>> ChangeStatusAsync(
+        long id,
+        ChangeMaintenanceStatusDto command,
+        CancellationToken cancellationToken = default)
+    {
+        var actor = await actors.GetCurrentAsync(cancellationToken);
+        if (actor is null)
+            return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.Unauthorized, "Authentication is required.");
+
+        var request = await ManagerRequest(id, actor.UserId, cancellationToken);
+        if (request is null)
+            return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request not found.");
+        if (!Enum.IsDefined(command.Status) ||
+            (command.ExpectedStatus.HasValue && !Enum.IsDefined(command.ExpectedStatus.Value)))
+            return BadRequest<MaintenanceRequestDetailDto>("A valid maintenance status is required.");
+        if (command.ExpectedStatus.HasValue && request.Status != command.ExpectedStatus.Value)
+            return Conflict<MaintenanceRequestDetailDto>(
+                "maintenance.status_conflict",
+                "The maintenance status changed since this page was loaded. Refresh and try again.");
+        if (request.Status == command.Status)
+            return MaintenanceApiResult<MaintenanceRequestDetailDto>.Success(Map(request));
+
+        var previousStatus = request.Status;
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        request.Status = command.Status;
+        request.CompletedAt = command.Status == EMaintenanceStatus.Resolved ? now : null;
+        request.UpdatedAt = now;
+        await db.SaveChangesAsync(cancellationToken);
+        await RecordActivity(request, actor.UserId, "request.status_changed", "maintenanceRequest", request.Id,
+            $"Maintenance status changed from {previousStatus} to {command.Status}",
+            MaintenanceActivityVisibility.Participants, command.Status.ToString(), cancellationToken: cancellationToken);
         return MaintenanceApiResult<MaintenanceRequestDetailDto>.Success(Map(request));
     }
 

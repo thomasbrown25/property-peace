@@ -68,6 +68,36 @@ public sealed class RentPaymentSummaryTests
         balance.IsOverdue.Should().BeTrue("unpaid prior periods are always overdue, including during current-month grace");
     }
 
+    [Theory]
+    [InlineData(1_000, 0)]
+    [InlineData(1_500, 500)]
+    [InlineData(2_000, 1_000)]
+    public void CollectedForPeriod_AllocatesFinalizedRentCreditsToOldestMonthsFirst(
+        decimal paymentAmount,
+        decimal expectedAugustCollection)
+    {
+        var lease = ActiveMonthlyLease(new DateTime(2026, 7, 1), new DateTime(2027, 6, 30), 1_000m);
+        var payments = new List<LoadPaymentDto>
+        {
+            new()
+            {
+                LeaseId = lease.Id,
+                Amount = paymentAmount,
+                Status = "Completed",
+                PaymentDate = new DateTime(2026, 8, 15)
+            }
+        };
+
+        var collectedForAugust = RentCalculator.CollectedForPeriod(
+            lease,
+            payments,
+            new DateTime(2026, 8, 1),
+            new DateTime(2026, 9, 1));
+
+        collectedForAugust.Should().Be(expectedAugustCollection,
+            "a payment received in August must first satisfy July's overdue installment");
+    }
+
     [Fact]
     public void RentRecordDto_ExposesCanonicalRentDueFields()
     {

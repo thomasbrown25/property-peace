@@ -12,6 +12,17 @@ export const MAINTENANCE_SIGNALS = [
 ];
 
 export const MAINTENANCE_STATUSES = ['Reported', 'Acknowledged', 'AwaitingApproval', 'Assigned', 'Scheduled', 'InProgress', 'AwaitingTenant', 'Resolved', 'Cancelled'];
+export const MAINTENANCE_STATUS_FLOW = [
+  { value: 'Reported', label: 'Reported' },
+  { value: 'Acknowledged', label: 'Acknowledged' },
+  { value: 'Assigned', label: 'Assigned' },
+  { value: 'AwaitingApproval', label: 'Awaiting approval' },
+  { value: 'Scheduled', label: 'Scheduled' },
+  { value: 'InProgress', label: 'In progress' },
+  { value: 'AwaitingTenant', label: 'Awaiting tenant' },
+  { value: 'Resolved', label: 'Resolved' },
+  { value: 'Cancelled', label: 'Cancelled' }
+];
 export const MAINTENANCE_EVIDENCE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'video/mp4', 'video/quicktime'];
 export const MAX_MAINTENANCE_EVIDENCE_FILES = 10;
 const IMAGE_EVIDENCE_LIMIT = 10 * 1024 * 1024;
@@ -21,6 +32,16 @@ export const statusLabel = (value) => ({
   reported: 'Reported', acknowledged: 'Acknowledged', awaitingapproval: 'Awaiting approval', assigned: 'Assigned',
   scheduled: 'Scheduled', inprogress: 'In progress', awaitingtenant: 'Awaiting tenant', resolved: 'Resolved', cancelled: 'Cancelled'
 }[normalizeWorkflowToken(value)] || 'Reported');
+
+export function maintenanceStatusSelectionCommand({ status, currentStatus, userId }) {
+  if (normalizeWorkflowToken(status) === 'assigned') {
+    return {
+      action: 'assign',
+      body: { assignedToType: 'Self', assignedToUserId: userId, vendorId: null, estimateRequired: false }
+    };
+  }
+  return { action: 'changeStatus', status, expectedStatus: currentStatus };
+}
 
 export function clearMaintenanceListFilters(filters = {}) {
   const scope = ['active', 'resolved', 'all'].includes(filters.scope) ? filters.scope : 'active';

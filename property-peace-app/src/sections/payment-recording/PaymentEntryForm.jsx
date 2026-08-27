@@ -27,6 +27,7 @@ import HomeOutlined from '@ant-design/icons/HomeOutlined';
 import DollarOutlined from '@ant-design/icons/DollarOutlined';
 import { formatCurrency } from 'utils/formatters';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { getCurrentRentPresentation } from 'utils/paymentSummaryPresentation';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import axiosServices from 'utils/axios';
 
@@ -110,6 +111,10 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
   }, [lease, deposits]);
 
   const { rentDue, rentDueIsOverdue } = normalizeRentBalance(rentRecord);
+  const rentDuePresentation = getCurrentRentPresentation({
+    dueDate: rentRecord?.currentMonthRentDueDate ?? rentRecord?.CurrentMonthRentDueDate,
+    isOverdue: rentDueIsOverdue
+  });
   const unpaidFees = useMemo(() => {
     const fees = rentRecord?.unpaidFees ?? rentRecord?.UnpaidFees ?? [];
     return fees.map((fee) => ({
@@ -249,12 +254,19 @@ export default function PaymentEntryForm({ lease, paymentData, onPaymentDataChan
         ) : (
           <Stack spacing={2}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2" color="text.secondary">Rent Due</Typography>
-                {rentDueIsOverdue && (
-                  <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
+              <Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Typography variant="body2" color="text.secondary">{rentDuePresentation.label}</Typography>
+                  {rentDueIsOverdue && (
+                    <Chip label="Overdue" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem', fontWeight: 600 }} />
+                  )}
+                </Stack>
+                {rentDue > 0 && rentDuePresentation.dueLabel && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                    {rentDuePresentation.dueLabel}
+                  </Typography>
                 )}
-              </Stack>
+              </Box>
               <Typography
                 variant="body1"
                 fontWeight={rentDueIsOverdue ? 600 : 500}

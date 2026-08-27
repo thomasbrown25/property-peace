@@ -1,31 +1,23 @@
 import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { useState, useCallback, useEffect } from 'react';
 import {
-  Box, Typography, Stack, Button, Stepper, Step, StepLabel, StepConnector,
-  stepConnectorClasses, alpha, useTheme, IconButton, styled,
+  Box, Typography, Stack, Button,
+  alpha, useTheme, IconButton,
   CircularProgress, Alert, Divider, Toolbar
 } from '@mui/material';
 import {
-  ArrowLeftOutlined, CloseOutlined, CheckCircleOutlined
+  CloseOutlined, CheckCircleOutlined
 } from '@ant-design/icons';
 import PropTypes from 'prop-types';
 import { useDrawer } from 'contexts/DrawerContext';
 import { openSnackbar } from 'api/snackbar';
 import TenantPaymentSelector from 'sections/payment-recording/TenantPaymentSelector';
-import PaymentLeaseConfirmation from 'sections/payment-recording/PaymentLeaseConfirmation';
 import PaymentEntryForm from 'sections/payment-recording/PaymentEntryForm';
 import axiosServices from 'utils/axios';
 import useAuth from 'hooks/useAuth';
 import { normalizeRentBalance } from 'utils/rentBalance';
 
-const STEPS = ['Who paid?', 'Confirm Lease', 'Payment Details'];
 const DRAWER_WIDTH = 520;
-
-const CustomStepConnector = styled(StepConnector)(({ theme }) => ({
-  [`&.${stepConnectorClasses.active} .${stepConnectorClasses.line}`]: { borderColor: theme.palette.primary.main },
-  [`&.${stepConnectorClasses.completed} .${stepConnectorClasses.line}`]: { borderColor: theme.palette.primary.main },
-  [`& .${stepConnectorClasses.line}`]: { borderColor: theme.palette.grey[300], borderTopWidth: 2, borderRadius: 1 }
-}));
 
 const formatLocalDateTime = (date) => {
   const pad = (n) => String(n).padStart(2, '0');
@@ -44,12 +36,10 @@ export default function RecordPaymentDrawer({ onSuccess }) {
   const theme = useTheme();
   const { user } = useAuth();
 
-  const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isComplete, setIsComplete] = useState(false);
 
-  const [selectedTenant, setSelectedTenant] = useState(null);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [selectedLease, setSelectedLease] = useState(null);
@@ -59,11 +49,9 @@ export default function RecordPaymentDrawer({ onSuccess }) {
   // Reset on close; hydrate preselected lease context on contextual opens
   useEffect(() => {
     if (!drawer.isOpenPaymentAdd) {
-      setActiveStep(0);
       setLoading(false);
       setError(null);
       setIsComplete(false);
-      setSelectedTenant(null);
       setSelectedProperty(null);
       setSelectedUnit(null);
       setSelectedLease(null);
@@ -75,32 +63,11 @@ export default function RecordPaymentDrawer({ onSuccess }) {
     const initial = drawer.paymentAddInitialSelection;
     if (initial) {
       const lease = initial.lease || null;
-      const tenants = lease?.tenants || lease?.Tenants || [];
-      setSelectedTenant(initial.tenant || tenants[0] || null);
       setSelectedProperty(initial.property || null);
       setSelectedUnit(initial.unit || lease?.unit || null);
       setSelectedLease(lease);
     }
   }, [drawer.isOpenPaymentAdd, drawer.paymentAddInitialSelection]);
-
-  const validateStep = useCallback((step) => {
-    if (step === 0) return !!selectedLease;
-    if (step === 1) return !!selectedLease;
-    if (step === 2) return !!paymentData.amount && parseFloat(paymentData.amount) > 0;
-    return true;
-  }, [selectedLease, paymentData]);
-
-  const handleNext = async () => {
-    if (activeStep === STEPS.length - 1) {
-      await handleSubmit();
-      return;
-    }
-    if (!validateStep(activeStep)) {
-      openSnackbar({ open: true, message: 'Please complete this step before continuing', variant: 'alert', alert: { color: 'warning' } });
-      return;
-    }
-    setActiveStep(s => s + 1);
-  };
 
   const handleSubmit = async () => {
     if (!selectedLease?.id) { setError('Please select a lease'); return; }
@@ -137,7 +104,6 @@ export default function RecordPaymentDrawer({ onSuccess }) {
       0
     );
 
-    setActiveStep(selectedLease ? 2 : 0);
     setIsComplete(false);
     setError(null);
     setPaymentData({
@@ -155,43 +121,7 @@ export default function RecordPaymentDrawer({ onSuccess }) {
     setPaymentData({ paymentDate: new Date(), amount: 0, amountDisplay: '', paymentAllocation: null });
   }, []);
 
-  const renderStep = () => {
-    switch (activeStep) {
-      case 0:
-        return (
-          <TenantPaymentSelector
-            selectedLease={selectedLease}
-            onSelectTenant={setSelectedTenant}
-            selectedProperty={selectedProperty}
-            onSelectProperty={setSelectedProperty}
-            selectedUnit={selectedUnit}
-            onSelectUnit={setSelectedUnit}
-            onConfirmLease={handleSelectLease}
-          />
-        );
-      case 1:
-        return (
-          <PaymentLeaseConfirmation
-            tenant={selectedTenant}
-            selectedProperty={selectedProperty}
-            selectedUnit={selectedUnit}
-            selectedLease={selectedLease}
-            onConfirmLease={handleSelectLease}
-          />
-        );
-      case 2:
-        return (
-          <PaymentEntryForm
-            lease={selectedLease}
-            paymentData={paymentData}
-            onPaymentDataChange={setPaymentData}
-            rentRecordOverride={latestRentRecord}
-          />
-        );
-      default:
-        return null;
-    }
-  };
+  const handleSelectTenant = useCallback(() => {}, []);
 
   return (
     <ThemeAdaptiveDrawer
@@ -210,19 +140,6 @@ export default function RecordPaymentDrawer({ onSuccess }) {
         </IconButton>
       </Toolbar>
       <Divider />
-
-      {/* Stepper */}
-      {!isComplete && (
-        <Box sx={{ px: 3, pt: 2.5, pb: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.06)}`, flexShrink: 0 }}>
-          <Stepper activeStep={activeStep} alternativeLabel connector={<CustomStepConnector />}>
-            {STEPS.map((label, i) => (
-              <Step key={label} completed={i < activeStep}>
-                <StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '0.7rem' } }}>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-        </Box>
-      )}
 
       {/* Content */}
       <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
@@ -248,32 +165,42 @@ export default function RecordPaymentDrawer({ onSuccess }) {
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
             ) : (
-              renderStep()
+              <Stack spacing={3}>
+                <TenantPaymentSelector
+                  selectedLease={selectedLease}
+                  onSelectTenant={handleSelectTenant}
+                  selectedProperty={selectedProperty}
+                  onSelectProperty={setSelectedProperty}
+                  selectedUnit={selectedUnit}
+                  onSelectUnit={setSelectedUnit}
+                  onConfirmLease={handleSelectLease}
+                />
+                {selectedLease && (
+                  <PaymentEntryForm
+                    key={selectedLease.id || selectedLease.Id}
+                    lease={selectedLease}
+                    paymentData={paymentData}
+                    onPaymentDataChange={setPaymentData}
+                    rentRecordOverride={latestRentRecord}
+                  />
+                )}
+              </Stack>
             )}
           </Stack>
         )}
       </Box>
 
       {/* Footer */}
-      {!isComplete && (
-        <Box sx={{ px: 3, py: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-          <Button
-            onClick={() => setActiveStep(s => s - 1)}
-            disabled={activeStep === 0 || loading}
-            startIcon={<ArrowLeftOutlined />}
-            sx={{ borderRadius: 1.5, textTransform: 'none' }}
-          >
-            Back
-          </Button>
-          <Typography variant="caption" color="text.secondary">Step {activeStep + 1} of {STEPS.length}</Typography>
+      {!isComplete && selectedLease && (
+        <Box sx={{ px: 3, py: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', flexShrink: 0 }}>
           <Button
             variant="contained"
-            onClick={handleNext}
-            disabled={!validateStep(activeStep) || loading}
+            onClick={handleSubmit}
+            disabled={!paymentData.amount || parseFloat(paymentData.amount) <= 0 || loading}
             startIcon={loading ? <CircularProgress size={14} color="inherit" /> : null}
             sx={{ borderRadius: 1.5, textTransform: 'none' }}
           >
-            {activeStep === STEPS.length - 1 ? 'Record Payment' : 'Next'}
+            Record Payment
           </Button>
         </Box>
       )}
