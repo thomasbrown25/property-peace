@@ -52,7 +52,7 @@ import { downloadScheduleEPdf } from 'api/expense';
 
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#eb2f96', '#13c2c2', '#fa8c16', '#2f54eb'];
 const NAVY = '#061e35';
-const GREEN = '#22c55e';
+const GREEN = '#41a541';
 
 const currency = (value) => `$${(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -398,7 +398,7 @@ export default function TaxReports() {
                 startIcon={actionLoading === 'schedule-e' ? <CircularProgress size={15} color="inherit" /> : <FilePdfOutlined />}
                 onClick={handleDownloadScheduleE}
                 disabled={Boolean(actionLoading) || taxLoading || !taxYearReport}
-                sx={{ minHeight: 40, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
+                sx={{ minHeight: 40, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#41a541', color: '#fff' } }}
               >
                 Download Schedule E
               </Button>
@@ -471,7 +471,7 @@ export default function TaxReports() {
       {taxYearReport && (
         <Grid container spacing={1.5} sx={{ mb: 2 }}>
           {[
-            { label: `Total income · ${taxYear}`, value: currency(taxYearReport.totalIncome), color: '#16a34a' },
+            { label: `Total income · ${taxYear}`, value: currency(taxYearReport.totalIncome), color: '#41a541' },
             { label: 'Deductible expenses', value: currency(taxYearReport.totalExpenses), color: '#dc2626' },
             { label: 'Net income · Schedule E', value: currency(taxYearReport.netIncome), color: '#2563eb' }
           ].map((kpi) => (

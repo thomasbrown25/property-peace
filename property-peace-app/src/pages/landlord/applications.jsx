@@ -46,7 +46,8 @@ import {
   SearchOutlined,
   DownOutlined
 } from '@ant-design/icons';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import ManagementPageHeader from 'components/headers/ManagementPageHeader';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import { useSearchParams } from 'react-router-dom';
 import { useSWRConfig } from 'swr';
 import useAuth from 'hooks/useAuth';
@@ -138,11 +139,30 @@ function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
       aria-pressed={active}
       aria-label={`${label}: ${value}. Filter applications by this category.`}
       onClick={onClick}
-      sx={{ width: '100%', minHeight: 112, p: 2, borderRadius: 2.5, border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`, bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.12 : 0.055) : 'background.paper', boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`, color: 'text.primary', textAlign: 'left', cursor: 'pointer', font: 'inherit', transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease', '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` }, '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 } }}
+      sx={{
+        width: '100%',
+        minHeight: 112,
+        p: 2,
+        borderRadius: 2.5,
+        border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`,
+        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.12 : 0.055) : 'background.paper',
+        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`,
+        color: 'text.primary',
+        textAlign: 'left',
+        cursor: 'pointer',
+        font: 'inherit',
+        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
+        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
+        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
+      }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
         <Box>
-          <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          <Typography
+            sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
+          >
+            {label}
+          </Typography>
           <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
           <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
         </Box>
@@ -189,7 +209,9 @@ function ApplicationRow({ application, getStatusChip, onView, onStatus, onResend
         onKeyDown={handleKeyDown}
         sx={{
           display: { xs: 'block', lg: 'grid' },
-          gridTemplateColumns: { lg: 'minmax(210px, 1.5fr) minmax(180px, 1.25fr) minmax(120px, .8fr) minmax(125px, .85fr) minmax(125px, .85fr)' },
+          gridTemplateColumns: {
+            lg: 'minmax(210px, 1.5fr) minmax(180px, 1.25fr) minmax(120px, .8fr) minmax(125px, .85fr) minmax(125px, .85fr)'
+          },
           gap: { xs: 1.25, lg: 1.5 },
           alignItems: 'center',
           px: { xs: 1.5, lg: 0 },
@@ -200,29 +222,57 @@ function ApplicationRow({ application, getStatusChip, onView, onStatus, onResend
         }}
       >
         <Stack direction="row" spacing={1.2} alignItems="center" minWidth={0}>
-          <Avatar sx={{ width: 40, height: 40, bgcolor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.mode === 'dark' ? 'primary.light' : NAVY, fontSize: '0.78rem', fontWeight: 750 }}>
-            {name.split(' ').slice(0, 2).map((part) => part[0]).join('').toUpperCase()}
+          <Avatar
+            sx={{
+              width: 40,
+              height: 40,
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.mode === 'dark' ? 'primary.light' : NAVY,
+              fontSize: '0.78rem',
+              fontWeight: 750
+            }}
+          >
+            {name
+              .split(' ')
+              .slice(0, 2)
+              .map((part) => part[0])
+              .join('')
+              .toUpperCase()}
           </Avatar>
           <Box minWidth={0}>
-            <Typography fontWeight={700} noWrap>{name}</Typography>
-            <Typography noWrap sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>{application.email || 'No email provided'}</Typography>
+            <Typography fontWeight={700} noWrap>
+              {name}
+            </Typography>
+            <Typography noWrap sx={{ mt: 0.25, fontSize: '0.72rem', color: 'text.secondary' }}>
+              {application.email || 'No email provided'}
+            </Typography>
           </Box>
         </Stack>
         <Box sx={{ mt: { xs: 1.2, lg: 0 }, pl: { xs: 6.5, lg: 0 } }}>
-          <Typography noWrap sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{application.propertyName || 'Property not assigned'}</Typography>
-          <Typography noWrap sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{application.unitName || 'No unit'}</Typography>
+          <Typography noWrap sx={{ fontSize: '0.8rem', fontWeight: 650 }}>
+            {application.propertyName || 'Property not assigned'}
+          </Typography>
+          <Typography noWrap sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>
+            {application.unitName || 'No unit'}
+          </Typography>
         </Box>
         <Box sx={{ mt: { xs: 1.1, lg: 0 }, pl: { xs: 6.5, lg: 0 } }}>{getStatusChip(application.status)}</Box>
         <Box sx={{ mt: { xs: 1.1, lg: 0 }, pl: { xs: 6.5, lg: 0 } }}>
-          <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{application.submittedAt ? formatDate(application.submittedAt) : 'Not submitted'}</Typography>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>
+            {application.submittedAt ? formatDate(application.submittedAt) : 'Not submitted'}
+          </Typography>
           <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>Submitted</Typography>
         </Box>
         <Box sx={{ mt: { xs: 1.1, lg: 0 }, pl: { xs: 6.5, lg: 0 } }}>
-          <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{application.desiredMoveInDate ? formatDate(application.desiredMoveInDate) : 'Not set'}</Typography>
+          <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>
+            {application.desiredMoveInDate ? formatDate(application.desiredMoveInDate) : 'Not set'}
+          </Typography>
           <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>Desired move-in</Typography>
         </Box>
       </Box>
-      <Box sx={{ position: { xs: 'absolute', lg: 'static' }, top: { xs: 12 }, right: { xs: 12 }, display: 'flex', justifyContent: 'center' }}>
+      <Box
+        sx={{ position: { xs: 'absolute', lg: 'static' }, top: { xs: 12 }, right: { xs: 12 }, display: 'flex', justifyContent: 'center' }}
+      >
         <Tooltip title="Application actions">
           <IconButton size="small" aria-label={`Actions for ${name}`} onClick={(event) => setAnchorEl(event.currentTarget)}>
             <MoreOutlined />
@@ -305,26 +355,25 @@ export default function ApplicationsPage({ hideHeader = false }) {
   const scopedApplications = hasSuccessfulCurrentScope ? applications : [];
   const scopedProperties = hasSuccessfulCurrentScope ? properties : [];
 
-  const invalidateApplicationPipeline = useCallback(async (applicationId, { deleted = false } = {}) => {
-    const canonicalProbe = ['/api/leasing-pipeline', userId, organizationId, 'application', 1, null];
-    if (!isLeasingPipelineKeyForTenant(canonicalProbe, userId, organizationId)) return;
+  const invalidateApplicationPipeline = useCallback(
+    async (applicationId, { deleted = false } = {}) => {
+      const canonicalProbe = ['/api/leasing-pipeline', userId, organizationId, 'application', 1, null];
+      if (!isLeasingPipelineKeyForTenant(canonicalProbe, userId, organizationId)) return;
 
-    const tenantKeyPredicate = (key) => isLeasingPipelineKeyForTenant(key, userId, organizationId);
-    const revalidationPredicate = (key) => tenantKeyPredicate(key) && !(
-      deleted
-      && key[3] === 'application'
-      && key[4] === applicationId
-    );
+      const tenantKeyPredicate = (key) => isLeasingPipelineKeyForTenant(key, userId, organizationId);
+      const revalidationPredicate = (key) => tenantKeyPredicate(key) && !(deleted && key[3] === 'application' && key[4] === applicationId);
 
-    // A lifecycle mutation changes application, listing, and property projections. Empty the
-    // entire exact-tenant cache before any mounted projection is allowed to fetch again.
-    await mutate(tenantKeyPredicate, undefined, { revalidate: false, populateCache: true });
-    try {
-      await mutate(revalidationPredicate);
-    } catch {
-      // Cleared entries stay fail-closed; mounted panels expose their normal retry state.
-    }
-  }, [mutate, organizationId, userId]);
+      // A lifecycle mutation changes application, listing, and property projections. Empty the
+      // entire exact-tenant cache before any mounted projection is allowed to fetch again.
+      await mutate(tenantKeyPredicate, undefined, { revalidate: false, populateCache: true });
+      try {
+        await mutate(revalidationPredicate);
+      } catch {
+        // Cleared entries stay fail-closed; mounted panels expose their normal retry state.
+      }
+    },
+    [mutate, organizationId, userId]
+  );
 
   // Reset property selection on mount
   useEffect(() => {
@@ -429,7 +478,18 @@ export default function ApplicationsPage({ hideHeader = false }) {
     setApplicationNotFound(false);
     setSelectedApplication(exactApplication);
     setViewDialogOpen(true);
-  }, [currentLoadScope.scopeKey, deepLinkedApplicationId, hasLoaded, loadError, loading, requestedApplicationId, scopedApplications, searchParams, setSearchParams, successfulLoad]);
+  }, [
+    currentLoadScope.scopeKey,
+    deepLinkedApplicationId,
+    hasLoaded,
+    loadError,
+    loading,
+    requestedApplicationId,
+    scopedApplications,
+    searchParams,
+    setSearchParams,
+    successfulLoad
+  ]);
 
   // Reload applications when drawer closes (after invite/application is created)
   useEffect(() => {
@@ -449,19 +509,32 @@ export default function ApplicationsPage({ hideHeader = false }) {
     const selectedUnitName = selectedUnit?.name ?? selectedUnit?.Name ?? selectedUnit?.unitNumber ?? selectedUnit?.UnitNumber;
     const filtered = scopedApplications.filter((application) => {
       const status = normalizeStatus(application.status);
-      const searchable = [application.firstName, application.lastName, application.email, application.propertyName, application.unitName].filter(Boolean).join(' ').toLowerCase();
+      const searchable = [application.firstName, application.lastName, application.email, application.propertyName, application.unitName]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
       const applicationUnitId = application.unitId ?? application.UnitId;
       if (query && !searchable.includes(query)) return false;
-      if (selectedUnitId != null && String(applicationUnitId) !== String(selectedUnitId) && String(application.unitName || '').toLowerCase() !== String(selectedUnitName || '').toLowerCase()) return false;
+      if (
+        selectedUnitId != null &&
+        String(applicationUnitId) !== String(selectedUnitId) &&
+        String(application.unitName || '').toLowerCase() !== String(selectedUnitName || '').toLowerCase()
+      )
+        return false;
       if (statusFilter === 'review' && ![8, 1, 2].includes(status)) return false;
       if (statusFilter !== 'all' && statusFilter !== 'review' && status !== Number(statusFilter)) return false;
       return true;
     });
 
     return filtered.sort((a, b) => {
-      if (sort === 'oldest') return (parseApplicationDate(a.createdAt)?.getTime() || 0) - (parseApplicationDate(b.createdAt)?.getTime() || 0);
+      if (sort === 'oldest')
+        return (parseApplicationDate(a.createdAt)?.getTime() || 0) - (parseApplicationDate(b.createdAt)?.getTime() || 0);
       if (sort === 'applicant') return `${a.firstName || ''} ${a.lastName || ''}`.localeCompare(`${b.firstName || ''} ${b.lastName || ''}`);
-      if (sort === 'moveIn') return (parseApplicationDate(a.desiredMoveInDate)?.getTime() || Number.MAX_SAFE_INTEGER) - (parseApplicationDate(b.desiredMoveInDate)?.getTime() || Number.MAX_SAFE_INTEGER);
+      if (sort === 'moveIn')
+        return (
+          (parseApplicationDate(a.desiredMoveInDate)?.getTime() || Number.MAX_SAFE_INTEGER) -
+          (parseApplicationDate(b.desiredMoveInDate)?.getTime() || Number.MAX_SAFE_INTEGER)
+        );
       return (parseApplicationDate(b.createdAt)?.getTime() || 0) - (parseApplicationDate(a.createdAt)?.getTime() || 0);
     });
   }, [scopedApplications, search, selectedUnit, sort, statusFilter]);
@@ -493,12 +566,12 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
   const handleCreateLease = useCallback(() => {
     const selectedApplicationId = Number(selectedApplication?.id ?? selectedApplication?.Id);
-    const currentScopedApplication = hasSuccessfulCurrentScope &&
-      Number.isSafeInteger(selectedApplicationId) && selectedApplicationId > 0 &&
+    const currentScopedApplication =
+      hasSuccessfulCurrentScope &&
+      Number.isSafeInteger(selectedApplicationId) &&
+      selectedApplicationId > 0 &&
       scopedApplications.find((application) => Number(application?.id ?? application?.Id) === selectedApplicationId);
-    const handoff = currentScopedApplication
-      ? buildApprovedApplicationLeaseContext(currentScopedApplication, scopedProperties)
-      : null;
+    const handoff = currentScopedApplication ? buildApprovedApplicationLeaseContext(currentScopedApplication, scopedProperties) : null;
     if (!handoff) {
       openSnackbar({
         open: true,
@@ -509,22 +582,18 @@ export default function ApplicationsPage({ hideHeader = false }) {
       return;
     }
     setViewDialogOpen(false);
-    drawer.openLeaseAddDrawer(
-      handoff.applicationContext.unitId,
-      handoff.property,
-      handoff.applicationContext
-    );
+    drawer.openLeaseAddDrawer(handoff.applicationContext.unitId, handoff.property, handoff.applicationContext);
   }, [drawer, hasSuccessfulCurrentScope, scopedApplications, scopedProperties, selectedApplication]);
 
   // Calculate overview stats
   const overviewStats = useMemo(() => {
     const total = scopedApplications.length;
-    const pending = scopedApplications.filter(a => {
+    const pending = scopedApplications.filter((a) => {
       const status = normalizeStatus(a.status);
       return status === 8 || status === 1 || status === 2; // Pending, Submitted, Under Review
     }).length;
-    const approved = scopedApplications.filter(a => normalizeStatus(a.status) === 3).length;
-    const rejected = scopedApplications.filter(a => normalizeStatus(a.status) === 4).length;
+    const approved = scopedApplications.filter((a) => normalizeStatus(a.status) === 3).length;
+    const rejected = scopedApplications.filter((a) => normalizeStatus(a.status) === 4).length;
     return { total, pending, approved, rejected };
   }, [scopedApplications]);
 
@@ -538,7 +607,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
     const next = new URLSearchParams(searchParams);
     next.set('applicationId', String(applicationId));
     setSearchParams(next, { replace: true });
-    
+
     // Load background check status if available
     if (application.backgroundCheckRequested) {
       await loadBackgroundCheckStatus(applicationId);
@@ -562,7 +631,11 @@ export default function ApplicationsPage({ hideHeader = false }) {
       const response = await applicationAPI.requestBackgroundCheck(applicationId);
       if (!response?.success) throw new Error(response?.message || 'Unable to request tenant screening.');
       await invalidateApplicationPipeline(applicationId);
-      setSelectedApplication((current) => Number(current?.id ?? current?.Id) === applicationId ? { ...current, backgroundCheckRequested: true, backgroundCheckStatus: 'pending' } : current);
+      setSelectedApplication((current) =>
+        Number(current?.id ?? current?.Id) === applicationId
+          ? { ...current, backgroundCheckRequested: true, backgroundCheckStatus: 'pending' }
+          : current
+      );
       openSnackbar({ open: true, message: 'Tenant screening requested.', variant: 'alert', alert: { color: 'success' } });
     } catch (error) {
       openSnackbar({
@@ -583,19 +656,23 @@ export default function ApplicationsPage({ hideHeader = false }) {
       const response = await applicationAPI.getBackgroundCheckStatus(applicationId);
       if (response.success) {
         const backgroundCheck = response.data || {};
-        setSelectedApplication((current) => current?.id === applicationId ? {
-          ...current,
-          backgroundCheckStatus: backgroundCheck.status,
-          backgroundCheckOverallPass: backgroundCheck.overallPass,
-          backgroundCheckReportUrl: backgroundCheck.reportUrl,
-          backgroundCheckCompletedAt: backgroundCheck.completedAt,
-          backgroundCheckRejectionReason: backgroundCheck.rejectionReason,
-          creditScore: backgroundCheck.creditScore,
-          passedCreditCheck: backgroundCheck.passedCreditCheck,
-          passedCriminalCheck: backgroundCheck.passedCriminalCheck,
-          passedEvictionCheck: backgroundCheck.passedEvictionCheck,
-          passedIncomeVerification: backgroundCheck.passedIncomeVerification
-        } : current);
+        setSelectedApplication((current) =>
+          current?.id === applicationId
+            ? {
+                ...current,
+                backgroundCheckStatus: backgroundCheck.status,
+                backgroundCheckOverallPass: backgroundCheck.overallPass,
+                backgroundCheckReportUrl: backgroundCheck.reportUrl,
+                backgroundCheckCompletedAt: backgroundCheck.completedAt,
+                backgroundCheckRejectionReason: backgroundCheck.rejectionReason,
+                creditScore: backgroundCheck.creditScore,
+                passedCreditCheck: backgroundCheck.passedCreditCheck,
+                passedCriminalCheck: backgroundCheck.passedCriminalCheck,
+                passedEvictionCheck: backgroundCheck.passedEvictionCheck,
+                passedIncomeVerification: backgroundCheck.passedIncomeVerification
+              }
+            : current
+        );
       } else {
         openSnackbar({
           open: true,
@@ -735,7 +812,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
     try {
       const response = await applicationInviteAPI.resendApplicationInviteByApplicationId(applicationId);
-      
+
       if (response.success) {
         await invalidateApplicationPipeline(applicationId);
         openSnackbar({
@@ -805,7 +882,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
     try {
       setLoading(true);
       const blob = await applicationAPI.downloadApplicationPdf(selectedApplication.id);
-      
+
       // Create blob URL and trigger download
       const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       const link = document.createElement('a');
@@ -842,11 +919,11 @@ export default function ApplicationsPage({ hideHeader = false }) {
     try {
       setLoading(true);
       const blob = await applicationAPI.downloadApplicationPdf(selectedApplication.id);
-      
+
       // Create blob URL and open in new tab
       const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       window.open(url, '_blank');
-      
+
       // Clean up URL after a delay
       setTimeout(() => window.URL.revokeObjectURL(url), 100);
     } catch (error) {
@@ -864,33 +941,28 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
   const getStatusChip = (status) => {
     const statusValue = normalizeStatus(status);
-    const statusOption = APPLICATION_STATUSES.find(s => s.value === statusValue);
-    return (
-      <Chip
-        label={statusOption?.label || 'Unknown'}
-        color={statusOption?.color || 'default'}
-        size="small"
-      />
-    );
+    const statusOption = APPLICATION_STATUSES.find((s) => s.value === statusValue);
+    return <Chip label={statusOption?.label || 'Unknown'} color={statusOption?.color || 'default'} size="small" />;
   };
 
   return (
     <Box sx={{ pb: 3 }}>
       {!hideHeader && (
-        <>
-          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-            <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Applications' }]} />
-          </Box>
-          <Box sx={{ mb: 2.5, p: { xs: 2, md: 2.75 }, borderRadius: 3, color: '#fff', background: 'linear-gradient(120deg, #061e35 0%, #0b3558 100%)', boxShadow: `0 16px 38px ${alpha(NAVY, 0.18)}` }}>
-            <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
-              <Box>
-                <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Applications</Typography>
-                <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>Review applicants, screening progress, and leasing decisions from one focused workspace.</Typography>
-              </Box>
-              <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openApplicationAddDrawer()} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', alignSelf: { xs: 'flex-start', md: 'center' } }}>New application</Button>
-            </Stack>
-          </Box>
-        </>
+        <ManagementPageHeader
+          title="Applications"
+          description="Review applicants, screening progress, and leasing decisions from one focused workspace."
+          actions={
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<PlusOutlined />}
+              onClick={() => drawer.openApplicationAddDrawer()}
+              sx={managementPageHeaderActionSx}
+            >
+              New application
+            </Button>
+          }
+        />
       )}
 
       {applicationNotFound && (
@@ -901,13 +973,62 @@ export default function ApplicationsPage({ hideHeader = false }) {
 
       {/* Summary Cards */}
       <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="All applications" value={overviewStats.total} helper="Across the selected property" icon={<FileTextOutlined />} color={theme.palette.primary.main} active={statusFilter === 'all'} onClick={() => setStatusFilter('all')} /></Grid>
-        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Needs review" value={overviewStats.pending} helper="Pending, submitted, or reviewing" icon={<ClockCircleOutlined />} color={theme.palette.warning.main} active={statusFilter === 'review'} onClick={() => setStatusFilter((value) => value === 'review' ? 'all' : 'review')} /></Grid>
-        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Approved" value={overviewStats.approved} helper="Ready for the next leasing step" icon={<CheckCircleOutlined />} color={theme.palette.success.main} active={statusFilter === '3'} onClick={() => setStatusFilter((value) => value === '3' ? 'all' : '3')} /></Grid>
-        <Grid size={{ xs: 6, lg: 3 }}><SummaryCard label="Rejected" value={overviewStats.rejected} helper="Applications not moving forward" icon={<CloseCircleOutlined />} color={theme.palette.error.main} active={statusFilter === '4'} onClick={() => setStatusFilter((value) => value === '4' ? 'all' : '4')} /></Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="All applications"
+            value={overviewStats.total}
+            helper="Across the selected property"
+            icon={<FileTextOutlined />}
+            color={theme.palette.primary.main}
+            active={statusFilter === 'all'}
+            onClick={() => setStatusFilter('all')}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Needs review"
+            value={overviewStats.pending}
+            helper="Pending, submitted, or reviewing"
+            icon={<ClockCircleOutlined />}
+            color={theme.palette.warning.main}
+            active={statusFilter === 'review'}
+            onClick={() => setStatusFilter((value) => (value === 'review' ? 'all' : 'review'))}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Approved"
+            value={overviewStats.approved}
+            helper="Ready for the next leasing step"
+            icon={<CheckCircleOutlined />}
+            color={theme.palette.success.main}
+            active={statusFilter === '3'}
+            onClick={() => setStatusFilter((value) => (value === '3' ? 'all' : '3'))}
+          />
+        </Grid>
+        <Grid size={{ xs: 6, lg: 3 }}>
+          <SummaryCard
+            label="Rejected"
+            value={overviewStats.rejected}
+            helper="Applications not moving forward"
+            icon={<CloseCircleOutlined />}
+            color={theme.palette.error.main}
+            active={statusFilter === '4'}
+            onClick={() => setStatusFilter((value) => (value === '4' ? 'all' : '4'))}
+          />
+        </Grid>
       </Grid>
 
-      <Box aria-busy={loading} sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden' }}>
+      <Box
+        aria-busy={loading}
+        sx={{
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
+          overflow: 'hidden'
+        }}
+      >
         <Box sx={{ p: { xs: 1.5, md: 2 } }}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
             <OutlinedInput
@@ -916,7 +1037,11 @@ export default function ApplicationsPage({ hideHeader = false }) {
               placeholder="Search applicants, email, property, or unit"
               inputProps={{ 'aria-label': 'Search applications' }}
               size="small"
-              startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+              startAdornment={
+                <InputAdornment position="start">
+                  <SearchOutlined />
+                </InputAdornment>
+              }
               sx={{ flex: 1, minWidth: { lg: 245 }, borderRadius: 1.75 }}
             />
             <Stack
@@ -929,9 +1054,23 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 '&::-webkit-scrollbar': { display: 'none' }
               }}
             >
-              {hideHeader && scopedApplications.length > 0 && <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openApplicationAddDrawer()} sx={{ minWidth: 155, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}>New application</Button>}
-              <Box sx={{ minWidth: 180 }}><PropertySelect width="100%" label={null} placeholder="All properties" /></Box>
-              <Box sx={{ minWidth: 150 }}><UnitSelect width="100%" label={null} placeholder="All units" /></Box>
+              {hideHeader && scopedApplications.length > 0 && (
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<PlusOutlined />}
+                  onClick={() => drawer.openApplicationAddDrawer()}
+                  sx={{ minWidth: 155, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+                >
+                  New application
+                </Button>
+              )}
+              <Box sx={{ minWidth: 180 }}>
+                <PropertySelect width="100%" label={null} placeholder="All properties" />
+              </Box>
+              <Box sx={{ minWidth: 150 }}>
+                <UnitSelect width="100%" label={null} placeholder="All units" />
+              </Box>
               <Select
                 size="small"
                 value={statusFilter}
@@ -942,7 +1081,11 @@ export default function ApplicationsPage({ hideHeader = false }) {
               >
                 <MenuItem value="all">All statuses</MenuItem>
                 <MenuItem value="review">Needs review</MenuItem>
-                {APPLICATION_STATUSES.map((status) => <MenuItem key={status.value} value={String(status.value)}>{status.label}</MenuItem>)}
+                {APPLICATION_STATUSES.map((status) => (
+                  <MenuItem key={status.value} value={String(status.value)}>
+                    {status.label}
+                  </MenuItem>
+                ))}
               </Select>
               <Select
                 size="small"
@@ -952,32 +1095,113 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 IconComponent={DownOutlined}
                 sx={{ minWidth: 170, borderRadius: 1.75 }}
               >
-                <MenuItem value="newest">Sort: Newest</MenuItem><MenuItem value="oldest">Sort: Oldest</MenuItem><MenuItem value="applicant">Sort: Applicant A–Z</MenuItem><MenuItem value="moveIn">Sort: Move-in soonest</MenuItem>
+                <MenuItem value="newest">Sort: Newest</MenuItem>
+                <MenuItem value="oldest">Sort: Oldest</MenuItem>
+                <MenuItem value="applicant">Sort: Applicant A–Z</MenuItem>
+                <MenuItem value="moveIn">Sort: Move-in soonest</MenuItem>
               </Select>
             </Stack>
           </Stack>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
-            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>{filteredApplications.length} of {scopedApplications.length} applications</Typography>
-            {(search || statusFilter !== 'all' || selectedProperty || selectedUnit || sort !== 'newest') && <Button size="small" onClick={resetFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              {filteredApplications.length} of {scopedApplications.length} applications
+            </Typography>
+            {(search || statusFilter !== 'all' || selectedProperty || selectedUnit || sort !== 'newest') && (
+              <Button size="small" onClick={resetFilters} sx={{ textTransform: 'none' }}>
+                Reset view
+              </Button>
+            )}
           </Stack>
         </Box>
         <Divider />
-        <Box sx={{ display: { xs: 'none', lg: 'grid' }, gridTemplateColumns: 'minmax(210px, 1.5fr) minmax(180px, 1.25fr) minmax(120px, .8fr) minmax(125px, .85fr) minmax(125px, .85fr) 44px', gap: 1.5, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
-          {['Applicant', 'Property / unit', 'Status', 'Submitted', 'Move-in', ''].map((label) => <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>)}
+        <Box
+          sx={{
+            display: { xs: 'none', lg: 'grid' },
+            gridTemplateColumns:
+              'minmax(210px, 1.5fr) minmax(180px, 1.25fr) minmax(120px, .8fr) minmax(125px, .85fr) minmax(125px, .85fr) 44px',
+            gap: 1.5,
+            px: 2,
+            py: 1.15,
+            bgcolor: alpha(theme.palette.primary.main, 0.025)
+          }}
+        >
+          {['Applicant', 'Property / unit', 'Status', 'Submitted', 'Move-in', ''].map((label) => (
+            <Typography
+              key={label || 'actions'}
+              sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
+            >
+              {label}
+            </Typography>
+          ))}
         </Box>
         {loading && !hasLoaded ? (
-          <Stack role="status" aria-live="polite" alignItems="center" spacing={1} sx={{ py: 7 }}><CircularProgress size={26} /><Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading applications…</Typography></Stack>
+          <Stack role="status" aria-live="polite" alignItems="center" spacing={1} sx={{ py: 7 }}>
+            <CircularProgress size={26} />
+            <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>Loading applications…</Typography>
+          </Stack>
         ) : loadError ? (
-          <Stack role="alert" alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}><Typography variant="h6" fontWeight={700}>Applications unavailable</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>{loadError}</Typography><Button variant="outlined" onClick={loadApplications}>Retry</Button></Stack>
+          <Stack role="alert" alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Typography variant="h6" fontWeight={700}>
+              Applications unavailable
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>{loadError}</Typography>
+            <Button variant="outlined" onClick={loadApplications}>
+              Retry
+            </Button>
+          </Stack>
         ) : scopedApplications.length === 0 ? (
-          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}><Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}><FileTextOutlined /></Avatar><Typography variant="h5" fontWeight={700}>Create your first application</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>Invite an applicant and track their rental application from submission through a final decision.</Typography><Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openApplicationAddDrawer()} sx={{ textTransform: 'none', fontWeight: 700 }}>New application</Button></Stack>
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
+              <FileTextOutlined />
+            </Avatar>
+            <Typography variant="h5" fontWeight={700}>
+              Create your first application
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>
+              Invite an applicant and track their rental application from submission through a final decision.
+            </Typography>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<PlusOutlined />}
+              onClick={() => drawer.openApplicationAddDrawer()}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              New application
+            </Button>
+          </Stack>
         ) : filteredApplications.length === 0 ? (
-          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}><Typography variant="h6" fontWeight={700}>No applications match this view</Typography><Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>Try another search or reset the application filters.</Typography><Button variant="outlined" onClick={resetFilters} sx={{ textTransform: 'none' }}>Reset filters</Button></Stack>
-        ) : paginatedApplications.map((application) => <ApplicationRow key={application.id} application={application} getStatusChip={getStatusChip} onView={handleViewApplication} onStatus={handleStatusUpdate} onResend={handleResendInvite} onDelete={handleDeleteClick} />)}
+          <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
+            <Typography variant="h6" fontWeight={700}>
+              No applications match this view
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+              Try another search or reset the application filters.
+            </Typography>
+            <Button variant="outlined" onClick={resetFilters} sx={{ textTransform: 'none' }}>
+              Reset filters
+            </Button>
+          </Stack>
+        ) : (
+          paginatedApplications.map((application) => (
+            <ApplicationRow
+              key={application.id}
+              application={application}
+              getStatusChip={getStatusChip}
+              onView={handleViewApplication}
+              onStatus={handleStatusUpdate}
+              onResend={handleResendInvite}
+              onDelete={handleDeleteClick}
+            />
+          ))
+        )}
         {filteredApplications.length > 0 && (
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ p: 2 }}>
             <Stack direction="row" spacing={1} alignItems="center">
-              <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredApplications.length)} of {filteredApplications.length}</Typography>
+              <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+                Showing {(currentPage - 1) * itemsPerPage + 1}–{Math.min(currentPage * itemsPerPage, filteredApplications.length)} of{' '}
+                {filteredApplications.length}
+              </Typography>
               <Select
                 size="small"
                 value={itemsPerPage}
@@ -989,29 +1213,27 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 <MenuItem value={20}>20</MenuItem>
               </Select>
             </Stack>
-            {totalPages > 1 && <Pagination count={totalPages} page={currentPage} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />}
+            {totalPages > 1 && (
+              <Pagination count={totalPages} page={currentPage} onChange={(_, value) => setPage(value)} color="primary" shape="rounded" />
+            )}
           </Stack>
         )}
       </Box>
 
       {/* View Application Dialog */}
-      <Dialog
-        open={viewDialogOpen && hasSuccessfulCurrentScope}
-        onClose={handleCloseApplicationDialog}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={viewDialogOpen && hasSuccessfulCurrentScope} onClose={handleCloseApplicationDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           Application Details - {selectedApplication?.firstName} {selectedApplication?.lastName}
         </DialogTitle>
         <DialogContent sx={{ pb: 4 }}>
           {selectedApplication && (
             <Box sx={{ mt: 1, mb: 2 }}>
-              <LeasingPipelinePanel resourceType="application" resourceId={selectedApplication?.id ?? selectedApplication?.Id} onCreateLease={handleCreateLease} />
-              <ConversationTimelinePanel
-                contextKind="rentalApplication"
-                contextId={selectedApplication?.id ?? selectedApplication?.Id}
+              <LeasingPipelinePanel
+                resourceType="application"
+                resourceId={selectedApplication?.id ?? selectedApplication?.Id}
+                onCreateLease={handleCreateLease}
               />
+              <ConversationTimelinePanel contextKind="rentalApplication" contextId={selectedApplication?.id ?? selectedApplication?.Id} />
             </Box>
           )}
           {selectedApplication && (
@@ -1054,9 +1276,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                   <Typography variant="subtitle2" color="text.secondary">
                     Monthly Income
                   </Typography>
-                  <Typography variant="body1">
-                    {formatCurrency(selectedApplication.monthlyIncome)}
-                  </Typography>
+                  <Typography variant="body1">{formatCurrency(selectedApplication.monthlyIncome)}</Typography>
                 </Grid>
               )}
 
@@ -1083,9 +1303,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                   <Typography variant="subtitle2" color="text.secondary">
                     Pets
                   </Typography>
-                  <Typography variant="body1">
-                    {selectedApplication.petDetails || 'Yes (details not provided)'}
-                  </Typography>
+                  <Typography variant="body1">{selectedApplication.petDetails || 'Yes (details not provided)'}</Typography>
                 </Grid>
               )}
 
@@ -1150,7 +1368,13 @@ export default function ApplicationsPage({ hideHeader = false }) {
                           variant="contained"
                           startIcon={<FileTextOutlined />}
                           onClick={() => handleRequestBackgroundCheck(selectedApplication?.id ?? selectedApplication?.Id)}
-                          disabled={backgroundCheckLoading || !screeningReadiness.canInvoke || !selectedApplication.firstName || !selectedApplication.lastName || !selectedApplication.email}
+                          disabled={
+                            backgroundCheckLoading ||
+                            !screeningReadiness.canInvoke ||
+                            !selectedApplication.firstName ||
+                            !selectedApplication.lastName ||
+                            !selectedApplication.email
+                          }
                         >
                           {backgroundCheckLoading ? 'Requesting...' : 'Request Background Check'}
                         </Button>
@@ -1176,27 +1400,29 @@ export default function ApplicationsPage({ hideHeader = false }) {
                               selectedApplication.backgroundCheckStatus === 'completed'
                                 ? 'Completed'
                                 : selectedApplication.backgroundCheckStatus === 'in_progress'
-                                ? 'In Progress'
-                                : selectedApplication.backgroundCheckStatus === 'pending'
-                                ? 'Pending'
-                                : selectedApplication.backgroundCheckStatus === 'failed'
-                                ? 'Failed'
-                                : 'Unknown'
+                                  ? 'In Progress'
+                                  : selectedApplication.backgroundCheckStatus === 'pending'
+                                    ? 'Pending'
+                                    : selectedApplication.backgroundCheckStatus === 'failed'
+                                      ? 'Failed'
+                                      : 'Unknown'
                             }
                             color={
                               selectedApplication.backgroundCheckStatus === 'completed'
                                 ? 'success'
-                                : selectedApplication.backgroundCheckStatus === 'in_progress' || selectedApplication.backgroundCheckStatus === 'pending'
-                                ? 'warning'
-                                : selectedApplication.backgroundCheckStatus === 'failed'
-                                ? 'error'
-                                : 'default'
+                                : selectedApplication.backgroundCheckStatus === 'in_progress' ||
+                                    selectedApplication.backgroundCheckStatus === 'pending'
+                                  ? 'warning'
+                                  : selectedApplication.backgroundCheckStatus === 'failed'
+                                    ? 'error'
+                                    : 'default'
                             }
                             size="small"
                             icon={
                               selectedApplication.backgroundCheckStatus === 'completed' ? (
                                 <CheckCircleOutlined />
-                              ) : selectedApplication.backgroundCheckStatus === 'in_progress' || selectedApplication.backgroundCheckStatus === 'pending' ? (
+                              ) : selectedApplication.backgroundCheckStatus === 'in_progress' ||
+                                selectedApplication.backgroundCheckStatus === 'pending' ? (
                                 <ClockCircleOutlined />
                               ) : selectedApplication.backgroundCheckStatus === 'failed' ? (
                                 <CloseCircleOutlined />
@@ -1215,9 +1441,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                   <Typography variant="caption" color="text.secondary">
                                     Credit Score
                                   </Typography>
-                                  <Typography variant="h6">
-                                    {selectedApplication.creditScore}
-                                  </Typography>
+                                  <Typography variant="h6">{selectedApplication.creditScore}</Typography>
                                 </Grid>
                               )}
 
@@ -1230,7 +1454,9 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                     label={selectedApplication.backgroundCheckOverallPass ? 'Passed' : 'Failed'}
                                     color={selectedApplication.backgroundCheckOverallPass ? 'success' : 'error'}
                                     size="small"
-                                    icon={selectedApplication.backgroundCheckOverallPass ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+                                    icon={
+                                      selectedApplication.backgroundCheckOverallPass ? <CheckCircleOutlined /> : <CloseCircleOutlined />
+                                    }
                                   />
                                 </Box>
                               </Grid>
@@ -1247,7 +1473,9 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                       size="small"
                                     />
                                   ) : (
-                                    <Typography variant="body2" color="text.secondary">N/A</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      N/A
+                                    </Typography>
                                   )}
                                 </Box>
                               </Grid>
@@ -1257,14 +1485,17 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                   Criminal Check
                                 </Typography>
                                 <Box sx={{ mt: 0.5 }}>
-                                  {selectedApplication.passedCriminalCheck !== null && selectedApplication.passedCriminalCheck !== undefined ? (
+                                  {selectedApplication.passedCriminalCheck !== null &&
+                                  selectedApplication.passedCriminalCheck !== undefined ? (
                                     <Chip
                                       label={selectedApplication.passedCriminalCheck ? 'Passed' : 'Failed'}
                                       color={selectedApplication.passedCriminalCheck ? 'success' : 'error'}
                                       size="small"
                                     />
                                   ) : (
-                                    <Typography variant="body2" color="text.secondary">N/A</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      N/A
+                                    </Typography>
                                   )}
                                 </Box>
                               </Grid>
@@ -1274,14 +1505,17 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                   Eviction Check
                                 </Typography>
                                 <Box sx={{ mt: 0.5 }}>
-                                  {selectedApplication.passedEvictionCheck !== null && selectedApplication.passedEvictionCheck !== undefined ? (
+                                  {selectedApplication.passedEvictionCheck !== null &&
+                                  selectedApplication.passedEvictionCheck !== undefined ? (
                                     <Chip
                                       label={selectedApplication.passedEvictionCheck ? 'Passed' : 'Failed'}
                                       color={selectedApplication.passedEvictionCheck ? 'success' : 'error'}
                                       size="small"
                                     />
                                   ) : (
-                                    <Typography variant="body2" color="text.secondary">N/A</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      N/A
+                                    </Typography>
                                   )}
                                 </Box>
                               </Grid>
@@ -1291,14 +1525,17 @@ export default function ApplicationsPage({ hideHeader = false }) {
                                   Income Verification
                                 </Typography>
                                 <Box sx={{ mt: 0.5 }}>
-                                  {selectedApplication.passedIncomeVerification !== null && selectedApplication.passedIncomeVerification !== undefined ? (
+                                  {selectedApplication.passedIncomeVerification !== null &&
+                                  selectedApplication.passedIncomeVerification !== undefined ? (
                                     <Chip
                                       label={selectedApplication.passedIncomeVerification ? 'Passed' : 'Failed'}
                                       color={selectedApplication.passedIncomeVerification ? 'success' : 'error'}
                                       size="small"
                                     />
                                   ) : (
-                                    <Typography variant="body2" color="text.secondary">N/A</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                      N/A
+                                    </Typography>
                                   )}
                                 </Box>
                               </Grid>
@@ -1333,11 +1570,12 @@ export default function ApplicationsPage({ hideHeader = false }) {
                         )}
 
                         {/* Pending/In Progress */}
-                        {(selectedApplication.backgroundCheckStatus === 'pending' || selectedApplication.backgroundCheckStatus === 'in_progress') && (
+                        {(selectedApplication.backgroundCheckStatus === 'pending' ||
+                          selectedApplication.backgroundCheckStatus === 'in_progress') && (
                           <Box sx={{ textAlign: 'center', py: 2 }}>
                             <CircularProgress size={24} sx={{ mb: 1 }} />
                             <Typography variant="body2" color="text.secondary">
-                              Background check is {selectedApplication.backgroundCheckStatus === 'pending' ? 'pending' : 'in progress'}. 
+                              Background check is {selectedApplication.backgroundCheckStatus === 'pending' ? 'pending' : 'in progress'}.
                               Results will be available once processing is complete.
                             </Typography>
                           </Box>
@@ -1370,7 +1608,6 @@ export default function ApplicationsPage({ hideHeader = false }) {
                   </Card>
                 )}
               </Grid>
-
             </Grid>
           )}
         </DialogContent>
@@ -1382,7 +1619,8 @@ export default function ApplicationsPage({ hideHeader = false }) {
           >
             {/* PDF Buttons on the left */}
             <Stack direction="row" spacing={1} sx={{ width: { xs: '100%', md: 'auto' } }}>
-              {(selectedApplication?.pdfBlobName || (normalizeStatus(selectedApplication?.status) >= 1 && normalizeStatus(selectedApplication?.status) <= 7)) && (
+              {(selectedApplication?.pdfBlobName ||
+                (normalizeStatus(selectedApplication?.status) >= 1 && normalizeStatus(selectedApplication?.status) <= 7)) && (
                 <>
                   <Button
                     variant="outlined"
@@ -1453,12 +1691,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
       </Dialog>
 
       {/* Status Update Dialog */}
-      <Dialog
-        open={statusDialogOpen}
-        onClose={() => setStatusDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Update Application Status</DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
@@ -1483,9 +1716,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 fullWidth
                 label="Rejection Reason"
                 value={statusUpdate.rejectionReason}
-                onChange={(e) =>
-                  setStatusUpdate({ ...statusUpdate, rejectionReason: e.target.value })
-                }
+                onChange={(e) => setStatusUpdate({ ...statusUpdate, rejectionReason: e.target.value })}
                 multiline
                 rows={3}
               />
@@ -1514,11 +1745,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
               Approve
             </Button>
           )}
-          <Button
-            variant="contained"
-            onClick={handleSaveStatusUpdate}
-            disabled={statusUpdate.status === null}
-          >
+          <Button variant="contained" onClick={handleSaveStatusUpdate} disabled={statusUpdate.status === null}>
             Update Status
           </Button>
         </DialogActions>
@@ -1533,10 +1760,8 @@ export default function ApplicationsPage({ hideHeader = false }) {
         message={`Are you sure you want to delete the application for ${applicationToDelete?.firstName} ${applicationToDelete?.lastName}? This action cannot be undone.`}
       />
 
-
       <ApplicationAddDrawer />
       <LeaseAddDrawer />
     </Box>
   );
 }
-

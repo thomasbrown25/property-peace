@@ -1,182 +1,338 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { alpha, Box, Button, Divider, LinearProgress, Stack, Typography, useTheme } from '@mui/material';
+import { alpha, Box, Button, LinearProgress, MenuItem, Select, Stack, Typography, useTheme } from '@mui/material';
 import { ArrowRightOutlined } from '@ant-design/icons';
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import MainCard from 'components/MainCard';
 import { formatCurrency } from 'utils/formatters';
 
-function StatTile({ label, value, valueColor }) {
+function MoneyChartTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+
   return (
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Typography
-        variant="h5"
-        fontWeight={700}
-        sx={{ color: valueColor || 'text.primary', lineHeight: 1.2, mb: 0.4, fontSize: { xs: '1rem', sm: '1.15rem' } }}
-      >
-        {value}
-      </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.72rem', fontWeight: 500 }}>
+    <Box
+      sx={{
+        minWidth: 150,
+        p: 1.5,
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 1.5,
+        bgcolor: 'background.paper',
+        boxShadow: 3
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 0.75 }}>
         {label}
+      </Typography>
+      {payload.map((item) => (
+        <Stack key={item.dataKey} direction="row" justifyContent="space-between" spacing={2} sx={{ mt: 0.35 }}>
+          <Typography variant="caption" sx={{ color: item.color, fontWeight: 600 }}>
+            {item.name}
+          </Typography>
+          <Typography variant="caption" color="text.primary" fontWeight={700}>
+            {formatCurrency(item.value || 0)}
+          </Typography>
+        </Stack>
+      ))}
+    </Box>
+  );
+}
+
+function MetricCard({ label, value, accentColor, textColor }) {
+  const theme = useTheme();
+
+  return (
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: { xs: 108, sm: 0 },
+        px: 2,
+        py: 2.25,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        border: `1px solid ${theme.palette.mode === 'dark' ? alpha('#dbe7f3', 0.2) : alpha(theme.palette.divider, 0.8)}`,
+        borderRadius: 2.25,
+        bgcolor: 'background.paper',
+        backgroundImage:
+          theme.palette.mode === 'dark'
+            ? `linear-gradient(180deg, ${alpha('#ffffff', 0.045)} 0%, ${alpha(accentColor, 0.025)} 100%)`
+            : 'none',
+        boxShadow:
+          theme.palette.mode === 'dark'
+            ? `0 16px 38px ${alpha(theme.palette.common.black, 0.24)}, 0 0 24px ${alpha(accentColor, 0.1)}`
+            : `0 14px 36px ${alpha(theme.palette.common.black, 0.06)}`
+      }}
+    >
+      <Typography variant="body2" fontWeight={700} sx={{ mb: 0.75, color: textColor }}>
+        {label}
+      </Typography>
+      <Typography variant="h4" fontWeight={700} sx={{ color: textColor, lineHeight: 1.15, fontSize: { xs: '1.25rem', sm: '1.35rem' } }}>
+        {value}
       </Typography>
     </Box>
   );
 }
 
-export default function MoneySummary({ summary = {}, lifetimeSummary = {}, totalExpenses = 0, allPayments = [] }) {
+function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, navy }) {
+  const theme = useTheme();
+
+  return (
+    <Box
+      sx={{
+        gridColumn: '1 / -1',
+        px: { xs: 2, sm: 2.5 },
+        py: 2.25,
+        border: `1px solid ${theme.palette.mode === 'dark' ? alpha('#dbe7f3', 0.2) : alpha(theme.palette.divider, 0.8)}`,
+        borderRadius: 2.25,
+        bgcolor: 'background.paper',
+        backgroundImage:
+          theme.palette.mode === 'dark'
+            ? `linear-gradient(180deg, ${alpha('#ffffff', 0.045)} 0%, ${alpha(incomeColor, 0.025)} 100%)`
+            : 'none',
+        boxShadow:
+          theme.palette.mode === 'dark'
+            ? `0 16px 38px ${alpha(theme.palette.common.black, 0.24)}, 0 0 24px ${alpha(incomeColor, 0.1)}`
+            : `0 14px 36px ${alpha(theme.palette.common.black, 0.06)}`
+      }}
+    >
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        spacing={1}
+        sx={{ mb: 1 }}
+      >
+        <Stack direction="row" alignItems="baseline" spacing={0.75}>
+          <Typography variant="h5" fontWeight={700} sx={{ color: navy }}>
+            Rent Collection Progress
+          </Typography>
+          <Typography variant="h5" fontWeight={700} sx={{ color: collectionPct >= 100 ? incomeColor : navy }}>
+            {collectionPct.toFixed(0)}%
+          </Typography>
+        </Stack>
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'right' }}>
+          {remainingRent > 0 ? `${formatCurrency(remainingRent)} remaining` : 'Expected rent collected'}
+        </Typography>
+      </Stack>
+
+      <LinearProgress
+        variant="determinate"
+        value={collectionPct}
+        aria-label="Rent collection progress"
+        sx={{
+          height: 8,
+          borderRadius: 4,
+          bgcolor: alpha(incomeColor, 0.12),
+          '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: incomeColor }
+        }}
+      />
+    </Box>
+  );
+}
+
+const readDate = (item, ...keys) => keys.map((key) => item?.[key]).find(Boolean);
+const readAmount = (item) => Number(item?.amount ?? item?.Amount) || 0;
+
+const toLocalDateKey = (value) => {
+  const date = new Date(value || '');
+  if (Number.isNaN(date.valueOf())) return null;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+function buildDailyChartData(payments, expenses) {
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const daily = [];
+  const byDate = new Map();
+
+  for (let cursor = new Date(firstDay); cursor <= today; cursor.setDate(cursor.getDate() + 1)) {
+    const date = new Date(cursor);
+    const key = toLocalDateKey(date);
+    const point = {
+      label: date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }),
+      income: 0,
+      expenses: 0
+    };
+    daily.push(point);
+    byDate.set(key, point);
+  }
+
+  (payments || []).forEach((payment) => {
+    const key = toLocalDateKey(readDate(payment, 'paymentDate', 'PaymentDate', 'createdAt', 'CreatedAt'));
+    if (byDate.has(key)) byDate.get(key).income += readAmount(payment);
+  });
+
+  (expenses || []).forEach((expense) => {
+    const key = toLocalDateKey(readDate(expense, 'paidDate', 'PaidDate', 'expenseDate', 'ExpenseDate'));
+    if (byDate.has(key)) byDate.get(key).expenses += readAmount(expense);
+  });
+
+  return daily;
+}
+
+export default function MoneySummary({
+  summary = {},
+  lifetimeSummary = {},
+  totalExpenses = 0,
+  allPayments = [],
+  expenses: expenseItems = []
+}) {
   const theme = useTheme();
   const navigate = useNavigate();
   const [period, setPeriod] = useState('this-month');
 
-  // All-time collected is computed directly from allPayments — reliable regardless of API field names
   const allTimeCollected = useMemo(
-    () => (allPayments || []).reduce((sum, p) => sum + (parseFloat(p.amount ?? p.Amount) || 0), 0),
-    [allPayments]
+    () =>
+      Number(lifetimeSummary?.collectedLifetime) ||
+      (allPayments || []).reduce((sum, payment) => sum + (Number(payment.amount ?? payment.Amount) || 0), 0),
+    [allPayments, lifetimeSummary?.collectedLifetime]
   );
-
   const isAllTime = period === 'all-time';
-
-  // Current outstanding balance applies to both views
-  const currentOutstanding = Math.max(0, summary?.outstanding ?? ((summary?.expectedThisMonth || 0) - (summary?.collectedThisMonth || 0)));
-
-  // All-time expected = everything collected so far + what's still owed
-  const allTimeExpected = allTimeCollected + currentOutstanding;
-
-  const rentExpected  = isAllTime ? allTimeExpected                    : (summary?.expectedThisMonth  || 0);
-  const rentCollected = isAllTime ? allTimeCollected                   : (summary?.collectedThisMonth || 0);
-  const outstanding   = isAllTime ? currentOutstanding                 : Math.max(0, (summary?.expectedThisMonth || 0) - (summary?.collectedThisMonth || 0));
-  const expenses      = totalExpenses || 0;
-  const net           = rentCollected - expenses;
-  const netColor      = net >= 0 ? theme.palette.success.main : theme.palette.error.main;
-  const collectionPct = rentExpected > 0 ? Math.min(100, (rentCollected / rentExpected) * 100) : 0;
-  const collectionProgressColor = '#061e35';
-
-  const toggle = (
-    <Box
-      sx={{
-        display: 'flex',
-        border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 1.5,
-        overflow: 'hidden',
-        flexShrink: 0,
-        whiteSpace: 'nowrap'
-      }}
-    >
-      {[
-        { key: 'this-month', label: 'This month' },
-        { key: 'all-time',   label: 'All time' }
-      ].map(({ key, label }) => (
-        <Box
-          key={key}
-          onClick={() => setPeriod(key)}
-          sx={{
-            px: 1.25,
-            py: 0.5,
-            cursor: 'pointer',
-            bgcolor: period === key ? collectionProgressColor : 'transparent',
-            color: period === key ? '#fff' : 'text.secondary',
-            fontWeight: 600,
-            fontSize: '0.7rem',
-            lineHeight: 1.6,
-            transition: 'all 0.15s',
-            '&:hover': {
-              bgcolor: period === key ? collectionProgressColor : alpha(collectionProgressColor, 0.08)
-            }
-          }}
-        >
-          {label}
-        </Box>
-      ))}
-    </Box>
-  );
+  const currentOutstanding = Math.max(0, Number(summary?.outstanding ?? summary?.expectedThisMonth - summary?.collectedThisMonth) || 0);
+  const expectedRent = isAllTime ? allTimeCollected + currentOutstanding : Number(summary?.expectedThisMonth || 0);
+  const income = isAllTime ? allTimeCollected : Number(summary?.collectedThisMonth || 0);
+  const expenses = Number(totalExpenses || 0);
+  const collectionPct = expectedRent > 0 ? Math.min(100, (income / expectedRent) * 100) : 0;
+  const remainingRent = Math.max(0, expectedRent - income);
+  const incomeColor = theme.palette.success.main;
+  const expenseColor = theme.palette.warning.main;
+  const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
+  const dailyChartData = useMemo(() => buildDailyChartData(allPayments, expenseItems), [allPayments, expenseItems]);
+  const chartData = isAllTime ? [{ label: 'All time', income, expenses }] : dailyChartData;
+  const metricCards = [
+    { label: 'Expected Rent', value: expectedRent, color: navy },
+    { label: 'Income', value: income, color: incomeColor },
+    { label: 'Expenses', value: expenses, color: expenseColor }
+  ];
 
   return (
-    <MainCard
-      accentColor={theme.palette.success.main}
-      accentShadow
-      title={
-        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0, flexWrap: 'nowrap' }}>
-          <Typography variant="h5" fontWeight={700} sx={{ lineHeight: 1.2, color: 'text.primary', whiteSpace: 'nowrap' }}>
-            Money Summary
-          </Typography>
-          {toggle}
-        </Stack>
-      }
-      secondary={
-        <Button
-          size="small"
-          variant="text"
-          endIcon={<ArrowRightOutlined style={{ fontSize: 12 }} />}
-          onClick={() => navigate('/landlord/finances?tab=activity')}
-          sx={{
-            display: { xs: 'none', sm: 'inline-flex' },
-            textTransform: 'none',
-            fontSize: '0.8rem',
-            fontWeight: 500,
-            color: 'text.secondary',
-            whiteSpace: 'nowrap',
-            '&:hover': { color: 'text.primary' }
-          }}
-        >
-          View all
-        </Button>
-      }
-      contentSX={{ pt: 2, display: 'flex', flexDirection: 'column', height: 'calc(100% - 72px)' }}
+    <Box
       sx={{
-        height: '100%',
-        '& .MuiCardHeader-root': { pb: 1, flexWrap: 'nowrap', alignItems: 'center' },
-        '& .MuiCardHeader-content': { minWidth: 0, flex: '1 1 auto' },
-        '& .MuiCardHeader-action': { display: { xs: 'none', sm: 'flex' }, flexShrink: 0, alignSelf: 'center' }
+        display: 'grid',
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'minmax(0, 2.8fr) minmax(150px, 1fr)' },
+        gap: 2.5,
+        alignItems: 'stretch'
       }}
     >
-      {/* Stat row */}
-      <Stack
-        direction="row"
-        spacing={2}
-        divider={<Box sx={{ width: '1px', bgcolor: (t) => alpha(t.palette.divider, 0.3), alignSelf: 'stretch' }} />}
+      <CollectionProgressCard collectionPct={collectionPct} remainingRent={remainingRent} incomeColor={incomeColor} navy={navy} />
+
+      <MainCard
+        accentColor={incomeColor}
+        accentShadow
+        title={
+          <Stack direction="row" alignItems="center" spacing={1.25} sx={{ minWidth: 0 }}>
+            <Typography variant="h5" fontWeight={700} sx={{ color: 'text.primary', whiteSpace: 'nowrap' }}>
+              Money Summary
+            </Typography>
+            <Select
+              value={period}
+              onChange={(event) => setPeriod(event.target.value)}
+              inputProps={{ 'aria-label': 'Money summary period' }}
+              size="small"
+              sx={{
+                minWidth: 108,
+                height: 28,
+                borderRadius: 1.25,
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                '& .MuiSelect-select': { py: 0.35, pl: 1.1, pr: '28px !important' },
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' }
+              }}
+            >
+              <MenuItem value="this-month">This month</MenuItem>
+              <MenuItem value="all-time">All time</MenuItem>
+            </Select>
+          </Stack>
+        }
+        secondary={
+          <Button
+            size="small"
+            variant="text"
+            endIcon={<ArrowRightOutlined style={{ fontSize: 12 }} />}
+            onClick={() => navigate('/landlord/finances?tab=activity')}
+            sx={{
+              display: { xs: 'none', md: 'inline-flex' },
+              textTransform: 'none',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              color: 'text.secondary',
+              whiteSpace: 'nowrap',
+              '&:hover': { color: 'text.primary' }
+            }}
+          >
+            View all
+          </Button>
+        }
+        contentSX={{ pt: 1.5, pb: 0, display: 'flex', flexDirection: 'column' }}
+        sx={{
+          height: '100%',
+          minHeight: { xs: 320, sm: 340 },
+          '& .MuiCardHeader-root': { pb: 1, flexWrap: 'nowrap', alignItems: 'center' },
+          '& .MuiCardHeader-content': { minWidth: 0, flex: '1 1 auto' },
+          '& .MuiCardHeader-action': { flexShrink: 0, alignSelf: 'center' }
+        }}
       >
-        <StatTile label="Rent Expected"  value={formatCurrency(rentExpected)} valueColor={theme.palette.success.main} />
-        <StatTile label="Rent Collected" value={formatCurrency(rentCollected)} valueColor={theme.palette.success.main} />
-        <StatTile label="Outstanding"    value={formatCurrency(outstanding)}   valueColor={collectionProgressColor} />
-        <StatTile label="Expenses"       value={formatCurrency(expenses)}       valueColor={collectionProgressColor} />
-      </Stack>
+        <Box sx={{ height: { xs: 190, sm: 215 }, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 6, right: 6, left: -8, bottom: isAllTime ? 0 : 2 }} barGap={1} barCategoryGap="24%">
+              <XAxis
+                dataKey="label"
+                axisLine={{ stroke: alpha(navy, 0.72) }}
+                tickLine={{ stroke: alpha(navy, 0.72) }}
+                interval={isAllTime ? 0 : 3}
+                angle={isAllTime ? 0 : 90}
+                textAnchor={isAllTime ? 'middle' : 'start'}
+                height={isAllTime ? 24 : 48}
+                tickMargin={6}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 9 }}
+              />
+              <YAxis
+                axisLine={{ stroke: alpha(navy, 0.72) }}
+                tickLine={{ stroke: alpha(navy, 0.72) }}
+                width={48}
+                tick={{ fill: theme.palette.text.secondary, fontSize: 10 }}
+                tickFormatter={(value) => (value >= 1000 ? `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k` : `$${value}`)}
+              />
+              <Tooltip content={<MoneyChartTooltip />} cursor={{ fill: alpha(navy, 0.035) }} />
+              <Bar dataKey="income" name="Income" fill={incomeColor} maxBarSize={isAllTime ? 38 : 7} />
+              <Bar dataKey="expenses" name="Expenses" fill={expenseColor} maxBarSize={isAllTime ? 38 : 7} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
 
-      <Box sx={{ flex: 1 }} />
-
-      {/* Collection progress bar */}
-      <Box sx={{ mb: 1.5 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-            Collection progress
-          </Typography>
-          <Typography variant="caption" fontWeight={700} sx={{ color: collectionPct >= 100 ? theme.palette.success.main : collectionProgressColor }}>
-            {collectionPct.toFixed(0)}%
-          </Typography>
+        <Stack direction="row" spacing={2.5} justifyContent="center" sx={{ mt: 0, mb: 0 }}>
+          {[
+            { label: 'Income', color: incomeColor },
+            { label: 'Expenses', color: expenseColor }
+          ].map((item) => (
+            <Stack key={item.label} direction="row" alignItems="center" spacing={0.75}>
+              <Box sx={{ width: 9, height: 9, borderRadius: 0.75, bgcolor: item.color }} />
+              <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                {item.label}
+              </Typography>
+            </Stack>
+          ))}
         </Stack>
-        <LinearProgress
-          variant="determinate"
-          value={collectionPct}
-          sx={{
-            height: 6,
-            borderRadius: 3,
-            bgcolor: alpha(theme.palette.success.main, 0.12),
-            '& .MuiLinearProgress-bar': {
-              borderRadius: 3,
-              bgcolor: theme.palette.success.main
-            }
-          }}
-        />
-      </Box>
+      </MainCard>
 
-      {/* Net row */}
-      <Divider sx={{ mb: 1.5 }} />
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-          {isAllTime ? 'Net all time:' : 'Net this month:'}
-        </Typography>
-        <Typography variant="body2" fontWeight={700} sx={{ color: netColor, fontSize: '0.95rem' }}>
-          {formatCurrency(net)}
-        </Typography>
+      <Stack direction="column" spacing={2.5} sx={{ minWidth: 0 }}>
+        {metricCards.map((metric) => (
+          <MetricCard
+            key={metric.label}
+            label={metric.label}
+            value={formatCurrency(metric.value)}
+            accentColor={metric.color}
+            textColor={navy}
+          />
+        ))}
       </Stack>
-    </MainCard>
+    </Box>
   );
 }

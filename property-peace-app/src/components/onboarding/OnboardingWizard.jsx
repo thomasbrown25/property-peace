@@ -106,17 +106,17 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
           <CloseOutlined />
         </IconButton>
         <Chip
-          icon={<RocketOutlined style={{ color: '#22c55e' }} />}
+          icon={<RocketOutlined style={{ color: '#41a541' }} />}
           label="LET’S GET YOU SET UP"
           size="small"
           sx={{
             mb: 2,
             color: '#86efac',
-            bgcolor: alpha('#22c55e', 0.12),
-            border: `1px solid ${alpha('#22c55e', 0.3)}`,
+            bgcolor: alpha('#41a541', 0.12),
+            border: `1px solid ${alpha('#41a541', 0.3)}`,
             fontWeight: 800,
             letterSpacing: 0.5,
-            '& .MuiChip-icon': { color: '#22c55e' }
+            '& .MuiChip-icon': { color: '#41a541' }
           }}
         />
         <Typography variant="h3" fontWeight={850} sx={{ color: '#fff', pr: 4, lineHeight: 1.15 }}>
@@ -143,8 +143,8 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
                 sx={{
                   height: 7,
                   borderRadius: 99,
-                  bgcolor: alpha('#22c55e', 0.12),
-                  '& .MuiLinearProgress-bar': { borderRadius: 99, bgcolor: '#22c55e' }
+                  bgcolor: alpha('#41a541', 0.12),
+                  '& .MuiLinearProgress-bar': { borderRadius: 99, bgcolor: '#41a541' }
                 }}
               />
             </Box>
@@ -167,8 +167,8 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
                     display: 'grid',
                     placeItems: 'center',
                     flexShrink: 0,
-                    color: '#15803d',
-                    bgcolor: alpha('#22c55e', 0.12),
+                    color: '#347f34',
+                    bgcolor: alpha('#41a541', 0.12),
                     fontWeight: 850,
                     fontSize: '0.8rem'
                   }}
@@ -182,8 +182,8 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
               </Stack>
             ))}
             {steps.length > 0 && essentialSteps.length === 0 && steps.every((step) => step.completed) && (
-              <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#22c55e', 0.08) }}>
-                <CheckCircleFilled style={{ color: '#16a34a', fontSize: 22 }} />
+              <Stack direction="row" spacing={1.25} alignItems="center" sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#41a541', 0.08) }}>
+                <CheckCircleFilled style={{ color: '#41a541', fontSize: 22 }} />
                 <Typography variant="body2" fontWeight={800}>Your account setup is complete.</Typography>
               </Stack>
             )}
@@ -201,9 +201,9 @@ export default function OnboardingWizard({ open, onClose, onStartSetupTasks, ste
                 textTransform: 'none',
                 fontWeight: 800,
                 borderRadius: 1.75,
-                bgcolor: '#16a34a',
+                bgcolor: '#41a541',
                 boxShadow: 'none',
-                '&:hover': { bgcolor: '#15803d', boxShadow: 'none' }
+                '&:hover': { bgcolor: '#347f34', boxShadow: 'none' }
               }}
             >
               View setup checklist

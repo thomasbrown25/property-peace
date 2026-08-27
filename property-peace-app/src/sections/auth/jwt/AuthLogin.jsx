@@ -471,20 +471,20 @@ export default function AuthLogin({ isDemo = false }) {
                           variant="contained"
                           startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                           sx={{
-                            bgcolor: '#22c55e',
+                            bgcolor: '#41a541',
                             color: '#ffffff',
                             textTransform: 'uppercase',
                             fontWeight: 600,
                             py: 1.5,
                             px: 6,
                             minWidth: 250,
-                            boxShadow: '0 12px 24px rgba(34, 197, 94, 0.24)',
+                            boxShadow: '0 12px 24px rgba(65, 165, 65, 0.24)',
                             '&:hover': {
-                              bgcolor: '#16a34a',
-                              boxShadow: '0 14px 28px rgba(22, 163, 74, 0.28)'
+                              bgcolor: '#41a541',
+                              boxShadow: '0 14px 28px rgba(65, 165, 65, 0.28)'
                             },
                             '&.Mui-disabled': {
-                              bgcolor: 'rgba(34, 197, 94, 0.55)',
+                              bgcolor: 'rgba(65, 165, 65, 0.55)',
                               color: '#ffffff'
                             }
                           }}

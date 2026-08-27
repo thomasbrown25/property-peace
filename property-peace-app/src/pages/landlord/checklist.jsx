@@ -521,12 +521,12 @@ export default function ChecklistPage() {
                       variant="outlined"
                       onClick={() => handleToggleItem(item.id, item.isChecked)}
                       sx={{
-                        bgcolor: item.isChecked ? alpha('#4caf50', 0.08) : 'transparent',
+                        bgcolor: item.isChecked ? alpha('#41a541', 0.08) : 'transparent',
                         borderColor: item.isChecked ? 'success.main' : 'divider',
                         transition: 'all 0.2s',
                         cursor: 'pointer',
                         '&:hover': {
-                          bgcolor: item.isChecked ? alpha('#4caf50', 0.12) : alpha('#000', 0.02)
+                          bgcolor: item.isChecked ? alpha('#41a541', 0.12) : alpha('#000', 0.02)
                         }
                       }}
                     >

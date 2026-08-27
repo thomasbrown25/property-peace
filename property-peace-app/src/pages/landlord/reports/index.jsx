@@ -38,7 +38,7 @@ import useEntitlement from 'hooks/useEntitlement';
 import { ADVANCED_REPORTING_FEATURE } from 'utils/entitlements';
 
 const NAVY = '#061e35';
-const GREEN = '#22c55e';
+const GREEN = '#41a541';
 
 const REPORTS = [
   {
@@ -68,7 +68,7 @@ const REPORTS = [
     title: 'Occupancy',
     description: 'Track occupied and vacant units over time and identify portfolio availability trends.',
     icon: <HomeOutlined />,
-    color: '#16a34a',
+    color: '#41a541',
     route: '/landlord/reports/occupancy',
     group: 'Portfolio',
     eyebrow: 'Core portfolio KPI',
@@ -236,7 +236,7 @@ function Hero({ locked, showUpgrade, presentationKind }) {
               variant="contained"
               startIcon={<RocketOutlined />}
               onClick={() => navigate('/landlord/settings?tab=subscription')}
-              sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
+              sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#41a541', color: '#fff' } }}
             >
               View subscription
             </Button>
@@ -246,7 +246,7 @@ function Hero({ locked, showUpgrade, presentationKind }) {
                 variant="contained"
                 startIcon={<FileDoneOutlined />}
                 onClick={() => navigate('/landlord/reports/tax')}
-                sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#16a34a', color: '#fff' } }}
+                sx={{ minHeight: 44, bgcolor: GREEN, color: NAVY, fontWeight: 750, '&:hover': { bgcolor: '#41a541', color: '#fff' } }}
               >
                 Open tax workspace
               </Button>

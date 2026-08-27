@@ -57,18 +57,13 @@ import {
   ToolOutlined
 } from '@ant-design/icons';
 import { formatPhoneInput } from 'utils/formatters';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import ManagementPageHeader from 'components/headers/ManagementPageHeader';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import { VendorCsvImportButton } from 'components/import/CsvImportButtons';
-import { darkHeaderOutlinedActionSx } from 'styles/darkHeaderActions.mjs';
 import { useDispatch, useSelector } from 'react-redux';
 import useAuth from 'hooks/useAuth';
 import { openSnackbar } from 'api/snackbar';
-import {
-  getVendors,
-  addVendor,
-  updateVendor,
-  deleteVendor
-} from 'store/vendor/vendor.action';
+import { getVendors, addVendor, updateVendor, deleteVendor } from 'store/vendor/vendor.action';
 import { selectVendors, selectVendorLoading } from 'store/vendor/vendor.selector';
 import { selectMaintenanceRequests } from 'store/maintenance/maintenance.selector';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
@@ -123,7 +118,14 @@ function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
       type="button"
       onClick={onClick}
       sx={{
-        width: '100%', minHeight: 112, p: 2, borderRadius: 2.5, font: 'inherit', color: 'text.primary', textAlign: 'left', cursor: 'pointer',
+        width: '100%',
+        minHeight: 112,
+        p: 2,
+        borderRadius: 2.5,
+        font: 'inherit',
+        color: 'text.primary',
+        textAlign: 'left',
+        cursor: 'pointer',
         border: `1px solid ${active ? alpha(color, 0.5) : alpha(theme.palette.divider, 0.16)}`,
         bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.14 : 0.055) : 'background.paper',
         boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha(NAVY, 0.05)}`,
@@ -134,7 +136,11 @@ function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
     >
       <Stack direction="row" justifyContent="space-between" spacing={1.5}>
         <Box minWidth={0}>
-          <Typography sx={{ fontSize: '0.72rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+          <Typography
+            sx={{ fontSize: '0.72rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
+          >
+            {label}
+          </Typography>
           <Typography sx={{ mt: 0.5, fontSize: '1.5rem', lineHeight: 1.15, fontWeight: 800 }}>{value}</Typography>
           <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
         </Box>
@@ -162,19 +168,33 @@ function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
         }
       }}
       sx={{
-        width: '100%', px: { xs: 1.5, md: 2 }, py: { xs: 1.6, md: 1.4 }, border: 0, bgcolor: 'transparent', color: 'text.primary',
-        textAlign: 'left', font: 'inherit', cursor: 'pointer', display: { xs: 'block', md: 'grid' },
+        width: '100%',
+        px: { xs: 1.5, md: 2 },
+        py: { xs: 1.6, md: 1.4 },
+        border: 0,
+        bgcolor: 'transparent',
+        color: 'text.primary',
+        textAlign: 'left',
+        font: 'inherit',
+        cursor: 'pointer',
+        display: { xs: 'block', md: 'grid' },
         gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(190px, 1.1fr) minmax(145px, .8fr) minmax(155px, .85fr) 44px',
-        gap: { xs: 1.25, md: 2 }, alignItems: 'center', borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
+        gap: { xs: 1.25, md: 2 },
+        alignItems: 'center',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.13)}`,
         '&:hover': { bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.07 : 0.025) },
         '&:focus-visible': { outline: `2px solid ${alpha(theme.palette.primary.main, 0.4)}`, outlineOffset: -2 }
       }}
     >
       <Stack direction="row" spacing={1.25} alignItems="center" minWidth={0}>
-        <Avatar sx={{ width: 42, height: 42, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', fontWeight: 750 }}>{initial}</Avatar>
+        <Avatar sx={{ width: 42, height: 42, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', fontWeight: 750 }}>
+          {initial}
+        </Avatar>
         <Box minWidth={0}>
           <Stack direction="row" spacing={0.7} alignItems="center" minWidth={0}>
-            <Typography fontWeight={720} noWrap>{vendor.name || 'Unnamed vendor'}</Typography>
+            <Typography fontWeight={720} noWrap>
+              {vendor.name || 'Unnamed vendor'}
+            </Typography>
             {!vendor.isActive && <Chip label="Inactive" size="small" sx={{ height: 20, fontSize: '0.64rem' }} />}
           </Stack>
           <Typography noWrap sx={{ mt: 0.25, fontSize: '0.74rem', color: 'text.secondary' }}>
@@ -186,37 +206,73 @@ function VendorRow({ vendor, openRequestCount, onEdit, onActions }) {
       <Box minWidth={0}>
         <Stack spacing={0.4}>
           {vendor.email && (
-            <Typography component="a" href={`mailto:${vendor.email}`} onClick={(event) => event.stopPropagation()} noWrap sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}>
-              <MailOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />{vendor.email}
+            <Typography
+              component="a"
+              href={`mailto:${vendor.email}`}
+              onClick={(event) => event.stopPropagation()}
+              noWrap
+              sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+            >
+              <MailOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />
+              {vendor.email}
             </Typography>
           )}
           {vendor.phone && (
-            <Typography component="a" href={`tel:${vendor.phone}`} onClick={(event) => event.stopPropagation()} sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}>
-              <PhoneOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />{formatPhoneInput(vendor.phone)}
+            <Typography
+              component="a"
+              href={`tel:${vendor.phone}`}
+              onClick={(event) => event.stopPropagation()}
+              sx={{ fontSize: '0.76rem', color: 'text.primary', textDecoration: 'none', '&:hover': { color: 'primary.main' } }}
+            >
+              <PhoneOutlined style={{ marginRight: 7, color: theme.palette.text.secondary }} />
+              {formatPhoneInput(vendor.phone)}
             </Typography>
           )}
-          {!hasContact && <Typography sx={{ fontSize: '0.75rem', fontWeight: 650, color: 'warning.dark' }}>Contact details needed</Typography>}
-          <Typography noWrap sx={{ fontSize: '0.69rem', color: 'text.secondary' }}>{address || 'Address not added'}</Typography>
+          {!hasContact && (
+            <Typography sx={{ fontSize: '0.75rem', fontWeight: 650, color: 'warning.dark' }}>Contact details needed</Typography>
+          )}
+          <Typography noWrap sx={{ fontSize: '0.69rem', color: 'text.secondary' }}>
+            {address || 'Address not added'}
+          </Typography>
         </Stack>
       </Box>
 
       <Box>
-        <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>{openRequestCount} open request{openRequestCount === 1 ? '' : 's'}</Typography>
-        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{vendor.maintenanceRequestCount || 0} requests all time</Typography>
+        <Typography sx={{ fontSize: '0.82rem', fontWeight: 700 }}>
+          {openRequestCount} open request{openRequestCount === 1 ? '' : 's'}
+        </Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>
+          {vendor.maintenanceRequestCount || 0} requests all time
+        </Typography>
       </Box>
 
       <Box>
         <Typography sx={{ fontSize: '0.82rem', fontWeight: 750 }}>{formatMoney(vendor.totalExpenseAmount)}</Typography>
-        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{vendor.expenseCount || 0} expense{vendor.expenseCount === 1 ? '' : 's'}</Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>
+          {vendor.expenseCount || 0} expense{vendor.expenseCount === 1 ? '' : 's'}
+        </Typography>
         <Stack direction="row" spacing={0.55} sx={{ mt: 0.55 }}>
-          {vendor.requires1099 && <Chip label="1099" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.64rem' }} />}
-          {vendor.licenseNumber && <Chip label="Licensed" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.64rem' }} />}
+          {vendor.requires1099 && (
+            <Chip label="1099" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.64rem' }} />
+          )}
+          {vendor.licenseNumber && (
+            <Chip label="Licensed" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.64rem' }} />
+          )}
         </Stack>
       </Box>
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
         <Tooltip title="Vendor actions">
-          <IconButton size="small" aria-label={`Actions for ${vendor.name}`} onClick={(event) => { event.stopPropagation(); onActions(event, vendor); }}><MoreOutlined /></IconButton>
+          <IconButton
+            size="small"
+            aria-label={`Actions for ${vendor.name}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onActions(event, vendor);
+            }}
+          >
+            <MoreOutlined />
+          </IconButton>
         </Tooltip>
       </Box>
     </Box>
@@ -261,7 +317,15 @@ export default function Vendors() {
     const counts = new Map();
     const openStatuses = ['reported', 'open', 'acknowledged', 'pending', 'scheduled', 'inprogress', 'in-progress', 'onhold', 'on-hold'];
     (maintenanceRequests || []).forEach((request) => {
-      if (!request.vendorId || !openStatuses.includes(String(request.status || '').toLowerCase().replace(/\s/g, ''))) return;
+      if (
+        !request.vendorId ||
+        !openStatuses.includes(
+          String(request.status || '')
+            .toLowerCase()
+            .replace(/\s/g, '')
+        )
+      )
+        return;
       counts.set(request.vendorId, (counts.get(request.vendorId) || 0) + 1);
     });
     return counts;
@@ -284,8 +348,19 @@ export default function Vendors() {
   const filteredVendors = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
     const list = (vendors || []).filter((vendor) => {
-      const searchable = [vendor.name, vendor.businessName, vendor.category, vendor.email, vendor.phone, vendor.city, vendor.state, vendor.specialties]
-        .filter(Boolean).join(' ').toLowerCase();
+      const searchable = [
+        vendor.name,
+        vendor.businessName,
+        vendor.category,
+        vendor.email,
+        vendor.phone,
+        vendor.city,
+        vendor.state,
+        vendor.specialties
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
       const openCount = openRequestCounts.get(vendor.id) || 0;
 
       if (query && !searchable.includes(query)) return false;
@@ -303,13 +378,16 @@ export default function Vendors() {
       if (sortBy === 'name') return String(a.name || '').localeCompare(String(b.name || ''));
       if (sortBy === 'spend') return Number(b.totalExpenseAmount || 0) - Number(a.totalExpenseAmount || 0);
       if (sortBy === 'recent') return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
-      return (openRequestCounts.get(b.id) || 0) - (openRequestCounts.get(a.id) || 0) || String(a.name || '').localeCompare(String(b.name || ''));
+      return (
+        (openRequestCounts.get(b.id) || 0) - (openRequestCounts.get(a.id) || 0) || String(a.name || '').localeCompare(String(b.name || ''))
+      );
     });
   }, [categoryFilter, openRequestCounts, searchTerm, sortBy, statusFilter, vendors, workloadFilter]);
 
   const pageCount = Math.ceil(filteredVendors.length / PAGE_SIZE);
   const paginatedVendors = filteredVendors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const hasFilters = searchTerm || statusFilter !== 'active' || categoryFilter !== 'all' || workloadFilter !== 'all' || sortBy !== 'workload';
+  const hasFilters =
+    searchTerm || statusFilter !== 'active' || categoryFilter !== 'all' || workloadFilter !== 'all' || sortBy !== 'workload';
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -510,16 +588,14 @@ export default function Vendors() {
               >
                 <UserOutlined style={{ fontSize: 26, color: theme.palette.primary.main }} />
               </Box>
-              <Typography variant="h5" fontWeight={700}>Basic Info</Typography>
-              <Typography variant="body2" color="text.secondary">Who is this vendor?</Typography>
+              <Typography variant="h5" fontWeight={700}>
+                Basic Info
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Who is this vendor?
+              </Typography>
             </Box>
-            <TextField
-              fullWidth
-              label="Vendor Name *"
-              value={formData.name}
-              onChange={(e) => field('name', e.target.value)}
-              autoFocus
-            />
+            <TextField fullWidth label="Vendor Name *" value={formData.name} onChange={(e) => field('name', e.target.value)} autoFocus />
             <TextField
               fullWidth
               label="Business Name"
@@ -556,52 +632,25 @@ export default function Vendors() {
               >
                 <ContactsOutlined style={{ fontSize: 26, color: theme.palette.info.main }} />
               </Box>
-              <Typography variant="h5" fontWeight={700}>Contact Info</Typography>
-              <Typography variant="body2" color="text.secondary">How do you reach this vendor?</Typography>
+              <Typography variant="h5" fontWeight={700}>
+                Contact Info
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                How do you reach this vendor?
+              </Typography>
             </Box>
-            <TextField
-              fullWidth
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => field('email', e.target.value)}
-            />
-            <TextField
-              fullWidth
-              label="Phone"
-              value={formData.phone}
-              onChange={(e) => field('phone', e.target.value)}
-            />
-            <TextField
-              fullWidth
-              label="Address"
-              value={formData.address}
-              onChange={(e) => field('address', e.target.value)}
-            />
+            <TextField fullWidth label="Email" type="email" value={formData.email} onChange={(e) => field('email', e.target.value)} />
+            <TextField fullWidth label="Phone" value={formData.phone} onChange={(e) => field('phone', e.target.value)} />
+            <TextField fullWidth label="Address" value={formData.address} onChange={(e) => field('address', e.target.value)} />
             <Grid container spacing={2}>
               <Grid size={{ xs: 5 }}>
-                <TextField
-                  fullWidth
-                  label="City"
-                  value={formData.city}
-                  onChange={(e) => field('city', e.target.value)}
-                />
+                <TextField fullWidth label="City" value={formData.city} onChange={(e) => field('city', e.target.value)} />
               </Grid>
               <Grid size={{ xs: 3 }}>
-                <TextField
-                  fullWidth
-                  label="State"
-                  value={formData.state}
-                  onChange={(e) => field('state', e.target.value)}
-                />
+                <TextField fullWidth label="State" value={formData.state} onChange={(e) => field('state', e.target.value)} />
               </Grid>
               <Grid size={{ xs: 4 }}>
-                <TextField
-                  fullWidth
-                  label="Zip"
-                  value={formData.zipCode}
-                  onChange={(e) => field('zipCode', e.target.value)}
-                />
+                <TextField fullWidth label="Zip" value={formData.zipCode} onChange={(e) => field('zipCode', e.target.value)} />
               </Grid>
             </Grid>
           </Stack>
@@ -626,8 +675,12 @@ export default function Vendors() {
               >
                 <DollarOutlined style={{ fontSize: 26, color: theme.palette.warning.main }} />
               </Box>
-              <Typography variant="h5" fontWeight={700}>Financial Details</Typography>
-              <Typography variant="body2" color="text.secondary">For tax reporting and compliance</Typography>
+              <Typography variant="h5" fontWeight={700}>
+                Financial Details
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                For tax reporting and compliance
+              </Typography>
             </Box>
             <TextField
               fullWidth
@@ -654,16 +707,14 @@ export default function Vendors() {
               }}
             >
               <Box>
-                <Typography variant="body2" fontWeight={600}>Requires 1099</Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  Requires 1099
+                </Typography>
                 <Typography variant="caption" color="text.secondary">
                   Vendor must receive a 1099 form
                 </Typography>
               </Box>
-              <Switch
-                checked={formData.requires1099}
-                onChange={(e) => field('requires1099', e.target.checked)}
-                color="primary"
-              />
+              <Switch checked={formData.requires1099} onChange={(e) => field('requires1099', e.target.checked)} color="primary" />
             </Box>
             <TextField
               fullWidth
@@ -712,8 +763,12 @@ export default function Vendors() {
               >
                 <FileTextOutlined style={{ fontSize: 26, color: theme.palette.success.main }} />
               </Box>
-              <Typography variant="h5" fontWeight={700}>Review</Typography>
-              <Typography variant="body2" color="text.secondary">Confirm vendor details before saving</Typography>
+              <Typography variant="h5" fontWeight={700}>
+                Review
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Confirm vendor details before saving
+              </Typography>
             </Box>
             <Card variant="outlined">
               <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
@@ -742,31 +797,15 @@ export default function Vendors() {
 
   return (
     <Box sx={{ pb: 3 }}>
-      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Vendors' }]} />
-      </Box>
-
-      <Box
-        sx={{
-          mb: 2.5,
-          p: { xs: 2, md: 2.75 },
-          borderRadius: 3,
-          color: '#fff',
-          background: `linear-gradient(120deg, ${NAVY} 0%, #0b3558 100%)`,
-          boxShadow: `0 16px 38px ${alpha(NAVY, 0.18)}`
-        }}
-      >
-        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
-          <Box>
-            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Vendors</Typography>
-            <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>
-              Keep your contractor network ready, reachable, and connected to the work in progress.
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1}>
+      <ManagementPageHeader
+        title="Vendors"
+        description="Keep your contractor network ready, reachable, and connected to the work in progress."
+        actions={
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
             <VendorCsvImportButton
               buttonProps={{
-                sx: darkHeaderOutlinedActionSx
+                variant: 'outlined',
+                sx: managementPageHeaderActionSx
               }}
             />
             <Button
@@ -774,13 +813,13 @@ export default function Vendors() {
               color="success"
               startIcon={<PlusOutlined />}
               onClick={() => handleOpenDrawer()}
-              sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
+              sx={managementPageHeaderActionSx}
             >
               Add vendor
             </Button>
           </Stack>
-        </Stack>
-      </Box>
+        }
+      />
 
       <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 6, lg: 3 }}>
@@ -791,7 +830,10 @@ export default function Vendors() {
             icon={<CheckCircleOutlined />}
             color={theme.palette.success.main}
             active={statusFilter === 'active' && workloadFilter === 'all'}
-            onClick={() => { setStatusFilter('active'); setWorkloadFilter('all'); }}
+            onClick={() => {
+              setStatusFilter('active');
+              setWorkloadFilter('all');
+            }}
           />
         </Grid>
         <Grid size={{ xs: 6, lg: 3 }}>
@@ -802,7 +844,7 @@ export default function Vendors() {
             icon={<ToolOutlined />}
             color={theme.palette.info.main}
             active={workloadFilter === 'assigned'}
-            onClick={() => setWorkloadFilter((value) => value === 'assigned' ? 'all' : 'assigned')}
+            onClick={() => setWorkloadFilter((value) => (value === 'assigned' ? 'all' : 'assigned'))}
           />
         </Grid>
         <Grid size={{ xs: 6, lg: 3 }}>
@@ -813,7 +855,7 @@ export default function Vendors() {
             icon={<DollarOutlined />}
             color={theme.palette.primary.main}
             active={sortBy === 'spend'}
-            onClick={() => setSortBy((value) => value === 'spend' ? 'workload' : 'spend')}
+            onClick={() => setSortBy((value) => (value === 'spend' ? 'workload' : 'spend'))}
           />
         </Grid>
         <Grid size={{ xs: 6, lg: 3 }}>
@@ -824,15 +866,18 @@ export default function Vendors() {
             icon={<ExclamationCircleOutlined />}
             color={theme.palette.warning.main}
             active={workloadFilter === 'contact'}
-            onClick={() => setWorkloadFilter((value) => value === 'contact' ? 'all' : 'contact')}
+            onClick={() => setWorkloadFilter((value) => (value === 'contact' ? 'all' : 'contact'))}
           />
         </Grid>
       </Grid>
 
       <Box
         sx={{
-          bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3,
-          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`, overflow: 'hidden'
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
+          overflow: 'hidden'
         }}
       >
         <Box sx={{ p: { xs: 1.5, md: 2 } }}>
@@ -842,27 +887,59 @@ export default function Vendors() {
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search vendors, categories, contact details, or location"
               size="small"
-              startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+              startAdornment={
+                <InputAdornment position="start">
+                  <SearchOutlined />
+                </InputAdornment>
+              }
               sx={{ flex: 1, minWidth: { md: 280 }, borderRadius: 1.75 }}
             />
             <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, md: 0 } }}>
-              <Select size="small" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 120, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 120, borderRadius: 1.75 }}
+              >
                 <MenuItem value="active">Active</MenuItem>
                 <MenuItem value="inactive">Inactive</MenuItem>
                 <MenuItem value="all">All status</MenuItem>
               </Select>
-              <Select size="small" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 150, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 150, borderRadius: 1.75 }}
+              >
                 <MenuItem value="all">All categories</MenuItem>
-                {categories.map((category) => <MenuItem key={category} value={category}>{category}</MenuItem>)}
+                {categories.map((category) => (
+                  <MenuItem key={category} value={category}>
+                    {category}
+                  </MenuItem>
+                ))}
               </Select>
-              <Select size="small" value={workloadFilter} onChange={(event) => setWorkloadFilter(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 158, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={workloadFilter}
+                onChange={(event) => setWorkloadFilter(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 158, borderRadius: 1.75 }}
+              >
                 <MenuItem value="all">All workload</MenuItem>
                 <MenuItem value="assigned">Working now</MenuItem>
                 <MenuItem value="available">No open work</MenuItem>
                 <MenuItem value="contact">Missing contact</MenuItem>
                 <MenuItem value="1099">Requires 1099</MenuItem>
               </Select>
-              <Select size="small" value={sortBy} onChange={(event) => setSortBy(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 155, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 155, borderRadius: 1.75 }}
+              >
                 <MenuItem value="workload">Sort: Workload</MenuItem>
                 <MenuItem value="name">Sort: Name</MenuItem>
                 <MenuItem value="spend">Sort: Spend</MenuItem>
@@ -874,15 +951,33 @@ export default function Vendors() {
             <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
               {filteredVendors.length} of {vendors.length} vendors
             </Typography>
-            {hasFilters && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
+            {hasFilters && (
+              <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>
+                Reset view
+              </Button>
+            )}
           </Stack>
         </Box>
 
         <Divider />
 
-        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(190px, 1.1fr) minmax(145px, .8fr) minmax(155px, .85fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'grid' },
+            gridTemplateColumns: 'minmax(230px, 1.45fr) minmax(190px, 1.1fr) minmax(145px, .8fr) minmax(155px, .85fr) 44px',
+            gap: 2,
+            px: 2,
+            py: 1.15,
+            bgcolor: alpha(theme.palette.primary.main, 0.025)
+          }}
+        >
           {['Vendor', 'Contact', 'Workload', 'Spend & compliance', ''].map((label) => (
-            <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+            <Typography
+              key={label || 'actions'}
+              sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
+            >
+              {label}
+            </Typography>
           ))}
         </Box>
 
@@ -893,16 +988,36 @@ export default function Vendors() {
           </Stack>
         ) : vendors.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
-            <Avatar sx={{ width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}><ShopOutlined /></Avatar>
-            <Typography variant="h6" fontWeight={700}>Build your vendor network</Typography>
-            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>Add contractors and service providers so maintenance work, contact details, expenses, and tax information stay connected.</Typography>
-            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => handleOpenDrawer()} sx={{ textTransform: 'none' }}>Add your first vendor</Button>
+            <Avatar sx={{ width: 52, height: 52, bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main' }}>
+              <ShopOutlined />
+            </Avatar>
+            <Typography variant="h6" fontWeight={700}>
+              Build your vendor network
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>
+              Add contractors and service providers so maintenance work, contact details, expenses, and tax information stay connected.
+            </Typography>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<PlusOutlined />}
+              onClick={() => handleOpenDrawer()}
+              sx={{ textTransform: 'none' }}
+            >
+              Add your first vendor
+            </Button>
           </Stack>
         ) : filteredVendors.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
-            <Typography variant="h6" fontWeight={700}>No vendors match this view</Typography>
-            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>Try a different search or reset the vendor filters.</Typography>
-            <Button variant="outlined" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset filters</Button>
+            <Typography variant="h6" fontWeight={700}>
+              No vendors match this view
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+              Try a different search or reset the vendor filters.
+            </Typography>
+            <Button variant="outlined" onClick={clearFilters} sx={{ textTransform: 'none' }}>
+              Reset filters
+            </Button>
           </Stack>
         ) : (
           paginatedVendors.map((vendor) => (
@@ -927,15 +1042,33 @@ export default function Vendors() {
       </Box>
 
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeVendorMenu}>
-        <MenuItem onClick={() => { const vendor = menuVendor; closeVendorMenu(); if (vendor) handleOpenDrawer(vendor); }}><EditOutlined style={{ marginRight: 10 }} />Edit vendor</MenuItem>
+        <MenuItem
+          onClick={() => {
+            const vendor = menuVendor;
+            closeVendorMenu();
+            if (vendor) handleOpenDrawer(vendor);
+          }}
+        >
+          <EditOutlined style={{ marginRight: 10 }} />
+          Edit vendor
+        </MenuItem>
         <MenuItem onClick={handleToggleActive}>
-          <CheckCircleOutlined style={{ marginRight: 10 }} />{menuVendor?.isActive ? 'Mark inactive' : 'Reactivate vendor'}
+          <CheckCircleOutlined style={{ marginRight: 10 }} />
+          {menuVendor?.isActive ? 'Mark inactive' : 'Reactivate vendor'}
         </MenuItem>
         <MenuItem
           sx={{ color: 'error.main' }}
-          onClick={() => { const vendor = menuVendor; closeVendorMenu(); if (vendor) { setSelectedVendor(vendor); setDeleteDialogOpen(true); } }}
+          onClick={() => {
+            const vendor = menuVendor;
+            closeVendorMenu();
+            if (vendor) {
+              setSelectedVendor(vendor);
+              setDeleteDialogOpen(true);
+            }
+          }}
         >
-          <DeleteOutlined style={{ marginRight: 10 }} />Delete vendor
+          <DeleteOutlined style={{ marginRight: 10 }} />
+          Delete vendor
         </MenuItem>
       </Menu>
 
@@ -1032,12 +1165,7 @@ export default function Vendors() {
               {saving ? 'Saving...' : selectedVendor ? 'Update Vendor' : 'Add Vendor'}
             </Button>
           ) : (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={saving}
-              sx={{ textTransform: 'none', px: 3 }}
-            >
+            <Button variant="contained" onClick={handleNext} disabled={saving} sx={{ textTransform: 'none', px: 3 }}>
               Next
             </Button>
           )}
@@ -1048,9 +1176,7 @@ export default function Vendors() {
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
         <DialogTitle>Delete Vendor</DialogTitle>
         <DialogContent>
-          <Typography>
-            Are you sure you want to delete {selectedVendor?.name}? This action cannot be undone.
-          </Typography>
+          <Typography>Are you sure you want to delete {selectedVendor?.name}? This action cannot be undone.</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>

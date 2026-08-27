@@ -14,7 +14,7 @@ import { DRAWER_WIDTH } from 'config';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 import useConfig from 'hooks/useConfig';
 
-const DEFAULT_LIGHT_DRAWER_BACKGROUND = '#061e35';
+const DEFAULT_LIGHT_DRAWER_BACKGROUND = '#ffffff';
 
 // ==============================|| MAIN LAYOUT - DRAWER ||============================== //
 
@@ -55,9 +55,9 @@ export default function MainDrawer({ window }) {
               sx: {
                 boxSizing: 'border-box',
                 width: DRAWER_WIDTH,
-                borderRight: 'none',
-                boxShadow: 'inherit',
-                background: (theme) => (theme.palette.mode === 'dark' ? theme.palette.background.default : lightDrawerBackground || theme.palette.primary.main)
+                borderRight: (theme) => `1px solid ${theme.palette.divider}`,
+                boxShadow: '4px 0 18px rgba(6, 30, 53, 0.1)',
+                background: 'common.white'
               }
             }
           }}

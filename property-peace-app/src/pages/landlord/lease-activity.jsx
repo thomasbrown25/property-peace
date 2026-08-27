@@ -23,11 +23,11 @@ import AnimateIn from 'components/AnimateIn';
 // ─── Item type config ─────────────────────────────────────────────────────────
 
 const TYPE = {
-  payment:     { label: 'Payment',     color: '#16a34a', icon: <DollarOutlined /> },
+  payment:     { label: 'Payment',     color: '#41a541', icon: <DollarOutlined /> },
   deposit:     { label: 'Deposit',     color: '#1464CC', icon: <DollarOutlined /> },
   lease:       { label: 'Lease',       color: '#7c3aed', icon: <FileTextOutlined /> },
   maintenance: { label: 'Maintenance', color: '#d97706', icon: <ToolOutlined /> },
-  fee:         { label: 'Fee',         color: '#16a34a', icon: <ExclamationCircleOutlined /> },
+  fee:         { label: 'Fee',         color: '#41a541', icon: <ExclamationCircleOutlined /> },
   signed:      { label: 'Signed',      color: '#0891b2', icon: <CheckCircleOutlined /> },
 };
 
@@ -77,7 +77,7 @@ function ActivityItem({ item, isLast }) {
               {format(item.date, 'MMM d, yyyy')} · {format(item.date, 'h:mm a')}
             </Typography>
             {item.amount != null && (
-              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#16a34a', ml: 'auto !important', fontSize: '0.95rem' }}>
+              <Typography variant="subtitle2" fontWeight={700} sx={{ color: '#41a541', ml: 'auto !important', fontSize: '0.95rem' }}>
                 +{formatCurrency(item.amount)}
               </Typography>
             )}

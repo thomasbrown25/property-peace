@@ -69,7 +69,7 @@ export default function PortfolioHealthSummary({ properties, summary, totalExpen
   const warningColor = theme.palette.warning.main;
   const textPrimary = theme.palette.text.primary;
   const brandNavy = '#061e35';
-  const brandGreen = '#22c55e';
+  const brandGreen = '#41a541';
 
   const metrics = [
     {

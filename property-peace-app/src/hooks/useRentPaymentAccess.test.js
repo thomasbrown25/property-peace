@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 import {
   createRentPaymentAccessRequestLifecycle,
+  loadRentPaymentAccessState,
   makeRentPaymentAccessScopeKey
 } from '../utils/rentPaymentAccess.js';
 
@@ -59,13 +60,39 @@ test('rent payment access lifecycle clears errors, ignores unmount completions, 
   assert.equal(updates.length, countAtDispose);
 });
 
-test('useRentPaymentAccess fetches aggregate and explicit action decisions with abort signals', async () => {
-  const source = await readFile(new URL('./useRentPaymentAccess.js', import.meta.url), 'utf8');
-  assert.match(source, /getRentPaymentActionReadiness\('Configure', signal\)/);
-  assert.match(source, /getRentPaymentActionReadiness\('Pay', signal\)/);
-  assert.match(source, /getRentPaymentFeatureReadiness\(signal\)/);
-  assert.doesNotMatch(source, /canInvoke === true/);
-  assert.match(source, /setRequestError|reportError/);
+test('approved access loads aggregate and explicit action decisions with one abort signal', async () => {
+  const signal = new AbortController().signal;
+  const calls = [];
+
+  const result = await loadRentPaymentAccessState({
+    signal,
+    loadAccess: async (receivedSignal) => {
+      calls.push(['access', receivedSignal]);
+      return { data: { organizationId: 701, status: 'Approved' } };
+    },
+    loadFeatureReadiness: async (receivedSignal) => {
+      calls.push(['aggregate', receivedSignal]);
+      return { data: [{ feature: 'OnlineRentCollection', providerConfigured: true }] };
+    },
+    loadActionReadiness: async (action, receivedSignal) => {
+      calls.push([action, receivedSignal]);
+      return { data: { action, allowed: action === 'Configure', providerEnabled: true, blockers: [] } };
+    },
+    selectFeatureReadiness: (items) => items[0]
+  });
+
+  assert.deepEqual(calls, [
+    ['access', signal],
+    ['aggregate', signal],
+    ['Configure', signal],
+    ['Pay', signal]
+  ]);
+  assert.deepEqual(result, {
+    access: { organizationId: 701, status: 'Approved' },
+    readiness: { feature: 'OnlineRentCollection', providerConfigured: true },
+    configureReadiness: { action: 'Configure', allowed: true, providerEnabled: true, blockers: [] },
+    payReadiness: { action: 'Pay', allowed: false, providerEnabled: true, blockers: [] }
+  });
 });
 test('rent payment action readiness API preserves the requested action in an authenticated URL', async () => {
   const source = await readFile(new URL('../api/rentPaymentAccess.js', import.meta.url), 'utf8');

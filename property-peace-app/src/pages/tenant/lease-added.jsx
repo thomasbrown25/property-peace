@@ -128,7 +128,7 @@ export default function LeaseAddedPage() {
           <CheckCircleOutlined
             style={{
               fontSize: 64,
-              color: '#4caf50',
+              color: '#41a541',
               marginBottom: 24
             }}
           />

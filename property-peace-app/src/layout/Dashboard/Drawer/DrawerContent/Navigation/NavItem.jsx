@@ -3,7 +3,7 @@ import { Link, useLocation, matchPath } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
 // material-ui
-import { useMediaQuery, Avatar, Chip, ListItemButton, ListItemIcon, ListItemText, Typography, Box, useTheme, Tooltip, Popper, Paper, ClickAwayListener, List, alpha } from '@mui/material';
+import { useMediaQuery, Avatar, Chip, ListItemButton, ListItemIcon, ListItemText, Typography, Box, Tooltip, Popper, Paper, ClickAwayListener, List, alpha } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 // project imports
@@ -11,11 +11,12 @@ import Dot from 'components/@extended/Dot';
 import IconButton from 'components/@extended/IconButton';
 import Transitions from 'components/@extended/Transitions';
 import SimpleBar from 'components/third-party/SimpleBar';
+import { getNavigationItemVerticalPadding } from './navigationItemSpacing';
 
 // third-party
 import { FormattedMessage } from 'react-intl';
 
-import { MenuOrientation, ThemeMode, NavActionType } from 'config';
+import { MenuOrientation, NavActionType } from 'config';
 import useConfig from 'hooks/useConfig';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
@@ -47,7 +48,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
 
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
 
-  const { mode, menuOrientation } = useConfig();
+  const { menuOrientation } = useConfig();
   const [dropdownAnchor, setDropdownAnchor] = useState(null);
   const dropdownOpen = Boolean(dropdownAnchor);
 
@@ -91,7 +92,6 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
   };
 
   const Icon = item.icon;
-  const theme = useTheme();
   const { pathname } = useLocation();
   const isSelected = !!matchPath({ path: item?.link ? item.link : item.url, end: false }, pathname);
 
@@ -109,13 +109,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
     }
   }, [selectedItems, item.id, item.hasDropdown, dropdownOpen]);
 
-  const isDark = theme.palette.mode === 'dark';
-  const textColor = 'rgba(255, 255, 255, 0.9)';
-  const iconColor = 'rgba(255, 255, 255, 0.78)';
-  const iconSelectedColor = '#fff';
+  const textColor = '#061e35';
+  const iconColor = '#061e35';
+  const iconSelectedColor = '#061e35';
   
   // Get primary color as hex for TwoTone icons
-  const primaryColorHex = isDark ? theme.palette.primary.main : '#fff';
+  const primaryColorHex = '#061e35';
 
   // Check if icon name contains "TwoTone" to apply twoToneColor prop
   const iconName = item.icon?.name || item.icon?.displayName || '';
@@ -151,20 +150,19 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
               target={itemTarget}
               disabled={item.disabled}
               selected={isSelected || dropdownOpen}
-              sx={(theme) => {
-                const dark = theme.palette.mode === 'dark';
-                const hoverBg = dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.12)';
-                const selectedBg = dark ? alpha(theme.palette.primary.main, 0.22) : 'rgba(255,255,255,0.18)';
-                const selectedColor = dark ? theme.palette.primary.light : '#fff';
+              sx={() => {
+                const hoverBg = alpha('#061e35', 0.06);
+                const selectedBg = alpha('#061e35', 0.1);
+                const selectedColor = '#061e35';
                 return {
                   zIndex: 1201,
                   pl: drawerOpen ? `${level * 28}px` : 1.5,
-                  py: !drawerOpen && level === 1 ? 0.75 : 0.5,
+                  py: getNavigationItemVerticalPadding({ drawerOpen, level }),
                   ...(drawerOpen && {
                     '&:hover': { bgcolor: hoverBg },
                     '&.Mui-selected': {
                       bgcolor: selectedBg,
-                      borderRight: `2px solid ${dark ? theme.palette.primary.main : '#fff'}`,
+                      borderRight: '2px solid #061e35',
                       color: selectedColor,
                       '&:hover': { color: selectedColor, bgcolor: selectedBg },
                       '& .MuiListItemIcon-root': { color: `${selectedColor} !important` }
@@ -192,12 +190,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                       height: 36,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' }
+                      '&:hover': { bgcolor: alpha('#061e35', 0.06) }
                     }),
                     ...(!drawerOpen &&
                       isSelected && {
-                        bgcolor: isDark ? alpha(theme.palette.primary.main, 0.22) : 'rgba(255,255,255,0.18)',
-                        '&:hover': { bgcolor: isDark ? alpha(theme.palette.primary.main, 0.22) : 'rgba(255,255,255,0.18)' }
+                        bgcolor: alpha('#061e35', 0.1),
+                        '&:hover': { bgcolor: alpha('#061e35', 0.1) }
                       })
                   })}
                 >
@@ -207,7 +205,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
             {(drawerOpen || (!drawerOpen && level !== 1)) && (
               <ListItemText
                 primary={
-                  <Typography variant="h6" sx={{ color: isSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.8125rem' }}>
+                  <Typography variant="h6" sx={{ color: isSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                     {item.title && <FormattedMessage id={item.title} defaultMessage={item.title} />}
                   </Typography>
                 }
@@ -269,7 +267,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                                 }}
                                 sx={(theme) => ({
                                   pl: 2,
-                                  py: 0.75,
+                                  py: 1,
                                   '&:hover': {
                                     bgcolor: 'primary.lighter',
                                     ...theme.applyStyles('dark', { bgcolor: 'divider' })
@@ -287,7 +285,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                                 })}
                               >
                                 {DropdownIcon && (
-                                  <ListItemIcon sx={{ minWidth: 36, color: 'primary.main' }}>
+                                  <ListItemIcon sx={{ minWidth: 36, color: '#061e35' }}>
                                     <DropdownIcon 
                                       style={{ fontSize: '1rem' }}
                                       {...(isDropdownTwoToneIcon && { twoToneColor: primaryColorHex })}
@@ -296,7 +294,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                                 )}
                                 <ListItemText
                                   primary={
-                                    <Typography variant="body2" sx={{ color: dropdownItemSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.8125rem' }}>
+                                    <Typography variant="body2" sx={{ color: dropdownItemSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                                       {dropdownItem.title && <FormattedMessage id={dropdownItem.title} />}
                                     </Typography>
                                   }
@@ -342,9 +340,9 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                     height: 20,
                     mr: -1,
                     ml: 1,
-                    color: 'secondary.dark',
-                    borderColor: isSelected ? 'primary.light' : 'secondary.light',
-                    '&:hover': { borderColor: isSelected ? 'primary.main' : 'secondary.main' }
+                    color: '#061e35',
+                    borderColor: alpha('#061e35', 0.24),
+                    '&:hover': { borderColor: '#061e35' }
                   }}
                 >
                   <ActionIcon style={{ fontSize: '0.625rem' }} />
@@ -363,6 +361,8 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
           onClick={() => itemHandler()}
           sx={{
             zIndex: 1201,
+            color: '#061e35',
+            '&.Mui-selected': { color: '#061e35' },
             ...(isParents && { p: 1, mr: 1 })
           }}
         >
@@ -398,7 +398,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
           {!itemIcon && (
             <ListItemIcon
               sx={{
-                color: isSelected ? 'primary.main' : 'secondary.dark',
+                color: '#061e35',
                 ...(!drawerOpen && {
                   borderRadius: 1.5,
                   alignItems: 'center',
@@ -408,12 +408,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                 ...(!drawerOpen && isSelected && { bgcolor: 'transparent', '&:hover': { bgcolor: 'transparent' } })
               }}
             >
-              <Dot size={4} color={isSelected ? 'primary' : 'secondary'} />
+              <Dot size={4} sx={{ bgcolor: '#061e35' }} />
             </ListItemIcon>
           )}
           <ListItemText
             primary={
-              <Typography variant="h6" sx={{ color: isSelected ? 'primary.main' : '#595959', fontFamily: "'Inter', sans-serif", fontSize: '0.8125rem' }}>
+              <Typography variant="h6" sx={{ color: '#061e35', fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                 {item.title && <FormattedMessage id={item.title} />}
               </Typography>
             }

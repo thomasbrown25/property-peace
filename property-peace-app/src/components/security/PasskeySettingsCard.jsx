@@ -120,7 +120,7 @@ export default function PasskeySettingsCard({ embedded = false }) {
       sx={{ p: embedded ? 0 : 3, bgcolor: embedded ? 'transparent' : (theme) => alpha(theme.palette.background.paper, 0.6) }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-        <KeyOutlined style={{ fontSize: 20, color: '#16a34a' }} />
+        <KeyOutlined style={{ fontSize: 20, color: '#41a541' }} />
         <Typography variant="h6" fontWeight="bold">
           Passkeys
         </Typography>
@@ -193,7 +193,7 @@ export default function PasskeySettingsCard({ embedded = false }) {
               startIcon={creating ? <CircularProgress size={18} color="inherit" /> : <PlusOutlined />}
               disabled={!isSupported || creating}
               onClick={createPasskey}
-              sx={{ bgcolor: '#16a34a', '&:hover': { bgcolor: '#15803d' } }}
+              sx={{ bgcolor: '#41a541', '&:hover': { bgcolor: '#347f34' } }}
             >
               {creating ? 'Adding…' : 'Add passkey'}
             </Button>

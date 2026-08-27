@@ -497,7 +497,7 @@ export default function PaymentAddWorkflow() {
                                 justifyContent: 'center'
                               }}
                             >
-                              <UserOutlined style={{ fontSize: 16, color: '#52c41a' }} />
+                              <UserOutlined style={{ fontSize: 16, color: '#41a541' }} />
                             </Box>
                             <Typography variant="body2" fontWeight={500}>
                               {tenant.firstname} {tenant.lastname}
@@ -594,7 +594,7 @@ export default function PaymentAddWorkflow() {
                                 justifyContent: 'center'
                               }}
                             >
-                              <UserOutlined style={{ fontSize: 16, color: '#52c41a' }} />
+                              <UserOutlined style={{ fontSize: 16, color: '#41a541' }} />
                             </Box>
                             <Typography variant="body2" fontWeight={500}>
                               {tenant.firstname} {tenant.lastname}
@@ -748,7 +748,7 @@ export default function PaymentAddWorkflow() {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <DollarOutlined style={{ fontSize: 20, color: '#52c41a' }} />
+                    <DollarOutlined style={{ fontSize: 20, color: '#41a541' }} />
                   </InputAdornment>
                 )
               }}

@@ -126,7 +126,7 @@ export default function OrganizationInviteAccept() {
           bgcolor: '#f7faf8',
           border: '1px solid',
           borderColor: '#e1e9e4',
-          borderLeft: '4px solid #22c55e',
+          borderLeft: '4px solid #41a541',
           borderRadius: 2
         }}
       >

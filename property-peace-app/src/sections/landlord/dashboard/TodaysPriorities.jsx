@@ -188,7 +188,7 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
           : 'none',
         bgcolor: 'background.paper',
         overflow: 'hidden',
-        height: '100%',
+        maxHeight: { xs: 340, sm: 360 },
         display: 'flex',
         flexDirection: 'column',
         '&:hover': {
@@ -220,7 +220,15 @@ export default function TodaysPriorities({ properties = [], summary = {}, allPay
         </Stack>
       </Box>
 
-      <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+      <CardContent
+        sx={{
+          p: 0,
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          '&:last-child': { pb: 0 }
+        }}
+      >
         {priorities.length === 0 ? (
           <Box sx={{ minHeight: 200, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: 1.5 }}>
             <Box sx={{ display: 'inline-flex', p: 1.5, borderRadius: '50%', bgcolor: alpha(theme.palette.success.main, 0.08) }}>

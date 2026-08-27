@@ -13,10 +13,9 @@ import {
   createRentPaymentAccessRequestLifecycle,
   getRentPaymentAccessPresentation,
   getRentPaymentAccessVisibleState,
+  loadRentPaymentAccessState,
   makeRentPaymentAccessScopeKey
 } from 'utils/rentPaymentAccess';
-
-const unwrap = (response) => response?.data ?? response;
 
 export default function useRentPaymentAccess() {
   const { currentOrganization, loading: organizationLoading } = useOrganization();
@@ -41,21 +40,14 @@ export default function useRentPaymentAccess() {
     }
     return lifecycleRef.current.begin({
       scopeKey,
-      request: async ({ signal }) => {
-        const [accessResponse, aggregateResponse, configureResponse, payResponse] = await Promise.all([
-          getRentPaymentAccess(signal),
-          getRentPaymentFeatureReadiness(signal),
-          getRentPaymentActionReadiness('Configure', signal),
-          getRentPaymentActionReadiness('Pay', signal)
-        ]);
-        const readinessItems = unwrap(aggregateResponse);
-        return {
-          access: unwrap(accessResponse),
-          readiness: findFeatureReadiness(readinessItems, FEATURE_KEYS.onlineRentCollection) ?? null,
-          configureReadiness: unwrap(configureResponse),
-          payReadiness: unwrap(payResponse)
-        };
-      }
+      request: ({ signal }) =>
+        loadRentPaymentAccessState({
+          signal,
+          loadAccess: getRentPaymentAccess,
+          loadFeatureReadiness: getRentPaymentFeatureReadiness,
+          loadActionReadiness: getRentPaymentActionReadiness,
+          selectFeatureReadiness: (items) => findFeatureReadiness(items, FEATURE_KEYS.onlineRentCollection)
+        })
     });
   }, [canFetch, scopeKey]);
 
@@ -92,7 +84,8 @@ export default function useRentPaymentAccess() {
     access: visible.access,
     aggregateReadiness: visible.readiness,
     configureReadiness: visible.configureReadiness,
-    payReadiness: visible.payReadiness
+    payReadiness: visible.payReadiness,
+    error: visible.error
   });
 
   return { access: visible.access, readiness: visible.readiness, presentation, loading: visible.loading, requesting, error: visible.error, requestAccess, refresh };

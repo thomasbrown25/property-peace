@@ -74,10 +74,11 @@ export default function Header() {
     color: 'inherit',
     elevation: 0,
     sx: (theme) => ({
-      bgcolor: 'background.default',
-      color: 'text.primary',
+      bgcolor: 'common.white',
+      color: '#061e35',
       borderBottom: '1px solid',
       borderBottomColor: 'divider',
+      boxShadow: '0 4px 14px rgba(6, 30, 53, 0.08)',
       zIndex: 1200,
       width: isHorizontal
         ? '100%'

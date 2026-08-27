@@ -200,7 +200,7 @@ export default function NavGroup({
           case 'item':
             return <NavItem key={menu.id} item={menu} level={1} setSelectedItems={setSelectedItems} selectedItems={selectedItems} />;
           case 'divider':
-            return <Divider key={menu.id} sx={{ my: 0.5, borderColor: (theme) => (theme.palette.mode === 'dark' ? 'divider' : 'rgba(255,255,255,0.18)') }} />;
+            return <Divider key={menu.id} sx={{ my: 0.5, borderColor: 'rgba(6,30,53,0.14)' }} />;
           default:
             return (
               <Typography key={menu.id} variant="h6" color="error" align="center">
@@ -231,7 +231,7 @@ export default function NavGroup({
       case 'item':
         return <NavItem key={menu.id} item={menu} level={1} setSelectedItems={setSelectedItems} selectedItems={selectedItems} />;
       case 'divider':
-        return <Divider key={menu.id || `divider-${index}`} sx={{ my: 0.5, borderColor: (theme) => (theme.palette.mode === 'dark' ? 'divider' : 'rgba(255,255,255,0.18)') }} />;
+        return <Divider key={menu.id || `divider-${index}`} sx={{ my: 0.5, borderColor: 'rgba(6,30,53,0.14)' }} />;
       default:
         return (
           <Typography key={menu?.id} variant="h6" color="error" align="center">
@@ -253,12 +253,12 @@ export default function NavGroup({
                 drawerOpen && (
                   <Box sx={{ pl: 3, mb: 1.5 }}>
                     {item.title && (
-                      <Typography variant="subtitle1" sx={(theme) => ({ color: theme.palette.mode === 'dark' ? 'text.secondary' : 'rgba(255,255,255,0.74)', fontFamily: "'Inter', sans-serif", fontSize: '0.8125rem', fontWeight: 600 })}>
+                      <Typography variant="subtitle1" sx={{ color: 'rgba(6,30,53,0.72)', fontFamily: "'Inter', sans-serif", fontSize: '0.8125rem', fontWeight: 600 }}>
                         <FormattedMessage id={item.title} />
                       </Typography>
                     )}
                     {item.caption && (
-                      <Typography variant="caption" sx={(theme) => ({ color: theme.palette.mode === 'dark' ? 'text.secondary' : 'rgba(255,255,255,0.68)', fontFamily: "'Inter', sans-serif" })}>
+                      <Typography variant="caption" sx={{ color: 'rgba(6,30,53,0.64)', fontFamily: "'Inter', sans-serif" }}>
                         <FormattedMessage id={item.caption} />
                       </Typography>
                     )}

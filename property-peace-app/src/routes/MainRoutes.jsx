@@ -14,7 +14,7 @@ import { buildLegacyFinancesRedirect } from './legacyFinancesRedirect';
 
 // landlord pages (lazy-loaded)
 const Dashboard = Loadable(lazy(() => import('pages/landlord/dashboard')));
-const Calendar = Loadable(lazy(() => import('pages/landlord/calendar')));
+
 const Properties = Loadable(lazy(() => import('pages/landlord/properties')));
 const Tenants = Loadable(lazy(() => import('pages/landlord/tenants')));
 const Property = Loadable(lazy(() => import('pages/landlord/property')));
@@ -218,11 +218,7 @@ const MainRoutes = {
         },
         {
           path: 'landlord/calendar',
-          element: (
-            <SubscriptionPausedGuard>
-              <Calendar />
-            </SubscriptionPausedGuard>
-          )
+          element: <Navigate to="/landlord/dashboard?tab=calendar" replace />
         },
         {
           path: 'landlord/portfolio-summary',
@@ -1335,6 +1331,10 @@ const MainRoutes = {
               <AdminRentPaymentAccess />
             </AdminRoute>
           )
+        },
+        {
+          path: 'landlord/tasks',
+          element: <Navigate to="/landlord/dashboard?tab=tasks" replace />
         },
         {
           path: 'admin/rent-payment-access/:publicId',

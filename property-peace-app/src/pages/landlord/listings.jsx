@@ -35,7 +35,8 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import ManagementPageHeader from 'components/headers/ManagementPageHeader';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
 import { useDrawer } from 'contexts/DrawerContext';
 import { getListings } from 'store/listing/listing.action';
@@ -50,10 +51,10 @@ const getId = (listing) => read(listing, 'id', 'Id');
 const getStatus = (listing) => {
   const value = read(listing, 'status', 'Status');
   if (typeof value === 'string') return value.toLowerCase();
-  return ({ 0: 'draft', 1: 'active', 2: 'expired', 3: 'unlisted' })[value] || 'draft';
+  return { 0: 'draft', 1: 'active', 2: 'expired', 3: 'unlisted' }[value] || 'draft';
 };
 const isActiveListing = (listing) => ['active', 'published'].includes(getStatus(listing));
-const getDisplayStatus = (listing) => isActiveListing(listing) ? 'Active' : 'Draft';
+const getDisplayStatus = (listing) => (isActiveListing(listing) ? 'Active' : 'Draft');
 const getTitle = (listing) => {
   const propertyName = read(listing, 'propertyName', 'PropertyName') || 'Untitled listing';
   const unitName = read(listing, 'unitName', 'UnitName');
@@ -67,23 +68,26 @@ const getDate = (listing, camel, pascal) => {
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime()) ? date : null;
 };
-const getAvailableDate = (listing) => getDate(listing, 'dateAvailable', 'DateAvailable') || getDate(listing, 'availableDate', 'AvailableDate');
+const getAvailableDate = (listing) =>
+  getDate(listing, 'dateAvailable', 'DateAvailable') || getDate(listing, 'availableDate', 'AvailableDate');
 const getUpdatedDate = (listing) => getDate(listing, 'updatedAt', 'UpdatedAt') || getDate(listing, 'createdAt', 'CreatedAt');
 const hasPhoto = (listing) => getImages(listing).length > 0 || Boolean(read(listing, 'coverImageUrl', 'CoverImageUrl'));
 const isStale = (listing) => {
   const updated = getUpdatedDate(listing);
   return Boolean(updated && Date.now() - updated.getTime() >= 30 * 86400000);
 };
-const getReadinessIssues = (listing) => [
-  !hasPhoto(listing) && 'photos',
-  getRent(listing) <= 0 && 'rent',
-  isStale(listing) && 'stale'
-].filter(Boolean);
+const getReadinessIssues = (listing) =>
+  [!hasPhoto(listing) && 'photos', getRent(listing) <= 0 && 'rent', isStale(listing) && 'stale'].filter(Boolean);
 
 function getImageUrl(listing) {
   const images = getImages(listing);
   const cover = images.find((image) => read(image, 'isCoverPhoto', 'IsCoverPhoto'));
-  return read(cover, 'blobUrl', 'BlobUrl') || read(images[0], 'blobUrl', 'BlobUrl') || read(listing, 'coverImageUrl', 'CoverImageUrl') || placeholderImage;
+  return (
+    read(cover, 'blobUrl', 'BlobUrl') ||
+    read(images[0], 'blobUrl', 'BlobUrl') ||
+    read(listing, 'coverImageUrl', 'CoverImageUrl') ||
+    placeholderImage
+  );
 }
 
 function formatDate(date, options = { month: 'short', day: 'numeric', year: 'numeric' }) {
@@ -117,7 +121,9 @@ function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
     >
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
         <Box>
-          <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>
+          <Typography
+            sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
+          >
             {label}
           </Typography>
           <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
@@ -133,21 +139,32 @@ function Readiness({ listing }) {
   const theme = useTheme();
   const issues = getReadinessIssues(listing);
   const score = Math.round(((3 - issues.length) / 3) * 100);
-  const color = issues.length === 0 ? theme.palette.success.main : issues.length === 1 ? theme.palette.warning.main : theme.palette.error.main;
+  const color =
+    issues.length === 0 ? theme.palette.success.main : issues.length === 1 ? theme.palette.warning.main : theme.palette.error.main;
 
   return (
     <Box>
       <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-        <Typography sx={{ fontSize: '0.76rem', fontWeight: 650, color }}>{issues.length ? `${issues.length} item${issues.length === 1 ? '' : 's'} to review` : 'Ready to market'}</Typography>
+        <Typography sx={{ fontSize: '0.76rem', fontWeight: 650, color }}>
+          {issues.length ? `${issues.length} item${issues.length === 1 ? '' : 's'} to review` : 'Ready to market'}
+        </Typography>
         <Typography sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>{score}%</Typography>
       </Stack>
       <LinearProgress
         variant="determinate"
         value={score}
-        sx={{ mt: 0.65, height: 5, borderRadius: 8, bgcolor: alpha(theme.palette.divider, 0.12), '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: color } }}
+        sx={{
+          mt: 0.65,
+          height: 5,
+          borderRadius: 8,
+          bgcolor: alpha(theme.palette.divider, 0.12),
+          '& .MuiLinearProgress-bar': { borderRadius: 8, bgcolor: color }
+        }}
       />
       <Typography sx={{ mt: 0.5, fontSize: '0.68rem', color: 'text.secondary' }}>
-        {issues.length ? `Check ${issues.join(', ')}` : `${getImages(listing).length} photo${getImages(listing).length === 1 ? '' : 's'} · rent set`}
+        {issues.length
+          ? `Check ${issues.join(', ')}`
+          : `${getImages(listing).length} photo${getImages(listing).length === 1 ? '' : 's'} · rent set`}
       </Typography>
     </Box>
   );
@@ -190,18 +207,37 @@ function ListingRow({ listing, onOpen }) {
       }}
     >
       <Stack direction="row" spacing={1.4} alignItems="center" minWidth={0}>
-        <Box component="img" src={getImageUrl(listing)} alt="" sx={{ width: 62, height: 58, borderRadius: 1.8, objectFit: 'cover', bgcolor: alpha(theme.palette.primary.main, 0.08), flexShrink: 0 }} />
+        <Box
+          component="img"
+          src={getImageUrl(listing)}
+          alt=""
+          sx={{
+            width: 62,
+            height: 58,
+            borderRadius: 1.8,
+            objectFit: 'cover',
+            bgcolor: alpha(theme.palette.primary.main, 0.08),
+            flexShrink: 0
+          }}
+        />
         <Box minWidth={0}>
-          <Typography fontWeight={700} noWrap>{title}</Typography>
-          <Typography noWrap sx={{ mt: 0.3, fontSize: '0.77rem', color: 'text.secondary' }}>{getAddress(listing)}</Typography>
+          <Typography fontWeight={700} noWrap>
+            {title}
+          </Typography>
+          <Typography noWrap sx={{ mt: 0.3, fontSize: '0.77rem', color: 'text.secondary' }}>
+            {getAddress(listing)}
+          </Typography>
           <Typography sx={{ mt: 0.3, fontSize: '0.68rem', color: 'text.disabled' }}>
-            {read(listing, 'listingNumber', 'ListingNumber') ? `#${read(listing, 'listingNumber', 'ListingNumber')} · ` : ''}Updated {formatDate(updated, { month: 'short', day: 'numeric' })}
+            {read(listing, 'listingNumber', 'ListingNumber') ? `#${read(listing, 'listingNumber', 'ListingNumber')} · ` : ''}Updated{' '}
+            {formatDate(updated, { month: 'short', day: 'numeric' })}
           </Typography>
         </Box>
       </Stack>
 
       <Box>
-        <Typography sx={{ fontSize: '0.92rem', fontWeight: 750, color: rent > 0 ? 'text.primary' : 'text.disabled' }}>{rent > 0 ? formatCurrency(rent) : 'Not set'}</Typography>
+        <Typography sx={{ fontSize: '0.92rem', fontWeight: 750, color: rent > 0 ? 'text.primary' : 'text.disabled' }}>
+          {rent > 0 ? formatCurrency(rent) : 'Not set'}
+        </Typography>
         <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>per month</Typography>
       </Box>
 
@@ -216,7 +252,9 @@ function ListingRow({ listing, onOpen }) {
 
       <Box>
         <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>{formatDate(available)}</Typography>
-        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>{available && available <= new Date() ? 'Available now' : 'Availability'}</Typography>
+        <Typography sx={{ mt: 0.25, fontSize: '0.7rem', color: 'text.secondary' }}>
+          {available && available <= new Date() ? 'Available now' : 'Availability'}
+        </Typography>
       </Box>
 
       <Readiness listing={listing} />
@@ -226,13 +264,22 @@ function ListingRow({ listing, onOpen }) {
           <IconButton
             size="small"
             aria-label={`Actions for ${title}`}
-            onClick={(event) => { event.stopPropagation(); setAnchorEl(event.currentTarget); }}
+            onClick={(event) => {
+              event.stopPropagation();
+              setAnchorEl(event.currentTarget);
+            }}
           >
             <MoreOutlined />
           </IconButton>
         </Tooltip>
         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-          <MenuItem onClick={(event) => { event.stopPropagation(); setAnchorEl(null); onOpen(listing); }}>
+          <MenuItem
+            onClick={(event) => {
+              event.stopPropagation();
+              setAnchorEl(null);
+              onOpen(listing);
+            }}
+          >
             {active ? 'Open listing' : 'Continue draft'}
           </MenuItem>
         </Menu>
@@ -285,11 +332,10 @@ export default function ListingsPage() {
     today.setHours(0, 0, 0, 0);
 
     const filtered = listings.filter((listing) => {
-      const searchable = [
-        getTitle(listing),
-        getAddress(listing),
-        read(listing, 'listingNumber', 'ListingNumber')
-      ].filter(Boolean).join(' ').toLowerCase();
+      const searchable = [getTitle(listing), getAddress(listing), read(listing, 'listingNumber', 'ListingNumber')]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
       const issues = getReadinessIssues(listing);
       const available = getAvailableDate(listing);
 
@@ -313,7 +359,8 @@ export default function ListingsPage() {
     return filtered.sort((a, b) => {
       if (sort === 'rent-desc') return getRent(b) - getRent(a);
       if (sort === 'rent-asc') return getRent(a) - getRent(b);
-      if (sort === 'availability') return (getAvailableDate(a)?.getTime() || Number.MAX_SAFE_INTEGER) - (getAvailableDate(b)?.getTime() || Number.MAX_SAFE_INTEGER);
+      if (sort === 'availability')
+        return (getAvailableDate(a)?.getTime() || Number.MAX_SAFE_INTEGER) - (getAvailableDate(b)?.getTime() || Number.MAX_SAFE_INTEGER);
       if (sort === 'name') return getTitle(a).localeCompare(getTitle(b));
       if (sort === 'readiness') return getReadinessIssues(b).length - getReadinessIssues(a).length;
       return (getUpdatedDate(b)?.getTime() || 0) - (getUpdatedDate(a)?.getTime() || 0);
@@ -342,55 +389,78 @@ export default function ListingsPage() {
 
   return (
     <Box sx={{ pb: 3 }}>
-      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Listings' }]} />
-      </Box>
-
-      <Box
-        sx={{
-          mb: 2.5,
-          p: { xs: 2, md: 2.75 },
-          borderRadius: 3,
-          color: '#fff',
-          background: 'linear-gradient(120deg, #061e35 0%, #0b3558 100%)',
-          boxShadow: `0 16px 38px ${alpha('#061e35', 0.18)}`
-        }}
-      >
-        <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
-          <Box>
-            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Listings</Typography>
-            <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>
-              Prepare, publish, and monitor every rental listing from one focused workspace.
-            </Typography>
-          </Box>
+      <ManagementPageHeader
+        title="Listings"
+        description="Prepare, publish, and monitor every rental listing from one focused workspace."
+        actions={
           <Button
             variant="contained"
             color="success"
             startIcon={<PlusOutlined />}
             onClick={() => drawer.openListingAddDrawer()}
-            sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', alignSelf: { xs: 'flex-start', md: 'center' } }}
+            sx={managementPageHeaderActionSx}
           >
             Add listing
           </Button>
-        </Stack>
-      </Box>
+        }
+      />
 
       <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard label="Active listings" value={metrics.active} helper="Currently marketed" icon={<CheckCircleOutlined />} color={theme.palette.success.main} active={status === 'active'} onClick={() => setStatus((value) => value === 'active' ? 'all' : 'active')} />
+          <SummaryCard
+            label="Active listings"
+            value={metrics.active}
+            helper="Currently marketed"
+            icon={<CheckCircleOutlined />}
+            color={theme.palette.success.main}
+            active={status === 'active'}
+            onClick={() => setStatus((value) => (value === 'active' ? 'all' : 'active'))}
+          />
         </Grid>
         <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard label="Drafts" value={metrics.drafts} helper="Continue preparing" icon={<EditOutlined />} color={theme.palette.warning.main} active={status === 'draft'} onClick={() => setStatus((value) => value === 'draft' ? 'all' : 'draft')} />
+          <SummaryCard
+            label="Drafts"
+            value={metrics.drafts}
+            helper="Continue preparing"
+            icon={<EditOutlined />}
+            color={theme.palette.warning.main}
+            active={status === 'draft'}
+            onClick={() => setStatus((value) => (value === 'draft' ? 'all' : 'draft'))}
+          />
         </Grid>
         <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard label="Needs attention" value={metrics.needsAttention} helper="Photos, rent, or stale content" icon={<WarningOutlined />} color={theme.palette.error.main} active={readiness === 'attention'} onClick={() => setReadiness((value) => value === 'attention' ? 'all' : 'attention')} />
+          <SummaryCard
+            label="Needs attention"
+            value={metrics.needsAttention}
+            helper="Photos, rent, or stale content"
+            icon={<WarningOutlined />}
+            color={theme.palette.error.main}
+            active={readiness === 'attention'}
+            onClick={() => setReadiness((value) => (value === 'attention' ? 'all' : 'attention'))}
+          />
         </Grid>
         <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard label="Available soon" value={metrics.upcoming} helper="Within the next 60 days" icon={<CalendarOutlined />} color={theme.palette.primary.main} active={availability === 'upcoming'} onClick={() => setAvailability((value) => value === 'upcoming' ? 'all' : 'upcoming')} />
+          <SummaryCard
+            label="Available soon"
+            value={metrics.upcoming}
+            helper="Within the next 60 days"
+            icon={<CalendarOutlined />}
+            color={theme.palette.primary.main}
+            active={availability === 'upcoming'}
+            onClick={() => setAvailability((value) => (value === 'upcoming' ? 'all' : 'upcoming'))}
+          />
         </Grid>
       </Grid>
 
-      <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>
+      <Box
+        sx={{
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`,
+          overflow: 'hidden'
+        }}
+      >
         <Box sx={{ p: { xs: 1.5, md: 2 } }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
             <OutlinedInput
@@ -398,16 +468,32 @@ export default function ListingsPage() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search listings, addresses, units, or listing numbers"
               size="small"
-              startAdornment={<InputAdornment position="start"><SearchOutlined /></InputAdornment>}
+              startAdornment={
+                <InputAdornment position="start">
+                  <SearchOutlined />
+                </InputAdornment>
+              }
               sx={{ flex: 1, minWidth: { md: 260 }, borderRadius: 1.75 }}
             />
             <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, md: 0 } }}>
-              <Select size="small" value={status} onChange={(event) => setStatus(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 126, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={status}
+                onChange={(event) => setStatus(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 126, borderRadius: 1.75 }}
+              >
                 <MenuItem value="all">All status</MenuItem>
                 <MenuItem value="active">Active</MenuItem>
                 <MenuItem value="draft">Draft</MenuItem>
               </Select>
-              <Select size="small" value={readiness} onChange={(event) => setReadiness(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 160, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={readiness}
+                onChange={(event) => setReadiness(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 160, borderRadius: 1.75 }}
+              >
                 <MenuItem value="all">All readiness</MenuItem>
                 <MenuItem value="ready">Ready to market</MenuItem>
                 <MenuItem value="attention">Needs attention</MenuItem>
@@ -415,13 +501,25 @@ export default function ListingsPage() {
                 <MenuItem value="rent">Missing rent</MenuItem>
                 <MenuItem value="stale">Stale content</MenuItem>
               </Select>
-              <Select size="small" value={availability} onChange={(event) => setAvailability(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 156, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={availability}
+                onChange={(event) => setAvailability(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 156, borderRadius: 1.75 }}
+              >
                 <MenuItem value="all">All availability</MenuItem>
                 <MenuItem value="now">Available now</MenuItem>
                 <MenuItem value="upcoming">Next 60 days</MenuItem>
                 <MenuItem value="unset">Date not set</MenuItem>
               </Select>
-              <Select size="small" value={sort} onChange={(event) => setSort(event.target.value)} IconComponent={DownOutlined} sx={{ minWidth: 158, borderRadius: 1.75 }}>
+              <Select
+                size="small"
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+                IconComponent={DownOutlined}
+                sx={{ minWidth: 158, borderRadius: 1.75 }}
+              >
                 <MenuItem value="updated">Sort: Recently updated</MenuItem>
                 <MenuItem value="readiness">Sort: Needs attention</MenuItem>
                 <MenuItem value="availability">Sort: Availability</MenuItem>
@@ -432,16 +530,37 @@ export default function ListingsPage() {
             </Stack>
           </Stack>
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
-            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>{filteredListings.length} of {listings.length} listings</Typography>
-            {hasFilters && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
+            <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
+              {filteredListings.length} of {listings.length} listings
+            </Typography>
+            {hasFilters && (
+              <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>
+                Reset view
+              </Button>
+            )}
           </Stack>
         </Box>
 
         <Divider />
 
-        <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(245px, 1.8fr) minmax(105px, .7fr) minmax(90px, .65fr) minmax(125px, .85fr) minmax(160px, 1fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'grid' },
+            gridTemplateColumns:
+              'minmax(245px, 1.8fr) minmax(105px, .7fr) minmax(90px, .65fr) minmax(125px, .85fr) minmax(160px, 1fr) 44px',
+            gap: 2,
+            px: 2,
+            py: 1.15,
+            bgcolor: alpha(theme.palette.primary.main, 0.025)
+          }}
+        >
           {['Listing', 'Rent', 'Status', 'Available', 'Marketing readiness', ''].map((label) => (
-            <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>
+            <Typography
+              key={label || 'actions'}
+              sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}
+            >
+              {label}
+            </Typography>
           ))}
         </Box>
 
@@ -452,16 +571,36 @@ export default function ListingsPage() {
           </Stack>
         ) : listings.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
-            <Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}><CameraOutlined /></Avatar>
-            <Typography variant="h5" fontWeight={700}>Create your first listing</Typography>
-            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>Add the rent, availability, photos, and marketing details tenants need to discover your property.</Typography>
-            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openListingAddDrawer()} sx={{ textTransform: 'none', fontWeight: 700 }}>Add listing</Button>
+            <Avatar sx={{ width: 54, height: 54, bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main' }}>
+              <CameraOutlined />
+            </Avatar>
+            <Typography variant="h5" fontWeight={700}>
+              Create your first listing
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem', maxWidth: 440 }}>
+              Add the rent, availability, photos, and marketing details tenants need to discover your property.
+            </Typography>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<PlusOutlined />}
+              onClick={() => drawer.openListingAddDrawer()}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Add listing
+            </Button>
           </Stack>
         ) : filteredListings.length === 0 ? (
           <Stack alignItems="center" spacing={1.5} sx={{ py: 7, px: 2, textAlign: 'center' }}>
-            <Typography variant="h6" fontWeight={700}>No listings match this view</Typography>
-            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>Try a different search or reset the listing filters.</Typography>
-            <Button variant="outlined" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset filters</Button>
+            <Typography variant="h6" fontWeight={700}>
+              No listings match this view
+            </Typography>
+            <Typography sx={{ color: 'text.secondary', fontSize: '0.85rem' }}>
+              Try a different search or reset the listing filters.
+            </Typography>
+            <Button variant="outlined" onClick={clearFilters} sx={{ textTransform: 'none' }}>
+              Reset filters
+            </Button>
           </Stack>
         ) : (
           paginatedListings.map((listing) => <ListingRow key={getId(listing)} listing={listing} onOpen={openListing} />)

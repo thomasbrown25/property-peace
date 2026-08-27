@@ -16,7 +16,7 @@ const CATEGORY_COLORS = {
   Maintenance:  '#ef4444',
   Lease:        '#8b5cf6',
   MoveIn:       '#f59e0b',
-  Task:         '#22c55e',
+  Task:         '#41a541',
 };
 
 function buildUpcomingEvents(properties, dashboardSummary, tasks) {

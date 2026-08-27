@@ -551,6 +551,9 @@ namespace brownstone_hub_api.Repositories.Payments
                     .Include(p => p.Lease)
                         .ThenInclude(l => l.Unit)
                         .ThenInclude(u => u.Property)
+                    .Include(p => p.Lease)
+                        .ThenInclude(l => l.TenantLeases)
+                        .ThenInclude(tenantLease => tenantLease.Tenant)
                     .Include(p => p.Fee)
                     .Where(p => (p.OrganizationId == organizationId || p.Lease.Unit.Property.OrganizationId == organizationId) &&
                                 !p.Lease.Unit.Property.IsDeleted &&

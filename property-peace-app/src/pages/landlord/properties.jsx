@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   alpha,
-  Avatar,
   Box,
   Button,
   Chip,
   CircularProgress,
   Divider,
-  Grid,
   IconButton,
   InputAdornment,
   LinearProgress,
@@ -22,10 +20,8 @@ import {
   useTheme
 } from '@mui/material';
 import {
-  ArrowRightOutlined,
   CalendarOutlined,
   DownOutlined,
-  HomeOutlined,
   MoreOutlined,
   PlusOutlined,
   SearchOutlined,
@@ -38,7 +34,6 @@ import { useNavigate } from 'react-router-dom';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
-import { darkHeaderOutlinedActionSx } from 'styles/darkHeaderActions.mjs';
 import PropertiesEmptyState from 'sections/landlord/properties/PropertiesEmptyState';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -110,45 +105,6 @@ function formatMoney(value) {
 function formatDate(value) {
   if (!value) return 'No lease date';
   return value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
-  const theme = useTheme();
-
-  return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      sx={{
-        width: '100%',
-        minHeight: 112,
-        p: 2,
-        borderRadius: 2.5,
-        border: `1px solid ${active ? alpha(color, 0.55) : alpha(theme.palette.divider, 0.16)}`,
-        bgcolor: active ? alpha(color, theme.palette.mode === 'dark' ? 0.12 : 0.055) : 'background.paper',
-        boxShadow: active ? `0 8px 24px ${alpha(color, 0.12)}` : `0 4px 18px ${alpha('#061e35', 0.05)}`,
-        color: 'text.primary',
-        textAlign: 'left',
-        cursor: 'pointer',
-        font: 'inherit',
-        transition: 'transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease',
-        '&:hover': { transform: 'translateY(-2px)', borderColor: alpha(color, 0.45), boxShadow: `0 10px 28px ${alpha(color, 0.12)}` },
-        '&:focus-visible': { outline: `3px solid ${alpha(color, 0.28)}`, outlineOffset: 2 }
-      }}
-    >
-      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-        <Box>
-          <Typography sx={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>
-            {label}
-          </Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '1.45rem', lineHeight: 1.15, fontWeight: 750 }}>{value}</Typography>
-          <Typography sx={{ mt: 0.55, fontSize: '0.75rem', color: 'text.secondary' }}>{helper}</Typography>
-        </Box>
-        <Avatar sx={{ width: 38, height: 38, bgcolor: alpha(color, 0.12), color }}>{icon}</Avatar>
-      </Stack>
-    </Box>
-  );
 }
 
 function PropertyRow({ property, onOpen, onAddLease }) {
@@ -306,17 +262,6 @@ export default function Properties() {
     setPage(1);
   }, [search, status, occupancy, attention, sort]);
 
-  const metrics = useMemo(() => {
-    const activeProperties = properties.filter(isActiveProperty);
-    const units = activeProperties.flatMap(getUnits);
-    const occupiedUnits = units.filter(isOccupiedUnit).length;
-    const vacantUnits = Math.max(units.length - occupiedUnits, 0);
-    const rentRoll = activeProperties.reduce((total, property) => total + getPropertySummary(property).rentRoll, 0);
-    const needsAttention = activeProperties.filter((property) => getPropertySummary(property).attentionScore > 0).length;
-    const occupancyRate = units.length ? Math.round((occupiedUnits / units.length) * 100) : 0;
-    return { activeProperties: activeProperties.length, units: units.length, occupiedUnits, vacantUnits, rentRoll, needsAttention, occupancyRate };
-  }, [properties]);
-
   const filteredProperties = useMemo(() => {
     const query = search.trim().toLowerCase();
     const list = properties.filter((property) => {
@@ -387,25 +332,29 @@ export default function Properties() {
 
       <Box
         sx={{
-          mb: 2.5,
-          p: { xs: 2, md: 2.75 },
-          borderRadius: 3,
-          color: '#fff',
-          background: `linear-gradient(120deg, #061e35 0%, #0b3558 100%)`,
-          boxShadow: `0 16px 38px ${alpha('#061e35', 0.18)}`
+          mb: 2.5
         }}
       >
         <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, letterSpacing: -0.4 }}>Properties</Typography>
-            <Typography sx={{ mt: 0.6, color: alpha('#fff', 0.72), fontSize: '0.88rem' }}>
+            <Typography variant="h3" sx={{ color: '#061e35', fontWeight: 750, letterSpacing: -0.4 }}>Properties</Typography>
+            <Typography sx={{ mt: 0.6, color: '#061e35', fontSize: '0.88rem' }}>
               A clear operating view of occupancy, rent roll, leases, and work that needs attention.
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
             <PropertyCsvImportButton
               buttonProps={{
-                sx: darkHeaderOutlinedActionSx
+                sx: {
+                  color: '#061e35',
+                  borderColor: alpha('#061e35', 0.35),
+                  textTransform: 'none',
+                  '&:hover': {
+                    color: '#061e35',
+                    borderColor: '#061e35',
+                    bgcolor: alpha('#061e35', 0.04)
+                  }
+                }
               }}
             />
             <Button
@@ -420,53 +369,6 @@ export default function Properties() {
           </Stack>
         </Stack>
       </Box>
-
-      <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Portfolio occupancy"
-            value={`${metrics.occupancyRate}%`}
-            helper={`${metrics.occupiedUnits} of ${metrics.units} units occupied`}
-            icon={<HomeOutlined />}
-            color={theme.palette.success.main}
-            active={occupancy === 'occupied'}
-            onClick={() => setOccupancy((value) => value === 'occupied' ? 'all' : 'occupied')}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Vacant units"
-            value={metrics.vacantUnits}
-            helper="Across active properties"
-            icon={<HomeOutlined />}
-            color={theme.palette.warning.main}
-            active={occupancy === 'vacant'}
-            onClick={() => setOccupancy((value) => value === 'vacant' ? 'all' : 'vacant')}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Monthly rent roll"
-            value={formatMoney(metrics.rentRoll)}
-            helper="Scheduled rent, not collections"
-            icon={<ArrowRightOutlined />}
-            color={theme.palette.primary.main}
-            active={sort === 'rent'}
-            onClick={() => setSort((value) => value === 'rent' ? 'attention' : 'rent')}
-          />
-        </Grid>
-        <Grid size={{ xs: 6, lg: 3 }}>
-          <SummaryCard
-            label="Needs attention"
-            value={metrics.needsAttention}
-            helper="Overdue, urgent, or expiring"
-            icon={<WarningOutlined />}
-            color={theme.palette.error.main}
-            active={attention === 'any'}
-            onClick={() => setAttention((value) => value === 'any' ? 'all' : 'any')}
-          />
-        </Grid>
-      </Grid>
 
       <Box
         sx={{

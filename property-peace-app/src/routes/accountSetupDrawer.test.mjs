@@ -6,17 +6,31 @@ const source = async (relativePath) => readFile(new URL(relativePath, import.met
 
 test('dashboard setup card opens the restored account setup drawer', async () => {
   const dashboard = await source('../pages/landlord/dashboard.jsx');
+  const overview = await source('../pages/landlord/dashboard-overview.jsx');
   const setup = await source('../sections/landlord/dashboard/FinishSetup.jsx');
 
   assert.match(setup, /Continue setting up your account/);
   assert.match(setup, /Continue setup/);
+  assert.match(setup, /aria-label="Dismiss account setup"/);
+  assert.match(setup, /color:\s*SETUP_NAVY/);
+  assert.match(setup, /minHeight:\s*\{\s*xs:\s*220,\s*sm:\s*240\s*\}/);
+  assert.match(setup, /mt:\s*'auto'/);
   assert.match(setup, /ThemeAdaptiveDrawer/);
   assert.match(setup, /anchor="right"/);
   assert.match(setup, /Account setup/);
   assert.match(setup, /Object\.entries\(groupedSteps\)/);
-  assert.match(dashboard, /setupTasksOpen/);
-  assert.match(dashboard, /setSetupTasksOpen\(true\)/);
-  assert.match(dashboard, /searchParams\.get\('setup'\)\s*===\s*'open'/);
+  assert.match(overview, /setupTasksOpen/);
+  assert.match(overview, /setSetupTasksOpen\(true\)/);
+  assert.match(overview, /\/api\/user\/tutorial-status/);
+  assert.match(overview, /hasSeenTutorial:\s*true/);
+  assert.match(overview, /HasSeenTutorial:\s*true/);
+  assert.match(overview, /onDismiss=\{dismissSetupCard\}/);
+  assert.match(overview, /!\(user\?\.HasSeenTutorial \|\| user\?\.hasSeenTutorial\)/);
+  assert.match(overview, /searchParams\.get\('setup'\)\s*===\s*'open'/);
+  assert.match(
+    overview,
+    /<Grid size=\{\{ xs: 12, md: 4 \}\}[\s\S]*?<Stack spacing=\{2\.5\}[\s\S]*?\{showSetupCard && \([\s\S]*?<FinishSetup[\s\S]*?\)\}[\s\S]*?Quick actions/
+  );
   assert.doesNotMatch(dashboard, /activationModeStorage|readActivationModePreference/);
 });
 

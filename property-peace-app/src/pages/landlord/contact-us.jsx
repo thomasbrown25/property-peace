@@ -109,7 +109,7 @@ export default function ContactUs() {
               </Stack>
 
               <Stack direction="row" spacing={1.5} alignItems="center">
-                <PhoneOutlined style={{ fontSize: 20, color: '#52c41a' }} />
+                <PhoneOutlined style={{ fontSize: 20, color: '#41a541' }} />
                 <Box>
                   <Typography variant="subtitle2">Phone</Typography>
                   <Typography variant="body2" color="text.secondary">

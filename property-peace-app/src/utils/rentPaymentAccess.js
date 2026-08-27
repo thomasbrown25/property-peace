@@ -31,6 +31,34 @@ function accessStatus(access) {
   return normalize(accessValue(access, 'status'));
 }
 
+const unwrapResponse = (response) => response?.data ?? response;
+
+export async function loadRentPaymentAccessState({
+  signal,
+  loadAccess,
+  loadFeatureReadiness,
+  loadActionReadiness,
+  selectFeatureReadiness
+}) {
+  const access = unwrapResponse(await loadAccess(signal));
+  const result = { access, readiness: null, configureReadiness: null, payReadiness: null };
+
+  if (accessStatus(access) !== normalize(RENT_PAYMENT_ACCESS_STATUS.approved)) return result;
+
+  const [aggregateResponse, configureResponse, payResponse] = await Promise.all([
+    loadFeatureReadiness(signal),
+    loadActionReadiness('Configure', signal),
+    loadActionReadiness('Pay', signal)
+  ]);
+
+  return {
+    access,
+    readiness: selectFeatureReadiness(unwrapResponse(aggregateResponse)) ?? null,
+    configureReadiness: unwrapResponse(configureResponse),
+    payReadiness: unwrapResponse(payResponse)
+  };
+}
+
 function hasProviderBlocker(aggregateReadiness, ...readiness) {
   if (aggregateReadiness?.globalGateEnabled === false || aggregateReadiness?.GlobalGateEnabled === false || aggregateReadiness?.providerConfigured === false || aggregateReadiness?.ProviderConfigured === false) return true;
   return readiness.some((item) => providerEnabled(item) === false || blockerList(item).map(normalize).includes(normalize(RENT_PAYMENT_BLOCKER.providerDisabled)));
@@ -40,12 +68,20 @@ function hasRecipient(payReadiness) {
   return payReadiness?.connectedPayeeExists === true || payReadiness?.ConnectedPayeeExists === true;
 }
 /** Maps server access/readiness decisions into safe landlord-facing copy. */
-export function getRentPaymentAccessPresentation({ access = null, aggregateReadiness = null, configureReadiness = null, payReadiness = null } = {}) {
+export function getRentPaymentAccessPresentation({ access = null, aggregateReadiness = null, configureReadiness = null, payReadiness = null, error = null } = {}) {
   const status = accessStatus(access);
   const safeReason = accessValue(access, 'decisionReason');
   const canConfigure = isAllowed(configureReadiness);
   const canPay = isAllowed(payReadiness);
 
+  if (error) {
+    return view(
+      'unavailable',
+      'Online rent payments temporarily unavailable',
+      'Online rent payment access could not be loaded. Retry to check your organization status.',
+      'Refresh status'
+    );
+  }
   if (hasProviderBlocker(aggregateReadiness, configureReadiness, payReadiness)) {
     return view('unavailable', 'Online rent payments temporarily unavailable', 'Online rent payments cannot be enabled right now. Please try again later.', 'Refresh status');
   }

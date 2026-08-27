@@ -614,7 +614,7 @@ export default function LeaseDetailView({
     highLateRisk || highIssueRisk ? 'At Risk' :
     lateCycles === 0 && minorIssues === 0 ? 'Good' :
     'Medium Risk';
-  const healthColor = healthLabel === 'Good' ? '#16a34a' : healthLabel === 'Medium Risk' ? '#d97706' : '#dc2626';
+  const healthColor = healthLabel === 'Good' ? '#41a541' : healthLabel === 'Medium Risk' ? '#d97706' : '#dc2626';
   const summaryColor = isDraftLease ? '#d97706' : healthColor;
   const renewalGuidance = healthLabel === 'At Risk'
     ? 'review before renewal'
@@ -668,7 +668,7 @@ export default function LeaseDetailView({
     <Box>
       {/* ── Lease hero ───────────────────────────────────────────────────── */}
       <Box sx={{ mb: 2, p: { xs: 2.5, md: 3 }, borderRadius: 3, color: '#fff', bgcolor: '#061e35', overflow: 'hidden', position: 'relative', boxShadow: `0 18px 44px ${alpha('#061e35', 0.2)}` }}>
-        <Box sx={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -100, top: -170, bgcolor: alpha('#22c55e', 0.12), pointerEvents: 'none' }} />
+        <Box sx={{ position: 'absolute', width: 280, height: 280, borderRadius: '50%', right: -100, top: -170, bgcolor: alpha('#41a541', 0.12), pointerEvents: 'none' }} />
         <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'flex-start' }} justifyContent="space-between" spacing={2.5} sx={{ position: 'relative' }}>
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
@@ -678,7 +678,7 @@ export default function LeaseDetailView({
               <Chip
                 label={statusLabel}
                 size="small"
-                sx={{ height: 24, bgcolor: isDraftLease ? '#fef3c7' : isNotStarted ? alpha('#f59e0b', 0.2) : lease?.isActive ? alpha('#22c55e', 0.18) : alpha('#fff', 0.12), color: isDraftLease ? '#92400e' : isNotStarted ? '#fde68a' : lease?.isActive ? '#86efac' : '#fff', fontWeight: 700, '& .MuiChip-label': { px: 1.15 } }}
+                sx={{ height: 24, bgcolor: isDraftLease ? '#fef3c7' : isNotStarted ? alpha('#f59e0b', 0.2) : lease?.isActive ? alpha('#41a541', 0.18) : alpha('#fff', 0.12), color: isDraftLease ? '#92400e' : isNotStarted ? '#fde68a' : lease?.isActive ? '#86efac' : '#fff', fontWeight: 700, '& .MuiChip-label': { px: 1.15 } }}
               />
             </Stack>
             <Typography variant="h3" sx={{ color: '#fff', fontWeight: 750, lineHeight: 1.12, mb: 0.65 }}>
@@ -694,7 +694,7 @@ export default function LeaseDetailView({
           <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ flexShrink: 0 }}>
             {isDraftLease && (
               <Button size="small" variant="contained" startIcon={<EditOutlined />} onClick={onEditTerms}
-                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, bgcolor: '#22c55e', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#16a34a', boxShadow: 'none' } }}>
+                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, bgcolor: '#41a541', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#41a541', boxShadow: 'none' } }}>
                 Edit lease
               </Button>
             )}
@@ -712,7 +712,7 @@ export default function LeaseDetailView({
             )}
             {!isDraftLease && (lease?.isActive || isNotStarted) && (
               <Button size="small" variant="contained" onClick={onRecordPayment}
-                sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.8rem', borderRadius: 1.5, bgcolor: '#22c55e', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#16a34a', boxShadow: 'none' } }}>
+                sx={{ textTransform: 'none', fontWeight: 700, fontSize: '0.8rem', borderRadius: 1.5, bgcolor: '#41a541', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#41a541', boxShadow: 'none' } }}>
                 Record payment
               </Button>
             )}
@@ -769,7 +769,7 @@ export default function LeaseDetailView({
               <Button variant="outlined" size="small" onClick={() => navigate(leaseAgreementSetupUrl)} sx={{ textTransform: 'none', fontWeight: 650, borderColor: '#d97706', color: '#92400e' }}>
                 Create agreement
               </Button>
-              <Button variant="contained" size="small" startIcon={<EditOutlined />} onClick={onEditTerms} sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#22c55e', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#16a34a', boxShadow: 'none' } }}>
+              <Button variant="contained" size="small" startIcon={<EditOutlined />} onClick={onEditTerms} sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#41a541', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#41a541', boxShadow: 'none' } }}>
                 Edit lease details
               </Button>
             </Stack>
