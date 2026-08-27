@@ -10,21 +10,35 @@ export default function LandlordMaintenanceDrawer({ onAddSuccess }) {
   const [agentEnabled, setAgentEnabled] = useState(null);
 
   useEffect(() => {
-    if (!drawer.isOpenMaintenanceAdd) return;
+    if (!drawer.isOpenMaintenanceAdd) {
+      setAgentEnabled(null);
+      return undefined;
+    }
+
+    let isCurrent = true;
+    setAgentEnabled(null);
+
     axiosServices
       .get('/api/landlord-maintenance-agent/settings')
       .then((res) => {
-        if (res.data?.success) {
-          setAgentEnabled(res.data.data?.isMaintenanceAgentEnabled ?? false);
-        } else {
-          setAgentEnabled(false);
-        }
+        const enabled = res.data?.success
+          ? (res.data.data?.isMaintenanceAgentEnabled ?? false)
+          : false;
+        if (isCurrent) setAgentEnabled(enabled);
       })
-      .catch(() => setAgentEnabled(false));
+      .catch(() => {
+        if (isCurrent) setAgentEnabled(false);
+      });
+
+    return () => { isCurrent = false; };
   }, [drawer.isOpenMaintenanceAdd]);
 
   const handleAgentRequestCreated = async () => {
     if (onAddSuccess) await onAddSuccess();
+  };
+
+  const handleAgentUnavailable = () => {
+    setAgentEnabled(false);
   };
 
   if (agentEnabled === null) return null;
@@ -35,6 +49,7 @@ export default function LandlordMaintenanceDrawer({ onAddSuccess }) {
         open={drawer.isOpenMaintenanceAdd}
         onClose={drawer.closeMaintenanceAddDrawer}
         onRequestCreated={handleAgentRequestCreated}
+        onUnavailable={handleAgentUnavailable}
         subtitle="Active · Landlord-initiated"
         chatEndpoint="/api/landlord-maintenance-agent/chat"
         initialContext={drawer.maintenanceAddInitialValues}

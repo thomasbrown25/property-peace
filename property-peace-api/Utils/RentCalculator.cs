@@ -142,6 +142,36 @@ namespace brownstone_hub_api.Utils
             }
         }
 
+        /// <summary>
+        /// Finalized rent credits allocated to a reporting period. Credits satisfy the
+        /// lease's oldest expected rent first, so a payment received this month for an
+        /// older delinquent installment remains attributed to that older period.
+        /// </summary>
+        public static decimal CollectedForPeriod(
+            LoadLeaseDto lease,
+            IEnumerable<LoadPaymentDto>? payments,
+            DateTime from,
+            DateTime to)
+        {
+            if (!lease.StartDate.HasValue || to.Date <= from.Date)
+                return 0m;
+
+            var expectedForPeriod = ExpectedForLease(lease, from, to);
+            if (expectedForPeriod <= 0m)
+                return 0m;
+
+            var expectedBeforePeriod = ExpectedForLease(lease, lease.StartDate.Value.Date, from.Date);
+            var finalizedRentCredits = RentBalanceCreditingPayments(payments)
+                .Where(payment => payment.LeaseId == lease.Id)
+                .Sum(payment => payment.Amount);
+            var creditsAvailableForPeriod = Math.Max(finalizedRentCredits - expectedBeforePeriod, 0m);
+
+            return Math.Round(
+                Math.Min(expectedForPeriod, creditsAvailableForPeriod),
+                2,
+                MidpointRounding.ToEven);
+        }
+
         // calculate total outstanding (expected - collected)
         public static decimal TotalOutstanding(List<LoadLeaseDto> leases, List<LoadPaymentDto> payments)
         {

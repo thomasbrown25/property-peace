@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const source = fs.readFileSync(new URL('../sections/landlord/dashboard/MoneySummary.jsx', import.meta.url), 'utf8');
+const overviewSource = fs.readFileSync(new URL('../pages/landlord/dashboard-overview.jsx', import.meta.url), 'utf8');
 
 test('money summary renders one chart and exactly three stacked summary cards', () => {
   assert.match(source, /ResponsiveContainer/);
@@ -36,22 +37,21 @@ test('money summary exposes a working period dropdown instead of a static month 
   assert.match(source, /<MenuItem value=\"all-time\">All time<\/MenuItem>/);
 });
 
-test('collection progress is a separate full-width card above money summary', () => {
+test('collection progress is exported as its own dashboard-grid card', () => {
   assert.match(source, /function CollectionProgressCard/);
-  assert.match(source, /gridColumn:\s*['"]1 \/ -1['"]/);
+  assert.match(source, /export function RentCollectionProgress/);
+  assert.match(source, /height:\s*['"]100%['"]/);
   assert.match(source, /<Typography variant="h5" fontWeight=\{700\} sx=\{\{ color: navy \}\}>\s*Rent Collection Progress/);
   assert.match(source, /aria-label="Rent collection progress"/);
-
-  const renderedProgress = source.indexOf('<CollectionProgressCard');
-  const renderedMoneySummary = source.indexOf(
-    '<MainCard',
-    source.indexOf('return (', source.indexOf('export default function MoneySummary'))
-  );
-  assert.ok(renderedProgress > -1 && renderedProgress < renderedMoneySummary);
+  assert.match(overviewSource, /gridArea:\s*['"]progress['"]/);
+  assert.match(overviewSource, /<RentCollectionProgress summary=\{summary\}/);
+  assert.match(overviewSource, /gridArea:\s*['"]money['"]/);
 });
 
-test('money summary uses a narrow daily time-series chart for the current month', () => {
-  assert.match(source, /function buildDailyChartData/);
+test('money summary uses finalized payment history for current-month income and daily chart bars', () => {
+  assert.match(source, /buildCurrentMonthMoneySeries/);
+  assert.match(source, /summarizeCurrentMonthRentIncome/);
+  assert.match(source, /Math\.max\(monthlyMetrics\.income, paymentHistoryIncome\)/);
   assert.match(source, /dataKey="label"/);
   assert.match(source, /interval=\{isAllTime \? 0 : 3\}/);
   assert.match(source, /angle=\{isAllTime \? 0 : 90\}/);
@@ -60,7 +60,8 @@ test('money summary uses a narrow daily time-series chart for the current month'
 });
 
 test('money summary gives the chart more vertical space and keeps its legend tight to the chart and card bottom', () => {
-  assert.match(source, /contentSX=\{\{ pt: 1\.5, pb: 0, display: 'flex', flexDirection: 'column' \}\}/);
+  assert.match(source, /contentSX=\{\{ pt: 1\.5, pb: 0, '&:last-child': \{ pb: 0 \}, display: 'flex', flexDirection: 'column' \}\}/);
+  assert.match(source, /minHeight: \{ xs: 296, sm: 316 \}/);
   assert.match(source, /<Box sx=\{\{ height: \{ xs: 190, sm: 215 \}, minHeight: 0 \}\}>/);
   assert.match(source, /justifyContent="center" sx=\{\{ mt: 0, mb: 0 \}\}/);
 });

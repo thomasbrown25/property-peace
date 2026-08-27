@@ -191,7 +191,7 @@ export default function RecentlyViewedProperties({ properties = [], isLoading = 
           })}
         </Stack>
       ) : (
-        <Stack alignItems="center" textAlign="center" spacing={0.75} sx={{ px: 2.5, py: 4 }}>
+        <Stack alignItems="center" textAlign="center" spacing={0.75} sx={{ px: 2.5, py: 4.5 }}>
           <Box
             sx={{
               width: 38,

@@ -162,6 +162,36 @@ public sealed class RentCollectionSettlementSummaryTests : IDisposable
     }
 
     [Fact]
+    public async Task GetRentCollection_DoesNotCountAnOverduePaymentAsCurrentMonthCollection()
+    {
+        var lease = ActiveLease(101);
+        lease.RentAmount = 1_000m;
+        lease.RentDueDay = 1;
+        var previousMonth = DateTime.Today.AddMonths(-1);
+        lease.StartDate = new DateTime(previousMonth.Year, previousMonth.Month, 1);
+        lease.EndDate = DateTime.Today.AddYears(1);
+        _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true))
+            .ReturnsAsync([lease]);
+        _payments.Setup(repository => repository.GetLifetimeRentPaymentsByOrganizationId(OrganizationId))
+            .ReturnsAsync([
+                new LoadPaymentDto
+                {
+                    LeaseId = lease.Id,
+                    Amount = 1_000m,
+                    Status = "Completed",
+                    PaymentDate = DateTime.Today
+                }
+            ]);
+
+        var result = await _sut.GetRentCollection(OrganizationId);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Summary.ExpectedThisMonth.Should().Be(1_000m);
+        result.Data.Summary.CollectedThisMonth.Should().Be(0m,
+            "the current-month payment is allocated to the oldest unpaid month first");
+    }
+
+    [Fact]
     public async Task GetRentCollection_DoesNotExposeInternalErrors()
     {
         _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true))

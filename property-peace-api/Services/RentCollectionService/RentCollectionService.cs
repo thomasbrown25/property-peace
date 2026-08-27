@@ -160,10 +160,14 @@ namespace brownstone_hub_api.Services.RentCollectionService
                     .Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty))
                     .Sum(p => p.Amount);
 
-                // 🔹 Collected this month — only finalized payments count as collected.
-                var collectedThisMonth = payments
-                    .Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty) && p.PaymentDate >= startOfMonth && p.PaymentDate < endOfMonth)
-                    .Sum(p => p.Amount);
+                // 🔹 Collected this month — allocate finalized rent credits oldest-first.
+                // A payment received now for an older delinquent installment belongs to that
+                // older rent period and must not inflate this month's collection performance.
+                var collectedThisMonth = leases.Sum(lease => RentCalculator.CollectedForPeriod(
+                    lease,
+                    paymentsByLease.TryGetValue(lease.Id, out var periodPayments) ? periodPayments : [],
+                    startOfMonth,
+                    endOfMonth));
 
                 // Canonical current installments exclude amounts already moved to overdue.
                 var remainingThisMonth = rentBalancesByLease.Values.Sum(balance => balance.CurrentMonthRentDue);

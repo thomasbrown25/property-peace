@@ -17,6 +17,8 @@ public sealed class CreateMaintenanceRequestDto
 
 public sealed record CreateMaintenancePreferredWindowDto(DateTimeOffset StartsAtUtc, DateTimeOffset EndsAtUtc, string? AccessInstructions);
 
+public sealed record ChangeMaintenanceStatusDto(EMaintenanceStatus Status, EMaintenanceStatus? ExpectedStatus = null);
+
 public sealed record MaintenanceRequestDetailDto(
     long Id,
     long PropertyId,

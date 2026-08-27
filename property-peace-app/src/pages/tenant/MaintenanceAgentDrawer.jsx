@@ -187,6 +187,7 @@ export default function MaintenanceAgentDrawer({
   open,
   onClose,
   onRequestCreated,
+  onUnavailable,
   subtitle = 'Active · Tenant-initiated',
   chatEndpoint = '/api/maintenance-agent/chat',
   initialContext = null
@@ -194,6 +195,8 @@ export default function MaintenanceAgentDrawer({
   const theme = useTheme();
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const openRef = useRef(false);
+  const sessionVersionRef = useRef(0);
 
   // messages: { role, content, photoBase64?, photoMimeType?, photoPreviewUrl? }
   const [messages, setMessages] = useState([]);
@@ -203,6 +206,16 @@ export default function MaintenanceAgentDrawer({
   // index of the last agent message that requested a photo (-1 = none)
   const [photoRequestIdx, setPhotoRequestIdx] = useState(-1);
   const [awaitingPostSubmitChoice, setAwaitingPostSubmitChoice] = useState(false);
+
+  useEffect(() => {
+    sessionVersionRef.current += 1;
+    openRef.current = open;
+
+    return () => {
+      openRef.current = false;
+      sessionVersionRef.current += 1;
+    };
+  }, [open]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -230,23 +243,41 @@ export default function MaintenanceAgentDrawer({
 
   const sendToAgent = useCallback(
     async (msgHistory) => {
+      const sessionVersion = sessionVersionRef.current;
       setLoading(true);
       // Clear any pending photo request while waiting for response
       setPhotoRequestIdx(-1);
       try {
-        // Strip photoPreviewUrl (display-only) before sending to API
-        const payload = msgHistory.map(({ photoPreviewUrl: _preview, ...rest }) => rest);
-        const body = { messages: payload };
-        if (initialContext?.propertyId) {
-          body.propertyId = initialContext.propertyId;
-          body.propertyName = initialContext.propertyName;
-          body.unitId = initialContext.unitId ?? null;
-          body.unitName = initialContext.unitName ?? null;
+        let data;
+        try {
+          // Strip photoPreviewUrl (display-only) before sending to API
+          const payload = msgHistory.map(({ photoPreviewUrl: _preview, ...rest }) => rest);
+          const body = { messages: payload };
+          if (initialContext?.propertyId) {
+            body.propertyId = initialContext.propertyId;
+            body.propertyName = initialContext.propertyName;
+            body.unitId = initialContext.unitId ?? null;
+            body.unitName = initialContext.unitName ?? null;
+          }
+          const response = await axiosServices.post(chatEndpoint, body);
+          if (!openRef.current || sessionVersion !== sessionVersionRef.current) return;
+          data = response.data?.data;
+          if (!data || typeof data.message !== 'string' || data.message.trim() === '') {
+            throw new Error('Maintenance Agent returned an invalid response.');
+          }
+        } catch (err) {
+          if (!openRef.current || sessionVersion !== sessionVersionRef.current) return;
+          console.error('Maintenance Agent error:', err);
+          if (onUnavailable) {
+            onUnavailable(err);
+            return;
+          }
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: "I'm sorry, something went wrong. Please try again or contact support." }
+          ]);
+          return;
         }
-        const response = await axiosServices.post(chatEndpoint, body);
-
-        const data = response.data?.data;
-        if (!data) return;
 
         const agentMsg = { role: 'assistant', content: data.message };
         setMessages((prev) => {
@@ -259,20 +290,22 @@ export default function MaintenanceAgentDrawer({
 
         if (data.done && data.maintenanceRequest) {
           setAwaitingPostSubmitChoice(true);
-          if (onRequestCreated) await onRequestCreated(data.maintenanceRequest);
+          if (onRequestCreated) {
+            try {
+              await onRequestCreated(data.maintenanceRequest);
+            } catch (err) {
+              console.error('Maintenance request was created, but refresh failed:', err);
+            }
+          }
         }
-      } catch (err) {
-        console.error('Maintenance Agent error:', err);
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: "I'm sorry, something went wrong. Please try again or contact support." }
-        ]);
       } finally {
-        setLoading(false);
-        setTimeout(() => inputRef.current?.focus(), 50);
+        if (openRef.current && sessionVersion === sessionVersionRef.current) {
+          setLoading(false);
+          setTimeout(() => inputRef.current?.focus(), 50);
+        }
       }
     },
-    [onRequestCreated, chatEndpoint, initialContext]
+    [onRequestCreated, onUnavailable, chatEndpoint, initialContext]
   );
 
   const handleSend = () => {
@@ -509,6 +542,7 @@ MaintenanceAgentDrawer.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   onRequestCreated: PropTypes.func,
+  onUnavailable: PropTypes.func,
   subtitle: PropTypes.string,
   chatEndpoint: PropTypes.string,
   initialContext: PropTypes.shape({

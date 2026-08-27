@@ -33,28 +33,28 @@ const editorDate = (value, fallback = new Date()) => {
   return format(Number.isNaN(parsed.getTime()) ? fallback : parsed, "yyyy-MM-dd'T'HH:mm");
 };
 
-const emptyForm = (defaultDate) => ({
-  title: '',
-  dueDate: editorDate(null, defaultDate || new Date()),
-  category: 0,
+const emptyForm = (defaultDate, initialValues = null) => ({
+  title: initialValues?.title || '',
+  dueDate: editorDate(initialValues?.dueDate, defaultDate || new Date()),
+  category: Number(initialValues?.category ?? 0),
   status: 0,
-  propertyId: '',
+  propertyId: initialValues?.propertyId || '',
   isRecurring: false,
-  recurrenceType: 0,
+  recurrenceType: Number(initialValues?.recurrenceType ?? 0),
   recurrenceInterval: 1,
   recurrenceEndDate: ''
 });
 
-export default function TaskEditorDrawer({ open, onClose, onSave, defaultDate, properties = [], editTask = null }) {
+export default function TaskEditorDrawer({ open, onClose, onSave, defaultDate, properties = [], editTask = null, initialValues = null }) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
-  const [form, setForm] = useState(() => emptyForm(defaultDate));
+  const [form, setForm] = useState(() => emptyForm(defaultDate, initialValues));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     if (!editTask) {
-      setForm(emptyForm(defaultDate));
+      setForm(emptyForm(defaultDate, initialValues));
       return;
     }
 
@@ -70,7 +70,7 @@ export default function TaskEditorDrawer({ open, onClose, onSave, defaultDate, p
       recurrenceInterval: Number(valueOf(editTask, 'recurrenceInterval', 'RecurrenceInterval') || 1),
       recurrenceEndDate: recurrenceEnd ? format(parseISO(recurrenceEnd), 'yyyy-MM-dd') : ''
     });
-  }, [defaultDate, editTask, open]);
+  }, [defaultDate, editTask, initialValues, open]);
 
   const set = (key, value) => setForm((current) => ({ ...current, [key]: value }));
 

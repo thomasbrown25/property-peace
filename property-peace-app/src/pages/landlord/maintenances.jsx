@@ -35,7 +35,9 @@ import {
   UserOutlined
 } from '@ant-design/icons';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
+import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
+import { useDrawer } from 'contexts/DrawerContext';
 import useFetchMaintenances from 'hooks/useFetchMaintenances';
 import useFetchProperties from 'hooks/useFetchProperties';
 
@@ -237,6 +239,7 @@ export default function Maintenances() {
   const theme = useTheme();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const drawer = useDrawer();
   const [searchParams] = useSearchParams();
   const { setMaintenancesLoading } = useDashboardLoading();
   const requests = useSelector(selectMaintenanceRequests) || [];
@@ -381,7 +384,7 @@ export default function Maintenances() {
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Button variant="outlined" startIcon={<ShopOutlined />} onClick={() => navigate('/landlord/vendors')} sx={{ textTransform: 'none' }}>Vendors</Button>
-            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => navigate('/landlord/maintenances/add')} sx={{ color: NAVY, textTransform: 'none', fontWeight: 700 }}>New request</Button>
+            <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => drawer.openMaintenanceAddDrawer()} sx={{ color: NAVY, textTransform: 'none', fontWeight: 700 }}>New request</Button>
           </Stack>
         </Stack>
       </Box>
@@ -434,6 +437,8 @@ export default function Maintenances() {
         <MenuItem onClick={() => runAction(() => navigate(`/landlord/maintenance/${actionRequest.id}`))}><EyeOutlined style={{ marginRight: 10 }} />Open request details</MenuItem>
         <MenuItem onClick={() => runAction(() => navigate(`/landlord/maintenance/${actionRequest.id}`))}><ToolOutlined style={{ marginRight: 10 }} />Open workflow actions</MenuItem>
       </Menu>
+
+      <LandlordMaintenanceDrawer onAddSuccess={refetch} />
     </Box>
   );
 }

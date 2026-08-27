@@ -16,8 +16,10 @@ import DashboardHeader, { DashboardReminderCard } from 'sections/landlord/dashbo
 import UrgentMessages from 'sections/landlord/dashboard/UrgentMessages';
 import PropertyProfitability from 'sections/landlord/dashboard/PropertyProfitability';
 import PortfolioHealthSummary from 'sections/landlord/dashboard/PortfolioHealthSummary';
-import MoneySummary from 'sections/landlord/dashboard/MoneySummary';
+import MoneySummary, { RentCollectionProgress } from 'sections/landlord/dashboard/MoneySummary';
 import Portfolio from 'sections/landlord/dashboard/Portfolio';
+import Maintenance from 'sections/landlord/dashboard/Maintenance';
+import Applications from 'sections/landlord/dashboard/Applications';
 import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
 import RecentlyViewedProperties from 'sections/landlord/dashboard/RecentlyViewedProperties';
 
@@ -37,7 +39,7 @@ import { setProperty } from 'store/property/property.action';
 import { selectProperty } from 'store/property/property.selector';
 import { selectTenants } from 'store/tenant/tenant.selector';
 import { selectTotalExpenses } from 'store/expense/expense.selector';
-import { selectDashboardLoading, selectDashboardSummary } from 'store/dashboard/dashboard.selector';
+import { selectDashboardError, selectDashboardLoading, selectDashboardSummary } from 'store/dashboard/dashboard.selector';
 import LeaseViewDrawer from 'components/drawers/LeaseViewDrawer';
 import ExpenseAddDrawer from 'components/expense/ExpenseAddDrawer';
 import useFetchDashboardSummary from 'hooks/useFetchDashboard';
@@ -108,7 +110,7 @@ export default function DashboardOverview({ embedded = false }) {
   const { notificationsLoading } = useFetchNotifications();
   const { isLoading: tenantsLoading } = useFetchAllTenants();
   const tenants = useSelector(selectTenants);
-  useFetchAllPayments();
+  const { refetch: refetchAllPayments } = useFetchAllPayments();
   useFetchTasks();
   const allPayments = useSelector(selectAllPayments);
   const tasks = useSelector(selectTasks);
@@ -120,6 +122,8 @@ export default function DashboardOverview({ embedded = false }) {
   const { registerGenerateSummary } = useTriggerSummary();
 
   const dashboardSummaryData = useSelector(selectDashboardSummary);
+  const dashboardError = useSelector(selectDashboardError);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
   const todayReminders = useMemo(
     () => buildTodayReminders({ tasks, dashboardSummary: dashboardSummaryData, properties }),
     [tasks, dashboardSummaryData, properties]
@@ -167,7 +171,8 @@ export default function DashboardOverview({ embedded = false }) {
       profitabilityLoading ||
       tenantsLoading ||
       expensesLoading ||
-      notificationsLoading
+      notificationsLoading ||
+      applicationsLoading
     );
   }, [
     propertiesLoading,
@@ -177,7 +182,8 @@ export default function DashboardOverview({ embedded = false }) {
     profitabilityLoading,
     tenantsLoading,
     expensesLoading,
-    notificationsLoading
+    notificationsLoading,
+    applicationsLoading
   ]);
 
   // Update the context whenever the dashboard loading state changes
@@ -290,7 +296,7 @@ export default function DashboardOverview({ embedded = false }) {
     }
   };
 
-  // Fetch rent collection data (both current and lifetime) once on mount and when user changes
+  // Fetch rent collection data on mount and after successful finance mutations.
   useEffect(() => {
     if (!userId) return;
 
@@ -299,10 +305,17 @@ export default function DashboardOverview({ embedded = false }) {
     // Fetch lifetime data (lifetime=true)
     dispatch(getRentCollection(null, true));
 
+    if (drawer.financeMutationVersion > 0) {
+      refetchAllPayments();
+      refetchExpenses();
+      refetchDashboardSummary();
+    }
+
     // Fetch property profitability data (lifetime) - OrganizationId sent via header
     fetchProfitabilityData(null, null);
+    // fetchProfitabilityData intentionally remains local to this dashboard request cycle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, dispatch]);
+  }, [userId, dispatch, drawer.financeMutationVersion, refetchAllPayments]);
 
   const handleAddLease = () => {
     navigate('/landlord/leases');
@@ -444,14 +457,45 @@ export default function DashboardOverview({ embedded = false }) {
               </Grid>
             )}
 
-            {/* Main dashboard columns */}
+            {/* Shared row grid keeps neighboring dashboard cards equal-height. */}
             <Grid size={12}>
-              <Grid container spacing={2.5} alignItems="stretch">
-                <Grid size={{ xs: 12, md: 4 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <Stack spacing={2.5} sx={{ width: '100%' }}>
-                    <DashboardReminderCard reminders={todayReminders} />
+              <Grid
+                container
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'repeat(12, minmax(0, 1fr))' },
+                  gridTemplateAreas: {
+                    xs: showSetupCard
+                      ? `'reminder' 'setup' 'quick' 'recent' 'progress' 'money' 'portfolio' 'maintenance' 'applications' 'payments'`
+                      : `'reminder' 'quick' 'recent' 'progress' 'money' 'portfolio' 'maintenance' 'applications' 'payments'`,
+                    md: showSetupCard
+                      ? `'reminder reminder reminder reminder progress progress progress progress progress progress progress progress'
+                         'setup setup setup setup setup setup setup setup setup setup setup setup'
+                         'quick quick quick quick money money money money money money money money'
+                         'recent recent recent recent portfolio portfolio portfolio portfolio portfolio portfolio portfolio portfolio'
+                         'payments payments payments payments maintenance maintenance maintenance maintenance applications applications applications applications'`
+                      : `'reminder reminder reminder reminder progress progress progress progress progress progress progress progress'
+                         'quick quick quick quick money money money money money money money money'
+                         'recent recent recent recent portfolio portfolio portfolio portfolio portfolio portfolio portfolio portfolio'
+                         'payments payments payments payments maintenance maintenance maintenance maintenance applications applications applications applications'`
+                  },
+                  gap: 2.5,
+                  alignItems: 'stretch'
+                }}
+              >
+                <Box sx={{ display: 'contents' }}>
+                  <Box sx={{ display: 'contents' }}>
+                    <Box sx={{ gridArea: 'reminder', display: 'flex', minWidth: 0, '& > *': { width: '100%' }, '& .MuiCard-root': { height: '100%' } }}>
+                      <DashboardReminderCard reminders={todayReminders} />
+                    </Box>
+                    <Box sx={{ gridArea: 'progress', display: 'flex', minWidth: 0 }}>
+                      <AnimateIn direction="bottom" delay={250} distance={120} style={{ display: 'flex', width: '100%' }}>
+                        <RentCollectionProgress summary={summary} />
+                      </AnimateIn>
+                    </Box>
                     {showSetupCard && (
-                      <FinishSetup
+                      <Box sx={{ gridArea: 'setup', minWidth: 0 }}>
+                        <FinishSetup
                         open={setupTasksOpen}
                         onOpen={() => setSetupTasksOpen(true)}
                         onClose={closeSetupTasks}
@@ -459,9 +503,11 @@ export default function DashboardOverview({ embedded = false }) {
                         isDismissing={isDismissingSetup}
                         steps={setupState.steps}
                         isLoading={setupState.isLoading}
-                      />
+                        />
+                      </Box>
                     )}
-                    {isMobile ? (
+                    <Box sx={{ gridArea: 'quick', display: 'flex', minWidth: 0, '& > *': { width: '100%' } }}>
+                      {isMobile ? (
                       <Box>
                         <Button
                           id="mobile-dashboard-quick-actions-button"
@@ -603,7 +649,7 @@ export default function DashboardOverview({ embedded = false }) {
                               onClick={action.onClick}
                               sx={() => ({
                                 width: '100%',
-                                minHeight: 52,
+                                minHeight: 58,
                                 px: 1.25,
                                 py: 1,
                                 border: `1px solid ${alpha('#94a3b8', 0.45)}`,
@@ -655,40 +701,57 @@ export default function DashboardOverview({ embedded = false }) {
                           ))}
                         </Stack>
                       </Box>
-                    )}
-                    <RecentlyViewedProperties
-                      properties={recentlyViewedProperties}
-                      isLoading={propertiesLoading}
-                      hasError={propertiesError}
-                    />
-                    {!isMobile && <PaymentsCard />}
-                  </Stack>
-                </Grid>
+                      )}
+                    </Box>
+                    <Box sx={{ gridArea: 'recent', display: 'flex', minWidth: 0, '& > *': { width: '100%' }, '& .MuiCard-root': { height: '100%' } }}>
+                      <RecentlyViewedProperties
+                        properties={recentlyViewedProperties}
+                        isLoading={propertiesLoading}
+                        hasError={propertiesError}
+                      />
+                    </Box>
+                    <Box sx={{ gridArea: 'payments', display: 'flex', minWidth: 0, '& > *': { width: '100%' }, '& .MuiCard-root': { height: '100%' } }}>
+                      <PaymentsCard />
+                    </Box>
+                  </Box>
+                </Box>
 
-                <Grid size={{ xs: 12, md: 8 }} sx={{ display: 'flex', flexDirection: 'column' }}>
-                  <Stack spacing={2.5} sx={{ width: '100%' }}>
-                    <AnimateIn direction="bottom" delay={250} distance={120} style={{ display: 'flex', flexDirection: 'column' }}>
-                      <MoneySummary
+                <Box sx={{ display: 'contents' }}>
+                  <Box sx={{ display: 'contents' }}>
+                    <Box sx={{ gridArea: 'money', display: 'flex', minWidth: 0 }}>
+                      <AnimateIn direction="bottom" delay={250} distance={120} style={{ display: 'flex', width: '100%' }}>
+                        <MoneySummary
                         summary={summary}
                         lifetimeSummary={lifetimeSummary}
                         totalExpenses={totalExpenses}
                         allPayments={allPayments}
                         expenses={expenses}
-                      />
-                    </AnimateIn>
-                    <AnimateIn direction="bottom" delay={350} distance={120} style={{ display: 'flex', flexDirection: 'column' }}>
-                      <Portfolio properties={properties} isLoading={propertiesLoading} />
-                    </AnimateIn>
-                  </Stack>
-                </Grid>
-
-                {isMobile && (
-                  <Grid size={12}>
-                    <AnimateIn direction="bottom" delay={450} distance={120}>
-                      <PaymentsCard />
-                    </AnimateIn>
-                  </Grid>
-                )}
+                        />
+                      </AnimateIn>
+                    </Box>
+                    <Box sx={{ gridArea: 'portfolio', display: 'flex', minWidth: 0, '& .MuiCard-root': { width: '100%', height: '100%' } }}>
+                      <AnimateIn direction="bottom" delay={350} distance={120} style={{ display: 'flex', width: '100%' }}>
+                        <Portfolio properties={properties} isLoading={propertiesLoading} />
+                      </AnimateIn>
+                    </Box>
+                    <Box sx={{ display: 'contents' }}>
+                      <Box sx={{ gridArea: 'maintenance', display: 'flex', minWidth: 0 }}>
+                        <AnimateIn direction="bottom" delay={425} distance={120} style={{ display: 'flex', width: '100%' }}>
+                          <Maintenance
+                            requests={dashboardSummaryData?.maintenanceRequests?.maintenanceRequests || []}
+                            isLoading={dashboardLoading}
+                            hasError={Boolean(dashboardError)}
+                          />
+                        </AnimateIn>
+                      </Box>
+                      <Box sx={{ gridArea: 'applications', display: 'flex', minWidth: 0 }}>
+                        <AnimateIn direction="bottom" delay={475} distance={120} style={{ display: 'flex', width: '100%' }}>
+                          <Applications onLoadingChange={setApplicationsLoading} />
+                        </AnimateIn>
+                      </Box>
+                    </Box>
+                  </Box>
+                </Box>
               </Grid>
             </Grid>
           </Grid>

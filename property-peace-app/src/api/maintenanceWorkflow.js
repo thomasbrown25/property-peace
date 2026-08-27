@@ -21,6 +21,8 @@ export const maintenanceWorkflowAPI = {
   create: (body, key) => post(ROOT, body, key),
   get: (id) => axiosServices.get(`${ROOT}/${id}`).then(data),
   acknowledge: (id, key) => post(`${ROOT}/${id}/acknowledge`, {}, key),
+  changeStatus: (id, status, expectedStatus, key = newMaintenanceIdempotencyKey()) =>
+    post(`${ROOT}/${id}/status`, { status, expectedStatus }, key),
   troubleshoot: (id, body, key) => post(`${ROOT}/${id}/percy/troubleshooting`, body, key),
   recordTroubleshootingOutcome: (id, stepId, body, key) => post(`${ROOT}/${id}/percy/troubleshooting/${stepId}/outcome`, body, key),
   assign: (id, body, key) => post(`${ROOT}/${id}/assign`, body, key),
