@@ -215,7 +215,7 @@ test('real production routes resume listing, application, unit, lease, tenant, r
 
   const noLease = routesFor({ ...context, listingId: null, leaseId: null });
   assert.equal(noLease['listing-application'], '/landlord/applications?applicationId=46');
-  assert.equal(noLease['tenant-invite'], '/landlord/tenants/78');
+  assert.equal(noLease['tenant-invite'], '/landlord/renters/78');
   assert.equal(noLease['rent-readiness'], '/landlord/leases');
   assert.equal(routesFor({ ...context, unitId: null }, 'import')['property-unit'], '/landlord/property/12/add-units/import');
 
