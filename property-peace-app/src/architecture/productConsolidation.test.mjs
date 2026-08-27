@@ -41,13 +41,13 @@ const referencesRetiredMoneyCenter = (filePath, fileSource) => {
 };
 
 test('dashboard rent reminder uses canonical rent collection navigation and no legacy mutation drawer', async () => {
-  const dashboard = await source('pages/landlord/dashboard.jsx');
+  const dashboardOverview = await source('pages/landlord/dashboard-overview.jsx');
   const organizationApi = await source('api/organization.js');
   const sharedOrganizationApi = await readFile(path.resolve(srcRoot, '../../shared/api/organization.js'), 'utf8');
 
-  assert.doesNotMatch(dashboard, /SendRentReminderDrawer|rentReminderOpen|setRentReminderOpen/);
-  assert.match(dashboard, /label: 'Rent Collection'/);
-  assert.match(dashboard, /onClick: \(\) => navigate\('\/landlord\/rent-collection'\)/);
+  assert.doesNotMatch(dashboardOverview, /SendRentReminderDrawer|rentReminderOpen|setRentReminderOpen/);
+  assert.match(dashboardOverview, /label: 'Rent Collection'/);
+  assert.match(dashboardOverview, /onClick: \(\) => navigate\('\/landlord\/rent-collection'\)/);
   assert.doesNotMatch(organizationApi, /updateAgentSettings|agent-settings/);
   assert.doesNotMatch(sharedOrganizationApi, /updateAgentSettings|agent-settings/);
   await assert.rejects(access(path.join(srcRoot, 'components/drawers/SendRentReminderDrawer.jsx')), (error) => error?.code === 'ENOENT');

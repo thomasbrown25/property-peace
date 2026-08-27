@@ -1556,7 +1556,7 @@ export default function Messages() {
                               {(() => {
                                 const t = selectedConversation?.tenantId ? tenants?.find((ten) => ten.id === selectedConversation.tenantId) : null;
                                 return t ? (
-                                  <MenuItem onClick={() => { setActionMenuAnchor(null); navigate(`/landlord/tenants/${t.id}`); }}>
+                                  <MenuItem onClick={() => { setActionMenuAnchor(null); navigate(`/landlord/renters/${t.id}`); }}>
                                     <UserOutlined style={{ marginRight: 8 }} />
                                     Open tenant profile
                                   </MenuItem>

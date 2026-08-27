@@ -90,9 +90,12 @@ import { selectUserSettings } from 'store/user/user.selector';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { tenantDocumentAPI } from 'api';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { leasesWorkspaceSearch, leasesWorkspaceTabFromSearch } from 'utils/renterWorkspace';
 
 // Enhanced components
 import LeasesHeader from 'sections/landlord/leases/LeasesHeader';
+import TenantsContent from 'sections/landlord/tenants/TenantsContent';
+import TenantAddDrawer from 'components/drawers/TenantAddDrawer';
 
 // TabPanel component with slide animation
 function TabPanel({ children, value, index, slideDirection, ...other }) {
@@ -838,8 +841,9 @@ export default function LeasesPage({ onEditLease }) {
   const [leaseHistory, setLeaseHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  // Tab state
-  const [activeTab, setActiveTab] = useState(() => (searchParams.get('tab') === 'agreements' ? 1 : 0));
+  // The URL is the source of truth for the top-level Leases workspace.
+  const activeWorkspaceTab = leasesWorkspaceTabFromSearch(searchParams);
+  const activeTab = activeWorkspaceTab === 'agreements' ? 1 : activeWorkspaceTab === 'tenants' ? 2 : 0;
   const [slideDirection, setSlideDirection] = useState('left');
   
   // Lease Agreements tab state
@@ -1586,7 +1590,8 @@ export default function LeasesPage({ onEditLease }) {
       // Moving left (e.g., Lease Agreements -> Leases)
       setSlideDirection('right'); // New content comes from left (slides in from left to right)
     }
-    setActiveTab(newValue);
+    const nextTab = newValue === 1 ? 'agreements' : newValue === 2 ? 'tenants' : 'leases';
+    navigate({ pathname: location.pathname, search: leasesWorkspaceSearch(nextTab, location.search) });
   };
 
   return (
@@ -1605,7 +1610,20 @@ export default function LeasesPage({ onEditLease }) {
         <Box
           sx={{
             mt: 0.5,
-            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+            position: 'relative',
+            isolation: 'isolate',
+            width: '100%',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              right: 0,
+              bottom: 0,
+              left: 0,
+              height: '1px',
+              bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.22 : 0.12),
+              pointerEvents: 'none',
+              zIndex: 0
+            },
             '& .MuiTabs-root': { minHeight: 42 },
             '& .MuiTab-root': {
               minHeight: 42,
@@ -1630,6 +1648,7 @@ export default function LeasesPage({ onEditLease }) {
               }
             },
             '& .MuiTabs-indicator': {
+              zIndex: 1,
               height: 2,
               borderRadius: 2,
               backgroundColor: 'primary.main'
@@ -1650,6 +1669,13 @@ export default function LeasesPage({ onEditLease }) {
                 <Stack direction="row" spacing={0.75} alignItems="center">
                   <Typography component="span" variant="body2" fontWeight={700}>Lease agreements</Typography>
                   <Chip label={filteredLeaseAgreements.length} size="small" sx={{ height: 18, minWidth: 18, '& .MuiChip-label': { px: 0.65, fontSize: '0.68rem', fontWeight: 700 } }} />
+                </Stack>
+              )}
+            />
+            <Tab
+              label={(
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Typography component="span" variant="body2" fontWeight={700}>Tenants</Typography>
                 </Stack>
               )}
             />
@@ -1948,6 +1974,7 @@ export default function LeasesPage({ onEditLease }) {
                               <TableCell align="right" onClick={() => handleSort('rentAmount')} sx={{ cursor: 'pointer', minWidth: 150, pr: 3.5 }}>Rent · Balance</TableCell>
                               <TableCell sx={{ pl: 3 }}>Payment Heartbeat</TableCell>
                               <TableCell onClick={() => handleSort('startDate')} sx={{ cursor: 'pointer' }}>Term</TableCell>
+                              <TableCell onClick={() => handleSort('status')} sx={{ cursor: 'pointer', minWidth: 120 }}>Status</TableCell>
                               <TableCell align="right" />
                             </TableRow>
                           </TableHead>
@@ -1989,13 +2016,6 @@ export default function LeasesPage({ onEditLease }) {
                                     <Box sx={{ minWidth: 0 }}>
                                       <Typography variant="body2" fontWeight={700} noWrap>{propertyTenantTitle}</Typography>
                                       <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{getTenantDisplay(lease)}</Typography>
-                                      <Chip
-                                        size="small"
-                                        label={isActiveLease ? 'Active lease' : 'No active lease'}
-                                        color={isActiveLease ? 'success' : 'default'}
-                                        variant={isActiveLease ? 'filled' : 'outlined'}
-                                        sx={{ height: 20, mt: 0.35, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
-                                      />
                                     </Box>
                                   </TableCell>
                                   <TableCell align="right" sx={{ minWidth: 150, pr: 3.5 }}>
@@ -2015,6 +2035,15 @@ export default function LeasesPage({ onEditLease }) {
                                       </Typography>
                                     </Stack>
                                     <LinearProgress variant="determinate" value={term.progress} sx={{ height: 5, borderRadius: 99, bgcolor: (t) => alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.32 : 0.28), '& .MuiLinearProgress-bar': { borderRadius: 99, bgcolor: term.overDays ? 'warning.main' : 'success.main' } }} />
+                                  </TableCell>
+                                  <TableCell sx={{ minWidth: 120 }}>
+                                    <Chip
+                                      size="small"
+                                      label={isActiveLease ? 'Active lease' : 'No active lease'}
+                                      color={isActiveLease ? 'success' : 'default'}
+                                      variant={isActiveLease ? 'filled' : 'outlined'}
+                                      sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
+                                    />
                                   </TableCell>
                                   <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                                     {hasLease ? (
@@ -2386,6 +2415,11 @@ export default function LeasesPage({ onEditLease }) {
               })()}
             </Menu>
           </TabPanel>
+
+          {/* Tab Panel: Tenants */}
+          <TabPanel key="tenants" value={activeTab} index={2} slideDirection={slideDirection}>
+            <TenantsContent embedded />
+          </TabPanel>
         </Box>
 
       {/* End Lease Confirmation Dialog */}
@@ -2428,6 +2462,7 @@ export default function LeasesPage({ onEditLease }) {
 
 
       <LeaseAddDrawer />
+      <TenantAddDrawer />
       <CreateLeaseAgreementDrawer
         open={createAgreementDrawerOpen}
         onClose={() => { setCreateAgreementDrawerOpen(false); setCreateAgreementInitialLease(null); }}

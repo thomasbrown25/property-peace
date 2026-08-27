@@ -51,6 +51,7 @@ import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import { selectTenants } from 'store/tenant/tenant.selector';
 import { deleteTenant } from 'store/tenant/tenant.action';
 import { formatPhoneInput } from 'utils/formatters';
+import { renterProfileRoute } from 'utils/renterWorkspace';
 
 const PAGE_SIZE = 10;
 const NAVY = '#061e35';
@@ -261,7 +262,7 @@ function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onAction
   );
 }
 
-export default function TenantsContent() {
+export default function TenantsContent({ embedded = false }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -475,29 +476,46 @@ export default function TenantsContent() {
 
   return (
     <Box sx={{ pb: 3 }}>
-      <ManagementPageHeader
-        title="Tenants"
-        description="Manage renter relationships, lease placement, contact details, and portal access from one workspace."
-        actions={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <TenantCsvImportButton
-              buttonProps={{
-                variant: 'outlined',
-                sx: managementPageHeaderActionSx
-              }}
-            />
-            <Button
-              variant="contained"
-              color="success"
-              startIcon={<PlusOutlined />}
-              onClick={() => drawer.openTenantAddDrawer()}
-              sx={managementPageHeaderActionSx}
-            >
-              Add tenant
-            </Button>
-          </Stack>
-        }
-      />
+      {!embedded && (
+        <ManagementPageHeader
+          title="Tenants"
+          description="Manage renter relationships, lease placement, contact details, and portal access from one workspace."
+          actions={
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TenantCsvImportButton
+                buttonProps={{
+                  variant: 'outlined',
+                  sx: managementPageHeaderActionSx
+                }}
+              />
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<PlusOutlined />}
+                onClick={() => drawer.openTenantAddDrawer()}
+                sx={managementPageHeaderActionSx}
+              >
+                Add tenant
+              </Button>
+            </Stack>
+          }
+        />
+      )}
+
+      {embedded && (
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="flex-end" spacing={1} sx={{ mb: 1.5 }}>
+          <TenantCsvImportButton buttonProps={{ variant: 'outlined', sx: managementPageHeaderActionSx }} />
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<PlusOutlined />}
+            onClick={() => drawer.openTenantAddDrawer()}
+            sx={managementPageHeaderActionSx}
+          >
+            Add tenant
+          </Button>
+        </Stack>
+      )}
 
       <Box
         sx={{
@@ -696,7 +714,10 @@ export default function TenantsContent() {
               tenantInvites={tenantInvites}
               selected={selectedTenantIds.has(getId(tenant))}
               onSelect={toggleTenantSelection}
-              onOpen={(item) => navigate(`/landlord/tenants/${getId(item)}`)}
+              onOpen={(item) => {
+                const route = renterProfileRoute(getId(item));
+                if (route) navigate(route);
+              }}
               onActions={handleActions}
             />
           ))

@@ -16,7 +16,6 @@ import { buildLegacyFinancesRedirect } from './legacyFinancesRedirect';
 const Dashboard = Loadable(lazy(() => import('pages/landlord/dashboard')));
 
 const Properties = Loadable(lazy(() => import('pages/landlord/properties')));
-const Tenants = Loadable(lazy(() => import('pages/landlord/tenants')));
 const Property = Loadable(lazy(() => import('pages/landlord/property')));
 const PropertyAdd = Loadable(lazy(() => import('pages/landlord/property-add')));
 const PropertyAddWorkflow = Loadable(lazy(() => import('pages/landlord/property-add-workflow')));
@@ -77,7 +76,7 @@ const UnitChecklistsPage = Loadable(lazy(() => import('pages/landlord/unit-check
 const PropertyChecklistsPage = Loadable(lazy(() => import('pages/landlord/inspection-detail')));
 const CustomizeMoveInReportPage = Loadable(lazy(() => import('pages/landlord/customize-move-in-report')));
 const UnitPage = Loadable(lazy(() => import('pages/landlord/unit')));
-const Tenant = Loadable(lazy(() => import('pages/landlord/tenant')));
+const RenterProfile = Loadable(lazy(() => import('pages/landlord/renter-profile')));
 const ContactUs = Loadable(lazy(() => import('pages/landlord/contact-us')));
 const Files = Loadable(lazy(() => import('pages/landlord/files')));
 const Documents = Loadable(lazy(() => import('pages/landlord/documents')));
@@ -187,6 +186,11 @@ function LegacyLeaseBuilderRedirect() {
   return <Navigate to={buildLeaseBuilderRedirect(search)} replace />;
 }
 
+function LegacyTenantProfileRedirect() {
+  const { tenantId } = useParams();
+  return <Navigate to={`/landlord/renters/${tenantId}`} replace />;
+}
+
 function LegacyFinancesRedirect({ tab }) {
   const { propertyId } = useParams();
   const { search } = useLocation();
@@ -238,11 +242,7 @@ const MainRoutes = {
         },
         {
           path: 'landlord/tenants',
-          element: (
-            <SubscriptionPausedGuard>
-              <Tenants />
-            </SubscriptionPausedGuard>
-          )
+          element: <Navigate to="/landlord/leases?tab=tenants" replace />
         },
         {
           path: 'landlord/tenants/import',
@@ -642,9 +642,13 @@ const MainRoutes = {
         },
         {
           path: 'landlord/tenants/:tenantId',
+          element: <LegacyTenantProfileRedirect />
+        },
+        {
+          path: 'landlord/renters/:renterId',
           element: (
             <SubscriptionPausedGuard>
-              <Tenant />
+              <RenterProfile />
             </SubscriptionPausedGuard>
           )
         },

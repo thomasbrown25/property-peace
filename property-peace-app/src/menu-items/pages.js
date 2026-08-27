@@ -64,13 +64,6 @@ const pages = [
             icon: icons.HomeOutlined
           },
           {
-            id: 'tenants',
-            title: 'Tenants',
-            type: 'item',
-            url: '/landlord/tenants',
-            icon: icons.UserOutlined
-          },
-          {
             id: 'leases',
             title: 'Leases',
             type: 'item',

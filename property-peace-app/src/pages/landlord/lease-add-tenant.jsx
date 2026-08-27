@@ -490,7 +490,7 @@ export default function LeaseAddTenantPage() {
                     <Button
                       size="small"
                       variant="outlined"
-                      onClick={() => navigate(`/landlord/tenants/${id}`)}
+                      onClick={() => navigate(`/landlord/renters/${id}`)}
                       aria-label={`Add email for ${name}`}
                       sx={{ minHeight: 44, ml: { sm: 1 }, width: { xs: '100%', sm: 'auto' }, flexShrink: 0, textTransform: 'none' }}
                     >

@@ -118,7 +118,7 @@ export default function PropertyCurrentTenant({ property, rentRecords = [] }) {
           variant="outlined"
           size="small"
           fullWidth
-          onClick={() => tenantId && navigate(`/landlord/tenants/${tenantId}`)}
+          onClick={() => tenantId && navigate(`/landlord/renters/${tenantId}`)}
           sx={darkModeActionButtonSx(theme.palette.primary.main, { textTransform: 'none', fontWeight: 600, borderRadius: 1.5, fontSize: '0.8rem' })}
         >
           Profile

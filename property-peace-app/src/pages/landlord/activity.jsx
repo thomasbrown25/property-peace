@@ -209,7 +209,7 @@ export default function Activity() {
         if (activity.relatedId) navigate(`/landlord/property/${activity.relatedId}`);
         break;
       case 'Tenant':
-        if (activity.relatedId) navigate(`/landlord/tenants/${activity.relatedId}`);
+        if (activity.relatedId) navigate(`/landlord/renters/${activity.relatedId}`);
         break;
       case 'Message':
         navigate(activity.conversationId ? `/landlord/messages?conversationId=${activity.conversationId}` : '/landlord/messages');
