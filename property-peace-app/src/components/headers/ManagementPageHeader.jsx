@@ -18,9 +18,11 @@ export default function ManagementPageHeader({ title, description, actions, brea
           <Typography variant="h3" sx={managementPageHeaderTitleSx}>
             {title}
           </Typography>
-          <Typography variant="body1" sx={managementPageHeaderDescriptionSx}>
-            {description}
-          </Typography>
+          {description && (
+            <Typography variant="body1" sx={managementPageHeaderDescriptionSx}>
+              {description}
+            </Typography>
+          )}
         </Box>
 
         {actions && <Box sx={{ flexShrink: 0, alignSelf: { xs: 'stretch', sm: 'center' } }}>{actions}</Box>}
@@ -31,7 +33,7 @@ export default function ManagementPageHeader({ title, description, actions, brea
 
 ManagementPageHeader.propTypes = {
   title: PropTypes.string.isRequired,
-  description: PropTypes.node.isRequired,
+  description: PropTypes.node,
   actions: PropTypes.node,
   breadcrumbLabel: PropTypes.string,
   marginBottom: PropTypes.number

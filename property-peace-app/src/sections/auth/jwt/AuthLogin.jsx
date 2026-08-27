@@ -469,10 +469,9 @@ export default function AuthLogin({ isDemo = false }) {
                           size="large"
                           type="submit"
                           variant="contained"
+                          color="success"
                           startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
                           sx={{
-                            bgcolor: '#41a541',
-                            color: '#ffffff',
                             textTransform: 'uppercase',
                             fontWeight: 600,
                             py: 1.5,
@@ -480,12 +479,7 @@ export default function AuthLogin({ isDemo = false }) {
                             minWidth: 250,
                             boxShadow: '0 12px 24px rgba(65, 165, 65, 0.24)',
                             '&:hover': {
-                              bgcolor: '#41a541',
                               boxShadow: '0 14px 28px rgba(65, 165, 65, 0.28)'
-                            },
-                            '&.Mui-disabled': {
-                              bgcolor: 'rgba(65, 165, 65, 0.55)',
-                              color: '#ffffff'
                             }
                           }}
                         >

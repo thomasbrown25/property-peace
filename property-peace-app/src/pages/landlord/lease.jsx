@@ -48,6 +48,7 @@ import LeaseEditDrawer from 'components/drawers/LeaseEditDrawer';
 import RenewLeaseDrawer from 'components/drawers/RenewLeaseDrawer';
 import TenantEditDrawer from 'components/drawers/TenantEditDrawer';
 import TenantAddDrawer from 'components/drawers/TenantAddDrawer';
+import LeaseDocumentUploadDrawer from 'components/drawers/LeaseDocumentUploadDrawer';
 import { updateLease, setLease, endLease, reopenLease } from 'store/lease/lease.action';
 import { setProperty, addOrUpdateProperty } from 'store/property/property.action';
 import { setUnit } from 'store/unit/unit.action';
@@ -133,6 +134,7 @@ export default function LeasePage() {
   const [signingIssueModalOpen, setSigningIssueModalOpen] = useState(false);
   const [syncingSignature, setSyncingSignature] = useState(false);
   const [sendingLeaseForSignature, setSendingLeaseForSignature] = useState(false);
+  const [documentUploadDrawerOpen, setDocumentUploadDrawerOpen] = useState(false);
   const [leaseDocuments, setLeaseDocuments] = useState([]);
   const [loadingLeaseDocuments, setLoadingLeaseDocuments] = useState(false);
   const prevTenantEditDrawerOpen = useRef(drawer.isOpenTenantEdit);
@@ -1664,10 +1666,19 @@ export default function LeasePage() {
         onRenew={() => { dispatch(setLease(lease)); drawer.openRenewLeaseDrawer(); }}
         onRecordPayment={() => drawer.openPaymentAddDrawer({ lease: { ...lease, tenants }, property, unit: lease?.unit || null, tenant: tenants[0] || null })}
         onViewAgreement={handleViewLeaseAgreement}
-        onUploadDocument={() => navigate(`/landlord/leases/${leaseId}/upload-document`)}
+        onUploadDocument={() => setDocumentUploadDrawerOpen(true)}
         onEditTerms={() => { dispatch(setLease(lease)); drawer.openLeaseEditDrawer(); }}
         onOpenSignature={() => setSendSignatureDialogOpen(true)}
-        onConfigureRent={() => navigate(leaseId ? `/landlord/rent-collection/${leaseId}` : '/landlord/rent-collection')}
+        onConfigureRent={() => {
+          if (!leaseId || !propertyId) {
+            navigate('/landlord/leases');
+            return;
+          }
+          const unitId = lease?.unit?.id ?? lease?.unit?.Id ?? lease?.unitId ?? lease?.UnitId;
+          const params = new URLSearchParams({ leaseId: String(leaseId), propertyId: String(propertyId) });
+          if (unitId) params.set('unitId', String(unitId));
+          navigate(`/landlord/leases/build-lease-agreement/rent-deposit-fees?${params.toString()}`);
+        }}
         onCustomizeConditionReport={() => navigate('/landlord/customize-move-in-report', {
           state: {
             fromLeaseId: lease?.id ?? lease?.Id,
@@ -1728,6 +1739,15 @@ export default function LeasePage() {
       <RenewLeaseDrawer onRenewSuccess={() => propertiesRefetch()} />
       <TenantAddDrawer />
       <TenantEditDrawer />
+      <LeaseDocumentUploadDrawer
+        open={documentUploadDrawerOpen}
+        onClose={() => setDocumentUploadDrawerOpen(false)}
+        leaseId={leaseId}
+        tenants={tenants}
+        onUploaded={async () => {
+          await Promise.all([loadLeaseDocuments(), propertiesRefetch()]);
+        }}
+      />
 
       {/* Send for Signature Dialog */}
       <Dialog

@@ -261,13 +261,11 @@ export default function UrgentMessages() {
         });
       }
     } else if (action.includes('payment')) {
-      // Navigate to rent collection page
+      // Payment follow-up belongs with the associated lease.
       if (message.leaseId) {
         navigate(`/landlord/leases/${message.leaseId}`);
-      } else if (message.propertyId) {
-        navigate(`/landlord/rent-collection?propertyId=${message.propertyId}`);
       } else {
-        navigate('/landlord/rent-collection');
+        navigate('/landlord/leases');
       }
     } else if (action.includes('lease')) {
       // Navigate to lease page

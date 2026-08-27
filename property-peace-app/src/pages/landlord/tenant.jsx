@@ -465,7 +465,7 @@ export default function TenantPage() {
         <Alert severity="error">{error || 'Tenant not found'}</Alert>
         <Button
           startIcon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/landlord/tenants')}
+          onClick={() => navigate('/landlord/leases?tab=tenants')}
           sx={{ mt: 2 }}
         >
           Back to Tenants
@@ -479,7 +479,7 @@ export default function TenantPage() {
       <PageBreadcrumbs
         items={[
           { label: 'Dashboard', path: '/landlord/dashboard' },
-          { label: 'Tenants', path: '/landlord/tenants' },
+          { label: 'Tenants', path: '/landlord/leases?tab=tenants' },
           { label: fullName }
         ]}
       />

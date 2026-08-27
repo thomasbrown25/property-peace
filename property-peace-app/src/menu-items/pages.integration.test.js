@@ -3,46 +3,71 @@ import assert from 'node:assert/strict';
 
 import pages from './pages.js';
 
-const landlordDestinations = pages.find(({ id }) => id === 'group-landlord-navigation')?.children ?? [];
-const topLevelIds = landlordDestinations.map(({ id }) => id);
-
-test('Portfolio is the first landlord destination after Dashboard', () => {
-  assert.equal(topLevelIds[0], 'dashboard');
-  assert.equal(topLevelIds[1], 'portfolio');
-});
-
-test('Operations is the first landlord destination after Portfolio', () => {
-  const portfolioIndex = topLevelIds.indexOf('portfolio');
-
-  assert.notEqual(portfolioIndex, -1);
-  assert.equal(topLevelIds[portfolioIndex + 1], 'operations');
-});
-
-test('Accounting exposes only the consolidated finance destinations in their approved order', () => {
-  const accounting = landlordDestinations.find(({ id }) => id === 'accounting');
-
-  assert.ok(accounting, 'missing Accounting navigation group');
-  assert.deepEqual(
-    accounting.children.map(({ id, title, url }) => ({ id, title, url })),
-    [
-      { id: 'finances', title: 'Finances', url: '/landlord/finances' },
-      { id: 'rent-collection', title: 'Rent Collection', url: '/landlord/rent-collection' },
-      { id: 'tax-center', title: 'Tax Center', url: '/landlord/accounting/tax-center' },
-      { id: 'reports-analytics', title: 'Reports & Analytics', url: '/landlord/reports' }
+const expectedGroups = [
+  {
+    id: 'group-landlord-navigation',
+    title: undefined,
+    items: [
+      ['dashboard', 'Dashboard', '/landlord/dashboard'],
+      ['properties-page', 'Properties', '/landlord/properties'],
+      ['leases', 'Leases', '/landlord/leases'],
+      ['listings', 'Listings & Applications', '/landlord/listings']
     ]
+  },
+  {
+    id: 'group-property-operations',
+    title: 'Property Operations',
+    items: [
+      ['ai-center', 'Percy', '/landlord/ai-center'],
+      ['inspections', 'Checklists', '/landlord/checklists'],
+      ['maintenances', 'Maintenance', '/landlord/maintenances'],
+      ['vendors', 'Vendors', '/landlord/vendors']
+    ]
+  },
+  {
+    id: 'group-admin-operations',
+    title: 'Admin Operations',
+    items: [
+      ['admin-users', 'Team', '/landlord/admin-members'],
+      ['announcements', 'Announcements', '/landlord/announcements'],
+      ['messages', 'Messages', '/landlord/messages']
+    ]
+  },
+  {
+    id: 'group-accounting',
+    title: 'Accounting',
+    items: [
+      ['finances', 'Finances', '/landlord/finances'],
+      ['tax-center', 'Tax Center', '/landlord/accounting/tax-center'],
+      ['reports-analytics', 'Reports', '/landlord/reports']
+    ]
+  }
+];
+
+test('landlord sidebar uses the approved flat groups and item order', () => {
+  assert.deepEqual(
+    pages.map(({ id, title, children }) => ({
+      id,
+      title,
+      items: children.map(({ id: childId, title: childTitle, url }) => [childId, childTitle, url])
+    })),
+    expectedGroups
   );
 });
 
-test('Money Center and standalone finance-list destinations are absent', () => {
-  assert.equal(
-    landlordDestinations.some(({ id }) => id === 'money-center'),
-    false
-  );
+test('landlord sidebar has no collapsible destinations', () => {
+  const allDestinations = pages.flatMap(({ children = [] }) => children);
 
-  const allItems = landlordDestinations.flatMap((destination) => [destination, ...(destination.children ?? [])]);
-  for (const retiredId of ['money', 'payments', 'expenses', 'ledger']) {
+  assert.equal(allDestinations.some(({ type }) => type === 'collapse'), false);
+  assert.equal(allDestinations.every(({ type }) => type === 'item'), true);
+});
+
+test('retired standalone finance destinations remain absent', () => {
+  const allDestinations = pages.flatMap(({ children = [] }) => children);
+
+  for (const retiredId of ['money-center', 'money', 'payments', 'expenses', 'ledger', 'rent-collection']) {
     assert.equal(
-      allItems.some(({ id }) => id === retiredId),
+      allDestinations.some(({ id }) => id === retiredId),
       false,
       'found retired ' + retiredId + ' navigation item'
     );

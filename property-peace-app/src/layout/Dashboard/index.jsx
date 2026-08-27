@@ -107,8 +107,6 @@ export default function DashboardLayout() {
   const isLeasePage = pathname.match(/\/lease\/\d+/) !== null;
   // Check if it's the maintenances page (e.g., /landlord/maintenances)
   const isMaintenancesPage = pathname === '/landlord/maintenances' || pathname.startsWith('/landlord/maintenances?');
-  // Check if it's the tenants page (e.g., /landlord/tenants)
-  const isTenantsPage = pathname === '/landlord/tenants' || pathname.startsWith('/landlord/tenants?');
   // Check if it's the messages page (e.g., /landlord/messages)
   const isMessagesPage = pathname === '/landlord/messages' || pathname.startsWith('/landlord/messages?');
   // Check if it's the reports page (e.g., /landlord/reports)
@@ -132,10 +130,9 @@ export default function DashboardLayout() {
     (isPropertyPage && isPropertyLoading) || 
     (isPropertiesPage && isPropertiesLoading) ||
     (isFinancesPage && isAccountingLoading) ||
-    (isLeasesPage && isLeasesLoading) ||
+    (isLeasesPage && (isLeasesLoading || isTenantsLoading)) ||
     (isLeasePage && isLeaseLoading) ||
     (isMaintenancesPage && isMaintenancesLoading) ||
-    (isTenantsPage && isTenantsLoading) ||
     (isMessagesPage && isMessagesLoading) ||
     (isReportsPage && isReportsLoading) ||
     (isSettingsPage && isSettingsLoading) ||

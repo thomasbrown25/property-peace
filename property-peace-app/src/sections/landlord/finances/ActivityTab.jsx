@@ -124,7 +124,7 @@ export default function ActivityTab({ entries = [],
         aria-hidden="true"
       />
 
-      <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+      <Box data-testid="finance-activity-filters" sx={{ mb: 2 }}>
         <TransactionFilterToolbar
           search={search}
           onSearchChange={setSearch}
@@ -149,6 +149,10 @@ export default function ActivityTab({ entries = [],
         </Typography>
       </Box>
 
+      <Box
+        data-testid="finance-activity-table"
+        sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, overflow: 'hidden', minHeight: 300 }}
+      >
       {partial && !loading && !error && (
         <Box sx={{ px: 2, pt: 2 }}>
           <Alert severity="warning">
@@ -223,6 +227,7 @@ export default function ActivityTab({ entries = [],
           />
         </Stack>
       )}
+      </Box>
     </Box>
   );
 }

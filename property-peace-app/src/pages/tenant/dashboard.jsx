@@ -1170,7 +1170,7 @@ export default function TenantDashboard() {
                                 borderRadius: 1.75,
                                 textTransform: 'none',
                                 fontWeight: 800,
-                                bgcolor: isDark ? theme.palette.success.main : theme.palette.success.dark,
+                                bgcolor: theme.palette.success.main,
                                 boxShadow: `0 10px 22px ${alpha(theme.palette.success.main, isDark ? 0.2 : 0.14)}`,
                                 '&:hover': {
                                   bgcolor: isDark ? theme.palette.success.light : theme.palette.success.main,

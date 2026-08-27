@@ -7,7 +7,6 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
-  Divider,
   IconButton,
   InputAdornment,
   Menu,
@@ -51,6 +50,7 @@ import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import { selectTenants } from 'store/tenant/tenant.selector';
 import { deleteTenant } from 'store/tenant/tenant.action';
 import { formatPhoneInput } from 'utils/formatters';
+import { renterProfileRoute } from 'utils/renterWorkspace';
 
 const PAGE_SIZE = 10;
 const NAVY = '#061e35';
@@ -261,7 +261,7 @@ function TenantRow({ tenant, tenantInvites, selected, onSelect, onOpen, onAction
   );
 }
 
-export default function TenantsContent() {
+export default function TenantsContent({ embedded = false }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -475,40 +475,33 @@ export default function TenantsContent() {
 
   return (
     <Box sx={{ pb: 3 }}>
-      <ManagementPageHeader
-        title="Tenants"
-        description="Manage renter relationships, lease placement, contact details, and portal access from one workspace."
-        actions={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            <TenantCsvImportButton
-              buttonProps={{
-                variant: 'outlined',
-                sx: managementPageHeaderActionSx
-              }}
-            />
-            <Button
-              variant="contained"
-              color="success"
-              startIcon={<PlusOutlined />}
-              onClick={() => drawer.openTenantAddDrawer()}
-              sx={managementPageHeaderActionSx}
-            >
-              Add tenant
-            </Button>
-          </Stack>
-        }
-      />
+      {!embedded && (
+        <ManagementPageHeader
+          title="Tenants"
+          description="Manage renter relationships, lease placement, contact details, and portal access from one workspace."
+          actions={
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+              <TenantCsvImportButton
+                buttonProps={{
+                  variant: 'outlined',
+                  sx: managementPageHeaderActionSx
+                }}
+              />
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<PlusOutlined />}
+                onClick={() => drawer.openTenantAddDrawer()}
+                sx={managementPageHeaderActionSx}
+              >
+                Add tenant
+              </Button>
+            </Stack>
+          }
+        />
+      )}
 
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-          borderRadius: 3,
-          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
-          overflow: 'hidden'
-        }}
-      >
-        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box data-testid="tenant-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
             <OutlinedInput
               value={search}
@@ -520,7 +513,7 @@ export default function TenantsContent() {
                   <SearchOutlined />
                 </InputAdornment>
               }
-              sx={{ flex: 1, minWidth: { lg: 260 }, borderRadius: 1.75 }}
+              sx={{ flex: 1, minWidth: { lg: 260 }, borderRadius: 1.75, bgcolor: 'background.paper' }}
             />
             <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
               <Select
@@ -528,7 +521,7 @@ export default function TenantsContent() {
                 value={recordStatus}
                 onChange={(event) => setRecordStatus(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 120, borderRadius: 1.75 }}
+                sx={{ minWidth: 120, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="active">Active</MenuItem>
                 <MenuItem value="archived">Archived</MenuItem>
@@ -539,7 +532,7 @@ export default function TenantsContent() {
                 value={propertyFilter}
                 onChange={(event) => setPropertyFilter(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 150, maxWidth: 210, borderRadius: 1.75 }}
+                sx={{ minWidth: 150, maxWidth: 210, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="all">All properties</MenuItem>
                 {propertyOptions.map(([id, name]) => (
@@ -553,7 +546,7 @@ export default function TenantsContent() {
                 value={leaseFilter}
                 onChange={(event) => setLeaseFilter(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 150, borderRadius: 1.75 }}
+                sx={{ minWidth: 150, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="all">All lease status</MenuItem>
                 <MenuItem value="leased">Assigned to lease</MenuItem>
@@ -565,7 +558,7 @@ export default function TenantsContent() {
                 value={accessFilter}
                 onChange={(event) => setAccessFilter(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 150, borderRadius: 1.75 }}
+                sx={{ minWidth: 150, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="all">All portal access</MenuItem>
                 <MenuItem value="active">Portal active</MenuItem>
@@ -578,7 +571,7 @@ export default function TenantsContent() {
                 value={sort}
                 onChange={(event) => setSort(event.target.value)}
                 IconComponent={DownOutlined}
-                sx={{ minWidth: 145, borderRadius: 1.75 }}
+                sx={{ minWidth: 145, borderRadius: 1.75, bgcolor: 'background.paper' }}
               >
                 <MenuItem value="name">Sort: Name</MenuItem>
                 <MenuItem value="property">Sort: Property</MenuItem>
@@ -618,10 +611,18 @@ export default function TenantsContent() {
               </Button>
             )}
           </Stack>
-        </Box>
+      </Box>
 
-        <Divider />
-
+      <Box
+        data-testid="tenant-table"
+        sx={{
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
+          overflow: 'hidden'
+        }}
+      >
         <Box
           sx={{
             display: { xs: 'none', md: 'grid' },
@@ -696,7 +697,10 @@ export default function TenantsContent() {
               tenantInvites={tenantInvites}
               selected={selectedTenantIds.has(getId(tenant))}
               onSelect={toggleTenantSelection}
-              onOpen={(item) => navigate(`/landlord/tenants/${getId(item)}`)}
+              onOpen={(item) => {
+                const route = renterProfileRoute(getId(item));
+                if (route) navigate(route);
+              }}
               onActions={handleActions}
             />
           ))

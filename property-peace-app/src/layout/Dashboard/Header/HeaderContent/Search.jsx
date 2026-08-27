@@ -68,7 +68,7 @@ export default function Search({ shrink = false }) {
         navigate(`/landlord/property/${id}`);
         break;
       case 'tenant':
-        navigate(`/landlord/tenants/${id}`);
+        navigate(`/landlord/renters/${id}`);
         break;
       case 'lease':
         navigate(`/landlord/leases/${id}`);

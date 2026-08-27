@@ -401,10 +401,10 @@ export default function DashboardOverview({ embedded = false }) {
     },
     {
       icon: <MessageOutlined style={{ fontSize: 18 }} />,
-      label: 'Rent Collection',
-      sub: 'Review balances',
+      label: 'Leases',
+      sub: 'Review rent and balances',
       color: theme.palette.info.main,
-      onClick: () => navigate('/landlord/rent-collection')
+      onClick: () => navigate('/landlord/leases')
     }
   ];
 

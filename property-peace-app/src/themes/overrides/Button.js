@@ -93,6 +93,7 @@ function getColorStyle({ variant, color, theme }) {
 export default function Button(theme) {
   const primaryDashed = getColorStyle({ variant: 'dashed', color: 'primary', theme });
   const primaryShadow = getColorStyle({ variant: 'shadow', color: 'primary', theme });
+  const successContained = getColorStyle({ variant: 'contained', color: 'success', theme });
 
   const disabledStyle = {
     backgroundColor: theme.palette.grey[200],
@@ -230,7 +231,15 @@ export default function Button(theme) {
         },
         containedSecondary: getColorStyle({ variant: 'contained', color: 'secondary', theme }),
         containedError: getColorStyle({ variant: 'contained', color: 'error', theme }),
-        containedSuccess: getColorStyle({ variant: 'contained', color: 'success', theme }),
+        containedSuccess: {
+          ...successContained,
+          color: FILLED_PRIMARY_NAVY,
+          '&:hover': {
+            ...successContained['&:hover'],
+            backgroundColor: theme.palette.success.main,
+            color: FILLED_PRIMARY_NAVY
+          }
+        },
         containedInfo: getColorStyle({ variant: 'contained', color: 'info', theme }),
         containedWarning: getColorStyle({ variant: 'contained', color: 'warning', theme }),
         outlinedPrimary: getColorStyle({ variant: 'outlined', color: 'primary', theme }),

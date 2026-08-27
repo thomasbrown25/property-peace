@@ -110,7 +110,7 @@ export default function InviteRenter() {
           });
 
           resetForm();
-          navigate('/landlord/applications');
+          navigate('/landlord/listings?tab=applications');
         } else {
           openSnackbar({
             open: true,
@@ -187,7 +187,7 @@ export default function InviteRenter() {
       <PageBreadcrumbs
         items={[
           { label: 'Dashboard', path: '/landlord/dashboard' },
-          { label: 'Applications', path: '/landlord/applications' },
+          { label: 'Applications', path: '/landlord/listings?tab=applications' },
           { label: 'Invite Renter To Apply' }
         ]}
       />

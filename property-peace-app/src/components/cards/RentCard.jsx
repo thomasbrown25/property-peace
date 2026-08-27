@@ -89,7 +89,7 @@ export default function RentCard({ rent, onSendReminder }) {
       >
         <Button
           component={Link}
-          to={`/landlord/rent-collection?propertyId=${rent.propertyId}`}
+          to={rent.leaseId ? `/landlord/leases/${rent.leaseId}` : '/landlord/leases'}
           size="small"
           variant="outlined"
           startIcon={<EyeOutlined />}

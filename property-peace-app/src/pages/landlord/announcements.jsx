@@ -538,16 +538,7 @@ export default function AnnouncementsPage() {
         </Grid>
       </Grid>
 
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-          borderRadius: 3,
-          boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`,
-          overflow: 'hidden'
-        }}
-      >
-        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box data-testid="announcement-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
             <OutlinedInput
               value={search}
@@ -615,10 +606,9 @@ export default function AnnouncementsPage() {
               </Button>
             )}
           </Stack>
-        </Box>
+      </Box>
 
-        <Divider />
-
+      <Box data-testid="announcement-table" sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>
         <Box
           sx={{
             display: { xs: 'none', md: 'grid' },

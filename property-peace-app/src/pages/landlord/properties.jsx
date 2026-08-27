@@ -34,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import PropertiesEmptyState from 'sections/landlord/properties/PropertiesEmptyState';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -345,16 +346,8 @@ export default function Properties() {
           <Stack direction="row" spacing={1}>
             <PropertyCsvImportButton
               buttonProps={{
-                sx: {
-                  color: '#061e35',
-                  borderColor: alpha('#061e35', 0.35),
-                  textTransform: 'none',
-                  '&:hover': {
-                    color: '#061e35',
-                    borderColor: '#061e35',
-                    bgcolor: alpha('#061e35', 0.04)
-                  }
-                }
+                variant: 'outlined',
+                sx: managementPageHeaderActionSx
               }}
             />
             <Button
@@ -370,16 +363,7 @@ export default function Properties() {
         </Stack>
       </Box>
 
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-          borderRadius: 3,
-          boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`,
-          overflow: 'hidden'
-        }}
-      >
-        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box data-testid="property-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
             <OutlinedInput
               value={search}
@@ -423,10 +407,9 @@ export default function Properties() {
             </Typography>
             {hasFilters && <Button size="small" onClick={clearFilters} sx={{ textTransform: 'none' }}>Reset view</Button>}
           </Stack>
-        </Box>
+      </Box>
 
-        <Divider />
-
+      <Box data-testid="property-table" sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`, overflow: 'hidden' }}>
         <Box sx={{ display: { xs: 'none', md: 'grid' }, gridTemplateColumns: 'minmax(230px, 1.9fr) minmax(130px, .9fr) minmax(120px, .8fr) minmax(170px, 1fr) 44px', gap: 2, px: 2, py: 1.15, bgcolor: alpha(theme.palette.primary.main, 0.025) }}>
           {['Property', 'Occupancy', 'Rent roll', 'Operations', ''].map((label) => (
             <Typography key={label || 'actions'} sx={{ fontSize: '0.66rem', fontWeight: 750, letterSpacing: 0.65, textTransform: 'uppercase', color: 'text.secondary' }}>{label}</Typography>

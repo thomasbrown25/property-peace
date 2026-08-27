@@ -1019,17 +1019,7 @@ export default function ApplicationsPage({ hideHeader = false }) {
         </Grid>
       </Grid>
 
-      <Box
-        aria-busy={loading}
-        sx={{
-          bgcolor: 'background.paper',
-          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-          borderRadius: 3,
-          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
-          overflow: 'hidden'
-        }}
-      >
-        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box data-testid="application-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
             <OutlinedInput
               value={search}
@@ -1054,17 +1044,6 @@ export default function ApplicationsPage({ hideHeader = false }) {
                 '&::-webkit-scrollbar': { display: 'none' }
               }}
             >
-              {hideHeader && scopedApplications.length > 0 && (
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<PlusOutlined />}
-                  onClick={() => drawer.openApplicationAddDrawer()}
-                  sx={{ minWidth: 155, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
-                >
-                  New application
-                </Button>
-              )}
               <Box sx={{ minWidth: 180 }}>
                 <PropertySelect width="100%" label={null} placeholder="All properties" />
               </Box>
@@ -1112,8 +1091,19 @@ export default function ApplicationsPage({ hideHeader = false }) {
               </Button>
             )}
           </Stack>
-        </Box>
-        <Divider />
+      </Box>
+
+      <Box
+        data-testid="application-table"
+        aria-busy={loading}
+        sx={{
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha(NAVY, 0.055)}`,
+          overflow: 'hidden'
+        }}
+      >
         <Box
           sx={{
             display: { xs: 'none', lg: 'grid' },

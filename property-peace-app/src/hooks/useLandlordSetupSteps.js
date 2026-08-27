@@ -221,7 +221,7 @@ export default function useLandlordSetupSteps(onClose) {
         description: 'Add at least one renter to your account.',
         completed: (tenants || []).length > 0,
         required: true,
-        onClick: go('/landlord/tenants')
+        onClick: go('/landlord/leases?tab=tenants')
       },
       {
         id: 'lease-details',
@@ -238,7 +238,7 @@ export default function useLandlordSetupSteps(onClose) {
         title: 'Invite tenant to portal',
         description: 'Send the tenant an invite so they can log in.',
         completed: hasTenantInvite,
-        onClick: go('/landlord/tenants')
+        onClick: go('/landlord/leases?tab=tenants')
       },
       {
         id: 'rent-preferences',

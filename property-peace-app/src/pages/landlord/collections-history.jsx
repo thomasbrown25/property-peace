@@ -129,7 +129,7 @@ export default function CollectionsHistory() {
             <PageBreadcrumbs
               items={[
                 { label: 'Dashboard', path: '/landlord/dashboard' },
-                { label: 'Rent collection', path: '/landlord/rent-collection' },
+                { label: 'Leases', path: '/landlord/leases' },
                 { label: 'History' }
               ]}
             />

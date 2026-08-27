@@ -94,9 +94,7 @@ export default function PropertyMarketRent({ property }) {
           textTransform: 'none',
           fontWeight: 700,
           px: 2,
-          fontSize: '0.8rem',
-          bgcolor: theme.palette.success.main,
-          '&:hover': { bgcolor: theme.palette.success.dark }
+          fontSize: '0.8rem'
         }}
       >
         Upgrade to see comps

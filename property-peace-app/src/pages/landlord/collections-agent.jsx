@@ -4,5 +4,5 @@ import { Navigate } from 'react-router-dom';
 // autonomous collections surface is retired so no browser path can bypass the
 // server-owned Percy action policy and confirmation boundary.
 export default function CollectionsAgentPage() {
-  return <Navigate to="/landlord/rent-collection" replace />;
+  return <Navigate to="/landlord/leases" replace />;
 }

@@ -26,7 +26,10 @@ test('all three real detail surfaces mount the reusable panel with direct resour
   assert.match(property, /<PropertyLeasingPipeline[\s\S]*propertyId=[\s\S]*units=/);
   assert.match(overview, /<PropertyLeasingPipeline[\s\S]*propertyId=[\s\S]*units=/);
   assert.match(listing, /<LeasingPipelinePanel resourceType="listing" resourceId=\{id\}/);
-  assert.match(applications, /<LeasingPipelinePanel resourceType="application" resourceId=\{selectedApplication\?\.id \?\? selectedApplication\?\.Id\}/);
+  assert.match(
+    applications,
+    /<LeasingPipelinePanel[\s\S]*resourceType="application"[\s\S]*resourceId=\{selectedApplication\?\.id \?\? selectedApplication\?\.Id\}/
+  );
 });
 
 test('property page places leasing progress directly under the header overview on desktop and after the tenant summary on mobile', async () => {
@@ -158,7 +161,10 @@ test('application deep links and all lifecycle mutations invalidate every exact-
   assert.match(applications, /applicationNotFound/);
   assert.doesNotMatch(applications, /pipelineRevalidationRef|revalidationRef|revalidateApplicationPipeline/);
   assert.doesNotMatch(panel, /revalidationRef|useEffect/);
-  assert.match(applications, /const invalidateApplicationPipeline = useCallback\(async \(applicationId, \{ deleted = false \} = \{\}\) =>/);
+  assert.match(
+    applications,
+    /const invalidateApplicationPipeline = useCallback\([\s\S]*async \(applicationId, \{ deleted = false \} = \{\}\) =>/
+  );
   assert.match(applications, /isLeasingPipelineKeyForTenant\(key, userId, organizationId\)/);
   const clearIndex = applications.indexOf('await mutate(tenantKeyPredicate, undefined, { revalidate: false, populateCache: true })');
   const revalidateIndex = applications.indexOf('await mutate(revalidationPredicate)', clearIndex);

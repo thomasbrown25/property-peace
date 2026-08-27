@@ -190,10 +190,10 @@ export default function PasskeySettingsCard({ embedded = false }) {
             />
             <Button
               variant="contained"
+              color="success"
               startIcon={creating ? <CircularProgress size={18} color="inherit" /> : <PlusOutlined />}
               disabled={!isSupported || creating}
               onClick={createPasskey}
-              sx={{ bgcolor: '#41a541', '&:hover': { bgcolor: '#347f34' } }}
             >
               {creating ? 'Adding…' : 'Add passkey'}
             </Button>

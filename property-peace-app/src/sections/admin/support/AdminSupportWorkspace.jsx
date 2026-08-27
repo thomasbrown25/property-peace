@@ -36,6 +36,8 @@ import {
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import { formatRelativeTime } from 'utils/formatters';
+import { getConversationBubbleSx } from 'utils/conversationPresentation';
+import { getSupportTicketDisplayMessages } from 'utils/supportTicketMessages';
 
 const FILTERS = [
   { value: 'attention', label: 'Needs attention' },
@@ -142,7 +144,8 @@ function RequestRow({ item, selected, onSelect, onToggleFavorite }) {
             </Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary" noWrap sx={{ mt: 0.35 }}>
-            {item.ticketNumber ? `${item.ticketNumber} · ` : ''}{item.message || 'No request details provided.'}
+            {item.ticketNumber ? `${item.ticketNumber} · ` : ''}
+            {item.message || 'No request details provided.'}
           </Typography>
           <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 1 }}>
             <Chip
@@ -240,7 +243,7 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
     }
   };
 
-  const messages = detail?.messages || [];
+  const messages = useMemo(() => getSupportTicketDisplayMessages(detail), [detail]);
 
   return (
     <Stack sx={{ height: '100%', minHeight: 0 }}>
@@ -268,7 +271,8 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
               </Stack>
             </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-              {item.ticketNumber ? `${item.ticketNumber} · ` : ''}Submitted by {item.userName || 'Unknown requester'} {emailAddress ? `· ${emailAddress}` : ''}
+              {item.ticketNumber ? `${item.ticketNumber} · ` : ''}Submitted by {item.userName || 'Unknown requester'}{' '}
+              {emailAddress ? `· ${emailAddress}` : ''}
             </Typography>
           </Box>
         </Stack>
@@ -276,7 +280,9 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: { xs: 2, md: 3 }, bgcolor: 'grey.50' }}>
         {detailLoading ? (
-          <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 300 }}><CircularProgress size={28} /></Stack>
+          <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 300 }}>
+            <CircularProgress size={28} />
+          </Stack>
         ) : item.conversationId ? (
           <Stack spacing={2.25}>
             {messages.map((message) => {
@@ -284,18 +290,20 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
               return (
                 <Stack key={message.id} direction="row" justifyContent={fromSupport ? 'flex-end' : 'flex-start'}>
                   <Box sx={{ maxWidth: { xs: '90%', md: '76%' } }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, textAlign: fromSupport ? 'right' : 'left' }}>
-                      {fromSupport ? message.senderName || 'Property Peace Support' : item.userName || message.senderName} · {formatRelativeTime(message.createdAt)}
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', mb: 0.5, textAlign: fromSupport ? 'right' : 'left' }}
+                    >
+                      {fromSupport ? message.senderName || 'Property Peace Support' : item.userName || message.senderName} ·{' '}
+                      {formatRelativeTime(message.createdAt)}
                     </Typography>
                     <Paper
                       elevation={0}
                       sx={{
                         px: 2,
                         py: 1.5,
-                        borderRadius: fromSupport ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                        bgcolor: fromSupport ? '#061e35' : 'background.paper',
-                        color: fromSupport ? '#fff' : 'text.primary',
-                        border: fromSupport ? 0 : `1px solid ${theme.palette.divider}`
+                        ...getConversationBubbleSx({ isOwn: fromSupport })
                       }}
                     >
                       <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', lineHeight: 1.65 }}>
@@ -311,12 +319,17 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
         ) : (
           <Stack spacing={2.5}>
             <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 }, borderRadius: 2, bgcolor: 'background.paper' }}>
-              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 750, letterSpacing: 1 }}>Legacy request</Typography>
+              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 750, letterSpacing: 1 }}>
+                Legacy request
+              </Typography>
               <Typography variant="body1" sx={{ mt: 1, whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>
                 {item.message || 'No request details were provided.'}
               </Typography>
             </Paper>
-            <Alert severity="info">This request predates ticket conversations. Contact the requester by email or ask them to open a new ticket for threaded replies.</Alert>
+            <Alert severity="info">
+              This request predates ticket conversations. Contact the requester by email or ask them to open a new ticket for threaded
+              replies.
+            </Alert>
           </Stack>
         )}
       </Box>
@@ -362,9 +375,18 @@ function RequestDetail({ item, onBack, onToggleFavorite, onToggleResolved, updat
             {item.isFavorite ? 'Priority flagged' : 'Flag for follow-up'}
           </Button>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-            {item.userId && <Button component={RouterLink} to={`/admin/users/${item.userId}`} variant="text">View account</Button>}
+            {item.userId && (
+              <Button component={RouterLink} to={`/admin/users/${item.userId}`} variant="text">
+                View account
+              </Button>
+            )}
             {!item.conversationId && emailAddress && (
-              <Button component="a" href={`mailto:${emailAddress}?subject=${encodeURIComponent(`Re: ${item.subject || 'Your Property Peace request'}`)}`} variant="outlined" startIcon={<MailOutlined />}>
+              <Button
+                component="a"
+                href={`mailto:${emailAddress}?subject=${encodeURIComponent(`Re: ${item.subject || 'Your Property Peace request'}`)}`}
+                variant="outlined"
+                startIcon={<MailOutlined />}
+              >
                 Contact requester
               </Button>
             )}
@@ -400,49 +422,56 @@ export default function AdminSupportWorkspace({ onCountChange }) {
   const [updatingId, setUpdatingId] = useState(null);
   const [error, setError] = useState('');
 
-  const loadRequests = useCallback(async (background = false) => {
-    background ? setRefreshing(true) : setLoading(true);
-    setError('');
-    try {
-      const pageSize = 100;
-      const response = await axiosServices.get('/api/admin/support-and-feedback', { params: { page: 1, pageSize } });
-      const firstPage = response.data?.data || response.data;
-      if (!Array.isArray(firstPage)) throw new Error('Unexpected support response');
+  const loadRequests = useCallback(
+    async (background = false) => {
+      background ? setRefreshing(true) : setLoading(true);
+      setError('');
+      try {
+        const pageSize = 100;
+        const response = await axiosServices.get('/api/admin/support-and-feedback', { params: { page: 1, pageSize } });
+        const firstPage = response.data?.data || response.data;
+        if (!Array.isArray(firstPage)) throw new Error('Unexpected support response');
 
-      const totalPages = response.data?.pagination?.totalPages || 1;
-      const remainingResponses = totalPages > 1
-        ? await Promise.all(
-          Array.from({ length: totalPages - 1 }, (_item, index) =>
-            axiosServices.get('/api/admin/support-and-feedback', { params: { page: index + 2, pageSize } })
-          )
-        )
-        : [];
-      const requestItems = remainingResponses.reduce(
-        (allRequests, pageResponse) => allRequests.concat(pageResponse.data?.data || []),
-        firstPage
-      );
+        const totalPages = response.data?.pagination?.totalPages || 1;
+        const remainingResponses =
+          totalPages > 1
+            ? await Promise.all(
+                Array.from({ length: totalPages - 1 }, (_item, index) =>
+                  axiosServices.get('/api/admin/support-and-feedback', { params: { page: index + 2, pageSize } })
+                )
+              )
+            : [];
+        const requestItems = remainingResponses.reduce(
+          (allRequests, pageResponse) => allRequests.concat(pageResponse.data?.data || []),
+          firstPage
+        );
 
-      setItems(requestItems);
-      onCountChange?.(response.data?.pagination?.totalCount ?? requestItems.length);
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Support requests could not be loaded.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [onCountChange]);
+        setItems(requestItems);
+        onCountChange?.(response.data?.pagination?.totalCount ?? requestItems.length);
+      } catch (requestError) {
+        setError(requestError.response?.data?.message || 'Support requests could not be loaded.');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [onCountChange]
+  );
 
   useEffect(() => {
     loadRequests();
   }, [loadRequests]);
 
-  const counts = useMemo(() => ({
-    open: items.filter((item) => !item.isResolved).length,
-    stale: items.filter((item) => !item.isResolved && getAgeInDays(item.createdAt) >= 7).length,
-    priority: items.filter((item) => !item.isResolved && item.isFavorite).length,
-    feedback: items.filter((item) => getRequestType(item.type) === 'feedback').length,
-    resolved: items.filter((item) => item.isResolved).length
-  }), [items]);
+  const counts = useMemo(
+    () => ({
+      open: items.filter((item) => !item.isResolved).length,
+      stale: items.filter((item) => !item.isResolved && getAgeInDays(item.createdAt) >= 7).length,
+      priority: items.filter((item) => !item.isResolved && item.isFavorite).length,
+      feedback: items.filter((item) => getRequestType(item.type) === 'feedback').length,
+      resolved: items.filter((item) => item.isResolved).length
+    }),
+    [items]
+  );
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -458,8 +487,9 @@ export default function AdminSupportWorkspace({ onCountChange }) {
           (filter === 'resolved' && item.isResolved);
         if (!matchesFilter) return false;
         if (!query) return true;
-        return [item.ticketNumber, item.subject, item.message, item.userName, item.userEmail]
-          .some((value) => value?.toLowerCase().includes(query));
+        return [item.ticketNumber, item.subject, item.message, item.userName, item.userEmail].some((value) =>
+          value?.toLowerCase().includes(query)
+        );
       })
       .sort((a, b) => {
         if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
@@ -480,16 +510,20 @@ export default function AdminSupportWorkspace({ onCountChange }) {
       } else {
         await axiosServices.put(`/api/admin/support-and-feedback/${item.id}/resolve`, updatedValue);
       }
-      setItems((currentItems) => currentItems.map((currentItem) => (
-        currentItem.id === item.id
-          ? { ...currentItem, [isFavoriteAction ? 'isFavorite' : 'isResolved']: updatedValue }
-          : currentItem
-      )));
+      setItems((currentItems) =>
+        currentItems.map((currentItem) =>
+          currentItem.id === item.id ? { ...currentItem, [isFavoriteAction ? 'isFavorite' : 'isResolved']: updatedValue } : currentItem
+        )
+      );
       openSnackbar({
         open: true,
         message: isFavoriteAction
-          ? updatedValue ? 'Request flagged for follow-up' : 'Priority flag removed'
-          : updatedValue ? 'Request marked as resolved' : 'Request reopened',
+          ? updatedValue
+            ? 'Request flagged for follow-up'
+            : 'Priority flag removed'
+          : updatedValue
+            ? 'Request marked as resolved'
+            : 'Request reopened',
         variant: 'alert',
         alert: { color: 'success' }
       });
@@ -506,7 +540,11 @@ export default function AdminSupportWorkspace({ onCountChange }) {
   };
 
   if (loading) {
-    return <Box sx={{ minHeight: 560, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>;
+    return (
+      <Box sx={{ minHeight: 560, display: 'grid', placeItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
@@ -532,7 +570,13 @@ export default function AdminSupportWorkspace({ onCountChange }) {
           }
         })}
       >
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'flex-end' }} sx={{ position: 'relative', zIndex: 1 }}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={2}
+          justifyContent="space-between"
+          alignItems={{ md: 'flex-end' }}
+          sx={{ position: 'relative', zIndex: 1 }}
+        >
           <Box>
             <Typography variant="overline" sx={{ color: '#7ee2aa', fontWeight: 750, letterSpacing: 1.2 }}>
               Customer operations
@@ -557,12 +601,28 @@ export default function AdminSupportWorkspace({ onCountChange }) {
         </Stack>
       </Paper>
 
-      {error && <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => loadRequests()}>Retry</Button>}>{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => loadRequests()}>
+              Retry
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5 }}>
         <SummaryCard label="Open requests" value={counts.open} helper="Awaiting action" tone={counts.open ? 'warning' : 'success'} />
         <SummaryCard label="Aging requests" value={counts.stale} helper="Open 7+ days" tone={counts.stale ? 'error' : 'success'} />
-        <SummaryCard label="Priority follow-ups" value={counts.priority} helper="Flagged and open" tone={counts.priority ? 'info' : 'success'} />
+        <SummaryCard
+          label="Priority follow-ups"
+          value={counts.priority}
+          helper="Flagged and open"
+          tone={counts.priority ? 'info' : 'success'}
+        />
         <SummaryCard label="Product feedback" value={counts.feedback} helper={`${counts.resolved} total resolved`} tone="primary" />
       </Box>
 
@@ -589,7 +649,13 @@ export default function AdminSupportWorkspace({ onCountChange }) {
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search requests or people"
               sx={{ width: { xs: '100%', md: 280 }, pb: { xs: 1.5, md: 0 } }}
-              InputProps={{ startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment> }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchOutlined />
+                  </InputAdornment>
+                )
+              }}
             />
           </Stack>
         </Box>
@@ -600,21 +666,31 @@ export default function AdminSupportWorkspace({ onCountChange }) {
               <Box sx={{ px: 2, py: 1.5, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center">
                   <Typography variant="subtitle2">{FILTERS.find((item) => item.value === filter)?.label}</Typography>
-                  <Typography variant="caption" color="text.secondary">{filteredItems.length} request{filteredItems.length === 1 ? '' : 's'}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {filteredItems.length} request{filteredItems.length === 1 ? '' : 's'}
+                  </Typography>
                 </Stack>
               </Box>
-              {filteredItems.length ? filteredItems.map((item) => (
-                <RequestRow
-                  key={item.id}
-                  item={item}
-                  selected={selectedItem?.id === item.id}
-                  onSelect={(request) => setSelectedItemId(request.id)}
-                  onToggleFavorite={(request) => updateItem(request, 'favorite')}
-                />
-              )) : (
+              {filteredItems.length ? (
+                filteredItems.map((item) => (
+                  <RequestRow
+                    key={item.id}
+                    item={item}
+                    selected={selectedItem?.id === item.id}
+                    onSelect={(request) => setSelectedItemId(request.id)}
+                    onToggleFavorite={(request) => updateItem(request, 'favorite')}
+                  />
+                ))
+              ) : (
                 <Stack alignItems="center" justifyContent="center" sx={{ minHeight: 360, px: 3, textAlign: 'center' }}>
-                  {filter === 'feedback' ? <BulbOutlined style={{ fontSize: 34, color: theme.palette.text.disabled }} /> : <CustomerServiceOutlined style={{ fontSize: 34, color: theme.palette.text.disabled }} />}
-                  <Typography variant="h6" sx={{ mt: 1.5 }}>Queue is clear</Typography>
+                  {filter === 'feedback' ? (
+                    <BulbOutlined style={{ fontSize: 34, color: theme.palette.text.disabled }} />
+                  ) : (
+                    <CustomerServiceOutlined style={{ fontSize: 34, color: theme.palette.text.disabled }} />
+                  )}
+                  <Typography variant="h6" sx={{ mt: 1.5 }}>
+                    Queue is clear
+                  </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                     {searchQuery ? 'No requests match your search.' : 'There are no requests in this view.'}
                   </Typography>
@@ -634,16 +710,30 @@ export default function AdminSupportWorkspace({ onCountChange }) {
                 onThreadUpdated={() => loadRequests(true)}
               />
             </Box>
-          ) : !isNarrow && (
-            <Stack flex={1} alignItems="center" justifyContent="center" sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50' }}>
-              <Box sx={(currentTheme) => ({ width: 64, height: 64, borderRadius: '50%', display: 'grid', placeItems: 'center', color: 'primary.main', bgcolor: alpha(currentTheme.palette.primary.main, 0.08) })}>
-                <CustomerServiceOutlined style={{ fontSize: 28 }} />
-              </Box>
-              <Typography variant="h5" sx={{ mt: 2 }}>Select a request</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 360 }}>
-                Review the full message, contact the requester, flag follow-up, or close the request from one place.
-              </Typography>
-            </Stack>
+          ) : (
+            !isNarrow && (
+              <Stack flex={1} alignItems="center" justifyContent="center" sx={{ p: 4, textAlign: 'center', bgcolor: 'grey.50' }}>
+                <Box
+                  sx={(currentTheme) => ({
+                    width: 64,
+                    height: 64,
+                    borderRadius: '50%',
+                    display: 'grid',
+                    placeItems: 'center',
+                    color: 'primary.main',
+                    bgcolor: alpha(currentTheme.palette.primary.main, 0.08)
+                  })}
+                >
+                  <CustomerServiceOutlined style={{ fontSize: 28 }} />
+                </Box>
+                <Typography variant="h5" sx={{ mt: 2 }}>
+                  Select a request
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, maxWidth: 360 }}>
+                  Review the full message, contact the requester, flag follow-up, or close the request from one place.
+                </Typography>
+              </Stack>
+            )
           )}
         </Box>
       </Paper>

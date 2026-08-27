@@ -3,7 +3,6 @@ import { PlusOutlined } from '@ant-design/icons';
 import { Alert, alpha, Box, Button, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Tab, Tabs, TextField, Typography, useTheme } from '@mui/material';
 import { Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import PropertySelect from 'components/PropertySelect';
 import { useDrawer } from 'contexts/DrawerContext';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
@@ -63,11 +62,19 @@ export default function FinancesPage() {
   const { properties, isLoading: propertiesLoading } = useFetchProperties();
   const activeTab = normalizeFinancesTab(searchParams.get('tab'));
   const period = normalizeFinancesPeriod(searchParams.get('period'));
+  const requestedPropertyId = searchParams.get('propertyId');
+  const requestedUnitId = searchParams.get('unitId');
+  const customFrom = searchParams.get('from') || '';
+  const customTo = searchParams.get('to') || '';
   const effectiveSearchParams = useMemo(() => {
-    const effective = new URLSearchParams(searchParams);
+    const effective = new URLSearchParams();
     effective.set('period', period);
+    if (requestedPropertyId) effective.set('propertyId', requestedPropertyId);
+    if (requestedUnitId) effective.set('unitId', requestedUnitId);
+    if (customFrom) effective.set('from', customFrom);
+    if (customTo) effective.set('to', customTo);
     return effective;
-  }, [period, searchParams]);
+  }, [customFrom, customTo, period, requestedPropertyId, requestedUnitId]);
   const scopedQuery = useMemo(() => buildFinancesMoneyQuery(effectiveSearchParams), [effectiveSearchParams]);
   const propertyId = scopedQuery.propertyId;
   const selectedProperty = properties?.find((property) => Number(property.id) === Number(propertyId)) || null;
@@ -117,8 +124,6 @@ export default function FinancesPage() {
     ),
     !paymentsData.loading && !paymentsScopeChanged && paymentsData.available
   ), [expensesData.available, moneyData.loading, moneyData.overview, moneyScopeChanged, paymentsData.available, paymentsData.loading, paymentsScopeChanged]);
-  const customFrom = searchParams.get('from') || '';
-  const customTo = searchParams.get('to') || '';
   const customRangeValid = ISO_DATE.test(customFrom) && ISO_DATE.test(customTo) && customFrom <= customTo;
   const exportRegistrationKey = `${location.key}:${activeTab}`;
   const [exportRegistration, setExportRegistration] = useState(null);
@@ -182,7 +187,6 @@ export default function FinancesPage() {
 
   return (
     <Box sx={{ pb: 4 }}>
-      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Finances' }]} />
       <FinancesHeader
         activeTab={activeTab}
         onAddExpense={() => drawer.openExpenseAddDrawer()}
@@ -190,7 +194,61 @@ export default function FinancesPage() {
         exportState={activeExport}
       />
 
-      <Box sx={{ p: 2, mb: 2.5, bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 2.5 }}>
+      <Box
+        sx={{
+          mt: 0.5,
+          mb: 2.5,
+          position: 'relative',
+          isolation: 'isolate',
+          width: '100%',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            left: 0,
+            height: '1px',
+            bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.22 : 0.12),
+            pointerEvents: 'none',
+            zIndex: 0
+          },
+          '& .MuiTabs-root': { minHeight: 42 },
+          '& .MuiTab-root': {
+            minHeight: 42,
+            px: 1.25,
+            mr: 1.5,
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            color: 'text.secondary',
+            transition: theme.transitions.create(['background-color', 'box-shadow', 'color'], {
+              duration: theme.transitions.duration.shorter
+            }),
+            '&:hover': {
+              color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+              backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08),
+              boxShadow: theme.palette.mode === 'dark' ? `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.24)}` : 'none'
+            },
+            '&.Mui-selected': {
+              color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+              backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04)
+            }
+          },
+          '& .MuiTabs-indicator': {
+            zIndex: 1,
+            height: 2,
+            borderRadius: 2,
+            backgroundColor: 'primary.main'
+          }
+        }}
+      >
+        <Tabs value={activeTab} onChange={(_, tab) => setTab(tab)} variant="scrollable" scrollButtons="auto" aria-label="Finances views">
+          {FINANCES_TAB_LABELS.map(([value, label]) => <Tab key={value} value={value} label={label} id={`finances-${value}-tab`} aria-controls={`finances-${value}-panel`} />)}
+        </Tabs>
+      </Box>
+
+      <Box data-testid="finance-scope-filters" sx={{ mb: 2.5 }}>
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ md: 'center' }}>
           <Box sx={{ minWidth: { xs: '100%', md: 260 } }}>
             <PropertySelect
@@ -243,19 +301,22 @@ export default function FinancesPage() {
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, xl: 9 }}>
-          <Box sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, overflow: 'hidden', minHeight: 300 }}>
-            <Box sx={{ px: { xs: 1, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
-              <Tabs value={activeTab} onChange={(_, tab) => setTab(tab)} variant="scrollable" scrollButtons="auto" aria-label="Finances views">
-                {FINANCES_TAB_LABELS.map(([value, label]) => <Tab key={value} value={value} label={label} id={`finances-${value}-tab`} aria-controls={`finances-${value}-panel`} />)}
-              </Tabs>
-            </Box>
-            <Box
-              role="tabpanel"
-              id={`finances-${activeTab}-panel`}
-              aria-labelledby={`finances-${activeTab}-tab`}
-              sx={{ minHeight: 240 }}
-            >
-              {activeTab === 'review' && (
+          <Box
+            role="tabpanel"
+            id={`finances-${activeTab}-panel`}
+            aria-labelledby={`finances-${activeTab}-tab`}
+            sx={{ minHeight: 300 }}
+          >
+            {activeTab === 'review' && (
+              <Box
+                sx={{
+                  bgcolor: 'background.paper',
+                  border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  minHeight: 300
+                }}
+              >
                 <NeedsReviewTab
                   items={moneyData.reviewItems}
                   partial={Boolean(moneyData.itemsResponse?.isTruncated)}
@@ -268,8 +329,9 @@ export default function FinancesPage() {
                   registrationKey={exportRegistrationKey}
                   registerExport={registerExport}
                 />
-              )}
-              {activeTab === 'activity' && (
+              </Box>
+            )}
+            {activeTab === 'activity' && (
                 <ActivityTab
                   entries={moneyData.activityEntries}
                   loading={moneyData.loading || moneyScopeChanged}
@@ -326,8 +388,7 @@ export default function FinancesPage() {
                   registrationKey={exportRegistrationKey}
                   registerExport={registerExport}
                 />
-              )}
-            </Box>
+            )}
           </Box>
         </Grid>
 

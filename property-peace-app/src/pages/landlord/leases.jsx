@@ -34,7 +34,6 @@ import {
   CardContent,
   Slide,
   LinearProgress,
-  Checkbox,
   TextField,
   Divider,
   Avatar
@@ -90,9 +89,14 @@ import { selectUserSettings } from 'store/user/user.selector';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { tenantDocumentAPI } from 'api';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { leasesWorkspaceSearch, leasesWorkspaceTabFromSearch } from 'utils/renterWorkspace';
 
 // Enhanced components
 import LeasesHeader from 'sections/landlord/leases/LeasesHeader';
+import TenantsContent from 'sections/landlord/tenants/TenantsContent';
+import TenantAddDrawer from 'components/drawers/TenantAddDrawer';
+import { TenantCsvImportButton } from 'components/import/CsvImportButtons';
+import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 
 // TabPanel component with slide animation
 function TabPanel({ children, value, index, slideDirection, ...other }) {
@@ -828,7 +832,6 @@ export default function LeasesPage({ onEditLease }) {
   const [leasesItemsPerPage, setLeasesItemsPerPage] = useState(10);
   const [leaseAgreementsPage, setLeaseAgreementsPage] = useState(0);
   const [leaseAgreementsItemsPerPage, setLeaseAgreementsItemsPerPage] = useState(10);
-  const [selectedLeases, setSelectedLeases] = useState(new Set());
   const [sortField, setSortField] = useState('status');
   const [sortOrder, setSortOrder] = useState('asc');
   const [endLeaseConfirmOpen, setEndLeaseConfirmOpen] = useState(false);
@@ -838,8 +841,9 @@ export default function LeasesPage({ onEditLease }) {
   const [leaseHistory, setLeaseHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  // Tab state
-  const [activeTab, setActiveTab] = useState(() => (searchParams.get('tab') === 'agreements' ? 1 : 0));
+  // The URL is the source of truth for the top-level Leases workspace.
+  const activeWorkspaceTab = leasesWorkspaceTabFromSearch(searchParams);
+  const activeTab = activeWorkspaceTab === 'agreements' ? 1 : activeWorkspaceTab === 'tenants' ? 2 : 0;
   const [slideDirection, setSlideDirection] = useState('left');
   
   // Lease Agreements tab state
@@ -1130,24 +1134,6 @@ export default function LeasesPage({ onEditLease }) {
     }
   };
 
-  // Handle lease selection
-  const handleSelectLease = (leaseId) => {
-    const newSelected = new Set(selectedLeases);
-    if (newSelected.has(leaseId)) {
-      newSelected.delete(leaseId);
-    } else {
-      newSelected.add(leaseId);
-    }
-    setSelectedLeases(newSelected);
-  };
-
-  const handleSelectAll = () => {
-    if (sortedLeases.length > 0 && sortedLeases.every((l) => selectedLeases.has(l.id))) {
-      setSelectedLeases(new Set());
-    } else {
-      setSelectedLeases(new Set(sortedLeases.map((l) => l.id)));
-    }
-  };
 
   // Handle end lease
   const handleEndLeaseClick = (lease) => {
@@ -1586,18 +1572,51 @@ export default function LeasesPage({ onEditLease }) {
       // Moving left (e.g., Lease Agreements -> Leases)
       setSlideDirection('right'); // New content comes from left (slides in from left to right)
     }
-    setActiveTab(newValue);
+    const nextTab = newValue === 1 ? 'agreements' : newValue === 2 ? 'tenants' : 'leases';
+    navigate({ pathname: location.pathname, search: leasesWorkspaceSearch(nextTab, location.search) });
   };
+
+  const headerActions = activeTab === 2 ? (
+    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <TenantCsvImportButton buttonProps={{ variant: 'outlined', sx: managementPageHeaderActionSx }} />
+      <Button
+        variant="contained"
+        color="success"
+        startIcon={<PlusOutlined />}
+        onClick={() => drawer.openTenantAddDrawer()}
+        sx={managementPageHeaderActionSx}
+      >
+        Add tenant
+      </Button>
+    </Stack>
+  ) : activeTab === 1 ? (
+    <Button
+      variant="contained"
+      color="success"
+      startIcon={<PlusOutlined />}
+      onClick={() => openCreateAgreementDrawer()}
+      sx={managementPageHeaderActionSx}
+    >
+      New agreement
+    </Button>
+  ) : (
+    <Button
+      variant="contained"
+      color="success"
+      startIcon={<PlusOutlined />}
+      onClick={() => drawer.openLeaseAddDrawer()}
+      sx={managementPageHeaderActionSx}
+    >
+      Create lease
+    </Button>
+  );
 
   return (
     <Fade in={fadeIn} timeout={600}>
       <Box sx={{ overflow: 'visible' }}>
         {/* Header */}
         <AnimateIn direction="bottom" delay={100} distance={120}>
-          <LeasesHeader
-            onCreateLease={() => drawer.openLeaseAddDrawer()}
-            onCreateAgreement={() => openCreateAgreementDrawer()}
-          />
+          <LeasesHeader actions={headerActions} />
         </AnimateIn>
 
         {/* Tabs */}
@@ -1605,7 +1624,20 @@ export default function LeasesPage({ onEditLease }) {
         <Box
           sx={{
             mt: 0.5,
-            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+            position: 'relative',
+            isolation: 'isolate',
+            width: '100%',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              right: 0,
+              bottom: 0,
+              left: 0,
+              height: '1px',
+              bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.22 : 0.12),
+              pointerEvents: 'none',
+              zIndex: 0
+            },
             '& .MuiTabs-root': { minHeight: 42 },
             '& .MuiTab-root': {
               minHeight: 42,
@@ -1630,6 +1662,7 @@ export default function LeasesPage({ onEditLease }) {
               }
             },
             '& .MuiTabs-indicator': {
+              zIndex: 1,
               height: 2,
               borderRadius: 2,
               backgroundColor: 'primary.main'
@@ -1650,6 +1683,13 @@ export default function LeasesPage({ onEditLease }) {
                 <Stack direction="row" spacing={0.75} alignItems="center">
                   <Typography component="span" variant="body2" fontWeight={700}>Lease agreements</Typography>
                   <Chip label={filteredLeaseAgreements.length} size="small" sx={{ height: 18, minWidth: 18, '& .MuiChip-label': { px: 0.65, fontSize: '0.68rem', fontWeight: 700 } }} />
+                </Stack>
+              )}
+            />
+            <Tab
+              label={(
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  <Typography component="span" variant="body2" fontWeight={700}>Tenants</Typography>
                 </Stack>
               )}
             />
@@ -1714,74 +1754,85 @@ export default function LeasesPage({ onEditLease }) {
             <AnimateIn direction="bottom" delay={400} distance={120}>
             <Box
               sx={{
+                display: 'flex',
+                gap: 1.5,
+                alignItems: { xl: 'center' },
+                justifyContent: 'space-between',
                 mb: 2,
-                p: { xs: 1.5, md: 2 },
-                bgcolor: 'background.paper',
-                border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-                borderRadius: 3,
-                boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`
+                flexDirection: { xs: 'column', xl: 'row' }
               }}
             >
-              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.1} alignItems={{ lg: 'center' }}>
-                <OutlinedInput
-                  size="small"
-                  placeholder="Search leases, properties, units, or tenants"
-                  value={leaseSearch}
-                  onChange={(e) => setLeaseSearch(e.target.value)}
-                  startAdornment={<InputAdornment position="start"><SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} /></InputAdornment>}
-                  sx={{ flex: 1, minWidth: { lg: 260 }, borderRadius: 1.75 }}
-                />
-                <Stack direction="row" spacing={1} sx={{ overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
-                  <Select
+              <Stack
+                direction={{ xs: 'column', lg: 'row' }}
+                spacing={1.1}
+                alignItems={{ lg: 'center' }}
+                sx={{ flex: 1, minWidth: 0, width: '100%' }}
+              >
+                  <OutlinedInput
                     size="small"
-                    value={filters.status?.[0] || 'current'}
-                    onChange={(event) => setFilters({ status: [event.target.value] })}
-                    sx={{ minWidth: 150, borderRadius: 1.75 }}
-                  >
-                    <MenuItem value="current">Current leases</MenuItem>
-                    <MenuItem value="active">Active leases</MenuItem>
-                    <MenuItem value="notStarted">Not started</MenuItem>
-                    <MenuItem value="renewals">Renewals due</MenuItem>
-                    <MenuItem value="overdue">Overdue rent</MenuItem>
-                    <MenuItem value="history">Lease history</MenuItem>
-                  </Select>
-                  <Select
-                    size="small"
-                    value={selectedProperty?.id || 'all'}
-                    onChange={(event) => {
-                      const property = event.target.value === 'all' ? null : (properties || []).find((item) => Number(item.id) === Number(event.target.value));
-                      dispatch(setProperty(property || null));
-                      dispatch(setUnit(null));
+                    placeholder="Search leases, properties, units, or tenants"
+                    value={leaseSearch}
+                    onChange={(e) => setLeaseSearch(e.target.value)}
+                    startAdornment={<InputAdornment position="start"><SearchOutlined style={{ fontSize: 14, opacity: 0.55 }} /></InputAdornment>}
+                    sx={{
+                      width: '100%',
+                      height: 36,
+                      flex: { lg: '0 1 340px' },
+                      minWidth: { lg: 240 },
+                      maxWidth: { lg: 340 },
+                      borderRadius: 1.75,
+                      bgcolor: 'background.paper',
+                      fontSize: '0.8rem'
                     }}
-                    sx={{ minWidth: 155, maxWidth: 220, borderRadius: 1.75 }}
-                  >
-                    <MenuItem value="all">All properties</MenuItem>
-                    {(properties || []).map((property) => (
-                      <MenuItem key={property.id} value={property.id}>{property.name || property.streetAddress || `Property ${property.id}`}</MenuItem>
-                    ))}
-                  </Select>
-                  <Select
-                    size="small"
-                    value={`${sortField}:${sortOrder}`}
-                    onChange={(event) => {
-                      const [field, order] = event.target.value.split(':');
-                      setSortField(field);
-                      setSortOrder(order);
-                    }}
-                    sx={{ minWidth: 160, borderRadius: 1.75 }}
-                  >
-                    <MenuItem value="status:asc">Sort: Attention</MenuItem>
-                    <MenuItem value="property:asc">Sort: Property</MenuItem>
-                    <MenuItem value="endDate:asc">Sort: Lease end</MenuItem>
-                    <MenuItem value="rentAmount:desc">Sort: Highest rent</MenuItem>
-                    <MenuItem value="startDate:desc">Sort: Newest start</MenuItem>
-                  </Select>
-                </Stack>
+                  />
+                  <Stack direction="row" spacing={1} sx={{ minWidth: 0, overflowX: 'auto', pb: { xs: 0.25, lg: 0 } }}>
+                    <Select
+                      size="small"
+                      value={filters.status?.[0] || 'current'}
+                      onChange={(event) => setFilters({ status: [event.target.value] })}
+                      sx={{ minWidth: 150, height: 36, borderRadius: 1.75, bgcolor: 'background.paper' }}
+                    >
+                      <MenuItem value="current">Current leases</MenuItem>
+                      <MenuItem value="active">Active leases</MenuItem>
+                      <MenuItem value="notStarted">Not started</MenuItem>
+                      <MenuItem value="renewals">Renewals due</MenuItem>
+                      <MenuItem value="overdue">Overdue rent</MenuItem>
+                      <MenuItem value="history">Lease history</MenuItem>
+                    </Select>
+                    <Select
+                      size="small"
+                      value={selectedProperty?.id || 'all'}
+                      onChange={(event) => {
+                        const property = event.target.value === 'all' ? null : (properties || []).find((item) => Number(item.id) === Number(event.target.value));
+                        dispatch(setProperty(property || null));
+                        dispatch(setUnit(null));
+                      }}
+                      sx={{ minWidth: 155, maxWidth: 220, height: 36, borderRadius: 1.75, bgcolor: 'background.paper' }}
+                    >
+                      <MenuItem value="all">All properties</MenuItem>
+                      {(properties || []).map((property) => (
+                        <MenuItem key={property.id} value={property.id}>{property.name || property.streetAddress || `Property ${property.id}`}</MenuItem>
+                      ))}
+                    </Select>
+                    <Select
+                      size="small"
+                      value={`${sortField}:${sortOrder}`}
+                      onChange={(event) => {
+                        const [field, order] = event.target.value.split(':');
+                        setSortField(field);
+                        setSortOrder(order);
+                      }}
+                      sx={{ minWidth: 160, height: 36, borderRadius: 1.75, bgcolor: 'background.paper' }}
+                    >
+                      <MenuItem value="status:asc">Sort: Attention</MenuItem>
+                      <MenuItem value="property:asc">Sort: Property</MenuItem>
+                      <MenuItem value="endDate:asc">Sort: Lease end</MenuItem>
+                      <MenuItem value="rentAmount:desc">Sort: Highest rent</MenuItem>
+                      <MenuItem value="startDate:desc">Sort: Newest start</MenuItem>
+                    </Select>
+                  </Stack>
               </Stack>
-              <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1.4 }}>
-                <Typography sx={{ fontSize: '0.76rem', color: 'text.secondary' }}>
-                  {displayLeases.length} of {allLeases.length} leases
-                </Typography>
+              <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ width: { xs: '100%', xl: 'auto' }, flexShrink: 0 }}>
                 {(leaseSearch || filters.status?.[0] !== 'current' || selectedProperty || sortField !== 'status' || sortOrder !== 'asc') && (
                   <Button
                     size="small"
@@ -1793,7 +1844,7 @@ export default function LeasesPage({ onEditLease }) {
                       setSortField('status');
                       setSortOrder('asc');
                     }}
-                    sx={{ textTransform: 'none' }}
+                    sx={{ textTransform: 'none', flexShrink: 0 }}
                   >
                     Reset view
                   </Button>
@@ -1834,7 +1885,6 @@ export default function LeasesPage({ onEditLease }) {
                     isXs ? (
                       <Stack spacing={1.5}>
                         {paginatedLeases.map((lease) => {
-                          const isSelected = selectedLeases.has(lease.id);
                           const hasLease = lease.hasLease !== false;
                           const rentRecord = rentRecords?.find((r) => r.leaseId === lease.id);
                           const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
@@ -1854,7 +1904,6 @@ export default function LeasesPage({ onEditLease }) {
                                 <Stack spacing={1.25}>
                                   <Stack direction="row" spacing={1} alignItems="flex-start" justifyContent="space-between">
                                     <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ minWidth: 0 }}>
-                                      <Checkbox size="small" checked={isSelected} onClick={(e) => e.stopPropagation()} onChange={() => handleSelectLease(lease.id)} sx={{ p: 0.25 }} />
                                       <Box sx={{ minWidth: 0 }}>
                                         <Typography variant="body2" fontWeight={700} noWrap>{propertyTenantTitle}</Typography>
                                         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mb: 0.55 }}>{getTenantDisplay(lease)}</Typography>
@@ -1936,24 +1985,16 @@ export default function LeasesPage({ onEditLease }) {
                         <Table size="small" sx={{ minWidth: 980 }}>
                           <TableHead>
                             <TableRow sx={{ bgcolor: (t) => alpha(t.palette.primary.main, t.palette.mode === 'dark' ? 0.07 : 0.025) }}>
-                              <TableCell padding="none" sx={{ width: 44, pl: 1, pr: 0 }}>
-                                <Checkbox
-                                  size="small"
-                                  checked={sortedLeases.length > 0 && sortedLeases.every((l) => selectedLeases.has(l.id))}
-                                  indeterminate={selectedLeases.size > 0 && !sortedLeases.every((l) => selectedLeases.has(l.id))}
-                                  onChange={handleSelectAll}
-                                />
-                              </TableCell>
                               <TableCell onClick={() => handleSort('property')} sx={{ cursor: 'pointer' }}>Property · Tenant</TableCell>
                               <TableCell align="right" onClick={() => handleSort('rentAmount')} sx={{ cursor: 'pointer', minWidth: 150, pr: 3.5 }}>Rent · Balance</TableCell>
                               <TableCell sx={{ pl: 3 }}>Payment Heartbeat</TableCell>
                               <TableCell onClick={() => handleSort('startDate')} sx={{ cursor: 'pointer' }}>Term</TableCell>
+                              <TableCell onClick={() => handleSort('status')} sx={{ cursor: 'pointer', minWidth: 120 }}>Status</TableCell>
                               <TableCell align="right" />
                             </TableRow>
                           </TableHead>
                           <TableBody>
                             {paginatedLeases.map((lease) => {
-                              const isSelected = selectedLeases.has(lease.id);
                               const hasLease = lease.hasLease !== false;
                               const rentRecord = rentRecords?.find((r) => r.leaseId === lease.id);
                               const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
@@ -1964,7 +2005,7 @@ export default function LeasesPage({ onEditLease }) {
 
                               const handleRowClick = (e) => {
                                 const target = e.target;
-                                const isActionElement = target.closest('button') || target.closest('[role="button"]') || target.closest('input[type="checkbox"]') || target.closest('.MuiIconButton-root') || target.closest('.MuiButton-root');
+                                const isActionElement = target.closest('button') || target.closest('[role="button"]') || target.closest('.MuiIconButton-root') || target.closest('.MuiButton-root');
                                 if (!isActionElement && hasLease) navigate(`/landlord/leases/${lease.id}`);
                               };
 
@@ -1972,7 +2013,6 @@ export default function LeasesPage({ onEditLease }) {
                                 <TableRow
                                   key={lease.id}
                                   hover
-                                  selected={isSelected}
                                   onClick={handleRowClick}
                                   sx={{
                                     cursor: hasLease ? 'pointer' : 'default',
@@ -1982,20 +2022,10 @@ export default function LeasesPage({ onEditLease }) {
                                     '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.035) }
                                   }}
                                 >
-                                  <TableCell padding="none" sx={{ width: 44, pl: 1, pr: 0 }}>
-                                    <Checkbox size="small" checked={isSelected} onChange={() => handleSelectLease(lease.id)} />
-                                  </TableCell>
                                   <TableCell sx={{ width: 175, minWidth: 175, maxWidth: 190 }}>
                                     <Box sx={{ minWidth: 0 }}>
                                       <Typography variant="body2" fontWeight={700} noWrap>{propertyTenantTitle}</Typography>
                                       <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>{getTenantDisplay(lease)}</Typography>
-                                      <Chip
-                                        size="small"
-                                        label={isActiveLease ? 'Active lease' : 'No active lease'}
-                                        color={isActiveLease ? 'success' : 'default'}
-                                        variant={isActiveLease ? 'filled' : 'outlined'}
-                                        sx={{ height: 20, mt: 0.35, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
-                                      />
                                     </Box>
                                   </TableCell>
                                   <TableCell align="right" sx={{ minWidth: 150, pr: 3.5 }}>
@@ -2015,6 +2045,15 @@ export default function LeasesPage({ onEditLease }) {
                                       </Typography>
                                     </Stack>
                                     <LinearProgress variant="determinate" value={term.progress} sx={{ height: 5, borderRadius: 99, bgcolor: (t) => alpha(t.palette.divider, t.palette.mode === 'dark' ? 0.32 : 0.28), '& .MuiLinearProgress-bar': { borderRadius: 99, bgcolor: term.overDays ? 'warning.main' : 'success.main' } }} />
+                                  </TableCell>
+                                  <TableCell sx={{ minWidth: 120 }}>
+                                    <Chip
+                                      size="small"
+                                      label={isActiveLease ? 'Active lease' : 'No active lease'}
+                                      color={isActiveLease ? 'success' : 'default'}
+                                      variant={isActiveLease ? 'filled' : 'outlined'}
+                                      sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
+                                    />
                                   </TableCell>
                                   <TableCell align="right" onClick={(e) => e.stopPropagation()}>
                                     {hasLease ? (
@@ -2229,15 +2268,6 @@ export default function LeasesPage({ onEditLease }) {
                   fontSize: '0.8rem'
                 }}
               />
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<PlusOutlined style={{ fontSize: 16 }} />}
-                onClick={() => openCreateAgreementDrawer()}
-                sx={{ borderRadius: 1.5, textTransform: 'none', flexShrink: 0, fontWeight: 700, width: { xs: '100%', sm: 'auto' }, height: 34 }}
-              >
-                Create Lease Agreement
-              </Button>
             </Box>
             </AnimateIn>
 
@@ -2386,6 +2416,11 @@ export default function LeasesPage({ onEditLease }) {
               })()}
             </Menu>
           </TabPanel>
+
+          {/* Tab Panel: Tenants */}
+          <TabPanel key="tenants" value={activeTab} index={2} slideDirection={slideDirection}>
+            <TenantsContent embedded />
+          </TabPanel>
         </Box>
 
       {/* End Lease Confirmation Dialog */}
@@ -2428,6 +2463,7 @@ export default function LeasesPage({ onEditLease }) {
 
 
       <LeaseAddDrawer />
+      <TenantAddDrawer />
       <CreateLeaseAgreementDrawer
         open={createAgreementDrawerOpen}
         onClose={() => { setCreateAgreementDrawerOpen(false); setCreateAgreementInitialLease(null); }}

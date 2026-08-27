@@ -385,7 +385,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
         aria-hidden="true"
       />
 
-      <Box sx={{ p: { xs: 1.5, md: 2 }, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.14)}` }}>
+      <Box data-testid="finance-upcoming-filters" sx={{ mb: 2 }}>
         <TransactionFilterToolbar
           search={search}
           onSearchChange={setSearch}
@@ -406,6 +406,10 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
         />
       </Box>
 
+      <Box
+        data-testid="finance-upcoming-table"
+        sx={{ bgcolor: 'background.paper', border: `1px solid ${alpha(theme.palette.divider, 0.16)}`, borderRadius: 3, overflow: 'hidden', minHeight: 300 }}
+      >
       {hasCleanupPending && (
         <Box sx={{ p: 2, pb: 0 }}>
           <Alert severity="warning">
@@ -501,6 +505,7 @@ export default function UpcomingTab({ propertyId, mutationVersion, onMutation, r
           ))}
         </>
       ) : null}
+      </Box>
 
       <ConfirmationDialog
         open={Boolean(deleteTarget)}

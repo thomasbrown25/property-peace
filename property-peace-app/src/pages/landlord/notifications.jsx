@@ -180,14 +180,12 @@ export default function Notifications() {
           navigate(`/landlord/leases/${notification.relatedId}`);
           break;
         }
-        let propertyId = notification.propertyId || notification.metadata?.propertyId;
-        if (!propertyId && notification.relatedId && rentRecords?.length > 0) {
+        let leaseId = null;
+        if (notification.relatedId && rentRecords?.length > 0) {
           const rentRecord = rentRecords.find((r) => r.leaseId === notification.relatedId || r.id === notification.relatedId);
-          propertyId = rentRecord?.propertyId || notification.relatedId;
-        } else if (!propertyId) {
-          propertyId = notification.relatedId;
+          leaseId = rentRecord?.leaseId;
         }
-        if (propertyId) navigate(`/landlord/rent-collection?propertyId=${propertyId}`);
+        navigate(leaseId ? `/landlord/leases/${leaseId}` : '/landlord/leases');
         break;
       }
       case 'maintenance':

@@ -97,7 +97,7 @@ const SAFE_ROUTES = [
   /^\/landlord\/property\/[1-9]\d*$/,
   /^\/landlord\/listings\/add$/,
   /^\/landlord\/listings\/[1-9]\d*$/,
-  /^\/landlord\/applications\?applicationId=[1-9]\d*$/,
+  /^\/landlord\/listings\?tab=applications&applicationId=[1-9]\d*$/,
   /^\/landlord\/leases\/selection$/,
   /^\/landlord\/leases\/[1-9]\d*$/
 ];
@@ -258,7 +258,7 @@ export function getSafePrimaryAction(action, currentStage, references = {}) {
       break;
     case 'requestScreening':
     case 'reviewApplication':
-      if (applicationId) result = { label: 'Review application', route: `/landlord/applications?applicationId=${applicationId}` };
+      if (applicationId) result = { label: 'Review application', route: `/landlord/listings?tab=applications&applicationId=${applicationId}` };
       break;
     case 'createLease':
       result = { label: 'Create lease', route: '/landlord/leases/selection' };

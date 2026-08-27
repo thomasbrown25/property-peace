@@ -253,8 +253,19 @@ export default function NavGroup({
                 drawerOpen && (
                   <Box sx={{ pl: 3, mb: 1.5 }}>
                     {item.title && (
-                      <Typography variant="subtitle1" sx={{ color: 'rgba(6,30,53,0.72)', fontFamily: "'Inter', sans-serif", fontSize: '0.8125rem', fontWeight: 600 }}>
-                        <FormattedMessage id={item.title} />
+                      <Typography
+                        variant="subtitle1"
+                        sx={{
+                          color: 'rgba(6,30,53,0.64)',
+                          fontFamily: "'Inter', sans-serif",
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          lineHeight: 1.4,
+                          textTransform: 'uppercase'
+                        }}
+                      >
+                        <FormattedMessage id={item.title} defaultMessage={item.title} />
                       </Typography>
                     )}
                     {item.caption && (

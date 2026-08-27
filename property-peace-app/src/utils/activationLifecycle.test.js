@@ -210,11 +210,11 @@ test('real production routes resume listing, application, unit, lease, tenant, r
   assert.equal(scoped['listing-application'], '/landlord/listings/45/setup');
   assert.equal(scoped.lease, '/landlord/leases/56/builder');
   assert.equal(scoped['tenant-invite'], '/landlord/leases/56/add-tenant?tenantId=78');
-  assert.equal(scoped['rent-readiness'], '/landlord/rent-collection/56');
+  assert.equal(scoped['rent-readiness'], '/landlord/leases/56');
   assert.equal(scoped.communication, '/landlord/messages');
 
   const noLease = routesFor({ ...context, listingId: null, leaseId: null });
-  assert.equal(noLease['listing-application'], '/landlord/applications?applicationId=46');
+  assert.equal(noLease['listing-application'], '/landlord/listings?tab=applications&applicationId=46');
   assert.equal(noLease['tenant-invite'], '/landlord/renters/78');
   assert.equal(noLease['rent-readiness'], '/landlord/leases');
   assert.equal(routesFor({ ...context, unitId: null }, 'import')['property-unit'], '/landlord/property/12/add-units/import');

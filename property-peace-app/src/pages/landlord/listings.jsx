@@ -6,7 +6,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Divider,
   Grid,
   IconButton,
   InputAdornment,
@@ -17,6 +16,8 @@ import {
   Pagination,
   Select,
   Stack,
+  Tab,
+  Tabs,
   Tooltip,
   Typography,
   useTheme
@@ -33,11 +34,12 @@ import {
   WarningOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
 import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import ListingAddWorkflowDrawer from 'components/drawers/ListingAddWorkflowDrawer';
+import ApplicationsPage from 'pages/landlord/applications';
 import { useDrawer } from 'contexts/DrawerContext';
 import { getListings } from 'store/listing/listing.action';
 import { selectListings, selectListingLoading } from 'store/listing/listing.selector';
@@ -288,7 +290,7 @@ function ListingRow({ listing, onOpen }) {
   );
 }
 
-export default function ListingsPage() {
+function ListingsTab() {
   const theme = useTheme();
   const dispatch = useDispatch();
   const drawer = useDrawer();
@@ -389,22 +391,6 @@ export default function ListingsPage() {
 
   return (
     <Box sx={{ pb: 3 }}>
-      <ManagementPageHeader
-        title="Listings"
-        description="Prepare, publish, and monitor every rental listing from one focused workspace."
-        actions={
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<PlusOutlined />}
-            onClick={() => drawer.openListingAddDrawer()}
-            sx={managementPageHeaderActionSx}
-          >
-            Add listing
-          </Button>
-        }
-      />
-
       <Grid container spacing={1.5} sx={{ mb: 2.5 }}>
         <Grid size={{ xs: 6, lg: 3 }}>
           <SummaryCard
@@ -452,16 +438,7 @@ export default function ListingsPage() {
         </Grid>
       </Grid>
 
-      <Box
-        sx={{
-          bgcolor: 'background.paper',
-          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
-          borderRadius: 3,
-          boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`,
-          overflow: 'hidden'
-        }}
-      >
-        <Box sx={{ p: { xs: 1.5, md: 2 } }}>
+      <Box data-testid="listing-filters" sx={{ mb: 2 }}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.1} alignItems={{ md: 'center' }}>
             <OutlinedInput
               value={search}
@@ -539,10 +516,18 @@ export default function ListingsPage() {
               </Button>
             )}
           </Stack>
-        </Box>
+      </Box>
 
-        <Divider />
-
+      <Box
+        data-testid="listing-table"
+        sx={{
+          bgcolor: 'background.paper',
+          border: `1px solid ${alpha(theme.palette.divider, 0.16)}`,
+          borderRadius: 3,
+          boxShadow: `0 8px 28px ${alpha('#061e35', 0.055)}`,
+          overflow: 'hidden'
+        }}
+      >
         <Box
           sx={{
             display: { xs: 'none', md: 'grid' },
@@ -617,6 +602,111 @@ export default function ListingsPage() {
       </Box>
 
       <ListingAddWorkflowDrawer />
+    </Box>
+  );
+}
+
+export default function ListingsPage() {
+  const theme = useTheme();
+  const drawer = useDrawer();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') === 'applications' ? 'applications' : 'listings';
+
+  const handleTabChange = (_, nextTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextTab === 'applications') next.set('tab', 'applications');
+    else next.delete('tab');
+    if (nextTab !== 'applications') {
+      next.delete('applicationId');
+      next.delete('propertyId');
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  return (
+    <Box sx={{ pb: 3 }}>
+      <ManagementPageHeader
+        title="Listings & Applications"
+        description="Market vacancies, review applicants, and move qualified renters toward a signed lease."
+        actions={
+          <Button
+            variant="contained"
+            color="success"
+            startIcon={<PlusOutlined />}
+            onClick={() =>
+              activeTab === 'applications' ? drawer.openApplicationAddDrawer() : drawer.openListingAddDrawer()
+            }
+            sx={managementPageHeaderActionSx}
+          >
+            {activeTab === 'applications' ? 'New application' : 'Add listing'}
+          </Button>
+        }
+      />
+
+      <Box
+        sx={{
+          mt: 0.5,
+          mb: 2.5,
+          position: 'relative',
+          isolation: 'isolate',
+          width: '100%',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            right: 0,
+            bottom: 0,
+            left: 0,
+            height: '1px',
+            bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.22 : 0.12),
+            pointerEvents: 'none',
+            zIndex: 0
+          },
+          '& .MuiTabs-root': { minHeight: 42 },
+          '& .MuiTab-root': {
+            minHeight: 42,
+            px: 1.25,
+            mr: 1.5,
+            borderRadius: 1.5,
+            textTransform: 'none',
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            color: 'text.secondary',
+            transition: theme.transitions.create(['background-color', 'box-shadow', 'color'], {
+              duration: theme.transitions.duration.shorter
+            }),
+            '&:hover': {
+              color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+              backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.16 : 0.08),
+              boxShadow: theme.palette.mode === 'dark' ? `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.24)}` : 'none'
+            },
+            '&.Mui-selected': {
+              color: theme.palette.mode === 'dark' ? 'primary.light' : 'primary.main',
+              backgroundColor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.12 : 0.04)
+            }
+          },
+          '& .MuiTabs-indicator': {
+            zIndex: 1,
+            height: 2,
+            borderRadius: 2,
+            backgroundColor: 'primary.main'
+          }
+        }}
+      >
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          aria-label="Listings and applications views"
+        >
+          <Tab value="listings" label="Listings" id="listings-tab" aria-controls="listings-panel" />
+          <Tab value="applications" label="Applications" id="applications-tab" aria-controls="applications-panel" />
+        </Tabs>
+      </Box>
+
+      <Box id={`${activeTab}-panel`} role="tabpanel" aria-labelledby={`${activeTab}-tab`}>
+        {activeTab === 'applications' ? <ApplicationsPage hideHeader /> : <ListingsTab />}
+      </Box>
     </Box>
   );
 }

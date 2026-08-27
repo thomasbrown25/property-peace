@@ -11,3 +11,6 @@ node_modules
 
 # Isolated agent worktrees
 .worktrees/
+
+# Local coding-agent scratch patches
+.codex-*.patch
