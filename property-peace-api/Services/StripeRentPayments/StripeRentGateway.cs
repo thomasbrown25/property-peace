@@ -16,6 +16,20 @@ namespace brownstone_hub_api.Services.StripeRentPayments
 
     public sealed record StripeRentPaymentIntentState(bool Exists, string? Status);
 
+    public sealed record StripeRentTransactionSnapshot(
+        bool Exists,
+        string PaymentIntentId,
+        long AmountCents,
+        string Currency,
+        string Status,
+        DateTimeOffset PaidAt,
+        DateTimeOffset? ProcessedAt,
+        string? PaymentMethodType,
+        string? PaymentMethodBrand,
+        string? PaymentMethodLast4,
+        string? PaymentMethodBankName,
+        string? PaymentMethodWalletType);
+
     public sealed record StripeRentTransferRequest(
         long AmountCents,
         string Currency,
@@ -47,6 +61,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task<StripeRentIntentResult> UpdatePaymentIntentAsync(string paymentIntentId, StripeRentIntentRequest request, CancellationToken cancellationToken = default);
         Task<string?> GetPaymentMethodTypeAsync(string paymentIntentId, CancellationToken cancellationToken = default);
         Task<StripeRentPaymentIntentState> GetPaymentIntentStateAsync(string paymentIntentId, CancellationToken cancellationToken = default);
+        Task<StripeRentTransactionSnapshot> GetTransactionAsync(string paymentIntentId, CancellationToken cancellationToken = default);
         Task<StripeRentSourceState> GetSourceStateAsync(string chargeId, CancellationToken cancellationToken = default);
         Task<string> CreateTransferAsync(StripeRentTransferRequest request, CancellationToken cancellationToken = default);
         Task<string> CreateTransferReversalAsync(string transferId, long amountCents, string idempotencyKey, CancellationToken cancellationToken = default);
@@ -131,6 +146,33 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             {
                 return new StripeRentPaymentIntentState(false, null);
             }
+        }
+
+        public async Task<StripeRentTransactionSnapshot> GetTransactionAsync(string paymentIntentId,
+            CancellationToken cancellationToken = default)
+        {
+            var intent = await new PaymentIntentService(_stripeClient).GetAsync(paymentIntentId,
+                new PaymentIntentGetOptions { Expand = new List<string> { "latest_charge" } },
+                cancellationToken: cancellationToken);
+            var details = intent.LatestCharge?.PaymentMethodDetails;
+            var card = details?.Card;
+            var bank = details?.UsBankAccount;
+
+            return new StripeRentTransactionSnapshot(
+                true,
+                intent.Id,
+                intent.Amount,
+                intent.Currency,
+                intent.Status,
+                intent.LatestCharge?.Created ?? intent.Created,
+                string.Equals(intent.Status, "succeeded", StringComparison.OrdinalIgnoreCase)
+                    ? intent.LatestCharge?.Created
+                    : null,
+                details?.Type,
+                card?.Brand,
+                card?.Last4 ?? bank?.Last4,
+                bank?.BankName,
+                card?.Wallet?.Type);
         }
 
         public async Task<StripeRentSourceState> GetSourceStateAsync(string chargeId, CancellationToken cancellationToken = default)

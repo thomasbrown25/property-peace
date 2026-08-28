@@ -28,6 +28,19 @@ test('Online Payments is a guarded landlord route', async () => {
   );
 });
 
+test('Transactions reloads for the active organization without rendering stale organization data', async () => {
+  const transactions = await read('../sections/landlord/payments/OnlinePaymentTransactions.jsx');
+
+  assert.match(transactions, /const \{ currentOrganization, loading: organizationLoading \} = useOrganization\(\)/);
+  assert.match(transactions, /loadedOrganizationId === organizationId \? payments : \[\]/);
+  assert.match(transactions, /\[organizationId, organizationLoading, retryVersion\]/);
+  assert.match(transactions, /return \(\) => controller\.abort\(\)/);
+  assert.match(transactions, /\.get\('\/api\/stripe\/payment-transactions'/);
+  assert.doesNotMatch(transactions, /\/api\/payment\/all/);
+  assert.match(transactions, /View Stripe Dashboard/);
+  assert.match(transactions, /All properties/);
+});
+
 test('Online Payments shows a one-time welcome before the tabbed payment workspace', async () => {
   const page = await read('../pages/landlord/online-payments.jsx');
 
@@ -36,8 +49,10 @@ test('Online Payments shows a one-time welcome before the tabbed payment workspa
   assert.match(page, /hasContinuedToOnlinePayments\(user, currentOrganization\)/);
   assert.match(page, /markOnlinePaymentsContinued\(user, currentOrganization\)/);
   assert.match(page, /Continue to Online Payments/);
+  assert.match(page, /<Tab label="Payment Transactions"/);
   assert.match(page, /<Tab label="Bank Accounts"/);
   assert.match(page, /<Tab label="Payout Assignments"/);
+  assert.match(page, /<OnlinePaymentTransactions \/>/);
   assert.match(page, /<PaymentsSettings \/>/);
   assert.match(page, /<PayoutAssignments \/>/);
   assert.doesNotMatch(page, /account-status/);

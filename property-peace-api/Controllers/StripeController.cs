@@ -1,3 +1,4 @@
+using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Dtos.Stripe;
 using brownstone_hub_api.Dtos.BankAccount;
 using brownstone_hub_api.Services.StripeService;
@@ -11,6 +12,7 @@ using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Filters;
+using brownstone_hub_api.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -32,6 +34,8 @@ namespace brownstone_hub_api.Controllers
         private readonly ILogger<StripeController> _logger;
         private readonly IConfiguration _configuration;
         private readonly IStripeConnectedPayeeService? _stripeConnectedPayeeService;
+        private readonly IStripePaymentTransactionQueryService? _stripePaymentTransactionQueryService;
+        private readonly IStripeConnectPreparationService? _stripeConnectPreparationService;
 
         public StripeController(
             IStripeService stripeService,
@@ -42,7 +46,9 @@ namespace brownstone_hub_api.Controllers
             IUserRepository userRepository,
             ILogger<StripeController> logger,
             IConfiguration? configuration = null,
-            IStripeConnectedPayeeService? stripeConnectedPayeeService = null)
+            IStripeConnectedPayeeService? stripeConnectedPayeeService = null,
+            IStripePaymentTransactionQueryService? stripePaymentTransactionQueryService = null,
+            IStripeConnectPreparationService? stripeConnectPreparationService = null)
         {
             _stripeService = stripeService;
             _userService = userService;
@@ -53,12 +59,39 @@ namespace brownstone_hub_api.Controllers
             _logger = logger;
             _configuration = configuration ?? new ConfigurationBuilder().Build();
             _stripeConnectedPayeeService = stripeConnectedPayeeService;
+            _stripePaymentTransactionQueryService = stripePaymentTransactionQueryService;
+            _stripeConnectPreparationService = stripeConnectPreparationService;
+        }
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
+        [HttpGet("payment-transactions")]
+        public async Task<IActionResult> GetPaymentTransactions([FromQuery] long? propertyId = null, CancellationToken cancellationToken = default)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Organization context is required" });
+            if (_stripePaymentTransactionQueryService == null)
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { Message = "Stripe transactions are unavailable" });
+
+            try
+            {
+                var transactions = await _stripePaymentTransactionQueryService.ListAsync(
+                    organizationId.Value, propertyId, cancellationToken);
+                return Ok(transactions);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Stripe payment transactions could not be loaded for organization {OrganizationId}", organizationId.Value);
+                return StatusCode(StatusCodes.Status502BadGateway, new { Message = "Stripe payment transactions could not be loaded" });
+            }
         }
 
         /// <summary>
         /// Create or get Stripe Connect account for the current landlord
         /// </summary>
         [Authorize(Roles = "Landlord,Admin")]
+        [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("connect-account")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> CreateConnectAccount([FromBody] CreateConnectAccountRequest request)
@@ -115,6 +148,25 @@ namespace brownstone_hub_api.Controllers
                 if (dbUser.IsDemo)
                 {
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
+                }
+
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
+                    return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Organization context is required" });
+                if (_stripeConnectPreparationService == null)
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                        new { Message = "Payout preparation validation is unavailable" });
+
+                try
+                {
+                    var preparation = await _stripeConnectPreparationService.GetValidatedForHandoffAsync(
+                        userId.Value, organizationId.Value, HttpContext.RequestAborted);
+                    if (preparation == null)
+                        return Conflict(new { Message = "Complete and save the payout setup before continuing to Stripe." });
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+                {
+                    return Conflict(new { Message = ex.Message });
                 }
 
                 var returnUrl = request.ReturnUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=connected";

@@ -11,6 +11,7 @@ import {
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
 import { useOrganization } from 'contexts/OrganizationContext';
 import useAuth from 'hooks/useAuth';
+import OnlinePaymentTransactions from 'sections/landlord/payments/OnlinePaymentTransactions';
 import PaymentsSettings from 'sections/landlord/settings/PaymentsSettings';
 import PayoutAssignments from 'sections/landlord/settings/PayoutAssignments';
 import { hasContinuedToOnlinePayments, markOnlinePaymentsContinued } from 'utils/onlinePaymentsWelcome';
@@ -75,16 +76,20 @@ export default function OnlinePaymentsPage() {
               scrollButtons="auto"
               aria-label="Online payment settings"
             >
-              <Tab label="Bank Accounts" id="online-payments-tab-0" aria-controls="online-payments-panel-0" />
-              <Tab label="Payout Assignments" id="online-payments-tab-1" aria-controls="online-payments-panel-1" />
+              <Tab label="Payment Transactions" id="online-payments-tab-0" aria-controls="online-payments-panel-0" />
+              <Tab label="Bank Accounts" id="online-payments-tab-1" aria-controls="online-payments-panel-1" />
+              <Tab label="Payout Assignments" id="online-payments-tab-2" aria-controls="online-payments-panel-2" />
             </Tabs>
           </Box>
 
           <Box role="tabpanel" hidden={activeTab !== 0} id="online-payments-panel-0" aria-labelledby="online-payments-tab-0">
-            {activeTab === 0 && <PaymentsSettings />}
+            {activeTab === 0 && <OnlinePaymentTransactions />}
           </Box>
           <Box role="tabpanel" hidden={activeTab !== 1} id="online-payments-panel-1" aria-labelledby="online-payments-tab-1">
-            {activeTab === 1 && <PayoutAssignments />}
+            {activeTab === 1 && <PaymentsSettings />}
+          </Box>
+          <Box role="tabpanel" hidden={activeTab !== 2} id="online-payments-panel-2" aria-labelledby="online-payments-tab-2">
+            {activeTab === 2 && <PayoutAssignments />}
           </Box>
         </Box>
       )}
