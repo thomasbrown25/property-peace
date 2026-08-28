@@ -95,7 +95,7 @@ export default function PlanCard({
             fontWeight="bold" 
             gutterBottom
             sx={{
-              fontFamily: "'Host Grotesk', sans-serif"
+              fontFamily: "'Poppins', sans-serif"
             }}
           >
             {plan.name}
@@ -117,7 +117,7 @@ export default function PlanCard({
               variant="h3" 
               fontWeight="bold" 
               sx={{ 
-                fontFamily: "'Host Grotesk', sans-serif",
+                fontFamily: "'Poppins', sans-serif",
                 color: 'text.primary'
               }}
             >

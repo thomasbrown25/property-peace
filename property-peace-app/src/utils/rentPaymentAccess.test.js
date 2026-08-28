@@ -35,6 +35,36 @@ test('not-requested access does not load setup readiness or surface its failures
   assert.equal(readinessCalls, 0);
 });
 
+test('approved access remains visible when a readiness endpoint fails', async () => {
+  const result = await loadRentPaymentAccessState({
+    signal: new AbortController().signal,
+    loadAccess: async () => ({ data: { organizationId: 701, Status: 'approved' } }),
+    loadFeatureReadiness: async () => [{ featureKey: 'online-rent-collection', globalGateEnabled: true }],
+    loadActionReadiness: async (action) => {
+      if (action === 'Configure') throw new Error('Request failed with status code 404');
+      return { allowed: false, providerEnabled: true, connectedPayeeExists: false, blockers: [] };
+    },
+    selectFeatureReadiness: (items) => items[0]
+  });
+
+  assert.deepEqual(result.access, { organizationId: 701, Status: 'approved' });
+  assert.equal(result.configureReadiness, null);
+  assert.equal(result.payReadiness.connectedPayeeExists, false);
+  assert.match(result.readinessError, /404/);
+
+  const presentation = getRentPaymentAccessPresentation({
+    access: result.access,
+    aggregateReadiness: result.readiness,
+    configureReadiness: result.configureReadiness,
+    payReadiness: result.payReadiness,
+    readinessError: result.readinessError
+  });
+  assert.equal(presentation.status, 'approved-unavailable');
+  assert.equal(presentation.title, 'Payment setup temporarily unavailable');
+  assert.equal(presentation.canConfigure, false);
+  assert.equal(presentation.canPay, false);
+});
+
 test('a genuine access load error cannot masquerade as not requested', () => {
   assert.deepEqual(
     getRentPaymentAccessPresentation({ error: 'Unable to load online rent payment access.' }),

@@ -8,47 +8,47 @@ export default function Typography(theme) {
           marginBottom: 12
         },
         h1: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Poppins', sans-serif",
           color: theme.palette.text.primary
         },
         h2: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Poppins', sans-serif",
           color: theme.palette.text.primary
         },
         h3: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Poppins', sans-serif",
           color: theme.palette.text.primary
         },
         h4: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Poppins', sans-serif",
           color: theme.palette.text.primary
         },
         h5: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Poppins', sans-serif",
           color: theme.palette.text.primary
         },
         h6: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Poppins', sans-serif",
           color: theme.palette.text.primary
         },
         body1: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Inter', sans-serif",
           color: theme.palette.text.primary
         },
         body2: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Inter', sans-serif",
           color: theme.palette.text.primary
         },
         caption: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Inter', sans-serif",
           color: theme.palette.text.primary
         },
         subtitle1: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Inter', sans-serif",
           color: theme.palette.text.primary
         },
         subtitle2: {
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Inter', sans-serif",
           color: theme.palette.text.primary
         }
       }

@@ -150,11 +150,10 @@ function DemoStripePaymentsPreview() {
   );
 }
 
-export default function PaymentsSettings() {
+export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const theme = useTheme();
   const { user } = useAuth();
   const { properties, propertiesRefetch, isLoading: propertiesLoading, propertiesError } = useFetchProperties();
-  const rentPaymentAccess = useRentPaymentAccess();
   const {
     presentation: rentPresentation,
     loading: rentReadinessLoading,
@@ -1043,4 +1042,9 @@ export default function PaymentsSettings() {
       </Dialog>
     </Box>
   );
+}
+
+export default function PaymentsSettings() {
+  const rentPaymentAccess = useRentPaymentAccess();
+  return <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} />;
 }

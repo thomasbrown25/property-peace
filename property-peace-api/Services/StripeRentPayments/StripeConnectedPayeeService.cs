@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 
 namespace brownstone_hub_api.Services.StripeRentPayments
 {
+    public sealed record ApprovedStripeDestination(long PayeeUserId, string StripeAccountId);
+
     public interface IStripeConnectedPayeeService
     {
         Task<StripeConnectedPayeeReview> RegisterAsync(long? userId, string stripeAccountId, bool detailsSubmitted, CancellationToken cancellationToken = default);
@@ -14,6 +16,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         Task<StripeConnectedPayeeReview> SuspendAsync(string stripeAccountId, long? adminUserId, string reason, CancellationToken cancellationToken = default);
         Task<StripeConnectedPayeeReview?> SyncStripeSnapshotAsync(StripeConnectedAccountSnapshot snapshot, string? eventId, CancellationToken cancellationToken = default);
         Task<bool> IsApprovedDestinationAsync(long userId, long organizationId, string stripeAccountId, CancellationToken cancellationToken = default);
+        Task<ApprovedStripeDestination?> ResolveApprovedDestinationAsync(long actorUserId, long organizationId, CancellationToken cancellationToken = default);
     }
 
     public sealed class StripeConnectedPayeeService(DataContext context, TimeProvider timeProvider) : IStripeConnectedPayeeService
@@ -387,10 +390,49 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 && x.StripeAccountId == stripeAccountId
                 && x.Status == StripePayeeReviewStatus.PayoutApproved
                 && x.PropertyAuthorityAttested
+                && x.ApprovedAt != null
+                && context.Users.Any(user => user.Id == userId && !user.IsDeleted
+                    && user.StripeAccountId == stripeAccountId)
                 && context.OrganizationMembers.Any(member => member.UserId == userId
                     && member.OrganizationId == organizationId
                     && member.IsActive
                     && (member.Role == "Owner" || member.Role == "Manager")), cancellationToken);
+
+        public async Task<ApprovedStripeDestination?> ResolveApprovedDestinationAsync(long actorUserId, long organizationId,
+            CancellationToken cancellationToken = default)
+        {
+            if (actorUserId <= 0 || organizationId <= 0) return null;
+
+            var actorAuthorized = await context.OrganizationMembers.AsNoTracking().AnyAsync(member =>
+                member.UserId == actorUserId
+                && member.OrganizationId == organizationId
+                && member.IsActive
+                && (member.Role == "Owner" || member.Role == "Manager"), cancellationToken);
+            if (!actorAuthorized) return null;
+
+            // There must be exactly one selected, approved destination. Ambiguous approval state
+            // fails closed rather than choosing an account by recency or by the actor's global link.
+            var destinations = await (
+                    from review in context.StripeConnectedPayeeReviews.AsNoTracking()
+                    join payeeMember in context.OrganizationMembers.AsNoTracking()
+                        on review.UserId equals payeeMember.UserId
+                    join payeeUser in context.Users.AsNoTracking()
+                        on review.UserId equals payeeUser.Id
+                    where review.ApprovedOrganizationId == organizationId
+                        && review.Status == StripePayeeReviewStatus.PayoutApproved
+                        && review.PropertyAuthorityAttested
+                        && review.ApprovedAt != null
+                        && payeeMember.OrganizationId == organizationId
+                        && payeeMember.IsActive
+                        && (payeeMember.Role == "Owner" || payeeMember.Role == "Manager")
+                        && !payeeUser.IsDeleted
+                        && payeeUser.StripeAccountId == review.StripeAccountId
+                    select new ApprovedStripeDestination(review.UserId!.Value, review.StripeAccountId))
+                .Take(2)
+                .ToListAsync(cancellationToken);
+
+            return destinations.Count == 1 ? destinations[0] : null;
+        }
 
         private async Task<StripeConnectedPayeeReview> GetRequiredAsync(string stripeAccountId, CancellationToken cancellationToken) =>
             await context.StripeConnectedPayeeReviews.SingleOrDefaultAsync(x => x.StripeAccountId == stripeAccountId, cancellationToken)

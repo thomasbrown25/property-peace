@@ -83,7 +83,7 @@ const ActionCard = ({ icon, label, color, onClick, description }) => {
                   transition: 'color 0.2s ease',
                   fontSize: '0.875rem',
                   lineHeight: 1.3,
-                  fontFamily: "'Host Grotesk', sans-serif"
+                  fontFamily: "'Poppins', sans-serif"
                 }}
               >
                 {label}
@@ -158,7 +158,7 @@ export default function EnhancedQuickActions() {
           fontWeight={600} 
           sx={{ 
             fontSize: '1rem',
-            fontFamily: "'Host Grotesk', sans-serif"
+            fontFamily: "'Poppins', sans-serif"
           }}
         >
           Quick Actions

@@ -83,7 +83,7 @@ function SummaryCard({ icon, title, value, secondary, accent }) {
             {title}
           </Typography>
           <Typography
-            sx={{ mt: 1.1, color: 'text.primary', fontFamily: 'Host Grotesk, sans-serif', fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}
+            sx={{ mt: 1.1, color: 'text.primary', fontFamily: 'Poppins, sans-serif', fontSize: '1.75rem', fontWeight: 800, lineHeight: 1 }}
           >
             {value}
           </Typography>

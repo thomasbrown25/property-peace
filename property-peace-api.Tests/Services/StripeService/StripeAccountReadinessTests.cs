@@ -137,6 +137,14 @@ public sealed class StripeAccountReadinessTests
         string fingerprint,
         bool activeAuthority = true)
     {
+        context.Users.Add(new User
+        {
+            Id = 42,
+            FirstName = "Approved",
+            LastName = "Payee",
+            Email = "approved-payee@example.test",
+            StripeAccountId = accountId
+        });
         context.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
         {
             UserId = 42,

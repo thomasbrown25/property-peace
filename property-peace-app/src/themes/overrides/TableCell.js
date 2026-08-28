@@ -53,7 +53,7 @@ export default function TableCell(theme) {
           fontSize: '0.75rem',
           fontWeight: 700,
           textTransform: 'uppercase',
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Poppins', sans-serif",
           ...commonCell
         },
         footer: {

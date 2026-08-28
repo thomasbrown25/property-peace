@@ -41,10 +41,10 @@ const MetricCard = ({ icon: IconComponent, label, value, iconColor, onClick, isA
         <Stack direction="row" spacing={1} alignItems="center">
           <IconComponent style={{ fontSize: 24, color: isActive ? theme.palette.primary.main : iconColor }} />
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
               {label}
             </Typography>
-            <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
+            <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
               {value}
             </Typography>
           </Box>

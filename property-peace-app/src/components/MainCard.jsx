@@ -100,7 +100,7 @@ const MainCard = forwardRef(
                   fontWeight: 600,
                   fontSize: '1rem',
                   lineHeight: 1.5,
-                  fontFamily: "'Host Grotesk', sans-serif"
+                  fontFamily: "'Poppins', sans-serif"
                 }
               }, 
               action: { sx: { m: '0px auto', alignSelf: 'center' } } 

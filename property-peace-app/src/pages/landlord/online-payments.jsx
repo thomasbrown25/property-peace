@@ -11,9 +11,11 @@ import {
 import ManagementPageHeader from 'components/headers/ManagementPageHeader';
 import { useOrganization } from 'contexts/OrganizationContext';
 import useAuth from 'hooks/useAuth';
+import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
 import OnlinePaymentTransactions from 'sections/landlord/payments/OnlinePaymentTransactions';
-import PaymentsSettings from 'sections/landlord/settings/PaymentsSettings';
+import { PaymentsSettingsContent } from 'sections/landlord/settings/PaymentsSettings';
 import PayoutAssignments from 'sections/landlord/settings/PayoutAssignments';
+import { getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from 'utils/onlinePaymentTabs';
 import { hasContinuedToOnlinePayments, markOnlinePaymentsContinued } from 'utils/onlinePaymentsWelcome';
 
 const PAYMENT_METHODS = ['ACH', 'Credit', 'Debit'];
@@ -22,8 +24,11 @@ export default function OnlinePaymentsPage() {
   const theme = useTheme();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
+  const rentPaymentAccess = useRentPaymentAccess();
   const [hasContinued, setHasContinued] = useState(null);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState('bank-accounts');
+  const paymentTabs = getOnlinePaymentTabs(rentPaymentAccess.access, rentPaymentAccess.presentation.canConfigure);
+  const selectedTab = getSelectedOnlinePaymentTab(activeTab, paymentTabs);
 
   useEffect(() => {
     if (!user) return;
@@ -70,26 +75,41 @@ export default function OnlinePaymentsPage() {
             }}
           >
             <Tabs
-              value={activeTab}
+              value={selectedTab}
               onChange={(_event, value) => setActiveTab(value)}
               variant="scrollable"
               scrollButtons="auto"
               aria-label="Online payment settings"
             >
-              <Tab label="Payment Transactions" id="online-payments-tab-0" aria-controls="online-payments-panel-0" />
-              <Tab label="Bank Accounts" id="online-payments-tab-1" aria-controls="online-payments-panel-1" />
-              <Tab label="Payout Assignments" id="online-payments-tab-2" aria-controls="online-payments-panel-2" />
+              {paymentTabs.map(({ id, label }) => (
+                <Tab key={id} value={id} label={label} id={`online-payments-tab-${id}`} aria-controls={`online-payments-panel-${id}`} />
+              ))}
             </Tabs>
           </Box>
 
-          <Box role="tabpanel" hidden={activeTab !== 0} id="online-payments-panel-0" aria-labelledby="online-payments-tab-0">
-            {activeTab === 0 && <OnlinePaymentTransactions />}
+          <Box
+            role="tabpanel"
+            hidden={selectedTab !== 'transactions'}
+            id="online-payments-panel-transactions"
+            aria-labelledby="online-payments-tab-transactions"
+          >
+            {selectedTab === 'transactions' && <OnlinePaymentTransactions />}
           </Box>
-          <Box role="tabpanel" hidden={activeTab !== 1} id="online-payments-panel-1" aria-labelledby="online-payments-tab-1">
-            {activeTab === 1 && <PaymentsSettings />}
+          <Box
+            role="tabpanel"
+            hidden={selectedTab !== 'bank-accounts'}
+            id="online-payments-panel-bank-accounts"
+            aria-labelledby="online-payments-tab-bank-accounts"
+          >
+            {selectedTab === 'bank-accounts' && <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} />}
           </Box>
-          <Box role="tabpanel" hidden={activeTab !== 2} id="online-payments-panel-2" aria-labelledby="online-payments-tab-2">
-            {activeTab === 2 && <PayoutAssignments />}
+          <Box
+            role="tabpanel"
+            hidden={selectedTab !== 'payout-assignments'}
+            id="online-payments-panel-payout-assignments"
+            aria-labelledby="online-payments-tab-payout-assignments"
+          >
+            {selectedTab === 'payout-assignments' && <PayoutAssignments />}
           </Box>
         </Box>
       )}

@@ -45,6 +45,7 @@ public class ProviderEndpointReadinessTests
         { nameof(StripeController.CreateAccountLink), RentPaymentAction.Configure },
         { nameof(StripeController.CreateLoginLink), RentPaymentAction.Configure },
         { nameof(StripeController.CreateAccountSession), RentPaymentAction.Configure },
+        { nameof(StripeController.CreateAccountManagementSession), RentPaymentAction.Configure },
         { nameof(StripeController.SyncBankAccount), RentPaymentAction.Configure },
         { nameof(StripeController.CreateSetupIntent), RentPaymentAction.Pay },
         { nameof(StripeController.CreatePaymentIntent), RentPaymentAction.Pay },

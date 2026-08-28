@@ -23,7 +23,7 @@ export default function SortableTableHeader({
         fontWeight: 600,
         cursor: 'pointer',
         userSelect: 'none',
-        fontFamily: "'Host Grotesk', sans-serif",
+        fontFamily: "'Poppins', sans-serif",
         ...sx
       }}
       onClick={onSort}

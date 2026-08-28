@@ -198,6 +198,10 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
+                    return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Organization context is required" });
+
                 // Get current user ID from JWT claims
                 long? userId = null;
                 var userIdClaim = User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -238,19 +242,13 @@ namespace brownstone_hub_api.Controllers
                     return Unauthorized(new { Message = "User ID not found in token" });
                 }
 
-                // Get user with Stripe account info
-                var dbUserResponse = await _userService.GetUserByIdAsync(userId.Value);
-                if (!dbUserResponse.Success || dbUserResponse.Data == null)
-                {
-                    return NotFound(new { Message = "User not found" });
-                }
-                var dbUser = dbUserResponse.Data;
-                if (dbUser == null)
-                {
-                    return NotFound(new { Message = "User not found" });
-                }
+                if (_stripeConnectedPayeeService == null)
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                        new { Message = "Payout account status is unavailable" });
 
-                if (string.IsNullOrEmpty(dbUser?.StripeAccountId))
+                var destination = await _stripeConnectedPayeeService.ResolveApprovedDestinationAsync(
+                    userId.Value, organizationId.Value, HttpContext.RequestAborted);
+                if (destination == null)
                 {
                     return Ok(new StripeAccountStatusDto
                     {
@@ -263,20 +261,16 @@ namespace brownstone_hub_api.Controllers
                     });
                 }
 
-                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId.Value);
-                if (!userOrgResponse.Success || userOrgResponse.Data == null)
-                {
-                    return NotFound(new { Message = "Organization not found" });
-                }
-
                 var response = await _stripeService.GetAccountStatusAsync(
-                    dbUser.StripeAccountId, userId.Value, userOrgResponse.Data.Id);
+                    destination.StripeAccountId, destination.PayeeUserId, organizationId.Value);
 
                 if (!response.Success)
                 {
                     return BadRequest(response);
                 }
 
+                if (response.Data != null)
+                    response.Data.CanManageAccount = destination.PayeeUserId == userId.Value;
                 return Ok(response);
             }
             catch (Exception ex)
@@ -533,6 +527,57 @@ namespace brownstone_hub_api.Controllers
             {
                 _logger.LogError(ex, "Error creating Stripe account session");
                 return StatusCode(500, new { Message = "An error occurred while creating account session" });
+            }
+        }
+
+        /// <summary>
+        /// Create a short-lived Stripe session for embedded payout account management.
+        /// Bank credentials are entered directly into Stripe's component and never pass through this API.
+        /// </summary>
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpPost("account-management-session")]
+        [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
+        public async Task<IActionResult> CreateAccountManagementSession()
+        {
+            try
+            {
+                var userIdResponse = await _userService.GetCurrentUserIdAsync();
+                if (!userIdResponse.Success || !userIdResponse.Data.HasValue)
+                    return Unauthorized(new { Message = "User not found" });
+
+                var dbUserResponse = await _userService.GetUserByIdAsync(userIdResponse.Data.Value);
+                if (!dbUserResponse.Success || dbUserResponse.Data == null)
+                    return NotFound(new { Message = "User not found" });
+                if (dbUserResponse.Data.IsDemo)
+                    return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
+
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
+                    return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Organization context is required" });
+                if (_stripeConnectedPayeeService == null)
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                        new { Message = "Payout account management is unavailable" });
+
+                var destination = await _stripeConnectedPayeeService.ResolveApprovedDestinationAsync(
+                    userIdResponse.Data.Value, organizationId.Value, HttpContext.RequestAborted);
+                if (destination == null
+                    || destination.PayeeUserId != userIdResponse.Data.Value
+                    || !await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
+                        destination.PayeeUserId, organizationId.Value, destination.StripeAccountId,
+                        HttpContext.RequestAborted))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden,
+                        new { Message = "Payout account management is unavailable for this organization" });
+                }
+
+                var response = await _stripeService.CreateAccountManagementSessionAsync(
+                    destination.StripeAccountId);
+                return response.Success ? Ok(response) : BadRequest(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating Stripe account-management session");
+                return StatusCode(500, new { Message = "An error occurred while creating account-management session" });
             }
         }
 

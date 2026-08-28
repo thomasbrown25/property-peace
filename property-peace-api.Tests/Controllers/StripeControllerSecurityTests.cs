@@ -182,37 +182,117 @@ public sealed class StripeControllerSecurityTests
     }
 
     [Fact]
-    public async Task GetAccountStatus_RequestsReadinessForExactAuthenticatedUserAndOrganization()
+    public async Task GetAccountStatus_UsesMiddlewareOrganizationAndItsApprovedPayee_NotActorsGlobalAccount()
     {
         var userService = new Mock<IUserService>();
-        userService.Setup(x => x.GetUserByIdAsync(42))
-            .ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(new LoadUserDto
-            {
-                Id = 42, StripeAccountId = "acct_exact"
-            }));
-        var organizationService = new Mock<IOrganizationService>();
-        organizationService.Setup(x => x.GetCurrentUserOrganizationAsync(42))
-            .ReturnsAsync(ServiceResponse<LoadOrganizationDto>.CreateSuccess(new LoadOrganizationDto { Id = 77 }));
+        var organizationService = new Mock<IOrganizationService>(MockBehavior.Strict);
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.ResolveApprovedDestinationAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ApprovedStripeDestination(51, "acct_org_77"));
         var stripeService = new Mock<IStripeService>();
-        stripeService.Setup(x => x.GetAccountStatusAsync("acct_exact", 42, 77))
+        stripeService.Setup(x => x.GetAccountStatusAsync("acct_org_77", 51, 77))
             .ReturnsAsync(ServiceResponse<StripeAccountStatusDto>.CreateSuccess(new StripeAccountStatusDto
             {
-                AccountId = "acct_exact",
+                AccountId = "acct_org_77",
                 PayoutsEnabled = true,
-                IsInternallyPayoutApproved = false,
-                IsAccountReadyForRentTransfers = false
+                IsInternallyPayoutApproved = true,
+                IsAccountReadyForRentTransfers = true
             }));
-        var controller = CreateController(stripeService.Object, userService.Object, organizationService.Object);
+        var controller = CreateController(stripeService.Object, userService.Object, organizationService.Object,
+            payeeService: payeeService.Object);
         Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 77L;
 
         var result = await controller.GetAccountStatus();
 
         var dto = result.Should().BeOfType<OkObjectResult>().Which.Value
             .Should().BeOfType<ServiceResponse<StripeAccountStatusDto>>().Which.Data!;
+        dto.AccountId.Should().Be("acct_org_77");
         dto.PayoutsEnabled.Should().BeTrue();
-        dto.IsAccountReadyForRentTransfers.Should().BeFalse();
-        stripeService.Verify(x => x.GetAccountStatusAsync("acct_exact", 42, 77), Times.Once);
-        stripeService.Verify(x => x.GetAccountStatusAsync(It.IsAny<string>()), Times.Never);
+        dto.CanManageAccount.Should().BeFalse("the manager is not the connected-account owner");
+        stripeService.Verify(x => x.GetAccountStatusAsync("acct_org_77", 51, 77), Times.Once);
+        stripeService.Verify(x => x.GetAccountStatusAsync("acct_actor_global", 42, It.IsAny<long>()), Times.Never);
+        organizationService.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task GetAccountStatus_WhenSelectedOrganizationHasNoApprovedDestination_ExposesNoOtherAccount()
+    {
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.ResolveApprovedDestinationAsync(42, 88, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ApprovedStripeDestination?)null);
+        var stripeService = new Mock<IStripeService>(MockBehavior.Strict);
+        var controller = CreateController(stripeService.Object, payeeService: payeeService.Object);
+        Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 88L;
+
+        var result = await controller.GetAccountStatus();
+
+        var dto = result.Should().BeOfType<OkObjectResult>().Which.Value
+            .Should().BeOfType<StripeAccountStatusDto>().Which;
+        dto.AccountId.Should().BeNull();
+        dto.PayoutBank.Should().BeNull();
+        stripeService.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task CreateAccountManagementSession_ManagerCannotModifyAnotherOwnersDestination()
+    {
+        var userService = new Mock<IUserService>();
+        userService.Setup(x => x.GetCurrentUserIdAsync())
+            .ReturnsAsync(ServiceResponse<long?>.CreateSuccess(42));
+        userService.Setup(x => x.GetUserByIdAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(new LoadUserDto
+            {
+                Id = 42, StripeAccountId = "acct_actor_other_org"
+            }));
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.ResolveApprovedDestinationAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ApprovedStripeDestination(51, "acct_owner_org_77"));
+        var stripeService = new Mock<IStripeService>(MockBehavior.Strict);
+        var controller = CreateController(stripeService.Object, userService.Object, payeeService: payeeService.Object);
+        Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 77L;
+
+        var result = await controller.CreateAccountManagementSession();
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        stripeService.VerifyNoOtherCalls();
+        payeeService.Verify(x => x.IsApprovedDestinationAsync(
+            It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CreateAccountManagementSession_OwnerUsesOnlySelectedOrganizationsExactApprovedDestination()
+    {
+        var userService = new Mock<IUserService>();
+        userService.Setup(x => x.GetCurrentUserIdAsync())
+            .ReturnsAsync(ServiceResponse<long?>.CreateSuccess(42));
+        userService.Setup(x => x.GetUserByIdAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(new LoadUserDto
+            {
+                Id = 42, StripeAccountId = "acct_stale_global"
+            }));
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.ResolveApprovedDestinationAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ApprovedStripeDestination(42, "acct_selected_org_77"));
+        payeeService.Setup(x => x.IsApprovedDestinationAsync(42, 77, "acct_selected_org_77", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var stripeService = new Mock<IStripeService>();
+        stripeService.Setup(x => x.CreateAccountManagementSessionAsync("acct_selected_org_77"))
+            .ReturnsAsync(ServiceResponse<AccountSessionDto>.CreateSuccess(new AccountSessionDto
+            {
+                ClientSecret = "session_secret"
+            }));
+        var controller = CreateController(stripeService.Object, userService.Object, payeeService: payeeService.Object);
+        Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 77L;
+
+        var result = await controller.CreateAccountManagementSession();
+
+        result.Should().BeOfType<OkObjectResult>();
+        stripeService.Verify(x => x.CreateAccountManagementSessionAsync("acct_selected_org_77"), Times.Once);
+        stripeService.Verify(x => x.CreateAccountManagementSessionAsync("acct_stale_global"), Times.Never);
     }
 
     [Fact]

@@ -6,6 +6,15 @@ using System.Text;
 
 namespace brownstone_hub_api.Services.StripeRentPayments
 {
+    public sealed record StripePayoutBankSnapshot(
+        string ExternalAccountId,
+        string? Last4,
+        string? BankName,
+        string? AccountType,
+        string? Currency,
+        bool DefaultForCurrency,
+        string? Fingerprint);
+
     public sealed record StripeConnectedAccountSnapshot(
         string StripeAccountId,
         DateTimeOffset RetrievedAt,
@@ -19,7 +28,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         string? ExternalAccountFingerprint,
         string? PayoutSchedulePolicy = null,
         bool InstantPayoutMethodsAvailable = false,
-        bool ChargesEnabled = false);
+        bool ChargesEnabled = false,
+        StripePayoutBankSnapshot? PayoutBank = null);
 
     public interface IStripeConnectedAccountGateway
     {
@@ -110,6 +120,21 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 ? null
                 : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", fingerprintMaterial))));
             var instantPayoutMethodsAvailable = externalAccounts.Any(HasInstantPayoutMethod);
+            var payoutBank = externalAccounts
+                .OfType<Stripe.BankAccount>()
+                .Where(bankAccount =>
+                    bankAccount.DefaultForCurrency == true
+                    && string.Equals(bankAccount.Currency, "usd", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(bankAccount => bankAccount.Id, StringComparer.Ordinal)
+                .Select(bankAccount => new StripePayoutBankSnapshot(
+                    bankAccount.Id,
+                    bankAccount.Last4,
+                    bankAccount.BankName,
+                    bankAccount.AccountType,
+                    bankAccount.Currency,
+                    bankAccount.DefaultForCurrency == true,
+                    bankAccount.Fingerprint))
+                .FirstOrDefault();
 
             return new StripeConnectedAccountSnapshot(
                 account.Id,
@@ -124,7 +149,8 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 fingerprint,
                 account.Settings?.Payouts?.Schedule?.Interval,
                 instantPayoutMethodsAvailable,
-                account.ChargesEnabled);
+                account.ChargesEnabled,
+                payoutBank);
         }
 
         private static string GetFingerprintMaterial(IExternalAccount externalAccount) => externalAccount switch

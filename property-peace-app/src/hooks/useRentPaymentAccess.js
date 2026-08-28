@@ -20,7 +20,7 @@ import {
 export default function useRentPaymentAccess() {
   const { currentOrganization, loading: organizationLoading } = useOrganization();
   const { user } = useAuth();
-  const [state, setState] = useState({ scopeKey: null, access: null, readiness: null, configureReadiness: null, payReadiness: null, loading: false, error: null });
+  const [state, setState] = useState({ scopeKey: null, access: null, readiness: null, configureReadiness: null, payReadiness: null, readinessError: null, loading: false, error: null });
   const [requesting, setRequesting] = useState(false);
   const lifecycleRef = useRef(null);
   const requestingRef = useRef(false);
@@ -85,8 +85,9 @@ export default function useRentPaymentAccess() {
     aggregateReadiness: visible.readiness,
     configureReadiness: visible.configureReadiness,
     payReadiness: visible.payReadiness,
-    error: visible.error
+    error: visible.error,
+    readinessError: visible.readinessError
   });
 
-  return { access: visible.access, readiness: visible.readiness, presentation, loading: visible.loading, requesting, error: visible.error, requestAccess, refresh };
+  return { access: visible.access, readiness: visible.readiness, presentation, loading: visible.loading, requesting, error: visible.error, readinessError: visible.readinessError, requestAccess, refresh };
 }

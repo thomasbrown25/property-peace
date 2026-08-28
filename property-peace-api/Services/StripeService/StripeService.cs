@@ -328,7 +328,16 @@ namespace brownstone_hub_api.Services.StripeService
                     InternalReviewStatus = reviewStatus.ToString(),
                     IsInternallyPayoutApproved = internallyApproved,
                     IsAccountReadyForRentTransfers = isAccountReady,
-                    AccountReadinessReason = accountReadinessReason
+                    AccountReadinessReason = accountReadinessReason,
+                    PayoutBank = snapshot?.PayoutBank == null
+                        ? null
+                        : new StripePayoutBankDto
+                        {
+                            BankName = snapshot.PayoutBank.BankName,
+                            AccountType = snapshot.PayoutBank.AccountType,
+                            Currency = snapshot.PayoutBank.Currency,
+                            Last4 = snapshot.PayoutBank.Last4
+                        }
                 };
                 response.Message = "Account-level transfer readiness retrieved. Individual rent payments remain subject to payment-specific pre-transfer controls.";
             }
@@ -417,24 +426,44 @@ namespace brownstone_hub_api.Services.StripeService
             return response;
         }
 
-        public async Task<ServiceResponse<AccountSessionDto>> CreateAccountSessionAsync(string accountId)
+        internal static AccountSessionCreateOptions BuildAccountSessionOptions(
+            string accountId,
+            bool enableAccountManagement) => new()
+        {
+            Account = accountId,
+            Components = enableAccountManagement
+                ? new AccountSessionComponentsOptions
+                {
+                    AccountManagement = new AccountSessionComponentsAccountManagementOptions
+                    {
+                        Enabled = true
+                    }
+                }
+                : new AccountSessionComponentsOptions
+                {
+                    AccountOnboarding = new AccountSessionComponentsAccountOnboardingOptions
+                    {
+                        Enabled = true
+                    }
+                }
+        };
+
+        public Task<ServiceResponse<AccountSessionDto>> CreateAccountSessionAsync(string accountId) =>
+            CreateEmbeddedAccountSessionAsync(accountId, enableAccountManagement: false);
+
+        public Task<ServiceResponse<AccountSessionDto>> CreateAccountManagementSessionAsync(string accountId) =>
+            CreateEmbeddedAccountSessionAsync(accountId, enableAccountManagement: true);
+
+        private async Task<ServiceResponse<AccountSessionDto>> CreateEmbeddedAccountSessionAsync(
+            string accountId,
+            bool enableAccountManagement)
         {
             var response = new ServiceResponse<AccountSessionDto>();
 
             try
             {
                 var accountSessionService = new AccountSessionService();
-                var accountSessionOptions = new AccountSessionCreateOptions
-                {
-                    Account = accountId,
-                    Components = new AccountSessionComponentsOptions
-                    {
-                        AccountOnboarding = new AccountSessionComponentsAccountOnboardingOptions
-                        {
-                            Enabled = true
-                        }
-                    }
-                };
+                var accountSessionOptions = BuildAccountSessionOptions(accountId, enableAccountManagement);
 
                 var accountSession = await accountSessionService.CreateAsync(accountSessionOptions);
                 response.Data = new AccountSessionDto
@@ -447,13 +476,13 @@ namespace brownstone_hub_api.Services.StripeService
             {
                 _logger.LogError(ex, "Stripe error creating account session for {AccountId}", accountId);
                 response.Success = false;
-                response.Message = $"Stripe error: {ex.Message}";
+                response.Message = "Stripe account management is temporarily unavailable.";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating account session for {AccountId}", accountId);
                 response.Success = false;
-                response.Message = $"Error creating account session: {ex.Message}";
+                response.Message = "Stripe account management is temporarily unavailable.";
             }
 
             return response;
