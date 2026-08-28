@@ -80,6 +80,7 @@ const ContactUs = Loadable(lazy(() => import('pages/landlord/contact-us')));
 const Files = Loadable(lazy(() => import('pages/landlord/files')));
 const Documents = Loadable(lazy(() => import('pages/landlord/documents')));
 const ToolsTabs = Loadable(lazy(() => import('pages/landlord/tools-tabs')));
+const OnlinePayments = Loadable(lazy(() => import('pages/landlord/online-payments')));
 const Finances = Loadable(lazy(() => import('pages/landlord/finances')));
 const ExpensesProperty = Loadable(lazy(() => import('pages/landlord/expenses-property')));
 const ExpenseAddWorkflow = Loadable(lazy(() => import('pages/landlord/expense-add-workflow')));
@@ -831,6 +832,14 @@ const MainRoutes = {
         {
           path: 'landlord/inspection/:propertyId/unit/:unitId',
           element: <LegacyInspectionRedirect />
+        },
+        {
+          path: 'landlord/online-payments',
+          element: (
+            <SubscriptionPausedGuard>
+              <OnlinePayments />
+            </SubscriptionPausedGuard>
+          )
         },
         {
           path: 'landlord/finances',

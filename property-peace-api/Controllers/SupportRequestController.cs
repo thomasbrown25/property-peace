@@ -4,6 +4,7 @@ using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Dtos.SupportRequest;
 using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Messages;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.NotificationService;
@@ -11,6 +12,7 @@ using brownstone_hub_api.Services.SupportRequestService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -20,6 +22,7 @@ namespace brownstone_hub_api.Controllers
     public class SupportRequestController(
         ISupportRequestService supportRequestService,
         IUserRepository userRepository,
+        IConversationRepository conversationRepository,
         IMessageRepository messageRepository,
         INotificationService notificationService,
         DataContext context,
@@ -57,12 +60,22 @@ namespace brownstone_hub_api.Controllers
 
             var isAdmin = User.IsInRole("Admin");
             var query = context.SupportAndFeedbacks.AsNoTracking().AsQueryable();
-            if (!isAdmin)
+            if (isAdmin)
+            {
+                query = query.Where(ticket => ticket.ConversationId == null ||
+                    ticket.Conversation!.Participants.Any(participant =>
+                        participant.UserId == currentUser.Id && !participant.IsDeleted));
+            }
+            else
             {
                 query = query.Where(ticket => ticket.UserId == currentUser.Id);
                 if (TryGetOrganizationId(out var organizationId))
                 {
                     query = query.Where(ticket => ticket.ConversationId == null || ticket.Conversation!.OrganizationId == organizationId);
+                }
+                else
+                {
+                    query = query.Where(ticket => ticket.ConversationId == null);
                 }
             }
 
@@ -89,7 +102,7 @@ namespace brownstone_hub_api.Controllers
                     UnreadCount = ticket.ConversationId == null ? 0 : context.Messages.Count(message =>
                         message.ConversationId == ticket.ConversationId && !message.IsDeleted && message.SenderId != currentUser.Id &&
                         !context.MessageReads.Any(read => read.MessageId == message.Id && read.UserId == currentUser.Id)),
-                    CanReply = ticket.ConversationId != null,
+                    CanReply = true,
                     UserId = ticket.UserId,
                     UserName = (ticket.User.FirstName + " " + ticket.User.LastName).Trim(),
                     UserEmail = ticket.User.Email
@@ -128,15 +141,19 @@ namespace brownstone_hub_api.Controllers
             var currentUser = await userRepository.GetCurrentUser();
             if (currentUser == null) return Unauthorized();
 
-            var ticket = await FindAuthorizedTicket(id, currentUser.Id, User.IsInRole("Admin"));
+            var isAdmin = User.IsInRole("Admin");
+            var ticket = await FindAuthorizedTicket(id, currentUser.Id, isAdmin);
             if (ticket == null) return NotFound(new { message = "Support ticket not found" });
-            if (!ticket.ConversationId.HasValue)
+
+            await using var transaction = await context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+            if (!await EnsureReplyThread(ticket, currentUser.Id, isAdmin))
             {
-                return Conflict(new { message = "This legacy request does not have a reply thread. Please create a new support ticket." });
+                await transaction.RollbackAsync();
+                return Conflict(new { message = "This support request could not be connected to a reply thread. Select an active organization and try again." });
             }
 
             var message = await messageRepository.AddMessage(
-                new AddMessageDto { ConversationId = ticket.ConversationId.Value, Content = content },
+                new AddMessageDto { ConversationId = ticket.ConversationId!.Value, Content = content },
                 currentUser.Id);
 
             ticket.LastActivityAt = DateTime.UtcNow;
@@ -146,6 +163,7 @@ namespace brownstone_hub_api.Controllers
                 ticket.ResolvedAt = null;
             }
             await context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             var recipients = await context.ConversationParticipants
                 .Where(participant => participant.ConversationId == ticket.ConversationId && !participant.IsDeleted && participant.UserId != currentUser.Id)
@@ -210,8 +228,83 @@ namespace brownstone_hub_api.Controllers
                     .ThenInclude(conversation => conversation!.Messages)
                         .ThenInclude(message => message.ReadReceipts)
                 .FirstOrDefaultAsync(ticket => ticket.Id == id &&
-                    (isAdmin || (ticket.UserId == currentUserId &&
-                        (!hasOrganization || ticket.ConversationId == null || ticket.Conversation!.OrganizationId == organizationId))));
+                    ((isAdmin && (ticket.ConversationId == null ||
+                        ticket.Conversation!.Participants.Any(participant =>
+                            participant.UserId == currentUserId && !participant.IsDeleted))) ||
+                     (!isAdmin && ticket.UserId == currentUserId &&
+                        (ticket.ConversationId == null ||
+                         (hasOrganization && ticket.Conversation!.OrganizationId == organizationId)))));
+        }
+
+        private async Task<bool> EnsureReplyThread(SupportAndFeedback ticket, long currentUserId, bool isAdmin)
+        {
+            await context.Entry(ticket).ReloadAsync();
+            if (ticket.ConversationId.HasValue)
+            {
+                return true;
+            }
+
+            var requesterOrganizations = context.OrganizationMembers
+                .Where(member => member.UserId == ticket.UserId && member.IsActive &&
+                    (member.Role == "Owner" || member.Role == "Manager" || member.Role == "Viewer"));
+
+            long? organizationId = null;
+            if (TryGetOrganizationId(out var activeOrganizationId) &&
+                await requesterOrganizations.AnyAsync(member => member.OrganizationId == activeOrganizationId))
+            {
+                organizationId = activeOrganizationId;
+            }
+            else
+            {
+                organizationId = await requesterOrganizations
+                    .OrderByDescending(member => member.OrganizationId == ticket.User.CurrentOrganizationId)
+                    .ThenBy(member => member.Id)
+                    .Select(member => (long?)member.OrganizationId)
+                    .FirstOrDefaultAsync();
+            }
+
+            if (!organizationId.HasValue)
+            {
+                return false;
+            }
+
+            long? supportAdminUserId = isAdmin
+                ? currentUserId
+                : await context.Users
+                    .Where(user => !user.IsDeleted &&
+                        user.UserRoles.Any(userRole => userRole.Role.RoleName.ToLower() == "admin"))
+                    .OrderBy(user => user.Id)
+                    .Select(user => (long?)user.Id)
+                    .FirstOrDefaultAsync();
+            if (!supportAdminUserId.HasValue)
+            {
+                return false;
+            }
+
+            var conversation = await conversationRepository.AddSupportConversation(
+                new brownstone_hub_api.Dtos.Conversation.AddConversationDto
+                {
+                    Title = $"Support: {ticket.Subject}",
+                    Description = string.IsNullOrWhiteSpace(ticket.SubType) ? "Support" : ticket.SubType,
+                    IsGroupChat = false,
+                    ForceNewConversation = true,
+                    ParticipantUserIds = [supportAdminUserId.Value]
+                },
+                ticket.UserId,
+                supportAdminUserId.Value,
+                organizationId.Value);
+
+            ticket.ConversationId = conversation.Id;
+            ticket.LastActivityAt = DateTime.UtcNow;
+            await context.SaveChangesAsync();
+
+            // Legacy rows stored the original request only on the ticket. Seed it into the new
+            // thread before appending the current reply so its history remains complete.
+            await messageRepository.AddMessage(
+                new AddMessageDto { ConversationId = conversation.Id, Content = ticket.Message },
+                ticket.UserId);
+            await context.Entry(ticket).Reference(item => item.Conversation).LoadAsync();
+            return true;
         }
 
         private bool TryGetOrganizationId(out long organizationId)
@@ -260,7 +353,7 @@ namespace brownstone_hub_api.Controllers
                 LastMessageBy = ticket.Conversation?.LastMessageBy,
                 MessageCount = messages.Count,
                 UnreadCount = 0,
-                CanReply = ticket.ConversationId.HasValue,
+                CanReply = true,
                 UserId = ticket.UserId,
                 UserName = $"{ticket.User.FirstName} {ticket.User.LastName}".Trim(),
                 UserEmail = ticket.User.Email,

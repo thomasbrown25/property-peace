@@ -37,6 +37,7 @@ const expectedGroups = [
     id: 'group-accounting',
     title: 'Accounting',
     items: [
+      ['online-payments', 'Online Payments', '/landlord/online-payments'],
       ['finances', 'Finances', '/landlord/finances'],
       ['tax-center', 'Tax Center', '/landlord/accounting/tax-center'],
       ['reports-analytics', 'Reports', '/landlord/reports']

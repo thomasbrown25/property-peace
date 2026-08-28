@@ -454,10 +454,10 @@ export default function Owners() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <UserOutlined style={{ fontSize: 24, color: '#1877F2' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Total Clients
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {clients.length}
                   </Typography>
                 </Box>
@@ -477,10 +477,10 @@ export default function Owners() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <UserOutlined style={{ fontSize: 24, color: '#2e7d32' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Active Clients
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {activeClients.length}
                   </Typography>
                 </Box>
@@ -500,10 +500,10 @@ export default function Owners() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <UserOutlined style={{ fontSize: 24, color: '#ed6c02' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Inactive Clients
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {inactiveClients.length}
                   </Typography>
                 </Box>

@@ -116,7 +116,7 @@ export default function Button(theme) {
       styleOverrides: {
         root: {
           fontWeight: 500,
-          fontFamily: "'Inter', sans-serif",
+          fontFamily: theme.typography.fontFamily,
           borderRadius: 8,
           textTransform: 'none', // Marketing buttons don't capitalize
           '&::after': {

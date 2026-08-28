@@ -2,10 +2,21 @@ import { CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Alert, Box, Button, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 
 const approvedStates = new Set(['approved-onboarding', 'under-review', 'ready']);
+const statusChips = {
+  'not-requested': { label: 'Not requested', color: 'default' },
+  pending: { label: 'Under review', color: 'warning' },
+  rejected: { label: 'Not approved', color: 'error' },
+  suspended: { label: 'Suspended', color: 'error' },
+  'approved-onboarding': { label: 'Approved', color: 'success' },
+  'under-review': { label: 'Setup under review', color: 'warning' },
+  ready: { label: 'Ready', color: 'success' },
+  unavailable: { label: 'Unavailable', color: 'default' }
+};
 
 export default function RentPaymentAccessPanel({ presentation, loading = false, requesting = false, error = '', onRequest, onRefresh, onConfigure, compact = false }) {
   const state = presentation?.status || 'unavailable';
   const isApproved = approvedStates.has(state);
+  const statusChip = statusChips[state] || statusChips.unavailable;
   const primaryLabel = presentation?.actionLabel;
   const disabled = requesting || loading;
   const action = presentation?.canRequest ? onRequest : primaryLabel === 'Finish payment setup' ? onConfigure : onRefresh;
@@ -15,7 +26,14 @@ export default function RentPaymentAccessPanel({ presentation, loading = false, 
       <Stack spacing={1.5}>
         <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
           <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, letterSpacing: 0.8 }}>Online rent payments</Typography>
-          {state === 'ready' && <Chip icon={<CheckCircleOutlined />} label="Ready" color="success" size="small" />}
+          <Chip
+            icon={state === 'ready' ? <CheckCircleOutlined /> : undefined}
+            label={statusChip.label}
+            color={statusChip.color}
+            size="small"
+            variant={statusChip.color === 'default' ? 'outlined' : 'filled'}
+            sx={{ fontWeight: 700 }}
+          />
         </Stack>
         <Box aria-live="polite" aria-atomic="true">
           <Typography variant="h5">{presentation?.title || 'Online rent payments temporarily unavailable'}</Typography>

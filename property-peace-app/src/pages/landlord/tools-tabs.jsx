@@ -95,7 +95,7 @@ export default function ToolsTabs() {
                 textTransform: 'none',
                 fontSize: '0.9375rem',
                 fontWeight: 600,
-                fontFamily: "'Poppins', sans-serif",
+                fontFamily: "'Host Grotesk', sans-serif",
                 color: theme.palette.text.secondary,
                 px: 3,
                 '&:hover': {

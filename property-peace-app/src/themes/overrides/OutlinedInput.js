@@ -25,7 +25,7 @@ export default function OutlinedInput(theme) {
       styleOverrides: {
         input: { 
           padding: '10.5px 14px 10.5px 12px',
-          fontFamily: "'Inter', sans-serif"
+          fontFamily: theme.typography.fontFamily
         },
         notchedOutline: { 
           borderColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[200] : '#E5E5E5' // Marketing light gray

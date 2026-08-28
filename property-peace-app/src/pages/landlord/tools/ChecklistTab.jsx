@@ -326,10 +326,10 @@ export default function ChecklistTab() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <CheckSquareOutlined style={{ fontSize: 24, color: theme.palette.primary.main }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Active Checklists
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {stats.active}
                   </Typography>
                 </Box>
@@ -349,10 +349,10 @@ export default function ChecklistTab() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <AlertOutlined style={{ fontSize: 24, color: theme.palette.error.main }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Overdue Checklists
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {stats.overdue}
                   </Typography>
                 </Box>
@@ -372,10 +372,10 @@ export default function ChecklistTab() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <CheckCircleOutlined style={{ fontSize: 24, color: theme.palette.success.main }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Completed This Month
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {stats.completedThisMonth}
                   </Typography>
                 </Box>

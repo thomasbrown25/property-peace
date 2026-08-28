@@ -9,18 +9,16 @@ const componentSource = fs.readFileSync(
   'utf8'
 );
 
-test('recently viewed is mounted in the left column below quick actions', () => {
+test('recently viewed is mounted below quick actions and before payments', () => {
   assert.match(dashboardSource, /readRecentlyViewedPropertyIds|resolveRecentlyViewedProperties/);
   assert.match(dashboardSource, /<RecentlyViewedProperties[\s\S]*?properties=\{recentlyViewedProperties\}/);
 
   const quickActionsIndex = dashboardSource.indexOf('Quick actions');
   const recentlyViewedIndex = dashboardSource.indexOf('<RecentlyViewedProperties');
-  const paymentsIndex = dashboardSource.indexOf('{!isMobile && <PaymentsCard />}', recentlyViewedIndex);
-  const rightColumnIndex = dashboardSource.indexOf('size={{ xs: 12, md: 8 }}', recentlyViewedIndex);
+  const paymentsIndex = dashboardSource.indexOf('<PaymentsCard />', recentlyViewedIndex);
 
   assert.ok(quickActionsIndex >= 0 && quickActionsIndex < recentlyViewedIndex);
   assert.ok(paymentsIndex > recentlyViewedIndex);
-  assert.ok(rightColumnIndex > recentlyViewedIndex);
   assert.match(dashboardSource, /<MoneySummary/);
 });
 

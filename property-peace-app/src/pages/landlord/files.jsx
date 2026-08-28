@@ -494,9 +494,9 @@ export default function Files() {
                       }}
                     />
                   </TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>TITLE</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>SHARING</TableCell>
-                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Poppins', sans-serif" }}>CATEGORY</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Host Grotesk', sans-serif" }}>TITLE</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Host Grotesk', sans-serif" }}>SHARING</TableCell>
+                  <TableCell sx={{ fontWeight: 600, fontFamily: "'Host Grotesk', sans-serif" }}>CATEGORY</TableCell>
                   <TableCell
                     sx={{ fontWeight: 600, cursor: 'pointer', userSelect: 'none' }}
                     onClick={() => handleSort('lastModified')}
@@ -676,8 +676,8 @@ export default function Files() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 600, textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" }}>CATEGORY NAME</TableCell>
-                    <TableCell sx={{ fontWeight: 600, textTransform: 'uppercase', fontFamily: "'Poppins', sans-serif" }}>DETAILS</TableCell>
+                    <TableCell sx={{ fontWeight: 600, textTransform: 'uppercase', fontFamily: "'Host Grotesk', sans-serif" }}>CATEGORY NAME</TableCell>
+                    <TableCell sx={{ fontWeight: 600, textTransform: 'uppercase', fontFamily: "'Host Grotesk', sans-serif" }}>DETAILS</TableCell>
                     <TableCell></TableCell>
                   </TableRow>
                 </TableHead>

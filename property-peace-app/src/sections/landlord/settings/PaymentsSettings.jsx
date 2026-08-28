@@ -28,6 +28,8 @@ import { bankAccountAPI } from 'api';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
 import RentPaymentAccessPanel from 'components/rent-payments/RentPaymentAccessPanel';
+import ConnectOnboardingWizard from 'sections/landlord/payments/ConnectOnboardingWizard';
+import { validateConnectOnboardingContext } from 'utils/connectOnboarding';
 import { Grid, Card, CardContent } from '@mui/material';
 
 function DemoStripePaymentsPreview() {
@@ -151,7 +153,7 @@ function DemoStripePaymentsPreview() {
 export default function PaymentsSettings() {
   const theme = useTheme();
   const { user } = useAuth();
-  const { properties } = useFetchProperties();
+  const { properties, propertiesRefetch, isLoading: propertiesLoading, propertiesError } = useFetchProperties();
   const rentPaymentAccess = useRentPaymentAccess();
   const {
     presentation: rentPresentation,
@@ -163,6 +165,9 @@ export default function PaymentsSettings() {
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [accountStatus, setAccountStatus] = useState(null);
   const [connecting, setConnecting] = useState(false);
+  const [showPreparation, setShowPreparation] = useState(false);
+  const [connectPreparation, setConnectPreparation] = useState(null);
+  const [preparationLoading, setPreparationLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [stripeConnectInstance, setStripeConnectInstance] = useState(null);
   const [fetchingSession, setFetchingSession] = useState(false);
@@ -172,11 +177,13 @@ export default function PaymentsSettings() {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const prevShowOnboardingRef = useRef(false);
+  const connectSubmissionRef = useRef(false);
   const isDemo = user?.isDemo === true || user?.IsDemo === true;
 
   useEffect(() => {
     if (isDemo || rentReadinessLoading || rentReadinessError || !rentCanInvoke) {
       setCheckingStatus(false);
+      setShowPreparation(false);
       setShowOnboarding(false);
       setStripeConnectInstance(null);
       return;
@@ -246,14 +253,12 @@ export default function PaymentsSettings() {
   const fetchPublishableKey = async () => {
     try {
       const response = await axiosServices.get('/api/stripe/publishable-key');
-      console.log('Publishable key API response:', response.data);
       const publishableKey = response.data?.publishableKey;
       if (publishableKey) {
-        console.log('Successfully retrieved publishable key:', publishableKey.substring(0, 20) + '...');
         // For Connect, we use the publishable key directly
         // The Connect instance will be created when we have the client secret
       } else {
-        console.warn('Publishable key not found in response:', response.data);
+        console.warn('Stripe publishable key was not returned.');
       }
     } catch (error) {
       console.error('Error fetching Stripe publishable key:', error);
@@ -307,20 +312,63 @@ export default function PaymentsSettings() {
     }
   };
 
-  const handleConnectAccount = async () => {
+  const openConnectPreparation = async () => {
+    setShowPreparation(true);
+    setPreparationLoading(true);
+    try {
+      const response = await axiosServices.get('/api/stripe/connect-preparation');
+      setConnectPreparation(response.data || null);
+    } catch (error) {
+      setShowPreparation(false);
+      openSnackbar({
+        open: true,
+        message: error?.response?.data?.message || 'Your saved payout setup could not be loaded. Please try again.',
+        variant: 'alert',
+        alert: { color: 'error' }
+      });
+    } finally {
+      setPreparationLoading(false);
+    }
+  };
+
+  const handlePreparedConnectAccount = async (context) => {
+    if (connectSubmissionRef.current) return;
+    const validationErrors = validateConnectOnboardingContext(
+      context,
+      properties.map((property) => property?.id ?? property?.Id).filter((propertyId) => propertyId != null)
+    );
+    if (Object.keys(validationErrors).length > 0) {
+      openSnackbar({
+        open: true,
+        message: 'Confirm your property authority before continuing to Stripe.',
+        variant: 'alert',
+        alert: { color: 'warning' }
+      });
+      return;
+    }
+
+    connectSubmissionRef.current = true;
     try {
       setConnecting(true);
+      const preparationResponse = await axiosServices.post('/api/stripe/connect-preparation', context);
+      const savedPreparation = preparationResponse.data;
+      if (!savedPreparation?.id || !Array.isArray(savedPreparation.propertyIds) || !savedPreparation.updatedAt) {
+        throw new Error('Property Peace could not confirm the saved payout setup.');
+      }
+      setConnectPreparation(savedPreparation);
+
       const returnUrl = `${window.location.origin}/landlord/settings?tab=payments&stripe=connected`;
       const response = await axiosServices.post('/api/stripe/connect-account', {
         returnUrl,
         refreshUrl: returnUrl
       });
 
-      if (response.data && response.data.success && response.data.data) {
-        // Account created, now open embedded onboarding
-        await openEmbeddedOnboarding();
+      const accountId = response.data?.data?.accountId;
+      if (response.data?.success && typeof accountId === 'string' && accountId.trim()) {
+        setShowPreparation(false);
+        await openEmbeddedOnboarding({ accountId });
       } else {
-        throw new Error(response.data?.message || 'Failed to create Stripe account');
+        throw new Error(response.data?.message || 'Stripe account creation did not return an account ID.');
       }
     } catch (error) {
       console.error('Error connecting Stripe account:', error);
@@ -331,11 +379,12 @@ export default function PaymentsSettings() {
         alert: { color: 'error' }
       });
     } finally {
+      connectSubmissionRef.current = false;
       setConnecting(false);
     }
   };
 
-  const openEmbeddedOnboarding = async () => {
+  const openEmbeddedOnboarding = async ({ accountId: suppliedAccountId } = {}) => {
     if (!accountStatus?.AccountId && !user?.id && !user?.Id) {
       openSnackbar({
         open: true,
@@ -350,7 +399,7 @@ export default function PaymentsSettings() {
       setFetchingSession(true);
 
       // If account doesn't exist yet, create it first
-      if (!accountStatus?.AccountId) {
+      if (!suppliedAccountId && !accountStatus?.AccountId) {
         const returnUrl = `${window.location.origin}/landlord/settings?tab=payments`;
         const createResponse = await axiosServices.post('/api/stripe/connect-account', {
           returnUrl,
@@ -379,7 +428,7 @@ export default function PaymentsSettings() {
       }
 
       // Get current account ID (use state or fetch fresh)
-      let accountId = accountStatus?.AccountId;
+      let accountId = suppliedAccountId || accountStatus?.AccountId;
       if (!accountId) {
         // Fetch fresh account status
         const statusResponse = await axiosServices.get('/api/stripe/account-status');
@@ -392,18 +441,13 @@ export default function PaymentsSettings() {
         throw new Error('Stripe account ID not found. Please try again.');
       }
       
-      console.log('Using account ID for session:', accountId);
-
       // Get publishable key first
       const keyResponse = await axiosServices.get('/api/stripe/publishable-key');
-      console.log('Publishable key response in openEmbeddedOnboarding:', keyResponse.data);
       const publishableKey = keyResponse.data?.publishableKey;
       if (!publishableKey) {
-        console.error('Publishable key missing from response:', keyResponse.data);
+        console.error('Stripe publishable key is missing.');
         throw new Error('Failed to get publishable key');
       }
-      console.log('Using publishable key:', publishableKey.substring(0, 20) + '...');
-
       // Initialize Stripe Connect instance
       const connectInstance = loadConnectAndInitialize({
         publishableKey: publishableKey,
@@ -411,21 +455,19 @@ export default function PaymentsSettings() {
           try {
             // Get account session for embedded onboarding
             const sessionResponse = await axiosServices.post('/api/stripe/account-session');
-            console.log('Account session response:', sessionResponse.data);
             
             if (sessionResponse.data && sessionResponse.data.success && sessionResponse.data.data) {
               const clientSecret = sessionResponse.data.data.clientSecret;
-              console.log('Client secret retrieved:', clientSecret ? clientSecret.substring(0, 20) + '...' : 'undefined');
               
               if (!clientSecret || typeof clientSecret !== 'string') {
-                console.error('Client secret is not a valid string:', clientSecret);
+                console.error('Stripe account-session client secret is invalid.');
                 throw new Error('Invalid client secret returned from API');
               }
               
               return clientSecret;
             }
             
-            console.error('Account session response missing data:', sessionResponse.data);
+            console.error('Stripe account-session response is missing data.');
             throw new Error('Failed to create account session - invalid response');
           } catch (error) {
             console.error('Error in fetchClientSecret:', error);
@@ -494,9 +536,9 @@ export default function PaymentsSettings() {
       
       openSnackbar({
         open: true,
-        message: 'Onboarding completed successfully!',
+        message: 'Stripe received your information. We will show any remaining verification or Property Peace review steps here.',
         variant: 'alert',
-        alert: { color: 'success' }
+        alert: { color: 'info' }
       });
     }, 1500);
   };
@@ -605,7 +647,12 @@ export default function PaymentsSettings() {
   return (
     <Box>
       <Stack spacing={3}>
-        <RentPaymentAccessPanel {...rentPaymentAccess} onRequest={rentPaymentAccess.requestAccess} onRefresh={rentPaymentAccess.refresh} onConfigure={openEmbeddedOnboarding} />
+        <RentPaymentAccessPanel
+          {...rentPaymentAccess}
+          onRequest={rentPaymentAccess.requestAccess}
+          onRefresh={rentPaymentAccess.refresh}
+          onConfigure={hasNoAccount ? openConnectPreparation : openEmbeddedOnboarding}
+        />
         <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -733,7 +780,7 @@ export default function PaymentsSettings() {
           <Button
             variant="text"
             startIcon={<PlusOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />}
-            onClick={hasNoAccount ? handleConnectAccount : openEmbeddedOnboarding}
+            onClick={hasNoAccount ? openConnectPreparation : openEmbeddedOnboarding}
             disabled={connecting || loading || fetchingSession}
             sx={{
               color: 'primary.main',
@@ -840,6 +887,20 @@ export default function PaymentsSettings() {
           </Stack>
         </Paper>
       </Stack>
+
+      <ConnectOnboardingWizard
+        open={showPreparation}
+        onClose={() => setShowPreparation(false)}
+        onContinue={handlePreparedConnectAccount}
+        properties={properties}
+        propertiesLoading={propertiesLoading}
+        propertiesError={propertiesError}
+        onRetryProperties={propertiesRefetch}
+        user={user}
+        initialDraft={connectPreparation}
+        preparationLoading={preparationLoading}
+        loading={connecting}
+      />
 
       {/* Embedded Onboarding Dialog */}
       <Dialog

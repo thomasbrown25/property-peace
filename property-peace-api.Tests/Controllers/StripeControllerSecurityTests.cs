@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Security.Claims;
+using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Dtos.Organization;
 using brownstone_hub_api.Dtos.Stripe;
@@ -214,13 +215,99 @@ public sealed class StripeControllerSecurityTests
         stripeService.Verify(x => x.GetAccountStatusAsync(It.IsAny<string>()), Times.Never);
     }
 
+    [Fact]
+    public void PaymentTransactions_RequiresLandlordOrAdminRole()
+    {
+        var action = typeof(StripeController).GetMethod(nameof(StripeController.GetPaymentTransactions));
+
+        action.Should().NotBeNull();
+        action!.GetCustomAttribute<AuthorizeAttribute>()!.Roles.Should().Be("Landlord,Admin");
+        action.GetCustomAttribute<RequireOrganizationRoleAttribute>()!.AllowedRoles
+            .Should().Equal("Owner", "Manager");
+    }
+
+    [Fact]
+    public async Task PaymentTransactions_WithoutOrganizationContext_ReturnsForbidden()
+    {
+        var queryService = new Mock<IStripePaymentTransactionQueryService>(MockBehavior.Strict);
+        var controller = CreateController(Mock.Of<IStripeService>(), transactionQueryService: queryService.Object);
+        Authenticate(controller, 42);
+
+        var result = await controller.GetPaymentTransactions(123);
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        queryService.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PaymentTransactions_PassesExactOrganizationAndPropertyScopeToQueryService()
+    {
+        var expected = new List<StripePaymentTransactionDto>
+        {
+            new() { PaymentIntentId = "pi_scoped", PropertyId = 123, PropertyName = "Oak Terrace" }
+        };
+        var queryService = new Mock<IStripePaymentTransactionQueryService>(MockBehavior.Strict);
+        queryService.Setup(service => service.ListAsync(77, 123, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
+        var controller = CreateController(Mock.Of<IStripeService>(), transactionQueryService: queryService.Object);
+        Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 77L;
+
+        var result = await controller.GetPaymentTransactions(123);
+
+        result.Should().BeOfType<OkObjectResult>().Which.Value.Should().BeSameAs(expected);
+        queryService.Verify(service => service.ListAsync(77, 123, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task PaymentTransactions_WhenStripeQueryFails_ReturnsBadGatewayInsteadOfEmptyHistory()
+    {
+        var queryService = new Mock<IStripePaymentTransactionQueryService>();
+        queryService.Setup(service => service.ListAsync(77, null, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Stripe unavailable"));
+        var controller = CreateController(Mock.Of<IStripeService>(), transactionQueryService: queryService.Object);
+        Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 77L;
+
+        var result = await controller.GetPaymentTransactions();
+
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(StatusCodes.Status502BadGateway);
+    }
+
+    [Fact]
+    public async Task CreateConnectAccount_WithoutServerValidatedPreparation_DoesNotCreateStripeAccount()
+    {
+        var stripeService = new Mock<IStripeService>(MockBehavior.Strict);
+        var userService = new Mock<IUserService>();
+        userService.Setup(x => x.GetUserByIdAsync(42))
+            .ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(new LoadUserDto
+            {
+                Id = 42,
+                Email = "landlord@example.test"
+            }));
+        var preparationService = new Mock<IStripeConnectPreparationService>();
+        preparationService.Setup(x => x.GetValidatedForHandoffAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((StripeConnectPreparationDto?)null);
+        var controller = CreateController(stripeService.Object, userService.Object,
+            connectPreparationService: preparationService.Object);
+        Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 77L;
+
+        var result = await controller.CreateConnectAccount(new CreateConnectAccountRequest());
+
+        result.Should().BeOfType<ConflictObjectResult>();
+        stripeService.VerifyNoOtherCalls();
+    }
+
     private static StripeController CreateController(
         IStripeService stripeService,
         IUserService? userService = null,
         IOrganizationService? organizationService = null,
         IBankAccountService? bankAccountService = null,
         IBankAccountRepository? bankAccountRepository = null,
-        IStripeConnectedPayeeService? payeeService = null)
+        IStripeConnectedPayeeService? payeeService = null,
+        IStripePaymentTransactionQueryService? transactionQueryService = null,
+        IStripeConnectPreparationService? connectPreparationService = null)
     {
         return new StripeController(
             stripeService,
@@ -231,7 +318,9 @@ public sealed class StripeControllerSecurityTests
             Mock.Of<IUserRepository>(),
             Mock.Of<ILogger<StripeController>>(),
             configuration: null,
-            stripeConnectedPayeeService: payeeService);
+            stripeConnectedPayeeService: payeeService,
+            stripePaymentTransactionQueryService: transactionQueryService,
+            stripeConnectPreparationService: connectPreparationService);
     }
 
     private static void Authenticate(ControllerBase controller, long userId)

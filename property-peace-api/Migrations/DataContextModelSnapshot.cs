@@ -10322,6 +10322,81 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("StorageObjects");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectPreparation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("AuthorityAttested")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("AuthorityAttestedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("AuthorityRelationship")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("OperatingType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationId", "UpdatedAt");
+
+                    b.HasIndex("UserId", "OrganizationId")
+                        .IsUnique();
+
+                    b.ToTable("StripeConnectPreparations", "financial");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectPreparationProperty", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("PropertyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("StripeConnectPreparationId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PropertyId");
+
+                    b.HasIndex("StripeConnectPreparationId", "PropertyId")
+                        .IsUnique();
+
+                    b.ToTable("StripeConnectPreparationProperties", "financial");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectedPayeeReview", b =>
                 {
                     b.Property<long>("Id")
@@ -15084,6 +15159,40 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("UploadedByUser");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectPreparation", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectPreparationProperty", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.StripeConnectPreparation", "Preparation")
+                        .WithMany("Properties")
+                        .HasForeignKey("StripeConnectPreparationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Preparation");
+
+                    b.Navigation("Property");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectedPayeeReview", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.User", "User")
@@ -15704,6 +15813,11 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Invites");
 
                     b.Navigation("TimeEntries");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.StripeConnectPreparation", b =>
+                {
+                    b.Navigation("Properties");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.Subscription", b =>

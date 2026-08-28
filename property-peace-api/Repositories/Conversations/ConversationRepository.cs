@@ -21,85 +21,107 @@ namespace brownstone_hub_api.Repositories.Conversations
             try
             {
                 await ValidateConversationCreationAsync(conversation, landlordId, organizationId);
-
-                // One-on-one tenant messages should be one thread per person, not one thread
-                // per lease/property/new-message click. Reuse an existing active direct
-                // conversation when the same tenant user/participant is already connected
-                // to this landlord.
-                if (!conversation.IsGroupChat && !conversation.ForceNewConversation)
-                {
-                    var existingConversation = await FindExistingDirectConversationAsync(conversation, landlordId, organizationId);
-                    if (existingConversation != null)
-                    {
-                        await EnsureDirectConversationParticipantsAsync(
-                            existingConversation.Id,
-                            landlordId,
-                            await GetDirectConversationParticipantUserIdsAsync(conversation, landlordId));
-                        await ReviveAndHydrateDirectConversationAsync(
-                            existingConversation,
-                            organizationId,
-                            conversation.PropertyId,
-                            conversation.LeaseId,
-                            conversation.TenantId);
-
-                        return await GetConversationById(existingConversation.Id, landlordId);
-                    }
-                }
-
-                var entity = new Conversation
-                {
-                    Title = conversation.Title,
-                    Description = conversation.Description,
-                    IsGroupChat = conversation.IsGroupChat,
-                    LandlordId = landlordId,
-                    OrganizationId = organizationId,
-                    PropertyId = conversation.PropertyId,
-                    LeaseId = conversation.LeaseId,
-                    TenantId = conversation.TenantId,
-                    CreatedBy = landlordId
-                };
-
-                await _context.Conversations.AddAsync(entity);
-                await _context.SaveChangesAsync();
-
-                // Always add the landlord (creator) as a participant
-                var participants = new List<ConversationParticipant>
-                {
-                    new ConversationParticipant
-                    {
-                        ConversationId = entity.Id,
-                        UserId = landlordId,
-                        IsDeleted = false
-                    }
-                };
-
-                // Add additional participants if provided
-                if (conversation.ParticipantUserIds.Any())
-                {
-                    // Filter out landlord if they're already in the list to avoid duplicates
-                    var additionalParticipants = conversation.ParticipantUserIds
-                        .Where(userId => userId != landlordId)
-                        .Distinct()
-                        .Select(userId => new ConversationParticipant
-                        {
-                            ConversationId = entity.Id,
-                            UserId = userId,
-                            IsDeleted = false
-                        }).ToList();
-
-                    participants.AddRange(additionalParticipants);
-                }
-
-                await _context.ConversationParticipants.AddRangeAsync(participants);
-                await _context.SaveChangesAsync();
-
-                return await GetConversationById(entity.Id, landlordId);
+                return await CreateConversationAsync(conversation, landlordId, organizationId);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding conversation");
                 throw;
             }
+        }
+
+        public async Task<LoadConversationDto> AddSupportConversation(
+            AddConversationDto conversation,
+            long requesterUserId,
+            long supportAdminUserId,
+            long organizationId)
+        {
+            try
+            {
+                await ValidateSupportConversationCreationAsync(
+                    conversation,
+                    requesterUserId,
+                    supportAdminUserId,
+                    organizationId);
+                return await CreateConversationAsync(conversation, requesterUserId, organizationId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error adding support conversation");
+                throw;
+            }
+        }
+
+        private async Task<LoadConversationDto> CreateConversationAsync(
+            AddConversationDto conversation,
+            long landlordId,
+            long? organizationId)
+        {
+            // One-on-one tenant messages should be one thread per person, not one thread
+            // per lease/property/new-message click. Reuse an existing active direct
+            // conversation when the same tenant user/participant is already connected
+            // to this landlord.
+            if (!conversation.IsGroupChat && !conversation.ForceNewConversation)
+            {
+                var existingConversation = await FindExistingDirectConversationAsync(conversation, landlordId, organizationId);
+                if (existingConversation != null)
+                {
+                    await EnsureDirectConversationParticipantsAsync(
+                        existingConversation.Id,
+                        landlordId,
+                        await GetDirectConversationParticipantUserIdsAsync(conversation, landlordId));
+                    await ReviveAndHydrateDirectConversationAsync(
+                        existingConversation,
+                        organizationId,
+                        conversation.PropertyId,
+                        conversation.LeaseId,
+                        conversation.TenantId);
+
+                    return await GetConversationById(existingConversation.Id, landlordId);
+                }
+            }
+
+            var entity = new Conversation
+            {
+                Title = conversation.Title,
+                Description = conversation.Description,
+                IsGroupChat = conversation.IsGroupChat,
+                LandlordId = landlordId,
+                OrganizationId = organizationId,
+                PropertyId = conversation.PropertyId,
+                LeaseId = conversation.LeaseId,
+                TenantId = conversation.TenantId,
+                CreatedBy = landlordId
+            };
+
+            await _context.Conversations.AddAsync(entity);
+            await _context.SaveChangesAsync();
+
+            var participants = new List<ConversationParticipant>
+            {
+                new()
+                {
+                    ConversationId = entity.Id,
+                    UserId = landlordId,
+                    IsDeleted = false
+                }
+            };
+
+            var additionalParticipants = conversation.ParticipantUserIds
+                .Where(userId => userId != landlordId)
+                .Distinct()
+                .Select(userId => new ConversationParticipant
+                {
+                    ConversationId = entity.Id,
+                    UserId = userId,
+                    IsDeleted = false
+                });
+            participants.AddRange(additionalParticipants);
+
+            await _context.ConversationParticipants.AddRangeAsync(participants);
+            await _context.SaveChangesAsync();
+
+            return await GetConversationById(entity.Id, landlordId);
         }
 
         private async Task<List<long>> GetDirectConversationParticipantUserIdsAsync(AddConversationDto conversation, long landlordId)
@@ -886,6 +908,40 @@ namespace brownstone_hub_api.Repositories.Conversations
                         tl.Lease.OrganizationId == orgId && !tl.Lease.IsDeleted &&
                         tl.Lease.Unit.PropertyId == request.PropertyId))))
                 throw new KeyNotFoundException("Conversation context not found");
+        }
+
+        private async Task ValidateSupportConversationCreationAsync(
+            AddConversationDto request,
+            long requesterUserId,
+            long supportAdminUserId,
+            long organizationId)
+        {
+            if (organizationId <= 0 || requesterUserId <= 0 || supportAdminUserId <= 0 ||
+                request.IsGroupChat ||
+                request.PropertyId.HasValue || request.LeaseId.HasValue || request.TenantId.HasValue ||
+                request.ParticipantUserIds.Count != 1 || request.ParticipantUserIds[0] != supportAdminUserId)
+            {
+                throw new KeyNotFoundException("Conversation context not found");
+            }
+
+            var requesterAuthorized = await _context.OrganizationMembers.AnyAsync(member =>
+                member.OrganizationId == organizationId &&
+                member.UserId == requesterUserId &&
+                member.IsActive &&
+                (member.Role == "Owner" || member.Role == "Manager" || member.Role == "Viewer"));
+            if (!requesterAuthorized)
+            {
+                throw new KeyNotFoundException("Conversation context not found");
+            }
+
+            var recipientIsAdmin = await _context.UserRoles.AnyAsync(userRole =>
+                userRole.UserId == supportAdminUserId &&
+                !userRole.User.IsDeleted &&
+                userRole.Role.RoleName.ToLower() == "admin");
+            if (!recipientIsAdmin)
+            {
+                throw new KeyNotFoundException("Conversation context not found");
+            }
         }
 
         private async Task AttachLandlordSmsNumberAsync(LoadConversationDto dto, long? organizationId)

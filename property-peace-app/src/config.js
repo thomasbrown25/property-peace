@@ -73,7 +73,7 @@ export const APP_AUTH = AuthProvider.JWT;
 // ==============================|| THEME CONFIG ||============================== //
 
 const config = {
-  fontFamily: `'Inter', sans-serif`,
+  fontFamily: `'Host Grotesk', sans-serif`,
   i18n: 'en',
   menuOrientation: MenuOrientation.VERTICAL,
   miniDrawer: false,

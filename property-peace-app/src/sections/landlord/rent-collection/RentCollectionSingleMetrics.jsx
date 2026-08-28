@@ -55,10 +55,10 @@ const MetricCard = ({ icon, label, value, color, subtitle }) => {
             </Box>
           </Stack>
           <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 'bold', fontFamily: "'Poppins', sans-serif" }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 'bold', fontFamily: "'Host Grotesk', sans-serif" }}>
               {label}
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 'bold', color: color, mb: 0.5, fontFamily: "'Poppins', sans-serif" }}>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', color: color, mb: 0.5, fontFamily: "'Host Grotesk', sans-serif" }}>
               {value}
             </Typography>
             {subtitle && (
