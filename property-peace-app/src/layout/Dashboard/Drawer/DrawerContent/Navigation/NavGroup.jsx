@@ -257,7 +257,7 @@ export default function NavGroup({
                         variant="subtitle1"
                         sx={{
                           color: 'rgba(6,30,53,0.64)',
-                          fontFamily: "'Inter', sans-serif",
+                          fontFamily: "'Host Grotesk', sans-serif",
                           fontSize: '0.6875rem',
                           fontWeight: 700,
                           letterSpacing: '0.04em',
@@ -269,7 +269,7 @@ export default function NavGroup({
                       </Typography>
                     )}
                     {item.caption && (
-                      <Typography variant="caption" sx={{ color: 'rgba(6,30,53,0.64)', fontFamily: "'Inter', sans-serif" }}>
+                      <Typography variant="caption" sx={{ color: 'rgba(6,30,53,0.64)', fontFamily: "'Host Grotesk', sans-serif" }}>
                         <FormattedMessage id={item.caption} />
                       </Typography>
                     )}
@@ -301,7 +301,7 @@ export default function NavGroup({
             <ListItemText
               sx={{ mr: 1 }}
               primary={
-                <Typography variant="body1" sx={{ color: isSelected || anchorEl ? 'primary.main' : '#737373', fontFamily: "'Inter', sans-serif" }}>
+                <Typography variant="body1" sx={{ color: isSelected || anchorEl ? 'primary.main' : '#737373', fontFamily: "'Host Grotesk', sans-serif" }}>
                   {(currentItem.id === lastItemId || currentItem.title) && (
                     <FormattedMessage id={currentItem.id === lastItemId ? 'more-items' : currentItem.title} />
                   )}

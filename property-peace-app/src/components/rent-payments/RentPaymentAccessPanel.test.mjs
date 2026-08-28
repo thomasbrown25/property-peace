@@ -24,3 +24,12 @@ test('access panel keeps setup out of unapproved states and offers retry after e
   assert.match(panel, /onRefresh/);
   assert.match(panel, /Online rent payments[\s\S]*Manual rent records remain available/);
 });
+
+test('access panel shows landlords a status chip for every access state', async () => {
+  const panel = await source();
+  assert.match(panel, /pending:\s*\{\s*label:\s*'Under review',\s*color:\s*'warning'/);
+  assert.match(panel, /approved-onboarding[\s\S]*label:\s*'Approved'/);
+  assert.match(panel, /under-review[\s\S]*label:\s*'Setup under review'/);
+  assert.match(panel, /ready:[\s\S]*label:\s*'Ready'/);
+  assert.match(panel, /<Chip[\s\S]*label=\{statusChip\.label\}/);
+});

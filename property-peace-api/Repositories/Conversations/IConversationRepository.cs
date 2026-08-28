@@ -5,6 +5,7 @@ namespace brownstone_hub_api.Repositories.Conversations
     public interface IConversationRepository
     {
         Task<LoadConversationDto> AddConversation(AddConversationDto conversation, long landlordId, long? organizationId = null);
+        Task<LoadConversationDto> AddSupportConversation(AddConversationDto conversation, long requesterUserId, long supportAdminUserId, long organizationId);
         Task<LoadConversationDto> GetConversationById(long conversationId, long userId);
         Task<LoadConversationDto> GetConversationById(long conversationId, long userId, long organizationId);
         Task<List<LoadConversationDto>> GetConversationsByLandlordId(long landlordId, bool includeArchived = false);

@@ -626,7 +626,7 @@ export default function ExpensesTab({ propertyId, property }) {
               }}
             >
               <Stack direction="row" spacing={2} alignItems="center" sx={{ width: '100%' }}>
-                <Typography variant="h6" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600 }}>
+                <Typography variant="h6" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 600 }}>
                   Future & Recurring Expenses
                 </Typography>
                 <Chip 

@@ -52,8 +52,6 @@ const TASK_CATEGORIES = ['Task', 'RentPayment', 'Maintenance', 'Lease'];
 const STATUS_FILTERS = ['All statuses', 'Upcoming', 'Overdue', 'Paid', 'Completed', 'Cancelled', 'Scheduled'];
 
 function getEventColors(event) {
-  if (event?.category === 'RentPayment' && event.status === 'Paid') return CATEGORY_COLORS.Task;
-  if (event?.category === 'RentPayment' && event.status === 'Overdue') return CATEGORY_COLORS.Maintenance;
   return CATEGORY_COLORS[event?.category] || CATEGORY_COLORS.Task;
 }
 

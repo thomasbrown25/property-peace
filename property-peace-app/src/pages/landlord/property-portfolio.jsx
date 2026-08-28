@@ -197,10 +197,10 @@ export default function PropertyPortfolio() {
                   <Grid size={{ xs: 12, md: 6, lg: 3 }}>
                     <Card>
                       <CardContent>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           Average ROI
                         </Typography>
-                        <Typography variant="h4" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="h4" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           {analyticsData.averageROI?.toFixed(1) || 0}%
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -212,10 +212,10 @@ export default function PropertyPortfolio() {
                   <Grid size={{ xs: 12, md: 6, lg: 3 }}>
                     <Card>
                       <CardContent>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           Vacancy Rate
                         </Typography>
-                        <Typography variant="h4" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="h4" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           {analyticsData.vacancyRate?.toFixed(1) || 0}%
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -227,10 +227,10 @@ export default function PropertyPortfolio() {
                   <Grid size={{ xs: 12, md: 6, lg: 3 }}>
                     <Card>
                       <CardContent>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           Occupancy Rate
                         </Typography>
-                        <Typography variant="h4" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="h4" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           {analyticsData.occupancyRate?.toFixed(1) || 0}%
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -242,10 +242,10 @@ export default function PropertyPortfolio() {
                   <Grid size={{ xs: 12, md: 6, lg: 3 }}>
                     <Card>
                       <CardContent>
-                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           Total Market Value
                         </Typography>
-                        <Typography variant="h4" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                        <Typography variant="h4" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                           ${analyticsData.totalMarketValue?.toLocaleString() || 0}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -344,18 +344,18 @@ export default function PropertyPortfolio() {
                     <MainCard title="Vacancy Cost Tracking">
                       <Stack spacing={2}>
                         <Box>
-                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                             Total Vacancy Cost (Last 12 Months)
                           </Typography>
-                          <Typography variant="h4" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }} color="error">
+                          <Typography variant="h4" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }} color="error">
                             ${occupancyData.totalVacancyCost?.toLocaleString() || 0}
                           </Typography>
                         </Box>
                         <Box>
-                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                             Average Days Vacant
                           </Typography>
-                          <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>{occupancyData.averageDaysVacant?.toFixed(1) || 0} days</Typography>
+                          <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>{occupancyData.averageDaysVacant?.toFixed(1) || 0} days</Typography>
                         </Box>
                         {occupancyData.vacancyCostByProperty && occupancyData.vacancyCostByProperty.length > 0 && (
                           <ResponsiveContainer width="100%" height={250}>
@@ -378,18 +378,18 @@ export default function PropertyPortfolio() {
                     <MainCard title="Tenant Turnover Analytics">
                       <Stack spacing={2}>
                         <Box>
-                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                             Average Turnover Rate
                           </Typography>
-                          <Typography variant="h4" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                          <Typography variant="h4" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                             {occupancyData.averageTurnoverRate?.toFixed(1) || 0}%
                           </Typography>
                         </Box>
                         <Box>
-                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                          <Typography variant="subtitle2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                             Total Turnovers (Last 12 Months)
                           </Typography>
-                          <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>{occupancyData.totalTurnovers || 0}</Typography>
+                          <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>{occupancyData.totalTurnovers || 0}</Typography>
                         </Box>
                         {occupancyData.turnoverByProperty && occupancyData.turnoverByProperty.length > 0 && (
                           <ResponsiveContainer width="100%" height={250}>

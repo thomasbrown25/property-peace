@@ -293,13 +293,13 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
             {(drawerOpen || (!drawerOpen && level !== 1)) && (
               <ListItemText
                 primary={
-                  <Typography variant="h6" sx={{ color: selected === menu.id || anchorEl ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
+                  <Typography variant="h6" sx={{ color: selected === menu.id || anchorEl ? iconSelectedColor : textColor, fontFamily: "'Host Grotesk', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                     {menu.title && <FormattedMessage id={menu.title} />}
                   </Typography>
                 }
                 secondary={
                   menu.caption && (
-                    <Typography variant="caption" sx={{ color: 'secondary', fontFamily: "'Inter', sans-serif" }}>
+                    <Typography variant="caption" sx={{ color: 'secondary', fontFamily: "'Host Grotesk', sans-serif" }}>
                       <FormattedMessage id={menu.caption ? menu.caption : '484'} />
                     </Typography>
                   )
@@ -410,7 +410,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
             )}
             <ListItemText
               primary={
-                <Typography variant="body1" sx={{ color: 'inherit', my: 'auto', fontFamily: "'Inter', sans-serif", fontSize: '0.875rem' }}>
+                <Typography variant="body1" sx={{ color: 'inherit', my: 'auto', fontFamily: "'Host Grotesk', sans-serif", fontSize: '0.875rem' }}>
                   {menu.title && <FormattedMessage id={menu.title} />}
                 </Typography>
               }

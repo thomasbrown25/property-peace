@@ -47,6 +47,7 @@ const CATEGORIES = [
 
 const categoryLabel = (value) => CATEGORIES.find((category) => category.value === value)?.label || 'Support';
 const capitalizeFirstLetter = (value = '') => value.charAt(0).toUpperCase() + value.slice(1);
+const supportErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
 
 function TicketRow({ ticket, selected, onClick }) {
   const lastReplyFromSupport = ticket.lastMessageBy && ticket.lastMessageBy !== ticket.userId;
@@ -175,7 +176,7 @@ export default function SupportTicketCenter() {
       } catch (error) {
         openSnackbar({
           open: true,
-          message: error?.response?.data?.message || 'Could not load your support tickets.',
+          message: supportErrorMessage(error, 'Could not load your support tickets.'),
           variant: 'alert',
           alert: { color: 'error' }
         });
@@ -200,7 +201,7 @@ export default function SupportTicketCenter() {
       setTicket(null);
       openSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Could not open this support ticket.',
+        message: supportErrorMessage(error, 'Could not open this support ticket.'),
         variant: 'alert',
         alert: { color: 'error' }
       });
@@ -260,7 +261,7 @@ export default function SupportTicketCenter() {
     } catch (error) {
       openSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Could not create your support ticket.',
+        message: supportErrorMessage(error, 'Could not create your support ticket.'),
         variant: 'alert',
         alert: { color: 'error' }
       });
@@ -280,7 +281,7 @@ export default function SupportTicketCenter() {
     } catch (error) {
       openSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Could not send your reply.',
+        message: supportErrorMessage(error, 'Could not send your reply.'),
         variant: 'alert',
         alert: { color: 'error' }
       });
@@ -304,7 +305,7 @@ export default function SupportTicketCenter() {
     } catch (error) {
       openSnackbar({
         open: true,
-        message: error?.response?.data?.message || 'Could not update the ticket.',
+        message: supportErrorMessage(error, 'Could not update the ticket.'),
         variant: 'alert',
         alert: { color: 'error' }
       });

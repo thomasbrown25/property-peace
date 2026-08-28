@@ -985,7 +985,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
           theme: 'stripe',
           variables: {
             borderRadius: '8px',
-            fontFamily: 'Inter, Roboto, sans-serif'
+            fontFamily: 'Host Grotesk, Roboto, sans-serif'
           }
         }
       }

@@ -29,6 +29,7 @@ import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { formatRelativeTime } from 'utils/formatters';
 import useIsAdmin from 'hooks/useIsAdmin';
 import useAuth from 'hooks/useAuth';
+import { getUnreadRecentNotificationIds } from './notificationDropdown.mjs';
 
 // assets
 import BellOutlined from '@ant-design/icons/BellOutlined';
@@ -60,7 +61,7 @@ export default function Notification() {
   const navigate = useNavigate();
   const auth = useAuth();
   const isAdmin = useIsAdmin();
-  const { unreadCount: unreadCountFromAPI } = useFetchUnreadCount();
+  const { unreadCount: unreadCountFromAPI, refetch: refetchUnreadCount } = useFetchUnreadCount();
   const { notifications, unreadCount: unreadCountFromList, refetch } = useFetchNotifications();
   
   // Fetch rent records to look up propertyId by leaseId
@@ -82,8 +83,33 @@ export default function Notification() {
 
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
+
+  // The API returns newest first, and these are the same five items shown in the dropdown.
+  const recentNotifications = notifications?.slice(0, 5) || [];
+
+  const markRecentNotificationsAsRead = async () => {
+    const notificationIds = getUnreadRecentNotificationIds(notifications);
+    if (notificationIds.length === 0) return;
+
+    const results = await Promise.allSettled(
+      notificationIds.map((notificationId) => axiosServices.post(`/api/notifications/mark-read/${notificationId}`))
+    );
+
+    if (results.some((result) => result.status === 'rejected')) {
+      openSnackbar({ open: true, message: 'Unable to mark recent notifications as read.', variant: 'alert', alert: { color: 'error' } });
+    }
+
+    await Promise.allSettled([refetch(), refetchUnreadCount()]);
+  };
+
   const handleToggle = () => {
-    setOpen((current) => !current);
+    if (open) {
+      setOpen(false);
+      return;
+    }
+
+    setOpen(true);
+    void markRecentNotificationsAsRead();
   };
 
   const handleMarkAllRead = async () => {
@@ -222,9 +248,6 @@ export default function Notification() {
   const unreadCount = calculatedUnreadCount > 0 
     ? calculatedUnreadCount 
     : (unreadCountFromList || unreadCountFromAPI || 0);
-
-  // Show only recent notifications (last 5) in the dropdown
-  const recentNotifications = notifications?.slice(0, 5) || [];
 
   return (
     <Box sx={{ flexShrink: 0, ml: 0.75 }}>

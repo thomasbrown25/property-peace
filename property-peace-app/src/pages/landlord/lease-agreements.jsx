@@ -337,10 +337,10 @@ export default function LeaseAgreementsPage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <FileTextOutlined style={{ fontSize: 24, color: '#1877F2' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Total Leases
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {metrics.total}
                   </Typography>
                 </Box>
@@ -360,10 +360,10 @@ export default function LeaseAgreementsPage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <CheckCircleOutlined style={{ fontSize: 24, color: '#2e7d32' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     With Agreement
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {metrics.withAgreement}
                   </Typography>
                 </Box>
@@ -383,10 +383,10 @@ export default function LeaseAgreementsPage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <ClockCircleOutlined style={{ fontSize: 24, color: '#ed6c02' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Without Agreement
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {metrics.withoutAgreement}
                   </Typography>
                 </Box>
@@ -406,10 +406,10 @@ export default function LeaseAgreementsPage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <CheckCircleOutlined style={{ fontSize: 24, color: '#2e7d32' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Active
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {metrics.active}
                   </Typography>
                 </Box>
@@ -429,10 +429,10 @@ export default function LeaseAgreementsPage() {
               <Stack direction="row" spacing={1} alignItems="center">
                 <CloseCircleOutlined style={{ fontSize: 24, color: '#d32f2f' }} />
                 <Box>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     Expired
                   </Typography>
-                  <Typography variant="h5" sx={{ fontFamily: "'Poppins', sans-serif", fontWeight: 'bold' }}>
+                  <Typography variant="h5" sx={{ fontFamily: "'Host Grotesk', sans-serif", fontWeight: 'bold' }}>
                     {metrics.expired}
                   </Typography>
                 </Box>

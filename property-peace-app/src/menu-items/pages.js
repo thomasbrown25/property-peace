@@ -11,7 +11,8 @@ import {
   ShopOutlined,
   AuditOutlined,
   RobotOutlined,
-  MessageOutlined
+  MessageOutlined,
+  CreditCardOutlined
 } from '@ant-design/icons';
 
 // icons
@@ -27,7 +28,8 @@ const icons = {
   ShopOutlined,
   AuditOutlined,
   RobotOutlined,
-  MessageOutlined
+  MessageOutlined,
+  CreditCardOutlined
 };
 
 // ==============================|| MENU ITEMS - PAGES ||============================== //
@@ -137,6 +139,13 @@ const pages = [
     title: 'Accounting',
     type: 'group',
     children: [
+      {
+        id: 'online-payments',
+        title: 'Online Payments',
+        type: 'item',
+        url: '/landlord/online-payments',
+        icon: icons.CreditCardOutlined
+      },
       {
         id: 'finances',
         title: 'Finances',

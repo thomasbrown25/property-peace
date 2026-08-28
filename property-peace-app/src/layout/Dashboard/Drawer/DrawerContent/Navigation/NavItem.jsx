@@ -205,7 +205,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
             {(drawerOpen || (!drawerOpen && level !== 1)) && (
               <ListItemText
                 primary={
-                  <Typography variant="h6" sx={{ color: isSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
+                  <Typography variant="h6" sx={{ color: isSelected ? iconSelectedColor : textColor, fontFamily: "'Host Grotesk', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                     {item.title && <FormattedMessage id={item.title} defaultMessage={item.title} />}
                   </Typography>
                 }
@@ -294,7 +294,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                                 )}
                                 <ListItemText
                                   primary={
-                                    <Typography variant="body2" sx={{ color: dropdownItemSelected ? iconSelectedColor : textColor, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
+                                    <Typography variant="body2" sx={{ color: dropdownItemSelected ? iconSelectedColor : textColor, fontFamily: "'Host Grotesk', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                                       {dropdownItem.title && <FormattedMessage id={dropdownItem.title} />}
                                     </Typography>
                                   }
@@ -413,7 +413,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
           )}
           <ListItemText
             primary={
-              <Typography variant="h6" sx={{ color: '#061e35', fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
+              <Typography variant="h6" sx={{ color: '#061e35', fontFamily: "'Host Grotesk', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                 {item.title && <FormattedMessage id={item.title} />}
               </Typography>
             }

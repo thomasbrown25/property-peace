@@ -55,7 +55,7 @@ const MetricCard = ({ icon: IconComponent, label, value, color, subtitle }) => {
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   flexShrink: 0,
-                  fontFamily: "'Poppins', sans-serif"
+                  fontFamily: "'Host Grotesk', sans-serif"
                 }}
               >
                 {label}
@@ -68,7 +68,7 @@ const MetricCard = ({ icon: IconComponent, label, value, color, subtitle }) => {
                   lineHeight: 1.2,
                   fontSize: '1.25rem',
                   ml: 'auto',
-                  fontFamily: "'Poppins', sans-serif"
+                  fontFamily: "'Host Grotesk', sans-serif"
                 }}
               >
                 {value}
@@ -118,7 +118,7 @@ const MetricCard = ({ icon: IconComponent, label, value, color, subtitle }) => {
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   mb: 0.25,
-                  fontFamily: "'Poppins', sans-serif"
+                  fontFamily: "'Host Grotesk', sans-serif"
                 }}
               >
                 {label}
@@ -131,7 +131,7 @@ const MetricCard = ({ icon: IconComponent, label, value, color, subtitle }) => {
                   lineHeight: 1.2,
                   mb: 0.5,
                   fontSize: '1.25rem',
-                  fontFamily: "'Poppins', sans-serif"
+                  fontFamily: "'Host Grotesk', sans-serif"
                 }}
               >
                 {value}

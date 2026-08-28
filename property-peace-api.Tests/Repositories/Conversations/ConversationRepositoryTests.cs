@@ -379,6 +379,86 @@ namespace brownstone_hub_api.Tests.Repositories.Conversations
         }
 
         [Fact]
+        public async Task AddSupportConversation_CreatesCrossOrganizationThreadForVerifiedAdmin()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            SeedUser(2, "Support", "Admin", "admin@example.com");
+            _context.OrganizationMembers.Add(new OrganizationMember
+                { Id = 1, OrganizationId = 50, UserId = 1, IsActive = true, Role = "Owner" });
+            _context.Roles.Add(new Role { Id = 10, RoleName = "Admin" });
+            _context.UserRoles.Add(new UserRole { UserId = 2, RoleId = 10 });
+            await _context.SaveChangesAsync();
+
+            var result = await _repo.AddSupportConversation(new AddConversationDto
+            {
+                Title = "Support: Help",
+                Description = "Technical support",
+                ForceNewConversation = true,
+                ParticipantUserIds = [2]
+            }, requesterUserId: 1, supportAdminUserId: 2, organizationId: 50);
+
+            _context.Conversations.Single(conversation => conversation.Id == result.Id)
+                .OrganizationId.Should().Be(50);
+            result.Participants.Select(x => x.UserId).Should().BeEquivalentTo([1L, 2L]);
+        }
+
+        [Fact]
+        public async Task AddSupportConversation_RejectsParticipantWithoutGlobalAdminRole()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            SeedUser(2, "Not", "Admin", "staff@example.com");
+            _context.OrganizationMembers.Add(new OrganizationMember
+                { Id = 1, OrganizationId = 50, UserId = 1, IsActive = true, Role = "Owner" });
+            await _context.SaveChangesAsync();
+
+            var act = () => _repo.AddSupportConversation(new AddConversationDto
+            {
+                Title = "Support: Help",
+                ForceNewConversation = true,
+                ParticipantUserIds = [2]
+            }, requesterUserId: 1, supportAdminUserId: 2, organizationId: 50);
+
+            await act.Should().ThrowAsync<KeyNotFoundException>();
+            _context.Conversations.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task ActiveParticipantQuery_AllowsLinkedSupportThreadParticipantOutsideOrganization()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            SeedUser(2, "Support", "Admin", "admin@example.com");
+            _context.OrganizationMembers.Add(new OrganizationMember
+                { Id = 1, OrganizationId = 50, UserId = 1, IsActive = true, Role = "Owner" });
+            _context.Roles.Add(new Role { Id = 10, RoleName = "Admin" });
+            _context.UserRoles.Add(new UserRole { UserId = 2, RoleId = 10 });
+            _context.Conversations.Add(new Conversation
+                { Id = 99, Title = "Support", LandlordId = 1, OrganizationId = 50 });
+            _context.ConversationParticipants.AddRange(
+                new ConversationParticipant { ConversationId = 99, UserId = 1 },
+                new ConversationParticipant { ConversationId = 99, UserId = 2 });
+            _context.SupportAndFeedbacks.Add(new SupportAndFeedback
+            {
+                Id = 5,
+                UserId = 1,
+                Subject = "Help",
+                Message = "Please help",
+                TicketNumber = "PP-2026-000005",
+                ConversationId = 99
+            });
+            await _context.SaveChangesAsync();
+
+            var result = _context.Conversations
+                .WhereActiveParticipantOrSupport(
+                    _context.OrganizationMembers,
+                    _context.Tenants,
+                    _context.SupportAndFeedbacks,
+                    2)
+                .ToList();
+
+            result.Should().ContainSingle(x => x.Id == 99);
+        }
+
+        [Fact]
         public async Task ConversationLists_RequireActiveParticipantAndCurrentOrganizationRelationship()
         {
             SeedUser(1, "Land", "Lord", "landlord@example.com");

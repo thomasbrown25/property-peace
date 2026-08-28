@@ -30,10 +30,10 @@ namespace brownstone_hub_api.Repositories.Messages
         {
             try
             {
-                // Resolve the conversation through active membership so an inaccessible ID is
-                // indistinguishable from a missing conversation.
+                // Resolve the conversation through active organization/tenant access or an explicit
+                // support-ticket participant edge so an inaccessible ID is indistinguishable from a missing conversation.
                 var conversation = await _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, senderId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, senderId)
                     .FirstOrDefaultAsync(c => c.Id == message.ConversationId);
                 if (conversation == null)
                 {
@@ -261,7 +261,7 @@ namespace brownstone_hub_api.Repositories.Messages
             try
             {
                 var authorizedConversationIds = _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, actorUserId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, actorUserId)
                     .Select(c => c.Id);
                 var message = await _context.Messages
                     .Include(m => m.Sender)
@@ -326,7 +326,7 @@ namespace brownstone_hub_api.Repositories.Messages
             try
             {
                 if (!await _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, userId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, userId)
                     .AnyAsync(c => c.Id == conversationId))
                 {
                     throw new KeyNotFoundException("Conversation not found");
@@ -407,7 +407,7 @@ namespace brownstone_hub_api.Repositories.Messages
             try
             {
                 var authorizedConversationIds = _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, actorUserId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, actorUserId)
                     .Select(c => c.Id);
                 var message = await _context.Messages.FirstOrDefaultAsync(m =>
                     m.Id == messageId &&
@@ -439,7 +439,7 @@ namespace brownstone_hub_api.Repositories.Messages
             try
             {
                 var authorizedConversationIds = _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, actorUserId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, actorUserId)
                     .Select(c => c.Id);
                 var message = await _context.Messages.FirstOrDefaultAsync(m =>
                     m.Id == messageId &&
@@ -470,7 +470,7 @@ namespace brownstone_hub_api.Repositories.Messages
             try
             {
                 var authorizedConversationIds = _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, userId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, userId)
                     .Select(c => c.Id);
                 if (!await _context.Messages.AnyAsync(m =>
                     m.Id == messageId &&
@@ -509,7 +509,7 @@ namespace brownstone_hub_api.Repositories.Messages
             try
             {
                 if (!await _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, userId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, userId)
                     .AnyAsync(c => c.Id == conversationId))
                 {
                     throw new KeyNotFoundException("Conversation not found");
@@ -554,7 +554,7 @@ namespace brownstone_hub_api.Repositories.Messages
             try
             {
                 var authorizedConversationIds = _context.Conversations
-                    .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, actorUserId)
+                    .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, actorUserId)
                     .Where(c => c.Id == conversationId && c.OrganizationId == organizationId)
                     .Select(c => c.Id);
                 var message = await _context.Messages.FirstOrDefaultAsync(m =>
@@ -588,7 +588,7 @@ namespace brownstone_hub_api.Repositories.Messages
             long actorUserId)
         {
             var authorized = await _context.Conversations
-                .WhereActiveParticipant(_context.OrganizationMembers, _context.Tenants, actorUserId)
+                .WhereActiveParticipantOrSupport(_context.OrganizationMembers, _context.Tenants, _context.SupportAndFeedbacks, actorUserId)
                 .AnyAsync(c => c.Id == conversationId && c.OrganizationId == organizationId);
             if (!authorized) return false;
 

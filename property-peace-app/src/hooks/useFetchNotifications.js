@@ -169,9 +169,10 @@ export function useFetchUnreadCount() {
   return useMemo(
     () => ({
       unreadCount,
-      unreadCountError: error
+      unreadCountError: error,
+      refetch: mutate
     }),
-    [unreadCount, error]
+    [unreadCount, error, mutate]
   );
 }
 

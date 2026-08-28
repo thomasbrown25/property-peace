@@ -52,6 +52,91 @@ public class MessageRepositoryAuthorizationTests : IDisposable
     }
 
     [Fact]
+    public async Task SupportParticipantOutsideOrganization_CanReadAndReply_WhenConversationIsTicketLinked()
+    {
+        await SeedConversationAsync(withMessage: true, secondUserIsParticipant: true);
+        _context.Roles.Add(new Role { Id = 10, RoleName = "Admin" });
+        _context.UserRoles.Add(new UserRole { UserId = 2, RoleId = 10 });
+        _context.SupportAndFeedbacks.Add(new SupportAndFeedback
+        {
+            Id = 20,
+            UserId = 1,
+            Subject = "Help",
+            Message = "Original request",
+            TicketNumber = "PP-2026-000020",
+            ConversationId = 10
+        });
+        await _context.SaveChangesAsync();
+
+        var messages = await _repo.GetMessagesByConversationId(10, 2);
+        var reply = await _repo.AddMessage(new AddMessageDto
+        {
+            ConversationId = 10,
+            Content = "Support reply"
+        }, 2);
+
+        messages.Should().ContainSingle(message => message.Id == 100);
+        reply.Content.Should().Be("Support reply");
+        reply.SenderId.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task OrdinaryParticipantOutsideOrganization_RemainsDenied()
+    {
+        await SeedConversationAsync(withMessage: true, secondUserIsParticipant: true);
+
+        await FluentActions.Invoking(() => _repo.GetMessagesByConversationId(10, 2))
+            .Should().ThrowAsync<KeyNotFoundException>();
+        await FluentActions.Invoking(() => _repo.AddMessage(new AddMessageDto
+            {
+                ConversationId = 10,
+                Content = "intrusion"
+            }, 2))
+            .Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
+    public async Task SupportConversation_DoesNotGrantAccessToNonParticipant()
+    {
+        await SeedConversationAsync(withMessage: true);
+        _context.SupportAndFeedbacks.Add(new SupportAndFeedback
+        {
+            Id = 20,
+            UserId = 1,
+            Subject = "Help",
+            Message = "Original request",
+            TicketNumber = "PP-2026-000020",
+            ConversationId = 10
+        });
+        await _context.SaveChangesAsync();
+
+        await FluentActions.Invoking(() => _repo.GetMessagesByConversationId(10, 2))
+            .Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
+    public async Task TicketLink_DoesNotGrantCrossOrganizationAccessToArbitraryNonAdminParticipant()
+    {
+        await SeedConversationAsync(withMessage: true, secondUserIsParticipant: true);
+        _context.SupportAndFeedbacks.Add(new SupportAndFeedback
+        {
+            Id = 21,
+            UserId = 1,
+            Subject = "Help",
+            Message = "Original request",
+            TicketNumber = "PP-2026-000021",
+            ConversationId = 10
+        });
+        await _context.SaveChangesAsync();
+
+        var read = () => _repo.GetMessagesByConversationId(10, 2);
+        var reply = () => _repo.AddMessage(new AddMessageDto { ConversationId = 10, Content = "intrusion" }, 2);
+
+        await read.Should().ThrowAsync<KeyNotFoundException>();
+        await reply.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
     public async Task AddMessage_ThrowsNotFound_WhenReplyTargetsDifferentConversation()
     {
         await SeedConversationAsync();

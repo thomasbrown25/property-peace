@@ -95,19 +95,28 @@ namespace brownstone_hub_api.Services.SupportRequestService
                     organizationId = currentOrganizationId;
                 }
 
+                if (!organizationId.HasValue)
+                {
+                    return ServiceResponse<SupportTicketSummaryDto>.CreateError(
+                        "Support ticket could not be created",
+                        "No active organization is selected.",
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
                 await using var transaction = await context.Database.BeginTransactionAsync();
 
-                var conversation = await conversationRepository.AddConversation(
+                var conversation = await conversationRepository.AddSupportConversation(
                     new AddConversationDto
                     {
-                        Title = $"Support: {request.Subject.Trim()}",
+                        Title = $"Support: {subject}",
                         Description = categoryLabel,
                         IsGroupChat = false,
                         ForceNewConversation = true,
                         ParticipantUserIds = [adminUser.Id]
                     },
                     currentUser.Id,
-                    organizationId);
+                    adminUser.Id,
+                    organizationId.Value);
 
                 if (conversation == null)
                 {
