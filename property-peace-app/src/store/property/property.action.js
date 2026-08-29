@@ -1,4 +1,5 @@
 import axiosServices from 'utils/axios';
+import { getActiveOrganizationId } from 'utils/impersonationSession';
 import { PROPERTY_ACTION_TYPES } from './property.types';
 
 export const setProperty = (property) => {
@@ -56,18 +57,21 @@ export const addOrUpdateProperty =
 
 let _latestPropertiesRequestId = 0;
 
-export const getProperties = () => async (dispatch) => {
+export const getProperties = (requestedOrganizationId = null) => async (dispatch, getState) => {
   const requestId = ++_latestPropertiesRequestId;
+  const organizationId = requestedOrganizationId ?? getActiveOrganizationId(getState().auth?.user);
   try {
     dispatch({ type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_START });
-    // OrganizationId is sent via X-Organization-Id header.
+    // Pin the request to the organization selected when the refresh began.
     // Only the latest organization-scoped request may update the shared property store.
-    const response = await axiosServices.get(`/api/property/list`);
+    const response = await axiosServices.get(`/api/property/list`, {
+      headers: organizationId ? { 'X-Organization-Id': organizationId.toString() } : undefined
+    });
     if (requestId !== _latestPropertiesRequestId) return { success: true, stale: true };
 
     dispatch({
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_SUCCESS,
-      payload: response.data.data
+      payload: { properties: response.data.data, organizationId }
     });
     return { success: true };
   } catch (error) {
