@@ -603,12 +603,21 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   };
 
   const closeBankAccountManagement = () => {
+    const refreshGuard = requestLifecycleRef.current.capture(stripeScopeKey);
     bankManagementCallbackGuardRef.current = null;
     setBankManagementOpen(false);
     setBankManagementInstance(null);
     setBankManagementError('');
-    fetchBankAccounts();
-    checkAccountStatus();
+
+    // Stripe/webhook synchronization can lag behind the embedded component closing.
+    // Refresh immediately, then retry for a short bounded window.
+    [0, 1500, 4000].forEach((delay) => {
+      setTimeout(() => {
+        if (!refreshGuard.isCurrent()) return;
+        fetchBankAccounts();
+        checkAccountStatus();
+      }, delay);
+    });
   };
 
   const handleOnboardingComplete = async () => {
@@ -949,7 +958,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
               • Stripe handles all PCI compliance and security requirements
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              • Standard processing fees apply (typically 2.9% + $0.30 per transaction)
+              • Processing and payout fees vary by payment method and your Stripe agreement
             </Typography>
           </Stack>
         </Paper>
