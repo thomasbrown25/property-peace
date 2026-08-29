@@ -23,24 +23,27 @@ public sealed class FeatureReadinessControllerTests
             .ReturnsAsync(expected);
         var controller = CreateController(aggregate.Object, actions.Object, 42, 701);
 
-        var result = await controller.GetRentPaymentActionReadiness("configure", CancellationToken.None);
+        var result = await controller.GetRentPaymentConfigureReadiness(CancellationToken.None);
 
         result.Result.Should().BeOfType<OkObjectResult>()
             .Which.Value.Should().BeSameAs(expected);
     }
 
-    [Theory]
-    [InlineData("not-an-action")]
-    [InlineData("")]
-    public async Task Rent_payment_action_route_rejects_invalid_actions_without_calling_service(string action)
+    [Fact]
+    public async Task Pay_route_evaluates_the_pay_action()
     {
         var aggregate = new Mock<IFeatureReadinessService>(MockBehavior.Strict);
         var actions = new Mock<IRentPaymentActionReadinessService>(MockBehavior.Strict);
+        var expected = new RentPaymentActionReadiness(
+            RentPaymentAction.Pay, false, "Approved", true, true, false, false, true, ["connected_payee_missing"]);
+        actions.Setup(x => x.EvaluateAsync(42, 701, RentPaymentAction.Pay, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(expected);
         var controller = CreateController(aggregate.Object, actions.Object, 42, 701);
 
-        var result = await controller.GetRentPaymentActionReadiness(action, CancellationToken.None);
+        var result = await controller.GetRentPaymentPayReadiness(CancellationToken.None);
 
-        result.Result.Should().BeOfType<NotFoundResult>();
+        result.Result.Should().BeOfType<OkObjectResult>()
+            .Which.Value.Should().BeSameAs(expected);
     }
 
     [Fact]
@@ -50,7 +53,7 @@ public sealed class FeatureReadinessControllerTests
         var actions = new Mock<IRentPaymentActionReadinessService>(MockBehavior.Strict);
         var controller = CreateController(aggregate.Object, actions.Object, 42, null);
 
-        var result = await controller.GetRentPaymentActionReadiness("Pay", CancellationToken.None);
+        var result = await controller.GetRentPaymentPayReadiness(CancellationToken.None);
 
         result.Result.Should().BeOfType<ForbidResult>();
     }

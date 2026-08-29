@@ -36,9 +36,18 @@ public sealed class FeatureReadinessController(
         return Ok(readiness);
     }
 
-    [HttpGet("rent-payments/{action}")]
-    public async Task<ActionResult<RentPaymentActionReadiness>> GetRentPaymentActionReadiness(
-        string action,
+    [HttpGet("rent-payments/configure")]
+    public Task<ActionResult<RentPaymentActionReadiness>> GetRentPaymentConfigureReadiness(
+        CancellationToken cancellationToken) =>
+        GetRentPaymentActionReadiness(RentPaymentAction.Configure, cancellationToken);
+
+    [HttpGet("rent-payments/pay")]
+    public Task<ActionResult<RentPaymentActionReadiness>> GetRentPaymentPayReadiness(
+        CancellationToken cancellationToken) =>
+        GetRentPaymentActionReadiness(RentPaymentAction.Pay, cancellationToken);
+
+    private async Task<ActionResult<RentPaymentActionReadiness>> GetRentPaymentActionReadiness(
+        RentPaymentAction action,
         CancellationToken cancellationToken)
     {
         if (!long.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId) ||
@@ -47,11 +56,8 @@ public sealed class FeatureReadinessController(
             organizationId is <= 0 or > int.MaxValue)
             return Forbid();
 
-        if (!Enum.TryParse<RentPaymentAction>(action, true, out var parsedAction) || !Enum.IsDefined(parsedAction))
-            return NotFound();
-
         return Ok(await rentPaymentActionReadinessService.EvaluateAsync(
-            (int)userId, (int)organizationId, parsedAction, cancellationToken));
+            (int)userId, (int)organizationId, action, cancellationToken));
     }
     private long? GetCanonicalOrganizationId() =>
         HttpContext.Items.TryGetValue("OrganizationId", out var value) && value is long organizationId && organizationId > 0

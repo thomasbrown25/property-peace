@@ -103,6 +103,14 @@ export function getRentPaymentAccessPresentation({ access = null, aggregateReadi
     );
   }
   if (hasProviderBlocker(aggregateReadiness, configureReadiness, payReadiness)) {
+    if (status === normalize(RENT_PAYMENT_ACCESS_STATUS.approved)) {
+      return view(
+        'approved-unavailable',
+        'Organization approved',
+        'Your organization is approved for online rent payments. Payment processing setup is temporarily unavailable; refresh the status to try again.',
+        'Refresh status'
+      );
+    }
     return view('unavailable', 'Online rent payments temporarily unavailable', 'Online rent payments cannot be enabled right now. Please try again later.', 'Refresh status');
   }
   if (status === normalize(RENT_PAYMENT_ACCESS_STATUS.suspended)) {

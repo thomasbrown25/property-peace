@@ -110,14 +110,26 @@ test('rent payment access presentation never exposes internal review notes and f
   assert.doesNotMatch(JSON.stringify(rejected), /internal|Do not expose/i);
   assert.equal(rejected.canRequest, true);
 
-  const unavailable = getRentPaymentAccessPresentation({
+  const approvedUnavailable = getRentPaymentAccessPresentation({
     access: { status: RENT_PAYMENT_ACCESS_STATUS.approved },
-    configureReadiness: { allowed: false, providerEnabled: false, blockers: [RENT_PAYMENT_BLOCKER.providerDisabled] },
-    payReadiness: payAllowed
+    configureReadiness: { allowed: false, providerEnabled: false, organizationApproved: true, blockers: [RENT_PAYMENT_BLOCKER.providerDisabled] },
+    payReadiness: {
+      allowed: false,
+      accessStatus: 'Approved',
+      providerEnabled: false,
+      organizationApproved: true,
+      connectedPayeeApproved: false,
+      connectedPayeeReady: false,
+      transfersEnabled: false,
+      blockers: [RENT_PAYMENT_BLOCKER.providerDisabled, RENT_PAYMENT_BLOCKER.connectedPayeeUnderReview],
+      connectedPayeeExists: true
+    }
   });
-  assert.equal(unavailable.status, 'unavailable');
-  assert.equal(unavailable.canConfigure, false);
-  assert.equal(unavailable.canPay, false);
+  assert.equal(approvedUnavailable.status, 'approved-unavailable');
+  assert.equal(approvedUnavailable.title, 'Organization approved');
+  assert.match(approvedUnavailable.message, /organization is approved/i);
+  assert.equal(approvedUnavailable.canConfigure, false);
+  assert.equal(approvedUnavailable.canPay, false);
 });
 
 test('rent payment access presentation covers every required status and preserves priority', () => {
@@ -129,6 +141,6 @@ test('rent payment access presentation covers every required status and preserve
   assert.equal(getRentPaymentAccessPresentation({ access: { status: RENT_PAYMENT_ACCESS_STATUS.approved }, configureReadiness: configureAllowed, payReadiness: { ...blockedPay, connectedPayeeExists: false } }).status, 'approved-onboarding');
   assert.equal(getRentPaymentAccessPresentation({ access: { status: RENT_PAYMENT_ACCESS_STATUS.approved }, configureReadiness: configureAllowed, payReadiness: blockedPay }).status, 'under-review');
   assert.equal(getRentPaymentAccessPresentation({ access: { status: RENT_PAYMENT_ACCESS_STATUS.approved }, configureReadiness: configureAllowed, payReadiness: payAllowed }).status, 'ready');
-  assert.equal(getRentPaymentAccessPresentation({ access: { status: RENT_PAYMENT_ACCESS_STATUS.approved }, aggregateReadiness: { globalGateEnabled: false }, configureReadiness: configureAllowed, payReadiness: payAllowed }).status, 'unavailable');
+  assert.equal(getRentPaymentAccessPresentation({ access: { status: RENT_PAYMENT_ACCESS_STATUS.approved }, aggregateReadiness: { globalGateEnabled: false }, configureReadiness: configureAllowed, payReadiness: payAllowed }).status, 'approved-unavailable');
   assert.equal(getRentPaymentAccessPresentation({ access: { status: RENT_PAYMENT_ACCESS_STATUS.suspended }, configureReadiness: unavailable, payReadiness: payAllowed }).status, 'unavailable');
 });

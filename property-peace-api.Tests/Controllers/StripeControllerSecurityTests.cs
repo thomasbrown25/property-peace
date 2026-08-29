@@ -5,6 +5,7 @@ using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Dtos.Organization;
 using brownstone_hub_api.Dtos.Stripe;
 using brownstone_hub_api.Dtos.User;
+using brownstone_hub_api.Filters;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.BankAccounts;
 using brownstone_hub_api.Repositories.Users;
@@ -296,14 +297,32 @@ public sealed class StripeControllerSecurityTests
     }
 
     [Fact]
-    public void PaymentTransactions_RequiresLandlordOrAdminRole()
+    public void PaymentTransactions_RequiresAuthenticatedOwnerOrManager()
     {
         var action = typeof(StripeController).GetMethod(nameof(StripeController.GetPaymentTransactions));
 
         action.Should().NotBeNull();
-        action!.GetCustomAttribute<AuthorizeAttribute>()!.Roles.Should().Be("Landlord,Admin");
+        typeof(StripeController).GetCustomAttribute<AuthorizeAttribute>()!.Roles.Should().BeNull();
+        action!.GetCustomAttribute<AuthorizeAttribute>().Should().BeNull();
         action.GetCustomAttribute<RequireOrganizationRoleAttribute>()!.AllowedRoles
             .Should().Equal("Owner", "Manager");
+    }
+
+    [Theory]
+    [InlineData(nameof(StripeController.CreateConnectAccount))]
+    [InlineData(nameof(StripeController.GetAccountStatus))]
+    [InlineData(nameof(StripeController.CreateAccountLink))]
+    [InlineData(nameof(StripeController.CreateLoginLink))]
+    [InlineData(nameof(StripeController.CreateAccountSession))]
+    [InlineData(nameof(StripeController.CreateAccountManagementSession))]
+    [InlineData(nameof(StripeController.SyncBankAccount))]
+    public void StripeConfigureAction_UsesOrganizationReadinessInsteadOfLegacyGlobalRole(string actionName)
+    {
+        var action = typeof(StripeController).GetMethod(actionName, BindingFlags.Instance | BindingFlags.Public);
+
+        action.Should().NotBeNull();
+        action!.GetCustomAttribute<AuthorizeAttribute>().Should().BeNull();
+        action.GetCustomAttribute<RequireRentPaymentActionReadyAttribute>().Should().NotBeNull();
     }
 
     [Fact]

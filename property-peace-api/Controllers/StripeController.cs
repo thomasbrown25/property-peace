@@ -22,7 +22,7 @@ namespace brownstone_hub_api.Controllers
 {
     [ApiController]
     [Route("api/stripe")]
-    [Authorize(Roles = "Tenant,Landlord,Admin")]
+    [Authorize]
     public class StripeController : ControllerBase
     {
         private readonly IStripeService _stripeService;
@@ -63,7 +63,6 @@ namespace brownstone_hub_api.Controllers
             _stripeConnectPreparationService = stripeConnectPreparationService;
         }
 
-        [Authorize(Roles = "Landlord,Admin")]
         [RequireOrganizationRole("Owner", "Manager")]
         [HttpGet("payment-transactions")]
         public async Task<IActionResult> GetPaymentTransactions([FromQuery] long? propertyId = null, CancellationToken cancellationToken = default)
@@ -90,7 +89,6 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Create or get Stripe Connect account for the current landlord
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
         [RequireOrganizationRole("Owner", "Manager")]
         [HttpPost("connect-account")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
@@ -191,7 +189,6 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Get Stripe account status for the current landlord
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("account-status")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> GetAccountStatus()
@@ -283,7 +280,6 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Create account link for onboarding (if account exists but needs more info)
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("account-link")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> CreateAccountLink([FromBody] CreateAccountLinkRequest request)
@@ -369,7 +365,6 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Create login link for accessing Stripe Express Dashboard
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("login-link")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> CreateLoginLink()
@@ -451,7 +446,6 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Create account session for embedded onboarding
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("account-session")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> CreateAccountSession()
@@ -534,7 +528,6 @@ namespace brownstone_hub_api.Controllers
         /// Create a short-lived Stripe session for embedded payout account management.
         /// Bank credentials are entered directly into Stripe's component and never pass through this API.
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("account-management-session")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> CreateAccountManagementSession()
@@ -584,7 +577,6 @@ namespace brownstone_hub_api.Controllers
         /// <summary>
         /// Sync/create bank account from Stripe Connect account
         /// </summary>
-        [Authorize(Roles = "Landlord,Admin")]
         [HttpPost("sync-bank-account")]
         [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> SyncBankAccount()

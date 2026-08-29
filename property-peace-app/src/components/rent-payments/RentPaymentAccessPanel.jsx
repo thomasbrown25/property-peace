@@ -1,12 +1,14 @@
 import { CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Alert, Box, Button, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
 
-const approvedStates = new Set(['approved-onboarding', 'under-review', 'ready']);
+const approvedStates = new Set(['approved-unavailable', 'approved-onboarding', 'under-review', 'ready']);
+const approvalBadgeStates = new Set(['approved-unavailable', 'approved-onboarding', 'ready']);
 const statusChips = {
   'not-requested': { label: 'Not requested', color: 'default' },
   pending: { label: 'Under review', color: 'warning' },
   rejected: { label: 'Not approved', color: 'error' },
   suspended: { label: 'Suspended', color: 'error' },
+  'approved-unavailable': { label: 'Approved', color: 'success' },
   'approved-onboarding': { label: 'Approved', color: 'success' },
   'under-review': { label: 'Setup under review', color: 'warning' },
   ready: { label: 'Ready', color: 'success' },
@@ -27,7 +29,7 @@ export default function RentPaymentAccessPanel({ presentation, loading = false, 
         <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
           <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, letterSpacing: 0.8 }}>Online rent payments</Typography>
           <Chip
-            icon={state === 'ready' ? <CheckCircleOutlined /> : undefined}
+            icon={approvalBadgeStates.has(state) ? <CheckCircleOutlined /> : undefined}
             label={statusChip.label}
             color={statusChip.color}
             size="small"
