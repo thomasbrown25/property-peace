@@ -121,21 +121,33 @@ jobs:
               -Body $mkdirBody
             if ($mkdirResult.ExitCode -ne 0) { throw "Failed to create migration directory: $($mkdirResult.Error)" }
 
+            $connection = "Server=tcp:property-peace-server.database.windows.net,1433;Initial Catalog=$databaseName;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+            $migrationSettingsPath = Join-Path $env:RUNNER_TEMP 'appsettings.json'
+            @{ ConnectionStrings = @{ AzureSQLDatabase = $connection } } |
+              ConvertTo-Json -Depth 3 |
+              Set-Content -LiteralPath $migrationSettingsPath -Encoding utf8
+
             Invoke-RestMethod `
               -Uri "$scmBase/api/vfs/data/migrations/$bundleName" `
               -Method Put `
               -Headers ($headers + @{ 'If-Match' = '*' }) `
               -ContentType 'application/octet-stream' `
               -InFile $bundlePath | Out-Null
+            Invoke-RestMethod `
+              -Uri "$scmBase/api/vfs/data/migrations/appsettings.json" `
+              -Method Put `
+              -Headers ($headers + @{ 'If-Match' = '*' }) `
+              -ContentType 'application/json' `
+              -InFile $migrationSettingsPath | Out-Null
 
-            $connection = "Server=tcp:property-peace-server.database.windows.net,1433;Initial Catalog=$databaseName;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+            $migrationDirectory = if ($appIsLinux) { '/home/data/migrations' } else { 'D:\home\data\migrations' }
             if ($appIsLinux) {
               $command = "chmod +x /home/data/migrations/$bundleName && /home/data/migrations/$bundleName --connection `"$connection`""
             } else {
               $command = "D:\home\data\migrations\$bundleName --connection `"$connection`""
             }
 
-            $commandBody = @{ command = $command; dir = $workingDirectory } | ConvertTo-Json
+            $commandBody = @{ command = $command; dir = $migrationDirectory } | ConvertTo-Json
             $result = Invoke-RestMethod `
               -Uri "$scmBase/api/command" `
               -Method Post `
