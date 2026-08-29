@@ -71,7 +71,7 @@ const US_STATES = [
 // Mock UI panels used in the upgrade gate stepper
 function LeaseShieldMock1() {
   return (
-    <div style={{ fontFamily: '"Host Grotesk", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
+    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
@@ -100,7 +100,7 @@ function LeaseShieldMock1() {
 
 function LeaseShieldMock2() {
   return (
-    <div style={{ fontFamily: '"Host Grotesk", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflow: 'hidden' }}>
+    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff', overflow: 'hidden' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
@@ -138,7 +138,7 @@ function LeaseShieldMock3() {
     { label: 'Entry notice required', value: '24 hours' },
   ];
   return (
-    <div style={{ fontFamily: '"Host Grotesk", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
+    <div style={{ fontFamily: '"Inter", sans-serif', display: 'flex', flexDirection: 'column', height: '100%', background: '#fff' }}>
       <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}>
         <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e3a5f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>

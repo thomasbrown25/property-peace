@@ -173,6 +173,71 @@ public sealed class StripeConnectedAccountGatewayTests
     }
 
     [Fact]
+    public void FromAccount_SelectsDefaultUsdBankForSafePayoutDisplayMetadata()
+    {
+        var account = CreateAccount("acct_display");
+        var nonDefault = new BankAccount
+        {
+            Id = "ba_old",
+            Currency = "usd",
+            DefaultForCurrency = false,
+            Fingerprint = "old-fingerprint",
+            Last4 = "1111",
+            BankName = "Old Bank",
+            AccountType = "checking",
+            Status = "verified"
+        };
+        var defaultBank = new BankAccount
+        {
+            Id = "ba_current",
+            Currency = "usd",
+            DefaultForCurrency = true,
+            Fingerprint = "current-fingerprint",
+            Last4 = "4242",
+            BankName = "Current Bank",
+            AccountType = "savings",
+            Status = "verified"
+        };
+
+        var snapshot = StripeConnectedAccountGateway.FromAccount(account, Now, [nonDefault, defaultBank]);
+
+        snapshot.PayoutBank.Should().NotBeNull();
+        snapshot.PayoutBank!.ExternalAccountId.Should().Be("ba_current");
+        snapshot.PayoutBank.Last4.Should().Be("4242");
+        snapshot.PayoutBank.BankName.Should().Be("Current Bank");
+        snapshot.PayoutBank.AccountType.Should().Be("savings");
+        snapshot.PayoutBank.Currency.Should().Be("usd");
+        snapshot.PayoutBank.DefaultForCurrency.Should().BeTrue();
+        snapshot.PayoutBank.Fingerprint.Should().Be("current-fingerprint");
+    }
+
+    [Fact]
+    public void FromAccount_WithoutDefaultUsdBank_DoesNotClaimAPayoutDestination()
+    {
+        var account = CreateAccount("acct_no_default_usd");
+        var nonDefaultUsd = new BankAccount
+        {
+            Id = "ba_usd_not_default",
+            Currency = "usd",
+            DefaultForCurrency = false,
+            Last4 = "1111",
+            BankName = "Not Default"
+        };
+        var defaultCad = new BankAccount
+        {
+            Id = "ba_cad_default",
+            Currency = "cad",
+            DefaultForCurrency = true,
+            Last4 = "2222",
+            BankName = "Canadian Bank"
+        };
+
+        var snapshot = StripeConnectedAccountGateway.FromAccount(account, Now, [nonDefaultUsd, defaultCad]);
+
+        snapshot.PayoutBank.Should().BeNull();
+    }
+
+    [Fact]
     public void FromAccount_WithoutExpandedExternalAccounts_FailsClosed()
     {
         var account = CreateAccount("acct_not_expanded");

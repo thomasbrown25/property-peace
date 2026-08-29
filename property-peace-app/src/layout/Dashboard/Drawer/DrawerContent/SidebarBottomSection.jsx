@@ -75,7 +75,7 @@ export default function SidebarBottomSection() {
               mb: 1, 
               color: trialDaysRemaining <= 3 ? 'error.main' : 'text.secondary',
               fontWeight: trialDaysRemaining <= 3 ? 600 : 400,
-              fontFamily: "'Host Grotesk', sans-serif"
+              fontFamily: "'Inter', sans-serif"
             }}
           >
             {trialDaysRemaining} days remaining
@@ -203,7 +203,7 @@ export default function SidebarBottomSection() {
                         variant="h6"
                         sx={(theme) => ({
                           color: getItemColors(theme, helpSupportSelected).textColor,
-                          fontFamily: "'Host Grotesk', sans-serif",
+                          fontFamily: "'Inter', sans-serif",
                           fontSize: '0.875rem',
                           fontWeight: 700
                         })}
@@ -271,7 +271,7 @@ export default function SidebarBottomSection() {
                         variant="h6"
                         sx={(theme) => ({
                           color: getItemColors(theme, settingsSelected).textColor,
-                          fontFamily: "'Host Grotesk', sans-serif",
+                          fontFamily: "'Inter', sans-serif",
                           fontSize: '0.875rem',
                           fontWeight: 700
                         })}

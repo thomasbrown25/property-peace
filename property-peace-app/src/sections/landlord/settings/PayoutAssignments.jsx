@@ -1,128 +1,159 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
-  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
-  FormControl,
-  MenuItem,
+  IconButton,
   Paper,
-  Select,
   Stack,
   Typography,
   alpha
 } from '@mui/material';
-import { BankOutlined, HomeOutlined } from '@ant-design/icons';
+import { BankOutlined, CloseOutlined, LockOutlined } from '@ant-design/icons';
+import { loadConnectAndInitialize } from '@stripe/connect-js';
+import { ConnectAccountManagement, ConnectComponentsProvider } from '@stripe/react-connect-js';
 
-import { bankAccountAPI } from 'api';
-import { openSnackbar } from 'api/snackbar';
-import useFetchProperties from 'hooks/useFetchProperties';
-import { addOrUpdateProperty } from 'store/property/property.action';
+import axiosServices from 'utils/axios';
+import { useOrganization } from 'contexts/OrganizationContext';
+import {
+  canManageStripeAccount,
+  createStripeOrganizationRequestLifecycle,
+  makeStripeOrganizationScopeKey
+} from 'utils/stripeOrganizationRequestLifecycle';
 
 const field = (value, camel, pascal) => value?.[camel] ?? value?.[pascal];
-const accountId = (account) => field(account, 'id', 'Id');
 
-const accountLabel = (account) => {
-  if (!account) return 'Not assigned';
-  const name = field(account, 'accountName', 'AccountName') || field(account, 'bankName', 'BankName') || 'Bank account';
-  const last4 = field(account, 'last4', 'Last4');
-  return last4 ? `${name} ···· ${last4}` : name;
+const formatAccountType = (value) => {
+  if (!value) return 'Bank account';
+  return `${value.charAt(0).toUpperCase()}${value.slice(1)} account`;
 };
 
-const propertyAddress = (property) =>
-  [field(property, 'streetAddress', 'StreetAddress'), field(property, 'city', 'City'), field(property, 'state', 'State')]
-    .filter(Boolean)
-    .join(', ');
-
 export default function PayoutAssignments() {
-  const dispatch = useDispatch();
-  const { properties, propertiesRefetch, isLoading: propertiesLoading, propertiesError } = useFetchProperties();
-  const [bankAccounts, setBankAccounts] = useState([]);
-  const [accountsLoading, setAccountsLoading] = useState(true);
-  const [accountsError, setAccountsError] = useState(false);
-  const [editingProperty, setEditingProperty] = useState(null);
-  const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [saving, setSaving] = useState(false);
+  const { currentOrganization } = useOrganization();
+  const stripeScopeKey = makeStripeOrganizationScopeKey(currentOrganization?.id ?? currentOrganization?.Id);
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [opening, setOpening] = useState(false);
+  const [connectInstance, setConnectInstance] = useState(null);
+  const [managementOpen, setManagementOpen] = useState(false);
+  const [componentError, setComponentError] = useState('');
+  const requestLifecycleRef = useRef(null);
+  const managementCallbackGuardRef = useRef(null);
+
+  if (!requestLifecycleRef.current) {
+    requestLifecycleRef.current = createStripeOrganizationRequestLifecycle(() => {
+      setStatus(null);
+      setLoading(false);
+      setLoadError('');
+      setOpening(false);
+      setConnectInstance(null);
+      setManagementOpen(false);
+      setComponentError('');
+      managementCallbackGuardRef.current = null;
+    });
+  }
+
+  useLayoutEffect(() => {
+    requestLifecycleRef.current.setScope(stripeScopeKey);
+  }, [stripeScopeKey]);
+
+  useEffect(() => () => requestLifecycleRef.current?.dispose(), []);
+
+  const loadPayoutAccount = useCallback(async () => {
+    if (!stripeScopeKey) return;
+    setLoading(true);
+    setLoadError('');
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'account-status',
+      request: ({ signal }) => axiosServices.get('/api/stripe/account-status', { signal }),
+      onSuccess: (response) => setStatus(response.data?.data ?? response.data ?? null),
+      onError: (error) => {
+        console.error('Unable to load Stripe payout account:', error);
+        setLoadError('We could not load your payout account from Stripe. Please try again.');
+      },
+      onFinally: () => setLoading(false)
+    });
+  }, [stripeScopeKey]);
 
   useEffect(() => {
-    let active = true;
+    loadPayoutAccount();
+  }, [loadPayoutAccount]);
 
-    const loadAccounts = async () => {
-      try {
-        setAccountsLoading(true);
-        setAccountsError(false);
-        const response = await bankAccountAPI.getBankAccounts();
-        if (active) setBankAccounts(response?.success ? response.data || [] : []);
-      } catch (error) {
-        console.error('Unable to load payout accounts:', error);
-        if (active) setAccountsError(true);
-      } finally {
-        if (active) setAccountsLoading(false);
-      }
-    };
+  const openAccountManagement = async () => {
+    if (!canManageStripeAccount(status) || !stripeScopeKey) return;
+    setOpening(true);
+    setComponentError('');
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'account-management-bootstrap',
+      request: ({ signal }) => axiosServices.get('/api/stripe/publishable-key', { signal }),
+      onSuccess: (keyResponse) => {
+        const publishableKey = keyResponse.data?.publishableKey;
+        if (!publishableKey) throw new Error('Stripe is not configured for account management.');
 
-    loadAccounts();
-    return () => {
-      active = false;
-    };
-  }, []);
+        const callbackGuard = requestLifecycleRef.current.capture(stripeScopeKey);
+        managementCallbackGuardRef.current = callbackGuard;
+        const instance = loadConnectAndInitialize({
+          publishableKey,
+          fetchClientSecret: async () => {
+            if (!callbackGuard.isCurrent() || managementCallbackGuardRef.current !== callbackGuard) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
+            const sessionResponse = await axiosServices.post('/api/stripe/account-management-session');
+            if (!callbackGuard.isCurrent() || managementCallbackGuardRef.current !== callbackGuard) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
+            const clientSecret = sessionResponse.data?.data?.clientSecret;
+            if (!clientSecret) throw new Error('Stripe did not return a valid account-management session.');
+            return clientSecret;
+          },
+          appearance: {
+            overlays: 'dialog',
+            variables: {
+              colorPrimary: '#061e35',
+              fontFamily: "'Public Sans', sans-serif",
+              borderRadius: '8px',
+              spacingUnit: '4px'
+            }
+          }
+        });
 
-  const accountsById = useMemo(() => new Map(bankAccounts.map((account) => [String(accountId(account)), account])), [bankAccounts]);
-
-  const openEditor = (property) => {
-    setEditingProperty(property);
-    const assignedId = field(property, 'operatingAccountId', 'OperatingAccountId');
-    setSelectedAccountId(assignedId ? String(assignedId) : '');
+        setConnectInstance(instance);
+        setManagementOpen(true);
+      },
+      onError: (error) => {
+        console.error('Unable to open Stripe account management:', error);
+        setComponentError(error?.response?.data?.message || error?.message || 'Stripe account management is temporarily unavailable.');
+      },
+      onFinally: () => setOpening(false)
+    });
   };
 
-  const closeEditor = () => {
-    if (saving) return;
-    setEditingProperty(null);
-    setSelectedAccountId('');
+  const closeAccountManagement = () => {
+    managementCallbackGuardRef.current = null;
+    setManagementOpen(false);
+    setConnectInstance(null);
+    loadPayoutAccount();
   };
 
-  const saveAssignment = async () => {
-    if (!editingProperty) return;
+  const payoutBank = field(status, 'payoutBank', 'PayoutBank');
+  const bankName = field(payoutBank, 'bankName', 'BankName') || 'Stripe payout bank';
+  const last4 = field(payoutBank, 'last4', 'Last4');
+  const accountType = field(payoutBank, 'accountType', 'AccountType');
+  const currency = field(payoutBank, 'currency', 'Currency');
+  const hasStripeAccount = Boolean(field(status, 'accountId', 'AccountId'));
+  const canManageAccount = canManageStripeAccount(status);
+  const renderedManagementGuard = managementCallbackGuardRef.current;
 
-    setSaving(true);
-    try {
-      const selectedAccount = selectedAccountId ? accountsById.get(selectedAccountId) : null;
-      const updated = await dispatch(
-        addOrUpdateProperty({
-          ...editingProperty,
-          operatingAccountId: selectedAccount ? accountId(selectedAccount) : null
-        })
-      );
-      if (!updated) throw new Error('The payout assignment could not be saved.');
-
-      await propertiesRefetch();
-      openSnackbar({
-        open: true,
-        message: 'Payout assignment updated',
-        variant: 'alert',
-        alert: { color: 'success' }
-      });
-      closeEditor();
-    } catch (error) {
-      openSnackbar({
-        open: true,
-        message: error?.message || 'Failed to update payout assignment',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setSaving(false);
-      setEditingProperty(null);
-    }
-  };
-
-  if (propertiesLoading || accountsLoading) {
+  if (loading) {
     return (
       <Box sx={{ minHeight: 220, display: 'grid', placeItems: 'center' }}>
         <CircularProgress size={34} />
@@ -130,113 +161,152 @@ export default function PayoutAssignments() {
     );
   }
 
-  if (propertiesError || accountsError) {
-    return <Alert severity="error">We could not load payout assignments. Please try again.</Alert>;
+  if (loadError) {
+    return (
+      <Alert
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={loadPayoutAccount}>
+            Retry
+          </Button>
+        }
+      >
+        {loadError}
+      </Alert>
+    );
   }
 
   return (
-    <Paper variant="outlined" sx={{ overflow: 'hidden', borderColor: (theme) => alpha(theme.palette.divider, 0.7) }}>
-      <Box sx={{ px: { xs: 2, sm: 3 }, py: 2.25 }}>
-        <Typography variant="h6" fontWeight={750}>
-          Property payout assignments
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Choose the Stripe-managed bank account used for rent income and deposit payouts at each property.
-        </Typography>
-      </Box>
-      <Divider />
-
-      {!properties?.length ? (
-        <Box sx={{ p: 3 }}>
-          <Alert severity="info">Add a property before assigning payout accounts.</Alert>
+    <>
+      <Paper variant="outlined" sx={{ overflow: 'hidden', borderColor: (theme) => alpha(theme.palette.divider, 0.72) }}>
+        <Box sx={{ px: { xs: 2, sm: 3 }, py: 2.5 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ sm: 'center' }}>
+            <Box>
+              <Typography variant="h6" fontWeight={750}>Payout account</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 680 }}>
+                Stripe sends eligible rent payouts to this connected bank account.
+              </Typography>
+            </Box>
+            {payoutBank && <Chip size="small" color="success" variant="outlined" label="Connected through Stripe" />}
+          </Stack>
         </Box>
-      ) : (
-        <Stack divider={<Divider flexItem />}>
-          {properties.map((property) => {
-            const assignedId = field(property, 'operatingAccountId', 'OperatingAccountId');
-            const assignedAccount = assignedId ? accountsById.get(String(assignedId)) : null;
-            const label = accountLabel(assignedAccount);
+        <Divider />
 
-            return (
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          {!hasStripeAccount ? (
+            <Alert severity="info">Finish connecting Stripe before managing a payout bank account.</Alert>
+          ) : (
+            <Stack spacing={2.5}>
               <Box
-                key={field(property, 'id', 'Id')}
                 sx={{
-                  px: { xs: 2, sm: 3 },
-                  py: 2.25,
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: 'minmax(220px, 1.2fr) minmax(180px, 1fr) minmax(180px, 1fr) auto' },
-                  gap: { xs: 1.75, md: 3 },
-                  alignItems: 'center'
+                  p: 2.25,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.025)
                 }}
               >
-                <Stack direction="row" spacing={1.25} alignItems="flex-start" minWidth={0}>
-                  <Box sx={{ color: 'primary.main', mt: 0.25 }}>
-                    <HomeOutlined />
+                <Stack direction="row" spacing={1.75} alignItems="center">
+                  <Box
+                    sx={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 1.5,
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: 'primary.main',
+                      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.09),
+                      flexShrink: 0
+                    }}
+                  >
+                    <BankOutlined style={{ fontSize: 21 }} />
                   </Box>
-                  <Box minWidth={0}>
-                    <Typography fontWeight={750}>{field(property, 'name', 'Name') || 'Unnamed property'}</Typography>
-                    <Typography variant="body2" color="text.secondary" noWrap>
-                      {propertyAddress(property) || 'Address not available'}
+                  <Box minWidth={0} flex={1}>
+                    <Typography fontWeight={750}>{payoutBank ? bankName : 'No payout bank shown'}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                      {payoutBank
+                        ? [formatAccountType(accountType), currency?.toUpperCase(), last4 ? `ending in ${last4}` : null].filter(Boolean).join(' · ')
+                        : 'Add or confirm your payout bank securely in Stripe.'}
                     </Typography>
                   </Box>
                 </Stack>
-
-                {['Income', 'Deposit'].map((type) => (
-                  <Box key={type} minWidth={0}>
-                    <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                      {type}
-                    </Typography>
-                    <Stack direction="row" spacing={0.75} alignItems="center" sx={{ mt: 0.35 }}>
-                      <BankOutlined style={{ flexShrink: 0 }} />
-                      <Typography variant="body2" fontWeight={650} noWrap>
-                        {label}
-                      </Typography>
-                    </Stack>
-                  </Box>
-                ))}
-
-                <Button variant="text" onClick={() => openEditor(property)} sx={{ justifySelf: { md: 'end' }, px: 1 }}>
-                  Edit
-                </Button>
               </Box>
-            );
-          })}
-        </Stack>
-      )}
 
-      <Dialog open={Boolean(editingProperty)} onClose={closeEditor} fullWidth maxWidth="xs">
-        <DialogTitle>Edit payout assignment</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Income and deposit payouts for {field(editingProperty, 'name', 'Name') || 'this property'} will use this account.
-          </Typography>
-          <FormControl fullWidth>
-            <Select
-              value={selectedAccountId}
-              onChange={(event) => setSelectedAccountId(event.target.value)}
-              displayEmpty
-              inputProps={{ 'aria-label': 'Payout bank account' }}
+              <Alert severity="info" icon={false} sx={{ alignItems: 'flex-start' }}>
+                Property Peace currently uses one Stripe connected-account payout destination. Lease-specific payout accounts and separate income or deposit routing are not supported.
+              </Alert>
+
+              {componentError && <Alert severity="error">{componentError}</Alert>}
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ sm: 'center' }}>
+                {canManageAccount ? (
+                  <Button
+                    variant="contained"
+                    startIcon={opening ? <CircularProgress size={16} color="inherit" /> : <LockOutlined />}
+                    onClick={openAccountManagement}
+                    disabled={opening}
+                  >
+                    Manage bank account securely with Stripe
+                  </Button>
+                ) : (
+                  <Alert severity="info" sx={{ flex: 1 }}>
+                    This organization’s approved payout account can only be changed by its connected-account owner.
+                  </Alert>
+                )}
+                <Typography variant="caption" color="text.secondary">
+                  Property Peace never sees or stores your full bank credentials.
+                </Typography>
+              </Stack>
+            </Stack>
+          )}
+        </Box>
+      </Paper>
+
+      <Dialog open={managementOpen} onClose={closeAccountManagement} fullWidth maxWidth="md">
+        <DialogTitle sx={{ pr: 6 }}>
+          Manage payout account
+          <IconButton aria-label="Close Stripe account management" onClick={closeAccountManagement} sx={{ position: 'absolute', right: 12, top: 12 }}>
+            <CloseOutlined />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ minHeight: 420, p: { xs: 1.5, sm: 2.5 } }}>
+          {componentError && (
+            <Alert
+              severity="error"
+              sx={{ mb: 2 }}
+              action={
+                <Button color="inherit" size="small" onClick={closeAccountManagement}>
+                  Close
+                </Button>
+              }
             >
-              <MenuItem value="">
-                <em>Not assigned</em>
-              </MenuItem>
-              {bankAccounts.map((account) => (
-                <MenuItem key={accountId(account)} value={String(accountId(account))}>
-                  {accountLabel(account)}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              {componentError}
+            </Alert>
+          )}
+          {connectInstance && (
+            <ConnectComponentsProvider connectInstance={connectInstance}>
+              <ConnectAccountManagement
+                onLoaderStart={() => {
+                  if (
+                    renderedManagementGuard &&
+                    managementCallbackGuardRef.current === renderedManagementGuard &&
+                    renderedManagementGuard.isCurrent()
+                  ) setComponentError('');
+                }}
+                onLoadError={() => {
+                  if (
+                    renderedManagementGuard &&
+                    managementCallbackGuardRef.current === renderedManagementGuard &&
+                    renderedManagementGuard.isCurrent()
+                  ) {
+                    setComponentError('Stripe account management could not load. Close this window and try again.');
+                  }
+                }}
+              />
+            </ConnectComponentsProvider>
+          )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={closeEditor} disabled={saving}>
-            Cancel
-          </Button>
-          <Button variant="contained" onClick={saveAssignment} disabled={saving}>
-            {saving ? 'Saving…' : 'Save assignment'}
-          </Button>
-        </DialogActions>
       </Dialog>
-    </Paper>
+    </>
   );
 }

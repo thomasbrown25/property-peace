@@ -12,7 +12,7 @@ namespace brownstone_hub_api.Controllers
 {
     [ApiController]
     [Route("api/stripe/connect-preparation")]
-    [Authorize(Roles = "Landlord,Admin")]
+    [Authorize]
     [RequireOrganizationRole("Owner", "Manager")]
     [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
     public sealed class StripeConnectPreparationController(IStripeConnectPreparationService service) : ControllerBase

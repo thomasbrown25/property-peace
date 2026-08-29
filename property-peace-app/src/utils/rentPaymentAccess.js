@@ -45,17 +45,29 @@ export async function loadRentPaymentAccessState({
 
   if (accessStatus(access) !== normalize(RENT_PAYMENT_ACCESS_STATUS.approved)) return result;
 
-  const [aggregateResponse, configureResponse, payResponse] = await Promise.all([
+  const settled = await Promise.allSettled([
     loadFeatureReadiness(signal),
     loadActionReadiness('Configure', signal),
     loadActionReadiness('Pay', signal)
   ]);
 
+  const aborted = settled.find(({ status, reason }) =>
+    status === 'rejected' && (reason?.name === 'AbortError' || reason?.code === 'ERR_CANCELED'));
+  if (aborted) throw aborted.reason;
+
+  const value = (result) => result.status === 'fulfilled' ? unwrapResponse(result.value) : null;
+  const readinessError = settled
+    .filter((result) => result.status === 'rejected')
+    .map((result) => result.reason?.message || 'Unable to load payment readiness.')
+    .join(' ');
+  const [aggregateResult, configureResult, payResult] = settled;
+
   return {
     access,
-    readiness: selectFeatureReadiness(unwrapResponse(aggregateResponse)) ?? null,
-    configureReadiness: unwrapResponse(configureResponse),
-    payReadiness: unwrapResponse(payResponse)
+    readiness: aggregateResult.status === 'fulfilled' ? selectFeatureReadiness(value(aggregateResult)) ?? null : null,
+    configureReadiness: value(configureResult),
+    payReadiness: value(payResult),
+    ...(readinessError ? { readinessError } : {})
   };
 }
 
@@ -68,7 +80,7 @@ function hasRecipient(payReadiness) {
   return payReadiness?.connectedPayeeExists === true || payReadiness?.ConnectedPayeeExists === true;
 }
 /** Maps server access/readiness decisions into safe landlord-facing copy. */
-export function getRentPaymentAccessPresentation({ access = null, aggregateReadiness = null, configureReadiness = null, payReadiness = null, error = null } = {}) {
+export function getRentPaymentAccessPresentation({ access = null, aggregateReadiness = null, configureReadiness = null, payReadiness = null, error = null, readinessError = null } = {}) {
   const status = accessStatus(access);
   const safeReason = accessValue(access, 'decisionReason');
   const canConfigure = isAllowed(configureReadiness);
@@ -82,7 +94,23 @@ export function getRentPaymentAccessPresentation({ access = null, aggregateReadi
       'Refresh status'
     );
   }
+  if (status === normalize(RENT_PAYMENT_ACCESS_STATUS.approved) && readinessError) {
+    return view(
+      'approved-unavailable',
+      'Payment setup temporarily unavailable',
+      'Your organization is approved, but payment setup status could not be loaded. Retry to continue.',
+      'Refresh status'
+    );
+  }
   if (hasProviderBlocker(aggregateReadiness, configureReadiness, payReadiness)) {
+    if (status === normalize(RENT_PAYMENT_ACCESS_STATUS.approved)) {
+      return view(
+        'approved-unavailable',
+        'Organization approved',
+        'Your organization is approved for online rent payments. Payment processing setup is temporarily unavailable; refresh the status to try again.',
+        'Refresh status'
+      );
+    }
     return view('unavailable', 'Online rent payments temporarily unavailable', 'Online rent payments cannot be enabled right now. Please try again later.', 'Refresh status');
   }
   if (status === normalize(RENT_PAYMENT_ACCESS_STATUS.suspended)) {
@@ -111,8 +139,8 @@ export function makeRentPaymentAccessScopeKey({ userId, organizationId }) {
 }
 
 export function getRentPaymentAccessVisibleState({ state, scopeKey, canFetch }) {
-  if (!canFetch) return { access: null, readiness: null, configureReadiness: null, payReadiness: null, loading: false, error: null };
-  if (state.scopeKey !== scopeKey) return { access: null, readiness: null, configureReadiness: null, payReadiness: null, loading: true, error: null };
+  if (!canFetch) return { access: null, readiness: null, configureReadiness: null, payReadiness: null, readinessError: null, loading: false, error: null };
+  if (state.scopeKey !== scopeKey) return { access: null, readiness: null, configureReadiness: null, payReadiness: null, readinessError: null, loading: true, error: null };
   return state;
 }
 
@@ -120,7 +148,7 @@ export function createRentPaymentAccessRequestLifecycle(onStateChange) {
   let generation = 0;
   let activeScopeKey = null;
   let activeController = null;
-  const empty = (scopeKey, loading) => ({ scopeKey, access: null, readiness: null, configureReadiness: null, payReadiness: null, loading, error: null });
+  const empty = (scopeKey, loading) => ({ scopeKey, access: null, readiness: null, configureReadiness: null, payReadiness: null, readinessError: null, loading, error: null });
   const invalidate = () => {
     generation += 1;
     activeController?.abort();
@@ -140,18 +168,18 @@ export function createRentPaymentAccessRequestLifecycle(onStateChange) {
       return Promise.resolve()
         .then(() => request({ signal: controller.signal }))
         .then((data) => {
-          if (isCurrent()) onStateChange({ scopeKey, access: data?.access ?? null, readiness: data?.readiness ?? null, configureReadiness: data?.configureReadiness ?? null, payReadiness: data?.payReadiness ?? null, loading: false, error: null });
+          if (isCurrent()) onStateChange({ scopeKey, access: data?.access ?? null, readiness: data?.readiness ?? null, configureReadiness: data?.configureReadiness ?? null, payReadiness: data?.payReadiness ?? null, readinessError: data?.readinessError ?? null, loading: false, error: null });
         })
         .catch((error) => {
           if (!isCurrent()) return;
           if (error?.name === 'AbortError' || error?.code === 'ERR_CANCELED') onStateChange(empty(scopeKey, false));
-          else onStateChange({ scopeKey, access: null, readiness: null, loading: false, error: error?.message || 'Unable to load online rent payment access.' });
+          else onStateChange({ scopeKey, access: null, readiness: null, configureReadiness: null, payReadiness: null, readinessError: null, loading: false, error: error?.message || 'Unable to load online rent payment access.' });
         })
         .finally(() => { if (isCurrent()) activeController = null; });
     },
     reportError(scopeKey, error) {
       if (scopeKey !== activeScopeKey) return;
-      onStateChange({ scopeKey, access: null, readiness: null, configureReadiness: null, payReadiness: null, loading: false, error: error?.message || 'Unable to request online rent payment access.' });
+      onStateChange({ scopeKey, access: null, readiness: null, configureReadiness: null, payReadiness: null, readinessError: null, loading: false, error: error?.message || 'Unable to request online rent payment access.' });
     },    clear(scopeKey = null) {
       invalidate();
       activeScopeKey = scopeKey;

@@ -271,7 +271,11 @@
           </p>
 
           <div class="actions">
-            <a class="button button-primary" href="/.auth/logout?post_logout_redirect_uri=/.auth/login/aad">Use another account</a>
+            <a
+              id="switch-account"
+              class="button button-primary"
+              href="/.auth/logout?post_logout_redirect_uri=/.auth/login/aad"
+            >Use another account</a>
             <a class="button button-secondary" href="https://www.propertypeace.io">Go to Property Peace</a>
           </div>
 
@@ -281,5 +285,14 @@
 
       <footer class="footer">Secure access powered by Property Peace</footer>
     </div>
+    <script>
+      const switchAccountLink = document.getElementById('switch-account');
+      const staticWebAppLogout = new URL('/.auth/logout', window.location.origin);
+      staticWebAppLogout.searchParams.set('post_logout_redirect_uri', '/.auth/login/aad');
+
+      const microsoftLogout = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/logout');
+      microsoftLogout.searchParams.set('post_logout_redirect_uri', staticWebAppLogout.toString());
+      switchAccountLink.href = microsoftLogout.toString();
+    </script>
   </body>
 </html>

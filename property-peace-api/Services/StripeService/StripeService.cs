@@ -18,6 +18,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using brownstone_hub_api.Services.StripeRentPayments;
+using System.Collections.Concurrent;
 
 namespace brownstone_hub_api.Services.StripeService
 {
@@ -38,6 +39,7 @@ namespace brownstone_hub_api.Services.StripeService
         private readonly TimeProvider _timeProvider;
         private readonly string? _stripeSecretKey;
         private readonly string? _stripePublishableKey;
+        private static readonly ConcurrentDictionary<long, SemaphoreSlim> FirstAccountCreationLocks = new();
 
         public StripeService(
             IUserRepository userRepository,
@@ -119,7 +121,26 @@ namespace brownstone_hub_api.Services.StripeService
             }
         }
 
-        public async Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountAsync(long userId, string email, string returnUrl)
+        public async Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountAsync(
+            long userId, string email, string returnUrl, string? authorizedExistingAccountId)
+        {
+            if (authorizedExistingAccountId != null)
+                return await CreateConnectAccountCoreAsync(userId, email, returnUrl, authorizedExistingAccountId);
+
+            var creationLock = FirstAccountCreationLocks.GetOrAdd(userId, static _ => new SemaphoreSlim(1, 1));
+            await creationLock.WaitAsync();
+            try
+            {
+                return await CreateConnectAccountCoreAsync(userId, email, returnUrl, null);
+            }
+            finally
+            {
+                creationLock.Release();
+            }
+        }
+
+        private async Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountCoreAsync(
+            long userId, string email, string returnUrl, string? authorizedExistingAccountId)
         {
             var response = new ServiceResponse<CreateStripeAccountResponseDto>();
 
@@ -134,23 +155,36 @@ namespace brownstone_hub_api.Services.StripeService
                     return response;
                 }
 
-                if (!string.IsNullOrEmpty(user.StripeAccountId))
+                var reloadedAccountId = string.IsNullOrWhiteSpace(user.StripeAccountId) ? null : user.StripeAccountId;
+                if (!string.Equals(reloadedAccountId, authorizedExistingAccountId, StringComparison.Ordinal))
                 {
-                    // User already has an account, return existing account info
-                    var accountStatus = await GetAccountStatusAsync(user.StripeAccountId);
+                    response.Success = false;
+                    response.Message = "Stripe account authorization changed; reload the current organization and try again.";
+                    return response;
+                }
+
+                if (authorizedExistingAccountId != null)
+                {
+                    // Use only the exact account authorized by the controller. The equality check above
+                    // fails closed if the global user row changed after organization authorization.
+                    var accountStatus = await GetAccountStatusAsync(authorizedExistingAccountId);
                     if (accountStatus.Success && accountStatus.Data != null)
                     {
                         await _stripeConnectedPayeeService.RegisterAsync(
-                            userId, user.StripeAccountId, accountStatus.Data.DetailsSubmitted);
+                            userId, authorizedExistingAccountId, accountStatus.Data.DetailsSubmitted);
                         response.Data = new CreateStripeAccountResponseDto
                         {
-                            AccountId = user.StripeAccountId,
+                            AccountId = authorizedExistingAccountId,
                             Status = accountStatus.Data.Status ?? "unknown",
                             OnboardingUrl = accountStatus.Data.OnboardingUrl ?? string.Empty
                         };
                         response.Message = "Stripe account already exists";
                         return response;
                     }
+
+                    response.Success = false;
+                    response.Message = "Unable to verify the authorized Stripe account. Reload the current organization and try again.";
+                    return response;
                 }
 
                 // Create a new Stripe Connect account
@@ -187,23 +221,21 @@ namespace brownstone_hub_api.Services.StripeService
                     }
                 };
 
-                var accountService = new Stripe.AccountService();
-                var account = await accountService.CreateAsync(accountOptions);
-
-                // Request stripe_balance.stripe_transfers so destination charges/transfers work (required for tenant payments to landlord)
-                await EnsureStripeTransfersCapabilityRequestedAsync(account.Id);
+                // The key is stable for this user's first account. Stripe durably collapses
+                // retries and cross-instance races while the per-user lock serializes this process.
+                var account = await _stripeConnectedAccountGateway.CreateOnboardingAccountAsync(
+                    accountOptions,
+                    returnUrl,
+                    $"property-peace-connect-account-user-{userId}-v1");
 
                 // DetailsSubmitted is Stripe verification input only; internal payout approval is a separate durable decision.
-                await _stripeConnectedPayeeService.RegisterAsync(userId, account.Id, account.DetailsSubmitted);
-
-                // Create account link for onboarding
-                var accountLinkResponse = await CreateAccountLinkAsync(account.Id, returnUrl, returnUrl);
+                await _stripeConnectedPayeeService.RegisterAsync(userId, account.AccountId, account.DetailsSubmitted);
 
                 response.Data = new CreateStripeAccountResponseDto
                 {
-                    AccountId = account.Id,
+                    AccountId = account.AccountId,
                     Status = account.DetailsSubmitted ? "under_review" : "onboarding",
-                    OnboardingUrl = accountLinkResponse.Success ? accountLinkResponse.Data : string.Empty
+                    OnboardingUrl = account.OnboardingUrl
                 };
                 response.Message = "Stripe account created successfully";
             }
@@ -328,7 +360,16 @@ namespace brownstone_hub_api.Services.StripeService
                     InternalReviewStatus = reviewStatus.ToString(),
                     IsInternallyPayoutApproved = internallyApproved,
                     IsAccountReadyForRentTransfers = isAccountReady,
-                    AccountReadinessReason = accountReadinessReason
+                    AccountReadinessReason = accountReadinessReason,
+                    PayoutBank = snapshot?.PayoutBank == null
+                        ? null
+                        : new StripePayoutBankDto
+                        {
+                            BankName = snapshot.PayoutBank.BankName,
+                            AccountType = snapshot.PayoutBank.AccountType,
+                            Currency = snapshot.PayoutBank.Currency,
+                            Last4 = snapshot.PayoutBank.Last4
+                        }
                 };
                 response.Message = "Account-level transfer readiness retrieved. Individual rent payments remain subject to payment-specific pre-transfer controls.";
             }
@@ -417,24 +458,44 @@ namespace brownstone_hub_api.Services.StripeService
             return response;
         }
 
-        public async Task<ServiceResponse<AccountSessionDto>> CreateAccountSessionAsync(string accountId)
+        internal static AccountSessionCreateOptions BuildAccountSessionOptions(
+            string accountId,
+            bool enableAccountManagement) => new()
+        {
+            Account = accountId,
+            Components = enableAccountManagement
+                ? new AccountSessionComponentsOptions
+                {
+                    AccountManagement = new AccountSessionComponentsAccountManagementOptions
+                    {
+                        Enabled = true
+                    }
+                }
+                : new AccountSessionComponentsOptions
+                {
+                    AccountOnboarding = new AccountSessionComponentsAccountOnboardingOptions
+                    {
+                        Enabled = true
+                    }
+                }
+        };
+
+        public Task<ServiceResponse<AccountSessionDto>> CreateAccountSessionAsync(string accountId) =>
+            CreateEmbeddedAccountSessionAsync(accountId, enableAccountManagement: false);
+
+        public Task<ServiceResponse<AccountSessionDto>> CreateAccountManagementSessionAsync(string accountId) =>
+            CreateEmbeddedAccountSessionAsync(accountId, enableAccountManagement: true);
+
+        private async Task<ServiceResponse<AccountSessionDto>> CreateEmbeddedAccountSessionAsync(
+            string accountId,
+            bool enableAccountManagement)
         {
             var response = new ServiceResponse<AccountSessionDto>();
 
             try
             {
                 var accountSessionService = new AccountSessionService();
-                var accountSessionOptions = new AccountSessionCreateOptions
-                {
-                    Account = accountId,
-                    Components = new AccountSessionComponentsOptions
-                    {
-                        AccountOnboarding = new AccountSessionComponentsAccountOnboardingOptions
-                        {
-                            Enabled = true
-                        }
-                    }
-                };
+                var accountSessionOptions = BuildAccountSessionOptions(accountId, enableAccountManagement);
 
                 var accountSession = await accountSessionService.CreateAsync(accountSessionOptions);
                 response.Data = new AccountSessionDto
@@ -447,13 +508,13 @@ namespace brownstone_hub_api.Services.StripeService
             {
                 _logger.LogError(ex, "Stripe error creating account session for {AccountId}", accountId);
                 response.Success = false;
-                response.Message = $"Stripe error: {ex.Message}";
+                response.Message = "Stripe account management is temporarily unavailable.";
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating account session for {AccountId}", accountId);
                 response.Success = false;
-                response.Message = $"Error creating account session: {ex.Message}";
+                response.Message = "Stripe account management is temporarily unavailable.";
             }
 
             return response;

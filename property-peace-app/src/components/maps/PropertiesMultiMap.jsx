@@ -125,7 +125,7 @@ export default function PropertiesMultiMap({ properties = [], onPropertyClick, s
             });
 
             const infoWindow = new google.maps.InfoWindow({
-              content: `<div style="font-family:Host Grotesk,sans-serif;padding:4px 2px;min-width:140px">
+              content: `<div style="font-family:Inter,sans-serif;padding:4px 2px;min-width:140px">
                 <div style="font-weight:700;font-size:13px;color:#111">${property.name || 'Property'}</div>
                 <div style="font-size:11px;color:#666;margin-top:2px">${property.streetAddress || ''}</div>
               </div>`

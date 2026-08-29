@@ -321,7 +321,7 @@ export default function AdminDashboard() {
               />
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.72)' }}>Cross-tenant aggregate view</Typography>
             </Stack>
-            <Typography component="h1" sx={{ color: '#fff', fontFamily: 'Host Grotesk, sans-serif', fontSize: { xs: 28, sm: 36 }, fontWeight: 700, letterSpacing: '-0.04em' }}>
+            <Typography component="h1" sx={{ color: '#fff', fontFamily: 'Poppins, sans-serif', fontSize: { xs: 28, sm: 36 }, fontWeight: 700, letterSpacing: '-0.04em' }}>
               Platform Command Center
             </Typography>
             <Typography sx={{ color: 'rgba(255,255,255,0.72)', mt: 0.75, maxWidth: 660 }}>

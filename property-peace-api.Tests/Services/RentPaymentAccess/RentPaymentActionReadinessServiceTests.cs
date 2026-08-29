@@ -366,7 +366,16 @@ public sealed class RentPaymentActionReadinessServiceTests
             RequestedAtUtc = Now.UtcDateTime, StatusChangedAtUtc = Now.UtcDateTime
         });
 
-    private static void SeedPayee(DataContext db, StripePayeeReviewStatus status, bool ready) =>
+    private static void SeedPayee(DataContext db, StripePayeeReviewStatus status, bool ready)
+    {
+        db.Users.Add(new User
+        {
+            Id = PayeeUserId,
+            FirstName = "Approved",
+            LastName = "Payee",
+            Email = "approved-payee@example.test",
+            StripeAccountId = "acct_ready"
+        });
         db.StripeConnectedPayeeReviews.Add(new StripeConnectedPayeeReview
         {
             UserId = PayeeUserId,
@@ -386,6 +395,7 @@ public sealed class RentPaymentActionReadinessServiceTests
             CreatedAt = Now,
             UpdatedAt = Now
         });
+    }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {

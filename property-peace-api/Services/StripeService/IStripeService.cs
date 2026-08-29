@@ -4,12 +4,14 @@ namespace brownstone_hub_api.Services.StripeService
 {
     public interface IStripeService
     {
-        Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountAsync(long userId, string email, string returnUrl);
+        Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountAsync(
+            long userId, string email, string returnUrl, string? authorizedExistingAccountId);
         Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(string accountId);
         Task<ServiceResponse<StripeAccountStatusDto>> GetAccountStatusAsync(string accountId, long userId, long organizationId);
         Task<ServiceResponse<string>> CreateAccountLinkAsync(string accountId, string returnUrl, string refreshUrl, string type = "account_onboarding");
         Task<ServiceResponse<string>> CreateLoginLinkAsync(string accountId);
         Task<ServiceResponse<AccountSessionDto>> CreateAccountSessionAsync(string accountId);
+        Task<ServiceResponse<AccountSessionDto>> CreateAccountManagementSessionAsync(string accountId);
         Task<ServiceResponse<bool>> UpdateUserStripeAccountAsync(long userId, string accountId, string status);
         Task<ServiceResponse<bool>> LinkExistingAccountAsync(long userId, string accountId);
         Task<ServiceResponse<CreatePaymentIntentResponseDto>> CreatePaymentIntentAsync(long leaseId, decimal amount, string operationId, string? description);

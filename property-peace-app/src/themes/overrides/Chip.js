@@ -43,7 +43,7 @@ export default function Chip(theme) {
       styleOverrides: {
         root: {
           borderRadius: 16, // Rounded like marketing (rounded-2xl equivalent)
-          fontFamily: theme.typography.fontFamily,
+          fontFamily: "'Inter', sans-serif",
           '&:active': {
             boxShadow: 'none'
           },

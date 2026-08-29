@@ -1,5 +1,13 @@
 namespace brownstone_hub_api.Dtos.Stripe
 {
+    public class StripePayoutBankDto
+    {
+        public string? BankName { get; set; }
+        public string? AccountType { get; set; }
+        public string? Currency { get; set; }
+        public string? Last4 { get; set; }
+    }
+
     public class StripeAccountStatusDto
     {
         public string? AccountId { get; set; }
@@ -17,6 +25,8 @@ namespace brownstone_hub_api.Dtos.Stripe
         /// </summary>
         public bool IsAccountReadyForRentTransfers { get; set; }
         public string? AccountReadinessReason { get; set; }
+        public StripePayoutBankDto? PayoutBank { get; set; }
+        public bool CanManageAccount { get; set; }
     }
 }
 

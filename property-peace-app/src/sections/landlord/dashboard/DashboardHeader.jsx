@@ -56,7 +56,7 @@ export function DashboardReminderCard({ reminders = [] }) {
         <Typography
           sx={{
             color: '#fff',
-            fontFamily: 'Host Grotesk, sans-serif',
+            fontFamily: 'Poppins, sans-serif',
             fontSize: { xs: '1.35rem', sm: '1.5rem' },
             fontWeight: 800,
             lineHeight: 1
@@ -162,7 +162,7 @@ export default function DashboardHeader({ userName, activeTab: controlledActiveT
           variant="h2"
           sx={{
             color: 'text.primary',
-            fontFamily: 'Host Grotesk, Public Sans, sans-serif',
+            fontFamily: 'Poppins, Public Sans, sans-serif',
             fontWeight: 720,
             fontSize: { xs: '1.55rem', sm: '1.85rem' },
             lineHeight: 1.15,
