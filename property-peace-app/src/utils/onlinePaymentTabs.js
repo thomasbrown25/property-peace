@@ -4,6 +4,8 @@ const tabs = Object.freeze({
   payoutAssignments: Object.freeze({ id: 'payout-assignments', label: 'Payout Assignments' })
 });
 
+export const DEFAULT_ONLINE_PAYMENT_TAB = tabs.transactions.id;
+
 const normalizeStatus = (access) =>
   String(access?.status ?? access?.Status ?? '')
     .replace(/[ _-]/g, '')

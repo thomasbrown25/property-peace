@@ -36,8 +36,9 @@ test('Transactions reloads for the active organization without rendering stale o
   assert.match(transactions, /\[organizationId, organizationLoading, retryVersion\]/);
   assert.match(transactions, /return \(\) => controller\.abort\(\)/);
   assert.match(transactions, /\.get\('\/api\/stripe\/payment-transactions'/);
+  assert.match(transactions, /\.get\('\/api\/stripe\/account-status'/);
   assert.doesNotMatch(transactions, /\/api\/payment\/all/);
-  assert.match(transactions, /View Stripe Dashboard/);
+  assert.match(transactions, /canOpenStripeDashboard &&[\s\S]{0,220}<Button[\s\S]{0,160}size="small"[\s\S]{0,280}View Stripe Dashboard/);
   assert.match(transactions, /All properties/);
 });
 

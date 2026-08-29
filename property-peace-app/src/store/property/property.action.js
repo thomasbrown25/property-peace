@@ -54,15 +54,16 @@ export const addOrUpdateProperty =
     }
   };
 
-let _propertiesFetchPending = false;
+let _latestPropertiesRequestId = 0;
 
 export const getProperties = () => async (dispatch) => {
-  if (_propertiesFetchPending) return { success: true, pending: true };
-  _propertiesFetchPending = true;
+  const requestId = ++_latestPropertiesRequestId;
   try {
     dispatch({ type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_START });
-    // OrganizationId is sent via X-Organization-Id header
+    // OrganizationId is sent via X-Organization-Id header.
+    // Only the latest organization-scoped request may update the shared property store.
     const response = await axiosServices.get(`/api/property/list`);
+    if (requestId !== _latestPropertiesRequestId) return { success: true, stale: true };
 
     dispatch({
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_SUCCESS,
@@ -70,14 +71,13 @@ export const getProperties = () => async (dispatch) => {
     });
     return { success: true };
   } catch (error) {
+    if (requestId !== _latestPropertiesRequestId) return { success: false, stale: true };
     console.log(error, error.message);
     dispatch({
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_FAILED,
       payload: error?.response?.data?.errors || error?.message
     });
     return { success: false };
-  } finally {
-    _propertiesFetchPending = false;
   }
 };
 

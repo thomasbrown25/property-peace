@@ -20,7 +20,7 @@ import {
 } from '@mui/material';
 import { CreditCardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, LinkOutlined, CloseOutlined, BankOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
 import { loadConnectAndInitialize } from '@stripe/connect-js';
-import { ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js';
+import { ConnectAccountManagement, ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js';
 import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
@@ -181,6 +181,10 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [stripeConnectInstance, setStripeConnectInstance] = useState(null);
   const [fetchingSession, setFetchingSession] = useState(false);
+  const [bankManagementOpen, setBankManagementOpen] = useState(false);
+  const [bankManagementInstance, setBankManagementInstance] = useState(null);
+  const [openingBankManagement, setOpeningBankManagement] = useState(false);
+  const [bankManagementError, setBankManagementError] = useState('');
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const prevShowOnboardingRef = useRef(false);
@@ -188,6 +192,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const requestLifecycleRef = useRef(null);
   const connectCallbackGuardRef = useRef(null);
   const embeddedOnboardingRequestRef = useRef(null);
+  const bankManagementCallbackGuardRef = useRef(null);
   const isDemo = user?.isDemo === true || user?.IsDemo === true;
   const canManageAccount = canManageStripeAccount(accountStatus);
   const canCreateInitialAccount = canCreateInitialStripeAccount({
@@ -211,10 +216,15 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
       setConnecting(false);
       setPreparationLoading(false);
       setFetchingSession(false);
+      setBankManagementOpen(false);
+      setBankManagementInstance(null);
+      setOpeningBankManagement(false);
+      setBankManagementError('');
       setLoadingBankAccounts(false);
       connectSubmissionRef.current = false;
       connectCallbackGuardRef.current = null;
       embeddedOnboardingRequestRef.current = null;
+      bankManagementCallbackGuardRef.current = null;
       prevShowOnboardingRef.current = false;
     });
   }
@@ -541,6 +551,66 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     }
   };
 
+  const openBankAccountManagement = async () => {
+    if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
+
+    setOpeningBankManagement(true);
+    setBankManagementError('');
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'bank-account-management-bootstrap',
+      request: ({ signal }) => axiosServices.get('/api/stripe/publishable-key', { signal }),
+      onSuccess: (keyResponse) => {
+        const publishableKey = keyResponse.data?.publishableKey;
+        if (!publishableKey) throw new Error('Stripe is not configured for bank-account management.');
+
+        const callbackGuard = requestLifecycleRef.current.capture(stripeScopeKey);
+        bankManagementCallbackGuardRef.current = callbackGuard;
+        const connectInstance = loadConnectAndInitialize({
+          publishableKey,
+          fetchClientSecret: async () => {
+            if (!callbackGuard.isCurrent() || bankManagementCallbackGuardRef.current !== callbackGuard) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
+            const sessionResponse = await axiosServices.post('/api/stripe/account-management-session');
+            if (!callbackGuard.isCurrent() || bankManagementCallbackGuardRef.current !== callbackGuard) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
+            const clientSecret = sessionResponse.data?.data?.clientSecret;
+            if (!clientSecret) throw new Error('Stripe did not return a valid bank-account management session.');
+            return clientSecret;
+          },
+          appearance: {
+            overlays: 'dialog',
+            variables: {
+              colorPrimary: '#061e35',
+              fontFamily: "'Public Sans', sans-serif",
+              borderRadius: '8px',
+              spacingUnit: '4px'
+            }
+          }
+        });
+
+        setBankManagementInstance(connectInstance);
+        setBankManagementOpen(true);
+      },
+      onError: (error) => {
+        console.error('Unable to open Stripe bank-account management:', error);
+        setBankManagementError('Stripe bank-account management is temporarily unavailable. Please try again.');
+      },
+      onFinally: () => setOpeningBankManagement(false)
+    });
+  };
+
+  const closeBankAccountManagement = () => {
+    bankManagementCallbackGuardRef.current = null;
+    setBankManagementOpen(false);
+    setBankManagementInstance(null);
+    setBankManagementError('');
+    fetchBankAccounts();
+    checkAccountStatus();
+  };
+
   const handleOnboardingComplete = async () => {
     if (!connectCallbackGuardRef.current?.isCurrent() || !canManageAccount || !stripeScopeKey) return;
     const callbackGuard = connectCallbackGuardRef.current;
@@ -613,6 +683,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const needsOnboarding = accountStatus?.AccountId && !accountStatus?.DetailsSubmitted;
   const isAwaitingReview = accountStatus?.AccountId && accountStatus?.DetailsSubmitted && !accountStatus?.IsAccountReadyForRentTransfers;
   const hasNoAccount = !accountStatus?.AccountId || accountStatus?.AccountId === '' || accountStatus?.AccountId === null;
+  const renderedBankManagementGuard = bankManagementCallbackGuardRef.current;
 
   return (
     <Box>
@@ -636,6 +707,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
             {accountStatus?.AccountId && canManageAccount && (
               <Button
                 variant="outlined"
+                size="small"
                 startIcon={<LinkOutlined />}
                 onClick={() => {
                   if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
@@ -737,33 +809,47 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
 
         {/* Bank Accounts Section */}
         <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <BankOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-            <Typography variant="h6" fontWeight="bold">
-              Rent payout accounts
-            </Typography>
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            View the Stripe-managed payout accounts used for rent collection and the properties assigned to each one.
-          </Typography>
-          <Button
-            variant="text"
-            startIcon={<PlusOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />}
-            onClick={hasNoAccount ? openConnectPreparation : openEmbeddedOnboarding}
-            disabled={(hasNoAccount ? !canCreateInitialAccount : !canManageAccount) || connecting || loading || fetchingSession}
-            sx={{
-              color: 'primary.main',
-              textTransform: 'none',
-              minWidth: 'auto',
-              px: 1,
-              mb: 3,
-              '&:hover': {
-                bgcolor: alpha(theme.palette.primary.main, 0.08)
-              }
-            }}
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            justifyContent="space-between"
+            sx={{ mb: 2 }}
           >
-            {connecting ? 'Connecting...' : fetchingSession ? 'Loading...' : hasNoAccount ? 'Add Account' : needsOnboarding ? 'Complete Setup' : 'Add Account'}
-          </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <BankOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+              <Typography variant="h6" fontWeight="bold">
+                Stripe bank accounts
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={openingBankManagement ? <CircularProgress size={16} color="inherit" /> : <PlusOutlined />}
+              onClick={hasNoAccount ? openConnectPreparation : needsOnboarding ? openEmbeddedOnboarding : openBankAccountManagement}
+              disabled={
+                (hasNoAccount ? !canCreateInitialAccount : !canManageAccount) ||
+                connecting ||
+                loading ||
+                fetchingSession ||
+                openingBankManagement
+              }
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              {connecting
+                ? 'Connecting…'
+                : fetchingSession || openingBankManagement
+                  ? 'Opening Stripe…'
+                  : hasNoAccount
+                    ? 'Add Stripe account'
+                    : needsOnboarding
+                      ? 'Complete Stripe setup'
+                      : 'Add bank account with Stripe'}
+            </Button>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            View the payout destinations already connected to this organization. Add or update bank details securely in Stripe; Property Peace never receives full account or routing numbers.
+          </Typography>
+          {bankManagementError && <Alert severity="error" sx={{ mb: 2 }}>{bankManagementError}</Alert>}
 
           {loadingBankAccounts ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -825,6 +911,18 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
                               </Stack>
                             )}
                           </Box>
+                          {canManageAccount && (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<BankOutlined />}
+                              onClick={openBankAccountManagement}
+                              disabled={openingBankManagement}
+                              sx={{ alignSelf: 'flex-start' }}
+                            >
+                              Edit in Stripe
+                            </Button>
+                          )}
                         </Stack>
                       </CardContent>
                     </Card>
@@ -1007,6 +1105,47 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
                 Loading onboarding form...
               </Typography>
             </Box>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bankManagementOpen} onClose={closeBankAccountManagement} fullWidth maxWidth="md">
+        <DialogTitle sx={{ pr: 6 }}>
+          Manage Stripe bank accounts
+          <IconButton
+            aria-label="Close Stripe bank account management"
+            onClick={closeBankAccountManagement}
+            sx={{ position: 'absolute', right: 12, top: 12 }}
+          >
+            <CloseOutlined />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers sx={{ minHeight: 420, p: { xs: 1.5, sm: 2.5 } }}>
+          <Alert severity="info" icon={false} sx={{ mb: 2 }}>
+            Add or update bank accounts directly with Stripe. Property Peace only displays safe account details such as bank name and last four digits.
+          </Alert>
+          {bankManagementError && <Alert severity="error" sx={{ mb: 2 }}>{bankManagementError}</Alert>}
+          {bankManagementInstance && (
+            <ConnectComponentsProvider connectInstance={bankManagementInstance}>
+              <ConnectAccountManagement
+                onLoaderStart={() => {
+                  if (
+                    renderedBankManagementGuard &&
+                    bankManagementCallbackGuardRef.current === renderedBankManagementGuard &&
+                    renderedBankManagementGuard.isCurrent()
+                  ) setBankManagementError('');
+                }}
+                onLoadError={() => {
+                  if (
+                    renderedBankManagementGuard &&
+                    bankManagementCallbackGuardRef.current === renderedBankManagementGuard &&
+                    renderedBankManagementGuard.isCurrent()
+                  ) {
+                    setBankManagementError('Stripe bank-account management could not load. Close this window and try again.');
+                  }
+                }}
+              />
+            </ConnectComponentsProvider>
           )}
         </DialogContent>
       </Dialog>

@@ -98,6 +98,76 @@ export function filterAndSortTasks(tasks = [], filters = {}, now = new Date()) {
   });
 }
 
+const recurringExpenseIntervalMonths = (frequency) => {
+  const normalized = String(frequency ?? '').toLowerCase();
+  if (frequency === 0 || normalized === 'monthly') return 1;
+  if (frequency === 1 || normalized === 'quarterly') return 3;
+  if (frequency === 2 || normalized === 'yearly') return 12;
+  return null;
+};
+
+const occurrenceInMonth = (startDate, monthOffset, dayOfPeriod) => {
+  const year = startDate.getFullYear();
+  const month = startDate.getMonth() + monthOffset;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  return new Date(
+    year,
+    month,
+    Math.min(Math.max(Number(dayOfPeriod) || startDate.getDate(), 1), lastDay),
+    startDate.getHours(),
+    startDate.getMinutes(),
+    startDate.getSeconds(),
+    startDate.getMilliseconds()
+  );
+};
+
+export function buildRecurringExpenseTaskEvents(recurringExpenses = [], viewStart, viewEnd, now = new Date()) {
+  if (!(viewStart instanceof Date) || !(viewEnd instanceof Date)) return [];
+
+  const today = startOfDay(now);
+  const events = [];
+
+  recurringExpenses.forEach((expense) => {
+    if (Boolean(valueOf(expense, 'isPaused', 'IsPaused'))) return;
+
+    const intervalMonths = recurringExpenseIntervalMonths(valueOf(expense, 'frequency', 'Frequency'));
+    const rawStartDate = valueOf(expense, 'startDate', 'StartDate');
+    const startDate = rawStartDate ? new Date(rawStartDate) : null;
+    if (!intervalMonths || !startDate || Number.isNaN(startDate.getTime())) return;
+
+    const rawEndDate = valueOf(expense, 'endDate', 'EndDate');
+    const configuredEnd = rawEndDate ? endOfDay(new Date(rawEndDate)) : null;
+    const effectiveEnd = configuredEnd && !Number.isNaN(configuredEnd.getTime()) && configuredEnd < viewEnd ? configuredEnd : viewEnd;
+    const dayOfPeriod = valueOf(expense, 'dayOfPeriod', 'DayOfPeriod');
+    const expenseId = valueOf(expense, 'id', 'Id');
+    const name = valueOf(expense, 'name', 'Name') || 'Recurring expense';
+
+    for (let monthOffset = 0, safety = 0; safety < 500; monthOffset += intervalMonths, safety += 1) {
+      const occurrence = occurrenceInMonth(startDate, monthOffset, dayOfPeriod);
+      if (occurrence > effectiveEnd) break;
+      if (occurrence < startDate || occurrence < viewStart) continue;
+
+      events.push({
+        id: `recurring-expense-${expenseId}-${occurrence.getFullYear()}-${occurrence.getMonth() + 1}-${occurrence.getDate()}`,
+        title: `Pay · ${name}`,
+        date: occurrence,
+        category: 'Task',
+        source: 'recurring-expense',
+        recurringExpenseId: expenseId,
+        recurringExpense: expense,
+        propertyId: valueOf(expense, 'propertyId', 'PropertyId') || null,
+        propertyName: valueOf(expense, 'propertyName', 'PropertyName') || null,
+        unitId: valueOf(expense, 'unitId', 'UnitId') || null,
+        unitName: valueOf(expense, 'unitName', 'UnitName') || null,
+        amount: valueOf(expense, 'amount', 'Amount'),
+        status: occurrence < today ? 'Overdue' : 'Upcoming'
+      });
+    }
+  });
+
+  return events.sort((left, right) => left.date - right.date);
+}
+
 export function buildTodayReminders({ tasks = [], dashboardSummary = {}, properties = [] } = {}, now = new Date()) {
   const reminders = [];
 

@@ -15,7 +15,7 @@ import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
 import OnlinePaymentTransactions from 'sections/landlord/payments/OnlinePaymentTransactions';
 import { PaymentsSettingsContent } from 'sections/landlord/settings/PaymentsSettings';
 import PayoutAssignments from 'sections/landlord/settings/PayoutAssignments';
-import { getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from 'utils/onlinePaymentTabs';
+import { DEFAULT_ONLINE_PAYMENT_TAB, getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from 'utils/onlinePaymentTabs';
 import { hasContinuedToOnlinePayments, markOnlinePaymentsContinued } from 'utils/onlinePaymentsWelcome';
 
 const PAYMENT_METHODS = ['ACH', 'Credit', 'Debit'];
@@ -26,7 +26,7 @@ export default function OnlinePaymentsPage() {
   const { currentOrganization } = useOrganization();
   const rentPaymentAccess = useRentPaymentAccess();
   const [hasContinued, setHasContinued] = useState(null);
-  const [activeTab, setActiveTab] = useState('bank-accounts');
+  const [activeTab, setActiveTab] = useState(DEFAULT_ONLINE_PAYMENT_TAB);
   const paymentTabs = getOnlinePaymentTabs(rentPaymentAccess.access, rentPaymentAccess.presentation.canConfigure);
   const selectedTab = getSelectedOnlinePaymentTab(activeTab, paymentTabs);
 
