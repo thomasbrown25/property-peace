@@ -16,3 +16,4 @@ export const selectPropertyCount = createSelector([selectProperties], (propertie
 
 export const selectIsSingleUnitPortfolio = (state) => state.property.isSingleUnitPortfolio;
 export const selectPropertiesLoadedAt = (state) => state.property.propertiesLoadedAt;
+export const selectPropertiesOrganizationId = (state) => state.property.propertiesOrganizationId;

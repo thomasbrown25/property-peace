@@ -1,4 +1,5 @@
 import axiosServices from 'utils/axios';
+import { getActiveOrganizationId } from 'utils/impersonationSession';
 import { PROPERTY_ACTION_TYPES } from './property.types';
 
 export const setProperty = (property) => {
@@ -26,8 +27,9 @@ export const setPropertyIds = (ids) => ({
 });
 
 export const addOrUpdateProperty =
-  (propertyData, imageFiles = []) =>
-  async (dispatch) => {
+  (propertyData, imageFiles = [], requestedOrganizationId = null) =>
+  async (dispatch, getState) => {
+    const organizationId = requestedOrganizationId ?? getActiveOrganizationId(getState().auth?.user);
     try {
       const formData = new FormData();
       formData.append('propertyData', JSON.stringify(propertyData));
@@ -38,7 +40,12 @@ export const addOrUpdateProperty =
         }
       }
 
-      const response = await axiosServices.post('/api/property', formData);
+      const response = await axiosServices.post('/api/property', formData, {
+        headers: organizationId ? { 'X-Organization-Id': organizationId.toString() } : undefined
+      });
+      const activeOrganizationId = getActiveOrganizationId(getState().auth?.user);
+      if (requestedOrganizationId != null && String(activeOrganizationId) !== String(requestedOrganizationId)) return null;
+
       dispatch({
         type: PROPERTY_ACTION_TYPES.ADD_PROPERTY_SUCCESS,
         payload: response.data.data
@@ -54,30 +61,33 @@ export const addOrUpdateProperty =
     }
   };
 
-let _propertiesFetchPending = false;
+let _latestPropertiesRequestId = 0;
 
-export const getProperties = () => async (dispatch) => {
-  if (_propertiesFetchPending) return { success: true, pending: true };
-  _propertiesFetchPending = true;
+export const getProperties = (requestedOrganizationId = null) => async (dispatch, getState) => {
+  const requestId = ++_latestPropertiesRequestId;
+  const organizationId = requestedOrganizationId ?? getActiveOrganizationId(getState().auth?.user);
   try {
     dispatch({ type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_START });
-    // OrganizationId is sent via X-Organization-Id header
-    const response = await axiosServices.get(`/api/property/list`);
+    // Pin the request to the organization selected when the refresh began.
+    // Only the latest organization-scoped request may update the shared property store.
+    const response = await axiosServices.get(`/api/property/list`, {
+      headers: organizationId ? { 'X-Organization-Id': organizationId.toString() } : undefined
+    });
+    if (requestId !== _latestPropertiesRequestId) return { success: true, stale: true };
 
     dispatch({
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_SUCCESS,
-      payload: response.data.data
+      payload: { properties: response.data.data, organizationId }
     });
     return { success: true };
   } catch (error) {
+    if (requestId !== _latestPropertiesRequestId) return { success: false, stale: true };
     console.log(error, error.message);
     dispatch({
       type: PROPERTY_ACTION_TYPES.GET_PROPERTIES_FAILED,
       payload: error?.response?.data?.errors || error?.message
     });
     return { success: false };
-  } finally {
-    _propertiesFetchPending = false;
   }
 };
 

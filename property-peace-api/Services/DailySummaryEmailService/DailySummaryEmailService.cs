@@ -380,6 +380,82 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
                     "Low"));
             }
 
+            var taskCandidates = await _context.LandlordTasks
+                .Include(t => t.Property)
+                .Where(t => t.OrganizationId.HasValue && ownerOrgIds.Contains(t.OrganizationId.Value) &&
+                    t.Status == ETaskStatus.Open &&
+                    (t.DueDate < dayEnd || t.IsRecurring) &&
+                    (!t.RecurrenceEndDate.HasValue || t.RecurrenceEndDate.Value >= dayStart))
+                .ToListAsync(cancellationToken);
+
+            var todaysTasks = taskCandidates
+                .Where(t => OccursOnDate(t, easternDate))
+                .Select(t => new SummaryTask(
+                    t.Title,
+                    DateAtTime(easternDate, t.DueDate),
+                    t.Category.ToString(),
+                    t.Property?.Name ?? t.Property?.StreetAddress ?? string.Empty,
+                    t.IsRecurring))
+                .OrderBy(t => t.DueAt)
+                .Take(12)
+                .ToList();
+
+            var calendarItems = new List<SummaryCalendarItem>();
+            calendarItems.AddRange(rentDueToday.Select(l => new SummaryCalendarItem(
+                $"Rent due · {FormatPropertyUnit(l.PropertyName, l.UnitName)}",
+                easternDate.Date,
+                "Rent & payments")));
+
+            var leaseCalendarItems = await _context.Leases
+                .Include(l => l.Unit).ThenInclude(u => u.Property)
+                .Where(l => !l.IsDeleted && propertyIds.Contains(l.Unit.PropertyId) &&
+                    ((l.StartDate.HasValue && l.StartDate.Value >= dayStart && l.StartDate.Value < dayEnd) ||
+                     (l.EndDate.HasValue && l.EndDate.Value >= dayStart && l.EndDate.Value < dayEnd) ||
+                     (l.EndDate.HasValue && l.EndDate.Value.AddDays(-90) >= dayStart && l.EndDate.Value.AddDays(-90) < dayEnd)))
+                .ToListAsync(cancellationToken);
+
+            foreach (var lease in leaseCalendarItems)
+            {
+                var location = FormatPropertyUnit(
+                    lease.Unit.Property.Name ?? lease.Unit.Property.StreetAddress,
+                    lease.Unit.Name);
+                if (lease.StartDate?.Date == easternDate.Date)
+                    calendarItems.Add(new SummaryCalendarItem($"Move-in · {location}", lease.StartDate.Value, "Leases & move dates"));
+                if (lease.EndDate?.Date == easternDate.Date)
+                    calendarItems.Add(new SummaryCalendarItem($"Move-out · {location}", lease.EndDate.Value, "Leases & move dates"));
+                if (lease.EndDate?.AddDays(-90).Date == easternDate.Date)
+                    calendarItems.Add(new SummaryCalendarItem($"Renewal window · {location}", lease.EndDate.Value.AddDays(-90), "Leases & move dates"));
+            }
+
+            var scheduledMaintenance = await _context.MaintenanceRequests
+                .Include(m => m.Property)
+                .Include(m => m.Unit)
+                .Where(m => propertyIds.Contains(m.PropertyId) &&
+                    m.ScheduledDate.HasValue && m.ScheduledDate.Value >= dayStart && m.ScheduledDate.Value < dayEnd &&
+                    m.Status != EMaintenanceStatus.Cancelled)
+                .OrderBy(m => m.ScheduledDate)
+                .Take(12)
+                .ToListAsync(cancellationToken);
+
+            calendarItems.AddRange(scheduledMaintenance.Select(m => new SummaryCalendarItem(
+                m.Title,
+                m.ScheduledDate!.Value,
+                $"Maintenance · {FormatPropertyUnit(m.Property.Name ?? m.Property.StreetAddress, m.Unit?.Name ?? m.UnitName)}")));
+
+            var inspections = await _context.Checklists
+                .Include(c => c.Property)
+                .Include(c => c.Unit)
+                .Where(c => propertyIds.Contains(c.PropertyId) &&
+                    c.InspectionDate.HasValue && c.InspectionDate.Value >= dayStart && c.InspectionDate.Value < dayEnd)
+                .OrderBy(c => c.InspectionDate)
+                .Take(12)
+                .ToListAsync(cancellationToken);
+
+            calendarItems.AddRange(inspections.Select(c => new SummaryCalendarItem(
+                string.IsNullOrWhiteSpace(c.Title) ? "Property checklist" : c.Title,
+                c.InspectionDate!.Value,
+                $"Checklist · {FormatPropertyUnit(c.Property.Name ?? c.Property.StreetAddress, c.Unit?.Name ?? string.Empty)}")));
+
             return new DailySummary(
                 properties.Count,
                 unitCount,
@@ -392,8 +468,46 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
                 unpaidRentLeases,
                 overdueRentLeases,
                 expiringLeases,
-                attentionItems.Take(8).ToList());
+                attentionItems.Take(8).ToList(),
+                todaysTasks,
+                calendarItems.OrderBy(item => item.StartsAt).Take(16).ToList());
         }
+
+        private static bool OccursOnDate(LandlordTask task, DateTime date)
+        {
+            var target = date.Date;
+            var first = task.DueDate.Date;
+            if (target < first || task.RecurrenceEndDate?.Date < target)
+                return false;
+
+            if (!task.IsRecurring || task.RecurrenceType == ERecurrenceType.None)
+                return first == target;
+
+            var interval = Math.Max(1, task.RecurrenceInterval);
+            return task.RecurrenceType switch
+            {
+                ERecurrenceType.Daily => (target - first).Days % interval == 0,
+                ERecurrenceType.Weekly => (target - first).Days % (7 * interval) == 0,
+                ERecurrenceType.Monthly => OccursMonthly(first, target, interval),
+                ERecurrenceType.Yearly => OccursYearly(first, target, interval),
+                _ => false
+            };
+        }
+
+        private static bool OccursMonthly(DateTime first, DateTime target, int interval)
+        {
+            var months = (target.Year - first.Year) * 12 + target.Month - first.Month;
+            return months >= 0 && months % interval == 0 && first.AddMonths(months).Date == target;
+        }
+
+        private static bool OccursYearly(DateTime first, DateTime target, int interval)
+        {
+            var years = target.Year - first.Year;
+            return years >= 0 && years % interval == 0 && first.AddYears(years).Date == target;
+        }
+
+        private static DateTime DateAtTime(DateTime date, DateTime timeSource)
+            => date.Date.Add(timeSource.TimeOfDay);
 
         private HashSet<string> GetAllowedRecipients()
         {
@@ -450,6 +564,7 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
     .card strong { display:block; color:#1464cc; font-size:24px; line-height:1; margin-bottom:8px; }
     .activity-card { border-radius:10px; padding:14px 16px; margin:0 0 10px; }
     .activity-card strong { color:#15212d; }
+    .agenda-card { background:#f8faf9; border:1px solid #e5ebe8; }
     .payment-card { background:#f3faf5; border:1px solid #cfe8d6; }
     .lease-card.warning { background:#fff8e6; border:1px solid #f1d38a; color:#5f4508; }
     .lease-card.danger { background:#fff1f1; border:1px solid #f2b6b6; color:#6f1d1d; }
@@ -482,6 +597,8 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
             sb.Append($"<p>Good morning{(!string.IsNullOrWhiteSpace(user.FirstName) ? ", " + Html(user.FirstName) : string.Empty)},</p>");
             sb.Append("<p>Here’s your recent payment activity and the items that need your attention today.</p>");
 
+            AppendTodayTasksSection(sb, summary.TodaysTasks);
+            AppendTodayCalendarSection(sb, summary.TodaysCalendar);
             AppendPaymentSection(sb, summary.Payments);
             AppendLeaseSection(sb, "Unpaid rent (past due date)", summary.UnpaidRentLeases, "amount due", "lease-card warning");
             AppendLeaseSection(sb, "Overdue rent (past grace period)", summary.OverdueLeases, "amount overdue", "lease-card danger");
@@ -500,6 +617,8 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
             var sb = new StringBuilder();
             sb.AppendLine($"Property Peace daily summary - {easternDate:dddd, MMMM d}");
             sb.AppendLine();
+            AppendPlainTodayTasksSection(sb, summary.TodaysTasks);
+            AppendPlainTodayCalendarSection(sb, summary.TodaysCalendar);
             AppendPlainPaymentSection(sb, summary.Payments);
             AppendPlainLeaseSection(sb, "Unpaid rent (past due date)", summary.UnpaidRentLeases);
             AppendPlainLeaseSection(sb, "Overdue rent (past grace period)", summary.OverdueLeases);
@@ -510,6 +629,65 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
         }
 
         private static string Metric(string label, string value) => $"<div class='card'><strong>{Html(value)}</strong>{Html(label)}</div>";
+
+        private static void AppendTodayTasksSection(StringBuilder sb, IReadOnlyCollection<SummaryTask> tasks)
+        {
+            sb.Append("<h2>Today’s tasks &amp; reminders</h2>");
+            if (tasks.Count == 0)
+            {
+                sb.Append("<div class='empty'><strong>No tasks or reminders due today.</strong></div>");
+                return;
+            }
+
+            foreach (var task in tasks)
+            {
+                var time = task.DueAt.TimeOfDay == TimeSpan.Zero ? "All day" : task.DueAt.ToString("h:mm tt");
+                var property = string.IsNullOrWhiteSpace(task.PropertyName) ? string.Empty : $" · {task.PropertyName}";
+                var recurring = task.IsRecurring ? " · Recurring" : string.Empty;
+                sb.Append($"<div class='activity-card agenda-card'><strong>{Html(task.Title)}</strong><br>{Html(time)} · {Html(task.Category)}{Html(property)}{Html(recurring)}</div>");
+            }
+        }
+
+        private static void AppendTodayCalendarSection(StringBuilder sb, IReadOnlyCollection<SummaryCalendarItem> items)
+        {
+            sb.Append("<h2>Today’s calendar</h2>");
+            if (items.Count == 0)
+            {
+                sb.Append("<div class='empty'><strong>Nothing else is scheduled today.</strong></div>");
+                return;
+            }
+
+            foreach (var item in items)
+            {
+                var time = item.StartsAt.TimeOfDay == TimeSpan.Zero ? "All day" : item.StartsAt.ToString("h:mm tt");
+                sb.Append($"<div class='activity-card agenda-card'><strong>{Html(item.Title)}</strong><br>{Html(time)} · {Html(item.Detail)}</div>");
+            }
+        }
+
+        private static void AppendPlainTodayTasksSection(StringBuilder sb, IReadOnlyCollection<SummaryTask> tasks)
+        {
+            sb.AppendLine("Today's tasks & reminders:");
+            if (tasks.Count == 0)
+                sb.AppendLine("- No tasks or reminders due today.");
+            else
+                foreach (var task in tasks)
+                    sb.AppendLine($"- {FormatTime(task.DueAt)} — {task.Title}{(string.IsNullOrWhiteSpace(task.PropertyName) ? string.Empty : " — " + task.PropertyName)}{(task.IsRecurring ? " (recurring)" : string.Empty)}");
+            sb.AppendLine();
+        }
+
+        private static void AppendPlainTodayCalendarSection(StringBuilder sb, IReadOnlyCollection<SummaryCalendarItem> items)
+        {
+            sb.AppendLine("Today's calendar:");
+            if (items.Count == 0)
+                sb.AppendLine("- Nothing else is scheduled today.");
+            else
+                foreach (var item in items)
+                    sb.AppendLine($"- {FormatTime(item.StartsAt)} — {item.Title} — {item.Detail}");
+            sb.AppendLine();
+        }
+
+        private static string FormatTime(DateTime date)
+            => date.TimeOfDay == TimeSpan.Zero ? "All day" : date.ToString("h:mm tt");
 
         private static void AppendLeaseSection(StringBuilder sb, string title, IReadOnlyCollection<SummaryLease> leases, string amountLabel, string cardClass, bool showEndDate = false)
         {
@@ -773,11 +951,15 @@ namespace brownstone_hub_api.Services.DailySummaryEmailService
         IReadOnlyCollection<SummaryLease> UnpaidRentLeases,
         IReadOnlyCollection<SummaryLease> OverdueLeases,
         IReadOnlyCollection<SummaryLease> ExpiringLeases,
-        IReadOnlyCollection<SummaryAttentionItem> AttentionItems);
+        IReadOnlyCollection<SummaryAttentionItem> AttentionItems,
+        IReadOnlyCollection<SummaryTask> TodaysTasks,
+        IReadOnlyCollection<SummaryCalendarItem> TodaysCalendar);
 
     internal sealed record SummaryProperty(long Id, string Name, string StreetAddress, long? OrganizationId);
     internal sealed record SummaryPayment(decimal Amount, string Status, DateTime PaymentDate, string? Method, string PropertyName, string UnitName);
     internal sealed record SummaryMaintenance(string Title, string Status, string Priority, DateTime CreatedAt, string PropertyName, string? UnitName);
     internal sealed record SummaryLease(string PropertyName, string UnitName, decimal? Amount, int? RentDueDay, DateTime? DueDate, DateTime? EndDate, string TenantName);
     internal sealed record SummaryAttentionItem(string Type, string Title, string Description, string Priority);
+    internal sealed record SummaryTask(string Title, DateTime DueAt, string Category, string PropertyName, bool IsRecurring);
+    internal sealed record SummaryCalendarItem(string Title, DateTime StartsAt, string Detail);
 }

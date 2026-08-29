@@ -21,6 +21,7 @@ namespace brownstone_hub_api.Repositories.Users
         Task<SettingsDto> UpdateUserSettings(SettingsDto settingsDto);
         Task<SettingsDto> GetUserSettings(long? userId);
         Task<bool> UpdateHasSeenTutorial(long? userId, bool hasSeenTutorial);
+        Task<bool> UpdateHasContinuedToOnlinePayments(long? userId);
         Task<bool> UpdateNotificationPreferencesConfigured(long? userId, bool configured);
         Task<Dictionary<long, bool>> CheckUsersHaveAccounts(List<long> userIds);
         Task<bool> ChangePassword(string currentPassword, string newPassword);

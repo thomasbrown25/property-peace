@@ -335,6 +335,27 @@ namespace brownstone_hub_api.Repositories.Users
             return true;
         }
 
+        public async Task<bool> UpdateHasContinuedToOnlinePayments(long? userId)
+        {
+            if (!userId.HasValue)
+            {
+                return false;
+            }
+
+            var user = await _context.Users.FindAsync(userId.Value);
+            if (user == null || user.IsDeleted)
+                return false;
+
+            if (user.HasContinuedToOnlinePayments)
+                return true;
+
+            user.HasContinuedToOnlinePayments = true;
+            user.UpdatedDate = DateTime.Now;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
         public async Task<bool> UpdateNotificationPreferencesConfigured(long? userId, bool configured)
         {
             if (!userId.HasValue)

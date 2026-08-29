@@ -25,9 +25,11 @@ import useFetchTasks from 'hooks/useFetchTasks';
 import useFetchProperties from 'hooks/useFetchProperties';
 import useFetchAllPayments from 'hooks/useFetchAllPayments';
 import { checklistAPI } from 'api';
+import { getRecurringExpenses } from 'api/recurringExpense';
 import useAuth from 'hooks/useAuth';
 import DashboardHeader from 'sections/landlord/dashboard/DashboardHeader';
 import TaskEditorDrawer from 'sections/landlord/tasks/TaskEditorDrawer';
+import { buildRecurringExpenseTaskEvents } from 'utils/taskWorkspace';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -154,7 +156,7 @@ function expandRecurring(task, viewStart, viewEnd) {
   return instances;
 }
 
-function buildEvents(properties, allPayments, dashboardSummary, tasks, inspections, viewStart, viewEnd) {
+function buildEvents(properties, allPayments, dashboardSummary, tasks, inspections, recurringExpenses, viewStart, viewEnd) {
   const events = [];
   const today = startOfDay(new Date());
 
@@ -283,6 +285,8 @@ function buildEvents(properties, allPayments, dashboardSummary, tasks, inspectio
       });
     });
   });
+
+  events.push(...buildRecurringExpenseTaskEvents(recurringExpenses, viewStart, viewEnd));
 
   return events.sort((a, b) => a.date - b.date);
 }
@@ -589,6 +593,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
     : event?.category === 'Inspection' ? 'Checklist' : event?.category;
   const destination = event?.category === 'RentPayment'
     ? (event.leaseId ? `/landlord/leases/${event.leaseId}/payment-history` : '/landlord/finances?tab=payments')
+    : event?.source === 'recurring-expense' ? '/landlord/finances?tab=expenses'
     : event?.category === 'Maintenance' && event.maintenanceId ? `/landlord/maintenance/${event.maintenanceId}`
     : event?.category === 'Lease' && event.leaseId ? `/landlord/leases/${event.leaseId}`
     : event?.source === 'inspection' && checklistPropertyId
@@ -650,7 +655,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
           {event.amount != null && (
             <Box sx={{ p: 2, borderRadius: 1.5, bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
               <Typography sx={{ color: '#475569', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                Rent amount
+                {event.source === 'recurring-expense' ? 'Expense amount' : 'Rent amount'}
               </Typography>
               <Typography variant="h5" fontWeight={800} sx={{ mt: 0.25, color: '#061e35' }}>
                 ${Number(event.amount).toLocaleString()}
@@ -666,7 +671,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
             onClick={() => onNavigate(destination)}
             sx={{ alignSelf: 'flex-start', px: 2.5, bgcolor: '#061e35', color: '#fff', fontWeight: 800, '&:hover': { bgcolor: '#0b2f4f' } }}
           >
-            {event.category === 'RentPayment' ? 'View payments' : event.category === 'Maintenance' ? 'View request' : event.source === 'inspection' ? 'Open checklist' : 'View lease'}
+            {event.source === 'recurring-expense' ? 'View expenses' : event.category === 'RentPayment' ? 'View payments' : event.category === 'Maintenance' ? 'View request' : event.source === 'inspection' ? 'Open checklist' : 'View lease'}
           </Button> : null}
         </Stack>
       </Stack>}
@@ -695,6 +700,7 @@ export default function CalendarPage({ embedded = false }) {
   const [editTask, setEditTask] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [inspections, setInspections] = useState([]);
+  const [recurringExpenses, setRecurringExpenses] = useState([]);
 
   // Data
   const { properties } = useFetchProperties();
@@ -738,6 +744,28 @@ export default function CalendarPage({ embedded = false }) {
     return () => { cancelled = true; };
   }, [properties]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const landlordId = user?.id || user?.Id;
+
+    if (!landlordId) {
+      setRecurringExpenses([]);
+      return undefined;
+    }
+
+    getRecurringExpenses(landlordId)
+      .then((response) => {
+        if (cancelled) return;
+        const expenses = Array.isArray(response) ? response : response?.data || response?.Data || [];
+        setRecurringExpenses(Array.isArray(expenses) ? expenses : []);
+      })
+      .catch(() => {
+        if (!cancelled) setRecurringExpenses([]);
+      });
+
+    return () => { cancelled = true; };
+  }, [user?.id, user?.Id]);
+
   // View range
   const { viewStart, viewEnd } = useMemo(() => {
     if (view === 'Month') {
@@ -751,8 +779,8 @@ export default function CalendarPage({ embedded = false }) {
 
   // All events
   const allEvents = useMemo(() =>
-    buildEvents(properties, allPayments, dashboardSummary, tasks, inspections, viewStart, viewEnd),
-    [properties, allPayments, dashboardSummary, tasks, inspections, viewStart, viewEnd]
+    buildEvents(properties, allPayments, dashboardSummary, tasks, inspections, recurringExpenses, viewStart, viewEnd),
+    [properties, allPayments, dashboardSummary, tasks, inspections, recurringExpenses, viewStart, viewEnd]
   );
 
   // Filtered

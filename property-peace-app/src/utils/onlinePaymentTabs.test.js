@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from './onlinePaymentTabs.js';
+import { DEFAULT_ONLINE_PAYMENT_TAB, getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from './onlinePaymentTabs.js';
 
 test('only Bank Accounts is available until access is approved and Configure is allowed', () => {
   assert.deepEqual(
@@ -32,6 +32,14 @@ test('Bank Accounts remains selected when approved access arrives after the init
 
   assert.equal(getSelectedOnlinePaymentTab(activeTab, loadingTabs), 'bank-accounts');
   assert.equal(getSelectedOnlinePaymentTab(activeTab, approvedTabs), 'bank-accounts');
+});
+
+test('approved access opens Payment Transactions by default after access finishes loading', () => {
+  const loadingTabs = getOnlinePaymentTabs(null);
+  const approvedTabs = getOnlinePaymentTabs({ status: 'Approved' }, true);
+
+  assert.equal(getSelectedOnlinePaymentTab(DEFAULT_ONLINE_PAYMENT_TAB, loadingTabs), 'bank-accounts');
+  assert.equal(getSelectedOnlinePaymentTab(DEFAULT_ONLINE_PAYMENT_TAB, approvedTabs), 'transactions');
 });
 
 test('a stale Payout Assignments selection fails closed when Configure access is unavailable', () => {

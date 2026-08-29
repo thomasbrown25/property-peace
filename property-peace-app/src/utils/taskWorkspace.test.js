@@ -156,3 +156,53 @@ test('buildTaskUpdatePayload preserves the backend task contract when changing s
     recurrenceEndDate: '2027-01-01T00:00:00Z'
   });
 });
+
+test('buildRecurringExpenseTaskEvents shows active recurring fees as Task calendar events', () => {
+  const events = taskWorkspace.buildRecurringExpenseTaskEvents?.(
+    [
+      {
+        id: 7,
+        name: 'Water service',
+        amount: 85.5,
+        frequency: 'Monthly',
+        dayOfPeriod: 31,
+        startDate: '2026-01-31T09:00:00',
+        propertyId: 12,
+        propertyName: 'Elm House',
+        isPaused: false
+      },
+      {
+        id: 8,
+        name: 'Paused landscaping',
+        frequency: 0,
+        dayOfPeriod: 15,
+        startDate: '2026-01-15T09:00:00',
+        isPaused: true
+      }
+    ],
+    new Date('2026-02-01T00:00:00'),
+    new Date('2026-03-31T23:59:59'),
+    new Date('2026-02-15T12:00:00')
+  );
+
+  assert.deepEqual(
+    events?.map((event) => ({ title: event.title, category: event.category, date: event.date.getDate(), status: event.status })),
+    [
+      { title: 'Pay · Water service', category: 'Task', date: 28, status: 'Upcoming' },
+      { title: 'Pay · Water service', category: 'Task', date: 31, status: 'Upcoming' }
+    ]
+  );
+  assert.equal(events?.[0].amount, 85.5);
+  assert.equal(events?.[0].propertyId, 12);
+});
+
+test('buildRecurringExpenseTaskEvents honors quarterly cadence and inclusive end dates', () => {
+  const events = taskWorkspace.buildRecurringExpenseTaskEvents?.(
+    [{ Id: 9, Name: 'Quarterly service', Frequency: 1, DayOfPeriod: 10, StartDate: '2026-01-10', EndDate: '2026-07-10' }],
+    new Date('2026-01-01'),
+    new Date('2026-12-31'),
+    new Date('2025-12-01')
+  );
+
+  assert.deepEqual(events?.map((event) => `${event.date.getMonth() + 1}/${event.date.getDate()}`), ['1/10', '4/10', '7/10']);
+});

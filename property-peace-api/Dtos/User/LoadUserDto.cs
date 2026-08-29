@@ -15,6 +15,7 @@ namespace brownstone_hub_api.Dtos.User
         public DateOnly? DateOfBirth { get; set; }
         public bool HasSeenTutorial { get; set; } = false;
         public bool NotificationPreferencesConfigured { get; set; } = false;
+        public bool HasContinuedToOnlinePayments { get; set; } = false;
         public List<string> Roles { get; set; } = [];
         public DateTime LastVisited { get; set; } = DateTime.MinValue;
         public DateTime? LastLogin { get; set; }

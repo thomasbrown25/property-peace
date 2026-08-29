@@ -1,8 +1,10 @@
 import axios from 'utils/axios';
 
-// Get all bank accounts for the current organization
-export const getBankAccounts = async () => {
-  const response = await axios.get('/api/bank-accounts');
+// Get all bank accounts for the selected organization
+export const getBankAccounts = async (organizationId = null) => {
+  const response = await axios.get('/api/bank-accounts', {
+    headers: organizationId ? { 'X-Organization-Id': organizationId.toString() } : undefined
+  });
   return response.data;
 };
 

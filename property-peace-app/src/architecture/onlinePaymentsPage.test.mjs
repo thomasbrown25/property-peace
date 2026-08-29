@@ -36,8 +36,9 @@ test('Transactions reloads for the active organization without rendering stale o
   assert.match(transactions, /\[organizationId, organizationLoading, retryVersion\]/);
   assert.match(transactions, /return \(\) => controller\.abort\(\)/);
   assert.match(transactions, /\.get\('\/api\/stripe\/payment-transactions'/);
+  assert.match(transactions, /\.get\('\/api\/stripe\/account-status'/);
   assert.doesNotMatch(transactions, /\/api\/payment\/all/);
-  assert.match(transactions, /View Stripe Dashboard/);
+  assert.match(transactions, /canOpenStripeDashboard &&[\s\S]{0,220}<Button[\s\S]{0,160}size="small"[\s\S]{0,280}View Stripe Dashboard/);
   assert.match(transactions, /All properties/);
 });
 
@@ -46,10 +47,13 @@ test('Online Payments shows a one-time welcome before the tabbed payment workspa
 
   assert.match(page, /<ManagementPageHeader/);
   assert.match(page, /title="Online Payments"/);
+  assert.match(page, /user\.hasContinuedToOnlinePayments === true/);
+  assert.match(page, /post\('\/api\/user\/online-payments-welcome\/continue'\)/);
+  assert.match(page, /updateUser\(\{ hasContinuedToOnlinePayments: true \}\)/);
   assert.match(page, /hasContinuedToOnlinePayments\(user, currentOrganization\)/);
   assert.match(page, /markOnlinePaymentsContinued\(user, currentOrganization\)/);
   assert.match(page, /Continue to Online Payments/);
-  assert.match(page, /useState\('bank-accounts'\)/);
+  assert.match(page, /useState\(DEFAULT_ONLINE_PAYMENT_TAB\)/);
   assert.match(page, /getOnlinePaymentTabs\(rentPaymentAccess\.access, rentPaymentAccess\.presentation\.canConfigure\)/);
   assert.match(page, /getSelectedOnlinePaymentTab\(activeTab, paymentTabs\)/);
   assert.match(page, /paymentTabs\.map\(\(\{ id, label \}\)/);

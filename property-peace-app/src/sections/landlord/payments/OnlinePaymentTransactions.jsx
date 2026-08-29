@@ -75,6 +75,7 @@ export default function OnlinePaymentTransactions() {
   const [status, setStatus] = useState('all');
   const [propertyId, setPropertyId] = useState('all');
   const [page, setPage] = useState(1);
+  const [dashboardAccount, setDashboardAccount] = useState({ organizationId: null, canOpen: false });
   const [openingDashboard, setOpeningDashboard] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
 
@@ -121,6 +122,30 @@ export default function OnlinePaymentTransactions() {
     return () => controller.abort();
   }, [organizationId, organizationLoading, retryVersion]);
 
+  useEffect(() => {
+    setDashboardAccount({ organizationId: null, canOpen: false });
+    setDashboardError('');
+
+    if (organizationLoading || !organizationId) return undefined;
+
+    const controller = new AbortController();
+    axiosServices
+      .get('/api/stripe/account-status', { signal: controller.signal })
+      .then((response) => {
+        if (controller.signal.aborted) return;
+        const status = response?.data?.success === true ? response.data.data : response?.data;
+        const accountId = status?.accountId ?? status?.AccountId;
+        const canManageAccount = status?.canManageAccount ?? status?.CanManageAccount;
+        setDashboardAccount({ organizationId, canOpen: Boolean(accountId) && canManageAccount === true });
+      })
+      .catch((requestError) => {
+        if (controller.signal.aborted || requestError?.code === 'ERR_CANCELED') return;
+        setDashboardAccount({ organizationId, canOpen: false });
+      });
+
+    return () => controller.abort();
+  }, [organizationId, organizationLoading]);
+
   const scopedPayments = loadedOrganizationId === organizationId ? payments : [];
   const effectiveLoading = organizationLoading || (Boolean(organizationId) && loadedOrganizationId !== organizationId) || loading;
   const summary = useMemo(() => summarizeOnlineTransactions(scopedPayments), [scopedPayments]);
@@ -140,6 +165,7 @@ export default function OnlinePaymentTransactions() {
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const visibleRows = filteredRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const canOpenStripeDashboard = dashboardAccount.organizationId === organizationId && dashboardAccount.canOpen;
 
   const changeSearch = (event) => {
     setSearch(event.target.value);
@@ -185,9 +211,18 @@ export default function OnlinePaymentTransactions() {
             Stripe payment activity recorded by Property Peace. Manually recorded payments remain in your lease and accounting history.
           </Typography>
         </Box>
-        <Button variant="outlined" startIcon={<LinkOutlined />} onClick={openStripeDashboard} disabled={openingDashboard} sx={{ flexShrink: 0 }}>
-          {openingDashboard ? 'Opening Stripe…' : 'View Stripe Dashboard'}
-        </Button>
+        {canOpenStripeDashboard && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<LinkOutlined />}
+            onClick={openStripeDashboard}
+            disabled={openingDashboard}
+            sx={{ flexShrink: 0 }}
+          >
+            {openingDashboard ? 'Opening Stripe…' : 'View Stripe Dashboard'}
+          </Button>
+        )}
       </Stack>
 
       {dashboardError && <Alert severity="error" sx={{ mb: 2 }}>{dashboardError}</Alert>}
