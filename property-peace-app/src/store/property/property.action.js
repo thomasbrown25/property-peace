@@ -27,8 +27,9 @@ export const setPropertyIds = (ids) => ({
 });
 
 export const addOrUpdateProperty =
-  (propertyData, imageFiles = []) =>
-  async (dispatch) => {
+  (propertyData, imageFiles = [], requestedOrganizationId = null) =>
+  async (dispatch, getState) => {
+    const organizationId = requestedOrganizationId ?? getActiveOrganizationId(getState().auth?.user);
     try {
       const formData = new FormData();
       formData.append('propertyData', JSON.stringify(propertyData));
@@ -39,7 +40,12 @@ export const addOrUpdateProperty =
         }
       }
 
-      const response = await axiosServices.post('/api/property', formData);
+      const response = await axiosServices.post('/api/property', formData, {
+        headers: organizationId ? { 'X-Organization-Id': organizationId.toString() } : undefined
+      });
+      const activeOrganizationId = getActiveOrganizationId(getState().auth?.user);
+      if (requestedOrganizationId != null && String(activeOrganizationId) !== String(requestedOrganizationId)) return null;
+
       dispatch({
         type: PROPERTY_ACTION_TYPES.ADD_PROPERTY_SUCCESS,
         payload: response.data.data

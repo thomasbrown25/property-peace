@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import {
   Alert,
@@ -52,8 +52,20 @@ export default function PayoutAssignments() {
   const [accountsError, setAccountsError] = useState(false);
   const [retryVersion, setRetryVersion] = useState(0);
   const [editingProperty, setEditingProperty] = useState(null);
+  const [editingOrganizationId, setEditingOrganizationId] = useState(null);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [saving, setSaving] = useState(false);
+  const organizationIdRef = useRef(organizationId);
+  const organizationVersionRef = useRef(0);
+
+  useEffect(() => {
+    organizationIdRef.current = organizationId;
+    organizationVersionRef.current += 1;
+    setEditingProperty(null);
+    setEditingOrganizationId(null);
+    setSelectedAccountId('');
+    setSaving(false);
+  }, [organizationId]);
 
   useEffect(() => {
     let active = true;
@@ -72,7 +84,7 @@ export default function PayoutAssignments() {
       try {
         setAccountsLoading(true);
         setAccountsError(false);
-        const response = await bankAccountAPI.getBankAccounts();
+        const response = await bankAccountAPI.getBankAccounts(organizationId);
         if (!active) return;
         const success = response?.success ?? response?.Success;
         const data = response?.data ?? response?.Data;
@@ -100,6 +112,7 @@ export default function PayoutAssignments() {
 
   const openEditor = (property) => {
     setEditingProperty(property);
+    setEditingOrganizationId(organizationId);
     const assignedId = field(property, 'operatingAccountId', 'OperatingAccountId');
     setSelectedAccountId(assignedId == null ? '' : String(assignedId));
   };
@@ -107,24 +120,35 @@ export default function PayoutAssignments() {
   const closeEditor = () => {
     if (saving) return;
     setEditingProperty(null);
+    setEditingOrganizationId(null);
     setSelectedAccountId('');
   };
 
   const saveAssignment = async () => {
-    if (!editingProperty) return;
+    if (!editingProperty || !editingOrganizationId || String(editingOrganizationId) !== String(organizationIdRef.current)) return;
 
+    const saveOrganizationId = editingOrganizationId;
+    const saveOrganizationVersion = organizationVersionRef.current;
     setSaving(true);
     try {
       const selectedAccount = selectedAccountId ? accountsById.get(selectedAccountId) : null;
+      if (selectedAccountId && !selectedAccount) throw new Error('The selected payout account is no longer available.');
+
       const updated = await dispatch(
-        addOrUpdateProperty({
-          ...editingProperty,
-          operatingAccountId: selectedAccount ? accountId(selectedAccount) : null
-        })
+        addOrUpdateProperty(
+          {
+            ...editingProperty,
+            operatingAccountId: selectedAccount ? accountId(selectedAccount) : null
+          },
+          [],
+          saveOrganizationId
+        )
       );
+      if (organizationVersionRef.current !== saveOrganizationVersion) return;
       if (!updated) throw new Error('The payout assignment could not be saved.');
 
       await propertiesRefetch();
+      if (organizationVersionRef.current !== saveOrganizationVersion) return;
       openSnackbar({
         open: true,
         message: 'Property payout assignment updated',
@@ -132,8 +156,10 @@ export default function PayoutAssignments() {
         alert: { color: 'success' }
       });
       setEditingProperty(null);
+      setEditingOrganizationId(null);
       setSelectedAccountId('');
     } catch (error) {
+      if (organizationVersionRef.current !== saveOrganizationVersion) return;
       openSnackbar({
         open: true,
         message: error?.message || 'Failed to update the property payout assignment',
@@ -141,7 +167,7 @@ export default function PayoutAssignments() {
         alert: { color: 'error' }
       });
     } finally {
-      setSaving(false);
+      if (organizationVersionRef.current === saveOrganizationVersion) setSaving(false);
     }
   };
 

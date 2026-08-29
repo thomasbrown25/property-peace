@@ -274,7 +274,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     return requestLifecycleRef.current.run({
       scopeKey: stripeScopeKey,
       channel: 'bank-accounts',
-      request: () => bankAccountAPI.getBankAccounts(),
+      request: () => bankAccountAPI.getBankAccounts(currentOrganization?.id ?? currentOrganization?.Id),
       onSuccess: (response) => setBankAccounts(response.success && response.data ? response.data : []),
       onError: (error) => console.error('Error fetching bank accounts:', error),
       onFinally: () => setLoadingBankAccounts(false)
@@ -943,7 +943,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
               • Secure payment processing powered by Stripe
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              • Funds are transferred directly to your connected bank account
+              • Stripe sends available payout funds to your selected bank account on the applicable payout schedule
             </Typography>
             <Typography variant="body2" color="text.secondary">
               • Stripe handles all PCI compliance and security requirements
