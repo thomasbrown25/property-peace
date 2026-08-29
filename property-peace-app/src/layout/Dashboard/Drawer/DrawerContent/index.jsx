@@ -35,7 +35,7 @@ export default function DrawerContent() {
   }, [updateScrollState]);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', minHeight: 0, overflow: 'hidden' }}>
       <Box sx={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <Box
           ref={scrollRef}
