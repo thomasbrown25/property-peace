@@ -79,7 +79,8 @@ jobs:
             --name $appName | ConvertFrom-Json
           $basicBytes = [Text.Encoding]::ASCII.GetBytes("$($publishing.publishingUserName):$($publishing.publishingPassword)")
           $headers = @{ Authorization = 'Basic ' + [Convert]::ToBase64String($basicBytes) }
-          $scmBase = "https://$appName.scm.azurewebsites.net"
+          $scmUri = [Uri]$publishing.scmUri
+          $scmBase = "$($scmUri.Scheme)://$($scmUri.Host)"
 
           $workingDirectory = if ($appIsLinux) { '/home' } else { 'D:\home' }
           $mkdirCommand = if ($appIsLinux) { 'mkdir -p /home/data/migrations' } else { 'if not exist D:\home\data\migrations mkdir D:\home\data\migrations' }
