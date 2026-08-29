@@ -57,9 +57,9 @@ jobs:
 
           $resourceGroup = $webApp.resourceGroup
           $details = az webapp show --resource-group $resourceGroup --name $appName | ConvertFrom-Json
-          $isLinux = [bool]$details.reserved
-          $runtime = if ($isLinux) { 'linux-x64' } else { 'win-x64' }
-          $bundleName = if ($isLinux) { 'efbundle' } else { 'efbundle.exe' }
+          $appIsLinux = [bool]$details.reserved
+          $runtime = if ($appIsLinux) { 'linux-x64' } else { 'win-x64' }
+          $bundleName = if ($appIsLinux) { 'efbundle' } else { 'efbundle.exe' }
           $bundlePath = Join-Path $env:RUNNER_TEMP $bundleName
 
           dotnet tool install --global dotnet-ef --version 9.0.3
@@ -81,8 +81,8 @@ jobs:
           $headers = @{ Authorization = 'Basic ' + [Convert]::ToBase64String($basicBytes) }
           $scmBase = "https://$appName.scm.azurewebsites.net"
 
-          $workingDirectory = if ($isLinux) { '/home' } else { 'D:\home' }
-          $mkdirCommand = if ($isLinux) { 'mkdir -p /home/data/migrations' } else { 'if not exist D:\home\data\migrations mkdir D:\home\data\migrations' }
+          $workingDirectory = if ($appIsLinux) { '/home' } else { 'D:\home' }
+          $mkdirCommand = if ($appIsLinux) { 'mkdir -p /home/data/migrations' } else { 'if not exist D:\home\data\migrations mkdir D:\home\data\migrations' }
           $mkdirBody = @{ command = $mkdirCommand; dir = $workingDirectory } | ConvertTo-Json
           $mkdirResult = Invoke-RestMethod `
             -Uri "$scmBase/api/command" `
@@ -100,7 +100,7 @@ jobs:
             -InFile $bundlePath | Out-Null
 
           $connection = "Server=tcp:property-peace-server.database.windows.net,1433;Initial Catalog=$databaseName;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-          if ($isLinux) {
+          if ($appIsLinux) {
             $command = "chmod +x /home/data/migrations/$bundleName && /home/data/migrations/$bundleName --connection `"$connection`""
           } else {
             $command = "D:\home\data\migrations\$bundleName --connection `"$connection`""
