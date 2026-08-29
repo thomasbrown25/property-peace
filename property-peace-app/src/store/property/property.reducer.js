@@ -3,6 +3,7 @@ import { PROPERTY_ACTION_TYPES } from './property.types';
 const initialState = {
   properties: [],
   propertiesLoadedAt: null,
+  propertiesOrganizationId: null,
   selectedProperty: null,
   selectedPropertyIds: [],
   isSingleUnitPortfolio: true,
@@ -56,7 +57,8 @@ function propertyReducer(state = initialState, action) {
     case PROPERTY_ACTION_TYPES.GET_PROPERTIES_SUCCESS:
       return {
         ...state,
-        properties: payload,
+        properties: payload.properties,
+        propertiesOrganizationId: payload.organizationId,
         propertiesLoadedAt: Date.now(),
         loading: false,
         error: null

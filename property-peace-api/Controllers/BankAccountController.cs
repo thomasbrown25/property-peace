@@ -45,24 +45,13 @@ namespace brownstone_hub_api.Controllers
         {
             try
             {
-                // Get current user ID
-                var userIdResponse = await _userService.GetCurrentUserIdAsync();
-                if (!userIdResponse.Success || !userIdResponse.Data.HasValue)
+                var organizationId = this.GetCurrentOrganizationIdOrForbid();
+                if (!organizationId.HasValue)
                 {
-                    return Unauthorized(new { Message = "User not found" });
+                    return StatusCode(403, new { Message = "Organization context is required" });
                 }
 
-                var userId = userIdResponse.Data.Value;
-
-                // Get current user's organization
-                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId);
-                if (!userOrgResponse.Success || userOrgResponse.Data == null)
-                {
-                    return NotFound(new { Message = "Organization not found" });
-                }
-
-                var organizationId = userOrgResponse.Data.Id;
-                var response = await _bankAccountService.GetBankAccountsByOrganizationIdAsync(organizationId);
+                var response = await _bankAccountService.GetBankAccountsByOrganizationIdAsync(organizationId.Value);
 
                 if (!response.Success)
                 {
