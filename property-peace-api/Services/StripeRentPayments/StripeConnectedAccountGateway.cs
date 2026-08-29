@@ -31,9 +31,20 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         bool ChargesEnabled = false,
         StripePayoutBankSnapshot? PayoutBank = null);
 
+    public sealed record StripeConnectedAccountOnboardingResult(
+        string AccountId,
+        bool DetailsSubmitted,
+        string OnboardingUrl);
+
     public interface IStripeConnectedAccountGateway
     {
         Task<StripeConnectedAccountSnapshot> GetSnapshotAsync(string stripeAccountId, CancellationToken cancellationToken = default);
+        Task<StripeConnectedAccountOnboardingResult> CreateOnboardingAccountAsync(
+            AccountCreateOptions accountOptions,
+            string returnUrl,
+            string idempotencyKey,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException("Connected-account creation is not supported by this gateway.");
     }
 
     public sealed class StripeConnectedAccountGateway : IStripeConnectedAccountGateway
@@ -41,6 +52,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
         private readonly TimeProvider _timeProvider;
         private readonly Stripe.AccountService _accountService;
         private readonly Stripe.AccountExternalAccountService _externalAccountService;
+        private readonly Stripe.AccountLinkService _accountLinkService;
 
         [ActivatorUtilitiesConstructor]
         public StripeConnectedAccountGateway(TimeProvider timeProvider, IConfiguration configuration)
@@ -63,6 +75,53 @@ namespace brownstone_hub_api.Services.StripeRentPayments
             _timeProvider = timeProvider;
             _accountService = new Stripe.AccountService(stripeClient);
             _externalAccountService = new Stripe.AccountExternalAccountService(stripeClient);
+            _accountLinkService = new Stripe.AccountLinkService(stripeClient);
+        }
+
+        public async Task<StripeConnectedAccountOnboardingResult> CreateOnboardingAccountAsync(
+            AccountCreateOptions accountOptions,
+            string returnUrl,
+            string idempotencyKey,
+            CancellationToken cancellationToken = default)
+        {
+            var account = await _accountService.CreateAsync(
+                accountOptions,
+                new RequestOptions { IdempotencyKey = idempotencyKey },
+                cancellationToken);
+
+            const string stripeTransfersCapability = "stripe_balance.stripe_transfers";
+            var connectedAccountOptions = new RequestOptions { StripeAccount = account.Id };
+            try
+            {
+                var capability = await _accountService.Capabilities.GetAsync(
+                    account.Id, stripeTransfersCapability, null, connectedAccountOptions, cancellationToken);
+                if (capability.Status != "active" && capability.Requested != true)
+                {
+                    await _accountService.Capabilities.UpdateAsync(
+                        account.Id,
+                        stripeTransfersCapability,
+                        new AccountCapabilityUpdateOptions { Requested = true },
+                        connectedAccountOptions,
+                        cancellationToken);
+                }
+            }
+            catch (StripeException)
+            {
+                // Preserve the existing best-effort behavior; onboarding can continue and readiness remains fail closed.
+            }
+
+            var accountLink = await _accountLinkService.CreateAsync(new AccountLinkCreateOptions
+            {
+                Account = account.Id,
+                RefreshUrl = returnUrl,
+                ReturnUrl = returnUrl,
+                Type = "account_onboarding"
+            }, null, cancellationToken);
+
+            return new StripeConnectedAccountOnboardingResult(
+                account.Id,
+                account.DetailsSubmitted,
+                accountLink.Url);
         }
 
         public async Task<StripeConnectedAccountSnapshot> GetSnapshotAsync(string stripeAccountId, CancellationToken cancellationToken = default)

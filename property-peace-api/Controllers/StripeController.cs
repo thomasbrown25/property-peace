@@ -167,10 +167,42 @@ namespace brownstone_hub_api.Controllers
                     return Conflict(new { Message = ex.Message });
                 }
 
+                // A user's legacy/global Stripe account must never be reused for whichever
+                // organization happens to be selected. Existing accounts are accessible only
+                // when the server resolves that exact account as this organization's approved
+                // destination and the authenticated actor is its connected-account owner.
+                if (!string.IsNullOrWhiteSpace(dbUser.StripeAccountId))
+                {
+                    if (_stripeConnectedPayeeService == null)
+                    {
+                        return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                            new { Message = "Payout account validation is unavailable" });
+                    }
+
+                    var destination = await _stripeConnectedPayeeService.ResolveApprovedDestinationAsync(
+                        userId.Value, organizationId.Value, HttpContext.RequestAborted);
+                    var ownsExactApprovedDestination = destination != null
+                        && destination.PayeeUserId == userId.Value
+                        && string.Equals(destination.StripeAccountId, dbUser.StripeAccountId,
+                            StringComparison.Ordinal)
+                        && await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
+                            userId.Value, organizationId.Value, destination.StripeAccountId,
+                            HttpContext.RequestAborted);
+                    if (!ownsExactApprovedDestination)
+                    {
+                        return StatusCode(StatusCodes.Status403Forbidden,
+                            new { Message = "This Stripe account is not approved for the current organization" });
+                    }
+                }
+
                 var returnUrl = request.ReturnUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=connected";
                 var refreshUrl = request.RefreshUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=refresh";
 
-                var response = await _stripeService.CreateConnectAccountAsync(userId.Value, dbUser.Email, returnUrl);
+                var authorizedExistingAccountId = string.IsNullOrWhiteSpace(dbUser.StripeAccountId)
+                    ? null
+                    : dbUser.StripeAccountId;
+                var response = await _stripeService.CreateConnectAccountAsync(
+                    userId.Value, dbUser.Email, returnUrl, authorizedExistingAccountId);
 
                 if (!response.Success)
                 {
@@ -337,16 +369,18 @@ namespace brownstone_hub_api.Controllers
                 {
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
                 }
-                if (dbUser == null || string.IsNullOrEmpty(dbUser.StripeAccountId))
-                {
-                    return BadRequest(new { Message = "Stripe account not found. Please create an account first." });
-                }
+
+                var (_, destination, destinationError) =
+                    await ResolveOwnedApprovedDestinationAsync(userId.Value);
+                if (destinationError != null)
+                    return destinationError;
 
                 var returnUrl = request.ReturnUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=connected";
                 var refreshUrl = request.RefreshUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=refresh";
                 var linkType = request.Type ?? "account_onboarding";
 
-                var response = await _stripeService.CreateAccountLinkAsync(dbUser.StripeAccountId, returnUrl, refreshUrl, linkType);
+                var response = await _stripeService.CreateAccountLinkAsync(
+                    destination!.StripeAccountId, returnUrl, refreshUrl, linkType);
 
                 if (!response.Success)
                 {
@@ -422,12 +456,13 @@ namespace brownstone_hub_api.Controllers
                 {
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
                 }
-                if (dbUser == null || string.IsNullOrEmpty(dbUser.StripeAccountId))
-                {
-                    return BadRequest(new { Message = "Stripe account not found. Please create an account first." });
-                }
 
-                var response = await _stripeService.CreateLoginLinkAsync(dbUser.StripeAccountId);
+                var (_, destination, destinationError) =
+                    await ResolveOwnedApprovedDestinationAsync(userId.Value);
+                if (destinationError != null)
+                    return destinationError;
+
+                var response = await _stripeService.CreateLoginLinkAsync(destination!.StripeAccountId);
 
                 if (!response.Success)
                 {
@@ -503,12 +538,13 @@ namespace brownstone_hub_api.Controllers
                 {
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
                 }
-                if (dbUser == null || string.IsNullOrEmpty(dbUser.StripeAccountId))
-                {
-                    return BadRequest(new { Message = "Stripe account not found. Please create an account first." });
-                }
 
-                var response = await _stripeService.CreateAccountSessionAsync(dbUser.StripeAccountId);
+                var (_, destination, destinationError) =
+                    await ResolveOwnedApprovedDestinationAsync(userId.Value);
+                if (destinationError != null)
+                    return destinationError;
+
+                var response = await _stripeService.CreateAccountSessionAsync(destination!.StripeAccountId);
 
                 if (!response.Success)
                 {
@@ -617,38 +653,17 @@ namespace brownstone_hub_api.Controllers
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
                 }
 
-                if (string.IsNullOrEmpty(dbUser.StripeAccountId))
-                {
-                    return BadRequest(new { Message = "Stripe account not found. Please complete onboarding first." });
-                }
-
-                // Get user's organization
-                var userOrgResponse = await _organizationService.GetCurrentUserOrganizationAsync(userId);
-                if (!userOrgResponse.Success || userOrgResponse.Data == null)
-                {
-                    return NotFound(new { Message = "Organization not found" });
-                }
-
-                var organizationId = userOrgResponse.Data.Id;
-
-                // Fail closed: neither an existing alternate account nor a newly synced one may be
-                // exposed until the exact user/account/organization destination has payout approval.
-                if (_stripeConnectedPayeeService == null
-                    || !await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
-                        userId, organizationId, dbUser.StripeAccountId, HttpContext.RequestAborted))
-                {
-                    return StatusCode(StatusCodes.Status403Forbidden, new
-                    {
-                        Message = "This Stripe destination is not payout-approved for the current organization"
-                    });
-                }
+                var (organizationId, destination, destinationError) =
+                    await ResolveOwnedApprovedDestinationAsync(userId);
+                if (destinationError != null)
+                    return destinationError;
 
                 // Refresh Stripe and internal readiness for this exact authenticated user,
                 // organization and destination before returning or creating any bank record.
                 // The refresh may suspend a formerly approved payee, so fail closed on either
                 // an unavailable snapshot or a denied readiness decision.
                 var accountStatusResponse = await _stripeService.GetAccountStatusAsync(
-                    dbUser.StripeAccountId, userId, organizationId);
+                    destination!.StripeAccountId, userId, organizationId);
                 if (!accountStatusResponse.Success || accountStatusResponse.Data == null
                     || !accountStatusResponse.Data.IsAccountReadyForRentTransfers)
                 {
@@ -660,7 +675,8 @@ namespace brownstone_hub_api.Controllers
 
                 // Check if bank account already exists for this organization
                 // Allow the same Stripe account to be used across multiple organizations
-                var existingBankAccount = await _bankAccountRepository.GetBankAccountByOrganizationAndStripeAccountIdAsync(organizationId, dbUser.StripeAccountId);
+                var existingBankAccount = await _bankAccountRepository.GetBankAccountByOrganizationAndStripeAccountIdAsync(
+                    organizationId, destination.StripeAccountId);
                 if (existingBankAccount != null)
                 {
                     // Bank account already exists for this organization, return it in the same format as creation
@@ -685,7 +701,7 @@ namespace brownstone_hub_api.Controllers
                         Success = true
                     };
                     _logger.LogInformation("Bank account {BankAccountId} already exists for organization {OrganizationId} with Stripe account {StripeAccountId}",
-                        existingBankAccount.Id, organizationId, dbUser.StripeAccountId);
+                        existingBankAccount.Id, organizationId, destination.StripeAccountId);
                     return Ok(existingResponse);
                 }
 
@@ -697,7 +713,7 @@ namespace brownstone_hub_api.Controllers
                 try
                 {
                     var accountService = new Stripe.AccountService();
-                    var account = await accountService.GetAsync(dbUser.StripeAccountId);
+                    var account = await accountService.GetAsync(destination.StripeAccountId);
 
                     // Get external accounts (bank accounts)
                     if (account.ExternalAccounts != null && account.ExternalAccounts.Data != null && account.ExternalAccounts.Data.Count > 0)
@@ -713,7 +729,7 @@ namespace brownstone_hub_api.Controllers
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Could not fetch bank account details from Stripe for account {AccountId}", dbUser.StripeAccountId);
+                    _logger.LogWarning(ex, "Could not fetch bank account details from Stripe for account {AccountId}", destination.StripeAccountId);
                     // Continue without bank account details - we'll create with what we have
                 }
 
@@ -721,7 +737,7 @@ namespace brownstone_hub_api.Controllers
                 var createDto = new CreateBankAccountDto
                 {
                     OrganizationId = organizationId,
-                    StripeAccountId = dbUser.StripeAccountId,
+                    StripeAccountId = destination.StripeAccountId,
                     DisplayName = $"Bank Account {(!string.IsNullOrEmpty(last4) ? $"(****{last4})" : "")}".Trim(),
                     Last4 = last4,
                     BankName = bankName,
@@ -737,7 +753,7 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 _logger.LogInformation("Successfully created bank account {BankAccountId} for organization {OrganizationId} with Stripe account {StripeAccountId}",
-                    createResponse.Data?.Id, organizationId, dbUser.StripeAccountId);
+                    createResponse.Data?.Id, organizationId, destination.StripeAccountId);
                 return Ok(createResponse);
             }
             catch (Exception ex)
@@ -1058,6 +1074,41 @@ namespace brownstone_hub_api.Controllers
                 _logger.LogError(ex, "Error linking Stripe account");
                 return StatusCode(500, new { Message = "An error occurred while linking account" });
             }
+        }
+
+        private async Task<(long OrganizationId, ApprovedStripeDestination? Destination, IActionResult? Error)>
+            ResolveOwnedApprovedDestinationAsync(long actorUserId)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+            {
+                return (0, null, StatusCode(StatusCodes.Status403Forbidden,
+                    new { Message = "Organization context is required" }));
+            }
+
+            if (_stripeConnectedPayeeService == null)
+            {
+                return (organizationId.Value, null, StatusCode(StatusCodes.Status503ServiceUnavailable,
+                    new { Message = "Payout account management is unavailable" }));
+            }
+
+            var destination = await _stripeConnectedPayeeService.ResolveApprovedDestinationAsync(
+                actorUserId, organizationId.Value, HttpContext.RequestAborted);
+            if (destination == null || destination.PayeeUserId != actorUserId)
+            {
+                return (organizationId.Value, null, StatusCode(StatusCodes.Status403Forbidden,
+                    new { Message = "Payout account management is unavailable for this organization" }));
+            }
+
+            if (!await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
+                    actorUserId, organizationId.Value, destination.StripeAccountId,
+                    HttpContext.RequestAborted))
+            {
+                return (organizationId.Value, null, StatusCode(StatusCodes.Status403Forbidden,
+                    new { Message = "This Stripe destination is not payout-approved for the current organization" }));
+            }
+
+            return (organizationId.Value, destination, null);
         }
 
         private async Task<long?> GetCurrentUserIdAsync()

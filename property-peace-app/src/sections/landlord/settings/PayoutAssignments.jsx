@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -20,6 +20,12 @@ import { loadConnectAndInitialize } from '@stripe/connect-js';
 import { ConnectAccountManagement, ConnectComponentsProvider } from '@stripe/react-connect-js';
 
 import axiosServices from 'utils/axios';
+import { useOrganization } from 'contexts/OrganizationContext';
+import {
+  canManageStripeAccount,
+  createStripeOrganizationRequestLifecycle,
+  makeStripeOrganizationScopeKey
+} from 'utils/stripeOrganizationRequestLifecycle';
 
 const field = (value, camel, pascal) => value?.[camel] ?? value?.[pascal];
 
@@ -29,6 +35,8 @@ const formatAccountType = (value) => {
 };
 
 export default function PayoutAssignments() {
+  const { currentOrganization } = useOrganization();
+  const stripeScopeKey = makeStripeOrganizationScopeKey(currentOrganization?.id ?? currentOrganization?.Id);
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -36,63 +44,101 @@ export default function PayoutAssignments() {
   const [connectInstance, setConnectInstance] = useState(null);
   const [managementOpen, setManagementOpen] = useState(false);
   const [componentError, setComponentError] = useState('');
+  const requestLifecycleRef = useRef(null);
+  const managementCallbackGuardRef = useRef(null);
+
+  if (!requestLifecycleRef.current) {
+    requestLifecycleRef.current = createStripeOrganizationRequestLifecycle(() => {
+      setStatus(null);
+      setLoading(false);
+      setLoadError('');
+      setOpening(false);
+      setConnectInstance(null);
+      setManagementOpen(false);
+      setComponentError('');
+      managementCallbackGuardRef.current = null;
+    });
+  }
+
+  useLayoutEffect(() => {
+    requestLifecycleRef.current.setScope(stripeScopeKey);
+  }, [stripeScopeKey]);
+
+  useEffect(() => () => requestLifecycleRef.current?.dispose(), []);
 
   const loadPayoutAccount = useCallback(async () => {
-    try {
-      setLoading(true);
-      setLoadError('');
-      const response = await axiosServices.get('/api/stripe/account-status');
-      setStatus(response.data?.data ?? response.data ?? null);
-    } catch (error) {
-      console.error('Unable to load Stripe payout account:', error);
-      setLoadError('We could not load your payout account from Stripe. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    if (!stripeScopeKey) return;
+    setLoading(true);
+    setLoadError('');
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'account-status',
+      request: ({ signal }) => axiosServices.get('/api/stripe/account-status', { signal }),
+      onSuccess: (response) => setStatus(response.data?.data ?? response.data ?? null),
+      onError: (error) => {
+        console.error('Unable to load Stripe payout account:', error);
+        setLoadError('We could not load your payout account from Stripe. Please try again.');
+      },
+      onFinally: () => setLoading(false)
+    });
+  }, [stripeScopeKey]);
 
   useEffect(() => {
     loadPayoutAccount();
   }, [loadPayoutAccount]);
 
   const openAccountManagement = async () => {
-    try {
-      setOpening(true);
-      setComponentError('');
-      const keyResponse = await axiosServices.get('/api/stripe/publishable-key');
-      const publishableKey = keyResponse.data?.publishableKey;
-      if (!publishableKey) throw new Error('Stripe is not configured for account management.');
+    if (!canManageStripeAccount(status) || !stripeScopeKey) return;
+    setOpening(true);
+    setComponentError('');
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'account-management-bootstrap',
+      request: ({ signal }) => axiosServices.get('/api/stripe/publishable-key', { signal }),
+      onSuccess: (keyResponse) => {
+        const publishableKey = keyResponse.data?.publishableKey;
+        if (!publishableKey) throw new Error('Stripe is not configured for account management.');
 
-      const instance = loadConnectAndInitialize({
-        publishableKey,
-        fetchClientSecret: async () => {
-          const sessionResponse = await axiosServices.post('/api/stripe/account-management-session');
-          const clientSecret = sessionResponse.data?.data?.clientSecret;
-          if (!clientSecret) throw new Error('Stripe did not return a valid account-management session.');
-          return clientSecret;
-        },
-        appearance: {
-          overlays: 'dialog',
-          variables: {
-            colorPrimary: '#061e35',
-            fontFamily: "'Public Sans', sans-serif",
-            borderRadius: '8px',
-            spacingUnit: '4px'
+        const callbackGuard = requestLifecycleRef.current.capture(stripeScopeKey);
+        managementCallbackGuardRef.current = callbackGuard;
+        const instance = loadConnectAndInitialize({
+          publishableKey,
+          fetchClientSecret: async () => {
+            if (!callbackGuard.isCurrent() || managementCallbackGuardRef.current !== callbackGuard) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
+            const sessionResponse = await axiosServices.post('/api/stripe/account-management-session');
+            if (!callbackGuard.isCurrent() || managementCallbackGuardRef.current !== callbackGuard) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
+            const clientSecret = sessionResponse.data?.data?.clientSecret;
+            if (!clientSecret) throw new Error('Stripe did not return a valid account-management session.');
+            return clientSecret;
+          },
+          appearance: {
+            overlays: 'dialog',
+            variables: {
+              colorPrimary: '#061e35',
+              fontFamily: "'Public Sans', sans-serif",
+              borderRadius: '8px',
+              spacingUnit: '4px'
+            }
           }
-        }
-      });
+        });
 
-      setConnectInstance(instance);
-      setManagementOpen(true);
-    } catch (error) {
-      console.error('Unable to open Stripe account management:', error);
-      setComponentError(error?.response?.data?.message || error?.message || 'Stripe account management is temporarily unavailable.');
-    } finally {
-      setOpening(false);
-    }
+        setConnectInstance(instance);
+        setManagementOpen(true);
+      },
+      onError: (error) => {
+        console.error('Unable to open Stripe account management:', error);
+        setComponentError(error?.response?.data?.message || error?.message || 'Stripe account management is temporarily unavailable.');
+      },
+      onFinally: () => setOpening(false)
+    });
   };
 
   const closeAccountManagement = () => {
+    managementCallbackGuardRef.current = null;
     setManagementOpen(false);
     setConnectInstance(null);
     loadPayoutAccount();
@@ -104,7 +150,8 @@ export default function PayoutAssignments() {
   const accountType = field(payoutBank, 'accountType', 'AccountType');
   const currency = field(payoutBank, 'currency', 'Currency');
   const hasStripeAccount = Boolean(field(status, 'accountId', 'AccountId'));
-  const canManageAccount = Boolean(field(status, 'canManageAccount', 'CanManageAccount'));
+  const canManageAccount = canManageStripeAccount(status);
+  const renderedManagementGuard = managementCallbackGuardRef.current;
 
   if (loading) {
     return (
@@ -239,8 +286,22 @@ export default function PayoutAssignments() {
           {connectInstance && (
             <ConnectComponentsProvider connectInstance={connectInstance}>
               <ConnectAccountManagement
-                onLoaderStart={() => setComponentError('')}
-                onLoadError={() => setComponentError('Stripe account management could not load. Close this window and try again.')}
+                onLoaderStart={() => {
+                  if (
+                    renderedManagementGuard &&
+                    managementCallbackGuardRef.current === renderedManagementGuard &&
+                    renderedManagementGuard.isCurrent()
+                  ) setComponentError('');
+                }}
+                onLoadError={() => {
+                  if (
+                    renderedManagementGuard &&
+                    managementCallbackGuardRef.current === renderedManagementGuard &&
+                    renderedManagementGuard.isCurrent()
+                  ) {
+                    setComponentError('Stripe account management could not load. Close this window and try again.');
+                  }
+                }}
               />
             </ConnectComponentsProvider>
           )}

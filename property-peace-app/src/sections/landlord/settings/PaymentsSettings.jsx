@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -30,6 +30,14 @@ import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
 import RentPaymentAccessPanel from 'components/rent-payments/RentPaymentAccessPanel';
 import ConnectOnboardingWizard from 'sections/landlord/payments/ConnectOnboardingWizard';
 import { validateConnectOnboardingContext } from 'utils/connectOnboarding';
+import { useOrganization } from 'contexts/OrganizationContext';
+import {
+  canCreateInitialStripeAccount,
+  canManageStripeAccount,
+  createStripeOrganizationRequestLifecycle,
+  getInitialStripeOnboardingUrl,
+  makeStripeOrganizationScopeKey
+} from 'utils/stripeOrganizationRequestLifecycle';
 import { Grid, Card, CardContent } from '@mui/material';
 
 function DemoStripePaymentsPreview() {
@@ -153,6 +161,8 @@ function DemoStripePaymentsPreview() {
 export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const theme = useTheme();
   const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
+  const stripeScopeKey = makeStripeOrganizationScopeKey(currentOrganization?.id ?? currentOrganization?.Id);
   const { properties, propertiesRefetch, isLoading: propertiesLoading, propertiesError } = useFetchProperties();
   const {
     presentation: rentPresentation,
@@ -163,6 +173,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [accountStatus, setAccountStatus] = useState(null);
+  const [accountStatusLoadedSuccessfully, setAccountStatusLoadedSuccessfully] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [showPreparation, setShowPreparation] = useState(false);
   const [connectPreparation, setConnectPreparation] = useState(null);
@@ -170,17 +181,52 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [stripeConnectInstance, setStripeConnectInstance] = useState(null);
   const [fetchingSession, setFetchingSession] = useState(false);
-  const [showLinkAccount, setShowLinkAccount] = useState(false);
-  const [linkAccountId, setLinkAccountId] = useState('');
-  const [linkingAccount, setLinkingAccount] = useState(false);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const prevShowOnboardingRef = useRef(false);
   const connectSubmissionRef = useRef(false);
+  const requestLifecycleRef = useRef(null);
+  const connectCallbackGuardRef = useRef(null);
+  const embeddedOnboardingRequestRef = useRef(null);
   const isDemo = user?.isDemo === true || user?.IsDemo === true;
+  const canManageAccount = canManageStripeAccount(accountStatus);
+  const canCreateInitialAccount = canCreateInitialStripeAccount({
+    statusLoadedSuccessfully: accountStatusLoadedSuccessfully,
+    status: accountStatus,
+    rentCanInvoke,
+    organizationId: currentOrganization?.id ?? currentOrganization?.Id
+  });
+
+  if (!requestLifecycleRef.current) {
+    requestLifecycleRef.current = createStripeOrganizationRequestLifecycle(() => {
+      setAccountStatus(null);
+      setAccountStatusLoadedSuccessfully(false);
+      setBankAccounts([]);
+      setConnectPreparation(null);
+      setShowPreparation(false);
+      setShowOnboarding(false);
+      setStripeConnectInstance(null);
+      setLoading(false);
+      setCheckingStatus(false);
+      setConnecting(false);
+      setPreparationLoading(false);
+      setFetchingSession(false);
+      setLoadingBankAccounts(false);
+      connectSubmissionRef.current = false;
+      connectCallbackGuardRef.current = null;
+      embeddedOnboardingRequestRef.current = null;
+      prevShowOnboardingRef.current = false;
+    });
+  }
+
+  useLayoutEffect(() => {
+    requestLifecycleRef.current.setScope(stripeScopeKey);
+  }, [stripeScopeKey]);
+
+  useEffect(() => () => requestLifecycleRef.current?.dispose(), []);
 
   useEffect(() => {
-    if (isDemo || rentReadinessLoading || rentReadinessError || !rentCanInvoke) {
+    if (!stripeScopeKey || isDemo || rentReadinessLoading || rentReadinessError || !rentCanInvoke) {
       setCheckingStatus(false);
       setShowPreparation(false);
       setShowOnboarding(false);
@@ -201,25 +247,28 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
       window.history.replaceState({}, '', newUrl);
       
       // Refresh account status after a short delay to ensure Stripe has processed
-      setTimeout(() => {
+      const returnRefreshGuard = requestLifecycleRef.current.capture(stripeScopeKey);
+      const returnRefreshTimeout = setTimeout(() => {
+        if (!returnRefreshGuard.isCurrent()) return;
         checkAccountStatus();
         fetchBankAccounts();
       }, 1000);
+
+      return () => clearTimeout(returnRefreshTimeout);
     }
-  }, [user, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError]);
+  }, [user, stripeScopeKey, isDemo, rentCanInvoke, rentReadinessLoading, rentReadinessError]);
 
   const fetchBankAccounts = async () => {
-    try {
-      setLoadingBankAccounts(true);
-      const response = await bankAccountAPI.getBankAccounts();
-      if (response.success && response.data) {
-        setBankAccounts(response.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching bank accounts:', error);
-    } finally {
-      setLoadingBankAccounts(false);
-    }
+    if (!stripeScopeKey || !requestLifecycleRef.current.isCurrent(stripeScopeKey)) return;
+    setLoadingBankAccounts(true);
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'bank-accounts',
+      request: () => bankAccountAPI.getBankAccounts(),
+      onSuccess: (response) => setBankAccounts(response.success && response.data ? response.data : []),
+      onError: (error) => console.error('Error fetching bank accounts:', error),
+      onFinally: () => setLoadingBankAccounts(false)
+    });
   };
 
   // Get properties connected to each bank account
@@ -238,7 +287,9 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     // Check if modal transitioned from open to closed
     if (prevShowOnboardingRef.current && !showOnboarding && stripeConnectInstance) {
       // Modal was just closed, refresh status to check if account was connected
+      const closeRefreshGuard = requestLifecycleRef.current.capture(stripeScopeKey);
       const timeoutId = setTimeout(() => {
+        if (!closeRefreshGuard.isCurrent()) return;
         checkAccountStatus();
       }, 1500);
       
@@ -247,7 +298,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     
     // Update ref for next render
     prevShowOnboardingRef.current = showOnboarding;
-  }, [showOnboarding, stripeConnectInstance, rentCanInvoke]);
+  }, [showOnboarding, stripeConnectInstance, rentCanInvoke, stripeScopeKey]);
 
   const fetchPublishableKey = async () => {
     try {
@@ -266,72 +317,62 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   };
 
   const checkAccountStatus = async () => {
-    if (!user?.id && !user?.Id) return;
-
-    try {
-      setCheckingStatus(true);
-      const response = await axiosServices.get('/api/stripe/account-status');
-      if (response.data && response.data.success && response.data.data) {
-        // Handle camelCase response from API
-        const data = response.data.data;
+    if ((!user?.id && !user?.Id) || !stripeScopeKey || !requestLifecycleRef.current.isCurrent(stripeScopeKey)) return;
+    setCheckingStatus(true);
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'account-status',
+      request: ({ signal }) => axiosServices.get('/api/stripe/account-status', { signal }),
+      onSuccess: (response) => {
+        const data = response.data?.success ? response.data.data : null;
         setAccountStatus({
-          AccountId: data.accountId,
-          Status: data.status,
-          IsEnabled: data.isEnabled || false,
-          ChargesEnabled: data.chargesEnabled || false,
-          PayoutsEnabled: data.payoutsEnabled || false,
-          DetailsSubmitted: data.detailsSubmitted || false,
-          InternalReviewStatus: data.internalReviewStatus || 'Onboarding',
-          IsInternallyPayoutApproved: data.isInternallyPayoutApproved || false,
-          IsAccountReadyForRentTransfers: data.isAccountReadyForRentTransfers || false,
-          AccountReadinessReason: data.accountReadinessReason || null
+          AccountId: data?.accountId || null,
+          Status: data?.status || null,
+          IsEnabled: data?.isEnabled === true,
+          ChargesEnabled: data?.chargesEnabled === true,
+          PayoutsEnabled: data?.payoutsEnabled === true,
+          DetailsSubmitted: data?.detailsSubmitted === true,
+          InternalReviewStatus: data?.internalReviewStatus || 'Onboarding',
+          IsInternallyPayoutApproved: data?.isInternallyPayoutApproved === true,
+          IsAccountReadyForRentTransfers: data?.isAccountReadyForRentTransfers === true,
+          AccountReadinessReason: data?.accountReadinessReason || null,
+          CanManageAccount: data?.canManageAccount === true
         });
-      } else {
-        setAccountStatus({
-          AccountId: null,
-          Status: null,
-          IsEnabled: false,
-          ChargesEnabled: false,
-          PayoutsEnabled: false,
-          DetailsSubmitted: false
-        });
-      }
-    } catch (error) {
-      console.error('Error checking Stripe account status:', error);
-      setAccountStatus({
-        AccountId: null,
-        Status: null,
-        IsEnabled: false,
-        ChargesEnabled: false,
-        PayoutsEnabled: false,
-        DetailsSubmitted: false
-      });
-    } finally {
-      setCheckingStatus(false);
-    }
+        setAccountStatusLoadedSuccessfully(true);
+      },
+      onError: (error) => {
+        console.error('Error checking Stripe account status:', error);
+        setAccountStatus({ AccountId: null, CanManageAccount: false });
+        setAccountStatusLoadedSuccessfully(false);
+      },
+      onFinally: () => setCheckingStatus(false)
+    });
   };
 
   const openConnectPreparation = async () => {
+    if (!canCreateInitialAccount || !stripeScopeKey) return;
     setShowPreparation(true);
     setPreparationLoading(true);
-    try {
-      const response = await axiosServices.get('/api/stripe/connect-preparation');
-      setConnectPreparation(response.data || null);
-    } catch (error) {
-      setShowPreparation(false);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || 'Your saved payout setup could not be loaded. Please try again.',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setPreparationLoading(false);
-    }
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'connect-preparation',
+      request: ({ signal }) => axiosServices.get('/api/stripe/connect-preparation', { signal }),
+      onSuccess: (response) => setConnectPreparation(response.data || null),
+      onError: (error) => {
+        setShowPreparation(false);
+        openSnackbar({
+          open: true,
+          message: error?.response?.data?.message || 'Your saved payout setup could not be loaded. Please try again.',
+          variant: 'alert',
+          alert: { color: 'error' }
+        });
+      },
+      onFinally: () => setPreparationLoading(false)
+    });
   };
 
   const handlePreparedConnectAccount = async (context) => {
-    if (connectSubmissionRef.current) return;
+    if (!canCreateInitialAccount || !stripeScopeKey || connectSubmissionRef.current) return;
     const validationErrors = validateConnectOnboardingContext(
       context,
       properties.map((property) => property?.id ?? property?.Id).filter((propertyId) => propertyId != null)
@@ -347,101 +388,63 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     }
 
     connectSubmissionRef.current = true;
-    try {
-      setConnecting(true);
-      const preparationResponse = await axiosServices.post('/api/stripe/connect-preparation', context);
-      const savedPreparation = preparationResponse.data;
-      if (!savedPreparation?.id || !Array.isArray(savedPreparation.propertyIds) || !savedPreparation.updatedAt) {
-        throw new Error('Property Peace could not confirm the saved payout setup.');
-      }
-      setConnectPreparation(savedPreparation);
-
-      const returnUrl = `${window.location.origin}/landlord/settings?tab=payments&stripe=connected`;
-      const response = await axiosServices.post('/api/stripe/connect-account', {
-        returnUrl,
-        refreshUrl: returnUrl
-      });
-
-      const accountId = response.data?.data?.accountId;
-      if (response.data?.success && typeof accountId === 'string' && accountId.trim()) {
+    setConnecting(true);
+    return requestLifecycleRef.current.run({
+      scopeKey: stripeScopeKey,
+      channel: 'initial-account-creation',
+      request: async ({ signal }) => {
+        const preparationResponse = await axiosServices.post('/api/stripe/connect-preparation', context, { signal });
+        const savedPreparation = preparationResponse.data;
+        if (!savedPreparation?.id || !Array.isArray(savedPreparation.propertyIds) || !savedPreparation.updatedAt) {
+          throw new Error('Property Peace could not confirm the saved payout setup.');
+        }
+        const returnUrl = `${window.location.origin}/landlord/settings?tab=payments&stripe=connected`;
+        const createResponse = await axiosServices.post(
+          '/api/stripe/connect-account',
+          { returnUrl, refreshUrl: returnUrl },
+          { signal }
+        );
+        const onboardingUrl = getInitialStripeOnboardingUrl(createResponse.data);
+        if (!onboardingUrl) {
+          throw new Error(createResponse.data?.message || 'Stripe account creation did not return an onboarding URL.');
+        }
+        return { savedPreparation, onboardingUrl };
+      },
+      onSuccess: ({ savedPreparation, onboardingUrl }) => {
+        setConnectPreparation(savedPreparation);
         setShowPreparation(false);
-        await openEmbeddedOnboarding({ accountId });
-      } else {
-        throw new Error(response.data?.message || 'Stripe account creation did not return an account ID.');
+        window.location.assign(onboardingUrl);
+      },
+      onError: (error) => {
+        console.error('Error connecting Stripe account:', error);
+        openSnackbar({
+          open: true,
+          message: error?.response?.data?.message || error?.message || 'Failed to connect Stripe account',
+          variant: 'alert',
+          alert: { color: 'error' }
+        });
+      },
+      onFinally: () => {
+        connectSubmissionRef.current = false;
+        setConnecting(false);
       }
-    } catch (error) {
-      console.error('Error connecting Stripe account:', error);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || error?.message || 'Failed to connect Stripe account',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      connectSubmissionRef.current = false;
-      setConnecting(false);
-    }
+    });
   };
 
-  const openEmbeddedOnboarding = async ({ accountId: suppliedAccountId } = {}) => {
-    if (!accountStatus?.AccountId && !user?.id && !user?.Id) {
-      openSnackbar({
-        open: true,
-        message: 'Please create an account first',
-        variant: 'alert',
-        alert: { color: 'warning' }
-      });
-      return;
-    }
+  const openEmbeddedOnboarding = async () => {
+    if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
+    const callbackGuard = requestLifecycleRef.current.capture(stripeScopeKey);
+    const requestToken = Symbol('embedded-onboarding');
+    embeddedOnboardingRequestRef.current = requestToken;
 
     try {
       setFetchingSession(true);
 
-      // If account doesn't exist yet, create it first
-      if (!suppliedAccountId && !accountStatus?.AccountId) {
-        const returnUrl = `${window.location.origin}/landlord/settings?tab=payments`;
-        const createResponse = await axiosServices.post('/api/stripe/connect-account', {
-          returnUrl,
-          refreshUrl: returnUrl
-        });
-
-        if (!createResponse.data?.success) {
-          throw new Error('Failed to create Stripe account');
-        }
-
-        // Get the account ID from the create response
-        const newAccountId = createResponse.data?.data?.accountId;
-        if (newAccountId) {
-          // Update local state immediately
-          setAccountStatus(prev => ({
-            ...prev,
-            AccountId: newAccountId,
-            Status: 'pending',
-            DetailsSubmitted: false
-          }));
-        } else {
-          // Fallback: refresh account status
-          await checkAccountStatus();
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      // Get current account ID (use state or fetch fresh)
-      let accountId = suppliedAccountId || accountStatus?.AccountId;
-      if (!accountId) {
-        // Fetch fresh account status
-        const statusResponse = await axiosServices.get('/api/stripe/account-status');
-        if (statusResponse.data?.success && statusResponse.data?.data) {
-          accountId = statusResponse.data.data.accountId;
-        }
-      }
-      
-      if (!accountId) {
-        throw new Error('Stripe account ID not found. Please try again.');
-      }
+      const accountId = accountStatus.AccountId;
       
       // Get publishable key first
       const keyResponse = await axiosServices.get('/api/stripe/publishable-key');
+      if (!callbackGuard.isCurrent() || embeddedOnboardingRequestRef.current !== requestToken) return;
       const publishableKey = keyResponse.data?.publishableKey;
       if (!publishableKey) {
         console.error('Stripe publishable key is missing.');
@@ -452,8 +455,14 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
         publishableKey: publishableKey,
         fetchClientSecret: async () => {
           try {
+            if (!callbackGuard.isCurrent()) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
             // Get account session for embedded onboarding
             const sessionResponse = await axiosServices.post('/api/stripe/account-session');
+            if (!callbackGuard.isCurrent()) {
+              throw new DOMException('Organization changed', 'AbortError');
+            }
             
             if (sessionResponse.data && sessionResponse.data.success && sessionResponse.data.data) {
               const clientSecret = sessionResponse.data.data.clientSecret;
@@ -511,9 +520,12 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
         }
       });
 
+      if (!callbackGuard.isCurrent() || embeddedOnboardingRequestRef.current !== requestToken) return;
+      connectCallbackGuardRef.current = callbackGuard;
       setStripeConnectInstance(connectInstance);
       setShowOnboarding(true);
     } catch (error) {
+      if (!callbackGuard.isCurrent() || embeddedOnboardingRequestRef.current !== requestToken) return;
       console.error('Error opening embedded onboarding:', error);
       openSnackbar({
         open: true,
@@ -522,16 +534,23 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
         alert: { color: 'error' }
       });
     } finally {
-      setFetchingSession(false);
+      if (callbackGuard.isCurrent() && embeddedOnboardingRequestRef.current === requestToken) {
+        embeddedOnboardingRequestRef.current = null;
+        setFetchingSession(false);
+      }
     }
   };
 
   const handleOnboardingComplete = async () => {
+    if (!connectCallbackGuardRef.current?.isCurrent() || !canManageAccount || !stripeScopeKey) return;
+    const callbackGuard = connectCallbackGuardRef.current;
     setShowOnboarding(false);
 
     // Wait a moment for Stripe to process the update, then refresh account status
     setTimeout(async () => {
+      if (!callbackGuard.isCurrent()) return;
       await checkAccountStatus();
+      if (!callbackGuard.isCurrent()) return;
       
       openSnackbar({
         open: true,
@@ -543,61 +562,13 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   };
 
   const handleOnboardingExit = async () => {
+    if (!connectCallbackGuardRef.current?.isCurrent() || !canManageAccount) return;
+    const callbackGuard = connectCallbackGuardRef.current;
     setShowOnboarding(false);
-    
-    // Refresh account status in case onboarding was completed before exit
-    // Wait a moment for Stripe to process any updates
     setTimeout(async () => {
+      if (!callbackGuard.isCurrent()) return;
       await checkAccountStatus();
     }, 1500);
-  };
-
-  const handleLinkExistingAccount = async () => {
-    if (!linkAccountId.trim()) {
-      openSnackbar({
-        open: true,
-        message: 'Please enter a Stripe account ID',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-      return;
-    }
-
-    try {
-      setLinkingAccount(true);
-      const response = await axiosServices.post('/api/stripe/link-account', {
-        accountId: linkAccountId.trim()
-      });
-
-      if (response.data && response.data.success) {
-        openSnackbar({
-          open: true,
-          message: 'Account linked successfully!',
-          variant: 'alert',
-          alert: { color: 'success' }
-        });
-        setShowLinkAccount(false);
-        setLinkAccountId('');
-        await checkAccountStatus();
-      } else {
-        openSnackbar({
-          open: true,
-          message: response.data?.message || 'Failed to link account',
-          variant: 'alert',
-          alert: { color: 'error' }
-        });
-      }
-    } catch (error) {
-      console.error('Error linking account:', error);
-      openSnackbar({
-        open: true,
-        message: error?.response?.data?.message || 'Error linking account. Please try again.',
-        variant: 'alert',
-        alert: { color: 'error' }
-      });
-    } finally {
-      setLinkingAccount(false);
-    }
   };
 
   const getStatusChip = () => {
@@ -650,7 +621,9 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
           {...rentPaymentAccess}
           onRequest={rentPaymentAccess.requestAccess}
           onRefresh={rentPaymentAccess.refresh}
-          onConfigure={hasNoAccount ? openConnectPreparation : openEmbeddedOnboarding}
+          onConfigure={hasNoAccount
+            ? (canCreateInitialAccount ? openConnectPreparation : undefined)
+            : (canManageAccount ? openEmbeddedOnboarding : undefined)}
         />
         <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -660,47 +633,41 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
                 Online rent payment account
               </Typography>
             </Box>
-            {accountStatus?.AccountId && (
+            {accountStatus?.AccountId && canManageAccount && (
               <Button
                 variant="outlined"
                 startIcon={<LinkOutlined />}
-                onClick={async () => {
-                  try {
-                    // If account is fully set up, use login link for dashboard access
-                    // Otherwise, use account link for onboarding/updates
-                    if (accountStatus?.DetailsSubmitted) {
-                      // Use login link for dashboard access
-                      const response = await axiosServices.post('/api/stripe/login-link');
-                      
-                      if (response.data && response.data.dashboardUrl) {
-                        window.open(response.data.dashboardUrl, '_blank', 'noopener,noreferrer');
-                      } else {
-                        throw new Error('Failed to get dashboard link');
+                onClick={() => {
+                  if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
+                  requestLifecycleRef.current.run({
+                    scopeKey: stripeScopeKey,
+                    channel: 'existing-account-link',
+                    request: async ({ signal }) => {
+                      if (accountStatus.DetailsSubmitted) {
+                        const response = await axiosServices.post('/api/stripe/login-link', null, { signal });
+                        if (!response.data?.dashboardUrl) throw new Error('Failed to get dashboard link');
+                        return response.data.dashboardUrl;
                       }
-                    } else {
-                      // Use account link for onboarding/updates
                       const returnUrl = `${window.location.origin}/landlord/settings?tab=payments`;
                       const response = await axiosServices.post('/api/stripe/account-link', {
                         returnUrl,
                         refreshUrl: returnUrl,
                         type: 'account_onboarding'
+                      }, { signal });
+                      if (!response.data?.onboardingUrl) throw new Error('Failed to get onboarding link');
+                      return response.data.onboardingUrl;
+                    },
+                    onSuccess: (url) => window.open(url, '_blank', 'noopener,noreferrer'),
+                    onError: (error) => {
+                      console.error('Error opening Stripe dashboard:', error);
+                      openSnackbar({
+                        open: true,
+                        message: error?.response?.data?.message || 'Failed to open Stripe dashboard',
+                        variant: 'alert',
+                        alert: { color: 'error' }
                       });
-                      
-                      if (response.data && response.data.onboardingUrl) {
-                        window.open(response.data.onboardingUrl, '_blank', 'noopener,noreferrer');
-                      } else {
-                        throw new Error('Failed to get onboarding link');
-                      }
                     }
-                  } catch (error) {
-                    console.error('Error opening Stripe dashboard:', error);
-                    openSnackbar({
-                      open: true,
-                      message: error?.response?.data?.message || 'Failed to open Stripe dashboard',
-                      variant: 'alert',
-                      alert: { color: 'error' }
-                    });
-                  }
+                  });
                 }}
               >
                 {accountStatus?.DetailsSubmitted ? 'View Stripe Dashboard' : 'Complete Account Setup'}
@@ -710,6 +677,11 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Complete Stripe's secure setup to accept tenant payments and route approved rent payouts to your bank account.
           </Typography>
+          {!hasNoAccount && !canManageAccount && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Stripe onboarding, dashboard access, and account changes are restricted to this organization’s connected-account owner.
+            </Alert>
+          )}
 
           <Divider sx={{ my: 3 }} />
 
@@ -756,9 +728,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
               <Alert severity="info" sx={{ mb: 2 }}>
                 Connect your bank account to start accepting online payments from tenants. The setup process takes just a few minutes.
                 <br />
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  If you already have a Stripe account, you can link it using the button below.
-                </Typography>
+
               </Alert>
             )}
           </Box>
@@ -780,7 +750,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
             variant="text"
             startIcon={<PlusOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />}
             onClick={hasNoAccount ? openConnectPreparation : openEmbeddedOnboarding}
-            disabled={connecting || loading || fetchingSession}
+            disabled={(hasNoAccount ? !canCreateInitialAccount : !canManageAccount) || connecting || loading || fetchingSession}
             sx={{
               color: 'primary.main',
               textTransform: 'none',
