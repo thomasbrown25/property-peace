@@ -846,6 +846,30 @@ This is an automated email from Property Peace. Please do not reply to this mess
         }
 
         [Authorize]
+        [HttpPost("online-payments-welcome/continue")]
+        public async Task<ActionResult<ServiceResponse<bool>>> ContinueToOnlinePayments()
+        {
+            var currentUser = await _userService.LoadUser();
+            if (!currentUser.Success || currentUser.Data == null)
+            {
+                return Unauthorized(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    StatusCode = 401,
+                    Message = "Authenticated user was not found."
+                });
+            }
+
+            var response = await _userService.UpdateHasContinuedToOnlinePayments(currentUser.Data.Id);
+            if (!response.Success)
+            {
+                return StatusCode(response.StatusCode == 0 ? 400 : response.StatusCode, response);
+            }
+
+            return Ok(response);
+        }
+
+        [Authorize]
         [HttpPost("feedback")]
         public async Task<ActionResult<ServiceResponse<LoadSupportAndFeedbackDto>>> SubmitFeedback([FromBody] AddFeedbackDto request)
         {

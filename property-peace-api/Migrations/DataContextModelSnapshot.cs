@@ -12052,6 +12052,9 @@ namespace brownstone_hub_api.Migrations
                     b.Property<string>("GoogleId")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<bool>("HasContinuedToOnlinePayments")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("HasSeenTutorial")
                         .HasColumnType("bit");
 

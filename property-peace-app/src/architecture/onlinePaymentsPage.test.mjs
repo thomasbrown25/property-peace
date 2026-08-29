@@ -47,10 +47,13 @@ test('Online Payments shows a one-time welcome before the tabbed payment workspa
 
   assert.match(page, /<ManagementPageHeader/);
   assert.match(page, /title="Online Payments"/);
+  assert.match(page, /user\.hasContinuedToOnlinePayments === true/);
+  assert.match(page, /post\('\/api\/user\/online-payments-welcome\/continue'\)/);
+  assert.match(page, /updateUser\(\{ hasContinuedToOnlinePayments: true \}\)/);
   assert.match(page, /hasContinuedToOnlinePayments\(user, currentOrganization\)/);
   assert.match(page, /markOnlinePaymentsContinued\(user, currentOrganization\)/);
   assert.match(page, /Continue to Online Payments/);
-  assert.match(page, /useState\('bank-accounts'\)/);
+  assert.match(page, /useState\(DEFAULT_ONLINE_PAYMENT_TAB\)/);
   assert.match(page, /getOnlinePaymentTabs\(rentPaymentAccess\.access, rentPaymentAccess\.presentation\.canConfigure\)/);
   assert.match(page, /getSelectedOnlinePaymentTab\(activeTab, paymentTabs\)/);
   assert.match(page, /paymentTabs\.map\(\(\{ id, label \}\)/);
