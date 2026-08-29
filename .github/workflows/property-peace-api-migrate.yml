@@ -74,11 +74,15 @@ jobs:
             --output $bundlePath
           if ($LASTEXITCODE -ne 0) { throw 'Failed to build EF migration bundle.' }
 
-          $policyType = 'Microsoft.Web/sites/basicPublishingCredentialsPolicies'
-          $policyName = "$appName/scm"
+          $policyNamespace = 'Microsoft.Web'
+          $policyType = 'basicPublishingCredentialsPolicies'
+          $policyParent = "sites/$appName"
+          $policyName = 'scm'
           $scmPolicy = az resource show `
             --resource-group $resourceGroup `
+            --namespace $policyNamespace `
             --resource-type $policyType `
+            --parent $policyParent `
             --name $policyName `
             --api-version 2022-03-01 | ConvertFrom-Json
           $restoreScmBasicAuth = -not [bool]$scmPolicy.properties.allow
@@ -86,7 +90,9 @@ jobs:
           if ($restoreScmBasicAuth) {
             az resource update `
               --resource-group $resourceGroup `
+              --namespace $policyNamespace `
               --resource-type $policyType `
+              --parent $policyParent `
               --name $policyName `
               --api-version 2022-03-01 `
               --set properties.allow=true `
@@ -148,7 +154,9 @@ jobs:
             if ($restoreScmBasicAuth) {
               az resource update `
                 --resource-group $resourceGroup `
+                --namespace $policyNamespace `
                 --resource-type $policyType `
+                --parent $policyParent `
                 --name $policyName `
                 --api-version 2022-03-01 `
                 --set properties.allow=false `
