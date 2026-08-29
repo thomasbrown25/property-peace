@@ -26,19 +26,19 @@ export default function RentPaymentAccessPanel({ presentation, loading = false, 
   return (
     <Paper variant="outlined" sx={{ p: compact ? 2 : 2.5, mb: 3, borderColor: state === 'ready' ? 'success.light' : 'divider' }}>
       <Stack spacing={1.5}>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-          <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, letterSpacing: 0.8 }}>Online rent payments</Typography>
-          <Chip
-            icon={approvalBadgeStates.has(state) ? <CheckCircleOutlined /> : undefined}
-            label={statusChip.label}
-            color={statusChip.color}
-            size="small"
-            variant={statusChip.color === 'default' ? 'outlined' : 'filled'}
-            sx={{ fontWeight: 700 }}
-          />
-        </Stack>
+        <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, letterSpacing: 0.8 }}>Online rent payments</Typography>
         <Box aria-live="polite" aria-atomic="true">
-          <Typography variant="h5">{presentation?.title || 'Online rent payments temporarily unavailable'}</Typography>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="h5">{presentation?.title || 'Online rent payments temporarily unavailable'}</Typography>
+            <Chip
+              icon={approvalBadgeStates.has(state) ? <CheckCircleOutlined /> : undefined}
+              label={statusChip.label}
+              color={statusChip.color}
+              size="small"
+              variant={statusChip.color === 'default' ? 'outlined' : 'filled'}
+              sx={{ fontWeight: 700 }}
+            />
+          </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{presentation?.message}</Typography>
         </Box>
         {error && <Alert severity="error" action={<Button color="inherit" size="small" onClick={onRefresh} disabled={disabled}>Retry</Button>}>{error}</Alert>}

@@ -42,7 +42,14 @@ namespace brownstone_hub_api.Services.LeaseChecklistSchedulingService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in lease checklist scheduling background service");
-                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
                 }
             }
 

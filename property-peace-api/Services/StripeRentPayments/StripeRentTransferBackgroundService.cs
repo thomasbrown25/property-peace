@@ -27,7 +27,14 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                     logger.LogError(ex, "Stripe rent transfer worker iteration failed");
                 }
 
-                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                try
+                {
+                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
         }
     }

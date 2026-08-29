@@ -35,3 +35,12 @@ test('the top-nav bell marks recent notifications only when opening the dropdown
   assert.match(source, /getUnreadRecentNotificationIds\(notifications\)/);
   assert.match(source, /Promise\.allSettled\([\s\S]*mark-read\/\$\{notificationId\}/);
 });
+
+test('the top-nav bell opens rent-payment access requests in the admin portal', () => {
+  const source = fs.readFileSync(
+    new URL('../layout/Dashboard/Header/HeaderContent/Notification.jsx', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(source, /case 'rentPaymentAccessRequest':[\s\S]*if \(isAdmin\)[\s\S]*navigate\('\/admin\/rent-payment-access'\)/);
+});

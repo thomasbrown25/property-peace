@@ -242,6 +242,18 @@ else
     Console.WriteLine("[Config] WARNING: AZURE_APP_CONFIG_CONNECTION_STRING is not set. Azure App Configuration will not be loaded.");
 }
 
+// Azure App Configuration is shared with hosted environments and can contain settings that rely on
+// Azure-only infrastructure, such as SQL Managed Identity. Keep local Development overrides
+// authoritative so local processes do not attempt Azure IMDS authentication. Production continues
+// to use the Azure values above.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration
+        .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true)
+        .AddUserSecrets(System.Reflection.Assembly.GetExecutingAssembly(), optional: true)
+        .AddEnvironmentVariables();
+}
+
 // 3) Add the service so middleware can refresh
 services.AddAzureAppConfiguration();
 

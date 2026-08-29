@@ -61,15 +61,34 @@ function TimelineEntry({ entry, canCreateFollowUp, onCreateFollowUp }) {
   const item = getTimelineEntryPresentation(entry);
   if (!item) return null;
   return (
-    <Box component="li" sx={{ listStyle: 'none', position: 'relative', pl: 3, pb: 2, '&:last-of-type': { pb: 0 } }}>
-      <Box sx={{ position: 'absolute', left: 5, top: 6, bottom: -6, width: 1, bgcolor: 'divider', '&::before': { content: '""', position: 'absolute', top: 0, left: -4, width: 9, height: 9, borderRadius: '50%', bgcolor: 'primary.main' } }} />
-      <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+    <Box
+      role="listitem"
+      sx={{
+        position: 'relative',
+        width: '100%',
+        minWidth: 0,
+        pl: 3,
+        pb: 2,
+        '&:last-of-type': { pb: 0 },
+        '&:last-of-type .timeline-connector': { display: 'none' }
+      }}
+    >
+      <Box
+        className="timeline-connector"
+        aria-hidden="true"
+        sx={{ position: 'absolute', left: 5, top: 8, bottom: -8, width: '1px', bgcolor: 'divider' }}
+      />
+      <Box
+        aria-hidden="true"
+        sx={{ position: 'absolute', left: 1, top: 4, width: 9, height: 9, borderRadius: '50%', bgcolor: 'primary.main' }}
+      />
+      <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ minWidth: 0 }}>
         <Typography variant="subtitle2" fontWeight={700}>{item.kindLabel}</Typography>
         {item.channelLabel && <Chip size="small" variant="outlined" label={item.channelLabel} sx={{ height: 21 }} />}
         {item.direction && <Chip size="small" label={item.direction === 'inbound' ? 'Received' : 'Sent'} sx={{ height: 21, textTransform: 'capitalize' }} />}
         <Typography variant="caption" color="text.secondary">{formatActivityTime(item.occurredAt)}</Typography>
       </Stack>
-      <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.summary}</Typography>
+      <Typography variant="body2" sx={{ mt: 0.5, minWidth: 0, lineHeight: 1.55, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{item.summary}</Typography>
       <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
         {item.context && <Chip size="small" color="primary" variant="outlined" label={item.context.label} title={`${item.context.kind} context`} />}
         {item.deliveries.map((delivery, index) => (
@@ -90,8 +109,16 @@ function TimelineEntry({ entry, canCreateFollowUp, onCreateFollowUp }) {
   );
 }
 
-export default function ConversationTimelinePanel({ conversationId = null, contextKind = null, contextId = null, organizationId = null, currentUserId = null }) {
-  const [expanded, setExpanded] = useState(false);
+export default function ConversationTimelinePanel({
+  conversationId = null,
+  contextKind = null,
+  contextId = null,
+  organizationId = null,
+  currentUserId = null,
+  title = 'Communication activity',
+  defaultExpanded = false
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const [items, setItems] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [query, setQuery] = useState('');
@@ -110,6 +137,7 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
   const requestId = useRef(0);
   const followUpKey = useRef(null);
   const canManageFollowUps = Number(organizationId) > 0 && Number(currentUserId) > 0 && Number(conversationId) > 0;
+  const loadMoreLabel = contextKind === 'maintenance' ? 'Load more history' : 'Load more activity';
 
   const loadFollowUps = useCallback(async () => {
     if (!canManageFollowUps) return;
@@ -132,30 +160,35 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
     append ? setLoadingMore(true) : setLoading(true);
     setError('');
     try {
-      const page = search || selectedChannel || (contextKind && validContextId)
+      const searchTake = 100;
+      const searchSkip = append && Number.isSafeInteger(Number(cursor)) ? Number(cursor) : 0;
+      const isContextSearch = Boolean(search || selectedChannel || (contextKind && validContextId));
+      const page = isContextSearch
         ? await searchConversationTimeline({
             query: search,
             conversationId: validConversationId ? Number(conversationId) : undefined,
             contextKind: contextKind || undefined,
             contextId: validContextId ? Number(contextId) : undefined,
             channel: selectedChannel || undefined,
-            skip: 0,
-            take: 50
+            skip: searchSkip,
+            take: searchTake
           })
         : await getConversationTimeline(Number(conversationId), { afterSequence: cursor, take: 50 });
       if (currentRequest !== requestId.current) return;
       if (!page) throw new Error('Timeline response did not match the expected contract.');
       setItems((current) => append ? mergeTimelinePages(current, page.items) : page.items);
-      setNextCursor(search || selectedChannel || contextKind ? null : page.nextCursor);
+      setNextCursor(isContextSearch
+        ? (page.items.length === searchTake ? searchSkip + searchTake : null)
+        : page.nextCursor);
     } catch (_) {
-      if (currentRequest === requestId.current) setError('Communication activity could not be loaded. Try again.');
+      if (currentRequest === requestId.current) setError(`${title} could not be loaded. Try again.`);
     } finally {
       if (currentRequest === requestId.current) {
         setLoading(false);
         setLoadingMore(false);
       }
     }
-  }, [contextId, contextKind, conversationId]);
+  }, [contextId, contextKind, conversationId, title]);
 
   useEffect(() => {
     requestId.current += 1;
@@ -233,12 +266,12 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
       onChange={(_, next) => setExpanded(next)}
       disableGutters
       elevation={0}
-      sx={{ flexShrink: 0, borderBottom: 1, borderColor: 'divider', '&::before': { display: 'none' } }}
+      sx={{ width: '100%', minWidth: 0, flexShrink: 0, overflow: 'hidden', borderBottom: 1, borderColor: 'divider', '&::before': { display: 'none' } }}
     >
       <AccordionSummary expandIcon={<DownOutlined />} aria-controls="communication-timeline-content" id="communication-timeline-heading" sx={{ minHeight: 44, px: { xs: 1.5, sm: 2 } }}>
         <Stack direction="row" spacing={1} alignItems="center">
           <HistoryOutlined />
-          <Typography variant="subtitle2" fontWeight={700}>Communication activity</Typography>
+          <Typography variant="subtitle2" fontWeight={700}>{title}</Typography>
           {unreadCount > 0 && <Chip size="small" color="primary" label={`${unreadCount} unread`} />}
         </Stack>
       </AccordionSummary>
@@ -293,15 +326,26 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
             ) : error ? (
               <Alert severity="error" action={<Button color="inherit" size="small" onClick={() => load({ search: query.trim(), selectedChannel: channel })}>Retry</Button>}>{error}</Alert>
             ) : items.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 3 }}>{query || channel ? 'No activity matches these filters.' : 'No communication activity yet.'}</Typography>
+              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 3 }}>{query || channel ? 'No activity matches these filters.' : `No ${title.toLowerCase()} yet.`}</Typography>
             ) : (
-              <Box component="ol" sx={{ m: 0, p: 0, maxHeight: 320, overflowY: 'auto' }}>{items.map((entry) => <TimelineEntry key={entry.id} entry={entry} canCreateFollowUp={canManageFollowUps} onCreateFollowUp={beginFollowUp} />)}</Box>
+              <Box
+                role="list"
+                sx={{
+                  width: '100%',
+                  minWidth: 0,
+                  m: 0,
+                  p: 0,
+                  overflowX: 'hidden'
+                }}
+              >
+                {items.map((entry) => <TimelineEntry key={entry.id} entry={entry} canCreateFollowUp={canManageFollowUps} onCreateFollowUp={beginFollowUp} />)}
+              </Box>
             )}
           </Box>
 
           {nextCursor && !query && !channel && (
             <Button variant="outlined" size="small" disabled={loadingMore} onClick={() => load({ cursor: nextCursor, append: true })}>
-              {loadingMore ? 'Loading…' : 'Load more activity'}
+              {loadingMore ? 'Loading…' : loadMoreLabel}
             </Button>
           )}
         </Stack>

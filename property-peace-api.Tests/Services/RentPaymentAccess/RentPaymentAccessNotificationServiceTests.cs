@@ -1,10 +1,13 @@
 using System.Collections.Concurrent;
+using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Dtos.NotificationSetting;
 using brownstone_hub_api.Dtos.RentPaymentAccess;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.NotificationSettings;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.EmailService;
+using brownstone_hub_api.Services.NotificationService;
 using brownstone_hub_api.Services.RentPaymentAccess;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
@@ -44,7 +47,8 @@ public sealed class RentPaymentAccessNotificationServiceTests
                                                         value.EmailAddress == "account-three@example.test")))
             .ReturnsAsync((NotificationSettingDto value) => value);
         var email = new RecordingEmailService();
-        var service = CreateService(users.Object, settings.Object, email);
+        var inApp = CreateInAppNotificationService();
+        var service = CreateService(users.Object, settings.Object, email, inApp: inApp.Object);
 
         var result = await service.NotifyReviewersAsync(Request(), CancellationToken.None);
 
@@ -56,6 +60,19 @@ public sealed class RentPaymentAccessNotificationServiceTests
         settings.Verify(repository => repository.AddNotificationSettings(13), Times.Once);
         settings.Verify(repository => repository.UpdateNotificationSettings(It.IsAny<NotificationSettingDto>()),
             Times.Once);
+        inApp.Verify(service => service.CreateNotification(It.Is<CreateNotificationDto>(notification =>
+            notification.UserId == 11 &&
+            notification.OrganizationId == 701 &&
+            notification.Type == ENotificationType.RentPaymentAccessRequest &&
+            notification.Title == "Online rent collection request" &&
+            notification.Message.Contains("Pine & Oak Property Group") &&
+            notification.SendInApp &&
+            !notification.SendEmail &&
+            !notification.SendSMS)), Times.Once);
+        inApp.Verify(service => service.CreateNotification(It.Is<CreateNotificationDto>(notification =>
+            notification.UserId == 12)), Times.Once);
+        inApp.Verify(service => service.CreateNotification(It.Is<CreateNotificationDto>(notification =>
+            notification.UserId == 13)), Times.Once);
     }
 
     [Fact]
@@ -184,13 +201,23 @@ public sealed class RentPaymentAccessNotificationServiceTests
         IUserRepository users,
         INotificationSettingRepository settings,
         IEmailService email,
-        string frontendBaseUrl = "https://app.example.test/")
+        string frontendBaseUrl = "https://app.example.test/",
+        INotificationService? inApp = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["FrontendBaseUrl"] = frontendBaseUrl })
             .Build();
         return new RentPaymentAccessNotificationService(
-            users, settings, email, configuration, NullLogger<RentPaymentAccessNotificationService>.Instance);
+            users, settings, email, inApp ?? CreateInAppNotificationService().Object, configuration,
+            NullLogger<RentPaymentAccessNotificationService>.Instance);
+    }
+
+    private static Mock<INotificationService> CreateInAppNotificationService()
+    {
+        var service = new Mock<INotificationService>();
+        service.Setup(candidate => candidate.CreateNotification(It.IsAny<CreateNotificationDto>()))
+            .ReturnsAsync(new ServiceResponse<NotificationDto>());
+        return service;
     }
 
     private static NotificationSettingDto EnabledSettings(long userId, string? emailAddress) => new()
