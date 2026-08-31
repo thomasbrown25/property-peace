@@ -1,10 +1,13 @@
 using System.Net;
 using brownstone_hub_api.Dtos.NotificationSetting;
+using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Dtos.RentPaymentAccess;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.NotificationSettings;
 using brownstone_hub_api.Repositories.Users;
 using brownstone_hub_api.Services.EmailService;
+using brownstone_hub_api.Services.NotificationService;
 
 namespace brownstone_hub_api.Services.RentPaymentAccess;
 
@@ -12,6 +15,7 @@ public sealed class RentPaymentAccessNotificationService(
     IUserRepository userRepository,
     INotificationSettingRepository notificationSettingRepository,
     IEmailService emailService,
+    INotificationService notificationService,
     IConfiguration configuration,
     ILogger<RentPaymentAccessNotificationService> logger) : IRentPaymentAccessNotificationService
 {
@@ -33,8 +37,16 @@ public sealed class RentPaymentAccessNotificationService(
             try
             {
                 var settings = await ResolveSettingsAsync(admin);
-                if (!settings.EmailEnabled || !settings.AdminNewUserNotifications.Email) continue;
-                if (string.IsNullOrWhiteSpace(settings.EmailAddress)) continue;
+
+                if (settings.AdminNewUserNotifications.InApp &&
+                    !await NotifyInAppAsync(admin, request, cancellationToken))
+                {
+                    failed++;
+                }
+
+                if (!settings.EmailEnabled ||
+                    !settings.AdminNewUserNotifications.Email ||
+                    string.IsNullOrWhiteSpace(settings.EmailAddress)) continue;
 
                 attempted++;
                 var message = BuildMessage(request);
@@ -63,6 +75,50 @@ public sealed class RentPaymentAccessNotificationService(
         }
 
         return new RentPaymentAccessNotificationResult(attempted, accepted, failed);
+    }
+
+    private async Task<bool> NotifyInAppAsync(
+        User admin,
+        RentPaymentAccessAdminDetailDto request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await notificationService.CreateNotification(new CreateNotificationDto
+            {
+                UserId = admin.Id,
+                OrganizationId = request.OrganizationId,
+                Type = ENotificationType.RentPaymentAccessRequest,
+                Title = Subject,
+                Message = $"{request.OrganizationName} requested access to online rent collection.",
+                SendEmail = false,
+                SendSMS = false,
+                SendInApp = true,
+                PerformedByUserId = request.RequestedByUserId,
+                PerformedByName = request.RequestedBy
+            });
+
+            if (result.Success) return true;
+
+            logger.LogWarning(
+                "In-app rent-payment access notification failed for admin {AdminId} and request {PublicId}: {Message}",
+                admin.Id,
+                request.PublicId,
+                result.Message);
+            return false;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception,
+                "In-app rent-payment access notification failed for admin {AdminId} and request {PublicId}",
+                admin.Id,
+                request.PublicId);
+            return false;
+        }
     }
 
     private async Task<NotificationSettingDto> ResolveSettingsAsync(User admin)

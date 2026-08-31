@@ -30,7 +30,14 @@ public sealed class MaintenanceTimelineProjectionWorker(
                 logger.LogError(exception, "Maintenance timeline outbox processing failed.");
             }
 
-            await Task.Delay(TimeSpan.FromMinutes(1), clock, stoppingToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromMinutes(1), clock, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
     }
 }

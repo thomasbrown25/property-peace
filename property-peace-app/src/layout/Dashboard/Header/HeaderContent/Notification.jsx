@@ -225,6 +225,11 @@ export default function Notification() {
             navigate(`${basePath}/property/${notification.relatedId}`);
           }
           break;
+        case 'rentPaymentAccessRequest':
+          if (isAdmin) {
+            navigate('/admin/rent-payment-access');
+          }
+          break;
         case 'support':
           if (isAdmin) {
             navigate(`/admin/messages?tab=support${notification.relatedId ? `&ticket=${notification.relatedId}` : ''}`);

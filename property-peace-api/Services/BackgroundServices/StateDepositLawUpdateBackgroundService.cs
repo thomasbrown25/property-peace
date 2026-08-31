@@ -18,6 +18,7 @@ namespace brownstone_hub_api.Services.BackgroundServices
             _logger = logger;
         }
 
+        // Host-requested cancellation is a normal shutdown signal and must not fault the host.
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("StateDepositLawUpdateBackgroundService started");
@@ -39,10 +40,21 @@ namespace brownstone_hub_api.Services.BackgroundServices
 
                     await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
                 }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in StateDepositLawUpdateBackgroundService");
-                    await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromHours(1), stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
                 }
             }
 

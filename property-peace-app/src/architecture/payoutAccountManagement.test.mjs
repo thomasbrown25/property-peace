@@ -11,11 +11,15 @@ const bankAccountControllerSource = await readFile(
   'utf8'
 );
 
-test('Bank Accounts lists saved payout destinations and opens Stripe account management for add and edit actions', () => {
+test('Bank Accounts shows the payment entity first and provides add, edit, and remove management actions', () => {
   assert.match(bankAccountsSource, /bankAccountAPI\.getBankAccounts\(currentOrganization/);
   assert.match(bankAccountsSource, /bankAccounts\.map\(\(account\)/);
-  assert.match(bankAccountsSource, /Add bank account with Stripe/);
-  assert.match(bankAccountsSource, /Edit in Stripe/);
+  assert.ok(bankAccountsSource.indexOf('Payment entity') < bankAccountsSource.indexOf('Connected bank accounts'));
+  assert.match(bankAccountsSource, /Add bank account/);
+  assert.match(bankAccountsSource, /Edit entity/);
+  assert.match(bankAccountsSource, />\s*Edit\s*</);
+  assert.match(bankAccountsSource, />\s*Remove\s*</);
+  assert.match(bankAccountsSource, /openBankAccountManagement\('remove'\)/);
   assert.match(bankAccountsSource, /ConnectAccountManagement/);
   assert.match(bankAccountsSource, /\/api\/stripe\/account-management-session/);
   assert.doesNotMatch(bankAccountsSource, /routingNumber|accountNumber/);

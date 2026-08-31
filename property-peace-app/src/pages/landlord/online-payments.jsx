@@ -30,6 +30,7 @@ export default function OnlinePaymentsPage() {
   const [isContinuing, setIsContinuing] = useState(false);
   const [continueError, setContinueError] = useState('');
   const [activeTab, setActiveTab] = useState(DEFAULT_ONLINE_PAYMENT_TAB);
+  const [paymentHeaderActionElement, setPaymentHeaderActionElement] = useState(null);
   const paymentTabs = getOnlinePaymentTabs(rentPaymentAccess.access, rentPaymentAccess.presentation.canConfigure);
   const selectedTab = getSelectedOnlinePaymentTab(activeTab, paymentTabs);
 
@@ -70,7 +71,12 @@ export default function OnlinePaymentsPage() {
 
   return (
     <Box>
-      <ManagementPageHeader title="Online Payments" description="Set up and manage the way renters pay you online." marginBottom={3} />
+      <ManagementPageHeader
+        title="Online Payments"
+        description="Set up and manage the way renters pay you online."
+        actions={selectedTab === 'bank-accounts' ? <Box ref={setPaymentHeaderActionElement} /> : null}
+        marginBottom={3}
+      />
 
       {hasContinued === true && (
         <Box>
@@ -129,7 +135,9 @@ export default function OnlinePaymentsPage() {
             id="online-payments-panel-bank-accounts"
             aria-labelledby="online-payments-tab-bank-accounts"
           >
-            {selectedTab === 'bank-accounts' && <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} />}
+            {selectedTab === 'bank-accounts' && (
+              <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} headerActionElement={paymentHeaderActionElement} />
+            )}
           </Box>
           <Box
             role="tabpanel"

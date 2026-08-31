@@ -59,10 +59,25 @@ test('Online Payments shows a one-time welcome before the tabbed payment workspa
   assert.match(page, /paymentTabs\.map\(\(\{ id, label \}\)/);
   assert.match(page, /value=\{selectedTab\}/);
   assert.match(page, /selectedTab === 'transactions' && <OnlinePaymentTransactions \/>/);
-  assert.match(page, /selectedTab === 'bank-accounts' && <PaymentsSettingsContent rentPaymentAccess=\{rentPaymentAccess\} \/>/);
+  assert.ok(page.includes("selectedTab === 'bank-accounts' && ("));
+  assert.ok(page.includes('<PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} headerActionElement={paymentHeaderActionElement} />'));
+  assert.match(page, /actions=\{selectedTab === 'bank-accounts' \? <Box ref=\{setPaymentHeaderActionElement\} \/> : null\}/);
   assert.match(page, /selectedTab === 'payout-assignments' && <PayoutAssignments \/>/);
   assert.doesNotMatch(page, /account-status/);
   assert.doesNotMatch(page, /role="status"/);
   assert.doesNotMatch(page, /could not load your current setup status/i);
   assert.doesNotMatch(page, /navigate\('\/landlord\/settings\?tab=payments'\)/);
+});
+
+test('Bank Accounts only shows connected Stripe bank accounts, not connected properties or the legacy account card', async () => {
+  const settings = await read('../sections/landlord/settings/PaymentsSettings.jsx');
+
+  assert.match(settings, /Payment entity/);
+  assert.match(settings, /Connected bank accounts/);
+  assert.match(settings, /bankAccounts\.map\(\(account\)/);
+  assert.match(settings, /createPortal\(addAccountButton, headerActionElement\)/);
+  assert.match(settings, /!headerActionElement && addAccountButton/);
+  assert.doesNotMatch(settings, /Online rent payment account/);
+  assert.doesNotMatch(settings, /Connected Properties/);
+  assert.doesNotMatch(settings, /getPropertiesForAccount/);
 });

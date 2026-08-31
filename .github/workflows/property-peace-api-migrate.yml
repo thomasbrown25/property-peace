@@ -110,55 +110,111 @@ jobs:
             $scmUri = [Uri]$publishing.scmUri
             $scmBase = "$($scmUri.Scheme)://$($scmUri.Host)"
 
-            $workingDirectory = if ($appIsLinux) { '/home' } else { 'D:\home' }
-            $mkdirCommand = if ($appIsLinux) { 'mkdir -p /home/data/migrations' } else { 'if not exist D:\home\data\migrations mkdir D:\home\data\migrations' }
-            $mkdirBody = @{ command = $mkdirCommand; dir = $workingDirectory } | ConvertTo-Json
-            $mkdirResult = Invoke-RestMethod `
-              -Uri "$scmBase/api/command" `
-              -Method Post `
-              -Headers $headers `
-              -ContentType 'application/json' `
-              -Body $mkdirBody
-            if ($mkdirResult.ExitCode -ne 0) { throw "Failed to create migration directory: $($mkdirResult.Error)" }
-
             $connection = "Server=tcp:property-peace-server.database.windows.net,1433;Initial Catalog=$databaseName;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
             $migrationSettingsPath = Join-Path $env:RUNNER_TEMP 'appsettings.json'
             @{ ConnectionStrings = @{ AzureSQLDatabase = $connection } } |
               ConvertTo-Json -Depth 3 |
               Set-Content -LiteralPath $migrationSettingsPath -Encoding utf8
 
-            Invoke-RestMethod `
-              -Uri "$scmBase/api/vfs/data/migrations/$bundleName" `
-              -Method Put `
-              -Headers ($headers + @{ 'If-Match' = '*' }) `
-              -ContentType 'application/octet-stream' `
-              -InFile $bundlePath | Out-Null
-            Invoke-RestMethod `
-              -Uri "$scmBase/api/vfs/data/migrations/appsettings.json" `
-              -Method Put `
-              -Headers ($headers + @{ 'If-Match' = '*' }) `
-              -ContentType 'application/json' `
-              -InFile $migrationSettingsPath | Out-Null
-
-            $migrationDirectory = if ($appIsLinux) { '/home/data/migrations' } else { 'D:\home\data\migrations' }
             if ($appIsLinux) {
+              $mkdirBody = @{ command = 'mkdir -p /home/data/migrations'; dir = '/home' } | ConvertTo-Json
+              $mkdirResult = Invoke-RestMethod `
+                -Uri "$scmBase/api/command" `
+                -Method Post `
+                -Headers $headers `
+                -ContentType 'application/json' `
+                -Body $mkdirBody
+              if ($mkdirResult.ExitCode -ne 0) { throw "Failed to create migration directory: $($mkdirResult.Error)" }
+
+              Invoke-RestMethod `
+                -Uri "$scmBase/api/vfs/data/migrations/$bundleName" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/octet-stream' `
+                -InFile $bundlePath | Out-Null
+              Invoke-RestMethod `
+                -Uri "$scmBase/api/vfs/data/migrations/appsettings.json" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/json' `
+                -InFile $migrationSettingsPath | Out-Null
+
               $command = "chmod +x /home/data/migrations/$bundleName && /home/data/migrations/$bundleName --connection `"$connection`""
-            } else {
-              $command = "D:\home\data\migrations\$bundleName --connection `"$connection`""
+              $commandBody = @{ command = $command; dir = '/home/data/migrations' } | ConvertTo-Json
+              $result = Invoke-RestMethod `
+                -Uri "$scmBase/api/command" `
+                -Method Post `
+                -Headers $headers `
+                -ContentType 'application/json' `
+                -Body $commandBody `
+                -TimeoutSec 600
+
+              if ($result.Output) { Write-Host $result.Output }
+              if ($result.Error) { Write-Host $result.Error }
+              if ($result.ExitCode -ne 0) { throw "Migration bundle exited with code $($result.ExitCode)." }
             }
+            else {
+              # Kudu command processes do not inherit the site's Managed Identity endpoint.
+              # Triggered WebJobs run in the site worker context and receive the identity environment.
+              $jobName = 'property-peace-migrate'
+              $jobDirectory = "D:\home\site\wwwroot\App_Data\jobs\triggered\$jobName"
+              $mkdirBody = @{ command = "if not exist `"$jobDirectory`" mkdir `"$jobDirectory`""; dir = 'D:\home' } | ConvertTo-Json
+              $mkdirResult = Invoke-RestMethod `
+                -Uri "$scmBase/api/command" `
+                -Method Post `
+                -Headers $headers `
+                -ContentType 'application/json' `
+                -Body $mkdirBody
+              if ($mkdirResult.ExitCode -ne 0) { throw "Failed to create WebJob directory: $($mkdirResult.Error)" }
 
-            $commandBody = @{ command = $command; dir = $migrationDirectory } | ConvertTo-Json
-            $result = Invoke-RestMethod `
-              -Uri "$scmBase/api/command" `
-              -Method Post `
-              -Headers $headers `
-              -ContentType 'application/json' `
-              -Body $commandBody `
-              -TimeoutSec 600
+              $jobVfsBase = "$scmBase/api/vfs/site/wwwroot/App_Data/jobs/triggered/$jobName"
+              Invoke-RestMethod `
+                -Uri "$jobVfsBase/$bundleName" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/octet-stream' `
+                -InFile $bundlePath | Out-Null
+              Invoke-RestMethod `
+                -Uri "$jobVfsBase/appsettings.json" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/json' `
+                -InFile $migrationSettingsPath | Out-Null
 
-            if ($result.Output) { Write-Host $result.Output }
-            if ($result.Error) { Write-Host $result.Error }
-            if ($result.ExitCode -ne 0) { throw "Migration bundle exited with code $($result.ExitCode)." }
+              $runCommandPath = Join-Path $env:RUNNER_TEMP 'run.cmd'
+              @(
+                '@echo off'
+                "`"%~dp0$bundleName`" --connection `"$connection`""
+                'exit /b %ERRORLEVEL%'
+              ) | Set-Content -LiteralPath $runCommandPath -Encoding ascii
+              Invoke-RestMethod `
+                -Uri "$jobVfsBase/run.cmd" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/octet-stream' `
+                -InFile $runCommandPath | Out-Null
+
+              $trigger = Invoke-WebRequest `
+                -Uri "$scmBase/api/triggeredwebjobs/$jobName/run" `
+                -Method Post `
+                -Headers $headers
+              $runLocation = [string]$trigger.Headers.Location
+              if ([string]::IsNullOrWhiteSpace($runLocation)) { throw 'Triggered WebJob did not return a run location.' }
+              if ($runLocation.StartsWith('/')) { $runLocation = "$scmBase$runLocation" }
+
+              $deadline = (Get-Date).AddMinutes(10)
+              do {
+                Start-Sleep -Seconds 5
+                $jobRun = Invoke-RestMethod -Uri $runLocation -Headers $headers
+                Write-Host "Migration WebJob status: $($jobRun.status)"
+              } while ($jobRun.status -in @('Pending', 'Running') -and (Get-Date) -lt $deadline)
+
+              if ($jobRun.output_url) {
+                $jobOutput = Invoke-WebRequest -Uri $jobRun.output_url -Headers $headers
+                Write-Host $jobOutput.Content
+              }
+              if ($jobRun.status -ne 'Success') { throw "Migration WebJob finished with status '$($jobRun.status)'." }
+            }
 
             Write-Host "Migration bundle completed successfully for ${{ inputs.target }} ($databaseName)."
           }
