@@ -18,18 +18,14 @@ import {
   MenuItem,
   Paper,
   Radio,
-  RadioGroup,
   Select,
   Stack,
-  Step,
-  StepLabel,
-  Stepper,
   TextField,
   Typography,
   alpha
 } from '@mui/material';
 import {
-  BankOutlined,
+  BulbOutlined,
   CheckCircleOutlined,
   CloseOutlined,
   HomeOutlined,
@@ -44,7 +40,12 @@ import {
   validateConnectOnboardingStep
 } from 'utils/connectOnboarding';
 
-const steps = ['Your rent business', 'Property authority', 'Stripe verification'];
+const EIN_PATTERN = /^\d{2}-?\d{7}$/;
+
+const makeInitialDraft = ({ user, initialDraft }) => ({
+  ...createConnectOnboardingDraft({ user, savedPreparation: initialDraft }),
+  operatingType: initialDraft?.operatingType || ''
+});
 
 const authorityOptions = [
   { value: 'owner', label: 'Property owner' },
@@ -70,13 +71,15 @@ export default function ConnectOnboardingWizard({
   loading = false
 }) {
   const [activeStep, setActiveStep] = useState(0);
-  const [draft, setDraft] = useState(() => createConnectOnboardingDraft({ user, savedPreparation: initialDraft }));
+  const [draft, setDraft] = useState(() => makeInitialDraft({ user, initialDraft }));
+  const [ein, setEin] = useState('');
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!open) return;
     setActiveStep(0);
-    setDraft(createConnectOnboardingDraft({ user, savedPreparation: initialDraft }));
+    setDraft(makeInitialDraft({ user, initialDraft }));
+    setEin('');
     setErrors({});
   }, [open, user, initialDraft]);
 
@@ -99,13 +102,25 @@ export default function ConnectOnboardingWizard({
   };
 
   const handleNext = () => {
-    if (activeStep === 1 && (propertiesLoading || propertiesError)) return;
-    const nextErrors = validateConnectOnboardingStep(activeStep, draft);
+    if (activeStep === 0) {
+      if (!draft.operatingType) {
+        setErrors({ operatingType: 'Select an account type.' });
+        return;
+      }
+      setActiveStep(1);
+      return;
+    }
+
+    if (activeStep === 2 && (propertiesLoading || propertiesError)) return;
+    const nextErrors = activeStep === 1 ? validateConnectOnboardingStep(0, draft) : validateConnectOnboardingStep(1, draft);
+    if (activeStep === 1 && draft.operatingType === 'business' && !EIN_PATTERN.test(ein)) {
+      nextErrors.ein = 'Enter a valid 9-digit EIN.';
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
-    setActiveStep((current) => Math.min(current + 1, steps.length - 1));
+    setActiveStep((current) => Math.min(current + 1, 3));
   };
 
   const handleContinue = () => {
@@ -113,11 +128,19 @@ export default function ConnectOnboardingWizard({
     const nextErrors = validateConnectOnboardingContext(context, properties.map(getPropertyId));
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
-      setActiveStep(nextErrors.operatingType || nextErrors.displayName ? 0 : 1);
+      setActiveStep(nextErrors.operatingType ? 0 : nextErrors.displayName ? 1 : 2);
       return;
     }
-    onContinue(context);
+    onContinue({ ...context, ein: draft.operatingType === 'business' ? ein.replace(/\D/g, '') : null });
   };
+
+  const title = activeStep === 0
+    ? 'New bank account'
+    : activeStep === 1
+      ? draft.operatingType === 'business' ? 'Business details' : 'Individual details'
+      : activeStep === 2
+        ? 'Property authority'
+        : 'Stripe verification';
 
   return (
     <Dialog
@@ -127,31 +150,9 @@ export default function ConnectOnboardingWizard({
       fullWidth
       PaperProps={{ sx: { borderRadius: 2, overflow: 'hidden' } }}
     >
-      <DialogTitle sx={{ p: { xs: 2.5, sm: 3 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-        <Stack direction="row" spacing={2} alignItems="flex-start" justifyContent="space-between">
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                display: 'grid',
-                placeItems: 'center',
-                borderRadius: 1.5,
-                color: 'primary.main',
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1)
-              }}
-            >
-              <BankOutlined style={{ fontSize: 22 }} />
-            </Box>
-            <Box>
-              <Typography variant="h5" fontWeight={750}>
-                Verify your business and set up rent payouts
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                Property Peace prepares your rent-collection profile, then Stripe securely verifies the payout recipient.
-              </Typography>
-            </Box>
-          </Stack>
+      <DialogTitle sx={{ px: { xs: 2.5, sm: 3 }, py: 2.25, borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between">
+          <Typography variant="h5" fontWeight={750}>{title}</Typography>
           <IconButton aria-label="Close setup" onClick={onClose} disabled={loading} size="small">
             <CloseOutlined />
           </IconButton>
@@ -169,54 +170,128 @@ export default function ConnectOnboardingWizard({
             Your saved payout setup has been restored. Review it before continuing.
           </Alert>
         )}
-        <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 3.5 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-
         {activeStep === 0 && (
-          <Stack spacing={3}>
-            <Box>
-              <Typography variant="h6" fontWeight={700}>
-                Who will receive rent payouts?
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                Use the name tenants and your team recognize. Stripe will collect the formal legal details in the secure step.
-              </Typography>
+          <Stack spacing={2.5}>
+            <Typography variant="body1" fontWeight={650}>
+              Select the account type and provide the information for identity verification to set up online payments.
+            </Typography>
+
+            <Stack spacing={1.5} role="radiogroup" aria-label="Bank account type">
+              {[
+                { value: 'individual', label: 'Individual', description: 'Individuals and sole proprietorships' },
+                { value: 'business', label: 'Business', description: 'Companies, LLCs, and partnerships' }
+              ].map((option) => {
+                const selected = draft.operatingType === option.value;
+                return (
+                  <Paper
+                    key={option.value}
+                    component="button"
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    variant="outlined"
+                    onClick={() => updateDraft('operatingType', option.value)}
+                    sx={{
+                      width: '100%',
+                      p: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      textAlign: 'left',
+                      color: 'text.primary',
+                      bgcolor: selected ? (theme) => alpha(theme.palette.success.main, 0.06) : 'background.paper',
+                      borderColor: selected ? 'success.main' : 'divider',
+                      borderRadius: 1.5,
+                      cursor: 'pointer',
+                      '&:hover': { borderColor: 'success.main' }
+                    }}
+                  >
+                    <Radio checked={selected} color="success" tabIndex={-1} />
+                    <Box>
+                      <Typography fontWeight={750}>{option.label}</Typography>
+                      <Typography variant="body2" color="text.secondary">{option.description}</Typography>
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Stack>
+            {errors.operatingType && <FormHelperText error>{errors.operatingType}</FormHelperText>}
+
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', color: 'warning.main' }}>
+              <BulbOutlined style={{ fontSize: 20, marginTop: 1 }} />
+              <Box sx={{ flex: 1 }}>
+                <Divider sx={{ borderColor: 'warning.light', mb: 1.25 }} />
+                <Typography variant="body2" color="text.secondary">
+                  We use Stripe to make sure you get paid on time and to keep your personal bank details secure. Click Next to continue your secure payment setup.
+                </Typography>
+              </Box>
             </Box>
-
-            <FormControl>
-              <FormLabel>Operating as</FormLabel>
-              <RadioGroup
-                row
-                value={draft.operatingType}
-                onChange={(event) => updateDraft('operatingType', event.target.value)}
-              >
-                <FormControlLabel value="individual" control={<Radio />} label="Individual landlord" />
-                <FormControlLabel value="business" control={<Radio />} label="Property-management business" />
-              </RadioGroup>
-            </FormControl>
-
-            <TextField
-              label={draft.operatingType === 'business' ? 'Business or management name' : 'Landlord display name'}
-              value={draft.displayName}
-              onChange={(event) => updateDraft('displayName', event.target.value)}
-              error={Boolean(errors.displayName)}
-              helperText={errors.displayName || 'This is Property Peace display information, not a legal identity submission.'}
-              fullWidth
-              autoFocus
-            />
-
-            <Alert severity="info" icon={<LockOutlined />}>
-              Property Peace does not collect or store your SSN, identity documents, or full bank account details. You will enter those only in Stripe secure verification.
-            </Alert>
           </Stack>
         )}
 
         {activeStep === 1 && (
+          <Stack spacing={2.5}>
+            <Typography variant="body1">
+              {draft.operatingType === 'business' ? 'Provide the details about your company.' : 'Provide the name tenants and your team recognize.'}
+            </Typography>
+            {draft.operatingType === 'business' ? (
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <TextField
+                  required
+                  label="Legal Business Name"
+                  placeholder="Company"
+                  value={draft.displayName}
+                  onChange={(event) => updateDraft('displayName', event.target.value)}
+                  error={Boolean(errors.displayName)}
+                  helperText={errors.displayName}
+                  fullWidth
+                  autoFocus
+                />
+                <TextField
+                  required
+                  label="EIN"
+                  placeholder="00-0000000"
+                  value={ein}
+                  onChange={(event) => {
+                    const digits = event.target.value.replace(/\D/g, '').slice(0, 9);
+                    setEin(digits.length > 2 ? `${digits.slice(0, 2)}-${digits.slice(2)}` : digits);
+                    setErrors((current) => ({ ...current, ein: undefined }));
+                  }}
+                  error={Boolean(errors.ein)}
+                  helperText={errors.ein}
+                  inputProps={{ inputMode: 'numeric', autoComplete: 'off' }}
+                  fullWidth
+                />
+              </Stack>
+            ) : (
+              <TextField
+                required
+                label="Landlord display name"
+                value={draft.displayName}
+                onChange={(event) => updateDraft('displayName', event.target.value)}
+                error={Boolean(errors.displayName)}
+                helperText={errors.displayName || 'Use the name tenants and your team recognize.'}
+                fullWidth
+                autoFocus
+              />
+            )}
+
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', color: 'warning.main' }}>
+              <BulbOutlined style={{ fontSize: 20, marginTop: 1 }} />
+              <Box sx={{ flex: 1 }}>
+                <Divider sx={{ borderColor: 'warning.light', mb: 1.25 }} />
+                <Typography variant="subtitle2" color="text.primary" fontWeight={750}>Please note!</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {draft.operatingType === 'business'
+                    ? "The Legal Business Name must match the legal account holder's name on the bank account. The EIN is sent securely to Stripe and is not stored by Property Peace."
+                    : 'The account holder name must match the name used during Stripe verification.'}
+                </Typography>
+              </Box>
+            </Box>
+          </Stack>
+        )}
+
+        {activeStep === 2 && (
           <Stack spacing={3}>
             <Box>
               <Typography variant="h6" fontWeight={700}>
@@ -324,7 +399,7 @@ export default function ConnectOnboardingWizard({
           </Stack>
         )}
 
-        {activeStep === 2 && (
+        {activeStep === 3 && (
           <Stack spacing={3}>
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Box
@@ -396,12 +471,12 @@ export default function ConnectOnboardingWizard({
           {activeStep === 0 ? 'Cancel' : 'Back'}
         </Button>
         <Box sx={{ flex: 1 }} />
-        {activeStep < steps.length - 1 ? (
-          <Button variant="contained" onClick={handleNext} disabled={preparationLoading || (activeStep === 1 && (propertiesLoading || propertiesError))}>
-            Continue
+        {activeStep < 3 ? (
+          <Button variant="contained" color="success" onClick={handleNext} disabled={preparationLoading || (activeStep === 2 && (propertiesLoading || propertiesError))}>
+            Next
           </Button>
         ) : (
-          <Button variant="contained" onClick={handleContinue} disabled={loading || preparationLoading} startIcon={<LockOutlined />}>
+          <Button variant="contained" color="success" onClick={handleContinue} disabled={loading || preparationLoading} startIcon={<LockOutlined />}>
             {loading ? 'Opening Stripe…' : 'Continue to Stripe'}
           </Button>
         )}

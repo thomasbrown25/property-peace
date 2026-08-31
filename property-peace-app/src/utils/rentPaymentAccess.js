@@ -127,8 +127,8 @@ export function getRentPaymentAccessPresentation({ access = null, aggregateReadi
   }
   if (status === normalize(RENT_PAYMENT_ACCESS_STATUS.approved)) {
     if (canPay) return view('ready', 'Ready to collect rent online', 'Your organization is ready to collect rent online.', null, false, canConfigure, true);
-    if (!hasRecipient(payReadiness)) return view('approved-onboarding', 'Finish payment setup', 'Your request is approved. Finish payment setup to continue.', 'Finish payment setup', false, canConfigure, false);
-    return view('under-review', 'Connected account under review', 'Your payment account is under review. You can refresh this status for updates.', 'Refresh status', false, canConfigure, false);
+    if (!hasRecipient(payReadiness)) return view('approved-onboarding', 'Organization approved', 'Your organization is approved. Set up online payments to connect Stripe and begin accepting rent online.', 'Set up online payments', false, canConfigure, false);
+    return view('under-review', '', '', 'Refresh status', false, canConfigure, false);
   }
   return view('unavailable', 'Online rent payments temporarily unavailable', 'Online rent payments cannot be enabled right now. Please try again later.', 'Refresh status');
 }

@@ -61,7 +61,6 @@ import DeletePropertyModal from 'components/dialogs/DeletePropertyModal';
 import { inactivateProperty, reactivateProperty, setProperty, addPropertyImages, addOrUpdateProperty } from 'store/property/property.action';
 import { selectPropertyLoading, selectProperty } from 'store/property/property.selector';
 import { createListing } from 'store/listing/listing.action';
-import { selectCurrentUser } from 'store/user/user.selector';
 import { selectMaintenanceLoading } from 'store/maintenance/maintenance.selector';
 import HouseholdEditDrawer from 'components/drawers/HouseholdEditDrawer';
 import BulkLeaseManagement from 'components/property/BulkLeaseManagement';
@@ -102,6 +101,7 @@ import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import PropertyLeasingPipeline from 'components/leasing-pipeline/PropertyLeasingPipeline';
 import { recordRecentlyViewedProperty } from 'utils/recentlyViewedProperties';
+import useAuth from 'hooks/useAuth';
 
 // Default payload for creating a draft listing (same as listing-create page)
 const DEFAULT_LISTING_CREATE_PAYLOAD = {
@@ -2304,6 +2304,7 @@ function UnitsTab({ property, onRefresh, onOpenBulkCreate }) {
 }
 
 export default function Property() {
+  const { user: currentUser } = useAuth();
   const { propertyId } = useParams();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -2355,7 +2356,6 @@ export default function Property() {
   }, []);
 
   const { selectedProperty, refetch: refetchProperty } = useFetchProperty(propertyId);
-  const currentUser = useSelector(selectCurrentUser);
 
   useEffect(() => {
     const selectedPropertyId = selectedProperty?.id ?? selectedProperty?.Id;

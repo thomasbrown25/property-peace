@@ -201,8 +201,23 @@ namespace brownstone_hub_api.Controllers
                 var authorizedExistingAccountId = string.IsNullOrWhiteSpace(dbUser.StripeAccountId)
                     ? null
                     : dbUser.StripeAccountId;
-                var response = await _stripeService.CreateConnectAccountAsync(
-                    userId.Value, dbUser.Email, returnUrl, authorizedExistingAccountId);
+                ServiceResponse<CreateStripeAccountResponseDto> response;
+                if (string.Equals(request.OperatingType, "business", StringComparison.OrdinalIgnoreCase))
+                {
+                    var legalBusinessName = request.LegalBusinessName?.Trim();
+                    var ein = new string((request.Ein ?? string.Empty).Where(char.IsDigit).ToArray());
+                    if (string.IsNullOrWhiteSpace(legalBusinessName) || legalBusinessName.Length > 200 || ein.Length != 9)
+                        return BadRequest(new { Message = "A valid legal business name and 9-digit EIN are required." });
+
+                    response = await _stripeService.CreateConnectAccountAsync(
+                        userId.Value, dbUser.Email, returnUrl, authorizedExistingAccountId,
+                        "business", legalBusinessName, ein);
+                }
+                else
+                {
+                    response = await _stripeService.CreateConnectAccountAsync(
+                        userId.Value, dbUser.Email, returnUrl, authorizedExistingAccountId);
+                }
 
                 if (!response.Success)
                 {
@@ -1151,6 +1166,9 @@ namespace brownstone_hub_api.Controllers
     {
         public string? ReturnUrl { get; set; }
         public string? RefreshUrl { get; set; }
+        public string? OperatingType { get; set; }
+        public string? LegalBusinessName { get; set; }
+        public string? Ein { get; set; }
     }
 
     public class CreateAccountLinkRequest

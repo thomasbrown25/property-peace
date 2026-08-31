@@ -33,6 +33,8 @@ test('recently viewed header does not render a View all action', () => {
 });
 
 test('property detail records real scoped view history', () => {
+  assert.match(propertySource, /const \{ user: currentUser \} = useAuth\(\)/);
+  assert.doesNotMatch(propertySource, /selectCurrentUser/);
   assert.match(propertySource, /recordRecentlyViewedProperty\(selectedPropertyId, currentUser\)/);
   assert.match(propertySource, /String\(selectedPropertyId\) === String\(propertyId\)/);
 });
