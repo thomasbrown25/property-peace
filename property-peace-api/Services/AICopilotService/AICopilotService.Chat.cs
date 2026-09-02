@@ -144,6 +144,27 @@ namespace brownstone_hub_api.Services.AICopilotService
                     return await PersistAssistantResponseAsync(operation, conversation, userMessage,
                         BuildUnavailableCapabilityResponse(unavailableCapability), cancellationToken, sensitiveValues);
 
+                if (TryParseTenantContactRequest(rawInput, out var tenantContactName, out var tenantContactField))
+                {
+                    var tenantContactAuthorization = await AuthorizePercyActionAsync(
+                        PercyActionTypes.ReadTenantContacts, organizationId, userId, cancellationToken);
+                    if (!tenantContactAuthorization.IsAvailable)
+                        return await TerminalizeChatErrorAsync(operation,
+                            ServiceResponse<PercyChatResponseDto>.CreateError(
+                                PercyActionErrorCodes.Forbidden, statusCode: StatusCodes.Status403Forbidden),
+                            "rejected", "forbidden", cancellationToken);
+
+                    var tenantContactRead = await ReadTenantContactsAsync(
+                        organizationId, tenantContactName, tenantContactField, cancellationToken);
+                    var outputSensitiveValues = sensitiveValues
+                        .Where(value => string.IsNullOrWhiteSpace(value) ||
+                            !tenantContactRead.AllowedDisplayValues.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase))
+                        .ToList();
+                    return await PersistAssistantResponseAsync(operation, conversation, userMessage,
+                        tenantContactRead.Response, cancellationToken, outputSensitiveValues,
+                        tenantContactRead.Sources, tenantContactRead.AllowedDisplayValues);
+                }
+
                 var normalizedPrompt = NormalizeForMatch(safeInput);
                 var timingQuestion = (normalizedPrompt.Contains("ontime") &&
                         (normalizedPrompt.Contains("late") || normalizedPrompt.Contains("overdue") || normalizedPrompt.Contains("pastdue"))) ||

@@ -64,9 +64,11 @@ public static class PercyDataBoundary
             ["rent-payments"] = "/landlord/payments",
             ["maintenance"] = "/landlord/maintenances",
             ["leases-applications"] = "/landlord/applications",
-            ["urgent-messages"] = "/landlord/urgent-messages"
+            ["urgent-messages"] = "/landlord/urgent-messages",
+            ["tenant-contacts"] = "/landlord/leases?tab=tenants"
         };
     private static readonly Regex OpaqueReferencePattern = Rx(@"^(?=.*[A-Za-z_-])[A-Za-z0-9_-]{1,100}$");
+    private static readonly Regex TenantContactReferencePattern = Rx(@"^tenant_[0-9a-f]{32}$");
 
     private static readonly (Regex Pattern, string Replacement)[] Patterns =
     [
@@ -219,7 +221,9 @@ public static class PercyDataBoundary
                 Label = Safe(source.Label, MaxSourceLabelLength),
                 WorkflowRoute = Safe(source.WorkflowRoute, MaxSourceRouteLength),
                 RecordReference = string.IsNullOrWhiteSpace(source.RecordReference) ||
-                    !OpaqueReferencePattern.IsMatch(source.RecordReference)
+                    !OpaqueReferencePattern.IsMatch(source.RecordReference) ||
+                    string.Equals(source.Kind, "tenant-contacts", StringComparison.Ordinal) &&
+                    !TenantContactReferencePattern.IsMatch(source.RecordReference)
                         ? null
                         : Safe(source.RecordReference, MaxSourceReferenceLength),
                 RetrievedAtUtc = source.RetrievedAtUtc.Kind == DateTimeKind.Utc

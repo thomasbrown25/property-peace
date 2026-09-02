@@ -48,6 +48,7 @@ public static class PercyActionPolicy
             [PercyActionTypes.ReadMaintenance] = Enabled(PercyActionTypes.ReadMaintenance, PercyActionCategory.ReadOnly, OrganizationRole.Viewer),
             [PercyActionTypes.ReadLeasesApplications] = Enabled(PercyActionTypes.ReadLeasesApplications, PercyActionCategory.ReadOnly, OrganizationRole.Viewer),
             [PercyActionTypes.ReadUrgentMessages] = Enabled(PercyActionTypes.ReadUrgentMessages, PercyActionCategory.ReadOnly, OrganizationRole.Viewer),
+            [PercyActionTypes.ReadTenantContacts] = Enabled(PercyActionTypes.ReadTenantContacts, PercyActionCategory.ReadOnly, OrganizationRole.Viewer),
             [PercyActionTypes.DraftMaintenanceTroubleshooting] = Enabled(PercyActionTypes.DraftMaintenanceTroubleshooting, PercyActionCategory.Draft, OrganizationRole.Manager, OrganizationPermission.ManageMaintenance),
             [PercyActionTypes.RecordMaintenanceTroubleshootingOutcome] = Blocked(PercyActionTypes.RecordMaintenanceTroubleshootingOutcome, PercyActionCategory.ReversibleMutation, OrganizationRole.Manager, OrganizationPermission.ManageMaintenance),
             [PercyActionTypes.DraftLeadFollowUp] = Enabled(PercyActionTypes.DraftLeadFollowUp, PercyActionCategory.Draft, OrganizationRole.Manager, OrganizationPermission.ManageTenants),
