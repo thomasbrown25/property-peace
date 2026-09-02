@@ -169,7 +169,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                     '&:hover': { bgcolor: hoverBg },
                     '&.Mui-selected': {
                       bgcolor: selectedBg,
-                      borderRight: `2px solid ${theme.palette.mode === 'dark' ? '#56b983' : '#061e35'}`,
+                      borderLeft: `2px solid ${theme.palette.mode === 'dark' ? '#56b983' : '#061e35'}`,
                       color: selectedColor,
                       '&:hover': { color: selectedColor, bgcolor: selectedBg },
                       '& .MuiListItemIcon-root': { color: `${selectedColor} !important` }
