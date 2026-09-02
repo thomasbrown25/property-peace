@@ -1,0 +1,234 @@
+name: property-peace-api-migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: App Service/database environment to migrate
+        required: true
+        type: choice
+        options:
+          - development
+          - production
+
+concurrency:
+  group: property-peace-api-migrate-${{ inputs.target }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: windows-latest
+    steps:
+      - name: Check out matching environment branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target == 'production' && 'prod' || 'dev' }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.x"
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: >
+            {"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}
+
+      - name: Build and execute EF migration bundle in App Service
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          if ('${{ inputs.target }}' -eq 'production') {
+            $appName = 'property-peace-api'
+            $databaseName = 'property-peace-database'
+          } else {
+            $appName = 'property-peace-api-dev'
+            $databaseName = 'property-peace-database-dev'
+          }
+
+          $apps = az webapp list | ConvertFrom-Json
+          $webApp = $apps | Where-Object { $_.name -eq $appName } | Select-Object -First 1
+          if (-not $webApp) { throw "Unable to find App Service '$appName'." }
+
+          $resourceGroup = $webApp.resourceGroup
+          $details = az webapp show --resource-group $resourceGroup --name $appName | ConvertFrom-Json
+          $appIsLinux = [bool]$details.reserved
+          $runtime = if ($appIsLinux) { 'linux-x64' } else { 'win-x64' }
+          $bundleName = if ($appIsLinux) { 'efbundle' } else { 'efbundle.exe' }
+          $bundlePath = Join-Path $env:RUNNER_TEMP $bundleName
+
+          dotnet tool install --global dotnet-ef --version 9.0.3
+          dotnet restore property-peace-api/property-peace-api.csproj
+          dotnet ef migrations bundle `
+            --project property-peace-api/property-peace-api.csproj `
+            --startup-project property-peace-api/property-peace-api.csproj `
+            --context DataContext `
+            --runtime $runtime `
+            --self-contained `
+            --force `
+            --output $bundlePath
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to build EF migration bundle.' }
+
+          $policyNamespace = 'Microsoft.Web'
+          $policyType = 'basicPublishingCredentialsPolicies'
+          $policyParent = "sites/$appName"
+          $policyName = 'scm'
+          $scmPolicy = az resource show `
+            --resource-group $resourceGroup `
+            --namespace $policyNamespace `
+            --resource-type $policyType `
+            --parent $policyParent `
+            --name $policyName `
+            --api-version 2022-03-01 | ConvertFrom-Json
+          $restoreScmBasicAuth = -not [bool]$scmPolicy.properties.allow
+
+          if ($restoreScmBasicAuth) {
+            az resource update `
+              --resource-group $resourceGroup `
+              --namespace $policyNamespace `
+              --resource-type $policyType `
+              --parent $policyParent `
+              --name $policyName `
+              --api-version 2022-03-01 `
+              --set properties.allow=true `
+              --output none
+            if ($LASTEXITCODE -ne 0) { throw 'Failed to temporarily enable SCM publishing authentication.' }
+            Start-Sleep -Seconds 10
+          }
+
+          try {
+            $publishing = az webapp deployment list-publishing-credentials `
+              --resource-group $resourceGroup `
+              --name $appName | ConvertFrom-Json
+            $basicBytes = [Text.Encoding]::ASCII.GetBytes("$($publishing.publishingUserName):$($publishing.publishingPassword)")
+            $headers = @{ Authorization = 'Basic ' + [Convert]::ToBase64String($basicBytes) }
+            $scmUri = [Uri]$publishing.scmUri
+            $scmBase = "$($scmUri.Scheme)://$($scmUri.Host)"
+
+            $connection = "Server=tcp:property-peace-server.database.windows.net,1433;Initial Catalog=$databaseName;Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+            $migrationSettingsPath = Join-Path $env:RUNNER_TEMP 'appsettings.json'
+            @{ ConnectionStrings = @{ AzureSQLDatabase = $connection } } |
+              ConvertTo-Json -Depth 3 |
+              Set-Content -LiteralPath $migrationSettingsPath -Encoding utf8
+
+            if ($appIsLinux) {
+              $mkdirBody = @{ command = 'mkdir -p /home/data/migrations'; dir = '/home' } | ConvertTo-Json
+              $mkdirResult = Invoke-RestMethod `
+                -Uri "$scmBase/api/command" `
+                -Method Post `
+                -Headers $headers `
+                -ContentType 'application/json' `
+                -Body $mkdirBody
+              if ($mkdirResult.ExitCode -ne 0) { throw "Failed to create migration directory: $($mkdirResult.Error)" }
+
+              Invoke-RestMethod `
+                -Uri "$scmBase/api/vfs/data/migrations/$bundleName" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/octet-stream' `
+                -InFile $bundlePath | Out-Null
+              Invoke-RestMethod `
+                -Uri "$scmBase/api/vfs/data/migrations/appsettings.json" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/json' `
+                -InFile $migrationSettingsPath | Out-Null
+
+              $command = "chmod +x /home/data/migrations/$bundleName && /home/data/migrations/$bundleName --connection `"$connection`""
+              $commandBody = @{ command = $command; dir = '/home/data/migrations' } | ConvertTo-Json
+              $result = Invoke-RestMethod `
+                -Uri "$scmBase/api/command" `
+                -Method Post `
+                -Headers $headers `
+                -ContentType 'application/json' `
+                -Body $commandBody `
+                -TimeoutSec 600
+
+              if ($result.Output) { Write-Host $result.Output }
+              if ($result.Error) { Write-Host $result.Error }
+              if ($result.ExitCode -ne 0) { throw "Migration bundle exited with code $($result.ExitCode)." }
+            }
+            else {
+              # Kudu command processes do not inherit the site's Managed Identity endpoint.
+              # Triggered WebJobs run in the site worker context and receive the identity environment.
+              $jobName = 'property-peace-migrate'
+              $jobDirectory = "D:\home\site\wwwroot\App_Data\jobs\triggered\$jobName"
+              $mkdirBody = @{ command = "if not exist `"$jobDirectory`" mkdir `"$jobDirectory`""; dir = 'D:\home' } | ConvertTo-Json
+              $mkdirResult = Invoke-RestMethod `
+                -Uri "$scmBase/api/command" `
+                -Method Post `
+                -Headers $headers `
+                -ContentType 'application/json' `
+                -Body $mkdirBody
+              if ($mkdirResult.ExitCode -ne 0) { throw "Failed to create WebJob directory: $($mkdirResult.Error)" }
+
+              $jobVfsBase = "$scmBase/api/vfs/site/wwwroot/App_Data/jobs/triggered/$jobName"
+              Invoke-RestMethod `
+                -Uri "$jobVfsBase/$bundleName" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/octet-stream' `
+                -InFile $bundlePath | Out-Null
+              Invoke-RestMethod `
+                -Uri "$jobVfsBase/appsettings.json" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/json' `
+                -InFile $migrationSettingsPath | Out-Null
+
+              $runCommandPath = Join-Path $env:RUNNER_TEMP 'run.cmd'
+              @(
+                '@echo off'
+                "`"%~dp0$bundleName`" --connection `"$connection`""
+                'exit /b %ERRORLEVEL%'
+              ) | Set-Content -LiteralPath $runCommandPath -Encoding ascii
+              Invoke-RestMethod `
+                -Uri "$jobVfsBase/run.cmd" `
+                -Method Put `
+                -Headers ($headers + @{ 'If-Match' = '*' }) `
+                -ContentType 'application/octet-stream' `
+                -InFile $runCommandPath | Out-Null
+
+              $trigger = Invoke-WebRequest `
+                -Uri "$scmBase/api/triggeredwebjobs/$jobName/run" `
+                -Method Post `
+                -Headers $headers
+              $runLocation = [string]$trigger.Headers.Location
+              if ([string]::IsNullOrWhiteSpace($runLocation)) { throw 'Triggered WebJob did not return a run location.' }
+              if ($runLocation.StartsWith('/')) { $runLocation = "$scmBase$runLocation" }
+
+              $deadline = (Get-Date).AddMinutes(10)
+              do {
+                Start-Sleep -Seconds 5
+                $jobRun = Invoke-RestMethod -Uri $runLocation -Headers $headers
+                Write-Host "Migration WebJob status: $($jobRun.status)"
+              } while ($jobRun.status -in @('Pending', 'Running') -and (Get-Date) -lt $deadline)
+
+              if ($jobRun.output_url) {
+                $jobOutput = Invoke-WebRequest -Uri $jobRun.output_url -Headers $headers
+                Write-Host $jobOutput.Content
+              }
+              if ($jobRun.status -ne 'Success') { throw "Migration WebJob finished with status '$($jobRun.status)'." }
+            }
+
+            Write-Host "Migration bundle completed successfully for ${{ inputs.target }} ($databaseName)."
+          }
+          finally {
+            if ($restoreScmBasicAuth) {
+              az resource update `
+                --resource-group $resourceGroup `
+                --namespace $policyNamespace `
+                --resource-type $policyType `
+                --parent $policyParent `
+                --name $policyName `
+                --api-version 2022-03-01 `
+                --set properties.allow=false `
+                --output none
+              if ($LASTEXITCODE -ne 0) { Write-Error 'Failed to restore disabled SCM publishing authentication.' }
+            }
+          }

@@ -43,6 +43,10 @@ const MiniDrawerStyled = styled(Drawer, { shouldForwardProp: (prop) => prop !== 
     whiteSpace: 'nowrap',
     boxSizing: 'border-box',
     '& .MuiDrawer-paper': {
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100dvh',
+      overflow: 'hidden',
       background: getDrawerBackground(theme, lightDrawerBackground)
     },
     variants: [

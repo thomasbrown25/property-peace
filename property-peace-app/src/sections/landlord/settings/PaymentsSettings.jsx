@@ -1,4 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Box,
   Typography,
@@ -18,7 +19,7 @@ import {
   Collapse,
   useTheme
 } from '@mui/material';
-import { CreditCardOutlined, CheckCircleOutlined, ExclamationCircleOutlined, LinkOutlined, CloseOutlined, BankOutlined, HomeOutlined, PlusOutlined } from '@ant-design/icons';
+import { CreditCardOutlined, CheckCircleOutlined, CloseOutlined, BankOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { loadConnectAndInitialize } from '@stripe/connect-js';
 import { ConnectAccountManagement, ConnectAccountOnboarding, ConnectComponentsProvider } from '@stripe/react-connect-js';
 import useAuth from 'hooks/useAuth';
@@ -158,7 +159,7 @@ function DemoStripePaymentsPreview() {
   );
 }
 
-export function PaymentsSettingsContent({ rentPaymentAccess }) {
+export function PaymentsSettingsContent({ rentPaymentAccess, headerActionElement = null }) {
   const theme = useTheme();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
@@ -185,6 +186,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
   const [bankManagementInstance, setBankManagementInstance] = useState(null);
   const [openingBankManagement, setOpeningBankManagement] = useState(false);
   const [bankManagementError, setBankManagementError] = useState('');
+  const [bankManagementMode, setBankManagementMode] = useState('manage');
   const [bankAccounts, setBankAccounts] = useState([]);
   const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
   const prevShowOnboardingRef = useRef(false);
@@ -220,6 +222,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
       setBankManagementInstance(null);
       setOpeningBankManagement(false);
       setBankManagementError('');
+      setBankManagementMode('manage');
       setLoadingBankAccounts(false);
       connectSubmissionRef.current = false;
       connectCallbackGuardRef.current = null;
@@ -281,11 +284,6 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     });
   };
 
-  // Get properties connected to each bank account
-  const getPropertiesForAccount = (accountId) => {
-    if (!properties || !accountId) return [];
-    return properties.filter(p => p.operatingAccountId === accountId);
-  };
 
   // Refresh account status when onboarding modal closes
   useEffect(() => {
@@ -403,7 +401,8 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
       scopeKey: stripeScopeKey,
       channel: 'initial-account-creation',
       request: async ({ signal }) => {
-        const preparationResponse = await axiosServices.post('/api/stripe/connect-preparation', context, { signal });
+        const { ein, ...preparationContext } = context;
+        const preparationResponse = await axiosServices.post('/api/stripe/connect-preparation', preparationContext, { signal });
         const savedPreparation = preparationResponse.data;
         if (!savedPreparation?.id || !Array.isArray(savedPreparation.propertyIds) || !savedPreparation.updatedAt) {
           throw new Error('Property Peace could not confirm the saved payout setup.');
@@ -411,7 +410,13 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
         const returnUrl = `${window.location.origin}/landlord/settings?tab=payments&stripe=connected`;
         const createResponse = await axiosServices.post(
           '/api/stripe/connect-account',
-          { returnUrl, refreshUrl: returnUrl },
+          {
+            returnUrl,
+            refreshUrl: returnUrl,
+            operatingType: preparationContext.operatingType,
+            legalBusinessName: preparationContext.operatingType === 'business' ? preparationContext.displayName : null,
+            ein
+          },
           { signal }
         );
         const onboardingUrl = getInitialStripeOnboardingUrl(createResponse.data);
@@ -551,11 +556,12 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     }
   };
 
-  const openBankAccountManagement = async () => {
+  const openBankAccountManagement = async (mode = 'manage') => {
     if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
 
     setOpeningBankManagement(true);
     setBankManagementError('');
+    setBankManagementMode(mode);
     return requestLifecycleRef.current.run({
       scopeKey: stripeScopeKey,
       channel: 'bank-account-management-bootstrap',
@@ -608,6 +614,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     setBankManagementOpen(false);
     setBankManagementInstance(null);
     setBankManagementError('');
+    setBankManagementMode('manage');
 
     // Stripe/webhook synchronization can lag behind the embedded component closing.
     // Refresh immediately, then retry for a short bounded window.
@@ -650,21 +657,6 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     }, 1500);
   };
 
-  const getStatusChip = () => {
-    if (!accountStatus) return null;
-
-    if (accountStatus.IsAccountReadyForRentTransfers) {
-      return <Chip icon={<CheckCircleOutlined />} label="Account Transfer Eligible" color="success" size="small" sx={{ fontWeight: 600 }} />;
-    } else if (accountStatus.InternalReviewStatus === 'Suspended') {
-      return <Chip icon={<ExclamationCircleOutlined />} label="Payouts Suspended" color="error" size="small" sx={{ fontWeight: 600 }} />;
-    } else if (accountStatus.AccountId && !accountStatus.DetailsSubmitted) {
-      return <Chip icon={<ExclamationCircleOutlined />} label="Pending Setup" color="warning" size="small" sx={{ fontWeight: 600 }} />;
-    } else if (accountStatus.AccountId) {
-      return <Chip icon={<ExclamationCircleOutlined />} label="Under Review" color="warning" size="small" sx={{ fontWeight: 600 }} />;
-    } else {
-      return <Chip icon={<ExclamationCircleOutlined />} label="Not Connected" color="default" size="small" sx={{ fontWeight: 600 }} />;
-    }
-  };
 
   if (isDemo) {
     return <DemoStripePaymentsPreview />;
@@ -688,15 +680,78 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
     );
   }
 
-  const isConnected = accountStatus?.IsAccountReadyForRentTransfers === true;
   const needsOnboarding = accountStatus?.AccountId && !accountStatus?.DetailsSubmitted;
-  const isAwaitingReview = accountStatus?.AccountId && accountStatus?.DetailsSubmitted && !accountStatus?.IsAccountReadyForRentTransfers;
   const hasNoAccount = !accountStatus?.AccountId || accountStatus?.AccountId === '' || accountStatus?.AccountId === null;
   const renderedBankManagementGuard = bankManagementCallbackGuardRef.current;
+  const organizationName = currentOrganization?.name ?? currentOrganization?.Name ?? 'Your organization';
+  const entityName = bankAccounts.find((account) => account.accountName)?.accountName || organizationName;
+  const entityStatus = accountStatus?.IsEnabled === true
+    ? { label: 'Enabled', color: 'success', variant: 'filled' }
+    : accountStatus?.InternalReviewStatus === 'Suspended'
+      ? { label: 'Suspended', color: 'error', variant: 'filled' }
+      : needsOnboarding
+        ? { label: 'Setup required', color: 'warning', variant: 'outlined' }
+        : accountStatus?.DetailsSubmitted === true
+          ? { label: 'Under review', color: 'info', variant: 'outlined' }
+          : { label: 'Not connected', color: 'default', variant: 'outlined' };
+  const bankManagementTitle = bankManagementMode === 'entity'
+    ? 'Edit payment entity'
+    : bankManagementMode === 'remove'
+      ? 'Remove a Stripe bank account'
+      : bankManagementMode === 'add'
+        ? 'Add a Stripe bank account'
+        : 'Manage Stripe bank accounts';
+  const addAccountButton = (
+    <Button
+      variant="contained"
+      startIcon={openingBankManagement ? <CircularProgress size={16} color="inherit" /> : <PlusOutlined />}
+      onClick={hasNoAccount
+        ? openConnectPreparation
+        : needsOnboarding
+          ? openEmbeddedOnboarding
+          : () => openBankAccountManagement('add')}
+      disabled={
+        (hasNoAccount ? !canCreateInitialAccount : !canManageAccount) ||
+        connecting ||
+        loading ||
+        fetchingSession ||
+        openingBankManagement
+      }
+      sx={{ whiteSpace: 'nowrap', width: { xs: '100%', sm: 'auto' } }}
+    >
+      {connecting
+        ? 'Connecting…'
+        : fetchingSession || openingBankManagement
+          ? 'Opening Stripe…'
+          : hasNoAccount
+            ? 'Add Stripe account'
+            : needsOnboarding
+              ? 'Complete Stripe setup'
+              : 'Add bank account'}
+    </Button>
+  );
 
   return (
     <Box>
+      {headerActionElement && createPortal(addAccountButton, headerActionElement)}
       <Stack spacing={3}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={1.5}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          justifyContent="space-between"
+        >
+          <Box>
+            <Typography variant="h5" fontWeight={700}>
+              Bank accounts
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage the payment entity and payout accounts connected to this organization.
+            </Typography>
+          </Box>
+          {!headerActionElement && addAccountButton}
+        </Stack>
+
         <RentPaymentAccessPanel
           {...rentPaymentAccess}
           onRequest={rentPaymentAccess.requestAccess}
@@ -705,158 +760,94 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
             ? (canCreateInitialAccount ? openConnectPreparation : undefined)
             : (canManageAccount ? openEmbeddedOnboarding : undefined)}
         />
-        <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <CreditCardOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-              <Typography variant="h6" fontWeight="bold">
-                Online rent payment account
-              </Typography>
-            </Box>
-            {accountStatus?.AccountId && canManageAccount && (
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<LinkOutlined />}
-                onClick={() => {
-                  if (!canManageAccount || !stripeScopeKey || !accountStatus?.AccountId) return;
-                  requestLifecycleRef.current.run({
-                    scopeKey: stripeScopeKey,
-                    channel: 'existing-account-link',
-                    request: async ({ signal }) => {
-                      if (accountStatus.DetailsSubmitted) {
-                        const response = await axiosServices.post('/api/stripe/login-link', null, { signal });
-                        if (!response.data?.dashboardUrl) throw new Error('Failed to get dashboard link');
-                        return response.data.dashboardUrl;
-                      }
-                      const returnUrl = `${window.location.origin}/landlord/settings?tab=payments`;
-                      const response = await axiosServices.post('/api/stripe/account-link', {
-                        returnUrl,
-                        refreshUrl: returnUrl,
-                        type: 'account_onboarding'
-                      }, { signal });
-                      if (!response.data?.onboardingUrl) throw new Error('Failed to get onboarding link');
-                      return response.data.onboardingUrl;
-                    },
-                    onSuccess: (url) => window.open(url, '_blank', 'noopener,noreferrer'),
-                    onError: (error) => {
-                      console.error('Error opening Stripe dashboard:', error);
-                      openSnackbar({
-                        open: true,
-                        message: error?.response?.data?.message || 'Failed to open Stripe dashboard',
-                        variant: 'alert',
-                        alert: { color: 'error' }
-                      });
-                    }
-                  });
+
+        {/* Payment entity */}
+        <Paper variant="outlined" sx={{ overflow: 'hidden', bgcolor: 'background.paper' }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            justifyContent="space-between"
+            sx={{ p: { xs: 2.5, md: 3 }, borderBottom: '1px solid', borderColor: 'divider' }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Box
+                sx={{
+                  width: 42,
+                  height: 42,
+                  display: 'grid',
+                  placeItems: 'center',
+                  borderRadius: 2,
+                  bgcolor: (t) => alpha(t.palette.primary.main, 0.1),
+                  color: 'primary.main'
                 }}
               >
-                {accountStatus?.DetailsSubmitted ? 'View Stripe Dashboard' : 'Complete Account Setup'}
+                <CreditCardOutlined style={{ fontSize: 21 }} />
+              </Box>
+              <Box>
+                <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                  Payment entity
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+                  <Typography variant="h6" fontWeight={700}>
+                    {entityName}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={entityStatus.label}
+                    color={entityStatus.color}
+                    variant={entityStatus.variant}
+                    sx={{ fontWeight: 700 }}
+                  />
+                </Stack>
+              </Box>
+            </Stack>
+            {canManageAccount && (
+              <Button
+                variant="outlined"
+                startIcon={<EditOutlined />}
+                onClick={needsOnboarding ? openEmbeddedOnboarding : () => openBankAccountManagement('entity')}
+                disabled={fetchingSession || openingBankManagement}
+              >
+                Edit entity
               </Button>
             )}
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Complete Stripe's secure setup to accept tenant payments and route approved rent payouts to your bank account.
-          </Typography>
-          {!hasNoAccount && !canManageAccount && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Stripe onboarding, dashboard access, and account changes are restricted to this organization’s connected-account owner.
+          </Stack>
+
+          {needsOnboarding && (
+            <Alert severity="warning" sx={{ m: { xs: 2.5, md: 3 }, mb: 0 }}>
+              Additional business information is required before Stripe can finish setting up payouts.
             </Alert>
           )}
 
-          <Divider sx={{ my: 3 }} />
-
-          {/* Status Section */}
-          <Box sx={{ mb: 3 }}>
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
-              <Typography variant="subtitle1" fontWeight="medium">
-                Account Status:
-              </Typography>
-              {getStatusChip()}
-            </Stack>
-
-            {isConnected && (
-              <>
-                <Alert severity="success" sx={{ mb: 2 }}>
-                  Your Stripe account currently passes account-level rent-transfer controls. Each payment remains subject to payment-specific holds, amount limits, and rolling-volume checks before transfer.
-                </Alert>
-                {accountStatus?.AccountId && (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                      Stripe Account ID
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'text.secondary', wordBreak: 'break-all' }}>
-                      {accountStatus.AccountId}
-                    </Typography>
-                  </Box>
-                )}
-              </>
-            )}
-
-            {needsOnboarding && (
-              <Alert severity="warning" sx={{ mb: 2 }}>
-                Your Stripe account has been created but needs additional information. Complete Stripe’s secure hosted onboarding; Property Peace does not store your identity documents or full bank details.
-              </Alert>
-            )}
-
-            {isAwaitingReview && (
-              <Alert severity={accountStatus?.InternalReviewStatus === 'Suspended' ? 'error' : 'info'} sx={{ mb: 2 }}>
-                {accountStatus?.AccountReadinessReason || 'Current account-level transfer requirements have not been met.'}
-              </Alert>
-            )}
-
-            {!accountStatus?.AccountId && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                Connect your bank account to start accepting online payments from tenants. The setup process takes just a few minutes.
-                <br />
-
-              </Alert>
-            )}
+          <Box
+            sx={{
+              p: { xs: 2.5, md: 3 },
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'minmax(150px, 0.35fr) minmax(0, 1fr)' },
+              rowGap: 1.5,
+              columnGap: 3
+            }}
+          >
+            <Typography variant="subtitle2">Account type</Typography>
+            <Typography variant="body2" color="text.secondary">Business</Typography>
+            <Typography variant="subtitle2">Name</Typography>
+            <Typography variant="body2" color="text.secondary">{entityName}</Typography>
+            <Typography variant="subtitle2">Doing business as</Typography>
+            <Typography variant="body2" color="text.secondary">{entityName}</Typography>
           </Box>
-
         </Paper>
 
         {/* Bank Accounts Section */}
         <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1.5}
-            alignItems={{ xs: 'stretch', sm: 'center' }}
-            justifyContent="space-between"
-            sx={{ mb: 2 }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <BankOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-              <Typography variant="h6" fontWeight="bold">
-                Stripe bank accounts
-              </Typography>
-            </Box>
-            <Button
-              variant="contained"
-              startIcon={openingBankManagement ? <CircularProgress size={16} color="inherit" /> : <PlusOutlined />}
-              onClick={hasNoAccount ? openConnectPreparation : needsOnboarding ? openEmbeddedOnboarding : openBankAccountManagement}
-              disabled={
-                (hasNoAccount ? !canCreateInitialAccount : !canManageAccount) ||
-                connecting ||
-                loading ||
-                fetchingSession ||
-                openingBankManagement
-              }
-              sx={{ whiteSpace: 'nowrap' }}
-            >
-              {connecting
-                ? 'Connecting…'
-                : fetchingSession || openingBankManagement
-                  ? 'Opening Stripe…'
-                  : hasNoAccount
-                    ? 'Add Stripe account'
-                    : needsOnboarding
-                      ? 'Complete Stripe setup'
-                      : 'Add bank account with Stripe'}
-            </Button>
-          </Stack>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+            <BankOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+            <Typography variant="h6" fontWeight="bold">
+              Connected bank accounts
+            </Typography>
+          </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            View the payout destinations already connected to this organization. Add or update bank details securely in Stripe; Property Peace never receives full account or routing numbers.
+            Payout destinations connected beneath this payment entity. Bank details are added, edited, and removed securely in Stripe.
           </Typography>
           {bankManagementError && <Alert severity="error" sx={{ mb: 2 }}>{bankManagementError}</Alert>}
 
@@ -870,98 +861,62 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
             </Alert>
           ) : (
             <Grid container spacing={2}>
-              {bankAccounts.map((account) => {
-                const connectedProperties = getPropertiesForAccount(account.id);
-                return (
-                  <Grid item xs={12} sm={6} key={account.id}>
-                    <Card variant="outlined" sx={{ height: '100%' }}>
-                      <CardContent>
-                        <Stack spacing={2}>
-                          <Box>
-                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                              <BankOutlined style={{ fontSize: 18, color: '#1890ff' }} />
-                              <Typography variant="subtitle1" fontWeight="600">
-                                {account.accountName || 'Unnamed Account'}
-                                {account.last4 && (
-                                  <Typography component="span" variant="subtitle1" fontWeight="600" sx={{ ml: 1, color: 'text.secondary' }}>
-                                    •••• {account.last4}
-                                  </Typography>
-                                )}
-                              </Typography>
-                            </Stack>
-                            {account.stripeAccountId && (
-                              <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                                {account.stripeAccountId}
-                              </Typography>
-                            )}
-                          </Box>
-                          
-                          <Divider />
-                          
-                          <Box>
-                            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                              Connected Properties ({connectedProperties.length})
+              {bankAccounts.map((account) => (
+                <Grid item xs={12} sm={6} key={account.id}>
+                  <Card variant="outlined" sx={{ height: '100%' }}>
+                    <CardContent>
+                      <Stack spacing={2}>
+                        <Box>
+                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                            <BankOutlined style={{ fontSize: 18, color: '#1890ff' }} />
+                            <Typography variant="subtitle1" fontWeight="600">
+                              {account.bankName || account.accountName || 'Unnamed Account'}
+                              {account.last4 && (
+                                <Typography component="span" variant="subtitle1" fontWeight="600" sx={{ ml: 1, color: 'text.secondary' }}>
+                                  •••• {account.last4}
+                                </Typography>
+                              )}
                             </Typography>
-                            {connectedProperties.length === 0 ? (
-                              <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                No properties connected to this account
-                              </Typography>
-                            ) : (
-                              <Stack spacing={1}>
-                                {connectedProperties.map((property) => (
-                                  <Stack key={property.id} direction="row" spacing={1} alignItems="center">
-                                    <HomeOutlined style={{ fontSize: 14, color: '#1890ff' }} />
-                                    <Typography variant="body2">
-                                      {property.name}
-                                      {property.streetAddress && ` - ${property.streetAddress}`}
-                                    </Typography>
-                                  </Stack>
-                                ))}
-                              </Stack>
-                            )}
-                          </Box>
-                          {canManageAccount && (
+                          </Stack>
+                          {account.stripeAccountId && (
+                            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              {account.stripeAccountId}
+                            </Typography>
+                          )}
+                        </Box>
+
+                        {canManageAccount && (
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                             <Button
                               variant="outlined"
                               size="small"
-                              startIcon={<BankOutlined />}
-                              onClick={openBankAccountManagement}
+                              startIcon={<EditOutlined />}
+                              onClick={() => openBankAccountManagement('edit')}
                               disabled={openingBankManagement}
-                              sx={{ alignSelf: 'flex-start' }}
                             >
-                              Edit in Stripe
+                              Edit
                             </Button>
-                          )}
-                        </Stack>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                );
-              })}
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              size="small"
+                              startIcon={<DeleteOutlined />}
+                              onClick={() => openBankAccountManagement('remove')}
+                              disabled={openingBankManagement}
+                            >
+                              Remove
+                            </Button>
+                          </Stack>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
             </Grid>
           )}
         </Paper>
 
-        {/* Information Section */}
-        <Paper variant="outlined" sx={{ p: 3, bgcolor: (t) => alpha(t.palette.background.paper, 0.6) }}>
-          <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2 }}>
-            About Stripe Connect
-          </Typography>
-          <Stack spacing={1.5}>
-            <Typography variant="body2" color="text.secondary">
-              • Secure payment processing powered by Stripe
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Stripe sends available payout funds to your selected bank account on the applicable payout schedule
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Stripe handles all PCI compliance and security requirements
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              • Processing and payout fees vary by payment method and your Stripe agreement
-            </Typography>
-          </Stack>
-        </Paper>
       </Stack>
 
       <ConnectOnboardingWizard
@@ -1120,7 +1075,7 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
 
       <Dialog open={bankManagementOpen} onClose={closeBankAccountManagement} fullWidth maxWidth="md">
         <DialogTitle sx={{ pr: 6 }}>
-          Manage Stripe bank accounts
+          {bankManagementTitle}
           <IconButton
             aria-label="Close Stripe bank account management"
             onClick={closeBankAccountManagement}
@@ -1131,7 +1086,11 @@ export function PaymentsSettingsContent({ rentPaymentAccess }) {
         </DialogTitle>
         <DialogContent dividers sx={{ minHeight: 420, p: { xs: 1.5, sm: 2.5 } }}>
           <Alert severity="info" icon={false} sx={{ mb: 2 }}>
-            Add or update bank accounts directly with Stripe. Property Peace only displays safe account details such as bank name and last four digits.
+            {bankManagementMode === 'entity'
+              ? 'Update the business and identity information Stripe uses for this payment entity.'
+              : bankManagementMode === 'remove'
+                ? 'Choose the bank account to remove in Stripe. Stripe may require another payout account before the current default can be removed.'
+                : 'Add or update bank accounts directly with Stripe. Property Peace only displays safe account details such as bank name and last four digits.'}
           </Alert>
           {bankManagementError && <Alert severity="error" sx={{ mb: 2 }}>{bankManagementError}</Alert>}
           {bankManagementInstance && (

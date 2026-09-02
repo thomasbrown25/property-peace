@@ -55,6 +55,10 @@ export default function MainDrawer({ window }) {
               sx: {
                 boxSizing: 'border-box',
                 width: DRAWER_WIDTH,
+                height: '100dvh',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
                 borderRight: (theme) =>
                   theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : `1px solid ${theme.palette.divider}`,
                 boxShadow: (theme) =>

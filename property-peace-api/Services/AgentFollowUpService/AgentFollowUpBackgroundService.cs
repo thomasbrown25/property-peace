@@ -36,10 +36,21 @@ namespace brownstone_hub_api.Services.AgentFollowUpService
 
                     await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                 }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in AI follow-up background service");
-                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
                 }
             }
 

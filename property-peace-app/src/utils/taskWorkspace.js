@@ -106,6 +106,15 @@ const recurringExpenseIntervalMonths = (frequency) => {
   return null;
 };
 
+const parseCalendarDate = (value) => {
+  if (value instanceof Date) return new Date(value);
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  return new Date(value);
+};
+
 const occurrenceInMonth = (startDate, monthOffset, dayOfPeriod) => {
   const year = startDate.getFullYear();
   const month = startDate.getMonth() + monthOffset;
@@ -132,11 +141,11 @@ export function buildRecurringExpenseTaskEvents(recurringExpenses = [], viewStar
 
     const intervalMonths = recurringExpenseIntervalMonths(valueOf(expense, 'frequency', 'Frequency'));
     const rawStartDate = valueOf(expense, 'startDate', 'StartDate');
-    const startDate = rawStartDate ? new Date(rawStartDate) : null;
+    const startDate = rawStartDate ? parseCalendarDate(rawStartDate) : null;
     if (!intervalMonths || !startDate || Number.isNaN(startDate.getTime())) return;
 
     const rawEndDate = valueOf(expense, 'endDate', 'EndDate');
-    const configuredEnd = rawEndDate ? endOfDay(new Date(rawEndDate)) : null;
+    const configuredEnd = rawEndDate ? endOfDay(parseCalendarDate(rawEndDate)) : null;
     const effectiveEnd = configuredEnd && !Number.isNaN(configuredEnd.getTime()) && configuredEnd < viewEnd ? configuredEnd : viewEnd;
     const dayOfPeriod = valueOf(expense, 'dayOfPeriod', 'DayOfPeriod');
     const expenseId = valueOf(expense, 'id', 'Id');

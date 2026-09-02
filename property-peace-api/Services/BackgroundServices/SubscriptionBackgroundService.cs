@@ -35,7 +35,14 @@ namespace brownstone_hub_api.Services.BackgroundServices
                     _logger.LogError(ex, "Error in SubscriptionBackgroundService");
                 }
 
-                await Task.Delay(_checkInterval, stoppingToken);
+                try
+                {
+                    await Task.Delay(_checkInterval, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
             }
         }
 

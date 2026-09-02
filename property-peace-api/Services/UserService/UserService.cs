@@ -1916,6 +1916,35 @@ namespace brownstone_hub_api.Services.UserService
             return response;
         }
 
+        public async Task<ServiceResponse<bool>> UpdateHasContinuedToOnlinePayments(long userId)
+        {
+            var response = new ServiceResponse<bool>();
+
+            try
+            {
+                var success = await _userRepository.UpdateHasContinuedToOnlinePayments(userId);
+                if (!success)
+                {
+                    response.Success = false;
+                    response.StatusCode = 404;
+                    response.Message = "User not found.";
+                    return response;
+                }
+
+                response.Data = true;
+                response.Message = "Online Payments welcome status updated successfully.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception occurred while updating Online Payments welcome status for user {UserId}", userId);
+                response.Success = false;
+                response.StatusCode = 500;
+                response.Message = "Unable to update Online Payments welcome status.";
+            }
+
+            return response;
+        }
+
         private void CreatePasswordHash(
             string password,
             out byte[] passwordHash,

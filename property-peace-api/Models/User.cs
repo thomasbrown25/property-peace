@@ -14,6 +14,7 @@ namespace brownstone_hub_api.Models
         public DateOnly? DateOfBirth { get; set; }
         public bool HasSeenTutorial { get; set; } = false;
         public bool NotificationPreferencesConfigured { get; set; } = false;
+        public bool HasContinuedToOnlinePayments { get; set; } = false;
         public ICollection<UserRole> UserRoles { get; set; } = [];
         public ICollection<PasskeyCredential> PasskeyCredentials { get; set; } = [];
         public byte[]? PasswordHash { get; set; } // Nullable for OAuth users

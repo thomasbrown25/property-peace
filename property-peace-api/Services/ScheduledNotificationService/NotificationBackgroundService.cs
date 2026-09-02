@@ -66,11 +66,22 @@ namespace brownstone_hub_api.Services.ScheduledNotificationService
                     // Check every minute to catch scheduled announcements accurately
                     await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
                 }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error in notification background service");
                     // Wait 5 minutes before retrying
-                    await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
                 }
             }
 

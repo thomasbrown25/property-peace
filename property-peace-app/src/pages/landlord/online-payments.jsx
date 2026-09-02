@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { alpha, Box, Button, Chip, Divider, Paper, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
+import { Alert, alpha, Box, Button, Chip, Divider, Paper, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import {
   ArrowRightOutlined,
   CheckCircleFilled,
@@ -15,6 +15,7 @@ import useRentPaymentAccess from 'hooks/useRentPaymentAccess';
 import OnlinePaymentTransactions from 'sections/landlord/payments/OnlinePaymentTransactions';
 import { PaymentsSettingsContent } from 'sections/landlord/settings/PaymentsSettings';
 import PayoutAssignments from 'sections/landlord/settings/PayoutAssignments';
+import axiosServices from 'utils/axios';
 import { DEFAULT_ONLINE_PAYMENT_TAB, getOnlinePaymentTabs, getSelectedOnlinePaymentTab } from 'utils/onlinePaymentTabs';
 import { hasContinuedToOnlinePayments, markOnlinePaymentsContinued } from 'utils/onlinePaymentsWelcome';
 
@@ -22,27 +23,60 @@ const PAYMENT_METHODS = ['ACH', 'Credit', 'Debit'];
 
 export default function OnlinePaymentsPage() {
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { currentOrganization } = useOrganization();
   const rentPaymentAccess = useRentPaymentAccess();
   const [hasContinued, setHasContinued] = useState(null);
+  const [isContinuing, setIsContinuing] = useState(false);
+  const [continueError, setContinueError] = useState('');
   const [activeTab, setActiveTab] = useState(DEFAULT_ONLINE_PAYMENT_TAB);
+  const [paymentHeaderActionElement, setPaymentHeaderActionElement] = useState(null);
   const paymentTabs = getOnlinePaymentTabs(rentPaymentAccess.access, rentPaymentAccess.presentation.canConfigure);
   const selectedTab = getSelectedOnlinePaymentTab(activeTab, paymentTabs);
 
   useEffect(() => {
     if (!user) return;
-    setHasContinued(hasContinuedToOnlinePayments(user, currentOrganization));
-  }, [currentOrganization, user]);
+    const hasContinuedInDatabase = user.hasContinuedToOnlinePayments === true || user.HasContinuedToOnlinePayments === true;
+    const hasLegacyLocalValue = hasContinuedToOnlinePayments(user, currentOrganization);
+    setHasContinued(hasContinuedInDatabase || hasLegacyLocalValue);
 
-  const continueToWorkspace = () => {
-    markOnlinePaymentsContinued(user, currentOrganization);
-    setHasContinued(true);
+    if (!hasContinuedInDatabase && hasLegacyLocalValue) {
+      axiosServices
+        .post('/api/user/online-payments-welcome/continue')
+        .then(() => updateUser({ hasContinuedToOnlinePayments: true }))
+        .catch(() => {
+          // Keep honoring the legacy local value; the next visit will retry the database migration.
+        });
+    }
+  }, [currentOrganization, updateUser, user]);
+
+  const continueToWorkspace = async () => {
+    setIsContinuing(true);
+    setContinueError('');
+    try {
+      const response = await axiosServices.post('/api/user/online-payments-welcome/continue');
+      if (response.data?.success !== true || response.data?.data !== true) {
+        throw new Error(response.data?.message || 'Unable to save your preference.');
+      }
+
+      updateUser({ hasContinuedToOnlinePayments: true });
+      markOnlinePaymentsContinued(user, currentOrganization);
+      setHasContinued(true);
+    } catch (error) {
+      setContinueError(error?.message || 'We could not open Online Payments. Please try again.');
+    } finally {
+      setIsContinuing(false);
+    }
   };
 
   return (
     <Box>
-      <ManagementPageHeader title="Online Payments" description="Set up and manage the way renters pay you online." marginBottom={3} />
+      <ManagementPageHeader
+        title="Online Payments"
+        description="Set up and manage the way renters pay you online."
+        actions={selectedTab === 'bank-accounts' ? <Box ref={setPaymentHeaderActionElement} /> : null}
+        marginBottom={3}
+      />
 
       {hasContinued === true && (
         <Box>
@@ -101,7 +135,9 @@ export default function OnlinePaymentsPage() {
             id="online-payments-panel-bank-accounts"
             aria-labelledby="online-payments-tab-bank-accounts"
           >
-            {selectedTab === 'bank-accounts' && <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} />}
+            {selectedTab === 'bank-accounts' && (
+              <PaymentsSettingsContent rentPaymentAccess={rentPaymentAccess} headerActionElement={paymentHeaderActionElement} />
+            )}
           </Box>
           <Box
             role="tabpanel"
@@ -375,6 +411,7 @@ export default function OnlinePaymentsPage() {
                   color="success"
                   size="large"
                   onClick={continueToWorkspace}
+                  disabled={isContinuing}
                   endIcon={<ArrowRightOutlined />}
                   sx={{
                     minHeight: 46,
@@ -383,9 +420,14 @@ export default function OnlinePaymentsPage() {
                     boxShadow: `0 12px 28px ${alpha(theme.palette.success.main, 0.24)}`
                   }}
                 >
-                  Continue to Online Payments
+                  {isContinuing ? 'Opening Online Payments…' : 'Continue to Online Payments'}
                 </Button>
               </Stack>
+              {continueError && (
+                <Alert severity="error" sx={{ mt: 2.25, maxWidth: 530 }}>
+                  {continueError}
+                </Alert>
+              )}
             </Stack>
           </Box>
         </Paper>

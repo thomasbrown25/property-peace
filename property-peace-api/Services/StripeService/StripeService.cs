@@ -123,15 +123,23 @@ namespace brownstone_hub_api.Services.StripeService
 
         public async Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountAsync(
             long userId, string email, string returnUrl, string? authorizedExistingAccountId)
+            => await CreateConnectAccountAsync(userId, email, returnUrl, authorizedExistingAccountId,
+                "individual", null, null);
+
+        public async Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountAsync(
+            long userId, string email, string returnUrl, string? authorizedExistingAccountId,
+            string operatingType, string? legalBusinessName, string? ein)
         {
             if (authorizedExistingAccountId != null)
-                return await CreateConnectAccountCoreAsync(userId, email, returnUrl, authorizedExistingAccountId);
+                return await CreateConnectAccountCoreAsync(userId, email, returnUrl, authorizedExistingAccountId,
+                    operatingType, legalBusinessName, ein);
 
             var creationLock = FirstAccountCreationLocks.GetOrAdd(userId, static _ => new SemaphoreSlim(1, 1));
             await creationLock.WaitAsync();
             try
             {
-                return await CreateConnectAccountCoreAsync(userId, email, returnUrl, null);
+                return await CreateConnectAccountCoreAsync(userId, email, returnUrl, null,
+                    operatingType, legalBusinessName, ein);
             }
             finally
             {
@@ -140,7 +148,8 @@ namespace brownstone_hub_api.Services.StripeService
         }
 
         private async Task<ServiceResponse<CreateStripeAccountResponseDto>> CreateConnectAccountCoreAsync(
-            long userId, string email, string returnUrl, string? authorizedExistingAccountId)
+            long userId, string email, string returnUrl, string? authorizedExistingAccountId,
+            string operatingType, string? legalBusinessName, string? ein)
         {
             var response = new ServiceResponse<CreateStripeAccountResponseDto>();
 
@@ -220,6 +229,16 @@ namespace brownstone_hub_api.Services.StripeService
                         }
                     }
                 };
+
+                if (string.Equals(operatingType, "business", StringComparison.OrdinalIgnoreCase))
+                {
+                    accountOptions.BusinessType = "company";
+                    accountOptions.Company = new AccountCompanyOptions
+                    {
+                        Name = legalBusinessName,
+                        TaxId = ein
+                    };
+                }
 
                 // The key is stable for this user's first account. Stripe durably collapses
                 // retries and cross-instance races while the per-user lock serializes this process.

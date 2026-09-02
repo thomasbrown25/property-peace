@@ -19,6 +19,7 @@ namespace brownstone_hub_api.Services.UserService
         Task<ServiceResponse<SettingsDto>> GetSettings();
         Task<ServiceResponse<SettingsDto>> SaveSettings(SettingsDto newSettings);
         Task<ServiceResponse<bool>> UpdateHasSeenTutorial(long userId, bool hasSeenTutorial);
+        Task<ServiceResponse<bool>> UpdateHasContinuedToOnlinePayments(long userId);
         Task<Dictionary<long, bool>> CheckUsersHaveAccounts(List<long> userIds);
         Task<ServiceResponse<string>> ChangePassword(string currentPassword, string newPassword);
         /// <summary>
