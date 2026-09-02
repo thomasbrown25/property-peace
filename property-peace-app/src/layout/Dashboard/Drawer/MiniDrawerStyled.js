@@ -5,11 +5,11 @@ import { Drawer } from '@mui/material';
 // project imports
 import { DRAWER_WIDTH } from 'config';
 
-const getDrawerBackground = (theme) => theme.palette.common.white;
+const getDrawerBackground = (theme) => (theme.palette.mode === 'dark' ? '#061e35' : theme.palette.common.white);
 
 const getDrawerEdge = (theme) => ({
-  borderRight: `1px solid ${theme.palette.divider}`,
-  boxShadow: '4px 0 18px rgba(6, 30, 53, 0.1)'
+  borderRight: theme.palette.mode === 'dark' ? '1px solid rgba(255, 255, 255, 0.1)' : `1px solid ${theme.palette.divider}`,
+  boxShadow: theme.palette.mode === 'dark' ? '4px 0 18px rgba(0, 0, 0, 0.2)' : '4px 0 18px rgba(6, 30, 53, 0.1)'
 });
 
 const openedMixin = (theme, lightDrawerBackground) => ({

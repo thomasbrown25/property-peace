@@ -65,6 +65,7 @@ function formatMoney(value) {
 
 function PortfolioStat({ label, value, helper, color, icon, loading }) {
   const theme = useTheme();
+  const overviewTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : 'text.primary';
 
   return (
     <Box
@@ -81,7 +82,7 @@ function PortfolioStat({ label, value, helper, color, icon, loading }) {
       }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
-        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 700, letterSpacing: 0.45, textTransform: 'uppercase' }}>
+        <Typography variant="caption" sx={{ color: overviewTextColor, fontWeight: 700, letterSpacing: 0.45, textTransform: 'uppercase' }}>
           {label}
         </Typography>
         <Box
@@ -108,7 +109,7 @@ function PortfolioStat({ label, value, helper, color, icon, loading }) {
           </>
         ) : (
           <>
-            <Typography variant="h4" fontWeight={750} sx={{ color: 'text.primary', lineHeight: 1.1 }}>
+            <Typography variant="h4" fontWeight={750} sx={{ color: overviewTextColor, lineHeight: 1.1 }}>
               {value}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
@@ -125,7 +126,7 @@ export default function Portfolio({ properties = [], isLoading = false }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const metrics = useMemo(() => getPortfolioMetrics(properties), [properties]);
-  const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
+  const headerTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
   const stats = [
     {
       label: 'Portfolio occupancy',
@@ -162,7 +163,7 @@ export default function Portfolio({ properties = [], isLoading = false }) {
       accentColor={theme.palette.primary.main}
       accentShadow
       title={
-        <Typography variant="h5" fontWeight={700} sx={{ color: navy }}>
+        <Typography variant="h5" fontWeight={700} sx={{ color: headerTextColor }}>
           Portfolio
         </Typography>
       }

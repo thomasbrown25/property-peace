@@ -170,3 +170,15 @@ test('Percy starter prompts and composer fail closed when the runtime is unavail
   assert.match(mobilePanel, /to="\/landlord\/ai-center\/collections-history"/);
   assert.match(mobilePanel, />\s*Activity history\s*<\/Button>/);
 });
+
+test('Percy uses theme-aware brand avatars and a single assistant row while streaming', async () => {
+  const aiCenter = await source('pages/landlord/ai-center.jsx');
+
+  assert.match(aiCenter, /favicon-transparent\.png/);
+  assert.match(aiCenter, /favicon-transparent-dark\.png/);
+  assert.match(aiCenter, /theme\.palette\.mode === 'dark'/);
+  assert.match(aiCenter, /streaming: true/);
+  assert.match(aiCenter, /<AssistantMessage[\s\S]*?progressText=\{progressText\}/);
+  assert.doesNotMatch(aiCenter, /\{thinking && \(\s*<Stack direction="row" spacing=\{1\.5\}/);
+  assert.doesNotMatch(aiCenter, /RobotOutlined/);
+});

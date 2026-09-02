@@ -30,7 +30,7 @@ public class ProviderEndpointReadinessTests
         { typeof(AICopilotController), nameof(AICopilotController.StreamChat), FeatureKeys.Percy },
         { typeof(AICopilotController), nameof(AICopilotController.ListConversations), FeatureKeys.Percy },
         { typeof(AICopilotController), nameof(AICopilotController.GetConversation), FeatureKeys.Percy },
-        { typeof(AICopilotController), nameof(AICopilotController.ArchiveConversation), FeatureKeys.Percy },
+        { typeof(AICopilotController), nameof(AICopilotController.DeleteConversation), FeatureKeys.Percy },
         { typeof(AICopilotController), nameof(AICopilotController.ConfirmAction), FeatureKeys.Percy },
         { typeof(AICopilotController), nameof(AICopilotController.DeclineAction), FeatureKeys.Percy },
         { typeof(AICopilotController), nameof(AICopilotController.TriggerOverdueRentSweep), FeatureKeys.Percy },

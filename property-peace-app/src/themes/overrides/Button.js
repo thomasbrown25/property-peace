@@ -10,7 +10,7 @@ const FILLED_PRIMARY_NAVY_HOVER = '#042238';
 
 function getColorStyle({ variant, color, theme }) {
   const colors = getColors(theme, color);
-  const { lighter, main, dark, darker, contrastText } = colors;
+  const { lighter, light, main, dark, darker, contrastText } = colors;
 
   const buttonShadow = `${color}Button`;
   const shadows = getShadow(theme, buttonShadow);
@@ -50,12 +50,16 @@ function getColorStyle({ variant, color, theme }) {
       };
     case 'outlined':
       return {
-        borderColor: main,
+        color: theme.palette.mode === 'dark' ? (color === 'primary' || color === 'secondary' ? theme.palette.text.primary : light) : main,
+        borderColor: theme.palette.mode === 'dark' ? alpha(light, 0.72) : main,
         borderWidth: 2,
+        '& .MuiButton-startIcon, & .MuiButton-endIcon': {
+          color: 'inherit'
+        },
         '&:hover': {
-          color: dark,
-          backgroundColor: 'transparent',
-          borderColor: dark,
+          color: theme.palette.mode === 'dark' ? theme.palette.common.white : dark,
+          backgroundColor: theme.palette.mode === 'dark' ? alpha(light, 0.1) : 'transparent',
+          borderColor: theme.palette.mode === 'dark' ? light : dark,
           borderWidth: 2,
           transform: 'translateY(-2px)',
           boxShadow: `0 4px 12px ${alpha(main, 0.2)}`
@@ -77,11 +81,11 @@ function getColorStyle({ variant, color, theme }) {
     case 'text':
     default:
       return {
-        color: dark,
+        color: theme.palette.mode === 'dark' ? (color === 'primary' || color === 'secondary' ? theme.palette.text.secondary : light) : dark,
         '&:hover': {
-          color: darker,
-          backgroundColor: 'transparent',
-          textDecoration: 'underline'
+          color: theme.palette.mode === 'dark' ? theme.palette.text.primary : darker,
+          backgroundColor: theme.palette.mode === 'dark' ? alpha(light, 0.1) : 'transparent',
+          textDecoration: theme.palette.mode === 'dark' ? 'none' : 'underline'
         },
         ...commonShadow
       };

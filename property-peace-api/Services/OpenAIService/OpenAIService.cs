@@ -50,7 +50,7 @@ namespace brownstone_hub_api.Services.OpenAIService
 
                 // Determine endpoint and model name
                 var endpoint = GetEndpoint();
-                var modelName = !string.IsNullOrEmpty(_settings.DeploymentName) ? _settings.DeploymentName : _settings.Model;
+                var modelName = _settings.Model;
                 
                 var requestBody = new
                 {
@@ -119,7 +119,7 @@ namespace brownstone_hub_api.Services.OpenAIService
 
                 // Determine endpoint and model name
                 var endpoint = GetEndpoint();
-                var modelName = !string.IsNullOrEmpty(_settings.DeploymentName) ? _settings.DeploymentName : _settings.Model;
+                var modelName = _settings.Model;
                 
                 var requestBody = new
                 {
@@ -269,7 +269,7 @@ namespace brownstone_hub_api.Services.OpenAIService
             {
                 var baseUrl = _settings.Endpoint.TrimEnd('/');
                 var apiVersion = _settings.ApiVersion ?? "2024-02-15-preview";
-                return $"{baseUrl}/openai/deployments/{(_settings.DeploymentName ?? _settings.Model)}/chat/completions?api-version={apiVersion}";
+                return $"{baseUrl}/openai/deployments/{_settings.Model}/chat/completions?api-version={apiVersion}";
             }
             
             // OpenAI direct API

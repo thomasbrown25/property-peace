@@ -255,16 +255,16 @@ export default function Notification() {
         color="secondary"
         variant="light"
         sx={(theme) => ({
-          color: 'text.primary',
-          bgcolor: open ? 'action.selected' : 'transparent',
+          color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
+          bgcolor: open ? (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.selected') : 'transparent',
           transition: theme.transitions.create(['background-color', 'box-shadow'], {
             duration: theme.transitions.duration.shorter
           }),
           '&:hover': {
-            bgcolor: 'action.hover',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover',
             boxShadow: 'none'
           },
-          ...theme.applyStyles('dark', { bgcolor: open ? 'action.selected' : 'transparent' })
+          ...theme.applyStyles('dark', { bgcolor: open ? 'rgba(255, 255, 255, 0.1)' : 'transparent' })
         })}
         aria-label="open notifications"
         ref={anchorRef}

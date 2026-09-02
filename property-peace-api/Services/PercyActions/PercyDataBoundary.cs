@@ -147,18 +147,50 @@ public static class PercyDataBoundary
 
     public static PercyRedactionResult SanitizeResponse(
         PercyChatResponseDto response,
-        IEnumerable<string?>? exactSensitiveValues = null)
+        IEnumerable<string?>? exactSensitiveValues = null,
+        IEnumerable<string?>? exactAllowedDisplayValues = null)
     {
         ArgumentNullException.ThrowIfNull(response);
         var total = 0;
         var truncated = false;
+        var allowedDisplayValues = (exactAllowedDisplayValues ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value) && value!.Trim().Length >= 3)
+            .Select(value => value!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(value => value.Length <= MaxExactSensitiveValueLength)
+            .Where(IsSafeAllowedDisplayValue)
+            .Take(MaxExactSensitiveValues)
+            .OrderByDescending(value => value.Length)
+            .ToList();
 
         string Safe(string? value, int limit)
         {
-            var result = Redact(value, PercyRedactionProfile.GeneratedOutput, exactSensitiveValues, limit);
+            var protectedText = value ?? string.Empty;
+            var protections = new List<(string Token, string Value)>();
+            for (var index = 0; index < allowedDisplayValues.Count; index++)
+            {
+                var allowedValue = allowedDisplayValues[index];
+                if (!protectedText.Contains(allowedValue, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var token = $"PERCYDISPLAYVALUE{index}TOKEN";
+                while (protectedText.Contains(token, StringComparison.Ordinal)) token += "X";
+                protectedText = ProtectAllowedDisplayValue(protectedText, allowedValue, token);
+                protections.Add((token, allowedValue));
+            }
+
+            // Apply the complete output boundary before restoring only exact, trusted display values
+            // supplied by a deterministic server response. Truncate after restoration so protection
+            // tokens cannot change configured field limits.
+            var result = Redact(protectedText, PercyRedactionProfile.GeneratedOutput, exactSensitiveValues, int.MaxValue);
+            var safeText = result.Text;
+            foreach (var (token, allowedValue) in protections)
+                safeText = safeText.Replace(token, allowedValue, StringComparison.Ordinal);
+
+            var fieldWasTruncated = safeText.Length > limit;
+            if (fieldWasTruncated) safeText = safeText[..limit];
             total += result.RedactionCount;
-            truncated |= result.WasTruncated;
-            return result.Text;
+            truncated |= result.WasTruncated || fieldWasTruncated;
+            return safeText;
         }
 
         response.Content = Safe(response.Content, MaxContentLength);
@@ -236,6 +268,38 @@ public static class PercyDataBoundary
         Regex.IsMatch(value, @"^\s*\d{1,6}\s+", RegexOptions.CultureInvariant, RegexTimeout) ||
         Regex.IsMatch(value, @"(?i)\b(?:street|st\.?|avenue|ave\.?|road|rd\.?|drive|dr\.?|lane|ln\.?|boulevard|blvd\.?|terrace|court|ct\.?|highway|hwy\.?)\b",
             RegexOptions.CultureInvariant, RegexTimeout);
+
+    private static string ProtectAllowedDisplayValue(string text, string allowedValue, string token)
+    {
+        var addressCandidates = AddressCandidatePattern.Matches(text).Cast<Match>().ToList();
+        var exactValuePattern = $@"(?<![A-Za-z0-9]){Regex.Escape(allowedValue)}(?![A-Za-z0-9])";
+
+        return Regex.Replace(text, exactValuePattern, match =>
+        {
+            var matchEnd = match.Index + match.Length;
+            var masksLargerAddress = addressCandidates.Any(candidate =>
+                candidate.Index <= match.Index &&
+                candidate.Index + candidate.Length >= matchEnd &&
+                !string.Equals(candidate.Value, allowedValue, StringComparison.OrdinalIgnoreCase));
+            return masksLargerAddress ? match.Value : token;
+        }, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, RegexTimeout);
+    }
+
+    private static bool IsSafeAllowedDisplayValue(string value)
+    {
+        // Generic road words and incomplete numeric prefixes can occur inside unrelated addresses.
+        // Never let them become redaction-bypass tokens merely because a record used them as a name.
+        if (Regex.IsMatch(value,
+                @"^(?:street|st\.?|avenue|ave\.?|road|rd\.?|drive|dr\.?|lane|ln\.?|boulevard|blvd\.?|terrace|court|ct\.?|parkway|pkwy\.?|place|pl\.?|highway|hwy\.?)$",
+                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, RegexTimeout))
+            return false;
+
+        if (LooksLikeAddress(value) && !AddressCandidatePattern.IsMatch(value))
+            return false;
+
+        return !Regex.IsMatch(value, @"^\s*\d{1,6}\s+", RegexOptions.CultureInvariant, RegexTimeout) ||
+               AddressCandidatePattern.IsMatch(value);
+    }
 
     private static int LimitFor(PercyRedactionProfile profile) => profile switch
     {

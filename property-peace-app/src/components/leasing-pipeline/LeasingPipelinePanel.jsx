@@ -110,6 +110,11 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
             {stages.map((item) => {
               const complete = item.state === 'complete';
               const current = item.state === 'current';
+              const stageColor = current
+                ? (theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.primary.dark)
+                : complete
+                  ? (theme.palette.mode === 'dark' ? theme.palette.success.light : theme.palette.success.dark)
+                  : theme.palette.text.secondary;
               return (
                 <Box
                   component="li"
@@ -121,7 +126,7 @@ export default function LeasingPipelinePanel({ resourceType, resourceId, unitId,
                     border: '1px solid',
                     borderColor: current ? 'primary.main' : complete ? 'success.dark' : 'divider',
                     bgcolor: current ? alpha(theme.palette.primary.main, 0.1) : complete ? alpha(theme.palette.success.main, 0.08) : 'background.paper',
-                    color: current ? 'primary.dark' : complete ? 'success.dark' : 'text.secondary'
+                    color: stageColor
                   }}
                 >
                   <Stack direction="row" spacing={0.65} alignItems="center">

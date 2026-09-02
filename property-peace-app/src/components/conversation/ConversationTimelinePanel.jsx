@@ -61,7 +61,7 @@ function TimelineEntry({ entry, canCreateFollowUp, onCreateFollowUp }) {
   const item = getTimelineEntryPresentation(entry);
   if (!item) return null;
   return (
-    <Box component="li" sx={{ listStyle: 'none', position: 'relative', pl: 3, pb: 2, '&:last-of-type': { pb: 0 } }}>
+    <Box component="li" sx={{ listStyle: 'none', position: 'relative', minWidth: 0, pl: 3, pb: 2, '&:last-of-type': { pb: 0 } }}>
       <Box sx={{ position: 'absolute', left: 5, top: 6, bottom: -6, width: 1, bgcolor: 'divider', '&::before': { content: '""', position: 'absolute', top: 0, left: -4, width: 9, height: 9, borderRadius: '50%', bgcolor: 'primary.main' } }} />
       <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
         <Typography variant="subtitle2" fontWeight={700}>{item.kindLabel}</Typography>
@@ -71,7 +71,16 @@ function TimelineEntry({ entry, canCreateFollowUp, onCreateFollowUp }) {
       </Stack>
       <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{item.summary}</Typography>
       <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
-        {item.context && <Chip size="small" color="primary" variant="outlined" label={item.context.label} title={`${item.context.kind} context`} />}
+        {item.context && (
+          <Chip
+            size="small"
+            color="primary"
+            variant="outlined"
+            label={item.context.label}
+            title={`${item.context.kind} context`}
+            sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
+          />
+        )}
         {item.deliveries.map((delivery, index) => (
           <Chip
             key={`${delivery.label}-${index}`}
@@ -79,6 +88,7 @@ function TimelineEntry({ entry, canCreateFollowUp, onCreateFollowUp }) {
             color={delivery.tone === 'default' ? undefined : delivery.tone}
             variant="outlined"
             label={delivery.detail ? `${delivery.label} · ${delivery.detail}` : delivery.label}
+            sx={{ maxWidth: '100%', '& .MuiChip-label': { overflow: 'hidden', textOverflow: 'ellipsis' } }}
           />
         ))}
         {item.visibilityLabel === 'Staff only' && <Chip size="small" color="warning" variant="outlined" label="Staff only" />}
@@ -233,18 +243,51 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
       onChange={(_, next) => setExpanded(next)}
       disableGutters
       elevation={0}
-      sx={{ flexShrink: 0, borderBottom: 1, borderColor: 'divider', '&::before': { display: 'none' } }}
+      sx={{ flexShrink: 0, minWidth: 0, overflow: 'hidden', borderBottom: 1, borderColor: 'divider', '&::before': { display: 'none' } }}
     >
-      <AccordionSummary expandIcon={<DownOutlined />} aria-controls="communication-timeline-content" id="communication-timeline-heading" sx={{ minHeight: 44, px: { xs: 1.5, sm: 2 } }}>
-        <Stack direction="row" spacing={1} alignItems="center">
+      <AccordionSummary
+        expandIcon={<DownOutlined />}
+        aria-controls="communication-timeline-content"
+        id="communication-timeline-heading"
+        sx={{
+          minHeight: 48,
+          px: { xs: 1.5, sm: 2 },
+          flexDirection: 'row',
+          '&.Mui-expanded': { minHeight: 48 },
+          '& .MuiAccordionSummary-content, & .MuiAccordionSummary-content.Mui-expanded': { minWidth: 0, my: 0, ml: 0 },
+          '& .MuiAccordionSummary-expandIconWrapper': {
+            flexShrink: 0,
+            ml: 'auto',
+            color: 'text.secondary',
+            '&.Mui-expanded': { transform: 'rotate(180deg)' }
+          }
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
           <HistoryOutlined />
-          <Typography variant="subtitle2" fontWeight={700}>Communication activity</Typography>
+          <Typography variant="subtitle2" fontWeight={700} noWrap>Communication activity</Typography>
           {unreadCount > 0 && <Chip size="small" color="primary" label={`${unreadCount} unread`} />}
         </Stack>
       </AccordionSummary>
-      <AccordionDetails id="communication-timeline-content" sx={{ px: { xs: 1.5, sm: 2 }, pt: 0, pb: 2, bgcolor: 'background.default' }}>
-        <Stack spacing={1.5}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+      <AccordionDetails
+        id="communication-timeline-content"
+        sx={{
+          minWidth: 0,
+          maxHeight: { xs: 'min(55dvh, 420px)', md: 300 },
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          px: { xs: 1.5, sm: 2 },
+          pt: 1.5,
+          pb: 2,
+          bgcolor: 'background.default',
+          scrollbarGutter: 'stable',
+          '&::-webkit-scrollbar': { width: 8 },
+          '&::-webkit-scrollbar-track': { bgcolor: 'transparent' },
+          '&::-webkit-scrollbar-thumb': { bgcolor: 'divider', borderRadius: 4 }
+        }}
+      >
+        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ minWidth: 0 }}>
             <TextField
               fullWidth
               size="small"
@@ -252,8 +295,9 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
               value={query}
               onChange={(event) => setQuery(event.target.value.slice(0, 200))}
               InputProps={{ startAdornment: <InputAdornment position="start"><SearchOutlined /></InputAdornment> }}
+              sx={{ minWidth: 0 }}
             />
-            <FormControl size="small" sx={{ minWidth: 145 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 145 }, width: { xs: '100%', sm: 'auto' }, flexShrink: 0 }}>
               <InputLabel id="timeline-channel-label">Channel</InputLabel>
               <Select labelId="timeline-channel-label" label="Channel" value={channel} onChange={(event) => setChannel(event.target.value)}>
                 {CHANNEL_OPTIONS.map((option) => <MenuItem key={option.value || 'all'} value={option.value}>{option.label}</MenuItem>)}
@@ -262,7 +306,7 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
           </Stack>
 
           {canManageFollowUps && (
-            <Box sx={{ p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper' }}>
+            <Box sx={{ minWidth: 0, p: 1.5, border: 1, borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper' }}>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                 <Typography variant="subtitle2" fontWeight={700}>Open follow-up tasks</Typography>
                 <Button size="small" onClick={loadFollowUps} disabled={followUpLoading}>Refresh</Button>
@@ -287,7 +331,7 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
             </Box>
           )}
 
-          <Box aria-live="polite">
+          <Box aria-live="polite" sx={{ minWidth: 0 }}>
             {loading ? (
               <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ py: 3 }}><CircularProgress size={20} /><Typography variant="body2">Loading activity…</Typography></Stack>
             ) : error ? (
@@ -295,7 +339,7 @@ export default function ConversationTimelinePanel({ conversationId = null, conte
             ) : items.length === 0 ? (
               <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ py: 3 }}>{query || channel ? 'No activity matches these filters.' : 'No communication activity yet.'}</Typography>
             ) : (
-              <Box component="ol" sx={{ m: 0, p: 0, maxHeight: 320, overflowY: 'auto' }}>{items.map((entry) => <TimelineEntry key={entry.id} entry={entry} canCreateFollowUp={canManageFollowUps} onCreateFollowUp={beginFollowUp} />)}</Box>
+              <Box component="ol" sx={{ width: '100%', minWidth: 0, m: 0, p: 0, overflowX: 'hidden' }}>{items.map((entry) => <TimelineEntry key={entry.id} entry={entry} canCreateFollowUp={canManageFollowUps} onCreateFollowUp={beginFollowUp} />)}</Box>
             )}
           </Box>
 

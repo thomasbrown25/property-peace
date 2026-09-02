@@ -3,7 +3,7 @@ import { Link, useLocation, matchPath } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 
 // material-ui
-import { useMediaQuery, Avatar, Chip, ListItemButton, ListItemIcon, ListItemText, Typography, Box, Tooltip, Popper, Paper, ClickAwayListener, List, alpha } from '@mui/material';
+import { useMediaQuery, useTheme, Avatar, Chip, ListItemButton, ListItemIcon, ListItemText, Typography, Box, Tooltip, Popper, Paper, ClickAwayListener, List, alpha } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 // project imports
@@ -36,13 +36,17 @@ const PopperStyled = styled(Popper)(({ theme }) => ({
     zIndex: 120,
     borderWidth: '6px',
     borderStyle: 'solid',
-    borderColor: `${theme.palette.background.paper} transparent transparent ${theme.palette.background.paper}`
+    borderColor:
+      theme.palette.mode === 'dark'
+        ? '#0b2a46 transparent transparent #0b2a46'
+        : `${theme.palette.background.paper} transparent transparent ${theme.palette.background.paper}`
   }
 }));
 
 // ==============================|| NAVIGATION - LIST ITEM ||============================== //
 
 export default function NavItem({ item, level, isParents = false, setSelectedID, setSelectedItems, selectedItems }) {
+  const theme = useTheme();
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
@@ -109,12 +113,14 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
     }
   }, [selectedItems, item.id, item.hasDropdown, dropdownOpen]);
 
-  const textColor = '#061e35';
-  const iconColor = '#061e35';
-  const iconSelectedColor = '#061e35';
+  const darkChrome = theme.palette.mode === 'dark';
+  const chromeForeground = darkChrome ? '#ffffff' : '#061e35';
+  const textColor = chromeForeground;
+  const iconColor = chromeForeground;
+  const iconSelectedColor = chromeForeground;
   
   // Get primary color as hex for TwoTone icons
-  const primaryColorHex = '#061e35';
+  const primaryColorHex = chromeForeground;
 
   // Check if icon name contains "TwoTone" to apply twoToneColor prop
   const iconName = item.icon?.name || item.icon?.displayName || '';
@@ -150,10 +156,11 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
               target={itemTarget}
               disabled={item.disabled}
               selected={isSelected || dropdownOpen}
-              sx={() => {
-                const hoverBg = alpha('#061e35', 0.06);
-                const selectedBg = alpha('#061e35', 0.1);
-                const selectedColor = '#061e35';
+              sx={(theme) => {
+                const foreground = theme.palette.mode === 'dark' ? '#ffffff' : '#061e35';
+                const hoverBg = alpha(foreground, 0.06);
+                const selectedBg = alpha(foreground, 0.1);
+                const selectedColor = foreground;
                 return {
                   zIndex: 1201,
                   pl: drawerOpen ? `${level * 28}px` : 1.5,
@@ -162,7 +169,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                     '&:hover': { bgcolor: hoverBg },
                     '&.Mui-selected': {
                       bgcolor: selectedBg,
-                      borderRight: '2px solid #061e35',
+                      borderRight: `2px solid ${theme.palette.mode === 'dark' ? '#56b983' : '#061e35'}`,
                       color: selectedColor,
                       '&:hover': { color: selectedColor, bgcolor: selectedBg },
                       '& .MuiListItemIcon-root': { color: `${selectedColor} !important` }
@@ -190,12 +197,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                       height: 36,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      '&:hover': { bgcolor: alpha('#061e35', 0.06) }
+                      '&:hover': { bgcolor: alpha(chromeForeground, 0.06) }
                     }),
                     ...(!drawerOpen &&
                       isSelected && {
-                        bgcolor: alpha('#061e35', 0.1),
-                        '&:hover': { bgcolor: alpha('#061e35', 0.1) }
+                        bgcolor: alpha(chromeForeground, 0.1),
+                        '&:hover': { bgcolor: alpha(chromeForeground, 0.1) }
                       })
                   })}
                 >
@@ -238,6 +245,8 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                       py: 1,
                       boxShadow: theme.shadows[8],
                       backgroundImage: 'none',
+                      bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                      color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
                       minWidth: 200
                     })}
                   >
@@ -285,7 +294,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                                 })}
                               >
                                 {DropdownIcon && (
-                                  <ListItemIcon sx={{ minWidth: 36, color: '#061e35' }}>
+                                  <ListItemIcon sx={{ minWidth: 36, color: chromeForeground }}>
                                     <DropdownIcon 
                                       style={{ fontSize: '1rem' }}
                                       {...(isDropdownTwoToneIcon && { twoToneColor: primaryColorHex })}
@@ -331,7 +340,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                   })}
                   color="secondary"
                   variant="outlined"
-                  sx={{
+                  sx={(theme) => ({
                     position: 'absolute',
                     top: 12,
                     right: 20,
@@ -340,10 +349,10 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                     height: 20,
                     mr: -1,
                     ml: 1,
-                    color: '#061e35',
-                    borderColor: alpha('#061e35', 0.24),
-                    '&:hover': { borderColor: '#061e35' }
-                  }}
+                    color: theme.palette.mode === 'dark' ? '#ffffff' : '#061e35',
+                    borderColor: alpha(theme.palette.mode === 'dark' ? '#ffffff' : '#061e35', 0.24),
+                    '&:hover': { borderColor: theme.palette.mode === 'dark' ? '#ffffff' : '#061e35' }
+                  })}
                 >
                   <ActionIcon style={{ fontSize: '0.625rem' }} />
                 </IconButton>
@@ -361,8 +370,8 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
           onClick={() => itemHandler()}
           sx={{
             zIndex: 1201,
-            color: '#061e35',
-            '&.Mui-selected': { color: '#061e35' },
+            color: chromeForeground,
+            '&.Mui-selected': { color: chromeForeground },
             ...(isParents && { p: 1, mr: 1 })
           }}
         >
@@ -398,7 +407,7 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
           {!itemIcon && (
             <ListItemIcon
               sx={{
-                color: '#061e35',
+                color: chromeForeground,
                 ...(!drawerOpen && {
                   borderRadius: 1.5,
                   alignItems: 'center',
@@ -408,12 +417,12 @@ export default function NavItem({ item, level, isParents = false, setSelectedID,
                 ...(!drawerOpen && isSelected && { bgcolor: 'transparent', '&:hover': { bgcolor: 'transparent' } })
               }}
             >
-              <Dot size={4} sx={{ bgcolor: '#061e35' }} />
+              <Dot size={4} sx={{ bgcolor: chromeForeground }} />
             </ListItemIcon>
           )}
           <ListItemText
             primary={
-              <Typography variant="h6" sx={{ color: '#061e35', fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
+              <Typography variant="h6" sx={{ color: chromeForeground, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', fontWeight: 700 }}>
                 {item.title && <FormattedMessage id={item.title} />}
               </Typography>
             }

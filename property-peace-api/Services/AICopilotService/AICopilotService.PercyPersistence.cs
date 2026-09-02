@@ -102,7 +102,7 @@ namespace brownstone_hub_api.Services.AICopilotService
             return ServiceResponse<PercyConversationDto>.CreateSuccess(conversation);
         }
 
-        public async Task<ServiceResponse<bool>> ArchiveConversationAsync(
+        public async Task<ServiceResponse<bool>> DeleteConversationAsync(
             long organizationId, long userId, long conversationId, CancellationToken cancellationToken = default)
         {
             var conversation = await _dataContext.PercyConversations
@@ -110,14 +110,25 @@ namespace brownstone_hub_api.Services.AICopilotService
             if (conversation == null)
                 return ServiceResponse<bool>.CreateError("Conversation not found.", statusCode: 404);
 
-            if (!conversation.IsArchived)
-            {
-                conversation.IsArchived = true;
-                conversation.ArchivedAt = DateTime.UtcNow;
-                conversation.UpdatedAt = DateTime.UtcNow;
-                await _dataContext.SaveChangesAsync(cancellationToken);
-            }
-            return ServiceResponse<bool>.CreateSuccess(true, "Conversation archived.");
+            var confirmationIds = await _dataContext.PercyActionConfirmations
+                .Where(x => x.ConversationId == conversationId && x.OrganizationId == organizationId && x.UserId == userId)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+
+            var auditRecords = await _dataContext.PercyAuditRecords
+                .Where(x => x.OrganizationId == organizationId && x.UserId == userId &&
+                    (x.ConversationId == conversationId || (x.ConfirmationId.HasValue && confirmationIds.Contains(x.ConfirmationId.Value))))
+                .ToListAsync(cancellationToken);
+            var chatOperations = await _dataContext.PercyChatOperations
+                .Where(x => x.ConversationId == conversationId && x.OrganizationId == organizationId && x.UserId == userId)
+                .ToListAsync(cancellationToken);
+
+            _dataContext.PercyAuditRecords.RemoveRange(auditRecords);
+            _dataContext.PercyChatOperations.RemoveRange(chatOperations);
+            _dataContext.PercyConversations.Remove(conversation);
+            await _dataContext.SaveChangesAsync(cancellationToken);
+
+            return ServiceResponse<bool>.CreateSuccess(true, "Conversation deleted.");
         }
 
         public Task<ServiceResponse<PercyConfirmationResultDto>> DeclineConfirmationAsync(

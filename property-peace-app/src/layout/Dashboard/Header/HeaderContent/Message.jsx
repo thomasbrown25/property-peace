@@ -155,15 +155,15 @@ export default function Message() {
         <IconButton
           color="secondary"
           sx={(theme) => ({
-            color: 'text.primary',
+            color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
             transition: theme.transitions.create(['background-color', 'box-shadow'], {
               duration: theme.transitions.duration.shorter
             }),
             '&:hover': {
-              bgcolor: 'action.hover',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover',
               boxShadow: 'none'
             },
-            ...theme.applyStyles('dark', { '&:hover': { bgcolor: 'action.hover' } })
+            ...theme.applyStyles('dark', { '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' } })
           })}
           aria-label={isAdmin ? "open support" : "open messages"}
           onClick={handleClick}

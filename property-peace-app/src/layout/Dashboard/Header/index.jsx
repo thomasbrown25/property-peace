@@ -49,13 +49,13 @@ export default function Header() {
           color="secondary"
           variant="light"
           sx={(theme) => ({
-            color: 'text.primary',
+            color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
             bgcolor: 'transparent',
             transition: theme.transitions.create(['background-color', 'box-shadow'], {
               duration: theme.transitions.duration.shorter
             }),
             '&:hover': {
-              bgcolor: 'action.hover',
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover',
               boxShadow: 'none'
             },
             ml: { xs: 0, lg: -2 }
@@ -74,11 +74,11 @@ export default function Header() {
     color: 'inherit',
     elevation: 0,
     sx: (theme) => ({
-      bgcolor: 'common.white',
-      color: '#061e35',
+      bgcolor: theme.palette.mode === 'dark' ? '#061e35' : 'common.white',
+      color: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
       borderBottom: '1px solid',
-      borderBottomColor: 'divider',
-      boxShadow: '0 4px 14px rgba(6, 30, 53, 0.08)',
+      borderBottomColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'divider',
+      boxShadow: theme.palette.mode === 'dark' ? '0 4px 16px rgba(0, 0, 0, 0.22)' : '0 4px 14px rgba(6, 30, 53, 0.08)',
       zIndex: 1200,
       width: isHorizontal
         ? '100%'

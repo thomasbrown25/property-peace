@@ -17,7 +17,11 @@ export default function MobileSearch() {
           aria-label="open global search"
           color="secondary"
           onClick={() => setOpen(true)}
-          sx={{ color: 'text.primary', flexShrink: 0, '&:hover': { bgcolor: 'action.hover' } }}
+          sx={(theme) => ({
+            color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
+            flexShrink: 0,
+            '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover' }
+          })}
         >
           <SearchOutlined />
         </IconButton>

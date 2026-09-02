@@ -17,12 +17,12 @@ import logoLightHeader from 'assets/images/logos/property-peace-dark-2.png';
 import logo from 'assets/images/logos/property-peace.png';
 // ==============================|| LOGO SVG ||============================== //
 
-function LogoMain({ reverse, width = 150, disableTopPadding = false, lightHeaderLogo = false }) {
+function LogoMain({ reverse, width = 150, disableTopPadding = false, lightHeaderLogo = false, lightLogoInDarkMode = false, darkSurface = false }) {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === ThemeMode.DARK;
   // Use dark mode logo when reverse is true (for dark backgrounds like sidenav) or when in dark mode
   const useDarkLogo = reverse || isDarkMode;
-  const logoSrc = lightHeaderLogo ? logoLightHeader : useDarkLogo ? logoDark : logo;
+  const logoSrc = darkSurface ? logo : lightHeaderLogo ? logoLightHeader : isDarkMode && lightLogoInDarkMode ? logo : useDarkLogo ? logoDark : logo;
   
   return (
     /**
@@ -72,6 +72,13 @@ function LogoMain({ reverse, width = 150, disableTopPadding = false, lightHeader
   );
 }
 
-LogoMain.propTypes = { reverse: PropTypes.bool, width: PropTypes.number, disableTopPadding: PropTypes.bool, lightHeaderLogo: PropTypes.bool };
+LogoMain.propTypes = {
+  reverse: PropTypes.bool,
+  width: PropTypes.number,
+  disableTopPadding: PropTypes.bool,
+  lightHeaderLogo: PropTypes.bool,
+  lightLogoInDarkMode: PropTypes.bool,
+  darkSurface: PropTypes.bool
+};
 
 export default LogoMain;

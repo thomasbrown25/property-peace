@@ -75,8 +75,7 @@ namespace brownstone_hub_api.Controllers
                 return;
             }
 
-            await WriteEventAsync(new { type = "status", message = "Understanding your request" });
-            await WriteEventAsync(new { type = "status", message = "Checking Property Peace data" });
+            await WriteEventAsync(new { type = "status", message = "Let me take a look…" });
 
             var result = await _aiCopilotService.ChatAsync(
                 context.OrganizationId.Value,
@@ -122,12 +121,12 @@ namespace brownstone_hub_api.Controllers
         }
 
         [HttpDelete("conversations/{conversationId:long}")]
-        public async Task<IActionResult> ArchiveConversation(long conversationId, CancellationToken cancellationToken)
+        public async Task<IActionResult> DeleteConversation(long conversationId, CancellationToken cancellationToken)
         {
             var context = await GetPercyContextAsync();
             if (!context.OrganizationId.HasValue) return StatusCode(403, new { Message = "Organization context is required" });
             if (!context.UserId.HasValue) return Unauthorized(new { Message = "Authenticated user context is required" });
-            var response = await _aiCopilotService.ArchiveConversationAsync(context.OrganizationId.Value, context.UserId.Value, conversationId, cancellationToken);
+            var response = await _aiCopilotService.DeleteConversationAsync(context.OrganizationId.Value, context.UserId.Value, conversationId, cancellationToken);
             return PercyResult(response);
         }
 

@@ -6,6 +6,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { styled } from '@mui/material/styles';
 import {
   useMediaQuery,
+  useTheme,
   Collapse,
   ClickAwayListener,
   List,
@@ -59,7 +60,7 @@ const PopperStyled = styled(Popper)(({ theme }) => ({
       ...(theme.direction === 'rtl' && { right: -5 }),
       width: 10,
       height: 10,
-      background: theme.palette.background.paper,
+      background: theme.palette.mode === 'dark' ? '#0b2a46' : theme.palette.background.paper,
       transform: 'translateY(-50%) rotate(45deg)',
       zIndex: 120,
       borderLeft: '2px solid',
@@ -80,6 +81,7 @@ const PopperStyled = styled(Popper)(({ theme }) => ({
 }));
 
 export default function NavCollapse({ menu, level, parentId, setSelectedItems, selectedItems, setSelectedLevel, selectedLevel }) {
+  const theme = useTheme();
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
 
@@ -217,8 +219,9 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
   const borderIcon = level === 1 ? <BorderOutlined style={{ fontSize: '1rem' }} /> : false;
   const Icon = menu.icon;
   const menuIcon = menu.icon ? <Icon style={{ fontSize: drawerOpen ? '1rem' : '1.25rem' }} /> : borderIcon;
-  const textColor = '#061e35';
-  const iconSelectedColor = '#061e35';
+  const chromeForeground = theme.palette.mode === 'dark' ? '#ffffff' : '#061e35';
+  const textColor = chromeForeground;
+  const iconSelectedColor = chromeForeground;
   const popperId = miniMenuOpened ? `collapse-pop-${menu.id}` : undefined;
   const FlexBox = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' };
 
@@ -245,12 +248,12 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                 pl: drawerOpen ? `${level * 28}px` : 1.5,
                 py: getNavigationItemVerticalPadding({ drawerOpen, level }),
                 ...(drawerOpen && {
-                  '&:hover': { bgcolor: alpha('#061e35', 0.06) },
+                  '&:hover': { bgcolor: alpha(chromeForeground, 0.06) },
                   '&.Mui-selected': {
-                    bgcolor: alpha('#061e35', 0.1),
+                    bgcolor: alpha(chromeForeground, 0.1),
                     color: iconSelectedColor,
-                    '& .MuiListItemIcon-root': { color: '#061e35 !important' },
-                    '&:hover': { color: iconSelectedColor, bgcolor: alpha('#061e35', 0.1) }
+                    '& .MuiListItemIcon-root': { color: `${chromeForeground} !important` },
+                    '&:hover': { color: iconSelectedColor, bgcolor: alpha(chromeForeground, 0.1) }
                   }
                 }),
                 ...(!drawerOpen && {
@@ -271,19 +274,19 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                 onClick={handlerIconLink}
                 sx={(theme) => ({
                   minWidth: 28,
-                  color: '#061e35 !important',
+                  color: `${chromeForeground} !important`,
                   ...(!drawerOpen && {
                     borderRadius: 1.5,
                     width: 36,
                     height: 36,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    '&:hover': { bgcolor: alpha('#061e35', 0.06) }
+                    '&:hover': { bgcolor: alpha(chromeForeground, 0.06) }
                   }),
                   ...(!drawerOpen &&
                     selected === menu.id && {
-                      bgcolor: alpha('#061e35', 0.1),
-                      '&:hover': { bgcolor: alpha('#061e35', 0.1) }
+                      bgcolor: alpha(chromeForeground, 0.1),
+                      '&:hover': { bgcolor: alpha(chromeForeground, 0.1) }
                     })
                 })}
               >
@@ -299,7 +302,10 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                 }
                 secondary={
                   menu.caption && (
-                    <Typography variant="caption" sx={{ color: 'secondary', fontFamily: "'Inter', sans-serif" }}>
+                    <Typography
+                      variant="caption"
+                      sx={{ color: alpha(chromeForeground, 0.64), fontFamily: "'Inter', sans-serif" }}
+                    >
                       <FormattedMessage id={menu.caption ? menu.caption : '484'} />
                     </Typography>
                   )
@@ -320,10 +326,10 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                     width: 20,
                     height: 20,
                     mr: '-5px',
-                    color: '#061e35',
-                    borderColor: alpha('#061e35', 0.24),
-                    '&:hover': { borderColor: '#061e35' },
-                    ...((miniMenuOpened || open) && { color: '#061e35', ...(miniMenuOpened && { transform: 'rotate(90deg)' }) })
+                    color: chromeForeground,
+                    borderColor: alpha(chromeForeground, 0.24),
+                    '&:hover': { borderColor: chromeForeground },
+                    ...((miniMenuOpened || open) && { color: chromeForeground, ...(miniMenuOpened && { transform: 'rotate(90deg)' }) })
                   }}
                 >
                   {collapsedIcon}
@@ -331,7 +337,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
               ) : (
                 <Box
                   component="span"
-                  sx={{ color: '#061e35', ...((miniMenuOpened || open) && { ...(miniMenuOpened && { transform: 'rotate(90deg)' }) }) }}
+                  sx={{ color: chromeForeground, ...((miniMenuOpened || open) && { ...(miniMenuOpened && { transform: 'rotate(90deg)' }) }) }}
                 >
                   {collapsedIcon}
                 </Box>
@@ -347,7 +353,9 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                         boxShadow: theme.customShadows.z1,
                         backgroundImage: 'none',
                         border: '1px solid',
-                        borderColor: 'divider'
+                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'divider',
+                        bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                        color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
                       })}
                     >
                       <ClickAwayListener onClickAway={handleClose}>
@@ -378,7 +386,14 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
               onClick={handleCloseCollapse}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-              sx={(theme) => ({ '& .MuiPaper-root': { boxShadow: theme.shadows[2] }, '& .MuiListItemButton-root': { pl: 2 } })}
+              sx={(theme) => ({
+                '& .MuiPaper-root': {
+                  boxShadow: theme.shadows[2],
+                  bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                  color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
+                },
+                '& .MuiListItemButton-root': { pl: 2 }
+              })}
             >
               {navCollapse}
             </Menu>
@@ -395,17 +410,17 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
           onClick={handleHover}
           aria-describedby={popperId}
           className={anchorEl ? 'Mui-selected' : ''}
-          sx={{ color: '#061e35', '&.Mui-selected': { bgcolor: 'transparent', color: '#061e35' } }}
+          sx={{ color: chromeForeground, '&.Mui-selected': { bgcolor: 'transparent', color: chromeForeground } }}
         >
           <Box onClick={handlerIconLink} sx={FlexBox}>
             {menuIcon && (
-              <ListItemIcon sx={{ my: 'auto', minWidth: !menu.icon ? 18 : 28, color: '#061e35' }}>{menuIcon}</ListItemIcon>
+              <ListItemIcon sx={{ my: 'auto', minWidth: !menu.icon ? 18 : 28, color: chromeForeground }}>{menuIcon}</ListItemIcon>
             )}
             {!menuIcon && level !== 1 && (
               <ListItemIcon
-                sx={{ my: 'auto', minWidth: !menu.icon ? 18 : 28, color: '#061e35', bgcolor: 'transparent', '&:hover': { bgcolor: 'transparent' } }}
+                sx={{ my: 'auto', minWidth: !menu.icon ? 18 : 28, color: chromeForeground, bgcolor: 'transparent', '&:hover': { bgcolor: 'transparent' } }}
               >
-                <Dot size={4} sx={{ bgcolor: '#061e35' }} />
+                <Dot size={4} sx={{ bgcolor: chromeForeground }} />
               </ListItemIcon>
             )}
             <ListItemText
@@ -422,7 +437,16 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
             <PopperStyled id={popperId} open={miniMenuOpened} anchorEl={anchorEl} placement="right-start" style={{ zIndex: 2001 }}>
               {({ TransitionProps }) => (
                 <Transitions in={miniMenuOpened} {...TransitionProps}>
-                  <Paper sx={(theme) => ({ overflow: 'hidden', py: 0.5, boxShadow: theme.shadows[8], backgroundImage: 'none' })}>
+                  <Paper
+                    sx={(theme) => ({
+                      overflow: 'hidden',
+                      py: 0.5,
+                      boxShadow: theme.shadows[8],
+                      backgroundImage: 'none',
+                      bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                      color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
+                    })}
+                  >
                     <ClickAwayListener onClickAway={handleClose}>
                       <>
                         <SimpleBar sx={{ overflowX: 'hidden', overflowY: 'auto', maxHeight: '50vh' }}>{navCollapse}</SimpleBar>

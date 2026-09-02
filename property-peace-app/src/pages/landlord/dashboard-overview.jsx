@@ -524,9 +524,9 @@ export default function DashboardOverview({ embedded = false }) {
                             justifyContent: 'flex-start',
                             px: 2,
                             borderRadius: 1.75,
-                            borderColor: alpha('#061e35', 0.14),
-                            bgcolor: '#ffffff',
-                            color: '#061e35',
+                            borderColor: theme.palette.mode === 'dark' ? alpha(theme.palette.text.secondary, 0.32) : alpha('#061e35', 0.14),
+                            bgcolor: theme.palette.mode === 'dark' ? theme.palette.surface.raised : '#ffffff',
+                            color: theme.palette.mode === 'dark' ? theme.palette.text.primary : '#061e35',
                             fontWeight: 800,
                             textTransform: 'none',
                             boxShadow: `0 10px 26px ${alpha('#061e35', 0.09)}`,
@@ -537,8 +537,8 @@ export default function DashboardOverview({ embedded = false }) {
                               transition: 'transform 280ms cubic-bezier(0.4, 0, 0.2, 1)'
                             },
                             '&:hover': {
-                              borderColor: alpha('#061e35', 0.24),
-                              bgcolor: '#ffffff',
+                              borderColor: theme.palette.mode === 'dark' ? theme.palette.primary.light : alpha('#061e35', 0.24),
+                              bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.1) : '#ffffff',
                               boxShadow: `0 12px 30px ${alpha('#061e35', 0.12)}`
                             }
                           }}
@@ -560,8 +560,8 @@ export default function DashboardOverview({ embedded = false }) {
                               mt: 1,
                               p: 0.75,
                               borderRadius: 2,
-                              bgcolor: '#f8fafc',
-                              border: `1px solid ${alpha('#061e35', 0.1)}`,
+                              bgcolor: theme.palette.mode === 'dark' ? theme.palette.background.paper : '#f8fafc',
+                              border: `1px solid ${theme.palette.mode === 'dark' ? alpha(theme.palette.text.secondary, 0.24) : alpha('#061e35', 0.1)}`,
                               boxShadow: `0 14px 34px ${alpha('#061e35', 0.1)}`
                             }}
                           >
@@ -581,16 +581,16 @@ export default function DashboardOverview({ embedded = false }) {
                                     display: 'flex',
                                     alignItems: 'center',
                                     borderRadius: 1.5,
-                                    border: `1px solid ${alpha('#061e35', 0.1)}`,
-                                    bgcolor: '#ffffff',
-                                    color: '#061e35',
+                                    border: `1px solid ${theme.palette.mode === 'dark' ? alpha(theme.palette.text.secondary, 0.24) : alpha('#061e35', 0.1)}`,
+                                    bgcolor: theme.palette.mode === 'dark' ? theme.palette.surface.raised : '#ffffff',
+                                    color: theme.palette.mode === 'dark' ? theme.palette.text.primary : '#061e35',
                                     textAlign: 'left',
                                     cursor: 'pointer',
                                     boxShadow: `0 4px 12px ${alpha('#061e35', 0.045)}`,
                                     transition: 'transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease',
                                     '&:active': { transform: 'scale(0.985)' },
                                     '&:focus-visible': {
-                                      outline: `2px solid ${alpha('#061e35', 0.42)}`,
+                                      outline: `2px solid ${alpha(theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35', 0.62)}`,
                                       outlineOffset: 2
                                     }
                                   }}
@@ -612,10 +612,10 @@ export default function DashboardOverview({ embedded = false }) {
                                     {action.icon}
                                   </Box>
                                   <Box sx={{ minWidth: 0 }}>
-                                    <Typography variant="body2" fontWeight={800} sx={{ color: '#061e35', lineHeight: 1.2 }}>
+                                    <Typography variant="body2" fontWeight={800} sx={{ color: 'text.primary', lineHeight: 1.2 }}>
                                       {action.label}
                                     </Typography>
-                                    <Typography variant="caption" sx={{ color: alpha('#061e35', 0.68) }}>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                                       {action.sub}
                                     </Typography>
                                   </Box>
@@ -632,12 +632,12 @@ export default function DashboardOverview({ embedded = false }) {
                           flexDirection: 'column',
                           p: 2,
                           borderRadius: 2.5,
-                          border: `1px solid ${alpha('#061e35', 0.09)}`,
+                          border: `1px solid ${theme.palette.mode === 'dark' ? alpha(theme.palette.text.secondary, 0.22) : alpha('#061e35', 0.09)}`,
                           bgcolor: 'background.paper',
                           boxShadow: `0 12px 34px ${alpha('#061e35', 0.06)}`
                         }}
                       >
-                        <Typography variant="h5" fontWeight={750} sx={{ mb: 1.5, color: '#061e35' }}>
+                        <Typography variant="h5" fontWeight={750} sx={{ mb: 1.5, color: 'text.primary' }}>
                           Quick actions
                         </Typography>
                         <Stack spacing={1}>
@@ -652,22 +652,24 @@ export default function DashboardOverview({ embedded = false }) {
                                 minHeight: 58,
                                 px: 1.25,
                                 py: 1,
-                                border: `1px solid ${alpha('#94a3b8', 0.45)}`,
+                                border: `1px solid ${theme.palette.mode === 'dark' ? alpha(theme.palette.text.secondary, 0.32) : alpha('#94a3b8', 0.45)}`,
                                 borderRadius: 1.75,
                                 textAlign: 'left',
                                 cursor: 'pointer',
-                                color: '#061e35',
-                                bgcolor: '#ffffff',
-                                backgroundImage: 'none',
+                                color: 'text.primary',
+                                bgcolor: theme.palette.mode === 'dark' ? theme.palette.surface.raised : '#ffffff',
+                                backgroundImage: theme.palette.mode === 'dark'
+                                  ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, transparent 55%)`
+                                  : 'none',
                                 transition: 'transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease',
                                 '&:hover': {
                                   transform: 'translateX(3px)',
                                   borderColor: alpha(theme.palette.success.main, 0.55),
-                                  boxShadow: `0 8px 18px ${alpha('#061e35', 0.09)}`,
-                                  bgcolor: alpha(theme.palette.success.main, 0.045)
+                                  boxShadow: `0 8px 18px ${alpha(theme.palette.common.black, theme.palette.mode === 'dark' ? 0.24 : 0.09)}`,
+                                  bgcolor: alpha(theme.palette.success.main, theme.palette.mode === 'dark' ? 0.1 : 0.045)
                                 },
                                 '&:focus-visible': {
-                                  outline: `2px solid ${alpha('#061e35', 0.45)}`,
+                                  outline: `2px solid ${alpha(theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35', 0.65)}`,
                                   outlineOffset: 2
                                 }
                               })}
@@ -682,17 +684,17 @@ export default function DashboardOverview({ embedded = false }) {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: '#061e35',
-                                    bgcolor: alpha('#061e35', 0.08)
+                                    color: theme.palette.mode === 'dark' ? theme.palette.text.primary : '#061e35',
+                                    bgcolor: alpha(theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35', theme.palette.mode === 'dark' ? 0.14 : 0.08)
                                   })}
                                 >
                                   {action.icon}
                                 </Box>
                                 <Box sx={{ minWidth: 0 }}>
-                                  <Typography variant="body2" fontWeight={800} noWrap sx={{ lineHeight: 1.15, color: '#061e35' }}>
+                                  <Typography variant="body2" fontWeight={800} noWrap sx={{ lineHeight: 1.15, color: 'text.primary' }}>
                                     {action.label}
                                   </Typography>
-                                  <Typography variant="caption" noWrap sx={{ display: 'block', mt: 0.2, color: alpha('#061e35', 0.78) }}>
+                                  <Typography variant="caption" noWrap sx={{ display: 'block', mt: 0.2, color: 'text.secondary' }}>
                                     {action.sub}
                                   </Typography>
                                 </Box>

@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import test from 'node:test';
 
 const source = fs.readFileSync(new URL('../sections/landlord/dashboard/MoneySummary.jsx', import.meta.url), 'utf8');
+const portfolioSource = fs.readFileSync(new URL('../sections/landlord/dashboard/Portfolio.jsx', import.meta.url), 'utf8');
 const overviewSource = fs.readFileSync(new URL('../pages/landlord/dashboard-overview.jsx', import.meta.url), 'utf8');
 
 test('money summary renders one chart and exactly three stacked summary cards', () => {
@@ -14,18 +15,19 @@ test('money summary renders one chart and exactly three stacked summary cards', 
 });
 
 test('money summary uses the requested metric labels and chart series', () => {
-  assert.match(source, /label:\s*['\"]Expected Rent['\"]/);
+  assert.match(source, /label:\s*['\"]Rent Due['\"]/);
   assert.match(source, /label:\s*['\"]Income['\"]/);
   assert.match(source, /label:\s*['\"]Expenses['\"]/);
   assert.match(source, /dataKey=\"income\"/);
   assert.match(source, /dataKey=\"expenses\"/);
 });
 
-test('all summary card headings and amounts use bold navy typography', () => {
+test('all summary card headings and amounts use bold, dark-mode-aware typography', () => {
   assert.match(source, /function MetricCard\(\{ label, value, accentColor, textColor \}\)/);
   assert.match(source, /variant=\"body2\" fontWeight=\{700\} sx=\{\{ mb: 0\.75, color: textColor \}\}/);
   assert.match(source, /variant=\"h4\" fontWeight=\{700\} sx=\{\{ color: textColor,/);
-  assert.match(source, /accentColor=\{metric\.color\}[\s\S]*textColor=\{navy\}/);
+  assert.match(source, /const summaryTextColor = theme\.palette\.mode === 'dark' \? theme\.palette\.common\.white : '#061e35'/);
+  assert.match(source, /accentColor=\{metric\.color\}[\s\S]*textColor=\{summaryTextColor\}/);
 });
 
 test('money summary exposes a working period dropdown instead of a static month chip', () => {
@@ -41,11 +43,20 @@ test('collection progress is exported as its own dashboard-grid card', () => {
   assert.match(source, /function CollectionProgressCard/);
   assert.match(source, /export function RentCollectionProgress/);
   assert.match(source, /height:\s*['"]100%['"]/);
-  assert.match(source, /<Typography variant="h5" fontWeight=\{700\} sx=\{\{ color: navy \}\}>\s*Rent Collection Progress/);
+  assert.match(source, /const textColor = theme\.palette\.mode === 'dark' \? theme\.palette\.common\.white : '#061e35'/);
+  assert.match(source, /<Typography variant="h5" fontWeight=\{700\} sx=\{\{ color: textColor \}\}>\s*Rent Collection Progress/);
   assert.match(source, /aria-label="Rent collection progress"/);
   assert.match(overviewSource, /gridArea:\s*['"]progress['"]/);
   assert.match(overviewSource, /<RentCollectionProgress summary=\{summary\}/);
   assert.match(overviewSource, /gridArea:\s*['"]money['"]/);
+});
+
+test('portfolio headings and overview values use white typography in dark mode', () => {
+  assert.match(portfolioSource, /const overviewTextColor = theme\.palette\.mode === 'dark' \? theme\.palette\.common\.white : 'text\.primary'/);
+  assert.match(portfolioSource, /variant="caption" sx=\{\{ color: overviewTextColor/);
+  assert.match(portfolioSource, /variant="h4" fontWeight=\{750\} sx=\{\{ color: overviewTextColor/);
+  assert.match(portfolioSource, /const headerTextColor = theme\.palette\.mode === 'dark' \? theme\.palette\.common\.white : '#061e35'/);
+  assert.match(portfolioSource, /variant="h5" fontWeight=\{700\} sx=\{\{ color: headerTextColor \}\}>\s*Portfolio/);
 });
 
 test('money summary uses finalized payment history for current-month income and daily chart bars', () => {

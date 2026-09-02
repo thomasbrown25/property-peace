@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 // material-ui
-import { useMediaQuery, Box } from '@mui/material';
+import { useMediaQuery, useTheme, Box } from '@mui/material';
 
 // project imports
 import DrawerHeaderStyled from './DrawerHeaderStyled';
@@ -12,6 +12,7 @@ import { MenuOrientation } from 'config';
 // ==============================|| DRAWER HEADER ||============================== //
 
 export default function DrawerHeader({ open, lightDrawerBackground }) {
+  const theme = useTheme();
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
 
   const { menuOrientation } = useConfig();
@@ -34,9 +35,11 @@ export default function DrawerHeader({ open, lightDrawerBackground }) {
       <Box sx={{ paddingTop: isHorizontal ? { xs: '8px', lg: '6px' } : 0 }}>
         <Logo
           isIcon={!open}
-          reverse={false}
+          reverse
+          darkSurface={theme.palette.mode === 'dark'}
           disableTopPadding
-          lightHeaderLogo
+          lightLogoInDarkMode
+          lightHeaderLogo={theme.palette.mode !== 'dark'}
           width={open ? 142 : undefined}
           sx={{ width: open ? 'auto' : 35, height: open ? 'auto' : isHorizontal ? { xs: 28, lg: 30 } : 32, lineHeight: 0 }}
         />

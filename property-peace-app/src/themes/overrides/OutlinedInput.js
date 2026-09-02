@@ -25,13 +25,25 @@ export default function OutlinedInput(theme) {
       styleOverrides: {
         input: { 
           padding: '10.5px 14px 10.5px 12px',
-          fontFamily: "'Inter', sans-serif"
+          fontFamily: "'Inter', sans-serif",
+          color: theme.palette.text.primary,
+          '&::placeholder': {
+            color: theme.palette.text.secondary,
+            opacity: theme.palette.mode === ThemeMode.DARK ? 0.86 : 0.72
+          }
         },
         notchedOutline: { 
           borderColor: theme.palette.mode === ThemeMode.DARK ? theme.palette.grey[200] : '#E5E5E5' // Marketing light gray
         },
         root: { 
           borderRadius: 8,
+          color: theme.palette.text.primary,
+          '& .MuiInputAdornment-root, & .MuiSelect-icon': {
+            color: theme.palette.mode === ThemeMode.DARK ? theme.palette.text.secondary : undefined
+          },
+          '& .MuiInputAdornment-root svg, & .MuiSelect-icon': {
+            color: 'inherit'
+          },
           ...getColor({ variant: 'primary', theme }), 
           '&.Mui-error': { ...getColor({ variant: 'error', theme }) },
           '&.Mui-focused': {

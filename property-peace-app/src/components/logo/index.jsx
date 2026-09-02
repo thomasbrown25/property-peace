@@ -8,7 +8,17 @@ import LogoIcon from './LogoIcon';
 import { APP_DEFAULT_PATH } from 'config';
 import useIsAdmin from 'hooks/useIsAdmin';
 
-export default function LogoSection({ reverse, isIcon, sx, to, width, disableTopPadding = false, lightHeaderLogo = false }) {
+export default function LogoSection({
+  reverse,
+  isIcon,
+  sx,
+  to,
+  width,
+  disableTopPadding = false,
+  lightHeaderLogo = false,
+  lightLogoInDarkMode = false,
+  darkSurface = false
+}) {
   const isAdmin = useIsAdmin();
   
   // Determine the default path based on user role
@@ -20,9 +30,16 @@ export default function LogoSection({ reverse, isIcon, sx, to, width, disableTop
   return (
     <ButtonBase disableRipple component={Link} to={defaultPath} sx={sx}>
       {isIcon ? (
-        <LogoIcon width={typeof iconWidth === 'number' ? iconWidth : 35} />
+        <LogoIcon width={typeof iconWidth === 'number' ? iconWidth : 35} darkSurface={darkSurface} />
       ) : (
-        <Logo reverse={reverse} width={width} disableTopPadding={disableTopPadding} lightHeaderLogo={lightHeaderLogo} />
+        <Logo
+          reverse={reverse}
+          width={width}
+          disableTopPadding={disableTopPadding}
+          lightHeaderLogo={lightHeaderLogo}
+          lightLogoInDarkMode={lightLogoInDarkMode}
+          darkSurface={darkSurface}
+        />
       )}
     </ButtonBase>
   );
@@ -35,5 +52,7 @@ LogoSection.propTypes = {
   to: PropTypes.any,
   width: PropTypes.number,
   disableTopPadding: PropTypes.bool,
-  lightHeaderLogo: PropTypes.bool
+  lightHeaderLogo: PropTypes.bool,
+  lightLogoInDarkMode: PropTypes.bool,
+  darkSurface: PropTypes.bool
 };

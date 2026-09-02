@@ -117,22 +117,31 @@ export default function Search({ shrink = false }) {
               }
             }}
             placeholder="Search properties, tenants, leases..."
-            sx={{
-              bgcolor: 'background.paper',
+            sx={(theme) => ({
+              bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'background.paper',
+              color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
               borderRadius: 1.5,
+              '& input::placeholder': {
+                color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.66)' : 'text.secondary',
+                opacity: 1
+              },
+              '& .MuiInputAdornment-root': { color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.78)' : 'text.secondary' },
               '& .MuiOutlinedInput-notchedOutline': {
-                borderColor: (theme) => alpha(theme.palette.primary.main, 0.3),
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.18)' : alpha(theme.palette.primary.main, 0.3),
                 borderWidth: '1.5px'
               },
               '&:hover .MuiOutlinedInput-notchedOutline': {
-                borderColor: (theme) => alpha(theme.palette.primary.main, 0.5)
+                borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.34)' : alpha(theme.palette.primary.main, 0.5)
               },
               '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                borderColor: 'primary.main',
+                borderColor: theme.palette.mode === 'dark' ? 'success.main' : 'primary.main',
                 borderWidth: '2px'
               },
-              boxShadow: (theme) => `0 1px 4px ${alpha(theme.palette.primary.main, 0.08)}`
-            }}
+              boxShadow:
+                theme.palette.mode === 'dark'
+                  ? 'inset 0 1px 0 rgba(255, 255, 255, 0.04)'
+                  : `0 1px 4px ${alpha(theme.palette.primary.main, 0.08)}`
+            })}
           />
         </FormControl>
 

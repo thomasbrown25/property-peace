@@ -109,7 +109,14 @@ export default function Navigation() {
         if (item.url && item.id !== lastItemId) {
           return (
             <List key={item.id} sx={{ zIndex: 0, ...(isHorizontal && { mt: 0.5 }) }}>
-              {!isHorizontal && index !== 0 && <Divider sx={{ my: 0.5, borderColor: 'rgba(6, 30, 53, 0.14)' }} />}
+              {!isHorizontal && index !== 0 && (
+                <Divider
+                  sx={(theme) => ({
+                    my: 0.5,
+                    borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.14)' : 'rgba(6, 30, 53, 0.14)'
+                  })}
+                />
+              )}
               <NavItem item={item} level={1} isParents setSelectedID={setSelectedID} />
             </List>
           );
