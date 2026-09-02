@@ -128,6 +128,102 @@ public sealed class PercyChatRelationalAdversarialTests
         (await observer.PercyAuditRecords.CountAsync(x => x.EventType == "confirmation_replay")).Should().Be(1);
     }
 
+    [Fact]
+    public async Task DeleteConversation_RemovesAllConversationData_AndKeepsOtherScopesIntact()
+    {
+        await using var database = await RelationalDatabase.CreateAsync();
+        await using var db = database.Context();
+
+        var deletedConversation = new PercyConversation
+        {
+            OrganizationId = 101,
+            UserId = 201,
+            Title = "delete me",
+            Messages =
+            [
+                new PercyMessage { Role = "user", Content = "question" },
+                new PercyMessage { Role = "assistant", Content = "answer" }
+            ]
+        };
+        var retainedConversation = new PercyConversation
+        {
+            OrganizationId = 101,
+            UserId = 202,
+            Title = "keep me",
+            Messages = [new PercyMessage { Role = "user", Content = "retained" }]
+        };
+        db.PercyConversations.AddRange(deletedConversation, retainedConversation);
+        await db.SaveChangesAsync();
+
+        var confirmation = new PercyActionConfirmation
+        {
+            OrganizationId = 101,
+            UserId = 201,
+            ConversationId = deletedConversation.Id,
+            ActionType = PercyActionTypes.ReadPortfolio,
+            FriendlyLabel = "delete confirmation",
+            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+        };
+        db.PercyActionConfirmations.Add(confirmation);
+        await db.SaveChangesAsync();
+
+        db.PercyChatOperations.Add(new PercyChatOperation
+        {
+            OrganizationId = 101,
+            UserId = 201,
+            ClientRequestId = "delete-operation",
+            RequestHash = "hash",
+            Status = "completed",
+            ConversationId = deletedConversation.Id,
+            UserMessageId = deletedConversation.Messages.ElementAt(0).Id,
+            AssistantMessageId = deletedConversation.Messages.ElementAt(1).Id,
+            LeaseExpiresAt = DateTime.UtcNow.AddMinutes(5)
+        });
+        db.PercyAuditRecords.AddRange(
+            new PercyAuditRecord
+            {
+                OrganizationId = 101,
+                UserId = 201,
+                ConversationId = deletedConversation.Id,
+                EventKey = "delete-conversation-audit",
+                EventType = "chat_completed",
+                Outcome = "completed",
+                Detail = "delete"
+            },
+            new PercyAuditRecord
+            {
+                OrganizationId = 101,
+                UserId = 201,
+                ConfirmationId = confirmation.Id,
+                EventKey = "delete-confirmation-audit",
+                EventType = "confirmation_confirmed",
+                Outcome = "failed",
+                Detail = "delete"
+            },
+            new PercyAuditRecord
+            {
+                OrganizationId = 101,
+                UserId = 202,
+                ConversationId = retainedConversation.Id,
+                EventKey = "retain-audit",
+                EventType = "chat_completed",
+                Outcome = "completed",
+                Detail = "keep"
+            });
+        await db.SaveChangesAsync();
+
+        var result = await Service(db, Mock.Of<IOpenAIService>())
+            .DeleteConversationAsync(101, 201, deletedConversation.Id);
+
+        result.Success.Should().BeTrue();
+        result.Message.Should().Be("Conversation deleted.");
+        (await db.PercyConversations.AsNoTracking().Select(x => x.Id).ToListAsync()).Should().Equal(retainedConversation.Id);
+        (await db.PercyMessages.AsNoTracking().Select(x => x.Content).ToListAsync()).Should().Equal("retained");
+        db.PercyActionConfirmations.Should().BeEmpty();
+        db.PercyChatOperations.Should().BeEmpty();
+        (await db.PercyAuditRecords.AsNoTracking().Select(x => x.EventKey).ToListAsync()).Should().Equal("retain-audit");
+    }
+
     private static Mock<IOpenAIService> BlockingModel(
         TaskCompletionSource<bool> entered, TaskCompletionSource<bool> release)
     {

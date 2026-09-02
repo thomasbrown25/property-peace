@@ -140,20 +140,20 @@ export default function Profile() {
       <ButtonBase
         sx={(theme) => ({
           p: 0.25,
-          color: 'text.primary',
-          bgcolor: open ? 'action.selected' : 'transparent',
+          color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
+          bgcolor: open ? (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.selected') : 'transparent',
           borderRadius: 1,
           transition: theme.transitions.create(['background-color', 'box-shadow'], {
             duration: theme.transitions.duration.shorter
           }),
           '&:hover': {
-            bgcolor: 'action.hover',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'action.hover',
             boxShadow: 'none'
           },
           '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
           ...theme.applyStyles('dark', {
-            bgcolor: open ? 'action.selected' : 'transparent',
-            '&:hover': { bgcolor: 'action.hover' }
+            bgcolor: open ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+            '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
           })
         })}
         aria-label="open profile"
@@ -180,7 +180,10 @@ export default function Profile() {
               {initials}
             </Avatar>
           )}
-          <Typography variant="subtitle1" sx={{ textTransform: 'capitalize' }}>
+          <Typography
+            variant="subtitle1"
+            sx={(theme) => ({ textTransform: 'capitalize', color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary' })}
+          >
             {displayName || user?.name || user?.email || user?.Email}
           </Typography>
         </Stack>

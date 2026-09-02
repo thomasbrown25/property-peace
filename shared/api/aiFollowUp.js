@@ -53,7 +53,7 @@ export class AIFollowUpAPI {
     return this.client.get(`/api/ai-copilot/conversations/${id}`);
   }
 
-  async archiveConversation(id) {
+  async deleteConversation(id) {
     return this.client.delete(`/api/ai-copilot/conversations/${id}`);
   }
 

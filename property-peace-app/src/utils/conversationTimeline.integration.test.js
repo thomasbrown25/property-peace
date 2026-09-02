@@ -31,6 +31,10 @@ test('landlord and tenant message workspaces expose the contextual communication
   assert.match(panel, /Load more activity/);
   assert.match(panel, /aria-live="polite"/);
   assert.match(panel, /markTimelineRead/);
+  assert.match(panel, /overflowX: 'hidden'/);
+  assert.match(panel, /maxHeight: \{ xs: 'min\(55dvh, 420px\)', md: 300 \}/);
+  assert.match(panel, /MuiAccordionSummary-expandIconWrapper/);
+  assert.doesNotMatch(panel, /maxHeight: 320, overflowY: 'auto'/);
   assert.match(landlord, /<ConversationQuickReplies/);
   assert.match(tenant, /<ConversationQuickReplies/);
   assert.doesNotMatch(landlord, /const QUICK_REPLIES/);

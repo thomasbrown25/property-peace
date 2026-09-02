@@ -155,11 +155,17 @@ export default function MobileSection() {
         <ButtonBase
           sx={(theme) => ({
             p: 0.25,
-            bgcolor: open ? 'grey.100' : 'transparent',
+            bgcolor: open ? (theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'grey.100') : 'transparent',
             borderRadius: 1,
-            '&:hover': { bgcolor: 'secondary.lighter' },
-            '&:focus-visible': { outline: `2px solid ${theme.palette.secondary.dark}`, outlineOffset: 2 },
-            ...theme.applyStyles('dark', { bgcolor: open ? 'background.default' : 'transparent', '&:hover': { bgcolor: 'secondary.light' } })
+            '&:hover': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'secondary.lighter' },
+            '&:focus-visible': {
+              outline: `2px solid ${theme.palette.mode === 'dark' ? theme.palette.success.main : theme.palette.secondary.dark}`,
+              outlineOffset: 2
+            },
+            ...theme.applyStyles('dark', {
+              bgcolor: open ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+              '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }
+            })
           })}
           aria-label="open menu"
           ref={anchorRef}

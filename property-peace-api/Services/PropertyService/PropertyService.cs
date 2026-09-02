@@ -3,6 +3,7 @@ using brownstone_hub_api.Dtos.Image;
 using brownstone_hub_api.Dtos.Property;
 using brownstone_hub_api.Dtos.Unit;
 using brownstone_hub_api.Repositories.Properties;
+using brownstone_hub_api.Repositories.BankAccounts;
 
 using brownstone_hub_api.Repositories.MaintenanceRequests;
 
@@ -32,9 +33,10 @@ using System.Security.Claims;
 
 namespace brownstone_hub_api.Services.PropertyService
 {
-    public class PropertyService(IPropertyRepository propertyRepository, IImageService<PropertyImage, LoadImageDto, AddImageDto> imageService, IMaintenanceRequestRepository maintenanceRequestRepository, ILeaseRepository leaseRepository, IExpenseRepository expenseRepository, IRecurringExpenseRepository recurringExpenseRepository, IConversationRepository conversationRepository, IApplicationRepository applicationRepository, IChecklistRepository checklistRepository, ITenantDocumentRepository tenantDocumentRepository, IPaymentRepository paymentRepository, IUnitRepository unitRepository, IApplicationInviteRepository applicationInviteRepository, IChecklistService checklistService, ITenantRepository tenantRepository, BlobServiceClient blobServiceClient, IAzureBlobService azureBlobService, IHttpContextAccessor httpContextAccessor, IListingRepository listingRepository, IEntitlementDecisionService entitlementDecisionService, IOrganizationEntitlementMutationCoordinator mutationCoordinator, ILogger<PropertyService> logger, IActivationOccurrenceRecorder? occurrenceRecorder = null) : IPropertyService
+    public class PropertyService(IPropertyRepository propertyRepository, IBankAccountRepository bankAccountRepository, IImageService<PropertyImage, LoadImageDto, AddImageDto> imageService, IMaintenanceRequestRepository maintenanceRequestRepository, ILeaseRepository leaseRepository, IExpenseRepository expenseRepository, IRecurringExpenseRepository recurringExpenseRepository, IConversationRepository conversationRepository, IApplicationRepository applicationRepository, IChecklistRepository checklistRepository, ITenantDocumentRepository tenantDocumentRepository, IPaymentRepository paymentRepository, IUnitRepository unitRepository, IApplicationInviteRepository applicationInviteRepository, IChecklistService checklistService, ITenantRepository tenantRepository, BlobServiceClient blobServiceClient, IAzureBlobService azureBlobService, IHttpContextAccessor httpContextAccessor, IListingRepository listingRepository, IEntitlementDecisionService entitlementDecisionService, IOrganizationEntitlementMutationCoordinator mutationCoordinator, ILogger<PropertyService> logger, IActivationOccurrenceRecorder? occurrenceRecorder = null) : IPropertyService
     {
         private readonly IPropertyRepository _propertyRepository = propertyRepository;
+        private readonly IBankAccountRepository _bankAccountRepository = bankAccountRepository;
         private readonly IImageService<PropertyImage, LoadImageDto, AddImageDto> _imageService = imageService;
         private readonly IMaintenanceRequestRepository _maintenanceRequestRepository = maintenanceRequestRepository;
         private readonly ILeaseRepository _leaseRepository = leaseRepository;

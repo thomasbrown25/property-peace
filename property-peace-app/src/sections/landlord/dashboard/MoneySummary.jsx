@@ -81,7 +81,7 @@ function MetricCard({ label, value, accentColor, textColor }) {
   );
 }
 
-function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, navy }) {
+function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, textColor }) {
   const theme = useTheme();
 
   return (
@@ -124,10 +124,10 @@ function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, nav
           sx={{ mb: 1 }}
         >
           <Stack direction="row" alignItems="baseline" spacing={0.75}>
-            <Typography variant="h5" fontWeight={700} sx={{ color: navy }}>
+            <Typography variant="h5" fontWeight={700} sx={{ color: textColor }}>
               Rent Collection Progress
             </Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ color: collectionPct >= 100 ? incomeColor : navy }}>
+            <Typography variant="h5" fontWeight={700} sx={{ color: textColor }}>
               {collectionPct.toFixed(0)}%
             </Typography>
           </Stack>
@@ -156,14 +156,14 @@ export function RentCollectionProgress({ summary = {} }) {
   const theme = useTheme();
   const { collectionPct, remainingRent } = normalizeRentCollectionMetrics(summary);
   const incomeColor = theme.palette.success.main;
-  const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
+  const textColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
 
   return (
     <CollectionProgressCard
       collectionPct={collectionPct}
       remainingRent={remainingRent}
       incomeColor={incomeColor}
-      navy={navy}
+      textColor={textColor}
     />
   );
 }
@@ -195,13 +195,14 @@ export default function MoneySummary({
   const incomeColor = theme.palette.success.main;
   const expenseColor = theme.palette.warning.main;
   const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
+  const summaryTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
   const dailyChartData = useMemo(
     () => buildCurrentMonthMoneySeries({ payments: allPayments, expenses: expenseItems }),
     [allPayments, expenseItems]
   );
   const chartData = isAllTime ? [{ label: 'All time', income, expenses }] : dailyChartData;
   const metricCards = [
-    { label: 'Expected Rent', value: expectedRent, color: navy },
+    { label: 'Rent Due', value: expectedRent, color: navy },
     { label: 'Income', value: income, color: incomeColor },
     { label: 'Expenses', value: expenses, color: expenseColor }
   ];
@@ -324,7 +325,7 @@ export default function MoneySummary({
             label={metric.label}
             value={formatCurrency(metric.value)}
             accentColor={metric.color}
-            textColor={navy}
+            textColor={summaryTextColor}
           />
         ))}
       </Stack>

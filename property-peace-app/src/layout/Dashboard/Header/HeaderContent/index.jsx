@@ -1,4 +1,4 @@
-import { Divider, useMediaQuery } from '@mui/material';
+import { Divider, useMediaQuery, useTheme } from '@mui/material';
 import { Box } from '@mui/material';
 
 // project imports
@@ -21,6 +21,7 @@ import DrawerHeader from 'layout/Dashboard/Drawer/DrawerHeader';
 // ==============================|| HEADER - CONTENT ||============================== //
 
 export default function HeaderContent() {
+  const theme = useTheme();
   const { menuOrientation } = useConfig();
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
@@ -61,8 +62,9 @@ export default function HeaderContent() {
           {isXs && (
             <Logo
               reverse
+              darkSurface={theme.palette.mode === 'dark'}
               disableTopPadding
-              lightHeaderLogo
+              lightHeaderLogo={theme.palette.mode !== 'dark'}
               width={126}
               to={`${basePath}/dashboard`}
               sx={{ width: 'auto', height: 46, lineHeight: 0, display: 'flex', alignItems: 'center' }}
@@ -76,7 +78,16 @@ export default function HeaderContent() {
         <>
           <Message />
           <Notification />
-          <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1 }} />
+          <Divider
+            orientation="vertical"
+            flexItem
+            sx={{
+              height: 28,
+              alignSelf: 'center',
+              mx: 1,
+              borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.18)' : 'divider'
+            }}
+          />
           <Profile />
         </>
       )}

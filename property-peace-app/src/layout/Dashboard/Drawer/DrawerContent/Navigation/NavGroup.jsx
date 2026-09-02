@@ -6,6 +6,7 @@ import { matchPath, useLocation } from 'react-router-dom';
 import { styled } from '@mui/material/styles';
 import {
   useMediaQuery,
+  useTheme,
   ClickAwayListener,
   Divider,
   List,
@@ -52,7 +53,10 @@ const PopperStyled = styled(Popper)(({ theme }) => ({
     zIndex: 120,
     borderWidth: '6px',
     borderStyle: 'solid',
-    borderColor: `${theme.palette.background.paper}  transparent transparent ${theme.palette.background.paper}`
+    borderColor:
+      theme.palette.mode === 'dark'
+        ? '#0b2a46 transparent transparent #0b2a46'
+        : `${theme.palette.background.paper} transparent transparent ${theme.palette.background.paper}`
   }
 }));
 
@@ -68,6 +72,7 @@ export default function NavGroup({
   setSelectedLevel,
   selectedLevel
 }) {
+  const theme = useTheme();
   const { pathname } = useLocation();
   const { menuOrientation } = useConfig();
 
@@ -160,7 +165,12 @@ export default function NavGroup({
       case 'item':
         return <NavItem key={menuItem.id} item={menuItem} level={1} setSelectedItems={setSelectedItems} selectedItems={selectedItems} />;
       case 'divider':
-        return <Divider key={menuItem.id || `divider-${index}`} sx={{ my: 0.5, borderColor: 'divider' }} />;
+        return (
+          <Divider
+            key={menuItem.id || `divider-${index}`}
+            sx={{ my: 0.5, borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'divider' }}
+          />
+        );
       default:
         return (
           <Typography key={index} variant="h6" color="error" align="center">
@@ -200,7 +210,12 @@ export default function NavGroup({
           case 'item':
             return <NavItem key={menu.id} item={menu} level={1} setSelectedItems={setSelectedItems} selectedItems={selectedItems} />;
           case 'divider':
-            return <Divider key={menu.id} sx={{ my: 0.5, borderColor: 'rgba(6,30,53,0.14)' }} />;
+            return (
+              <Divider
+                key={menu.id}
+                sx={{ my: 0.5, borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(6,30,53,0.14)' }}
+              />
+            );
           default:
             return (
               <Typography key={menu.id} variant="h6" color="error" align="center">
@@ -231,7 +246,12 @@ export default function NavGroup({
       case 'item':
         return <NavItem key={menu.id} item={menu} level={1} setSelectedItems={setSelectedItems} selectedItems={selectedItems} />;
       case 'divider':
-        return <Divider key={menu.id || `divider-${index}`} sx={{ my: 0.5, borderColor: 'rgba(6,30,53,0.14)' }} />;
+        return (
+          <Divider
+            key={menu.id || `divider-${index}`}
+            sx={{ my: 0.5, borderColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(6,30,53,0.14)' }}
+          />
+        );
       default:
         return (
           <Typography key={menu?.id} variant="h6" color="error" align="center">
@@ -256,7 +276,7 @@ export default function NavGroup({
                       <Typography
                         variant="subtitle1"
                         sx={{
-                          color: 'rgba(6,30,53,0.64)',
+                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.64)' : 'rgba(6,30,53,0.64)',
                           fontFamily: "'Inter', sans-serif",
                           fontSize: '0.6875rem',
                           fontWeight: 700,
@@ -269,7 +289,13 @@ export default function NavGroup({
                       </Typography>
                     )}
                     {item.caption && (
-                      <Typography variant="caption" sx={{ color: 'rgba(6,30,53,0.64)', fontFamily: "'Inter', sans-serif" }}>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.64)' : 'rgba(6,30,53,0.64)',
+                          fontFamily: "'Inter', sans-serif"
+                        }}
+                      >
                         <FormattedMessage id={item.caption} />
                       </Typography>
                     )}
@@ -286,7 +312,15 @@ export default function NavGroup({
         <List>
           <ListItemButton
             selected={isSelected}
-            sx={{ p: 1, my: 0.5, mr: 1, display: 'flex', alignItems: 'center', '&.Mui-selected': { bgcolor: 'transparent' } }}
+            sx={{
+              p: 1,
+              my: 0.5,
+              mr: 1,
+              display: 'flex',
+              alignItems: 'center',
+              color: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
+              '&.Mui-selected': { bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'transparent' }
+            }}
             onMouseEnter={handleClick}
             onClick={handleClick}
             onMouseLeave={handleClose}
@@ -294,14 +328,20 @@ export default function NavGroup({
             className={anchorEl ? 'Mui-selected' : ''}
           >
             {(itemIcon || currentItem.id === lastItemId) && (
-              <ListItemIcon sx={{ minWidth: 28 }}>
+              <ListItemIcon sx={{ minWidth: 28, color: 'inherit' }}>
                 {currentItem.id === lastItemId ? <GroupOutlined style={{ fontSize: 20, stroke: '1.5' }} /> : itemIcon}
               </ListItemIcon>
             )}
             <ListItemText
               sx={{ mr: 1 }}
               primary={
-                <Typography variant="body1" sx={{ color: isSelected || anchorEl ? 'primary.main' : '#737373', fontFamily: "'Inter', sans-serif" }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
+                    fontFamily: "'Inter', sans-serif"
+                  }}
+                >
                   {(currentItem.id === lastItemId || currentItem.title) && (
                     <FormattedMessage id={currentItem.id === lastItemId ? 'more-items' : currentItem.title} />
                   )}
@@ -319,7 +359,16 @@ export default function NavGroup({
               <PopperStyled id={popperId} open={openMini} anchorEl={anchorEl} placement="bottom-start" style={{ zIndex: 2001 }}>
                 {({ TransitionProps }) => (
                   <Transitions in={openMini} {...TransitionProps}>
-                    <Paper sx={(theme) => ({ mt: 0.5, py: 1.25, boxShadow: theme.shadows[8], backgroundImage: 'none' })}>
+                    <Paper
+                      sx={(theme) => ({
+                        mt: 0.5,
+                        py: 1.25,
+                        boxShadow: theme.shadows[8],
+                        backgroundImage: 'none',
+                        bgcolor: theme.palette.mode === 'dark' ? '#0b2a46' : 'background.paper',
+                        color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
+                      })}
+                    >
                       <ClickAwayListener onClickAway={handleClose}>
                         <>
                           <SimpleBar sx={{ minWidth: 200, overflowX: 'hidden', overflowY: 'auto', maxHeight: 'calc(100vh - 170px)' }}>

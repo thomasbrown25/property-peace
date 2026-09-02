@@ -330,23 +330,33 @@ export default function Messages() {
 
   const loadMessages = useCallback(
     async (conversationId) => {
-      if (currentConversationId === conversationId) {
-        setTimeout(() => scrollToBottom(false), 100);
-        return;
+      const conversationAlreadyLoaded = String(currentConversationId) === String(conversationId);
+
+      if (!conversationAlreadyLoaded) {
+        activeLoadConvoId.current = conversationId;
+        setSwitchingConvo(true);
+        dispatch(getMessages(conversationId));
       }
-      activeLoadConvoId.current = conversationId;
-      setSwitchingConvo(true);
-      dispatch(getMessages(conversationId));
+
+      // Opening a conversation is a read action even when its messages are already loaded.
+      // This matters when a new SignalR message makes the currently selected conversation unread
+      // and the user clicks that same conversation again.
       try {
-        await dispatch(markConversationAsRead(conversationId));
-        dispatch(getConversations(activeTabRef.current === 'archived'));
-      } catch (err) {}
-      setTimeout(() => {
-        scrollToBottom(false);
-        if (activeLoadConvoId.current === conversationId) {
-          setSwitchingConvo(false);
+        const result = await dispatch(markConversationAsRead(conversationId));
+        if (result?.success) {
+          dispatch(getConversations(activeTabRef.current === 'archived'));
         }
-      }, 350);
+      } catch (err) {}
+
+      setTimeout(
+        () => {
+          scrollToBottom(false);
+          if (!conversationAlreadyLoaded && String(activeLoadConvoId.current) === String(conversationId)) {
+            setSwitchingConvo(false);
+          }
+        },
+        conversationAlreadyLoaded ? 100 : 350
+      );
     },
     [dispatch, currentConversationId, scrollToBottom]
   );

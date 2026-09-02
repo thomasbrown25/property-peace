@@ -1,4 +1,4 @@
-import { Box, Divider, Typography, Button, Stack, ListItemButton, ListItemIcon, ListItemText, List, Tooltip, alpha } from '@mui/material';
+import { Box, Divider, Typography, Button, Stack, ListItemButton, ListItemIcon, ListItemText, List, Tooltip, alpha, useTheme } from '@mui/material';
 import { SettingOutlined, StarOutlined, ArrowRightOutlined, CustomerServiceOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSubscriptionStatus, useSubscription } from 'hooks/useSubscription';
@@ -6,6 +6,7 @@ import { useGetMenuMaster } from 'api/menu';
 import useAuth from 'hooks/useAuth';
 
 export default function SidebarBottomSection() {
+  const theme = useTheme();
   const { menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster.isDashboardDrawerOpened;
   const { status } = useSubscriptionStatus();
@@ -43,11 +44,13 @@ export default function SidebarBottomSection() {
   };
 
   const getItemColors = (theme, selected) => {
-    const hoverBg = alpha('#061e35', 0.06);
-    const selectedBg = alpha('#061e35', 0.1);
-    const selectedColor = '#061e35';
-    const defaultTextColor = '#061e35';
-    const defaultIconColor = '#061e35';
+    const darkChrome = theme.palette.mode === 'dark';
+    const foreground = darkChrome ? '#ffffff' : '#061e35';
+    const hoverBg = alpha(foreground, 0.06);
+    const selectedBg = alpha(foreground, 0.1);
+    const selectedColor = foreground;
+    const defaultTextColor = foreground;
+    const defaultIconColor = foreground;
 
     return {
       hoverBg,
@@ -55,8 +58,8 @@ export default function SidebarBottomSection() {
       selectedColor,
       textColor: selected ? selectedColor : defaultTextColor,
       iconColor: selected ? selectedColor : defaultIconColor,
-      dividerColor: alpha('#061e35', 0.14),
-      selectedBorderColor: '#061e35'
+      dividerColor: alpha(foreground, 0.14),
+      selectedBorderColor: darkChrome ? '#56b983' : '#061e35'
     };
   };
 
@@ -109,18 +112,25 @@ export default function SidebarBottomSection() {
             mb: 2,
             p: 1.5,
             borderRadius: 2,
-            bgcolor: alpha('#061e35', 0.04),
+            bgcolor: alpha(theme.palette.mode === 'dark' ? '#ffffff' : '#061e35', 0.04),
             border: '1px solid',
-            borderColor: alpha('#061e35', 0.12)
+            borderColor: alpha(theme.palette.mode === 'dark' ? '#ffffff' : '#061e35', 0.12)
           }}
         >
           <Stack direction="row" alignItems="center" spacing={0.75} sx={{ mb: 0.5 }}>
-            <StarOutlined style={{ fontSize: 13, color: '#061e35' }} />
-            <Typography variant="caption" fontWeight={700} sx={{ color: '#061e35', fontSize: '0.75rem' }}>
+            <StarOutlined style={{ fontSize: 13, color: theme.palette.mode === 'dark' ? '#ffffff' : '#061e35' }} />
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              sx={{ color: theme.palette.mode === 'dark' ? '#ffffff' : '#061e35', fontSize: '0.75rem' }}
+            >
               Upgrade to Premium
             </Typography>
           </Stack>
-          <Typography variant="caption" sx={{ color: alpha('#061e35', 0.68), fontSize: '0.7rem', display: 'block', mb: 1.25 }}>
+          <Typography
+            variant="caption"
+            sx={{ color: alpha(theme.palette.mode === 'dark' ? '#ffffff' : '#061e35', 0.68), fontSize: '0.7rem', display: 'block', mb: 1.25 }}
+          >
             Unlimited agents &amp; more
           </Typography>
           <Button

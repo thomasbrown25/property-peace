@@ -22,16 +22,18 @@ import {
   ClockCircleOutlined,
   CloseOutlined,
   DatabaseOutlined,
+  DeleteOutlined,
   DollarCircleOutlined,
   HistoryOutlined,
   MenuOutlined,
   MessageOutlined,
   PlusOutlined,
-  RobotOutlined,
   SendOutlined,
   SyncOutlined,
   ToolOutlined
 } from '@ant-design/icons';
+import percyLogoDarkMode from 'assets/images/logos/favicon-transparent.png';
+import percyLogoLightMode from 'assets/images/logos/favicon-transparent-dark.png';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import useOrganizationSummary from 'hooks/useOrganizationSummary';
 import useAuth from 'hooks/useAuth';
@@ -40,6 +42,8 @@ import { aiFollowUpAPI } from 'api';
 import FeatureReadinessNotice from 'components/feature-readiness/FeatureReadinessNotice';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { formatPercyMetricValue } from 'utils/percyMetricValue';
+import { sortPercyConversationsMostRecentFirst } from 'utils/percyConversations';
 import { mapPercySource } from 'utils/percySources';
 import { createPercyChatRequestAttempt } from 'utils/percyChatRequestAttempt';
 import {
@@ -59,6 +63,35 @@ const STARTER_PROMPTS = [
   { label: 'Lease expirations', prompt: 'Show leases expiring in the next 60 days.', icon: <ClockCircleOutlined /> },
   { label: 'Portfolio pulse', prompt: 'Give me a quick portfolio summary.', icon: <DatabaseOutlined /> }
 ];
+
+function PercyAvatar({ size = 32, elevated = false }) {
+  const theme = useTheme();
+  const darkMode = theme.palette.mode === 'dark';
+
+  return (
+    <Box
+      aria-hidden="true"
+      sx={{
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: size >= 50 ? 2.25 : 1.25,
+        display: 'grid',
+        placeItems: 'center',
+        bgcolor: darkMode ? alpha('#fff', 0.07) : alpha(NAVY, 0.055),
+        border: `1px solid ${darkMode ? alpha('#fff', 0.1) : alpha(NAVY, 0.07)}`,
+        boxShadow: elevated ? `0 12px 24px ${alpha(NAVY, darkMode ? 0.34 : 0.14)}` : 'none'
+      }}
+    >
+      <Box
+        component="img"
+        src={darkMode ? percyLogoDarkMode : percyLogoLightMode}
+        alt=""
+        sx={{ width: '82%', height: '82%', objectFit: 'contain', display: 'block' }}
+      />
+    </Box>
+  );
+}
 
 const readField = (value, ...keys) => {
   for (const key of keys) {
@@ -163,29 +196,22 @@ function SourceLinks({ sources }) {
   );
 }
 
-function AssistantMessage({ message, onResolveConfirmation, confirmationLoading, confirmationError }) {
+function AssistantMessage({ message, progressText, onResolveConfirmation, confirmationLoading, confirmationError }) {
   const confirmation = message.pendingConfirmation;
   const confirmationPending = confirmation && String(confirmation.status).toLowerCase() === 'pending';
   return (
     <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ width: '100%' }}>
-      <Box
-        sx={{
-          width: 32,
-          height: 32,
-          flexShrink: 0,
-          borderRadius: 1.25,
-          display: 'grid',
-          placeItems: 'center',
-          bgcolor: NAVY,
-          color: '#fff'
-        }}
-      >
-        <RobotOutlined />
-      </Box>
+      <PercyAvatar />
       <Box sx={{ minWidth: 0, maxWidth: 760, flex: 1 }}>
-        <Typography variant="body1" sx={{ color: NAVY, lineHeight: 1.75 }}>
-          {message.content}
-        </Typography>
+        {message.streaming && !message.content ? (
+          <Typography variant="body2" fontWeight={700} sx={{ color: NAVY }}>
+            {progressText}
+          </Typography>
+        ) : (
+          <Typography variant="body1" sx={{ color: NAVY, lineHeight: 1.75 }}>
+            {message.content}
+          </Typography>
+        )}
 
         {message.tool && <ToolStatus tool={message.tool} />}
         <SourceLinks sources={message.sources} />
@@ -208,9 +234,7 @@ function AssistantMessage({ message, onResolveConfirmation, confirmationLoading,
                   {metric.label}
                 </Typography>
                 <Typography variant="subtitle1" fontWeight={800} sx={{ color: NAVY, mt: 0.2 }}>
-                  {metric.money
-                    ? Number(metric.value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
-                    : metric.value}
+                  {formatPercyMetricValue(metric)}
                 </Typography>
               </Box>
             ))}
@@ -365,11 +389,13 @@ export default function AICenter() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [thinking, setThinking] = useState(false);
-  const [progressText, setProgressText] = useState('Understanding your request');
+  const [progressText, setProgressText] = useState('Let me take a look…');
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [conversationsError, setConversationsError] = useState('');
+  const [deletingConversationId, setDeletingConversationId] = useState(null);
+  const [deleteConversationError, setDeleteConversationError] = useState('');
   const [conversationLoading, setConversationLoading] = useState(false);
   const [conversationError, setConversationError] = useState('');
   const [confirmationLoading, setConfirmationLoading] = useState({});
@@ -377,11 +403,7 @@ export default function AICenter() {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const [stateScopeGeneration, setStateScopeGeneration] = useState(null);
   const aiRuntimeReady = isAICenterRuntimeReady({ runtime: aiRuntime, stateGeneration: stateScopeGeneration });
-
-  const sortConversations = (items) =>
-    [...items].sort(
-      (a, b) => new Date(readField(b, 'updatedAt', 'UpdatedAt') || 0) - new Date(readField(a, 'updatedAt', 'UpdatedAt') || 0)
-    );
+  const sortedConversations = useMemo(() => sortPercyConversationsMostRecentFirst(conversations), [conversations]);
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -425,11 +447,13 @@ export default function AICenter() {
     setMessages([]);
     setInput('');
     setThinking(false);
-    setProgressText('Understanding your request');
+    setProgressText('Let me take a look…');
     setConversations([]);
     setSelectedConversationId(null);
     setConversationsLoading(true);
     setConversationsError('');
+    setDeletingConversationId(null);
+    setDeleteConversationError('');
     setConversationLoading(false);
     setConversationError('');
     setConfirmationLoading({});
@@ -454,7 +478,7 @@ export default function AICenter() {
       try {
         const response = unwrapData(await aiFollowUpAPI.getConversations());
         if (!isCurrentScope()) return;
-        const loaded = sortConversations(asArray(response));
+        const loaded = sortPercyConversationsMostRecentFirst(asArray(response));
         setConversations(loaded);
         if (loaded.length > 0) handleSelectConversation(readField(loaded[0], 'id', 'Id'));
       } catch (error) {
@@ -483,6 +507,37 @@ export default function AICenter() {
     setConversationError('');
   };
 
+  const handleDeleteConversation = async (event, id) => {
+    event.stopPropagation();
+    if (!aiRuntimeReady || deletingConversationId !== null) return;
+
+    const scopeRequest = scopeGuardRef.current.capture(aiScope);
+    const remainingConversations = sortedConversations.filter((conversation) => readField(conversation, 'id', 'Id') !== id);
+    setDeletingConversationId(id);
+    setDeleteConversationError('');
+
+    try {
+      await aiFollowUpAPI.deleteConversation(id);
+      if (!scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
+
+      setConversations(remainingConversations);
+      if (selectedConversationId === id) {
+        const nextConversationId = readField(remainingConversations[0], 'id', 'Id');
+        if (nextConversationId) {
+          await handleSelectConversation(nextConversationId);
+        } else {
+          handleNewChat();
+        }
+      }
+    } catch (error) {
+      if (scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) {
+        setDeleteConversationError(errorMessage(error, 'Could not delete this conversation. Please try again.'));
+      }
+    } finally {
+      if (scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) setDeletingConversationId(null);
+    }
+  };
+
   const handleSend = async (value = input) => {
     if (!aiRuntimeReady || !percyReadiness.canInvoke) return;
     const prompt = value.trim();
@@ -504,11 +559,11 @@ export default function AICenter() {
     setMessages((current) => [
       ...current,
       { id: optimisticId, role: 'user', content: prompt },
-      { id: assistantPlaceholderId, role: 'assistant', content: '' }
+      { id: assistantPlaceholderId, role: 'assistant', content: '', streaming: true }
     ]);
     setInput('');
     setThinking(true);
-    setProgressText('Understanding your request');
+    setProgressText('Let me take a look…');
 
     let completedResponse = null;
     try {
@@ -517,7 +572,7 @@ export default function AICenter() {
         onEvent: (event) => {
           if (selectionVersionRef.current !== version || !scopeGuardRef.current.isCurrent(scopeRequest, currentScopeRef.current)) return;
           if (event.type === 'status') {
-            setProgressText(event.message || 'Checking Property Peace data');
+            setProgressText(event.message || "I'm pulling that together for you…");
             return;
           }
           if (event.type === 'content.delta') {
@@ -566,7 +621,10 @@ export default function AICenter() {
           updatedAt: new Date().toISOString(),
           lastMessagePreview: readField(response, 'content', 'Content') || prompt
         };
-        return sortConversations([next, ...current.filter((item) => readField(item, 'id', 'Id') !== serverConversationId)]);
+        return sortPercyConversationsMostRecentFirst([
+          next,
+          ...current.filter((item) => readField(item, 'id', 'Id') !== serverConversationId)
+        ]);
       });
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -677,9 +735,7 @@ export default function AICenter() {
         >
           <Box sx={{ p: 2 }}>
             <Stack direction="row" spacing={1.1} alignItems="center" sx={{ mb: 2 }}>
-              <Box sx={{ width: 34, height: 34, borderRadius: 1.4, display: 'grid', placeItems: 'center', bgcolor: NAVY, color: '#fff' }}>
-                <RobotOutlined />
-              </Box>
+              <PercyAvatar size={34} />
               <Box>
                 <Typography variant="subtitle1" fontWeight={850} sx={{ color: NAVY, lineHeight: 1.1 }}>
                   Percy
@@ -724,45 +780,82 @@ export default function AICenter() {
                 {conversationsError}
               </Alert>
             )}
+            {deleteConversationError && (
+              <Alert severity="error" sx={{ mt: 0.5, py: 0 }}>
+                {deleteConversationError}
+              </Alert>
+            )}
             {!conversationsLoading && !conversationsError && conversations.length === 0 && (
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', px: 1.1, py: 1.5 }}>
                 No saved conversations yet.
               </Typography>
             )}
             <Stack spacing={0.5} sx={{ mt: 0.5 }}>
-              {conversations.map((conversation) => {
+              {sortedConversations.map((conversation) => {
                 const id = readField(conversation, 'id', 'Id');
                 const selected = id === selectedConversationId;
                 return (
                   <Box
                     key={id}
-                    component="button"
-                    type="button"
-                    onClick={() => handleSelectConversation(id)}
                     sx={{
+                      position: 'relative',
                       width: '100%',
-                      border: 0,
                       mt: 0,
-                      px: 1.1,
-                      py: 1,
                       borderRadius: 1.5,
                       bgcolor: selected ? alpha(NAVY, 0.07) : 'transparent',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: alpha(NAVY, 0.05) }
+                      '&:hover': { bgcolor: alpha(NAVY, 0.05) },
+                      '&:hover .conversation-delete, &:focus-within .conversation-delete': { opacity: 1 },
+                      '@media (hover: none)': { '& .conversation-delete': { opacity: 1 } }
                     }}
                   >
-                    <Stack direction="row" spacing={1} alignItems="flex-start">
-                      <MessageOutlined style={{ color: NAVY, marginTop: 3 }} />
-                      <Box sx={{ minWidth: 0 }}>
-                        <Typography variant="body2" fontWeight={selected ? 750 : 600} noWrap>
-                          {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
-                          {readField(conversation, 'lastMessagePreview', 'LastMessagePreview') || 'No messages yet'}
-                        </Typography>
-                      </Box>
-                    </Stack>
+                    <Box
+                      component="button"
+                      type="button"
+                      onClick={() => handleSelectConversation(id)}
+                      sx={{
+                        width: '100%',
+                        border: 0,
+                        px: 1.1,
+                        pr: 4.5,
+                        py: 1,
+                        bgcolor: 'transparent',
+                        textAlign: 'left',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <MessageOutlined style={{ color: NAVY, marginTop: 3 }} />
+                        <Box sx={{ minWidth: 0 }}>
+                          <Typography variant="body2" fontWeight={selected ? 750 : 600} noWrap>
+                            {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                            {readField(conversation, 'lastMessagePreview', 'LastMessagePreview') || 'No messages yet'}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Box>
+                    <Tooltip title="Delete conversation">
+                      <IconButton
+                        className="conversation-delete"
+                        aria-label={`Delete ${readField(conversation, 'title', 'Title') || 'conversation'}`}
+                        size="small"
+                        disabled={deletingConversationId !== null}
+                        onClick={(event) => handleDeleteConversation(event, id)}
+                        sx={{
+                          position: 'absolute',
+                          right: 6,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          opacity: deletingConversationId === id ? 1 : 0,
+                          transition: 'opacity 120ms ease, color 120ms ease, background-color 120ms ease',
+                          color: 'text.secondary',
+                          '&:hover': { color: 'error.main', bgcolor: alpha('#d32f2f', 0.08) }
+                        }}
+                      >
+                        {deletingConversationId === id ? <CircularProgress size={15} /> : <DeleteOutlined />}
+                      </IconButton>
+                    </Tooltip>
                   </Box>
                 );
               })}
@@ -856,20 +949,7 @@ export default function AICenter() {
                   mx: 'auto'
                 }}
               >
-                <Box
-                  sx={{
-                    width: 58,
-                    height: 58,
-                    borderRadius: 2.25,
-                    display: 'grid',
-                    placeItems: 'center',
-                    bgcolor: NAVY,
-                    color: '#fff',
-                    boxShadow: `0 12px 24px ${alpha(NAVY, 0.2)}`
-                  }}
-                >
-                  <RobotOutlined style={{ fontSize: 28 }} />
-                </Box>
+                <PercyAvatar size={58} elevated />
                 <Typography variant="h2" fontWeight={800} sx={{ mt: 2, color: NAVY, letterSpacing: -0.7 }}>
                   What can Percy help with?
                 </Typography>
@@ -946,36 +1026,12 @@ export default function AICenter() {
                     <AssistantMessage
                       key={message.id}
                       message={message}
+                      progressText={progressText}
                       onResolveConfirmation={handleResolveConfirmation}
                       confirmationLoading={Boolean(confirmationLoading[message.pendingConfirmation?.id])}
                       confirmationError={confirmationErrors[message.pendingConfirmation?.id]}
                     />
                   )
-                )}
-                {thinking && (
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 1.25,
-                        display: 'grid',
-                        placeItems: 'center',
-                        bgcolor: NAVY,
-                        color: '#fff'
-                      }}
-                    >
-                      <RobotOutlined />
-                    </Box>
-                    <Box>
-                      <Typography variant="body2" fontWeight={700} sx={{ color: NAVY }}>
-                        {progressText}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Waiting for Percy's full response…
-                      </Typography>
-                    </Box>
-                  </Stack>
                 )}
                 <div ref={messageEndRef} />
               </Stack>
@@ -1181,29 +1237,44 @@ export default function AICenter() {
                 {conversationsError}
               </Alert>
             )}
+            {deleteConversationError && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                {deleteConversationError}
+              </Alert>
+            )}
             {!conversationsLoading && !conversationsError && conversations.length === 0 && (
               <Typography variant="caption" color="text.secondary">
                 No saved conversations yet.
               </Typography>
             )}
             <Stack spacing={0.5} sx={{ mt: 1, mb: 2 }}>
-              {conversations.map((conversation) => {
+              {sortedConversations.map((conversation) => {
                 const id = readField(conversation, 'id', 'Id');
                 return (
-                  <Button
-                    key={id}
-                    fullWidth
-                    onClick={() => {
-                      handleSelectConversation(id);
-                      setMobilePanelOpen(false);
-                    }}
-                    startIcon={<MessageOutlined />}
-                    sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: id === selectedConversationId ? 800 : 500 }}
-                  >
-                    <Typography variant="body2" noWrap>
-                      {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
-                    </Typography>
-                  </Button>
+                  <Stack key={id} direction="row" alignItems="center">
+                    <Button
+                      fullWidth
+                      onClick={() => {
+                        handleSelectConversation(id);
+                        setMobilePanelOpen(false);
+                      }}
+                      startIcon={<MessageOutlined />}
+                      sx={{ justifyContent: 'flex-start', textTransform: 'none', fontWeight: id === selectedConversationId ? 800 : 500 }}
+                    >
+                      <Typography variant="body2" noWrap>
+                        {readField(conversation, 'title', 'Title') || 'Untitled conversation'}
+                      </Typography>
+                    </Button>
+                    <IconButton
+                      aria-label={`Delete ${readField(conversation, 'title', 'Title') || 'conversation'}`}
+                      size="small"
+                      disabled={deletingConversationId !== null}
+                      onClick={(event) => handleDeleteConversation(event, id)}
+                      sx={{ flexShrink: 0, color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                    >
+                      {deletingConversationId === id ? <CircularProgress size={15} /> : <DeleteOutlined />}
+                    </IconButton>
+                  </Stack>
                 );
               })}
             </Stack>

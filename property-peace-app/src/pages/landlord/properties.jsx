@@ -338,8 +338,8 @@ export default function Properties() {
       >
         <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="h3" sx={{ color: '#061e35', fontWeight: 750, letterSpacing: -0.4 }}>Properties</Typography>
-            <Typography sx={{ mt: 0.6, color: '#061e35', fontSize: '0.88rem' }}>
+            <Typography variant="h3" sx={{ color: 'text.primary', fontWeight: 750, letterSpacing: -0.4 }}>Properties</Typography>
+            <Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: '0.88rem' }}>
               A clear operating view of occupancy, rent roll, leases, and work that needs attention.
             </Typography>
           </Box>

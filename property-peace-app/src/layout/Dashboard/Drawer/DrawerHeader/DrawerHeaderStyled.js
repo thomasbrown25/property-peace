@@ -11,7 +11,7 @@ const DrawerHeaderStyled = styled(Box, { shouldForwardProp: (prop) => prop !== '
     alignItems: 'center',
     justifyContent: 'center',
     paddingLeft: theme.spacing(0),
-    background: theme.palette.common.white,
+    background: theme.palette.mode === 'dark' ? '#061e35' : theme.palette.common.white,
     variants: [
       {
         props: ({ open }) => open,

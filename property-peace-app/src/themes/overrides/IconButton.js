@@ -6,6 +6,14 @@ export default function IconButton(theme) {
       styleOverrides: {
         root: {
           borderRadius: 4,
+          color: theme.palette.mode === 'dark' ? theme.palette.text.secondary : 'inherit',
+          '&:hover': {
+            color: theme.palette.mode === 'dark' ? theme.palette.text.primary : 'inherit',
+            backgroundColor: theme.palette.mode === 'dark' ? theme.palette.action.hover : undefined
+          },
+          '& svg': {
+            color: 'inherit'
+          },
           '&.MuiIconButton-loading': {
             pointerEvents: 'none !important',
             '& svg': {

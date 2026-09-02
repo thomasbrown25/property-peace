@@ -26,6 +26,7 @@ export function DashboardReminderCard({ reminders = [] }) {
   const navigate = useNavigate();
   const now = useMemo(() => new Date(), []);
   const nextReminder = reminders[0];
+  const actionColor = theme.palette.mode === 'dark' ? theme.palette.primary.light : dashboardNavy;
 
   return (
     <Box
@@ -107,13 +108,13 @@ export function DashboardReminderCard({ reminders = [] }) {
           px: { xs: 0.75, sm: 1 },
           py: 0.75,
           borderRadius: 1.25,
-          color: dashboardNavy,
+          color: actionColor,
           fontSize: { xs: '0.68rem', sm: '0.75rem' },
           fontWeight: 800,
           textTransform: 'none',
           whiteSpace: 'nowrap',
           '& .MuiButton-endIcon': { m: 0, ml: 0.5, fontSize: '0.78rem' },
-          '&:hover': { bgcolor: alpha(dashboardNavy, 0.055), color: dashboardNavy }
+          '&:hover': { bgcolor: alpha(actionColor, theme.palette.mode === 'dark' ? 0.12 : 0.055), color: actionColor }
         }}
       >
         View calendar
@@ -129,6 +130,7 @@ export default function DashboardHeader({ userName, activeTab: controlledActiveT
   const activeTab = controlledActiveTab || getDashboardWorkspaceTab(location.pathname, location.search);
   const now = useMemo(() => new Date(), []);
   const firstName = userName?.trim().split(/\s+/)[0];
+  const tabAccent = theme.palette.mode === 'dark' ? theme.palette.primary.light : dashboardNavy;
 
   const activateTab = (tab) => {
     if (onTabChange) onTabChange(tab.key);
@@ -224,14 +226,14 @@ export default function DashboardHeader({ userName, activeTab: controlledActiveT
                 py: 1.05,
                 borderRadius: 0,
                 borderBottom: '3px solid',
-                borderBottomColor: active ? dashboardNavy : 'transparent',
-                color: active ? dashboardNavy : 'text.secondary',
+                borderBottomColor: active ? tabAccent : 'transparent',
+                color: active ? tabAccent : 'text.secondary',
                 backgroundColor: 'transparent',
                 fontSize: '0.92rem',
                 fontWeight: active ? 800 : 650,
                 textTransform: 'none',
-                '&:hover': { color: active ? dashboardNavy : 'text.primary', bgcolor: alpha(dashboardNavy, 0.055) },
-                '&:focus-visible': { outline: `2px solid ${alpha(dashboardNavy, 0.65)}`, outlineOffset: -2 }
+                '&:hover': { color: active ? tabAccent : 'text.primary', bgcolor: alpha(tabAccent, theme.palette.mode === 'dark' ? 0.1 : 0.055) },
+                '&:focus-visible': { outline: `2px solid ${alpha(tabAccent, 0.65)}`, outlineOffset: -2 }
               }}
             >
               {tab.label}
