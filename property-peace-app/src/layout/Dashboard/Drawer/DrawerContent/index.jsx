@@ -42,10 +42,9 @@ export default function DrawerContent() {
           onScroll={updateScrollState}
           sx={(theme) => ({
             height: '100%',
-            overflowY: 'scroll',
+            overflowY: 'auto',
             overflowX: 'hidden',
             overscrollBehavior: 'contain',
-            scrollbarGutter: 'stable',
             scrollbarWidth: 'thin',
             scrollbarColor: `${alpha('#061e35', 0.38)} ${alpha('#061e35', 0.06)}`,
             '&::-webkit-scrollbar': { width: 8 },

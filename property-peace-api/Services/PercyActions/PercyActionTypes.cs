@@ -11,6 +11,7 @@ public static class PercyActionTypes
     public const string ReadMaintenance = "read.maintenance";
     public const string ReadLeasesApplications = "read.leases_applications";
     public const string ReadUrgentMessages = "read.urgent_messages";
+    public const string ReadTenantContacts = "read.tenant_contacts";
 
     public const string DraftMaintenanceTroubleshooting = "maintenance.troubleshooting.draft";
     public const string RecordMaintenanceTroubleshootingOutcome = "maintenance.troubleshooting.outcome.record";
@@ -33,6 +34,7 @@ public static class PercyActionTypes
         ReadMaintenance,
         ReadLeasesApplications,
         ReadUrgentMessages,
+        ReadTenantContacts,
         DraftMaintenanceTroubleshooting,
         RecordMaintenanceTroubleshootingOutcome,
         DraftLeadFollowUp,
