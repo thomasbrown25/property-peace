@@ -97,12 +97,19 @@ export default function AuthWrapper({ children, splitScreen = false, focused = f
   // Split screen layout for login page
   if (splitScreen) {
     return (
-      <Box sx={{ minHeight: '100vh', position: 'relative', display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
+      <Box
+        sx={{
+          minHeight: { xs: '100svh', sm: '100vh' },
+          position: 'relative',
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' }
+        }}
+      >
         {/* Left Side - White Background with Form */}
         <Box
           sx={{
             width: { xs: '100%', md: '50%' },
-            minHeight: { xs: '50vh', md: '100vh' },
+            minHeight: { xs: '100svh', sm: '50vh', md: '100vh' },
             bgcolor: 'background.paper', // White background
             display: 'flex',
             flexDirection: 'column',
