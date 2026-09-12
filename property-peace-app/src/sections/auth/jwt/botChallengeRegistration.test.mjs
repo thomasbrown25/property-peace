@@ -20,6 +20,21 @@ test('public email signup renders a Turnstile checkbox and sends its one-time to
   assert.match(widget, /'error-callback'/);
 });
 
+test('signup account step uses the concise heading and Sign Up action', () => {
+  const form = read('./EmailEntryForm.jsx');
+
+  assert.doesNotMatch(form, /Step 1 of 3 · Account/);
+  assert.doesNotMatch(form, /Use your work email and choose a secure password/);
+  assert.match(form, /emailAlreadyVerified \? 'Continue securely' : 'Sign Up'/);
+});
+
+test('email signup advances to verification while trusted Google signup skips to details', () => {
+  const registerPage = read('../../../pages/auth/jwt/register-landlord.jsx');
+
+  assert.match(registerPage, /go\(alreadyVerified \? 'details' : 'verify'\)/);
+  assert.match(registerPage, /onGoogleSuccess=\{\(profile\) => \{[\s\S]*?go\('details'\)/);
+});
+
 test('both frontend deployment workflows inject an environment-specific Turnstile site key', () => {
   const devWorkflow = read('../../../../../.github/workflows/property-peace-app-deploy-dev.yml');
   const prodWorkflow = read('../../../../../.github/workflows/property-peace-app-deploy.yml');
