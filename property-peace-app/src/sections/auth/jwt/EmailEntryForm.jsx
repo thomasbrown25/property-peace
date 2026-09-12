@@ -249,17 +249,14 @@ export default function EmailEntryForm({
               </TransitionIn>
             )}
             <TransitionIn delay={0.1} disabled={reduceMotion}>
-              <Typography color="success.main" fontWeight={700} variant="body2" textAlign="center">
-                Step 1 of 3 · Account
-              </Typography>
-              <Typography variant="h3" sx={{ mt: 1, mb: 1, color: '#061e35', fontWeight: 700, textAlign: 'center' }}>
+              <Typography variant="h3" sx={{ mb: emailAlreadyVerified ? 1 : 3, color: '#061e35', fontWeight: 700, textAlign: 'center' }}>
                 Create your landlord account
               </Typography>
-              <Typography color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
-                {emailAlreadyVerified
-                  ? 'Re-enter your password to securely continue with your verified email.'
-                  : 'Use your work email and choose a secure password. We’ll send a six-digit verification code next.'}
-              </Typography>
+              {emailAlreadyVerified && (
+                <Typography color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+                  Re-enter your password to securely continue with your verified email.
+                </Typography>
+              )}
             </TransitionIn>
           {resumeMessage && <FormHelperText sx={{ mb: 2, color: 'warning.dark' }}>{resumeMessage}</FormHelperText>}
           <form noValidate onSubmit={handleSubmit}>
@@ -374,7 +371,7 @@ export default function EmailEntryForm({
                   disabled={isSubmitting || (turnstileRequired && !botChallengeToken)}
                   sx={{ py: 1.4, textTransform: 'none', fontWeight: 700 }}
                 >
-                  {isSubmitting ? 'Please wait…' : emailAlreadyVerified ? 'Continue securely' : 'Send verification code'}
+                  {isSubmitting ? 'Please wait…' : emailAlreadyVerified ? 'Continue securely' : 'Sign Up'}
                 </Button>
               </TransitionIn>
               <TransitionIn delay={oauthEnabled ? 0.7 : 0.5} disabled={reduceMotion}>
