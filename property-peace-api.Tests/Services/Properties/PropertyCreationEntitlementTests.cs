@@ -10,6 +10,7 @@ using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.ApplicationInvites;
 using brownstone_hub_api.Repositories.Applications;
+using brownstone_hub_api.Repositories.BankAccounts;
 using brownstone_hub_api.Repositories.Checklists;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Expenses;
@@ -305,6 +306,7 @@ public sealed class PropertyCreationEntitlementTests
 
         return new PropertyService(
             _properties.Object,
+            Mock.Of<IBankAccountRepository>(),
             _images.Object,
             Mock.Of<IMaintenanceRequestRepository>(),
             Mock.Of<ILeaseRepository>(),

@@ -262,11 +262,11 @@ export default function AuthLogin({ isDemo = false }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: "easeOut", delay: 0.1 }}
               >
-                <Box sx={{ mb: 2, textAlign: 'center', mt: { xs: 18, sm: 18, md: 0 } }}>
+                <Box sx={{ mb: 2, textAlign: 'center', mt: { xs: 0, sm: 18, md: 0 } }}>
                   <Typography variant="h3" sx={{ fontWeight: 700, mb: 1, color: 'text.primary', fontSize: '2rem' }}>
                     Welcome to Property Peace
                   </Typography>
-                  <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                  <Typography variant="body1" sx={{ color: 'text.secondary', display: { xs: 'none', sm: 'block' } }}>
                     Where property meets peace of mind.
                   </Typography>
                 </Box>
