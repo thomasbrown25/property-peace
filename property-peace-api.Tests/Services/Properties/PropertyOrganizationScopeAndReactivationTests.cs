@@ -9,6 +9,7 @@ using brownstone_hub_api.Entitlements.Policy;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.ApplicationInvites;
 using brownstone_hub_api.Repositories.Applications;
+using brownstone_hub_api.Repositories.BankAccounts;
 using brownstone_hub_api.Repositories.Checklists;
 using brownstone_hub_api.Repositories.Conversations;
 using brownstone_hub_api.Repositories.Expenses;
@@ -178,6 +179,7 @@ public sealed class PropertyOrganizationScopeAndReactivationTests
             [new Claim(ClaimTypes.NameIdentifier, "42")], "test"));
         return new PropertyService(
             _properties.Object,
+            Mock.Of<IBankAccountRepository>(),
             Mock.Of<IImageService<PropertyImage, LoadImageDto, AddImageDto>>(),
             Mock.Of<IMaintenanceRequestRepository>(), Mock.Of<ILeaseRepository>(),
             Mock.Of<IExpenseRepository>(), Mock.Of<IRecurringExpenseRepository>(),
