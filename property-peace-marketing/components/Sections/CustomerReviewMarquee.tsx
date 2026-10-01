@@ -207,7 +207,7 @@ export default function CustomerReviewMarquee() {
       aria-labelledby="customer-review-marquee-heading"
       className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] border-y border-[#DCE6ED] bg-white py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:py-28"
     >
-      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl">
           <p
             className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]"

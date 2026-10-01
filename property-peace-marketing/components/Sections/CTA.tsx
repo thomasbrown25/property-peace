@@ -13,7 +13,7 @@ export default function CTA({ featured = false }: CTAProps) {
     return (
       <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
         <motion.div
-          className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-[#061e35] px-6 py-14 text-center shadow-[0_24px_70px_rgba(6,30,53,0.22)] sm:px-10 sm:py-16 lg:px-16"
+          className="relative mx-auto max-w-[1440px] overflow-hidden rounded-[2rem] bg-[#061e35] px-6 py-14 text-center shadow-[0_24px_70px_rgba(6,30,53,0.22)] sm:px-10 sm:py-16 lg:px-16"
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}

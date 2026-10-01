@@ -189,6 +189,23 @@ h1, h2, h3, h4, h5, h6 {
   font-family: "Poppins", sans-serif;
 }
 
+/* Spark-inspired display treatment, scoped to the Property Peace homepage.
+   Host Grotesk is our licensed/local alternative to Spark's TWK Lausanne 800. */
+[data-marketing-home] h1,
+[data-marketing-home] h2,
+[data-marketing-home] h3 {
+  font-family: "Host Grotesk", sans-serif !important;
+  font-weight: 800;
+}
+
+[data-marketing-home] h2 {
+  letter-spacing: -0.035em;
+}
+
+[data-marketing-home] h3 {
+  letter-spacing: -0.02em;
+}
+
 /* Paragraph font family */
 p {
   font-family: "Inter", sans-serif;

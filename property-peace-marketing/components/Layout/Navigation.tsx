@@ -361,7 +361,7 @@ export default function Navigation() {
         }}
         style={{ fontFamily: '"Poppins", sans-serif' }}
       >
-      <div className="mx-auto w-full max-w-6xl min-w-0 px-4 sm:px-6 lg:px-6">
+      <div className={`mx-auto w-full min-w-0 px-4 sm:px-6 ${pathname === '/' ? 'max-w-[1660px] lg:px-10 xl:px-12' : 'max-w-6xl lg:px-6'}`}>
         <div className="relative grid h-[72px] grid-cols-[76px_minmax(0,1fr)_64px] items-center nav:flex nav:h-[88px] nav:justify-between">
           {/* Mobile: menu left */}
           <div className="nav:hidden flex h-11 w-[76px] flex-shrink-0 items-center justify-start">
@@ -412,15 +412,13 @@ export default function Navigation() {
           </Link>
 
           {/* Mobile: Login on right */}
-          <div className="nav:hidden flex h-11 w-16 flex-shrink-0 items-center justify-end">
+          <div className="nav:hidden flex h-11 w-20 flex-shrink-0 items-center justify-end">
             <Link
               href={loginUrl}
-              className={`inline-flex h-11 min-w-11 items-center justify-end rounded-xl px-1 text-sm font-medium transition-colors duration-[220ms] motion-reduce:transition-none ${
-                whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
-              }`}
+              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[#B8C8D5] bg-white px-3 text-xs font-semibold uppercase text-[#061E35] transition-colors duration-[220ms] hover:bg-[#F7FAFC] motion-reduce:transition-none"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
             >
-              Login
+              LOGIN
             </Link>
           </div>
 
@@ -469,22 +467,17 @@ export default function Navigation() {
             </Link>
           </div>
 
-          {/* CTA: Login + Get Started (desktop) */}
-          <div className="hidden nav:flex items-center gap-3 lg:nav:mr-12">
+          {/* CTA: Login + Book a Demo (desktop) */}
+          <div className={`hidden nav:flex items-center gap-3 ${pathname === '/' ? '' : 'lg:nav:mr-12'}`}>
             <Link href={loginUrl}
-              className={`px-6 py-3 rounded-none font-medium text-center transition-all duration-300 border ${
-                whiteSurface ? 'border-[#B8C8D5] text-[#061E35] hover:border-[#061E35] hover:bg-[#F7FAFC]' : 'border-white/70 text-white hover:bg-white/10'
-              }`}
+              className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[#B8C8D5] bg-white px-[18px] text-center text-xs font-semibold uppercase text-[#061E35] transition-colors duration-200 hover:bg-[#F7FAFC]"
               style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
-              Login
+              LOGIN
             </Link>
-            <Link href={registerUrl}
-              className={`text-[#061E35] ${whiteSurface ? 'shadow-lg shadow-emerald-600/25 hover:shadow-xl' : 'shadow-[0_12px_30px_rgba(1,12,28,0.18)]'} px-7 py-3.5 rounded-none font-bold text-center transition-[color,border-color,box-shadow,opacity] duration-[220ms] motion-reduce:transition-none`}
-              style={{
-                fontFamily: '"Inter", "Inter Placeholder", sans-serif',
-                background: whiteSurface ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#ffffff',
-              }}>
-              Start free
+            <Link href="/demo"
+              className="inline-flex h-[38px] items-center justify-center rounded-sm bg-green-600 px-[18px] text-center text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-green-500"
+              style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
+              BOOK A DEMO
             </Link>
           </div>
 
@@ -737,22 +730,19 @@ export default function Navigation() {
             <div className="grid grid-cols-2 gap-3">
               <Link
                 href={loginUrl}
-                className="inline-flex min-h-[52px] items-center justify-center rounded-none border border-white/15 px-4 text-sm font-semibold text-white transition-all duration-200 hover:bg-white/10"
+                className="inline-flex h-[38px] items-center justify-center rounded-sm border border-white bg-white px-3 text-xs font-semibold uppercase text-[#061E35] transition-colors duration-200 hover:bg-white/85"
                 style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Login
+                LOGIN
               </Link>
               <Link
-                href={registerUrl}
-                className="inline-flex min-h-[52px] items-center justify-center rounded-none px-4 text-sm font-bold text-[#061E35] shadow-lg shadow-emerald-600/25 transition-[color,border-color,box-shadow,opacity] duration-[220ms] motion-reduce:transition-none"
-                style={{
-                  fontFamily: '"Inter", "Inter Placeholder", sans-serif',
-                  background: 'linear-gradient(135deg, #22c55e, #16a34a)'
-                }}
+                href="/demo"
+                className="inline-flex h-[38px] items-center justify-center rounded-sm bg-green-600 px-3 text-xs font-bold uppercase text-white transition-colors duration-200 hover:bg-green-500"
+                style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Start free
+                BOOK A DEMO
               </Link>
             </div>
           </div>

@@ -28,7 +28,7 @@ const highlights = [
 export default function ResourceHighlights() {
   return (
     <section className="border-y border-slate-200 bg-[#F7F9F8] px-4 py-16 sm:px-6 lg:px-8 md:py-20">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-[1440px]">
         <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
             <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-700">Landlord Resource Center</p>

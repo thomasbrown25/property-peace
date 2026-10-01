@@ -1,136 +1,75 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
+import dashboardImage from '../../assets/images/landing/dashboard.png';
 
 export default function Hero() {
   return (
-    <section data-marketing-hero="home-image" className="relative overflow-hidden bg-[#061E35] lg:min-h-[780px]">
+    <section data-marketing-hero="home-image" className="relative overflow-hidden bg-[#061E35] lg:min-h-[max(850px,100svh)]">
       <div
         className="absolute inset-0 bg-cover bg-[position:72%_center] bg-no-repeat sm:bg-[position:68%_center] lg:bg-[position:62%_center]"
-        style={{ backgroundImage: 'url(/images/landing/hero-smart-home-entry.jpg)' }}
+        style={{ backgroundImage: 'url(/images/landing/hero.png)' }}
         aria-hidden="true"
       />
       <div
-        className="absolute inset-0 bg-[linear-gradient(90deg,rgba(6,30,53,0.97)_0%,rgba(6,30,53,0.91)_44%,rgba(6,30,53,0.54)_72%,rgba(6,30,53,0.16)_100%)] sm:bg-[linear-gradient(90deg,rgba(6,30,53,0.95)_0%,rgba(6,30,53,0.88)_40%,rgba(6,30,53,0.44)_68%,rgba(6,30,53,0.08)_100%)] lg:bg-[linear-gradient(90deg,rgba(6,30,53,0.94)_0%,rgba(6,30,53,0.86)_36%,rgba(6,30,53,0.48)_60%,rgba(6,30,53,0.10)_80%,rgba(6,30,53,0.02)_100%)]"
+        className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_20%,rgba(6,30,53,0.82)_58%,rgba(6,30,53,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.72)_60%,rgba(6,30,53,0.62)_100%)]"
         aria-hidden="true"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#061E35]/15 via-transparent to-[#061E35]/30" aria-hidden="true" />
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-6">
-        <div className="flex flex-col lg:min-h-[780px]">
-
-          {/* Left Side - Content */}
-          <div className="flex items-start pb-14 pt-[7rem] sm:pt-28 lg:min-h-[780px] lg:w-[52%] lg:items-center lg:pt-[88px] xl:pb-28 self-stretch">
-          <motion.div
-            className="w-full text-center lg:text-left"
-            initial={false}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, ease: 'easeOut' }}
-          >
-
-            <p
-              className="mx-auto mb-4 inline-flex border border-emerald-300/35 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-emerald-200 lg:mx-0"
-              style={{ fontFamily: '"Inter", sans-serif' }}
+      <div className="relative mx-auto max-w-[1660px] px-5 sm:px-8 lg:px-10 xl:px-12">
+        <div className="flex flex-col lg:grid lg:min-h-[max(850px,100svh)] lg:grid-cols-[minmax(0,46fr)_minmax(0,54fr)] lg:items-center lg:gap-12 xl:gap-16">
+          <div className="flex min-w-0 items-center pb-8 pt-[8rem] sm:pt-32 lg:py-28">
+            <motion.div
+              className="w-full text-center lg:text-left"
+              initial={false}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.7, ease: 'easeOut' }}
             >
-              #1 Property Management Software
-            </p>
-
-            {/* Headline */}
-            <h1
-              className="mx-auto mb-5 max-w-[22rem] text-[2.9rem] font-semibold tracking-[-0.055em] text-white sm:max-w-none sm:text-[2.45rem] sm:font-bold sm:tracking-[-0.045em] md:text-4xl xl:text-5xl lg:mx-0"
-              style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.12' }}
-            >
-              Property Peace, a clearer way to{' '}
-              <span className="text-green-600">manage your rentals</span>
-            </h1>
-
-            {/* Subheadline */}
-            <p
-              className="mx-auto mb-7 max-w-[21.5rem] text-[1.02rem] leading-7 text-white/90 sm:max-w-lg sm:text-base md:text-lg sm:leading-relaxed sm:mb-10 lg:mx-0 lg:mb-8 lg:max-w-[36rem]"
-              style={{ fontFamily: '"Inter", sans-serif' }}
-            >
-              Manage tenants and leases, track rent and expenses, and stay ahead of maintenance, all in one place. Self-manage with free software that keeps the day-to-day work clear and under your control. Percy-assisted tools, currently in limited pilot, are available on Premium.
-            </p>
-
-            {/* Mobile CTA row — buttons only */}
-            <div className="mx-auto mt-6 w-full max-w-[25rem] pb-8 sm:hidden">
-              <div className="grid grid-cols-2 gap-3">
-                <Link
-                  href="https://app.propertypeace.io/register"
-                  className="flex min-h-14 items-center justify-center bg-green-600 px-3 text-center text-sm font-bold text-white shadow-[0_18px_42px_rgba(22,163,74,0.24)] transition-transform hover:bg-green-500 active:scale-[0.98]"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  Get Started Free
-                </Link>
+              <h1
+                className="mx-auto mb-8 max-w-none text-[2.35rem] font-extrabold tracking-[-0.035em] text-white sm:text-[3.4rem] lg:mx-0 lg:text-[clamp(3.5rem,4.7vw,4.6rem)]"
+                style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.08' }}
+              >
+                <span className="block whitespace-nowrap">Property Peace,</span>
+                <span className="block whitespace-nowrap">a clearer way to</span>
+                <span className="block whitespace-nowrap text-green-600">manage your</span>
+                <span className="block whitespace-nowrap text-green-600">rentals</span>
+              </h1>
+              <div className="mx-auto grid w-full max-w-[24rem] grid-cols-2 gap-3 sm:gap-4 lg:mx-0 lg:max-w-[26rem]">
                 <Link
                   href="/demo"
-                  className="flex min-h-14 items-center justify-center border-2 border-white bg-transparent px-3 text-center text-sm font-bold text-white transition-transform active:scale-[0.98]"
+                  className="flex min-h-14 items-center justify-center rounded-full border-2 border-white bg-white px-3 py-3 text-center text-sm font-bold text-[#061E35] transition-colors hover:border-white/85 hover:bg-white/85 sm:text-base"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
                 >
                   Book Demo
                 </Link>
-              </div>
-            </div>
-            {/* Desktop/tablet CTA row */}
-            <div className="hidden max-w-lg mx-auto sm:block lg:mx-0">
-              <div className="grid grid-cols-2 gap-3">
                 <Link
                   href="https://app.propertypeace.io/register"
-                  className="group flex min-h-[50px] flex-1 items-center justify-center gap-2 bg-green-600 px-3 py-3 text-sm font-bold text-white transition-all duration-200 hover:-translate-y-0.5 hover:bg-green-500 hover:shadow-slate-950/20 sm:min-h-[56px] sm:px-5 sm:text-base"
-                  style={{
-                    fontFamily: '"Poppins", sans-serif',
-                    boxShadow: '0 14px 34px rgba(22,163,74,0.24)'
-                  }}
+                  className="flex min-h-14 items-center justify-center rounded-full bg-green-600 px-3 py-3 text-center text-sm font-bold text-white shadow-[0_14px_34px_rgba(22,163,74,0.24)] transition-all hover:-translate-y-0.5 hover:bg-green-500 sm:text-base"
+                  style={{ fontFamily: '"Poppins", sans-serif' }}
                 >
                   Get Started Free
                 </Link>
-
-                <Link
-                  href="/demo"
-                  className="flex min-h-[50px] flex-1 items-center justify-center border-2 border-white/90 bg-white/10 px-3 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-white/20 sm:min-h-[56px] sm:px-5"
-                  style={{ fontFamily: '"Poppins", sans-serif' }}
-                >
-                  Book Demo
-                </Link>
               </div>
-
-            </div>
-
-            <div
-              data-hero-proof="true"
-              className="mx-auto -mt-3 max-w-[36rem] text-center sm:mt-3 lg:mx-0 lg:text-left"
-            >
               <p
-                className="text-xs font-medium text-white/75 sm:text-sm"
-                style={{ fontFamily: '"Inter", sans-serif' }}
+                className="mt-16 text-sm font-extrabold uppercase tracking-[-0.025em] text-white sm:mt-20 lg:mt-24"
+                style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
-                Top landlord management software · No credit card required
+                Property Management Software
               </p>
-              <ul
-                data-hero-proof-chips="true"
-                aria-label="Property Peace benefits"
-                className="mt-3 flex flex-wrap justify-center gap-2 lg:justify-start"
-              >
-                {[
-                  'Track rent and maintenance',
-                  'Made for all portfolios',
-                  'Grow your rental business',
-                ].map((label) => (
-                  <li
-                    key={label}
-                    data-hero-proof-chip="true"
-                    className="whitespace-nowrap rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-[0.68rem] font-semibold text-white/90 shadow-sm backdrop-blur-sm sm:text-[0.72rem]"
-                    style={{ fontFamily: '"Inter", sans-serif' }}
-                  >
-                    {label}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-          </motion.div>
-        </div>
-
+            </motion.div>
+          </div>
+          <div className="relative mb-8 mt-3 min-w-0 sm:mb-12 lg:mb-0 lg:mt-16 lg:-translate-y-10 lg:self-center">
+            <Image
+              src={dashboardImage}
+              alt="Property Peace dashboard showing rent progress, property portfolio, payments, and maintenance"
+              width={1671}
+              height={1233}
+              priority
+              sizes="(max-width: 1023px) 100vw, 48vw"
+              className="block h-auto w-full border border-white/20 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+            />
+          </div>
         </div>
       </div>
     </section>
