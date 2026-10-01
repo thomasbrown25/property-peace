@@ -158,14 +158,14 @@ export default function PropertyManagementWheel() {
     <section
       data-homepage-feature-wheel="true"
       aria-labelledby="property-management-wheel-heading"
-      className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] border-y border-[#DCE6ED] bg-[#F7FAF8] px-4 py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:px-6 sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:px-8 lg:py-24"
+      className="relative z-20 overflow-hidden rounded-t-[2rem] border-y border-[#DCE6ED] bg-[#F7FAF8] px-4 py-20 sm:rounded-t-[2.5rem] sm:px-6 sm:py-24 lg:rounded-t-[3rem] lg:px-8 lg:py-24"
     >
       <div
         className="pointer-events-none absolute left-1/2 top-[-13rem] h-[28rem] w-[48rem] -translate-x-1/2 rounded-full bg-green-100/60 blur-3xl"
         aria-hidden="true"
       />
 
-      <div className="relative mx-auto max-w-7xl">
+      <div className="relative mx-auto max-w-[1440px]">
         <div className="mx-auto max-w-4xl text-center">
           <p
             className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]"
