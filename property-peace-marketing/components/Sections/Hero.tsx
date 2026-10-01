@@ -27,7 +27,7 @@ export default function Hero() {
               transition={{ duration: 0.7, ease: 'easeOut' }}
             >
               <h1
-                className="-mx-2 mb-8 max-w-none text-[clamp(2.35rem,10vw,3.1rem)] font-extrabold tracking-[-0.035em] text-white sm:mx-auto sm:text-[3.4rem] lg:mx-0 lg:text-[clamp(3.5rem,4.7vw,4.6rem)]"
+                className="-mx-2 mb-8 max-w-none text-[clamp(2.25rem,8.6vw,2.625rem)] font-extrabold tracking-[-0.035em] text-white sm:mx-auto lg:mx-0 lg:text-[clamp(3.5rem,4.7vw,4.6rem)]"
                 style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.08' }}
               >
                 <span className="block whitespace-nowrap">Property Peace,</span>
