@@ -27,7 +27,7 @@ export default function Hero() {
               transition={{ duration: 0.7, ease: 'easeOut' }}
             >
               <h1
-                className="mx-auto mb-8 max-w-none text-[2.35rem] font-extrabold tracking-[-0.035em] text-white sm:text-[3.4rem] lg:mx-0 lg:text-[clamp(3.5rem,4.7vw,4.6rem)]"
+                className="-mx-2 mb-8 max-w-none text-[clamp(2.35rem,10vw,3.1rem)] font-extrabold tracking-[-0.035em] text-white sm:mx-auto sm:text-[3.4rem] lg:mx-0 lg:text-[clamp(3.5rem,4.7vw,4.6rem)]"
                 style={{ fontFamily: '"Host Grotesk", sans-serif', lineHeight: '1.08' }}
               >
                 <span className="block whitespace-nowrap">Property Peace,</span>
@@ -52,7 +52,7 @@ export default function Hero() {
                 </Link>
               </div>
               <p
-                className="mt-16 text-sm font-extrabold uppercase tracking-[-0.025em] text-white sm:mt-20 lg:mt-24"
+                className="mt-16 hidden text-sm font-extrabold uppercase tracking-[-0.025em] text-white lg:mt-24 lg:block"
                 style={{ fontFamily: '"Host Grotesk", sans-serif' }}
               >
                 Property Management Software
