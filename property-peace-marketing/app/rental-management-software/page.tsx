@@ -45,18 +45,18 @@ export default function RentalManagementSoftwarePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-[#F5F5F5] to-white py-16 px-4 sm:px-6 lg:px-8">
+      <section className="bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Complete Rental Management Software
           </h1>
           <p
-            className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Keep tenant management, rent records, maintenance tracking, lease documents, and financial reporting in one platform. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online. Integrated e-signature is not currently available.
@@ -76,7 +76,7 @@ export default function RentalManagementSoftwarePage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Everything You Need for Rental Management
@@ -84,9 +84,9 @@ export default function RentalManagementSoftwarePage() {
           <div className="grid md:grid-cols-2 gap-6">
             {rentalFeatures.map((feature, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <FiCheck className="w-6 h-6 text-[#217eff] flex-shrink-0 mt-1" />
+                <FiCheck className="w-6 h-6 text-green-300 flex-shrink-0 mt-1" />
                 <p
-                  className="text-lg text-primary-main"
+                  className="text-lg text-white"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {feature}
@@ -98,10 +98,10 @@ export default function RentalManagementSoftwarePage() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#F5F5F5]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Why Property Peace Rental Management Software?
@@ -109,13 +109,13 @@ export default function RentalManagementSoftwarePage() {
           <div className="grid md:grid-cols-2 gap-8">
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 All-in-One Solution
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 No need for multiple tools or spreadsheets. Everything you need for rental management is in one platform—from tenant onboarding to financial reporting.
@@ -123,13 +123,13 @@ export default function RentalManagementSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Automated Workflows
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Automate rent reminders, lease renewal alerts, and maintenance follow-ups. Set it once and let the system work for you.
@@ -137,13 +137,13 @@ export default function RentalManagementSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Real-Time Updates
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 See recorded rent status, maintenance requests, and tenant messages together as records are updated.
@@ -151,13 +151,13 @@ export default function RentalManagementSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Designed for Your Scale
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Built specifically for landlords managing 1-50 units. No enterprise bloat, just the features you need at a price you can afford.
@@ -171,7 +171,7 @@ export default function RentalManagementSoftwarePage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Perfect for All Types of Rental Properties
@@ -179,13 +179,13 @@ export default function RentalManagementSoftwarePage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Single-Family Homes
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Manage individual rental houses with complete tenant and lease management, maintenance tracking, and financial reporting.
@@ -193,13 +193,13 @@ export default function RentalManagementSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Multi-Unit Properties
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Perfect for small apartment buildings and duplexes. Track each unit separately while managing the property as a whole.
@@ -207,13 +207,13 @@ export default function RentalManagementSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Property Portfolios
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Manage multiple properties from one dashboard. Track performance, generate portfolio-wide reports, and stay organized.
@@ -253,16 +253,16 @@ export default function RentalManagementSoftwarePage() {
       <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[#E5E5E5]">
         <div className="max-w-6xl mx-auto">
           <p
-            className="text-center text-[#737373] mb-4"
+            className="text-center text-white/80 mb-4"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Learn more:
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/features" className="text-[#217eff] hover:underline">Features</Link>
-            <Link href="/landlord-software" className="text-[#217eff] hover:underline">Landlord Software</Link>
-            <Link href="/blog" className="text-[#217eff] hover:underline">Blog</Link>
-            <Link href="/small-landlord-tools" className="text-[#217eff] hover:underline">Small Landlord Tools</Link>
+            <Link href="/features" className="text-green-300 hover:underline">Features</Link>
+            <Link href="/landlord-software" className="text-green-300 hover:underline">Landlord Software</Link>
+            <Link href="/blog" className="text-green-300 hover:underline">Blog</Link>
+            <Link href="/small-landlord-tools" className="text-green-300 hover:underline">Small Landlord Tools</Link>
           </div>
         </div>
       </section>

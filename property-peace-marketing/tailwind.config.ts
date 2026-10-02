@@ -11,6 +11,12 @@ const config: Config = {
       screens: {
         'nav': '955px', // Custom breakpoint for navbar mobile mode
       },
+      // Give marketing sections, grids, navigation, and footer the wider
+      // editorial canvas; narrower prose/form max-width utilities stay intact.
+      maxWidth: {
+        '6xl': '96rem',
+        '7xl': '96rem',
+      },
       colors: {
         primary: {
           deep: '#061e35',    // Deepest navy

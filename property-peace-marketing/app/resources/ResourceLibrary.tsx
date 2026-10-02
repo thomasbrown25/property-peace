@@ -23,19 +23,19 @@ export default function ResourceLibrary() {
   );
 
   return (
-    <section id="resource-library" className="bg-white px-4 py-16 sm:px-6 lg:px-8 md:py-20">
+    <section id="resource-library" className="bg-[#061E35] px-4 py-16 text-white sm:px-6 lg:px-8 md:py-20">
       <div className="mx-auto max-w-6xl">
-        <div className="flex flex-col gap-5 border-b border-slate-200 pb-8 md:flex-row md:items-end md:justify-between">
+        <div className="flex flex-col gap-5 border-b border-white/15 pb-8 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-700">Browse the library</p>
-            <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-300">Browse the library</p>
+            <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Practical answers for the next landlord task
             </h2>
-            <p className="mt-4 text-lg leading-8 text-[#637083]">
+            <p className="mt-4 text-lg leading-8 text-white/80">
               Start with the job in front of you. Every resource is organized around a real rental workflow, not a product feature list.
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-[#516A80]">
+          <div className="flex items-center gap-2 text-sm font-semibold text-white/80">
             <FiBookOpen className="h-4 w-4 text-green-600" />
             <span aria-live="polite">{visibleResources.length} resources</span>
           </div>

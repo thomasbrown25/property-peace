@@ -78,23 +78,23 @@ export default function RentCollectionFeaturePage() {
   const live = rentPaymentsAreLive;
 
   return (
-    <main className="bg-white">
-      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F6FAF8]">
+    <main className="bg-[#061E35] text-white">
+      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-[#061E35]">
         <div className="mx-auto max-w-6xl px-4 pb-16 pt-32 sm:px-6 sm:pt-36 lg:px-8 lg:pb-24">
-          <Link href="/features" className="mb-9 inline-flex items-center text-sm font-semibold text-[#637083] transition-colors hover:text-[#15803D]">
+          <Link href="/features" className="mb-9 inline-flex items-center text-sm font-semibold text-slate-200 transition-colors hover:text-green-300">
             <FiArrowLeft className="mr-2 h-4 w-4" />
             Back to Features
           </Link>
 
           <div className="grid items-center gap-12 lg:grid-cols-[0.93fr_1.07fr]">
             <div>
-              <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">
+              <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-green-300">
                 COLLECT RENT ONLINE
               </p>
-              <h1 className="max-w-3xl text-[2.55rem] font-bold leading-[1.06] text-[#061E35] sm:text-5xl md:text-6xl">
+              <h1 className="max-w-3xl text-[2.55rem] font-bold leading-[1.06] text-white sm:text-5xl md:text-6xl">
                 The smooth, secure way to collect rent.
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[#405A70] md:text-xl">
+              <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-200 md:text-xl">
                 Custom late fees, automatic AI-assisted follow-ups, and secure bank connections help keep every rent cycle moving.
               </p>
 
@@ -114,7 +114,7 @@ export default function RentCollectionFeaturePage() {
                 </Link>
               </div>
 
-              <div className="mt-6 grid gap-2 text-sm font-semibold text-[#405A70] sm:grid-cols-3">
+              <div className="mt-6 grid gap-2 text-sm font-semibold text-slate-200 sm:grid-cols-3">
                 {trustItems.map((item) => (
                   <span key={item} className="inline-flex items-center gap-2">
                     <FiCheck className="h-4 w-4 shrink-0 text-[#16A34A]" />
@@ -130,11 +130,11 @@ export default function RentCollectionFeaturePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-20 text-center sm:px-6 lg:px-8">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Built for rental income</p>
-        <h2 className="mx-auto mt-4 max-w-4xl text-3xl font-bold leading-tight text-[#061E35] md:text-5xl">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-300">Built for rental income</p>
+        <h2 className="mx-auto mt-4 max-w-4xl text-3xl font-bold leading-tight text-white md:text-5xl">
           Make rent collection a smooth automated process for you and your tenants
         </h2>
-        <p className="mx-auto mt-5 max-w-3xl text-lg leading-relaxed text-[#516A80]">
+        <p className="mx-auto mt-5 max-w-3xl text-lg leading-relaxed text-slate-200">
           General-purpose transfers and paper checks leave landlords piecing records together. Property Peace keeps rent-specific charges, reminders, and verified payment activity connected to the right tenant and lease.
         </p>
 
@@ -144,7 +144,7 @@ export default function RentCollectionFeaturePage() {
             ["Follow up consistently", "Keep due-date and overdue reminders on a predictable schedule."],
             ["Reconcile with confidence", "Use verified payment events to update one organized rent ledger."],
           ].map(([title, body]) => (
-            <article key={title} className="bg-[#F0FDF4] p-7">
+            <article key={title} className="bg-white p-7">
               <FiCheck className="h-7 w-7 text-[#16A34A]" />
               <h3 className="mt-5 text-xl font-bold text-[#061E35]">{title}</h3>
               <p className="mt-3 leading-relaxed text-[#516A80]">{body}</p>
@@ -186,9 +186,9 @@ export default function RentCollectionFeaturePage() {
       <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">More than rent collection</p>
-            <h2 className="mt-4 text-3xl font-bold text-[#061E35] md:text-5xl">Keep the whole rental workflow connected.</h2>
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[#516A80]">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-300">More than rent collection</p>
+            <h2 className="mt-4 text-3xl font-bold text-white md:text-5xl">Keep the whole rental workflow connected.</h2>
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-200">
               Property Peace brings the records around rent day into the same calm workspace as the rest of your property operations.
             </p>
 
@@ -199,8 +199,8 @@ export default function RentCollectionFeaturePage() {
                     <Icon className="h-5 w-5" />
                   </span>
                   <div>
-                    <h3 className="font-bold text-[#061E35]">{title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-[#516A80]">{body}</p>
+                    <h3 className="font-bold text-white">{title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-200">{body}</p>
                   </div>
                 </article>
               ))}
@@ -221,11 +221,11 @@ export default function RentCollectionFeaturePage() {
         </div>
       </section>
 
-      <section className="bg-[#F6FAF8] px-4 py-20 sm:px-6 lg:px-8">
+      <section className="bg-[#061E35] px-4 py-20 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl text-center">
           <FiShield className="mx-auto h-9 w-9 text-[#16A34A]" />
-          <h2 className="mt-5 text-3xl font-bold text-[#061E35] md:text-4xl">Approval comes before payment setup.</h2>
-          <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-[#516A80]">
+          <h2 className="mt-5 text-3xl font-bold text-white md:text-4xl">Approval comes before payment setup.</h2>
+          <p className="mx-auto mt-4 max-w-3xl text-lg leading-relaxed text-slate-200">
             Rent payment access starts off for every organization. An owner or manager requests access, Property Peace reviews the request, and Stripe onboarding plus connected-payee review happen separately before tenant payments can be enabled.
           </p>
           <div className="mx-auto mt-9 grid max-w-4xl gap-4 text-left md:grid-cols-3">

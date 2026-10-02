@@ -68,12 +68,12 @@ const scenarios = [
 
 export default function LeaseShieldBlogPage() {
   return (
-    <div className="min-h-screen bg-white">
-      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+    <div className="min-h-screen bg-[#061E35] text-white">
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35] px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-36 lg:px-8">
         <div className="relative mx-auto max-w-6xl">
           <Link
             href="/features/lease-shield"
-            className="mb-8 inline-flex items-center text-[#637083] transition-colors hover:text-[#061E35]"
+            className="mb-8 inline-flex items-center text-white/80 transition-colors hover:text-green-300"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <FiArrowLeft className="w-4 h-4 mr-2" />
@@ -87,18 +87,18 @@ export default function LeaseShieldBlogPage() {
                 LeaseShield Blog
               </div>
               <h1
-                className="mb-6 text-4xl font-bold leading-tight text-[#061E35] md:text-6xl"
+                className="mb-6 text-4xl font-bold leading-tight text-white md:text-6xl"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 How LeaseShield Helps Landlords: Real Scenarios and Examples
               </h1>
               <p
-                className="mb-7 text-lg leading-relaxed text-[#405A70] md:text-xl"
+                className="mb-7 text-lg leading-relaxed text-white/80 md:text-xl"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 LeaseShield answers lease and state law questions using only government and official state law sources, so landlords can act with confidence instead of guessing from random forums.
               </p>
-              <div className="mb-8 flex flex-wrap items-center gap-5 text-sm text-[#637083]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <div className="mb-8 flex flex-wrap items-center gap-5 text-sm text-white/70" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <span className="flex items-center gap-1.5"><FiCalendar className="w-3.5 h-3.5" /> Updated Jan 2026</span>
                 <span className="text-[#DCE6ED]">·</span>
                 <span className="flex items-center gap-1.5"><FiClock className="w-3.5 h-3.5" /> 6 min read</span>
@@ -152,15 +152,15 @@ export default function LeaseShieldBlogPage() {
         </div>
       </section>
 
-      <article className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 md:py-16">
+      <article className="max-w-6xl mx-auto bg-[#061E35] px-4 sm:px-6 lg:px-8 py-14 md:py-16">
         {/* Intro */}
         <section className="mb-12 grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
           <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#2f5dff]" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>
               Why it matters
             </p>
             <h2
-              className="text-3xl font-bold text-primary-main mb-4"
+              className="text-3xl font-bold text-white mb-4"
               style={{ fontFamily: '"Poppins", sans-serif' }}
             >
               Government-only sources reduce risk
@@ -168,13 +168,13 @@ export default function LeaseShieldBlogPage() {
           </div>
           <div className="space-y-5">
             <p
-              className="text-[17px] text-[#405a70] leading-[1.85]"
+              className="text-[17px] text-white/80 leading-[1.85]"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Generic AI and random blogs can give outdated or wrong advice. LeaseShield is different: every answer is grounded in your state’s statutes, attorney general guides, housing agency resources, and .gov websites. You get the same kind of sources lawyers and courts use—so you can act with confidence and stay compliant.
             </p>
             <p
-              className="text-[17px] text-[#405a70] leading-[1.85]"
+              className="text-[17px] text-white/80 leading-[1.85]"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Below are examples of how landlords use LeaseShield in common situations. These illustrate the types of questions LeaseShield handles and how citable, state-specific answers help.
@@ -187,7 +187,7 @@ export default function LeaseShieldBlogPage() {
           {scenarios.map((scenario, index) => (
             <div
               key={index}
-              className="border border-[#dfeaf5] rounded-[24px] p-6 md:p-7 bg-white shadow-[0_14px_38px_rgba(10,45,82,0.06)]"
+              className="border border-[#dfeaf5] rounded-[24px] p-6 md:p-7 bg-white text-[#061E35] shadow-[0_14px_38px_rgba(10,45,82,0.06)]"
               itemScope
               itemType="https://schema.org/Article"
             >
@@ -205,7 +205,7 @@ export default function LeaseShieldBlogPage() {
               </div>
               <div className="space-y-5">
                 <div>
-                  <h3 className="text-xs font-bold text-[#8fa8c0] uppercase tracking-[0.18em] mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
+                  <h3 className="text-xs font-bold text-[#405a70] uppercase tracking-[0.18em] mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>
                     Situation
                   </h3>
                   <p className="text-[15px] text-[#405a70] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }} itemProp="description">

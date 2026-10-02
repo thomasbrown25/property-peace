@@ -37,8 +37,28 @@ test('mobile homepage ignores pointer and focus intent until scroll or menu open
   );
 });
 
+test('listings photo hero shares the transparent-at-top navigation behavior', () => {
+  for (const pathname of ['/listings', '/listings/']) {
+    const idle = { ...idleHome, pathname };
+    assert.equal(getNavigationSurface(idle), 'transparent', pathname);
+    for (const key of ['scrolled', 'pointerInside', 'focusInside', 'dropdownOpen', 'mobileMenuOpen']) {
+      assert.equal(getNavigationSurface({ ...idle, [key]: true }), 'navy', `${pathname}: ${key}`);
+    }
+  }
+});
+
+test('about, pricing, and resources photo heroes share transparent-at-top navigation behavior', () => {
+  for (const pathname of ['/about', '/about/', '/pricing', '/pricing/', '/resources', '/resources/']) {
+    const idle = { ...idleHome, pathname };
+    assert.equal(getNavigationSurface(idle), 'transparent', pathname);
+    for (const key of ['scrolled', 'pointerInside', 'focusInside', 'dropdownOpen', 'mobileMenuOpen']) {
+      assert.equal(getNavigationSurface({ ...idle, [key]: true }), 'navy', `${pathname}: ${key}`);
+    }
+  }
+});
+
 test('non-photographic routes use navy at the top and after scrolling or opening menus', () => {
-  for (const pathname of ['/resources', '/pricing', '/features/rent-collection', '/features/maintenance-tracking', '/blog', '/demo']) {
+  for (const pathname of ['/features/rent-collection', '/features/maintenance-tracking', '/blog', '/demo']) {
     for (const key of ['scrolled', 'pointerInside', 'focusInside', 'dropdownOpen', 'mobileMenuOpen']) {
       assert.equal(getNavigationSurface({ ...idleHome, pathname, [key]: true }), 'navy', `${pathname}: ${key}`);
     }

@@ -85,15 +85,15 @@ const pageSchema = {
 
 export default function LandlordStarterPackPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-[#061E35] text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageSchema) }} />
 
-      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35] px-4 pb-20 pt-32 text-white sm:px-6 md:pb-24 md:pt-36 lg:px-8">
         <div className="pointer-events-none absolute -right-20 top-16 h-96 w-96 rounded-full bg-[#16A34A]/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-6xl">
-          <Link href="/resources" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-[#15803D] transition hover:text-[#061E35]">
+          <Link href="/resources" className="mb-8 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-green-300 transition hover:text-white">
             <FiArrowLeft className="h-4 w-4" /> Back to the Resource Center
           </Link>
           <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
@@ -101,10 +101,10 @@ export default function LandlordStarterPackPage() {
               <div className="mb-5 inline-flex items-center gap-2 border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">
                 <FiFileText className="h-4 w-4" /> Five real downloads
               </div>
-              <h1 className="max-w-4xl text-4xl font-bold leading-tight text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h1 className="max-w-4xl text-4xl font-bold leading-tight text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 A landlord starter pack you can actually use.
               </h1>
-              <p className="mt-6 max-w-2xl text-lg leading-8 text-[#405A70] md:text-xl">
+              <p className="mt-6 max-w-2xl text-lg leading-8 text-white/80 md:text-xl">
                 Print the checklists. Edit the cash-flow workbook. Keep clean records from the first prospect conversation through move-out and the next turnover.
               </p>
             </div>
@@ -120,12 +120,12 @@ export default function LandlordStarterPackPage() {
         </div>
       </section>
 
-      <section className="bg-[#F7F9F8] px-4 py-16 sm:px-6 md:py-20 lg:px-8">
+      <section className="bg-[#061E35] px-4 py-16 sm:px-6 md:py-20 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
-            <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-700">Choose only what you need</p>
-            <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Five practical files, not five thin articles</h2>
-            <p className="mt-4 text-lg leading-8 text-[#637083]">Every resource is downloadable on its own. The PDFs are designed for printing, while the workbook is ready for property-level monthly inputs.</p>
+            <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-300">Choose only what you need</p>
+            <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Five practical files, not five thin articles</h2>
+            <p className="mt-4 text-lg leading-8 text-white/80">Every resource is downloadable on its own. The PDFs are designed for printing, while the workbook is ready for property-level monthly inputs.</p>
           </div>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2">
@@ -149,7 +149,7 @@ export default function LandlordStarterPackPage() {
         </div>
       </section>
 
-      <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-[0.9fr_1.1fr]">
           <div className="border border-slate-200 bg-[#F7F9F8] p-7 md:p-8">
             <FiShield className="h-7 w-7 text-green-700" />

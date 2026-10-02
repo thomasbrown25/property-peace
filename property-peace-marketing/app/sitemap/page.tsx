@@ -84,18 +84,18 @@ const sitemapSections = [
 
 export default function SitemapPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         {/* Header Section */}
         <div className="mb-16">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Explore Property Peace: A Sitemap of Our Management Tools
           </h1>
           <p
-            className="text-lg text-[#737373] max-w-2xl"
+            className="text-lg text-white/80 max-w-2xl"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Browse all pages on the Property Peace website. Find features, pricing, resources, and more.
@@ -107,7 +107,7 @@ export default function SitemapPage() {
           {sitemapSections.map((section) => (
             <section key={section.title}>
               <h2
-                className="text-xl font-bold text-primary-main mb-4 pb-2 border-b border-[#E5E5E5]"
+                className="text-xl font-bold text-white mb-4 pb-2 border-b border-white/20"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 {section.title}
@@ -117,7 +117,7 @@ export default function SitemapPage() {
                   <li key={link.href}>
                     <Link
                       href={link.href}
-                      className="text-primary-main hover:text-primary-hover transition-colors"
+                      className="text-white/80 hover:text-green-300 transition-colors"
                       style={{ fontFamily: '"Inter", sans-serif' }}
                     >
                       {link.label}

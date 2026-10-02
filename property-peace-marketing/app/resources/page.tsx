@@ -1,15 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  FiArrowRight,
-  FiBookOpen,
-  FiCheckCircle,
-  FiCompass,
-  FiHelpCircle,
-  FiShield,
-} from 'react-icons/fi';
+import Image from 'next/image';
+import { FiArrowRight } from 'react-icons/fi';
 import ResourceLibrary from './ResourceLibrary';
-import { getResourceHref, resourceEntries, resourcePathways } from '@/lib/resource-library';
+import { getResourceHref, resourceEntries } from '@/lib/resource-library';
+import { getAllBlogPosts } from '@/lib/blog-posts';
+import { getArticleEditorial } from '@/lib/article-editorial';
 import { applyOttoSeo } from '@/lib/otto-seo';
 
 export const metadata: Metadata = applyOttoSeo('/resources/', {
@@ -24,7 +20,11 @@ export const metadata: Metadata = applyOttoSeo('/resources/', {
   },
 });
 
-const featuredResources = resourceEntries.filter((resource) => resource.featured);
+const articleImages: Record<string, string> = {
+  'landlord-move-in-move-out-checklist': '/images/resources/landlord-move.png',
+  'rental-property-cash-flow-template-landlords': '/images/resources/what-landlords-track.png',
+  'landlord-maintenance-checklist-prevent-costly-repairs': '/images/landing/maintenance-tracking-hero.jpg',
+};
 
 const collectionSchema = {
   '@context': 'https://schema.org',
@@ -44,111 +44,71 @@ const collectionSchema = {
 };
 
 export default function ResourcesPage() {
+  const articles = getAllBlogPosts()
+    .filter((post) => getArticleEditorial(post.slug))
+    .slice(0, 3);
+
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-[#061E35] text-white">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }} />
 
-      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute -right-24 top-10 h-96 w-96 rounded-full bg-[#16A34A]/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 left-0 h-96 w-96 rounded-full bg-blue-400/10 blur-3xl" />
-
-        <div className="relative mx-auto grid max-w-6xl gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-          <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-white px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">
-              <FiCompass className="h-4 w-4" />
-              Landlord Resource Center
-            </div>
-            <h1 className="max-w-4xl text-4xl font-bold leading-tight text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Clear guidance for the rental work that happens between the big moments.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#405A70] md:text-xl">
-              Explore practical guides and checklists for leases, tenants, rent records, maintenance, and the day-to-day systems that keep a small portfolio organized.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link href="#resource-library" className="inline-flex min-h-[52px] items-center justify-center gap-2 px-6 py-3.5 font-bold text-white transition hover:-translate-y-0.5 hover:brightness-95" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
-                Browse resources
-                <FiArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/blog" className="inline-flex min-h-[52px] items-center justify-center gap-2 border border-[#DCE6ED] bg-white px-6 py-3.5 font-bold text-[#061E35] transition hover:bg-[#F7FAFC]">
-                View all articles
-              </Link>
-            </div>
-          </div>
-
-          <div className="border border-[#DCE6ED] bg-white p-6 shadow-[0_24px_60px_rgba(6,30,53,0.10)] md:p-8">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Start with a practical resource</p>
-            <div className="mt-5 divide-y divide-[#DCE6ED]">
-              {featuredResources.map((resource) => (
-                <Link key={resource.slug} href={getResourceHref(resource)} className="group flex items-start gap-4 py-5 first:pt-0 last:pb-0">
-                  <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center bg-[#F7FAFC] text-[#16A34A]">
-                    <FiCheckCircle className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-bold uppercase tracking-[0.14em] text-[#637083]">{resource.type}</span>
-                    <span className="mt-1 block font-bold leading-snug text-[#061E35] transition group-hover:text-[#15803D]">{resource.title}</span>
-                  </span>
-                  <FiArrowRight className="mt-2 h-4 w-4 flex-shrink-0 text-[#637083] transition group-hover:translate-x-1 group-hover:text-[#16A34A]" />
-                </Link>
-              ))}
-            </div>
-          </div>
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[440px] items-center overflow-hidden bg-[#061E35] px-4 pb-20 pt-36 text-center text-white sm:px-6 md:min-h-[480px] md:pb-24 md:pt-40 lg:px-8">
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/resources/hero.png)' }} aria-hidden="true" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.92)_24%,rgba(6,30,53,0.73)_64%,rgba(6,30,53,0.74)_100%)]" aria-hidden="true" />
+        <div className="relative mx-auto max-w-3xl">
+          <h1 className="text-4xl font-bold leading-tight text-green-400 sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Resources</h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-white/90 md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
+            Practical guides and thoughtful advice for managing your properties, staying organized, and making the everyday work a little easier.
+          </p>
         </div>
       </section>
 
-      <section className="border-b border-slate-200 bg-[#F7F9F8] px-4 py-16 sm:px-6 lg:px-8">
+      <section className="bg-[#061E35] px-4 pb-20 pt-8 text-white sm:px-6 md:pb-28 md:pt-12 lg:px-8">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-9 max-w-3xl">
-            <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-700">Follow the rental workflow</p>
-            <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Learn in the same order you manage a rental
-            </h2>
-            <p className="mt-4 text-lg leading-8 text-[#637083]">The library follows the landlord journey so the next useful answer is easier to find.</p>
+          <h2 className="max-w-4xl text-3xl font-bold leading-tight text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            Resources to help you run your properties
+          </h2>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-white/80 md:text-lg">Start with a practical article, then explore guides and checklists for the work ahead.</p>
+          <div className="mt-10 grid gap-8 md:grid-cols-3 md:gap-5">
+            {articles.map((article) => (
+              <article key={article.slug} className="group min-w-0">
+                <Link href={`/blog/${article.slug}`} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-green-400">
+                  <div className="relative aspect-[16/9] overflow-hidden bg-[#263e52]">
+                    <Image
+                      src={articleImages[article.slug]}
+                      alt=""
+                      fill
+                      sizes="(min-width: 768px) 33vw, 100vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                    />
+                  </div>
+                  <h3 className="mt-4 text-lg font-bold leading-snug text-white transition-colors group-hover:text-green-300" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                    {article.title}
+                  </h3>
+                </Link>
+              </article>
+            ))}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {resourcePathways.map((pathway) => {
-              const Icon = pathway.icon;
-              return (
-                <div key={pathway.title} className="group border border-slate-200 bg-white p-5 transition hover:-translate-y-1 hover:border-green-200 hover:shadow-lg hover:shadow-slate-950/5">
-                  <span className="flex h-11 w-11 items-center justify-center bg-[#061e35] text-white transition group-hover:bg-green-600"><Icon className="h-5 w-5" /></span>
-                  <h3 className="mt-5 text-lg font-bold leading-snug text-primary-main">{pathway.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[#637083]">{pathway.description}</p>
-                </div>
-              );
-            })}
-          </div>
+          <Link href="/blog" className="mt-8 inline-flex min-h-11 items-center gap-2 font-bold text-green-300 transition hover:text-green-200">
+            Browse all articles <FiArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </div>
       </section>
 
       <ResourceLibrary />
 
-      <section className="bg-[#F7F9F8] px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-2">
-          <div className="border border-slate-200 bg-white p-7 md:p-8">
-            <FiShield className="h-7 w-7 text-green-600" />
-            <h2 className="mt-5 text-2xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>Use education as a starting point</h2>
-            <p className="mt-3 leading-7 text-[#637083]">Rental rules can vary by state and city. Check current primary sources and qualified local professionals before relying on general educational information for legal, tax, or compliance decisions.</p>
-            <Link href="/lease-shield" className="mt-5 inline-flex min-h-11 items-center gap-2 font-bold text-green-700">Explore LeaseShield sources <FiArrowRight className="h-4 w-4" /></Link>
+      <section className="relative flex min-h-[480px] items-center overflow-hidden bg-[#061E35] px-4 py-24 text-center text-white sm:px-6 md:min-h-[520px] lg:px-8">
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/cta/cta.png)' }} aria-hidden="true" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.85)_25%,rgba(6,30,53,0.70)_70%,rgba(6,30,53,0.78)_100%)]" aria-hidden="true" />
+        <div className="relative mx-auto max-w-3xl">
+          <h2 className="text-3xl font-bold leading-tight text-white sm:text-4xl md:text-5xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            Ready to spend less time <span className="text-green-400">juggling the details</span> and more time on your properties?
+          </h2>
+          <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-white/90 md:text-lg">See how Property Peace brings everyday rental work into one calm place.</p>
+          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
+            <Link href="/demo" className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-white px-8 py-3 text-sm font-bold uppercase tracking-wide text-[#061E35] transition hover:bg-white/90 sm:w-auto">Book a demo</Link>
+            <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-12 w-full items-center justify-center rounded-full bg-green-600 px-8 py-3 text-sm font-bold uppercase tracking-wide text-white transition hover:bg-green-500 sm:w-auto">Start free</Link>
           </div>
-          <div className="border border-slate-200 bg-white p-7 md:p-8">
-            <FiHelpCircle className="h-7 w-7 text-green-600" />
-            <h2 className="mt-5 text-2xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>Looking for product help?</h2>
-            <p className="mt-3 leading-7 text-[#637083]">The Resource Center explains landlord workflows. The Help Center covers Property Peace setup, features, and account questions.</p>
-            <Link href="/help-center" className="mt-5 inline-flex min-h-11 items-center gap-2 font-bold text-green-700">Visit the Help Center <FiArrowRight className="h-4 w-4" /></Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl bg-[#061e35] p-8 text-white md:flex md:items-center md:justify-between md:gap-10 md:p-12">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.18em] text-emerald-200"><FiBookOpen className="h-4 w-4" /> From guide to workflow</div>
-            <h2 className="mt-4 text-3xl font-bold md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Put the useful parts into one calm system.</h2>
-            <p className="mt-4 text-lg leading-8 text-white/70">Organize properties, tenants, lease records, rent tracking, maintenance, documents, and expenses without rebuilding another spreadsheet.</p>
-          </div>
-          <Link href="https://app.propertypeace.io/register" className="mt-7 inline-flex min-h-[52px] flex-shrink-0 items-center justify-center gap-2 bg-green-700 px-7 py-3.5 font-bold text-white transition hover:bg-green-600 md:mt-0">
-            Start free
-            <FiArrowRight className="h-4 w-4" />
-          </Link>
         </div>
       </section>
     </main>

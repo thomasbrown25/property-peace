@@ -62,33 +62,34 @@ export default function PricingPlans() {
   const [annual, setAnnual] = useState(false);
 
   return (
-    <section className="pt-28 md:pt-32 pb-10 sm:pb-14 px-4 sm:px-6 lg:px-8 bg-white">
-      <div className="max-w-6xl mx-auto">
+    <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-[#061E35] px-4 pb-10 pt-32 text-white sm:px-6 sm:pb-14 md:pt-48 lg:px-8">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/pricing/hero.png)' }} aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[680px] bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.94)_22%,rgba(6,30,53,0.76)_61%,rgba(6,30,53,0.72)_100%)]" aria-hidden="true" />
+      <div className="relative z-10 mx-auto max-w-6xl">
         {/* Header */}
         <motion.div
-          className="text-center mb-10"
-          initial={{ opacity: 0, y: 20 }}
+          className="mb-16 text-center md:mb-20"
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="mb-5 inline-flex items-center rounded-full border border-green-500/20 bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>Pricing</div>
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-4"
+            className="mb-4 text-4xl font-bold text-green-400 md:text-5xl lg:text-6xl"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
-            Simple, transparent pricing for landlords
+            Pricing
           </h1>
           <p
-            className="text-lg md:text-xl text-[#737373] max-w-2xl mx-auto mb-8"
+            className="mx-auto mb-8 max-w-2xl text-lg text-white/90 md:text-xl"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled.
+            Simple, transparent pricing for landlords. Start free. Upgrade when you&apos;re ready. No per-unit charges; provider-dependent workflows are labeled.
           </p>
 
           {/* Annual toggle */}
-          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-[#E5E5E5] bg-white px-3 py-2 shadow-sm sm:gap-3 sm:px-4">
+          <div className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-[#263e52] px-3 py-2 shadow-sm sm:gap-3 sm:px-4">
             <span
-              className={`text-sm font-medium cursor-pointer transition-colors ${!annual ? 'text-primary-main' : 'text-[#737373]'}`}
+              className={`text-sm font-medium cursor-pointer transition-colors ${!annual ? 'text-white' : 'text-white/70'}`}
               style={{ fontFamily: '"Inter", sans-serif' }}
               onClick={() => setAnnual(false)}
             >
@@ -104,11 +105,11 @@ export default function PricingPlans() {
               />
             </button>
             <span
-              className={`text-sm font-medium cursor-pointer transition-colors ${annual ? 'text-primary-main' : 'text-[#737373]'}`}
+              className={`text-sm font-medium cursor-pointer transition-colors ${annual ? 'text-white' : 'text-white/70'}`}
               style={{ fontFamily: '"Inter", sans-serif' }}
               onClick={() => setAnnual(true)}
             >
-              Annual <span className="text-green-600 font-semibold">save 15%</span>
+              Annual <span className="font-semibold text-green-400">save 15%</span>
             </span>
           </div>
         </motion.div>
@@ -120,7 +121,7 @@ export default function PricingPlans() {
               key={plan.name}
               className={`relative rounded-2xl p-6 md:p-8 flex flex-col ${
                 plan.highlighted
-                  ? 'bg-[#061e35] shadow-2xl shadow-slate-950/20'
+                  ? 'bg-[#263e52] shadow-2xl shadow-slate-950/20'
                   : 'bg-white border border-[#E5E5E5] shadow-sm'
               }`}
               initial={{ opacity: 0, y: 20 }}

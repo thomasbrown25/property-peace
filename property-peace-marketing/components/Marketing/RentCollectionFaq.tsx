@@ -46,7 +46,7 @@ export default function RentCollectionFaq({ live }: RentCollectionFaqProps) {
     <section aria-labelledby="rent-collection-faq" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8">
       <div className="text-center">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Frequently asked questions</p>
-        <h2 id="rent-collection-faq" className="mt-4 text-3xl font-bold text-[#061E35] md:text-5xl">
+        <h2 id="rent-collection-faq" className="mt-4 text-3xl font-bold text-white md:text-5xl">
           Rent collection software FAQs
         </h2>
       </div>

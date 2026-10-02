@@ -38,6 +38,7 @@ import {
   FiTrendingUp,
   FiRefreshCw,
   FiLayout,
+  FiUsers,
   FiShield
 } from 'react-icons/fi';
 
@@ -361,7 +362,7 @@ export default function Navigation() {
         }}
         style={{ fontFamily: '"Poppins", sans-serif' }}
       >
-      <div className={`mx-auto w-full min-w-0 px-4 sm:px-6 ${pathname === '/' ? 'max-w-[1660px] lg:px-10 xl:px-12' : 'max-w-6xl lg:px-6'}`}>
+      <div className="mx-auto w-full min-w-0 max-w-[1660px] px-4 sm:px-6 lg:px-10 xl:px-12">
         <div className="relative grid h-[72px] grid-cols-[76px_minmax(0,1fr)_64px] items-center nav:flex nav:h-[88px] nav:justify-between">
           {/* Mobile: menu left */}
           <div className="nav:hidden flex h-11 w-[76px] flex-shrink-0 items-center justify-start">
@@ -464,6 +465,11 @@ export default function Navigation() {
               whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
             }`}>
               Resources
+            </Link>
+            <Link href="/about" className={`font-medium transition-all duration-300 py-2 border-b-2 border-transparent ${
+              whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
+            }`}>
+              About
             </Link>
           </div>
 
@@ -655,6 +661,17 @@ export default function Navigation() {
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">Resources</span>
                       <span className="block text-xs text-white/50">Guides and practical checklists</span>
+                    </span>
+                  </Link>
+                  <Link
+                    href="/about"
+                    className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-emerald-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-400/12 text-emerald-300"><FiUsers className="h-4 w-4" /></span>
+                    <span className="min-w-0">
+                      <span className="block text-[15px] font-semibold">About</span>
+                      <span className="block text-xs text-white/50">Why we built Property Peace</span>
                     </span>
                   </Link>
                 </nav>

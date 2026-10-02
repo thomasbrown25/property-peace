@@ -311,14 +311,14 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   return (
     <>
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <div className="article-hero relative overflow-hidden bg-white">
+      <div className="article-hero relative overflow-hidden bg-[#061E35] text-white print:bg-white print:text-[#061E35]">
 
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-50/80 via-white to-white" />
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-900/20 via-[#061E35] to-[#061E35]" />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-16">
           {/* Back link */}
           <Link
             href="/blog"
-            className="article-screen-only inline-flex items-center gap-2 text-[#516A80] hover:text-green-600 transition-colors mb-10 text-sm font-medium"
+            className="article-screen-only inline-flex items-center gap-2 text-white/80 hover:text-green-300 transition-colors mb-10 text-sm font-medium"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             <FiArrowLeft className="w-4 h-4" />
@@ -342,7 +342,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
           {/* Title */}
           <h1
-            className="text-3xl md:text-5xl font-bold text-primary-main mb-5 leading-tight max-w-3xl"
+            className="text-3xl md:text-5xl font-bold text-white mb-5 leading-tight max-w-3xl print:text-[#061E35]"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             {post.title}
@@ -350,7 +350,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
           {/* Description */}
           <p
-            className="text-[#737373] text-lg leading-relaxed max-w-2xl mb-8"
+            className="text-white/80 text-lg leading-relaxed max-w-2xl mb-8 print:text-[#405a70]"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             {post.description}
@@ -358,7 +358,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
           {/* Meta row */}
           <div
-            className="flex flex-wrap items-center gap-5 text-sm text-[#737373]"
+            className="flex flex-wrap items-center gap-5 text-sm text-white/80 print:text-[#405a70]"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             <span className="flex items-center gap-1.5">
@@ -421,10 +421,10 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       </div>
 
       {/* ── Article body ──────────────────────────────────────────────────── */}
-      <div className="bg-white">
+      <div className="bg-[#061E35] text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
           <div className="lg:grid lg:grid-cols-[minmax(0,760px)_320px] lg:gap-10">
-            <main id="article" className="article-main min-w-0">
+            <main id="article" className="article-main min-w-0 rounded-2xl bg-white p-5 text-[#061E35] sm:p-8">
               {headings.length > 0 && (
                 <details className="article-screen-only mb-8 rounded-2xl border border-slate-200 bg-white p-5 lg:hidden">
                   <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>

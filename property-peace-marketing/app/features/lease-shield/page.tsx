@@ -180,11 +180,11 @@ export default function LeaseShieldPage() {
   const ActiveMock = STEPS[activeStep].Mock;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35]">
 
       {/* ── Hero ──────────────────────────────────────────────────────────── */}
-      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-white px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:px-8">
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-50/80 via-white to-white" />
+      <section data-marketing-hero-theme="dark" className="relative overflow-hidden bg-[#061E35] px-4 pb-20 pt-32 sm:px-6 sm:pt-36 lg:px-8">
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-500/10 via-[#061E35] to-[#061E35]" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)] lg:gap-12">
           <div className="text-center lg:text-left">
             <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-4 py-1.5 shadow-sm">
@@ -192,14 +192,14 @@ export default function LeaseShieldPage() {
               <span className="text-sm font-semibold text-[#16A34A]" style={{ fontFamily: '"Inter", sans-serif' }}>Premium Feature</span>
             </div>
             <h1
-              className="mb-6 text-4xl font-bold leading-tight text-[#061E35] md:text-5xl lg:text-6xl"
+              className="mb-6 text-4xl font-bold leading-tight text-white md:text-5xl lg:text-6xl"
               style={{ fontFamily: '"Poppins", sans-serif' }}
             >
               Know your rights.<br />
-              <span className="text-[#16A34A]">Know the law.</span>
+              <span className="text-green-400">Know the law.</span>
             </h1>
             <p
-              className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-[#405A70] md:text-xl lg:mx-0"
+              className="mx-auto mb-8 max-w-2xl text-lg leading-relaxed text-white/75 md:text-xl lg:mx-0"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               LeaseShield is a Percy Pilot legal assistant that answers your landlord-tenant questions using only official government statutes — so you always have a defensible, sourced answer.
@@ -235,11 +235,11 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── 3-Step Showcase ───────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-sm font-bold text-green-600 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>How it works</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="text-sm font-bold text-green-400 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>How it works</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Legal clarity in three steps
             </h2>
           </div>
@@ -310,14 +310,14 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── Benefits grid ─────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-sm font-bold text-green-600 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Everything you need</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="text-sm font-bold text-green-400 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Everything you need</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Built for landlords, not lawyers
             </h2>
-            <p className="mt-4 text-gray-500 max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <p className="mt-4 text-white/75 max-w-xl mx-auto" style={{ fontFamily: '"Inter", sans-serif' }}>
               Get the answers you need to run your properties confidently — without a $400/hour attorney on speed dial.
             </p>
           </div>
@@ -335,11 +335,11 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── Use cases ─────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-sm font-bold text-green-600 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Common questions</p>
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <p className="text-sm font-bold text-green-400 uppercase tracking-widest mb-2" style={{ fontFamily: '"Inter", sans-serif' }}>Common questions</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
               What landlords ask
             </h2>
           </div>
@@ -359,7 +359,7 @@ export default function LeaseShieldPage() {
             ))}
           </div>
           <div className="text-center mt-8">
-            <Link href="/lease-shield/blog" className="text-green-600 font-semibold text-sm hover:underline" style={{ fontFamily: '"Inter", sans-serif' }}>
+            <Link href="/lease-shield/blog" className="text-green-400 font-semibold text-sm hover:underline" style={{ fontFamily: '"Inter", sans-serif' }}>
               See real examples from landlords →
             </Link>
           </div>
@@ -367,12 +367,12 @@ export default function LeaseShieldPage() {
       </section>
 
       {/* ── FAQ ───────────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>Frequently asked</h2>
+            <h2 className="text-3xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>Frequently asked</h2>
           </div>
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden">
+          <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden bg-white">
             {FAQS.map((faq, i) => (
               <div key={i}>
                 <button

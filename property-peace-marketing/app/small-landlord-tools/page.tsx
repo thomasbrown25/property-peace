@@ -45,18 +45,18 @@ export default function SmallLandlordToolsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-[#F5F5F5] to-white py-16 px-4 sm:px-6 lg:px-8">
+      <section className="bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Essential Tools for Small Landlords
           </h1>
           <p
-            className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Property management tools designed specifically for small landlords managing 1-50 units. Affordable, easy to use, and packed with everything you need to manage your rental properties efficiently.
@@ -76,7 +76,7 @@ export default function SmallLandlordToolsPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             All the Tools You Need in One Platform
@@ -84,9 +84,9 @@ export default function SmallLandlordToolsPage() {
           <div className="grid md:grid-cols-2 gap-6">
             {tools.map((tool, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <FiCheck className="w-6 h-6 text-[#217eff] flex-shrink-0 mt-1" />
+                <FiCheck className="w-6 h-6 text-green-300 flex-shrink-0 mt-1" />
                 <p
-                  className="text-lg text-primary-main"
+                  className="text-lg text-white"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {tool}
@@ -98,10 +98,10 @@ export default function SmallLandlordToolsPage() {
       </section>
 
       {/* Why Small Landlords Need These Tools */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#F5F5F5]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Why Small Landlords Need These Tools
@@ -109,13 +109,13 @@ export default function SmallLandlordToolsPage() {
           <div className="grid md:grid-cols-2 gap-8">
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Save Time
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Small landlords often manage properties part-time or alongside other work. These tools automate routine tasks, saving 5-10 hours per month that you can spend on growing your portfolio or enjoying your life.
@@ -123,13 +123,13 @@ export default function SmallLandlordToolsPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Reduce Errors
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Manual tracking with spreadsheets leads to mistakes—missed rent payments, forgotten maintenance requests, lost documents. These tools prevent errors and keep everything organized.
@@ -137,13 +137,13 @@ export default function SmallLandlordToolsPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Look Professional
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Professional tools help you present yourself as a serious landlord. Organized rent records, communication, and quick responses improve tenant relationships and attract better tenants. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.
@@ -151,13 +151,13 @@ export default function SmallLandlordToolsPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Scale Efficiently
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 As you add properties, good tools become essential. Start with the right systems from the beginning, and scaling from 5 to 15 to 50 units becomes manageable instead of overwhelming.
@@ -171,26 +171,26 @@ export default function SmallLandlordToolsPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-6"
+            className="text-3xl md:text-4xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Affordable Tools for Small Landlords
           </h2>
           <p
-            className="text-lg text-[#737373] mb-8"
+            className="text-lg text-white/80 mb-8"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Unlike enterprise solutions that cost hundreds per month, Property Peace is designed for small landlords. Free for up to 5 units — no credit card required. Premium features like LeaseShield are available on higher plans.
           </p>
-          <div className="bg-[#F5F5F5] rounded-lg p-8 border border-[#E5E5E5]">
+          <div className="bg-white rounded-lg p-8 border border-[#E5E5E5]">
             <p
-              className="text-2xl font-bold text-primary-main mb-4"
+              className="text-2xl font-bold text-[#061E35] mb-4"
               style={{ fontFamily: '"Poppins", sans-serif' }}
             >
               Get Started
             </p>
             <p
-              className="text-[#737373] mb-6"
+              className="text-[#405A70] mb-6"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Free for up to 5 units. No credit card required. See how these tools can transform your property management.
@@ -237,16 +237,16 @@ export default function SmallLandlordToolsPage() {
       <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[#E5E5E5]">
         <div className="max-w-6xl mx-auto">
           <p
-            className="text-center text-[#737373] mb-4"
+            className="text-center text-white/80 mb-4"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Learn more:
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/features" className="text-[#217eff] hover:underline">Features</Link>
-            <Link href="/landlord-software" className="text-[#217eff] hover:underline">Landlord Software</Link>
-            <Link href="/blog" className="text-[#217eff] hover:underline">Blog</Link>
-            <Link href="/property-management-app" className="text-[#217eff] hover:underline">Property Management App</Link>
+            <Link href="/features" className="text-green-300 hover:underline">Features</Link>
+            <Link href="/landlord-software" className="text-green-300 hover:underline">Landlord Software</Link>
+            <Link href="/blog" className="text-green-300 hover:underline">Blog</Link>
+            <Link href="/property-management-app" className="text-green-300 hover:underline">Property Management App</Link>
           </div>
         </div>
       </section>

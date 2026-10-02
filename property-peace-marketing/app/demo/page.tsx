@@ -88,8 +88,8 @@ export default function DemoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F5]">
-      <main className="pt-28 pb-16 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#061E35] text-white">
+      <main className="bg-[#061E35] pt-28 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <motion.div
@@ -99,13 +99,13 @@ export default function DemoPage() {
             transition={{ duration: 0.6, ease: "easeOut" }}
           >
             <h1
-              className="text-4xl md:text-5xl font-bold text-primary-main mb-4"
+              className="text-4xl md:text-5xl font-bold text-white mb-4"
               style={{ fontFamily: '"Poppins", sans-serif' }}
             >
               Simplify Your Property Management
             </h1>
             <p
-              className="text-xl text-[#737373] max-w-2xl mx-auto"
+              className="text-xl text-white/80 max-w-2xl mx-auto"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               See how Property Peace can streamline your property management. Schedule a personalized demo with our team.
@@ -127,7 +127,7 @@ export default function DemoPage() {
                 </div>
                 <div className="ml-3">
                   <p
-                    className="text-sm font-semibold text-primary-main"
+                    className="text-sm font-semibold text-white"
                     style={{ fontFamily: '"Inter", sans-serif' }}
                   >
                     Fill out this form
@@ -145,7 +145,7 @@ export default function DemoPage() {
                 </div>
                 <div className="ml-3">
                   <p
-                    className="text-sm font-medium text-[#737373]"
+                    className="text-sm font-medium text-white/80"
                     style={{ fontFamily: '"Inter", sans-serif' }}
                   >
                     Pick a time to chat
@@ -157,7 +157,7 @@ export default function DemoPage() {
 
           {/* Form Card */}
           <motion.div
-            className="bg-white rounded-2xl p-8 md:p-12 shadow-lg"
+            className="bg-white text-[#061E35] rounded-2xl p-8 md:p-12 shadow-lg"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut", delay: 0.4 }}

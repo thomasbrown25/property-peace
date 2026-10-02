@@ -122,7 +122,7 @@ export default function FeatureLandingPage({
     : 'Feature FAQs';
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       <StructuredData data={pageSchema} />
       <StructuredData data={breadcrumbSchema} />
       <StructuredData data={softwareSchema} />
@@ -130,11 +130,11 @@ export default function FeatureLandingPage({
 
       <section
         data-marketing-hero-theme="light"
-        className="relative overflow-hidden bg-white px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8"
+        className="relative overflow-hidden bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8"
       >
         <div className="absolute left-1/2 top-0 h-[360px] w-[680px] -translate-x-1/2 rounded-full bg-green-200/50 blur-3xl" />
         <div className="relative mx-auto max-w-6xl">
-          <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-[#637083] transition-colors hover:text-[#15803D]" style={{ fontFamily: '"Inter", sans-serif' }}>
+          <Link href={categoryHref} className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-200 transition-colors hover:text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>
             Features <FiChevronRight className="h-4 w-4" /> {categoryLabel}
           </Link>
 
@@ -143,8 +143,8 @@ export default function FeatureLandingPage({
               <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-[#DCE6ED] bg-green-50 px-3.5 py-2 text-[13px] font-bold leading-snug text-[#15803D] shadow-sm shadow-slate-950/20 backdrop-blur-sm sm:px-4 sm:text-sm" style={{ fontFamily: '"Inter", sans-serif' }}>
                 <Icon className="h-4 w-4 text-[#16A34A]" /> {eyebrow}
               </div>
-              <h1 className="mb-5 max-w-3xl text-[2.35rem] font-bold leading-[1.08] text-[#061E35] sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
-              <p className="mb-7 max-w-2xl text-[17px] leading-relaxed text-[#405A70] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
+              <h1 className="mb-5 max-w-3xl text-[2.35rem] font-bold leading-[1.08] text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h1>
+              <p className="mb-7 max-w-2xl text-[17px] leading-relaxed text-slate-200 md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>{subtitle}</p>
               <div className="grid max-w-[22rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:gap-3">
                 <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-none bg-gradient-to-r from-green-500 to-green-600 px-4 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:from-green-600 hover:to-green-700 sm:min-h-[56px] rounded-none sm:px-8 sm:text-base" style={{ fontFamily: '"Inter", sans-serif' }}>
                   {primaryCta} <FiArrowRight className="h-4 w-4" />
@@ -198,10 +198,10 @@ export default function FeatureLandingPage({
         </div>
       </section>
 
-      <main className="px-4 py-16 sm:px-6 lg:px-8">
+      <main className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl space-y-16">
           <section className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-3xl border border-red-100 bg-red-50/60 p-8">
+            <div className="rounded-3xl border border-red-100 bg-white p-8">
               <h2 className="mb-5 text-2xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>{problemTitle}</h2>
               <ul className="space-y-4">
                 {problemPoints.map((item) => (
@@ -211,7 +211,7 @@ export default function FeatureLandingPage({
                 ))}
               </ul>
             </div>
-            <div className="rounded-3xl border border-green-100 bg-green-50/60 p-8">
+            <div className="rounded-3xl border border-green-100 bg-white p-8">
               <h2 className="mb-5 text-2xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>{solutionTitle}</h2>
               <ul className="space-y-4">
                 {solutionPoints.map((item) => (
@@ -225,12 +225,12 @@ export default function FeatureLandingPage({
 
           <section>
             <div className="mb-10 text-center">
-              <p className="mb-2 text-sm font-bold uppercase tracking-widest text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>Everything included</p>
-              <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{featureTitle}</h2>
+              <p className="mb-2 text-sm font-bold uppercase tracking-widest text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>Everything included</p>
+              <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{featureTitle}</h2>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {features.map((feature) => (
-                <div key={feature} className="rounded-2xl border border-slate-100 bg-[#f8fafc] p-6 transition-all duration-200 hover:-translate-y-1 hover:border-green-200 hover:bg-white hover:shadow-lg">
+                <div key={feature} className="rounded-2xl border border-slate-100 bg-white p-6 transition-all duration-200 hover:-translate-y-1 hover:border-green-200 hover:shadow-lg">
                   <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-xl bg-green-100">
                     <FiCheck className="h-4 w-4 text-green-700" />
                   </div>
@@ -240,11 +240,11 @@ export default function FeatureLandingPage({
             </div>
           </section>
 
-          <section className="rounded-3xl bg-green-50/40 p-8 md:p-12">
+          <section className="rounded-3xl bg-[#061E35] p-8 md:p-12">
             <div className="grid items-start gap-8 lg:grid-cols-[0.8fr_1.2fr]">
               <div>
-                <p className="mb-2 text-sm font-bold uppercase tracking-widest text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>Why it matters</p>
-                <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{outcomeTitle}</h2>
+                <p className="mb-2 text-sm font-bold uppercase tracking-widest text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>Why it matters</p>
+                <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>{outcomeTitle}</h2>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {outcomes.map((outcome) => (
@@ -258,8 +258,8 @@ export default function FeatureLandingPage({
 
           <section>
             <div className="mb-8 text-center">
-              <p className="mb-2 text-sm font-bold uppercase tracking-widest text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>Related landlord tools</p>
-              <h2 className="text-3xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>Keep building your workflow</h2>
+              <p className="mb-2 text-sm font-bold uppercase tracking-widest text-green-300" style={{ fontFamily: '"Inter", sans-serif' }}>Related landlord tools</p>
+              <h2 className="text-3xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>Keep building your workflow</h2>
             </div>
             <div className="grid gap-5 md:grid-cols-3">
               {related.map((item) => (
@@ -277,8 +277,8 @@ export default function FeatureLandingPage({
           {faqs.length > 0 && (
             <section className="mx-auto max-w-4xl">
               <div className="mb-8 text-center">
-                <FiHelpCircle className="mx-auto mb-3 h-8 w-8 text-green-600" />
-                <h2 className="text-3xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>{faqHeading}</h2>
+                <FiHelpCircle className="mx-auto mb-3 h-8 w-8 text-green-300" />
+                <h2 className="text-3xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>{faqHeading}</h2>
               </div>
               <div className="divide-y divide-slate-100 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
                 {faqs.map((faq) => (

@@ -48,9 +48,9 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
   return (
     <>
       {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-white">
+      <div className="relative overflow-hidden bg-[#061E35] text-white">
 
-        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-50/80 via-white to-white" />
+        <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-900/20 via-[#061E35] to-[#061E35]" />
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-14 text-center">
           <div
             className="inline-flex items-center gap-2 bg-green-50 border border-green-500/20 text-green-600 text-xs font-semibold tracking-widest uppercase px-4 py-1.5 rounded-full mb-6 shadow-sm"
@@ -61,28 +61,28 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
           </div>
 
           <h1
-            className="text-4xl md:text-6xl font-bold text-primary-main mb-5 leading-tight"
+            className="text-4xl md:text-6xl font-bold text-white mb-5 leading-tight"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
-            Property Management <span className="text-green-600">Blog</span>
+            Property Management <span className="text-green-300">Blog</span>
           </h1>
 
           <p
-            className="text-lg text-[#737373] max-w-2xl mx-auto mb-8 leading-relaxed"
+            className="text-lg text-white/80 max-w-2xl mx-auto mb-8 leading-relaxed"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Expert guides, tips, and insights for landlords managing 1–50 rental units.
           </p>
 
           <div
-            className="flex items-center justify-center gap-5 text-sm text-[#737373]"
+            className="flex items-center justify-center gap-5 text-sm text-white/80"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
-            <span className="text-[#737373]">{posts.length} articles</span>
+            <span className="text-white/80">{posts.length} articles</span>
             <span className="text-[#B5B5B5]">·</span>
             <Link
               href="/rss.xml"
-              className="flex items-center gap-1.5 text-green-600 hover:text-green-700 transition-colors font-medium"
+              className="flex items-center gap-1.5 text-green-300 hover:text-green-200 transition-colors font-medium"
             >
               <FiRss className="w-3.5 h-3.5" />
               RSS Feed
@@ -93,8 +93,8 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
         {/* Category filter bar */}
         <div
           style={{
-            background: '#ffffff',
-            borderTop: '1px solid #E5E5E5',
+            background: '#061E35',
+            borderTop: '1px solid rgba(255,255,255,0.2)',
           }}
         >
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -106,14 +106,14 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                   className={`text-sm font-medium px-4 py-1.5 rounded-full transition-all duration-200 ${
                     activeCategory === cat
                       ? 'bg-green-600 text-white shadow-sm'
-                      : 'text-[#516A80] hover:text-green-600 hover:bg-green-50'
+                      : 'text-white/80 hover:text-green-300 hover:bg-white/10'
                   }`}
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {cat}
                   <span
                     className={`ml-1.5 text-xs ${
-                      activeCategory === cat ? 'text-white/75' : 'text-[#8A8A8A]'
+                      activeCategory === cat ? 'text-white/75' : 'text-white/65'
                     }`}
                   >
                     {countFor(cat)}
@@ -126,7 +126,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
       </div>
 
       {/* ── Posts ────────────────────────────────────────────────────────── */}
-      <div className="bg-white">
+      <div className="bg-[#061E35] text-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
           <AnimatePresence mode="wait">
             {filtered.length === 0 ? (
@@ -137,7 +137,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                 exit={{ opacity: 0 }}
                 className="text-center py-20"
               >
-                <p className="text-[#516A80]" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="text-white/80" style={{ fontFamily: '"Inter", sans-serif' }}>
                   No articles in this category yet.
                 </p>
               </motion.div>
@@ -158,7 +158,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                     className="mb-8"
                   >
                     <Link href={`/blog/${featured.slug}`} className="block group">
-                      <div className="relative overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(10,45,82,0.12)]">
+                      <div className="relative overflow-hidden rounded-2xl border border-[#E5E5E5] bg-white text-[#061E35] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_48px_rgba(10,45,82,0.12)]">
                         {/* Dot grid */}
                         <div
                           className="absolute inset-0 pointer-events-none opacity-[0.05]"
@@ -231,7 +231,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                     initial={{ opacity: 0, y: 14 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35, delay: 0.08 }}
-                    className="mb-10 overflow-hidden rounded-2xl border border-green-100 bg-green-50/40"
+                    className="mb-10 overflow-hidden rounded-2xl border border-green-100 bg-white text-[#061E35]"
                   >
                     <div className="grid gap-6 p-6 md:grid-cols-[1.3fr_0.7fr] md:items-center md:p-8">
                       <div>
@@ -265,7 +265,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                 {rest.length > 0 && (
                   <div className="flex items-center gap-3 mb-6">
                     <p
-                      className="text-sm font-medium text-[#8fa8c0]"
+                      className="text-sm font-medium text-white/80"
                       style={{ fontFamily: '"Inter", sans-serif' }}
                     >
                       {activeCategory === 'All' ? 'More articles' : `All ${activeCategory} articles`}
@@ -285,7 +285,7 @@ export default function BlogPageClient({ posts }: { posts: PublishedBlogSummary[
                         transition={{ duration: 0.35, delay: index * 0.04 }}
                       >
                         <Link href={`/blog/${post.slug}`} className="block h-full group">
-                          <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-6 transition-all duration-200 hover:shadow-[0_8px_28px_rgba(10,45,82,0.09)] hover:-translate-y-0.5">
+                          <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-6 text-[#061E35] transition-all duration-200 hover:shadow-[0_8px_28px_rgba(10,45,82,0.09)] hover:-translate-y-0.5">
                             {/* Accent bar */}
                             <div
                               className="w-8 h-0.5 rounded-full mb-4"
