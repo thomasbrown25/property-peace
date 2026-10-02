@@ -127,18 +127,18 @@ const relatedTools = [
 
 export default function AIMaintenancePage() {
   return (
-    <div className="min-h-screen overflow-hidden bg-white">
+    <div className="min-h-screen overflow-hidden bg-[#061E35] text-white">
       <StructuredData data={faqSchema} />
 
       <section
-        data-marketing-hero-theme="light"
-        className="relative border-b border-[#DCE6ED] bg-white px-4 pb-20 pt-28 sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
+        data-marketing-hero-theme="dark"
+        className="relative border-b border-white/20 bg-[#061E35] px-4 pb-20 pt-28 sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_74%_28%,rgba(187,247,208,0.55),transparent_34%),linear-gradient(180deg,#F7FBF8_0%,#FFFFFF_78%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_74%_28%,rgba(34,197,94,0.15),transparent_34%),linear-gradient(180deg,#061E35_0%,#061E35_78%)]" />
         <div className="relative mx-auto max-w-6xl">
           <Link
             href="/features/maintenance-tracking"
-            className="mb-9 inline-flex items-center gap-2 text-sm font-semibold text-[#637083] transition-colors hover:text-[#15803D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803D] focus-visible:ring-offset-4"
+            className="mb-9 inline-flex items-center gap-2 text-sm font-semibold text-white/70 transition-colors hover:text-green-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-300 focus-visible:ring-offset-4"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Features <FiChevronRight className="h-4 w-4" /> Maintenance
@@ -153,13 +153,13 @@ export default function AIMaintenancePage() {
                 <FiTool className="h-4 w-4" /> Limited Percy Pilot
               </div>
               <h1
-                className="max-w-2xl text-[2.7rem] font-semibold leading-[1.04] tracking-[-0.05em] text-[#061E35] sm:text-5xl lg:text-[3.7rem]"
+                className="max-w-2xl text-[2.7rem] font-semibold leading-[1.04] tracking-[-0.05em] text-white sm:text-5xl lg:text-[3.7rem]"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Turn maintenance chaos into a clear next step.
               </h1>
               <p
-                className="mt-6 max-w-xl text-lg leading-8 text-[#405A70]"
+                className="mt-6 max-w-xl text-lg leading-8 text-white/75"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Bring tenant requests, photos, status, vendors, and repair history into one landlord-controlled workflow—with Percy-assisted intake available through a limited pilot.
@@ -183,7 +183,7 @@ export default function AIMaintenancePage() {
               </div>
 
               <div
-                className="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm font-medium text-[#405A70]"
+                className="mt-8 flex flex-wrap gap-x-5 gap-y-3 text-sm font-medium text-white/75"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 {["Free for up to 5 units", "Built for 1–50 units", "You stay in control"].map((item) => (
@@ -276,24 +276,24 @@ export default function AIMaintenancePage() {
         <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
           <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.78fr_1.22fr] lg:gap-20">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#15803D]">Where maintenance breaks down</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-300">Where maintenance breaks down</p>
               <h2
-                className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.035em] text-[#061E35] sm:text-4xl"
+                className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.035em] text-white sm:text-4xl"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 The request is not the hard part. The handoff is.
               </h2>
             </div>
-            <div className="border-t border-[#B8C8D5]">
+            <div className="border-t border-white/20">
               {[
                 ["01", "Scattered context", "Photos arrive by text, details live in email, and the property address gets repeated from memory."],
                 ["02", "Unclear priority", "A true emergency and a cosmetic fix can sit side by side without enough context to choose the next move."],
                 ["03", "Missing history", "Vendor notes, costs, and completion details disappear before the next recurring issue surfaces."],
               ].map(([number, title, body]) => (
-                <div key={number} className="grid gap-3 border-b border-[#DCE6ED] py-6 sm:grid-cols-[3rem_11rem_1fr] sm:gap-5">
-                  <span className="text-xs font-bold tracking-[0.18em] text-[#15803D]">{number}</span>
-                  <h3 className="font-bold text-[#061E35]" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
-                  <p className="text-sm leading-6 text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
+                <div key={number} className="grid gap-3 border-b border-white/20 py-6 sm:grid-cols-[3rem_11rem_1fr] sm:gap-5">
+                  <span className="text-xs font-bold tracking-[0.18em] text-green-300">{number}</span>
+                  <h3 className="font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
+                  <p className="text-sm leading-6 text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
                 </div>
               ))}
             </div>
@@ -330,46 +330,46 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section className="bg-[#F6F9FB] px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
+        <section className="bg-[#061E35] px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
           <div className="mx-auto max-w-6xl">
-            <div className="grid items-end gap-8 border-b border-[#B8C8D5] pb-10 lg:grid-cols-[1fr_0.8fr]">
+            <div className="grid items-end gap-8 border-b border-white/20 pb-10 lg:grid-cols-[1fr_0.8fr]">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#15803D]">Responsible by design</p>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-300">Responsible by design</p>
                 <h2
-                  className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.035em] text-[#061E35] sm:text-4xl"
+                  className="mt-4 max-w-3xl text-3xl font-semibold leading-tight tracking-[-0.035em] text-white sm:text-4xl"
                   style={{ fontFamily: '"Poppins", sans-serif' }}
                 >
                   Percy helps organize the intake. You stay in charge of the repair.
                 </h2>
               </div>
-              <p className="text-base leading-7 text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="text-base leading-7 text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>
                 Maintenance can involve safety, habitability, access, and local legal duties. Assisted signals are useful context—not a substitute for your review or a qualified professional.
               </p>
             </div>
 
             <div className="grid md:grid-cols-2">
-              <div className="border-b border-[#DCE6ED] py-10 md:border-b-0 md:border-r md:pr-12">
-                <div className="flex items-center gap-3 text-[#15803D]">
+              <div className="border-b border-white/20 py-10 md:border-b-0 md:border-r md:pr-12">
+                <div className="flex items-center gap-3 text-green-300">
                   <FiTool className="h-5 w-5" />
                   <p className="text-xs font-bold uppercase tracking-[0.18em]">Percy can help</p>
                 </div>
                 <ul className="mt-7 space-y-5">
                   {["Organize request details and maintenance context", "Surface language that may deserve faster attention", "Keep intake easier to scan across a growing portfolio"].map((item) => (
-                    <li key={item} className="flex gap-3 text-sm leading-6 text-[#405A70]">
+                    <li key={item} className="flex gap-3 text-sm leading-6 text-white/75">
                       <FiCheck className="mt-1 h-4 w-4 flex-shrink-0 text-[#16A34A]" /> {item}
                     </li>
                   ))}
                 </ul>
               </div>
               <div className="py-10 md:pl-12">
-                <div className="flex items-center gap-3 text-[#061E35]">
+                <div className="flex items-center gap-3 text-white">
                   <FiUserCheck className="h-5 w-5" />
                   <p className="text-xs font-bold uppercase tracking-[0.18em]">The landlord decides</p>
                 </div>
                 <ul className="mt-7 space-y-5">
                   {["Whether the situation is an emergency", "What response, access, and communication are appropriate", "Which qualified vendor to contact and when work is complete"].map((item) => (
-                    <li key={item} className="flex gap-3 text-sm leading-6 text-[#405A70]">
-                      <FiChevronRight className="mt-1 h-4 w-4 flex-shrink-0 text-[#061E35]" /> {item}
+                    <li key={item} className="flex gap-3 text-sm leading-6 text-white/75">
+                      <FiChevronRight className="mt-1 h-4 w-4 flex-shrink-0 text-green-300" /> {item}
                     </li>
                   ))}
                 </ul>
@@ -381,31 +381,31 @@ export default function AIMaintenancePage() {
         <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="max-w-3xl">
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#15803D]">A record that survives the repair</p>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-300">A record that survives the repair</p>
               <h2
-                className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.035em] text-[#061E35] sm:text-4xl"
+                className="mt-4 text-3xl font-semibold leading-tight tracking-[-0.035em] text-white sm:text-4xl"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Keep the evidence, conversation, work, and cost connected.
               </h2>
             </div>
 
-            <div className="mt-12 grid border-y border-[#B8C8D5] sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-12 grid border-y border-white/20 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { icon: FiCamera, title: "Photos and context", body: "See what the tenant reported before anyone arrives on-site." },
                 { icon: FiMessageSquare, title: "Updates in one thread", body: "Keep repair communication with the request instead of personal texts." },
                 { icon: FiUsers, title: "Vendor coordination", body: "Record who is handling the work and what still needs follow-up." },
                 { icon: FiFileText, title: "Costs and history", body: "Leave a useful property record after the ticket is closed." },
               ].map(({ icon: Icon, title, body }, index) => (
-                <div key={title} className={`py-8 sm:px-7 ${index % 2 === 0 ? "sm:border-r" : ""} ${index < 2 ? "border-b lg:border-b-0" : ""} lg:border-r lg:last:border-r-0 border-[#DCE6ED] first:sm:pl-0`}>
-                  <Icon className="h-6 w-6 text-[#15803D]" />
-                  <h3 className="mt-6 font-bold text-[#061E35]" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
+                <div key={title} className={`py-8 sm:px-7 ${index % 2 === 0 ? "sm:border-r" : ""} ${index < 2 ? "border-b lg:border-b-0" : ""} lg:border-r lg:last:border-r-0 border-white/20 first:sm:pl-0`}>
+                  <Icon className="h-6 w-6 text-green-300" />
+                  <h3 className="mt-6 font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-8 flex flex-col justify-between gap-4 border border-[#DCE6ED] bg-[#F6F9FB] px-6 py-5 sm:flex-row sm:items-center">
+            <div className="mt-8 flex flex-col justify-between gap-4 border border-[#DCE6ED] bg-white px-6 py-5 sm:flex-row sm:items-center">
               <div className="flex items-center gap-3">
                 <FiShield className="h-5 w-5 flex-shrink-0 text-[#15803D]" />
                 <p className="text-sm font-semibold text-[#061E35]">Built for hands-on landlords managing 1–50 units.</p>
@@ -417,22 +417,22 @@ export default function AIMaintenancePage() {
           </div>
         </section>
 
-        <section className="bg-[#F6F9FB] px-4 py-20 sm:px-6 lg:px-8">
+        <section className="bg-[#061E35] px-4 py-20 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr]">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#15803D]">Connected workflows</p>
-                <h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em] text-[#061E35]" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-300">Connected workflows</p>
+                <h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em] text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
                   Maintenance does not live alone.
                 </h2>
               </div>
-              <div className="border-t border-[#B8C8D5]">
+              <div className="border-t border-white/20">
                 {relatedTools.map(({ href, label, description, icon: Icon }) => (
-                  <Link key={href} href={href} className="group grid gap-4 border-b border-[#DCE6ED] py-6 transition-colors hover:bg-white sm:grid-cols-[2.5rem_12rem_1fr_1.5rem] sm:items-center sm:px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803D] focus-visible:ring-inset">
-                    <Icon className="h-5 w-5 text-[#15803D]" />
-                    <span className="font-bold text-[#061E35]" style={{ fontFamily: '"Poppins", sans-serif' }}>{label}</span>
-                    <span className="text-sm leading-6 text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>{description}</span>
-                    <FiArrowRight className="h-4 w-4 text-[#637083] transition-transform group-hover:translate-x-1 motion-reduce:transform-none" />
+                  <Link key={href} href={href} className="group grid gap-4 border-b border-white/20 py-6 transition-colors hover:bg-white/10 sm:grid-cols-[2.5rem_12rem_1fr_1.5rem] sm:items-center sm:px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-300 focus-visible:ring-inset">
+                    <Icon className="h-5 w-5 text-green-300" />
+                    <span className="font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>{label}</span>
+                    <span className="text-sm leading-6 text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>{description}</span>
+                    <FiArrowRight className="h-4 w-4 text-green-300 transition-transform group-hover:translate-x-1 motion-reduce:transform-none" />
                   </Link>
                 ))}
               </div>
@@ -443,15 +443,15 @@ export default function AIMaintenancePage() {
         <section className="px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
           <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[0.7fr_1.3fr]">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#15803D]">Straight answers</p>
-              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em] text-[#061E35] sm:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-300">Straight answers</p>
+              <h2 className="mt-4 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 Percy Pilot maintenance FAQs
               </h2>
-              <p className="mt-5 max-w-sm text-base leading-7 text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="mt-5 max-w-sm text-base leading-7 text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>
                 What the limited pilot can help with—and where landlord judgment still matters.
               </p>
             </div>
-            <AIMaintenanceFAQ faqs={faqs} />
+            <div className="bg-white px-6 text-[#061E35] sm:px-8"><AIMaintenanceFAQ faqs={faqs} /></div>
           </div>
         </section>
 

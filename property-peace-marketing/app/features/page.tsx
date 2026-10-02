@@ -188,15 +188,15 @@ export default function FeaturesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35]">
       <StructuredData data={pageSchema} />
       <StructuredData data={softwareSchema} />
       <StructuredData data={breadcrumbSchema} />
 
       <main className="overflow-hidden">
         {/* Hero */}
-        <section className="relative bg-white px-4 pb-16 pt-24 sm:px-6 lg:px-8 lg:pb-20 lg:pt-28">
-          <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-50/80 via-white to-white" />
+        <section className="relative bg-[#061E35] px-4 pb-16 pt-24 sm:px-6 lg:px-8 lg:pb-20 lg:pt-28">
+          <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-500/10 via-[#061E35] to-[#061E35]" />
           <div className="relative mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
               <span
@@ -206,13 +206,13 @@ export default function FeaturesPage() {
                 Features built for small landlords
               </span>
               <h1
-                className="mt-5 max-w-4xl text-4xl font-bold tracking-tight text-primary-main md:text-5xl lg:text-6xl"
+                className="mt-5 max-w-4xl text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
-                All your rental workflows, <span className="text-green-600">finally in one calm system.</span>
+                All your rental workflows, <span className="text-green-400">finally in one calm system.</span>
               </h1>
               <p
-                className="mt-5 max-w-2xl text-lg leading-8 text-slate-600 md:text-xl"
+                className="mt-5 max-w-2xl text-lg leading-8 text-white/75 md:text-xl"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Explore the practical tools inside Property Peace: rent collection, maintenance tracking, lease workflows, accounting, documents, tenant messaging, and Percy Pilot features built for portfolios with 1–50 units.
@@ -286,7 +286,7 @@ export default function FeaturesPage() {
         </section>
 
         {/* Features by Category */}
-        <section className="bg-white px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl space-y-16">
             {featureCategories.map((category) => {
               const details = categoryDetails[category.title];
@@ -294,15 +294,15 @@ export default function FeaturesPage() {
                 <div key={category.title}>
                   <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
                     <div className="max-w-2xl">
-                      <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-600">{details.eyebrow}</p>
+                      <p className="text-sm font-bold uppercase tracking-[0.2em] text-green-400">{details.eyebrow}</p>
                       <h2
-                        className="mt-3 text-3xl font-bold text-primary-main md:text-4xl"
+                        className="mt-3 text-3xl font-bold text-white md:text-4xl"
                         style={{ fontFamily: '"Poppins", sans-serif' }}
                       >
                         {category.title}
                       </h2>
                     </div>
-                    <p className="max-w-xl text-base leading-7 text-slate-500 md:text-right" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    <p className="max-w-xl text-base leading-7 text-white/75 md:text-right" style={{ fontFamily: '"Inter", sans-serif' }}>
                       {details.description}
                     </p>
                   </div>
@@ -349,7 +349,7 @@ export default function FeaturesPage() {
         </section>
 
         {/* Call to Action */}
-        <section className="bg-white px-4 pb-20 pt-6 sm:px-6 lg:px-8">
+        <section className="bg-[#061E35] px-4 pb-20 pt-6 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-5xl overflow-hidden rounded-[2rem] bg-[#061e35] p-8 text-center shadow-2xl shadow-slate-950/15 md:p-12">
             <span className="inline-flex rounded-full border border-green-400/20 bg-green-400/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-green-300">
               Ready when you are

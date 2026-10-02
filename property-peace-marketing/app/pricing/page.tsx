@@ -13,10 +13,14 @@ export const metadata: Metadata = applyOttoSeo('/pricing/', {
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="pricing-route min-h-screen bg-[#061E35] text-white">
+      <style>{`
+        .pricing-route > main > section:first-child { background: #061E35; }
+        .pricing-route > main > section:first-child h1 + p { color: rgba(255,255,255,.8); }
+      `}</style>
       <main>
         <PricingPlans />
-        <FAQ />
+        <FAQ dark />
       </main>
     </div>
   );

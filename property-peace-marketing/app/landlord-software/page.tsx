@@ -45,18 +45,18 @@ export default function LandlordSoftwarePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-[#F5F5F5] to-white py-16 px-4 sm:px-6 lg:px-8">
+      <section className="bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             All-in-One Landlord Software for Small Portfolios
           </h1>
           <p
-            className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Complete property management software designed specifically for landlords managing 1-50 units. Streamline rent tracking, tenant management, and maintenance workflows—all in one platform. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.
@@ -76,7 +76,7 @@ export default function LandlordSoftwarePage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Everything You Need in Landlord Software
@@ -84,9 +84,9 @@ export default function LandlordSoftwarePage() {
           <div className="grid md:grid-cols-2 gap-6">
             {features.map((feature, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <FiCheck className="w-6 h-6 text-[#217eff] flex-shrink-0 mt-1" />
+                <FiCheck className="w-6 h-6 text-green-300 flex-shrink-0 mt-1" />
                 <p
-                  className="text-lg text-primary-main"
+                  className="text-lg text-white"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {feature}
@@ -98,10 +98,10 @@ export default function LandlordSoftwarePage() {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#F5F5F5]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Why Choose Property Peace Landlord Software?
@@ -109,13 +109,13 @@ export default function LandlordSoftwarePage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Designed for Small Landlords
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Unlike enterprise solutions, Property Peace is built specifically for landlords managing 1-50 units. No unnecessary complexity, just the features you need.
@@ -123,13 +123,13 @@ export default function LandlordSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Affordable Pricing
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Free for up to 5 units. No per-unit fees. Premium features like LeaseShield available on higher plans.
@@ -137,13 +137,13 @@ export default function LandlordSoftwarePage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Real-Time Updates
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 See recorded rent status, maintenance requests, and messages in one place. Built with modern technology for speed and reliability.
@@ -183,17 +183,17 @@ export default function LandlordSoftwarePage() {
       <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[#E5E5E5]">
         <div className="max-w-6xl mx-auto">
           <p
-            className="text-center text-[#737373] mb-4"
+            className="text-center text-white/80 mb-4"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Learn more about property management:
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/features" className="inline-flex min-h-11 items-center text-[#217eff] hover:underline">Features</Link>
-            <Link href="/pricing" className="inline-flex min-h-11 items-center text-[#217eff] hover:underline">Pricing</Link>
-            <Link href="/blog" className="inline-flex min-h-11 items-center text-[#217eff] hover:underline">Blog</Link>
-            <Link href="/property-management-app" className="inline-flex min-h-11 items-center text-[#217eff] hover:underline">Property Management App</Link>
-            <Link href="/rental-management-software" className="inline-flex min-h-11 items-center text-[#217eff] hover:underline">Rental Management Software</Link>
+            <Link href="/features" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Features</Link>
+            <Link href="/pricing" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Pricing</Link>
+            <Link href="/blog" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Blog</Link>
+            <Link href="/property-management-app" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Property Management App</Link>
+            <Link href="/rental-management-software" className="inline-flex min-h-11 items-center text-green-300 hover:underline">Rental Management Software</Link>
           </div>
         </div>
       </section>

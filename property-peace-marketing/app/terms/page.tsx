@@ -16,18 +16,18 @@ export const metadata: Metadata = applyOttoSeo('/terms/', {
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         {/* Header Section */}
         <div className="mb-16">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Property Peace: Terms of Use for Property Management Software
           </h1>
           <p
-            className="text-lg text-[#737373]"
+            className="text-lg text-white/80"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Last updated: February 2026
@@ -36,7 +36,7 @@ export default function TermsPage() {
 
         {/* Content */}
         <div
-          className="prose prose-lg max-w-none space-y-8"
+          className="prose prose-lg max-w-none space-y-8 rounded-2xl bg-white p-6 text-[#061E35] sm:p-10"
           style={{ fontFamily: '"Inter", sans-serif' }}
         >
           <section>

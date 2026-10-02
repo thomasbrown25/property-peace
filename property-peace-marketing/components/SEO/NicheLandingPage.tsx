@@ -79,12 +79,12 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       {pageStructuredData && <StructuredData data={pageStructuredData} />}
       <main>
         <section
           data-marketing-hero-theme="light"
-          className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
+          className="relative overflow-hidden bg-[#061E35] px-4 pb-20 pt-32 text-white sm:px-6 sm:pb-24 sm:pt-36 lg:px-8"
         >
           <div
             data-marketing-hero-layout="split"
@@ -94,10 +94,10 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
               <p data-marketing-hero-eyebrow="true" className="mb-5 inline-flex max-w-full items-center justify-center rounded-full border border-[#DCE6ED] bg-white px-3.5 py-2 text-center text-[13px] font-semibold leading-snug text-[#15803D] shadow-sm shadow-blue-950/20 sm:px-4 sm:text-sm">
                 {config.eyebrow}
               </p>
-              <h1 className="mx-auto max-w-4xl text-[2.35rem] font-bold leading-[1.08] tracking-tight text-[#061E35] sm:text-5xl md:text-6xl lg:mx-0" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h1 className="mx-auto max-w-4xl text-[2.35rem] font-bold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:mx-0" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 {config.title}
               </h1>
-              <p className="mx-auto mt-5 max-w-3xl text-[17px] font-medium leading-8 text-[#405A70] md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="mx-auto mt-5 max-w-3xl text-[17px] font-medium leading-8 text-slate-200 md:text-xl lg:mx-0" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {config.description}
               </p>
               <div className="mx-auto mt-7 grid max-w-[22rem] grid-cols-2 gap-2.5 sm:flex sm:max-w-none sm:items-center sm:justify-center sm:gap-3 lg:mx-0 lg:justify-start">
@@ -129,11 +129,11 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
         <section className="px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
             <div>
-              <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-blue-600">Built for your niche</p>
-              <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <p className="mb-3 text-sm font-bold uppercase tracking-[0.2em] text-green-300">Built for your niche</p>
+              <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 {config.painTitle}
               </h2>
-              <p className="mt-4 text-lg leading-8 text-[#5f6b77]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="mt-4 text-lg leading-8 text-slate-200" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {config.painIntro}
               </p>
             </div>
@@ -148,13 +148,13 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="bg-[#f7f9fc] px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto max-w-3xl text-center">
-              <h2 className="text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h2 className="text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 {config.featureTitle}
               </h2>
-              <p className="mt-4 text-lg text-[#5f6b77]">Everything is organized around rent, tenants, maintenance, leases, expenses, and decisions small landlords make every week.</p>
+              <p className="mt-4 text-lg text-slate-200">Everything is organized around rent, tenants, maintenance, leases, expenses, and decisions small landlords make every week.</p>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
               {config.features.map((feature, index) => {
@@ -192,9 +192,9 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
           </div>
         </section>
 
-        <section className="bg-[#f7f9fc] px-4 py-16 sm:px-6 lg:px-8">
+        <section className="bg-[#061E35] px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-4xl">
-            <h2 className="text-center text-3xl font-bold text-primary-main md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            <h2 className="text-center text-3xl font-bold text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
               Questions landlords ask before switching
             </h2>
             <div className="mt-10 space-y-4">
@@ -212,10 +212,10 @@ export default function NicheLandingPage({ config }: { config: NicheLandingPageC
 
         <section className="px-4 py-12 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-6xl text-center">
-            <p className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-[#637083]">Related landlord software pages</p>
+            <p className="mb-4 text-sm font-bold uppercase tracking-[0.18em] text-slate-200">Related landlord software pages</p>
             <div className="flex flex-wrap justify-center gap-3">
               {config.relatedLinks.map((link) => (
-                <Link key={link.href} href={link.href} className="rounded-none border border-slate-200 px-4 py-2 font-semibold text-blue-600 transition hover:border-blue-200 hover:bg-blue-50">
+                <Link key={link.href} href={link.href} className="rounded-none border border-white/30 px-4 py-2 font-semibold text-white transition hover:border-green-300 hover:bg-white/10">
                   {link.label}
                 </Link>
               ))}

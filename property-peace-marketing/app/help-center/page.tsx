@@ -45,18 +45,18 @@ const faqs = [
 
 export default function HelpCenterPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         {/* Header Section */}
         <div className="text-center mb-16">
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Help Center
           </h1>
           <p
-            className="text-lg md:text-xl text-[#737373] max-w-2xl mx-auto leading-relaxed"
+            className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto leading-relaxed"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Find answers, get support, and learn how to make the most of Property Peace.
@@ -148,7 +148,7 @@ export default function HelpCenterPage() {
         {/* FAQ Section */}
         <div className="mb-16">
           <h2
-            className="text-2xl md:text-3xl font-bold text-primary-main mb-8"
+            className="text-2xl md:text-3xl font-bold text-white mb-8"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Frequently Asked Questions

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { FiCamera, FiCheckCircle, FiFileText, FiLink, FiSend, FiUsers } from "react-icons/fi";
 
 const listingFeatures = [
@@ -36,19 +37,24 @@ const listingFeatures = [
 
 export default function ListingsPage() {
   return (
-    <div className="min-h-screen bg-white w-full min-w-0">
+    <div className="min-h-screen bg-[#061E35] w-full min-w-0 text-white">
       <main>
-        <section className="relative overflow-hidden bg-white pt-32 pb-20 px-4 sm:px-6 lg:px-8">
-          <div className="absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-green-50/80 via-white to-white" />
+        <section className="relative overflow-hidden bg-[#061E35] pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat lg:bg-[position:center_55%]"
+            style={{ backgroundImage: 'url(/images/listings/hero.png)' }}
+            aria-hidden="true"
+          />
+          <div
+            className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_20%,rgba(6,30,53,0.82)_58%,rgba(6,30,53,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.72)_60%,rgba(6,30,53,0.62)_100%)]"
+            aria-hidden="true"
+          />
           <div className="relative max-w-6xl mx-auto grid lg:grid-cols-[1.05fr_0.95fr] gap-12 items-center">
             <div>
-              <p className="mb-5 inline-flex items-center rounded-full border border-green-500/20 bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-green-600" style={{ fontFamily: '"Inter", sans-serif' }}>
-                Rental listing software
-              </p>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main leading-tight mb-6" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 Create rental listings without creating extra work.
               </h1>
-              <p className="text-lg md:text-xl text-[#737373] max-w-2xl mb-8" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="text-lg md:text-xl text-white/75 max-w-2xl mb-8" style={{ fontFamily: '"Inter", sans-serif' }}>
                 Property Peace helps landlords turn property and unit details into shareable rental listings, then keep applications and leasing steps connected in the same workflow.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
@@ -69,40 +75,25 @@ export default function ListingsPage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-xl border border-[#E5E5E5] overflow-hidden">
-              <div className="h-48 bg-gradient-to-br from-green-50 via-white to-slate-50 flex items-center justify-center">
-                <div className="w-24 h-24 rounded-full bg-white/80 shadow-sm flex items-center justify-center">
-                  <FiHomePlaceholder />
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-green-600 font-semibold mb-1">Preview listing</p>
-                    <h2 className="text-xl font-bold text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                      Sunny 2-bedroom apartment
-                    </h2>
-                    <p className="text-sm text-[#737373] mt-1">Photos, rent, availability, amenities, and application link in one place.</p>
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold">Ready to publish</span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 text-center text-sm">
-                  <div className="rounded-xl bg-green-50 p-3"><strong className="block text-primary-main">2</strong><span className="text-[#737373]">Beds</span></div>
-                  <div className="rounded-xl bg-green-50 p-3"><strong className="block text-primary-main">1</strong><span className="text-[#737373]">Bath</span></div>
-                  <div className="rounded-xl bg-green-50 p-3"><strong className="block text-primary-main">$1,650</strong><span className="text-[#737373]">/mo</span></div>
-                </div>
-              </div>
-            </div>
+            <Image
+              src="/images/listings/hero-right.png"
+              alt="Property Peace listing and leasing dashboard preview"
+              width={1598}
+              height={1245}
+              priority
+              sizes="(max-width: 1023px) 100vw, 45vw"
+              className="block h-auto w-full border border-white/20 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+            />
           </div>
         </section>
 
-        <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <section className="bg-[#061E35] py-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="max-w-3xl mb-10">
-              <h2 className="text-3xl md:text-4xl font-bold text-primary-main mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: '"Poppins", sans-serif' }}>
                 Listings that fit your leasing process
               </h2>
-              <p className="text-lg text-[#737373]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="text-lg text-white/75" style={{ fontFamily: '"Inter", sans-serif' }}>
                 This marketing page does not show live rentals. Property Peace creates shareable listing pages, but it does not currently syndicate listings to Zillow, Apartments.com, Realtor.com, or other listing networks.
               </p>
             </div>
@@ -110,16 +101,16 @@ export default function ListingsPage() {
               {listingFeatures.map((feature) => {
                 const Icon = feature.icon;
                 return (
-                  <article key={feature.title} className="rounded-2xl border border-[#E5E5E5] bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+                  <article key={feature.title} className="rounded-2xl border border-white/5 bg-[#263e52] p-6 shadow-sm transition-colors hover:bg-[#304b60]">
                     <div className="mb-4 flex items-center gap-4">
-                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-green-50">
-                        <Icon className="h-5 w-5 text-green-600" />
+                      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-[#061E35]">
+                        <Icon className="h-5 w-5 text-green-400" />
                       </div>
-                      <h3 className="text-lg font-bold leading-snug text-primary-main" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                      <h3 className="text-lg font-bold leading-snug text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
                         {feature.title}
                       </h3>
                     </div>
-                    <p className="text-sm text-[#737373] leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
+                    <p className="text-sm text-white/80 leading-relaxed" style={{ fontFamily: '"Inter", sans-serif' }}>
                       {feature.description}
                     </p>
                   </article>
@@ -130,15 +121,5 @@ export default function ListingsPage() {
         </section>
       </main>
     </div>
-  );
-}
-
-function FiHomePlaceholder() {
-  return (
-    <svg className="w-12 h-12 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m3 11 9-8 9 8" />
-      <path d="M5 10v10h14V10" />
-      <path d="M9 20v-6h6v6" />
-    </svg>
   );
 }

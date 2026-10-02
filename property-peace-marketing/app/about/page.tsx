@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   FiArrowRight,
@@ -7,12 +6,11 @@ import {
   FiCompass,
   FiLayers,
   FiShield,
-  FiUsers,
 } from 'react-icons/fi';
 import StructuredData from '@/components/SEO/StructuredData';
 import { webPageSchema } from '@/lib/structured-data';
 
-const description = 'Meet Property Peace, rental management software built to give independent landlords with 1–50 units a calmer, clearer way to work.';
+const description = 'Property Peace began with five rental homes, scattered spreadsheets, and a belief that independent landlords deserve a calmer way to manage their work.';
 
 export const metadata: Metadata = {
   title: 'About Property Peace | Software for Independent Landlords',
@@ -29,23 +27,18 @@ export const metadata: Metadata = {
 const principles = [
   {
     icon: FiCompass,
-    title: 'Calm is a product decision',
-    body: 'The next task should be easy to find, the status should be clear, and the record should stay attached to the right property.',
+    title: 'Start with what matters',
+    body: 'A landlord should be able to see what needs attention without digging through menus or learning an enterprise playbook.',
   },
   {
     icon: FiLayers,
-    title: 'One connected record',
-    body: 'Properties, tenants, leases, maintenance, rent records, expenses, and documents work better when they live together.',
+    title: 'Keep the story together',
+    body: 'A property is more than a row in a spreadsheet. Keep its people, leases, requests, records, and conversations connected.',
   },
   {
     icon: FiShield,
-    title: 'Plain about what is available',
-    body: 'We distinguish live workflows from roadmap features so landlords can make decisions using what the product does today.',
-  },
-  {
-    icon: FiUsers,
-    title: 'Built at a human scale',
-    body: 'Property Peace is designed around independent landlords managing 1–50 units—not an enterprise org chart.',
+    title: 'Make simplicity honest',
+    body: 'Useful tools at a sensible scale, with clear language about what is available today and what is still on the way.',
   },
 ];
 
@@ -59,107 +52,90 @@ const availableToday = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       <StructuredData data={webPageSchema({ path: '/about/', name: 'About Property Peace', description })} />
 
-      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-gradient-to-b from-white to-[#F7FAFC] px-4 pb-20 pt-32 text-[#061E35] sm:px-6 md:pb-24 md:pt-36 lg:px-8">
-        <div className="pointer-events-none absolute -right-32 top-8 h-96 w-96 rounded-full bg-green-500/15 blur-3xl" />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.08fr_0.92fr]">
-          <div>
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.28em] text-[#15803D]">About Property Peace</p>
-            <h1 className="max-w-3xl text-4xl font-bold leading-[1.02] tracking-[-0.045em] text-[#061E35] sm:text-5xl md:text-6xl lg:text-7xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-              Built for landlords who still know every door.
-            </h1>
-            <p className="mt-7 max-w-2xl text-lg leading-8 text-[#405A70] md:text-xl" style={{ fontFamily: '"Inter", sans-serif' }}>
-              Property Peace brings the daily work of a rental portfolio into one clear system, so independent landlords can spend less time rebuilding the story from spreadsheets, texts, and folders.
-            </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link href="/how-it-works" className="inline-flex min-h-12 items-center justify-center gap-2 px-7 py-3.5 font-bold text-white transition hover:brightness-95" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
-                See how it works <FiArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/features" className="inline-flex min-h-12 items-center justify-center border border-[#DCE6ED] px-7 py-3.5 font-semibold text-[#061E35] transition hover:bg-[#F7FAFC]">
-                Explore features
-              </Link>
-            </div>
-          </div>
-
-          <div className="relative mx-auto w-full max-w-lg border border-[#DCE6ED] bg-white p-5 shadow-[0_24px_60px_rgba(6,30,53,0.10)] sm:p-7">
-            <div className="mb-7 flex items-center justify-between border-b border-[#DCE6ED] pb-5">
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#061E35]">Portfolio signal</span>
-              <span className="h-2.5 w-2.5 rounded-full bg-[#16A34A] shadow-[0_0_0_7px_rgba(22,163,74,0.16)]" />
-            </div>
-            <div className="space-y-3">
-              {['Leases stay connected', 'Rent records stay readable', 'Repairs keep their history', 'Documents stay with the property'].map((item, index) => (
-                <div key={item} className="flex items-center gap-4 border border-[#DCE6ED] bg-[#F7FAFC] px-4 py-4">
-                  <span className="text-xs font-bold tabular-nums text-[#15803D]">0{index + 1}</span>
-                  <span className="font-semibold text-[#061E35]">{item}</span>
-                  <FiCheck className="ml-auto h-4 w-4 text-[#16A34A]" />
-                </div>
-              ))}
-            </div>
-            <div className="mt-5 flex items-center gap-3 border-t border-[#DCE6ED] pt-5">
-              <Image src="/images/logos/property-peace.png" alt="" width={150} height={44} className="h-auto w-32" />
-              <span className="ml-auto text-xs text-[#405A70]">One calm record</span>
-            </div>
-          </div>
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[620px] items-center overflow-hidden bg-[#061E35] px-4 pb-28 pt-36 text-center text-white sm:min-h-[680px] sm:px-6 md:pb-32 md:pt-40 lg:px-8">
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: 'url(/images/pricing/hero.png)' }} aria-hidden="true" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.94)_18%,rgba(6,30,53,0.74)_57%,rgba(6,30,53,0.73)_100%)]" aria-hidden="true" />
+        <div className="relative mx-auto w-full max-w-3xl">
+          <p className="mb-7 text-[15px] font-extrabold uppercase leading-[1.5] tracking-[-0.2px] text-[#e1e1e1]" style={{ fontFamily: '"Poppins", sans-serif' }}>About Property Peace</p>
+          <h1 className="text-4xl font-bold leading-[1.12] tracking-[-0.045em] text-white sm:text-5xl md:text-6xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+            It started with five homes.<br /><span className="text-green-400">It grew into Property Peace.</span>
+          </h1>
+          <p className="mx-auto mt-7 max-w-xl text-base leading-7 text-white/90 sm:text-lg sm:leading-8" style={{ fontFamily: '"Inter", sans-serif' }}>
+            Built from a real family&apos;s experience with spreadsheets, sticky notes, and too much to keep track of. A calmer way to manage rentals should be within reach.
+          </p>
+          <a href="#why-we-exist" className="mt-9 inline-flex min-h-12 items-center justify-center rounded-full bg-green-600 px-9 py-3 text-sm font-bold uppercase tracking-wide text-white transition-colors hover:bg-green-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-green-400">
+            Learn more
+          </a>
         </div>
       </section>
 
       <main>
-        <section className="px-4 py-20 sm:px-6 md:py-24 lg:px-8">
+        <section id="why-we-exist" className="scroll-mt-24 bg-[#061E35] px-4 py-20 sm:px-6 md:py-28 lg:px-8">
           <div className="mx-auto max-w-6xl">
-            <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:gap-16">
+            <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:gap-20">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#16a34a]">Why we exist</p>
-                <h2 className="mt-4 text-3xl font-bold leading-tight tracking-[-0.035em] text-[#061e35] md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                  Property management should feel organized before it feels sophisticated.
+                <p className="text-xs font-bold uppercase tracking-[0.24em] text-green-300">Our story</p>
+                <h2 className="mt-5 text-3xl font-bold leading-tight tracking-[-0.035em] text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                  Five houses. Too many places to keep track of the details.
                 </h2>
+                <div className="mt-8 border-l-2 border-green-400 pl-5">
+                  <p className="text-xl font-medium leading-8 text-white">It wasn&apos;t the properties that made the work feel complicated. It was trying to keep every detail in a different place.</p>
+                </div>
               </div>
-              <div className="space-y-5 text-lg leading-8 text-slate-600" style={{ fontFamily: '"Inter", sans-serif' }}>
-                <p>Small rental portfolios are often run across spreadsheets, inboxes, text threads, bank records, and paper folders. None of those tools knows what the others are doing.</p>
-                <p>Property Peace gives that work a shared home. The goal is not to add another layer of administration. It is to make the current state of each property easier to see, explain, and act on.</p>
-                <p className="border-l-4 border-[#22c55e] pl-5 font-semibold text-[#0b3558]">Property Peace is a product of Brownstone Hub LLC.</p>
+              <div className="space-y-6 text-lg leading-8" style={{ fontFamily: '"Inter", sans-serif' }}>
+                <p className="text-white/80">My in-laws own five rental houses. They were managing the work with Excel, spreadsheets, sticky notes, and messages scattered across conversations. Every piece helped them get by, but keeping the whole picture together was another matter.</p>
+                <p className="text-white/80">The alternatives felt like the other extreme: enterprise software packed with features they didn&apos;t need, complicated to use, and priced for a much larger operation. They needed something that fit the way they actually worked—not a system that expected them to change everything.</p>
+                <p className="text-white/80">That is why I started Property Peace. I wanted a clear, approachable place to manage the everyday work of renting out homes: property details, leases, maintenance, messages, and records connected instead of scattered. Less hunting for the latest note. More confidence that nothing important is slipping through the cracks.</p>
+                <p className="border-l-4 border-green-400 pl-5 text-xl font-semibold leading-8 text-white">Because managing a few homes should feel manageable.</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="border-y border-slate-200 bg-[#f4f8fc] px-4 py-20 sm:px-6 md:py-24 lg:px-8">
+        <section className="bg-[#061E35] px-4 py-20 sm:px-6 md:py-24 lg:px-8">
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#16a34a]">The product standard</p>
-              <h2 className="mt-4 text-3xl font-bold tracking-[-0.035em] text-[#061e35] md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Four principles shape the work.</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-green-300">The promise</p>
+              <h2 className="mt-4 text-3xl font-bold tracking-[-0.035em] text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Less chaos. More room to breathe.</h2>
+              <p className="mt-5 text-lg leading-8 text-white/80">The idea behind Property Peace is simple: bring the everyday pieces of managing rentals together without bringing enterprise complexity along with them.</p>
             </div>
-            <div className="grid gap-px overflow-hidden border border-slate-200 bg-slate-200 md:grid-cols-2">
-              {principles.map(({ icon: Icon, title, body }) => (
-                <article key={title} className="bg-white p-7 md:p-9">
-                  <Icon className="h-6 w-6 text-[#16a34a]" />
-                  <h3 className="mt-6 text-xl font-bold text-[#061e35]" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
-                  <p className="mt-3 leading-7 text-slate-600" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
+            <div className="grid gap-5 md:grid-cols-3">
+              {principles.map(({ icon: Icon, title, body }, index) => (
+                <article key={title} className="border border-white/10 bg-[#263e52] p-7 md:p-8">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-7">
+                    <Icon className="h-7 w-7 text-green-400" aria-hidden="true" />
+                    <span className="text-xs font-semibold tracking-[0.2em] text-white/40">0{index + 1}</span>
+                  </div>
+                  <h3 className="mt-7 text-xl font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>{title}</h3>
+                  <p className="mt-3 leading-7 text-white/80" style={{ fontFamily: '"Inter", sans-serif' }}>{body}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="px-4 py-20 sm:px-6 md:py-24 lg:px-8">
+        <section className="bg-[#061E35] px-4 py-20 sm:px-6 md:py-24 lg:px-8">
           <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:gap-16">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#16a34a]">Available today</p>
-              <h2 className="mt-4 text-3xl font-bold tracking-[-0.035em] text-[#061e35] md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Useful from the first property.</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-green-300">What that looks like</p>
+              <h2 className="mt-4 text-3xl font-bold tracking-[-0.035em] text-white md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>The everyday work, together.</h2>
+              <p className="mt-5 leading-7 text-white/80">From a first listing to the day-to-day details of a lease, the important information belongs with the property it relates to.</p>
               <ul className="mt-8 space-y-4">
                 {availableToday.map((item) => (
-                  <li key={item} className="flex gap-3 text-slate-700">
+                  <li key={item} className="flex gap-3 text-white/80">
                     <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center bg-green-100 text-green-700"><FiCheck className="h-3.5 w-3.5" /></span>
                     <span className="leading-6">{item}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <aside className="border border-slate-200 bg-[#061e35] p-8 text-white md:p-10">
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#22c55e]">Clarity matters</p>
-              <h2 className="mt-4 text-2xl font-bold tracking-[-0.025em] md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>No feature fog.</h2>
-              <p className="mt-5 leading-7 text-white/70">Digital rental applications are available, but Property Peace does not currently provide consumer-report screening. Rent tracking is available, but online rent payment processing remains on the roadmap. We would rather make that distinction clear before you sign up.</p>
+            <aside className="self-start border border-white/10 bg-[#263e52] p-8 text-white md:p-10">
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-green-300">No feature fog</p>
+              <h2 className="mt-4 text-2xl font-bold tracking-[-0.025em] md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Simple also means straightforward.</h2>
+              <p className="mt-5 leading-7 text-white/80">We want you to know what the product can do today. Digital rental applications are available, but consumer-report screening is not. Rent tracking is available; online rent payment processing is still on the roadmap. You should be able to decide if Property Peace fits without having to guess.</p>
               <Link href="/features" className="mt-8 inline-flex items-center gap-2 font-bold text-[#22c55e] transition hover:text-green-400">
                 Review current features <FiArrowRight className="h-4 w-4" />
               </Link>
@@ -167,13 +143,15 @@ export default function AboutPage() {
           </div>
         </section>
 
-        <section className="px-4 py-16 text-center text-white sm:px-6 lg:px-8" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
-          <div className="mx-auto max-w-3xl">
-            <h2 className="text-3xl font-bold tracking-[-0.035em] md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Bring your rental work into one place.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-white/80">Start free for up to five units. No credit card required.</p>
-            <Link href="https://app.propertypeace.io/register" className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 bg-[#061e35] px-8 py-3.5 font-bold text-white transition hover:bg-[#0b3558]">
+        <section className="bg-[#061E35] px-4 py-20 text-center text-white sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl border-t border-white/15 pt-20">
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-green-300">A little more peace, every day</p>
+            <h2 className="mt-5 text-3xl font-bold tracking-[-0.035em] md:text-4xl" style={{ fontFamily: '"Poppins", sans-serif' }}>Your homes deserve your attention. Your tools shouldn&apos;t demand it all.</h2>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-white/80">Start with the essentials, keep your rental work in one place, and grow at your own pace. Free for up to five units.</p>
+            <Link href="https://app.propertypeace.io/register" className="mt-9 inline-flex min-h-12 items-center justify-center gap-2 bg-green-600 px-8 py-3.5 font-bold text-white transition hover:bg-green-500">
               Start free <FiArrowRight className="h-4 w-4" />
             </Link>
+            <p className="mt-12 text-xs text-white/50">Property Peace is a product of Brownstone Hub LLC.</p>
           </div>
         </section>
       </main>

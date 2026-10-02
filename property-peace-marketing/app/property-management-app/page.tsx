@@ -43,21 +43,21 @@ export default function PropertyManagementAppPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#061E35] text-white">
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-[#F5F5F5] to-white py-16 px-4 sm:px-6 lg:px-8">
+      <section className="bg-[#061E35] px-4 pb-16 pt-32 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex justify-center mb-6">
-            <FiSmartphone className="w-16 h-16 text-[#217eff]" />
+            <FiSmartphone className="w-16 h-16 text-green-300" />
           </div>
           <h1
-            className="text-4xl md:text-5xl lg:text-6xl font-bold text-primary-main mb-6"
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Best Property Management App for Landlords
           </h1>
           <p
-            className="text-lg md:text-xl text-[#737373] mb-8 max-w-2xl mx-auto"
+            className="text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Manage your rental properties from anywhere with Property Peace's mobile-friendly property management app. Perfect for landlords who need flexibility and convenience.
@@ -77,7 +77,7 @@ export default function PropertyManagementAppPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Manage Properties from Your Phone
@@ -85,9 +85,9 @@ export default function PropertyManagementAppPage() {
           <div className="grid md:grid-cols-2 gap-6">
             {appFeatures.map((feature, index) => (
               <div key={index} className="flex items-start space-x-3">
-                <FiCheck className="w-6 h-6 text-[#217eff] flex-shrink-0 mt-1" />
+                <FiCheck className="w-6 h-6 text-green-300 flex-shrink-0 mt-1" />
                 <p
-                  className="text-lg text-primary-main"
+                  className="text-lg text-white"
                   style={{ fontFamily: '"Inter", sans-serif' }}
                 >
                   {feature}
@@ -99,10 +99,10 @@ export default function PropertyManagementAppPage() {
       </section>
 
       {/* Use Cases */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#F5F5F5]">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-[#061E35]">
         <div className="max-w-6xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-12 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-12 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Perfect for On-the-Go Property Management
@@ -110,13 +110,13 @@ export default function PropertyManagementAppPage() {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Check Rent Status
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Review recorded rent status from your phone, including paid and overdue ledger entries. Online rent payments are included with Free. Organizations request access, complete secure payment setup, and pass account review before tenants can pay online.
@@ -124,13 +124,13 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Respond to Maintenance
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Receive maintenance requests instantly and respond quickly, even when you're away from your desk.
@@ -138,13 +138,13 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-3"
+                className="text-xl font-bold text-white mb-3"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Access Property Details
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 View property information, tenant details, lease terms, and documents—all from your mobile device.
@@ -158,7 +158,7 @@ export default function PropertyManagementAppPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
           <h2
-            className="text-3xl md:text-4xl font-bold text-primary-main mb-6 text-center"
+            className="text-3xl md:text-4xl font-bold text-white mb-6 text-center"
             style={{ fontFamily: '"Poppins", sans-serif' }}
           >
             Why a Mobile Property Management App Matters
@@ -166,13 +166,13 @@ export default function PropertyManagementAppPage() {
           <div className="space-y-6">
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-2"
+                className="text-xl font-bold text-white mb-2"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Faster Response Times
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Respond to tenant requests and maintenance issues immediately, even when you're not at your computer. This improves tenant satisfaction and prevents small issues from becoming big problems.
@@ -180,13 +180,13 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-2"
+                className="text-xl font-bold text-white mb-2"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Better Work-Life Balance
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Manage your properties without being tied to your desk. Check rent status, respond to messages, and handle urgent issues from anywhere.
@@ -194,13 +194,13 @@ export default function PropertyManagementAppPage() {
             </div>
             <div>
               <h3
-                className="text-xl font-bold text-primary-main mb-2"
+                className="text-xl font-bold text-white mb-2"
                 style={{ fontFamily: '"Poppins", sans-serif' }}
               >
                 Professional Image
               </h3>
               <p
-                className="text-[#737373]"
+                className="text-white/80"
                 style={{ fontFamily: '"Inter", sans-serif' }}
               >
                 Quick responses and easy access to information make you look more professional and organized to your tenants.
@@ -240,16 +240,16 @@ export default function PropertyManagementAppPage() {
       <section className="py-12 px-4 sm:px-6 lg:px-8 border-t border-[#E5E5E5]">
         <div className="max-w-6xl mx-auto">
           <p
-            className="text-center text-[#737373] mb-4"
+            className="text-center text-white/80 mb-4"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Learn more:
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link href="/features" className="text-[#217eff] hover:underline">Features</Link>
-            <Link href="/landlord-software" className="text-[#217eff] hover:underline">Landlord Software</Link>
-            <Link href="/blog" className="text-[#217eff] hover:underline">Blog</Link>
-            <Link href="/small-landlord-tools" className="text-[#217eff] hover:underline">Small Landlord Tools</Link>
+            <Link href="/features" className="text-green-300 hover:underline">Features</Link>
+            <Link href="/landlord-software" className="text-green-300 hover:underline">Landlord Software</Link>
+            <Link href="/blog" className="text-green-300 hover:underline">Blog</Link>
+            <Link href="/small-landlord-tools" className="text-green-300 hover:underline">Small Landlord Tools</Link>
           </div>
         </div>
       </section>

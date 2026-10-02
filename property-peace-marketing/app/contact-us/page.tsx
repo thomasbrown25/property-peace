@@ -26,28 +26,28 @@ const supportTopics = [
 
 export default function ContactPage() {
   return (
-    <div className="min-h-screen bg-white">
-      <section className="relative overflow-hidden px-4 pt-32 pb-20 sm:px-6 md:pt-40 lg:px-8">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-[#f4f8fc] to-white" />
+    <div className="min-h-screen bg-[#061E35] text-white">
+      <section className="relative overflow-hidden bg-[#061E35] px-4 pt-32 pb-20 sm:px-6 md:pt-40 lg:px-8">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-[#0B3558] to-[#061E35]" />
         <div className="pointer-events-none absolute left-1/2 top-20 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-200/20 blur-3xl" />
 
         <div className="relative mx-auto max-w-5xl">
           {/* Header Section */}
           <div className="mx-auto mb-14 max-w-3xl text-center md:mb-16">
             <p
-              className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-primary-main"
+              className="mb-4 text-xs font-bold uppercase tracking-[0.26em] text-green-300"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Contact Property Peace
             </p>
             <h1
-              className="text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-primary-main md:text-5xl lg:text-6xl"
+              className="text-4xl font-bold leading-[1.05] tracking-[-0.04em] text-white md:text-5xl lg:text-6xl"
               style={{ fontFamily: '"Poppins", sans-serif' }}
             >
               Get support without the runaround.
             </h1>
             <p
-              className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-[#737373] md:text-xl"
+              className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/80 md:text-xl"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               Have a product question, billing issue, or want a quick walkthrough? Send us a note and we&apos;ll help you get back to a calmer landlord workflow.
