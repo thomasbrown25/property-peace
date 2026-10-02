@@ -503,7 +503,7 @@ export default function Navigation() {
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-6 lg:gap-8">
             {featuresCategories.map((category, categoryIndex) => (
               <div key={category.title}>
-                <h3 className="text-xs font-semibold text-[#15803D] uppercase tracking-wide mb-6">
+                <h3 className="text-xs font-semibold text-[#4ade80] uppercase tracking-wide mb-6">
                   {category.title}
                 </h3>
                 <ul className="space-y-4">
@@ -518,12 +518,12 @@ export default function Navigation() {
                           onClick={closeFeaturesDropdown}
                         >
                           <div className="flex items-start space-x-3 mb-1">
-                            <IconComponent className="w-5 h-5 text-[#16a34a] flex-shrink-0 mt-0.5 group-hover:text-[#16a34a] transition-colors" />
-                            <span className="text-sm font-semibold text-[#061E35] group-hover:text-[#15803D] transition-colors" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                            <IconComponent className="w-5 h-5 text-[#4ade80] flex-shrink-0 mt-0.5 group-hover:text-[#86efac] transition-colors" />
+                            <span className="text-sm font-semibold text-white group-hover:text-[#86efac] transition-colors" style={{ fontFamily: '"Poppins", sans-serif' }}>
                               {feature.title}
                             </span>
                           </div>
-                          <p className="text-xs text-[#637083] leading-relaxed pl-8" style={{ fontFamily: '"Inter", sans-serif' }}>
+                          <p className="text-xs text-white/75 leading-relaxed pl-8" style={{ fontFamily: '"Inter", sans-serif' }}>
                             {feature.description}
                           </p>
                         </Link>
@@ -534,10 +534,10 @@ export default function Navigation() {
               </div>
             ))}
           </div>
-          <div className="mt-8 pt-6 border-t border-[#DCE6ED]">
+          <div className="mt-8 pt-6 border-t border-white/20">
             <Link
               href="/features"
-              className="text-sm font-medium text-[#15803D] hover:text-[#15803D] transition-colors inline-flex items-center"
+              className="text-sm font-medium text-[#4ade80] hover:text-[#86efac] transition-colors inline-flex items-center"
               style={{ fontFamily: '"Inter", sans-serif' }}
               onClick={closeFeaturesDropdown}
             >

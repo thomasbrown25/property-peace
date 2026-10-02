@@ -85,10 +85,19 @@ export default function CTA({ featured = false }: CTAProps) {
   }
 
   return (
-    <section className="py-12 sm:py-14 px-4 sm:px-6 lg:px-8 bg-white">
-      <div className="max-w-4xl mx-auto text-center">
+    <section className="relative flex min-h-[620px] items-center justify-center overflow-hidden bg-[#061E35] px-4 py-20 sm:min-h-[680px] sm:px-6 lg:min-h-[760px] lg:px-8">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/images/landing/get-started.png)' }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(6,30,53,0.84)_20%,rgba(6,30,53,0.56)_48%,rgba(6,30,53,0.66)_68%,rgba(6,30,53,0.9)_85%,#061E35_100%)]"
+      />
+      <div className="relative z-10 mx-auto w-full max-w-4xl text-center">
         <motion.h2
-          className="text-4xl md:text-5xl font-bold text-primary-deep mb-4"
+          className="mb-4 text-4xl font-bold text-white md:text-5xl"
           style={{ fontFamily: '"Poppins", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -98,7 +107,7 @@ export default function CTA({ featured = false }: CTAProps) {
           Get started today for Free
         </motion.h2>
         <motion.p
-          className="text-xl text-[#737373] mb-4"
+          className="mb-4 text-xl text-white/80"
           style={{ fontFamily: '"Inter", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -108,7 +117,7 @@ export default function CTA({ featured = false }: CTAProps) {
           Clean. Simple.
         </motion.p>
         <motion.ul
-          className="flex flex-wrap justify-center gap-x-8 gap-y-2 mb-8 text-primary-deep font-medium"
+          className="mb-8 flex flex-wrap justify-center gap-x-8 gap-y-2 font-medium text-white"
           style={{ fontFamily: '"Inter", sans-serif' }}
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -141,7 +150,7 @@ export default function CTA({ featured = false }: CTAProps) {
           </Link>
           <Link
             href="/demo"
-            className="inline-flex items-center justify-center space-x-2 px-5 py-2.5 bg-white text-green-600 border-2 border-green-600 rounded-none font-medium transition-all duration-300 hover:bg-green-600 hover:text-white hover:translate-y-[-2px] hover:shadow-[0_4px_12px_rgba(34,197,94,0.2)]"
+            className="inline-flex items-center justify-center space-x-2 rounded-none bg-white px-5 py-2.5 font-medium text-[#061E35] transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/90 hover:shadow-[0_4px_12px_rgba(6,30,53,0.2)]"
             style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}
           >
             <FiCalendar className="w-4 h-4" />

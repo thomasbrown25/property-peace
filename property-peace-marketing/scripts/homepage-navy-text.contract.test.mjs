@@ -18,30 +18,22 @@ function openingTagForText(tagName, text) {
   return homepage.slice(tagStart, tagEnd + 1);
 }
 
-test('resource and signup typography use the review-card navy', () => {
+test('resource and signup headings are white on navy; slate-blue resource cards keep white text', () => {
   for (const [tagName, text] of [
     ['h2', 'Useful before you ever open the app'],
-    ['h3', 'Free Landlord Starter Pack'],
     ['h2', 'Get started today for Free'],
     ['ul', 'Start free — no credit card required'],
   ]) {
     assert.match(
       openingTagForText(tagName, text),
-      /\btext-primary-deep\b/,
-      `“${text}” should use the shared dark navy`,
+      /\btext-white\b/,
+      `“${text}” should be white on the navy section`,
     );
   }
+  assert.match(openingTagForText('h3', 'Free Landlord Starter Pack'), /\btext-white\b/);
 });
 
-test('FAQ heading and questions use the review-card navy', () => {
-  for (const [tagName, text] of [
-    ['h2', 'Questions landlords ask before getting started.'],
-    ['span', 'Is Property Peace a good fit for hosts with 1–3 properties?'],
-  ]) {
-    assert.match(
-      openingTagForText(tagName, text),
-      /\btext-primary-deep\b/,
-      `“${text}” should use the shared dark navy`,
-    );
-  }
+test('homepage FAQ has a white heading on navy and navy questions on white cards', () => {
+  assert.match(openingTagForText('h2', 'Questions landlords ask before getting started.'), /\btext-white\b/);
+  assert.match(openingTagForText('span', 'Is Property Peace a good fit for hosts with 1–3 properties?'), /\btext-primary-deep\b/);
 });

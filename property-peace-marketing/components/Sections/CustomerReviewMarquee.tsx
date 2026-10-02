@@ -133,7 +133,7 @@ function GoldStars() {
 function ReviewCard({ review }: { review: CustomerReview }) {
   return (
     <li data-review-card="true" className="flex shrink-0">
-      <article className="relative flex min-h-[21rem] w-[min(84vw,23.5rem)] flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#061E35] p-6 text-white shadow-[0_20px_46px_rgba(6,30,53,0.16)] sm:p-7">
+      <article className="relative flex min-h-[21rem] w-[min(84vw,23.5rem)] flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#263e52] p-6 text-white shadow-[0_20px_46px_rgba(0,0,0,0.2)] sm:p-7">
         <div
           aria-hidden="true"
           className="absolute -right-5 -top-12 font-serif text-[10rem] leading-none text-white/[0.055]"
@@ -163,7 +163,7 @@ function ReviewCard({ review }: { review: CustomerReview }) {
               {review.name}
             </p>
             <p
-              className="mt-0.5 text-sm text-[#BDE8D0]"
+              className="mt-0.5 text-sm text-white/70"
               style={{ fontFamily: '"Inter", sans-serif' }}
             >
               {review.location}
@@ -178,7 +178,7 @@ function ReviewCard({ review }: { review: CustomerReview }) {
           “{review.quote}”
         </blockquote>
 
-        <div className="relative mt-7 flex items-center border-t border-white/10 pt-5">
+        <div className="relative mt-7 flex items-center border-t border-white/15 pt-5">
           <GoldStars />
         </div>
       </article>
@@ -205,26 +205,28 @@ export default function CustomerReviewMarquee() {
     <section
       data-homepage-review-marquee="true"
       aria-labelledby="customer-review-marquee-heading"
-      className="relative z-20 -mt-8 overflow-hidden rounded-t-[2rem] border-y border-[#DCE6ED] bg-white py-20 sm:-mt-10 sm:rounded-t-[2.5rem] sm:py-24 lg:-mt-12 lg:rounded-t-[3rem] lg:py-28"
+      className="relative z-20 overflow-hidden bg-[#061E35] pb-44 pt-20 sm:pb-52 sm:pt-24 lg:pb-80 lg:pt-28"
     >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(/images/landing/section-1.png)' }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.76)_50%,rgba(6,30,53,0.62)_73%,#061E35_100%)]"
+      />
       <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl">
-          <p
-            className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]"
-            style={{ fontFamily: '"Inter", sans-serif' }}
-          >
-            What landlords say
-          </p>
+        <div className="mx-auto max-w-4xl text-center">
           <h2
             id="customer-review-marquee-heading"
-            className="mt-4 text-3xl font-bold tracking-[-0.04em] text-[#061E35] sm:text-4xl lg:text-[3.35rem]"
+            className="text-3xl font-bold tracking-[-0.04em] text-white sm:text-4xl lg:text-[3.35rem]"
             style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.1 }}
           >
-            Rental management feels lighter with{' '}
-            <span className="text-green-600">Property Peace.</span>
+            Trusted by <span className="text-green-400">2,000+ Landlords Worldwide</span>
           </h2>
           <p
-            className="mt-5 max-w-2xl text-base leading-7 text-[#405A70] sm:text-lg"
+            className="mx-auto mt-5 max-w-2xl text-base leading-7 text-white/80 sm:text-lg"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Independent landlords use one calm place to replace scattered tools, stay organized, and keep everyday rental work moving.

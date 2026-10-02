@@ -129,20 +129,20 @@ function FeatureCallout({
       data-feature-icon={feature.iconId}
       data-wheel-callout={feature.iconId}
       data-active={isActive}
-      className={`-mx-4 rounded-xl border-t border-[#B8C8D5] px-4 py-5 transition-colors duration-200 ease-out data-[active=true]:bg-[#DCFCE7]/60 ${align === 'right' ? 'text-right' : 'text-left'}`}
+      className={`-mx-4 rounded-xl border-t border-white/20 px-4 py-5 transition-colors duration-200 ease-out data-[active=true]:bg-green-500/15 ${align === 'right' ? 'text-right' : 'text-left'}`}
     >
       <div className={`flex items-center gap-2.5 ${align === 'right' ? 'justify-end' : ''}`}>
-        {align === 'left' && <Icon className="h-5 w-5 flex-none text-[#15803D]" aria-hidden="true" />}
+        {align === 'left' && <Icon className="h-5 w-5 flex-none text-green-400" aria-hidden="true" />}
         <h3
-          className="text-base font-bold leading-snug text-[#061E35]"
+          className="text-base font-bold leading-snug text-white"
           style={{ fontFamily: '"Poppins", sans-serif' }}
         >
           {feature.title}
         </h3>
-        {align === 'right' && <Icon className="h-5 w-5 flex-none text-[#15803D]" aria-hidden="true" />}
+        {align === 'right' && <Icon className="h-5 w-5 flex-none text-green-400" aria-hidden="true" />}
       </div>
       <p
-        className={`mt-2 text-sm leading-6 text-[#405A70] ${align === 'right' ? 'ml-auto' : ''}`}
+        className={`mt-2 text-sm leading-6 text-white/80 ${align === 'right' ? 'ml-auto' : ''}`}
         style={{ fontFamily: '"Inter", sans-serif' }}
       >
         {feature.description}
@@ -158,31 +158,26 @@ export default function PropertyManagementWheel() {
     <section
       data-homepage-feature-wheel="true"
       aria-labelledby="property-management-wheel-heading"
-      className="relative z-20 overflow-hidden rounded-t-[2rem] border-y border-[#DCE6ED] bg-[#F7FAF8] px-4 py-20 sm:rounded-t-[2.5rem] sm:px-6 sm:py-24 lg:rounded-t-[3rem] lg:px-8 lg:py-24"
+      className="relative z-20 overflow-hidden bg-[#061E35] px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-24"
     >
-      <div
-        className="pointer-events-none absolute left-1/2 top-[-13rem] h-[28rem] w-[48rem] -translate-x-1/2 rounded-full bg-green-100/60 blur-3xl"
-        aria-hidden="true"
-      />
-
       <div className="relative mx-auto max-w-[1440px]">
         <div className="mx-auto max-w-4xl text-center">
           <p
-            className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]"
+            className="text-xs font-bold uppercase tracking-[0.2em] text-green-400"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             One system for the whole rental
           </p>
           <h2
             id="property-management-wheel-heading"
-            className="mt-4 text-3xl font-bold tracking-[-0.04em] text-[#061E35] sm:text-4xl lg:text-[3.35rem]"
+            className="mt-4 text-3xl font-bold tracking-[-0.04em] text-white sm:text-4xl lg:text-[3.35rem]"
             style={{ fontFamily: '"Poppins", sans-serif', lineHeight: 1.1 }}
           >
             Everyday workflows.{' '}
-            <span className="text-green-600">One calm system.</span>
+            <span className="text-green-400">One calm system.</span>
           </h2>
           <p
-            className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[#405A70] sm:text-lg"
+            className="mx-auto mt-5 max-w-2xl text-base leading-7 text-white/80 sm:text-lg"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             The everyday work of self-managing rentals stays connected, visible, and easier to move forward.
@@ -275,15 +270,15 @@ export default function PropertyManagementWheel() {
             <div
               data-wheel-callout={features[0].iconId}
               data-active={activeFeatureId === features[0].iconId}
-              className="mx-auto mt-8 max-w-sm rounded-xl border-t border-[#B8C8D5] px-4 pb-5 pt-5 text-center transition-colors duration-200 ease-out data-[active=true]:bg-[#DCFCE7]/60"
+              className="mx-auto mt-8 max-w-sm rounded-xl border-t border-white/20 px-4 pb-5 pt-5 text-center transition-colors duration-200 ease-out data-[active=true]:bg-green-500/15"
             >
               <div className="flex items-center justify-center gap-2.5">
-                <DashboardIcon className="h-5 w-5 text-[#15803D]" aria-hidden="true" />
-                <h3 className="font-bold text-[#061E35]" style={{ fontFamily: '"Poppins", sans-serif' }}>
+                <DashboardIcon className="h-5 w-5 text-green-400" aria-hidden="true" />
+                <h3 className="font-bold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
                   {features[0].title}
                 </h3>
               </div>
-              <p className="mt-2 text-sm leading-6 text-[#405A70]" style={{ fontFamily: '"Inter", sans-serif' }}>
+              <p className="mt-2 text-sm leading-6 text-white/80" style={{ fontFamily: '"Inter", sans-serif' }}>
                 {features[0].description}
               </p>
             </div>
@@ -306,18 +301,18 @@ export default function PropertyManagementWheel() {
               const Icon = feature.icon;
               return (
                 <li key={feature.title} data-feature-wheel-card="true" data-feature-icon={feature.iconId}>
-                  <article className="rounded-2xl border border-[#C9D8E4] bg-white px-5 py-7 text-center shadow-[0_10px_30px_rgba(6,30,53,0.06)] sm:px-8">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-green-200 bg-green-50 text-[#15803D]">
+                  <article className="rounded-2xl border border-white/20 bg-white/5 px-5 py-7 text-center shadow-[0_10px_30px_rgba(6,30,53,0.06)] sm:px-8">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-green-400/30 bg-green-500/10 text-green-400">
                       <Icon className="h-6 w-6" aria-hidden="true" />
                     </div>
                     <h3
-                      className="mt-4 text-lg font-bold text-[#061E35]"
+                      className="mt-4 text-lg font-bold text-white"
                       style={{ fontFamily: '"Poppins", sans-serif' }}
                     >
                       {feature.title}
                     </h3>
                     <p
-                      className="mx-auto mt-2 max-w-xl text-[15px] leading-6 text-[#405A70]"
+                      className="mx-auto mt-2 max-w-xl text-[15px] leading-6 text-white/80"
                       style={{ fontFamily: '"Inter", sans-serif' }}
                     >
                       {feature.description}
@@ -339,7 +334,7 @@ export default function PropertyManagementWheel() {
           </Link>
           <Link
             href="/how-it-works"
-            className="inline-flex min-h-[54px] items-center justify-center border border-[#B8C8D5] bg-white px-7 py-3.5 font-semibold text-[#061E35] transition hover:border-[#15803D] hover:text-[#15803D] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#15803D] focus-visible:ring-offset-4"
+            className="inline-flex min-h-[54px] items-center justify-center border border-white/50 bg-white/5 px-7 py-3.5 font-semibold text-white transition hover:border-green-400 hover:text-green-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus-visible:ring-offset-4 focus-visible:ring-offset-[#061E35]"
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             See how it works
