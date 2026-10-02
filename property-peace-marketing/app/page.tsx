@@ -20,19 +20,19 @@ export default function Home() {
     <div data-marketing-home className="min-h-screen bg-white w-full min-w-0 overflow-x-hidden">
       <main className="w-full min-w-0">
 
-        {/* Zone 1: Hero + landlord benefits — clean white background */}
+        {/* Homepage sections share the hero's navy background; cards provide light contrast. */}
         <div className="relative overflow-hidden bg-white">
           <div className="relative z-10">
             <Hero />
-            <PropertyManagementWheel />
             <CustomerReviewMarquee />
+            <PropertyManagementWheel />
           </div>
         </div>
 
         <ResourceHighlights />
 
         <CTA />
-        <FAQ />
+        <FAQ dark />
 
         {/* Zone 3: Social proof + Compare — hidden for now */}
         {/* <div

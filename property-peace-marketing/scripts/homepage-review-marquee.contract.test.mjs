@@ -39,13 +39,21 @@ function readBuiltCss() {
     .join('\n');
 }
 
-test('homepage places customer reviews between workflows and landlord resources', () => {
+test('homepage places customer reviews immediately after the hero, before workflows and resources', () => {
+  const heroIndex = indexOfMarker('data-marketing-hero="home-image"');
   const wheelIndex = indexOfMarker('data-homepage-feature-wheel="true"');
   const reviewsIndex = indexOfMarker('data-homepage-review-marquee="true"');
   const resourcesIndex = indexOfMarker('Useful before you ever open the app');
 
-  assert.ok(wheelIndex < reviewsIndex, 'customer reviews should follow the workflow wheel');
-  assert.ok(reviewsIndex < resourcesIndex, 'landlord resources should follow customer reviews');
+  assert.ok(heroIndex < reviewsIndex, 'customer reviews should follow the hero');
+  assert.ok(reviewsIndex < wheelIndex, 'the workflow wheel should follow customer reviews');
+  assert.ok(wheelIndex < resourcesIndex, 'landlord resources should follow the workflow wheel');
+  const sectionStarts = [...homepage.matchAll(/<section\b/g)].map((match) => match.index);
+  assert.equal(
+    sectionStarts.findLastIndex((index) => index < reviewsIndex),
+    sectionStarts.findLastIndex((index) => index < heroIndex) + 1,
+    'customer reviews should be the next section after the hero',
+  );
 });
 
 test('review ribbon renders verified reviews with accessible gold ratings', () => {
@@ -53,8 +61,8 @@ test('review ribbon renders verified reviews with accessible gold ratings', () =
   const reviewCards = reviews.match(/data-review-card="true"/g) ?? [];
 
   assert.match(reviews, /aria-labelledby="customer-review-marquee-heading"/);
-  assert.match(reviews, /Rental management feels lighter with/);
-  assert.match(reviews, /Property Peace/);
+  assert.match(reviews, /Trusted by <span[^>]*>2,000\+ Landlords Worldwide<\/span>/);
+  assert.doesNotMatch(reviews, /What landlords say|Rental management feels lighter with/);
   assert.equal(reviewCards.length, 20, 'ten review excerpts should render twice for a full seamless loop');
   assert.equal((reviews.match(/aria-label="5 out of 5 stars"/g) ?? []).length, 20);
   assert.equal((reviews.match(/data-review-stars="gold"/g) ?? []).length, 20);
@@ -119,7 +127,7 @@ test('each review card renders the portrait matched to its reviewer', () => {
   }
 });
 
-test('review update preserves the eyebrow and the original six review texts', () => {
+test('review update preserves the original six review texts', () => {
   const reviews = readMarkedSection('data-homepage-review-marquee="true"');
   const preservedCopy = [
     'After years of managing rentals in Excel, I can finally see my day-to-day work in one place. Property Peace saves me time and makes the whole portfolio easier to manage.',
@@ -130,7 +138,6 @@ test('review update preserves the eyebrow and the original six review texts', ()
     'Setup was as simple as advertised. The owner walked me through it, answered my questions, and has been professional and courteous every step of the way.',
   ];
 
-  assert.match(reviews, />What landlords say</);
   for (const quote of preservedCopy) {
     assert.equal(
       reviews.split(quote).length - 1,
@@ -140,14 +147,15 @@ test('review update preserves the eyebrow and the original six review texts', ()
   }
 });
 
-test('review section uses a clean white field and navy cards without customer labels', () => {
+test('review section continues the navy homepage with slate-blue cards and no customer labels', () => {
   const reviews = readMarkedSection('data-homepage-review-marquee="true"');
 
   assert.match(
     reviews,
-    /<section(?=[^>]*data-homepage-review-marquee="true")(?=[^>]*bg-white)[^>]*>/
+    /<section(?=[^>]*data-homepage-review-marquee="true")(?=[^>]*bg-\[\#061E35\])[^>]*>/
   );
-  assert.equal((reviews.match(/bg-\[\#061E35\]/g) ?? []).length, 20);
+  assert.equal((reviews.match(/<article[^>]*bg-\[\#263e52\]/g) ?? []).length, 20);
+  assert.doesNotMatch(reviews, /-mt-8|rounded-t-\[|border-y/);
   assert.doesNotMatch(reviews, />Property Peace customer</i);
   assert.doesNotMatch(reviews, /radial-gradient|bg-\[\#EEF8F2\]/);
 });

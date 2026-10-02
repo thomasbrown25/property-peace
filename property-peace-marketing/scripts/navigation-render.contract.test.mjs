@@ -28,9 +28,9 @@ test('homepage image hero reaches behind the navigation', () => {
   assert.match(html, /hero-smart-home-entry\.jpg/);
 });
 
-test('secondary routes initially render white navigation', () => {
+test('secondary routes initially render navy navigation', () => {
   for (const route of ['about', 'features', 'resources', 'pricing']) {
-    assert.match(readPage(route), /data-navigation-surface="white"/, route);
+    assert.match(readPage(route), /data-navigation-surface="navy"/, route);
   }
 });
 

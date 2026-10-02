@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { FiInstagram, FiLinkedin, FiYoutube } from 'react-icons/fi';
 import { SiTiktok, SiX } from 'react-icons/si';
 import { footerNavigation } from '@/lib/footer-navigation.mjs';
@@ -15,12 +16,14 @@ const socialLinks = [
 ];
 
 export default function SiteFooter() {
+  const pathname = usePathname();
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://app.propertypeace.io').replace(/\/$/, '');
 
   return (
     <footer className="relative overflow-hidden bg-[#061e35] text-white">
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="mb-12 flex flex-col gap-6 border-b border-white/15 pb-10 md:flex-row md:items-end md:justify-between">
+        {pathname !== '/' && (
+          <div className="mb-12 flex flex-col gap-6 border-b border-white/15 pb-10 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-[#22c55e]">A clearer place to begin</p>
             <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-[-0.025em] text-white md:text-3xl" style={{ fontFamily: '"Poppins", sans-serif' }}>
@@ -35,7 +38,8 @@ export default function SiteFooter() {
               Compare plans →
             </Link>
           </div>
-        </div>
+          </div>
+        )}
 
         <div className="grid gap-x-8 gap-y-12 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1.35fr_repeat(5,minmax(0,1fr))]">
           <div>

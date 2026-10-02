@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FiChevronDown } from 'react-icons/fi';
+import { FiArrowDownRight, FiChevronDown } from 'react-icons/fi';
 import StructuredData from '@/components/SEO/StructuredData';
 
 const faqs = [
@@ -40,7 +40,7 @@ const faqs = [
   },
 ];
 
-export default function FAQ() {
+export default function FAQ({ dark = false }: { dark?: boolean }) {
   const [openQuestions, setOpenQuestions] = useState<Set<string>>(new Set());
 
   const toggleQuestion = (question: string) => {
@@ -58,11 +58,13 @@ export default function FAQ() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-white px-4 py-16 sm:px-6 lg:px-8">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(34,197,94,0.28), transparent)' }}
-      />
+    <section className={`relative overflow-hidden px-4 py-16 sm:px-6 lg:px-8 ${dark ? 'bg-[#061E35]' : 'bg-white'}`}>
+      {!dark && (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent, rgba(34,197,94,0.28), transparent)' }}
+        />
+      )}
       <div className="mx-auto max-w-5xl">
         <motion.div
           className="mx-auto mb-10 max-w-3xl text-center"
@@ -71,35 +73,41 @@ export default function FAQ() {
           viewport={{ once: true, amount: 0.25 }}
           transition={{ duration: 0.55, ease: 'easeOut' }}
         >
-          <span
-            className="mb-5 inline-block rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-widest"
-            style={{ fontFamily: '"Inter", sans-serif', color: '#16a34a', borderColor: 'rgba(34,197,94,0.20)', background: 'rgba(34,197,94,0.08)' }}
-          >
-            FAQ
-          </span>
+          {!dark && (
+            <span
+              className="mb-5 inline-block rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-widest"
+              style={{ fontFamily: '"Inter", sans-serif', color: '#16a34a', borderColor: 'rgba(34,197,94,0.20)', background: 'rgba(34,197,94,0.08)' }}
+            >
+              FAQ
+            </span>
+          )}
           <h2
-            className="mb-4 text-3xl font-bold text-primary-deep md:text-4xl lg:text-5xl"
+            className={`text-3xl font-bold md:text-4xl lg:text-5xl ${dark ? 'text-white' : 'mb-4 text-primary-deep'}`}
             style={{ fontFamily: '"Poppins", sans-serif', lineHeight: '1.15' }}
           >
-            Questions landlords ask before getting started.
+            {dark ? 'FAQ' : 'Questions landlords ask before getting started.'}
           </h2>
-          <p
-            className="text-base leading-relaxed text-[#737373] md:text-lg"
+          {!dark && <p
+            className={`text-base leading-relaxed md:text-lg ${dark ? 'text-white/80' : 'text-[#737373]'}`}
             style={{ fontFamily: '"Inter", sans-serif' }}
           >
             Get the basics on setup, pricing, accounting, and how Property Peace fits into your rental workflow.
-          </p>
+          </p>}
         </motion.div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {faqs.map((faq, index) => {
+        <div className="grid items-start gap-4 md:grid-cols-2">
+          {[faqs.slice(0, Math.ceil(faqs.length / 2)), faqs.slice(Math.ceil(faqs.length / 2))].map((column, columnIndex) => (
+            <div key={columnIndex} className="flex flex-col gap-4">
+          {column.map((faq, itemIndex) => {
+            const index = columnIndex * Math.ceil(faqs.length / 2) + itemIndex;
             const isOpen = openQuestions.has(faq.question);
 
             return (
               <motion.div
                 key={faq.question}
-                className={`rounded-2xl border p-5 shadow-[0_16px_45px_rgba(6,30,53,0.06)] transition-colors duration-300 ${
-                  isOpen ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-white'
+                className={`border p-5 transition-colors duration-300 ${dark
+                  ? 'rounded-sm border-white/5 bg-[#263e52] hover:bg-[#304b60]'
+                  : `rounded-2xl shadow-[0_16px_45px_rgba(6,30,53,0.06)] ${isOpen ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-white'}`
                 }`}
                 initial={{ opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -114,17 +122,19 @@ export default function FAQ() {
                   onClick={() => toggleQuestion(faq.question)}
                 >
                   <span
-                    className="text-base font-semibold text-primary-deep"
+                    className={`text-base font-semibold ${dark ? 'text-white' : 'text-primary-deep'}`}
                     style={{ fontFamily: '"Inter", sans-serif' }}
                   >
                     {faq.question}
                   </span>
                   <span
-                    className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-green-50 text-green-600 transition-transform duration-300 ${
-                      isOpen ? 'rotate-180' : ''
+                    className={`mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center transition-transform duration-300 ${
+                      dark ? 'text-white' : 'rounded-full bg-green-50 text-green-600'
+                    } ${
+                      isOpen ? (dark ? '-rotate-90' : 'rotate-180') : ''
                     }`}
                   >
-                    <FiChevronDown className="h-4 w-4" />
+                    {dark ? <FiArrowDownRight className="h-4 w-4" /> : <FiChevronDown className="h-4 w-4" />}
                   </span>
                 </button>
                 <AnimatePresence initial={false}>
@@ -138,7 +148,7 @@ export default function FAQ() {
                       className="overflow-hidden"
                     >
                       <p
-                        className="mt-4 border-l-2 border-green-400 pl-4 text-sm leading-6 text-primary-deep"
+                        className={`mt-4 border-l-2 pl-4 text-sm leading-6 ${dark ? 'border-white/30 text-white/85' : 'border-green-400 text-primary-deep'}`}
                         style={{ fontFamily: '"Inter", sans-serif' }}
                       >
                         {faq.answer}
@@ -149,6 +159,8 @@ export default function FAQ() {
               </motion.div>
             );
           })}
+            </div>
+          ))}
         </div>
 
         <StructuredData

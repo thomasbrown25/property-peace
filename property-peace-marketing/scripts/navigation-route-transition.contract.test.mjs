@@ -32,7 +32,7 @@ test('returning home at the top clears stale navigation surface state', () => {
   );
 });
 
-test('route transition keeps a white surface when the restored page is actually scrolled', () => {
+test('route transition keeps a navy surface when the restored homepage is actually scrolled', () => {
   assert.equal(
     typeof navigationSurface.getNavigationRouteTransitionState,
     'function',
@@ -48,6 +48,6 @@ test('route transition keeps a white surface when the restored page is actually 
   });
   assert.equal(
     navigationSurface.getNavigationSurface({ ...staleHomeState, ...resetState }),
-    'white',
+    'navy',
   );
 });
