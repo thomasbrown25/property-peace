@@ -98,7 +98,7 @@ public sealed class AdminDashboardRepositoryTests
             IsActive = isActive,
             IsDeleted = isDeleted
         };
-        unit.Lease = lease;
+        unit.Leases.Add(lease);
         context.Units.Add(unit);
         context.Leases.Add(lease);
     }

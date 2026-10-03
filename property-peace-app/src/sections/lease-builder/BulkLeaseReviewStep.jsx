@@ -158,7 +158,7 @@ export default function BulkLeaseReviewStep({ selectedUnits, onComplete, onError
           console.error('Error creating lease for unit:', unit.unitName, err);
           return {
             success: false,
-            error: err.response?.data?.message || err.message || 'Failed to create lease',
+            error: err.response?.data?.message || err.response?.data?.title || err.message || 'Failed to create lease',
             unitName: unit.unitName
           };
         }
@@ -173,6 +173,9 @@ export default function BulkLeaseReviewStep({ selectedUnits, onComplete, onError
       successfulLeaseIds = successful.map(r => r.leaseId).filter(id => id); // Filter out any undefined IDs
 
       if (successful.length > 0 && successfulLeaseIds.length > 0) {
+        if (failed.length) {
+          onError(`Some leases failed: ${failed.map(f => `${f.unitName} - ${f.error}`).join(', ')}`);
+        }
         // Store lease IDs for potential use
         setCreatedLeaseIds(successfulLeaseIds);
         

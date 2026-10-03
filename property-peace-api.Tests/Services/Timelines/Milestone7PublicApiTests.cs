@@ -168,6 +168,46 @@ public sealed class Milestone7PublicApiTests : IDisposable
     }
 
     [Fact]
+    public async Task Unread_SentFollowUpsDoNotAlertStaff_ButRemainUnreadForTenant()
+    {
+        await SeedAsync();
+        _db.OrganizationMembers.Add(new OrganizationMember
+            { Id = 4, OrganizationId = 100, UserId = 5, IsActive = true, Role = "Manager" });
+        _db.ConversationParticipants.Add(new ConversationParticipant { ConversationId = 10, UserId = 5 });
+        await _db.SaveChangesAsync();
+        await AppendAsync("tenant-reply", TimelineVisibility.Participants, TimelineEntryKind.Message);
+        await _timeline.AppendAsync(new AppendTimelineEntryRequest
+        {
+            OrganizationId = 100, ConversationId = 10, Kind = TimelineEntryKind.Reminder,
+            OccurredAtUtc = DateTime.UtcNow, SourceType = "notification", SourceId = "tenant-reminder",
+            Summary = "Rent reminder sent to resident", Metadata = new Dictionary<string, string> { ["status"] = "attempted" },
+            Visibility = TimelineVisibility.Participants, Producer = "notification-service", EventId = "tenant-reminder",
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("tenant-reminder"))).ToLowerInvariant()
+        });
+        await _timeline.AppendAsync(new AppendTimelineEntryRequest
+        {
+            OrganizationId = 100, ConversationId = 10, Kind = TimelineEntryKind.Message,
+            OccurredAtUtc = DateTime.UtcNow, ActorUserId = 1, SourceType = "message", SourceId = "resident-reply",
+            Summary = "Resident replied", Metadata = new Dictionary<string, string> { ["status"] = "received" },
+            Visibility = TimelineVisibility.Participants, Producer = "message-api", EventId = "resident-reply",
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("resident-reply"))).ToLowerInvariant()
+        });
+        await _timeline.AppendAsync(new AppendTimelineEntryRequest
+        {
+            OrganizationId = 100, ConversationId = 10, Kind = TimelineEntryKind.Maintenance,
+            OccurredAtUtc = DateTime.UtcNow, SourceType = "notification", SourceId = "resident-maintenance",
+            Summary = "Resident reported maintenance", Metadata = new Dictionary<string, string> { ["status"] = "created" },
+            Visibility = TimelineVisibility.Participants, Producer = "notification-service", EventId = "resident-maintenance",
+            PayloadHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("resident-maintenance"))).ToLowerInvariant()
+        });
+        (await _service.GetUnreadAsync(10, 2)).UnreadCount.Should().Be(2);
+        (await _service.GetUnreadAsync(10, 5)).UnreadCount.Should().Be(2);
+        (await _service.GetUnreadAsync(10, 1)).UnreadCount.Should().Be(3);
+        await _service.MarkReadAsync(10, 1, 100, null);
+        (await _service.GetUnreadAsync(10, 1)).UnreadCount.Should().Be(0);
+    }
+
+    [Fact]
     public void EveryPublicM7Mutation_RequiresAnActiveOrganizationParameter()
     {
         var mutationNames = new[]

@@ -52,6 +52,8 @@ namespace brownstone_hub_api.Repositories.Leases
         Task<List<LoadLeaseDto>> GetLeasesDueForStartDateChecklist(DateTime date);
         /// <summary>Atomically extends an active month-to-month lease when its end date still matches the expected value.</summary>
         Task<bool> ExtendMonthToMonthLeaseEndDateAsync(long leaseId, long organizationId, DateTime expectedEndDate, DateTime newEndDate);
+        /// <summary>Rechecks bookings and renews inside one serializable transaction; false means the source changed or a successor is booked.</summary>
+        Task<bool> RenewFixedTermLeaseAsync(long leaseId, long organizationId, DateTime expectedEndDate, UpdateLeaseDto renewal);
         /// <summary>Copies related entities (fees, deposits, landlords, co-signers, pets, parking, keys, utilities, maintenance) from source lease to the new lease.</summary>
         Task CopyLeaseRelatedEntitiesToNewLeaseAsync(long sourceLeaseId, long newLeaseId);
         /// <summary>Lightweight query returning only fields needed by RentCalculator (IsActive, RentAmount, StartDate, EndDate, RentFrequency). No navigation property loads.</summary>

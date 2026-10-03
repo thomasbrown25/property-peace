@@ -12,6 +12,7 @@ namespace brownstone_hub_api.Configurations
         public void Configure(EntityTypeBuilder<Lease> b)
         {
             b.ToTable("Leases", "lease");
+            b.HasIndex(l => l.UnitId);
             b.HasIndex(l => new { l.UnitId, l.IsDeleted });
 
             b.Property(l => l.StartDate).IsRequired(false);

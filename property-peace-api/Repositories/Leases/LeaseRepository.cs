@@ -19,6 +19,19 @@ namespace brownstone_hub_api.Repositories.Leases
         private readonly ILogger<LeaseRepository> _logger = logger;
         private readonly IMapper _mapper = mapper;
 
+        private async Task ValidateTermAsync(long unitId, long excludeLeaseId, DateTime? start, DateTime? end)
+        {
+            if (!start.HasValue || !end.HasValue || end.Value.Date < start.Value.Date)
+                throw new InvalidOperationException("A finalized lease requires a valid start date and end date.");
+            var collision = await _context.Leases.AsNoTracking().AnyAsync(other =>
+                other.UnitId == unitId && other.Id != excludeLeaseId && !other.IsDeleted && other.IsActive &&
+                (other.LeaseAgreement == null || other.LeaseAgreement.IsDrafted != true) &&
+                (!other.EndDate.HasValue || other.EndDate.Value.Date > start.Value.Date) &&
+                (!other.StartDate.HasValue || other.StartDate.Value.Date < end.Value.Date));
+            if (collision)
+                throw new InvalidOperationException("Lease dates overlap an existing finalized lease for this unit.");
+        }
+
         /// <summary>
         /// Extracts just the street address (street number + route) from a full address string.
         /// Removes city, state, and zip code.
@@ -56,35 +69,14 @@ namespace brownstone_hub_api.Repositories.Leases
                 throw new KeyNotFoundException($"Unit with ID {lease.UnitId} not found");
             }
 
-            // Check if unit already has an active lease. When adding new (Id == 0), only consider active leases so we can create a renewal after ending the previous lease.
-            // Exclude the current lease if we're updating (lease.Id > 0)
-            var existingLeaseForUnit = await _context.Leases
-                .FirstOrDefaultAsync(l => l.UnitId == lease.UnitId && l.IsActive && (lease.Id == 0 || l.Id != lease.Id));
-
-            if (existingLeaseForUnit != null)
-            {
-                throw new InvalidOperationException($"Unit {lease.UnitId} already has an active lease (ID: {existingLeaseForUnit.Id})");
-            }
-
-            // Explicitly clear the Unit's Lease navigation property if it's loaded
-            // This prevents EF Core from thinking we're severing an existing relationship
-            // when adding a new lease after a previous one was deleted
-            if (_context.Entry(unit).Reference(u => u.Lease).IsLoaded)
-            {
-                var existingLease = unit.Lease;
-                if (existingLease != null)
-                {
-                    // Clear the Unit's Lease navigation property to avoid relationship conflicts
-                    // EF Core will establish the new relationship using the UnitId foreign key
-                    _context.Entry(unit).Reference(u => u.Lease).CurrentValue = null;
-                    
-                    // If the existing lease is tracked, detach it to prevent conflicts
-                    if (_context.Entry(existingLease).State != EntityState.Detached)
-                    {
-                        _context.Entry(existingLease).State = EntityState.Detached;
-                    }
-                }
-            }
+            await using var transaction = _context.Database.IsRelational() && _context.Database.CurrentTransaction == null
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
+            if (organizationId.HasValue && unit.Property.OrganizationId != organizationId.Value)
+                throw new KeyNotFoundException("Unit not found in this organization");
+            var hasPriorLease = await _context.Leases.AnyAsync(l => l.UnitId == lease.UnitId && !l.IsDeleted);
+            if (lease.IsDrafted != true)
+                await ValidateTermAsync(lease.UnitId, 0, lease.StartDate, lease.EndDate);
 
             var isDraft = lease.IsDrafted == true;
             var newLease = _mapper.Map<Lease>(lease);
@@ -149,7 +141,7 @@ namespace brownstone_hub_api.Repositories.Leases
 
             // Link only tenants already assigned to this unit (UnitId set). Imported/new tenants (UnitId null) stay org-only until the user assigns them.
             var tenantsToLink = await _context.Tenants
-                .Where(t => t.UnitId == lease.UnitId && 
+                .Where(t => !hasPriorLease && t.UnitId == lease.UnitId &&
                            !t.IsDeleted &&
                            !t.TenantLeases.Any(tl => tl.LeaseId == newLease.Id))
                 .ToListAsync();
@@ -221,6 +213,7 @@ namespace brownstone_hub_api.Repositories.Leases
 
             // Utilities, Maintenance, & Keys: create default utility and maintenance rows for new lease
             await AddDefaultUtilityAndMaintenanceForLeaseAsync(newLease.Id, newLease.OrganizationId);
+            if (transaction != null) await transaction.CommitAsync();
 
             return _mapper.Map<LoadLeaseDto>(newLease);
         }
@@ -291,6 +284,9 @@ namespace brownstone_hub_api.Repositories.Leases
                 throw new ArgumentException("UnitId is required and must be greater than 0");
             }
 
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
             var existingLease = await _context.Leases
                 .FirstOrDefaultAsync(l => l.Id == lease.Id) ?? throw new KeyNotFoundException("Lease not found");
 
@@ -349,6 +345,11 @@ namespace brownstone_hub_api.Repositories.Leases
             }
 
             // Map properties from DTO to existing lease (Unit property is ignored in AutoMapper config)
+            if (existingLease.UnitId != lease.UnitId || unit.Property.OrganizationId != existingOrganizationId)
+                throw new KeyNotFoundException("Lease not found in this unit and organization");
+            if (lease.IsDrafted != true && (lease.IsDrafted == false || lease.IsActive || existingLease.IsActive))
+                await ValidateTermAsync(lease.UnitId, lease.Id, lease.StartDate ?? existingLease.StartDate,
+                    lease.EndDate ?? (lease.StartDate.HasValue ? lease.StartDate.Value.AddYears(1) : existingLease.EndDate));
             _mapper.Map(lease, existingLease);
 
             if (lease.IsDrafted == true)
@@ -781,14 +782,19 @@ namespace brownstone_hub_api.Repositories.Leases
                 .Include(l => l.LeaseAgreement)
                 .FirstAsync(l => l.Id == existingLease.Id);
 
+            if (transaction != null) await transaction.CommitAsync();
             return _mapper.Map<LoadLeaseDto>(existingLease);
         }
 
         public async Task<LoadLeaseDto> CompleteDraft(long leaseId, long organizationId)
         {
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
             var lease = await _context.Leases
-                .FirstOrDefaultAsync(l => l.Id == leaseId && l.OrganizationId == organizationId)
+                .FirstOrDefaultAsync(l => l.Id == leaseId && l.OrganizationId == organizationId && l.Unit.Property.OrganizationId == organizationId)
                 ?? throw new KeyNotFoundException("Lease not found");
+            await ValidateTermAsync(lease.UnitId, lease.Id, lease.StartDate, lease.EndDate);
             var agreement = await _context.LeaseAgreements.FirstOrDefaultAsync(la => la.LeaseId == leaseId);
             if (agreement != null)
                 agreement.IsDrafted = false;
@@ -810,6 +816,7 @@ namespace brownstone_hub_api.Repositories.Leases
                 .Include(l => l.LeaseOccupants)
                 .Include(l => l.LeaseAgreement)
                 .FirstAsync(l => l.Id == leaseId);
+            if (transaction != null) await transaction.CommitAsync();
             return _mapper.Map<LoadLeaseDto>(reloaded);
         }
 
@@ -1023,7 +1030,7 @@ namespace brownstone_hub_api.Repositories.Leases
                     .Include(l => l.MaintenanceResponsibilities)
                     .Include(l => l.LeaseKeys)
                     .Include(l => l.LeaseAgreement)
-                    .Where(l => l.UnitId == unitId);
+                    .Where(l => l.UnitId == unitId && !l.IsDeleted);
 
                 // Filter by organizationId if provided
                 if (organizationId.HasValue)
@@ -1032,7 +1039,9 @@ namespace brownstone_hub_api.Repositories.Leases
                 }
 
                 var lease = await query
-                    .OrderByDescending(candidate => candidate.IsActive)
+                    .Where(candidate => candidate.IsActive && candidate.StartDate.HasValue && candidate.StartDate.Value.Date <= DateTime.Today &&
+                        (!candidate.EndDate.HasValue || candidate.EndDate.Value.Date >= DateTime.Today))
+                    .OrderBy(candidate => candidate.EndDate.HasValue && candidate.EndDate.Value.Date == DateTime.Today ? 0 : 1)
                     .ThenByDescending(candidate => candidate.StartDate)
                     .FirstOrDefaultAsync();
 
@@ -1097,13 +1106,15 @@ namespace brownstone_hub_api.Repositories.Leases
                 }
 
                 // STEP 3: Hard delete the lease - actually remove from the table
-                // Note: This will also clear the Unit's Lease navigation property
                 // IMPORTANT: Lease history entries (LeaseHistories table) are NOT deleted.
                 // History entries are preserved permanently unless explicitly deleted from the history view.
                 // This ensures historical records remain available for legal/compliance purposes.
                 if (lease.Unit != null)
                 {
-                    lease.Unit.IsOccupied = false;
+                    lease.Unit.IsOccupied = await _context.Leases.AnyAsync(other =>
+                        other.UnitId == lease.UnitId && other.Id != id && !other.IsDeleted && other.IsActive &&
+                        other.StartDate.HasValue && other.StartDate.Value.Date <= DateTime.Today &&
+                        (!other.EndDate.HasValue || other.EndDate.Value.Date >= DateTime.Today));
                 }
                 _context.Leases.Remove(lease);
                 await _context.SaveChangesAsync();
@@ -1424,6 +1435,20 @@ namespace brownstone_hub_api.Repositories.Leases
         {
             var expected = expectedEndDate.Date;
             var next = newEndDate.Date;
+            // Serialize against competing creates; never extend an incumbent into a successor.
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
+            var source = await _context.Leases.AsNoTracking().FirstOrDefaultAsync(l =>
+                l.Id == leaseId && l.OrganizationId == organizationId && !l.IsDeleted &&
+                l.IsActive && l.AutoRenewLease && l.LeaseLength == -1 &&
+                l.EndDate.HasValue && l.EndDate.Value.Date == expected);
+            if (source == null || next <= expected || await _context.Leases.AsNoTracking().AnyAsync(other =>
+                other.UnitId == source.UnitId && other.Id != leaseId && !other.IsDeleted && other.IsActive &&
+                (other.LeaseAgreement == null || other.LeaseAgreement.IsDrafted != true) &&
+                (!other.EndDate.HasValue || other.EndDate.Value.Date > expected) &&
+                (!other.StartDate.HasValue || other.StartDate.Value.Date < next)))
+                return false;
 
             if (_context.Database.IsRelational())
             {
@@ -1436,6 +1461,7 @@ namespace brownstone_hub_api.Repositories.Leases
                         l.EndDate.HasValue &&
                         l.EndDate.Value.Date == expected)
                     .ExecuteUpdateAsync(setters => setters.SetProperty(l => l.EndDate, next));
+                if (transaction != null) await transaction.CommitAsync();
                 return updated == 1;
             }
 
@@ -1451,6 +1477,43 @@ namespace brownstone_hub_api.Repositories.Leases
 
             lease.EndDate = next;
             await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> RenewFixedTermLeaseAsync(long leaseId, long organizationId, DateTime expectedEndDate, UpdateLeaseDto renewal)
+        {
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
+            // Hold a write-intent lock on the unit while checking for bookings and inserting.
+            // Concurrent creators still use serializable interval checks in AddLease.
+            if (_context.Database.IsSqlServer())
+                await _context.Database.SqlQueryRaw<long>(
+                    "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", renewal.UnitId)
+                    .SingleOrDefaultAsync();
+
+            var source = await _context.Leases.AsNoTracking().FirstOrDefaultAsync(l =>
+                l.Id == leaseId && l.UnitId == renewal.UnitId && l.OrganizationId == organizationId &&
+                l.Unit.Property.OrganizationId == organizationId && !l.IsDeleted && l.IsActive &&
+                l.AutoRenewLease == true && l.LeaseLength != -1 && l.EndDate.HasValue &&
+                l.EndDate.Value.Date == expectedEndDate.Date);
+            if (source == null || !renewal.StartDate.HasValue || !renewal.EndDate.HasValue ||
+                renewal.StartDate.Value.Date != expectedEndDate.Date.AddDays(1))
+                return false;
+
+            // Skip any booked future contract, not just overlaps with this renewal period.
+            // The check must happen under the same transaction as the writes.
+            var booked = await _context.Leases.AsNoTracking().AnyAsync(l =>
+                l.UnitId == renewal.UnitId && l.Id != leaseId && !l.IsDeleted && l.IsActive &&
+                (l.LeaseAgreement == null || l.LeaseAgreement.IsDrafted != true) &&
+                (!l.EndDate.HasValue || l.EndDate.Value.Date > expectedEndDate.Date));
+            if (booked) return false;
+
+            renewal.IsDrafted = false; // A renewal must reserve its dates; never save it as a draft.
+            var created = await AddLease(renewal, organizationId);
+            await CopyLeaseRelatedEntitiesToNewLeaseAsync(leaseId, created.Id);
+            await EndLease(leaseId);
+            if (transaction != null) await transaction.CommitAsync();
             return true;
         }
 
@@ -1676,7 +1739,8 @@ namespace brownstone_hub_api.Repositories.Leases
                         .ThenInclude(tl => tl.Tenant)
                     .Include(l => l.LeaseFees)
                     .Include(l => l.LeaseAgreement)
-                    .Where(l => l.OrganizationId == organizationId);
+                    .Where(l => l.OrganizationId == organizationId && l.Unit.Property.OrganizationId == organizationId &&
+                                !l.IsDeleted && !l.Unit.Property.IsDeleted);
 
                 if (isActive)
                 {
@@ -1734,12 +1798,12 @@ namespace brownstone_hub_api.Repositories.Leases
                     .Include(l => l.LeaseFees)
                     .Include(l => l.LeaseAgreement)
                     .Where(l => l.Unit.PropertyId == propertyId &&
-                                !l.Unit.Property.IsDeleted);
+                                !l.IsDeleted && !l.Unit.Property.IsDeleted);
 
                 // Filter by organizationId if provided
                 if (organizationId.HasValue)
                 {
-                    query = query.Where(l => l.OrganizationId == organizationId.Value);
+                    query = query.Where(l => l.OrganizationId == organizationId.Value && l.Unit.Property.OrganizationId == organizationId.Value);
                 }
 
                 if (isActive)
@@ -1775,16 +1839,21 @@ namespace brownstone_hub_api.Repositories.Leases
                     .Include(l => l.LeaseFees)
                     .Include(l => l.LeaseAgreement)
                     .Where(l => l.Unit.PropertyId == propertyId &&
-                                l.IsActive &&
+                                !l.IsDeleted && l.IsActive && l.StartDate.HasValue && l.StartDate.Value.Date <= DateTime.Today &&
+                                (!l.EndDate.HasValue || l.EndDate.Value.Date >= DateTime.Today) &&
+                                (l.LeaseAgreement == null || l.LeaseAgreement.IsDrafted != true) &&
                                 !l.Unit.Property.IsDeleted);
 
                 // Filter by organizationId if provided
                 if (organizationId.HasValue)
                 {
-                    query = query.Where(l => l.OrganizationId == organizationId.Value);
+                    query = query.Where(l => l.OrganizationId == organizationId.Value && l.Unit.Property.OrganizationId == organizationId.Value);
                 }
 
-                var lease = await query.FirstOrDefaultAsync();
+                var lease = await query
+                    .OrderBy(l => l.EndDate.HasValue && l.EndDate.Value.Date == DateTime.Today ? 0 : 1)
+                    .ThenByDescending(l => l.StartDate)
+                    .FirstOrDefaultAsync();
 
                 return _mapper.Map<LoadLeaseDto>(lease);
             }
@@ -2002,10 +2071,13 @@ namespace brownstone_hub_api.Repositories.Leases
                 // Mark lease as inactive (but not deleted)
                 lease.IsActive = false;
 
-                // Unit is now vacant since the active lease ended
+                // Another contract may still occupy this unit.
                 if (lease.Unit != null)
                 {
-                    lease.Unit.IsOccupied = false;
+                    lease.Unit.IsOccupied = await _context.Leases.AnyAsync(other =>
+                        other.UnitId == lease.UnitId && other.Id != leaseId && !other.IsDeleted && other.IsActive &&
+                        other.StartDate.HasValue && other.StartDate.Value.Date <= DateTime.Today &&
+                        (!other.EndDate.HasValue || other.EndDate.Value.Date >= DateTime.Today));
                 }
 
                 // Note: Tenants are NOT deleted - they remain in the Tenants table

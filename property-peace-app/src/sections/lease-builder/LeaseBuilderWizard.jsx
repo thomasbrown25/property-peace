@@ -31,6 +31,7 @@ import { getUnits } from 'store/unit/unit.action';
 import useFetchProperties from 'hooks/useFetchProperties';
 import LeaseCreatedSuccessDialog from 'components/dialogs/LeaseCreatedSuccessDialog';
 import { getActiveOrganizationId } from 'utils/impersonationSession';
+import { leaseTermError } from 'utils/successorLease.mjs';
 
 // ==============================|| LEASE BUILDER WIZARD ||============================== //
 
@@ -144,6 +145,8 @@ export default function LeaseBuilderWizard({ leaseId, onComplete, initialPropert
       if ((startDate && !endDate) || (!startDate && endDate)) {
         throw new Error('Both start and end dates must be provided together, or leave both empty');
       }
+      const termError = leaseTermError(startDate, endDate, selectedUnit);
+      if (termError) throw new Error(termError);
       
       // If dates are provided, validate end date is after start date
       if (startDate && endDate) {
@@ -288,10 +291,11 @@ export default function LeaseBuilderWizard({ leaseId, onComplete, initialPropert
       // Show success dialog
       setSuccessDialogOpen(true);
     } catch (err) {
-      setError(err.message || 'Error creating lease');
+      const message = err.response?.data?.message || err.response?.data?.title || err.message || 'Error creating lease';
+      setError(message);
       openSnackbar({
         open: true,
-        message: err.message || 'Failed to create lease',
+        message,
         variant: 'alert',
         alert: { color: 'error' }
       });
@@ -361,6 +365,7 @@ export default function LeaseBuilderWizard({ leaseId, onComplete, initialPropert
                   onStartDateChange={setStartDate}
                   endDate={endDate}
                   onEndDateChange={setEndDate}
+                  allowOccupiedUnits
                 />
               </Box>
             )}

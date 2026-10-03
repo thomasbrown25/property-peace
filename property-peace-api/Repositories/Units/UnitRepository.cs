@@ -19,7 +19,7 @@ namespace brownstone_hub_api.Repositories.Units
             {
                 var query = _context.Properties
                     .Include(p => p.Units)
-                        .ThenInclude(u => u.Lease)
+                        .ThenInclude(u => u.Leases)
                             .ThenInclude(l => l.TenantLeases)
                                 .ThenInclude(tl => tl.Tenant)
                     .Include(p => p.Units)
@@ -66,7 +66,7 @@ namespace brownstone_hub_api.Repositories.Units
             try
             {
                 var query = _context.Units
-                    .Include(u => u.Lease)
+                    .Include(u => u.Leases)
                         .ThenInclude(l => l.TenantLeases)
                             .ThenInclude(tl => tl.Tenant)
                     .Include(u => u.Amenities)
@@ -399,7 +399,7 @@ namespace brownstone_hub_api.Repositories.Units
                 var query = _context.Units
                     .Include(u => u.Amenities)
                     .Include(u => u.IncludedUtility)
-                    .Include(u => u.Lease)
+                    .Include(u => u.Leases)
                         .ThenInclude(l => l.TenantLeases)
                             .ThenInclude(tl => tl.Tenant)
                     .Include(u => u.MaintenanceRequests)

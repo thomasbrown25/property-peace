@@ -807,8 +807,8 @@ export default function LeaseDetailView({
           </Stack>
           <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ flexShrink: 0, pl: { xs: 7.25, sm: 8, md: 0 } }}>
             {isDraftLease && (
-              <Button size="small" variant="contained" startIcon={<EditOutlined />} onClick={onEditTerms}
-                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, bgcolor: '#41a541', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#37943a', boxShadow: 'none' } }}>
+              <Button size="small" variant="contained" color="success" startIcon={<EditOutlined />} onClick={onEditTerms}
+                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
                 Edit lease
               </Button>
             )}
@@ -819,8 +819,8 @@ export default function LeaseDetailView({
               </Button>
             )}
             {!isDraftLease && (lease?.isActive || isNotStarted) && (
-              <Button size="small" variant="contained" onClick={onRecordPayment}
-                sx={{ textTransform: 'none', fontWeight: 750, fontSize: '0.8rem', borderRadius: 1.5, bgcolor: '#41a541', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#37943a', boxShadow: 'none' } }}>
+              <Button size="small" variant="contained" color="success" onClick={onRecordPayment}
+                sx={{ textTransform: 'none', fontWeight: 750, fontSize: '0.8rem', borderRadius: 1.5, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
                 Record payment
               </Button>
             )}
@@ -898,7 +898,7 @@ export default function LeaseDetailView({
               <Button variant="outlined" size="small" onClick={() => navigate(leaseAgreementSetupUrl)} sx={{ textTransform: 'none', fontWeight: 650, borderColor: '#d97706', color: '#92400e' }}>
                 Create agreement
               </Button>
-              <Button variant="contained" size="small" startIcon={<EditOutlined />} onClick={onEditTerms} sx={{ textTransform: 'none', fontWeight: 700, bgcolor: '#41a541', color: '#061e35', boxShadow: 'none', '&:hover': { bgcolor: '#41a541', boxShadow: 'none' } }}>
+              <Button variant="contained" color="success" size="small" startIcon={<EditOutlined />} onClick={onEditTerms} sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
                 Edit lease details
               </Button>
             </Stack>

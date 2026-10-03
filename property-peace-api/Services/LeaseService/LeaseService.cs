@@ -206,26 +206,12 @@ namespace brownstone_hub_api.Services.LeaseService
                 }
                 else
                 {
-                    // Check if lease already exists for the unit (filtered by organizationId)
-                    var existingLease = await _leaseRepository.GetLease(lease.UnitId, organizationId);
-
-                    if (existingLease != null)
+                    // A missing ID always creates a separate contract, never edits the incumbent.
+                    if (lease.IsDrafted != true && lease.LeaseLength == -1 && lease.StartDate.HasValue)
                     {
-                        lease.Id = existingLease.Id;
-                        PreserveRenewedMonthToMonthEndDate(lease, existingLease);
-                        newLease = await _leaseRepository.UpdateLease(lease);
+                        lease.EndDate = lease.StartDate.Value.Date.AddMonths(1);
                     }
-                    else
-                    {
-                        // A new month-to-month lease always starts with a one-calendar-month
-                        // end date. Existing leases keep their server-managed renewed end date.
-                        if (lease.IsDrafted != true && lease.LeaseLength == -1 && lease.StartDate.HasValue)
-                        {
-                            lease.EndDate = lease.StartDate.Value.Date.AddMonths(1);
-                        }
-
-                        newLease = await _leaseRepository.AddLease(lease, organizationId);
-                    }
+                    newLease = await _leaseRepository.AddLease(lease, organizationId);
                 }
 
                 // Keep occupancy aligned when a draft is saved or later finalized through
@@ -233,9 +219,12 @@ namespace brownstone_hub_api.Services.LeaseService
                 var leaseHasStarted = lease.IsDrafted != true &&
                     lease.StartDate.HasValue &&
                     lease.StartDate.Value.Date <= DateTime.Today;
-                property.IsOccupied = leaseHasStarted;
-                unit.IsOccupied = leaseHasStarted;
-                await _propertyRepository.UpdateProperty(_mapper.Map<UpdatePropertyDto>(property));
+                if (leaseHasStarted && (!lease.EndDate.HasValue || lease.EndDate.Value.Date >= DateTime.Today) && !unit.IsOccupied)
+                {
+                    property.IsOccupied = true;
+                    unit.IsOccupied = true;
+                    await _propertyRepository.UpdateProperty(_mapper.Map<UpdatePropertyDto>(property));
+                }
 
                 // Generate past payments if requested (only if start date is in the past and dates are provided)
                 if (lease.MarkPastPaymentsAsPaid && newLease != null && lease.StartDate.HasValue && lease.EndDate.HasValue)
@@ -261,6 +250,10 @@ namespace brownstone_hub_api.Services.LeaseService
                 //var unit = await property.Units.FirstOrDefaultAsync(u => u.Id == lease.UnitId);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(newLease);
             }
+            catch (InvalidOperationException ex)
+            {
+                return ServiceResponse<LoadLeaseDto>.CreateError("Lease date conflict", ex.Message, statusCode: 409);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding or updating lease");
@@ -273,6 +266,8 @@ namespace brownstone_hub_api.Services.LeaseService
             try
             {
                 var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", statusCode: 400);
                 var lease = await _leaseRepository.GetLease(unitId, organizationId);
 
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease);
@@ -382,6 +377,8 @@ namespace brownstone_hub_api.Services.LeaseService
             try
             {
                 var organizationId = GetOrganizationIdFromContext();
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", statusCode: 400);
                 var lease = await _leaseRepository.GetActiveLease(propertyId, organizationId);
 
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease);

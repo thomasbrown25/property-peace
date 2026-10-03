@@ -272,11 +272,43 @@ namespace brownstone_hub_api.Controllers
             if (!leasesResponse.Success || leasesResponse.Data == null || !leasesResponse.Data.Any())
                 return NotFound(new { Message = "No lease found", Errors = new { Details = "No active lease found for this tenant" } });
 
-            // Return the active lease; fall back to the most recently started lease
-            var lease = leasesResponse.Data.FirstOrDefault(l => l.IsActive)
-                ?? leasesResponse.Data.OrderByDescending(l => l.StartDate).First();
+            var lease = SelectCurrentTenantLease(leasesResponse.Data, DateTime.UtcNow.Date);
+            if (lease == null)
+                return NotFound(new { Message = "No current lease found", Errors = new { Details = "No current lease found for this tenant" } });
 
             return Ok(ServiceResponse<LoadLeaseDto>.CreateSuccess(lease));
+        }
+
+        public static LoadLeaseDto? SelectCurrentTenantLease(IEnumerable<LoadLeaseDto> leases, DateTime date)
+        {
+            var today = date.Date;
+            return leases.Where(l => l.IsActive && l.StartDate.HasValue && l.StartDate.Value.Date <= today &&
+                    (!l.EndDate.HasValue || l.EndDate.Value.Date >= today))
+                .OrderBy(l => l.EndDate ?? DateTime.MaxValue)
+                .ThenBy(l => l.StartDate)
+                .FirstOrDefault();
+        }
+
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("property/{propertyId:long}")]
+        public async Task<IActionResult> GetPropertyLeases(long propertyId, CancellationToken cancellationToken)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
+
+            var propertyExists = await _dataContext.Properties.AsNoTracking().AnyAsync(property =>
+                property.Id == propertyId && property.OrganizationId == organizationId && !property.IsDeleted,
+                cancellationToken);
+            if (!propertyExists) return NotFound(new { message = "Property not found" });
+
+            var leases = await _dataContext.Leases.AsNoTracking()
+                .Where(lease => lease.Unit.PropertyId == propertyId &&
+                    lease.Unit.Property.OrganizationId == organizationId &&
+                    lease.OrganizationId == organizationId && !lease.IsDeleted && lease.IsActive)
+                .OrderBy(lease => lease.StartDate)
+                .Select(lease => new { lease.Id, lease.UnitId, lease.StartDate, lease.EndDate, lease.IsActive })
+                .ToListAsync(cancellationToken);
+            return Ok(new { success = true, data = leases });
         }
 
         [Authorize(Roles = "Landlord,Admin")]

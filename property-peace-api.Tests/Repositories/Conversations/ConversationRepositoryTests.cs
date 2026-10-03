@@ -535,6 +535,30 @@ namespace brownstone_hub_api.Tests.Repositories.Conversations
                 "all visible shared timeline kinds after the watermark are unread");
         }
 
+        [Fact]
+        public async Task ConversationListUnread_ExcludesSentFollowUpsForStaff_ButKeepsThemUnreadForTenant()
+        {
+            SeedUser(1, "Land", "Lord", "landlord@example.com");
+            SeedUser(2, "Tara", "Tenant", "tenant@example.com");
+            _context.OrganizationMembers.Add(new OrganizationMember
+                { Id = 1, OrganizationId = 50, UserId = 1, IsActive = true, Role = "Owner" });
+            SeedTenant(10, 2, "tenant@example.com");
+            _context.Conversations.Add(new Conversation
+                { Id = 101, Title = "Follow-up", LandlordId = 1, OrganizationId = 50, TenantId = 10 });
+            _context.ConversationParticipants.AddRange(
+                new ConversationParticipant { ConversationId = 101, UserId = 1 },
+                new ConversationParticipant { ConversationId = 101, UserId = 2 });
+            var reminder = TimelineEntry(101, 2, TimelineEntryKind.Reminder, null, TimelineVisibility.Participants);
+            reminder.Producer = "notification-service";
+            _context.ConversationTimelineEntries.AddRange(
+                TimelineEntry(101, 1, TimelineEntryKind.Message, 1, TimelineVisibility.Participants), reminder,
+                TimelineEntry(101, 3, TimelineEntryKind.Message, 2, TimelineVisibility.Participants));
+            await _context.SaveChangesAsync();
+
+            (await _repo.GetUnreadCount(101, 1)).Should().Be(1);
+            (await _repo.GetUnreadCount(101, 2)).Should().Be(2);
+        }
+
         private static ConversationTimelineEntry TimelineEntry(long conversationId, long sequence,
             TimelineEntryKind kind, long? actorUserId, TimelineVisibility visibility) => new()
         {

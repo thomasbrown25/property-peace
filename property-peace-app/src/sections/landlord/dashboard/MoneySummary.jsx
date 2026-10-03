@@ -43,21 +43,20 @@ function MoneyChartTooltip({ active, payload, label }) {
   );
 }
 
-function MetricCard({ label, value, accentColor, textColor }) {
+function MetricCard({ label, description, value, accentColor, textColor, icon }) {
   const theme = useTheme();
 
   return (
     <Box
       sx={{
         flex: 1,
-        minHeight: { xs: 108, sm: 0 },
-        px: 2,
-        py: 2.25,
+        minWidth: 0,
+        minHeight: { xs: 128, sm: 0 },
+        px: { xs: 2, sm: 1.75 },
+        py: 2,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
         justifyContent: 'center',
-        textAlign: 'center',
         border: `1px solid ${theme.palette.mode === 'dark' ? alpha('#dbe7f3', 0.2) : alpha(theme.palette.divider, 0.8)}`,
         borderRadius: 2.25,
         bgcolor: 'background.paper',
@@ -71,17 +70,40 @@ function MetricCard({ label, value, accentColor, textColor }) {
             : `0 14px 36px ${alpha(theme.palette.common.black, 0.06)}`
       }}
     >
-      <Typography variant="body2" fontWeight={700} sx={{ mb: 0.75, color: textColor }}>
-        {label}
-      </Typography>
-      <Typography variant="h4" fontWeight={700} sx={{ color: textColor, lineHeight: 1.15, fontSize: { xs: '1.25rem', sm: '1.35rem' } }}>
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ minWidth: 0 }}>
+        <Box
+          aria-hidden="true"
+          sx={{
+            width: 44,
+            height: 44,
+            borderRadius: 1.5,
+            flexShrink: 0,
+            display: 'grid',
+            placeItems: 'center',
+            color: accentColor,
+            bgcolor: alpha(accentColor, theme.palette.mode === 'dark' ? 0.18 : 0.1),
+            '& svg': { width: 25, height: 25 }
+          }}
+        >
+          {icon}
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" fontWeight={700} sx={{ color: textColor, lineHeight: 1.25 }}>
+            {label}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35, mt: 0.35 }}>
+            {description}
+          </Typography>
+        </Box>
+      </Stack>
+      <Typography variant="h4" fontWeight={700} sx={{ ml: 7, mt: 1, color: textColor, lineHeight: 1.15, fontSize: { xs: '1.5rem', sm: '1.55rem' } }}>
         {value}
       </Typography>
     </Box>
   );
 }
 
-function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, textColor }) {
+function CollectionProgressCard({ collectionPct, collectedRent, expectedRent, incomeColor, textColor }) {
   const theme = useTheme();
 
   return (
@@ -116,37 +138,32 @@ function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, tex
           }
         }}
       >
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          justifyContent="space-between"
-          alignItems={{ xs: 'stretch', sm: 'center' }}
-          spacing={1}
-          sx={{ mb: 1 }}
-        >
-          <Stack direction="row" alignItems="baseline" spacing={0.75}>
-            <Typography variant="h5" fontWeight={700} sx={{ color: textColor }}>
-              Rent Collection Progress
-            </Typography>
-            <Typography variant="h5" fontWeight={700} sx={{ color: textColor }}>
-              {collectionPct.toFixed(0)}%
-            </Typography>
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'right' }}>
-            {remainingRent > 0 ? `${formatCurrency(remainingRent)} remaining` : 'Expected rent collected'}
+        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1} sx={{ mb: 1.5 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ color: textColor }}>
+            Rent Collection
+          </Typography>
+          <Typography variant="body2" sx={{ color: textColor, textAlign: { xs: 'left', sm: 'right' } }}>
+            Collected <Box component="span" sx={{ color: incomeColor, fontWeight: 700 }}>{formatCurrency(collectedRent)}</Box> of {formatCurrency(expectedRent)}
           </Typography>
         </Stack>
 
-        <LinearProgress
-          variant="determinate"
-          value={collectionPct}
-          aria-label="Rent collection progress"
-          sx={{
-            height: 8,
-            borderRadius: 4,
-            bgcolor: alpha(incomeColor, 0.12),
-            '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: incomeColor }
-          }}
-        />
+        <Stack direction="row" alignItems="center" spacing={1.5}>
+          <LinearProgress
+            variant="determinate"
+            value={collectionPct}
+            aria-label="Rent collection progress"
+            sx={{
+              flex: 1,
+              height: 8,
+              borderRadius: 4,
+              bgcolor: alpha(theme.palette.text.secondary, 0.15),
+              '& .MuiLinearProgress-bar': { borderRadius: 4, bgcolor: incomeColor }
+            }}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0, minWidth: 36, textAlign: 'right' }}>
+            {collectionPct.toFixed(0)}%
+          </Typography>
+        </Stack>
       </Box>
     </MuiTooltip>
   );
@@ -154,14 +171,15 @@ function CollectionProgressCard({ collectionPct, remainingRent, incomeColor, tex
 
 export function RentCollectionProgress({ summary = {} }) {
   const theme = useTheme();
-  const { collectionPct, remainingRent } = normalizeRentCollectionMetrics(summary);
+  const { collectionPct, income, expectedRent } = normalizeRentCollectionMetrics(summary);
   const incomeColor = theme.palette.success.main;
   const textColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
 
   return (
     <CollectionProgressCard
       collectionPct={collectionPct}
-      remainingRent={remainingRent}
+      collectedRent={income}
+      expectedRent={expectedRent}
       incomeColor={incomeColor}
       textColor={textColor}
     />
@@ -186,14 +204,12 @@ export default function MoneySummary({
     [allPayments, lifetimeSummary?.collectedLifetime]
   );
   const isAllTime = period === 'all-time';
-  const currentOutstanding = Math.max(0, Number(summary?.outstanding ?? summary?.expectedThisMonth - summary?.collectedThisMonth) || 0);
   const monthlyMetrics = normalizeRentCollectionMetrics(summary);
   const paymentHistoryIncome = useMemo(() => summarizeCurrentMonthRentIncome(allPayments), [allPayments]);
-  const expectedRent = isAllTime ? allTimeCollected + currentOutstanding : monthlyMetrics.expectedRent;
   const income = isAllTime ? allTimeCollected : Math.max(monthlyMetrics.income, paymentHistoryIncome);
   const expenses = Number(totalExpenses || 0);
   const incomeColor = theme.palette.success.main;
-  const expenseColor = theme.palette.warning.main;
+  const expenseColor = theme.palette.error.main;
   const navy = theme.palette.mode === 'dark' ? theme.palette.primary.light : '#061e35';
   const summaryTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : '#061e35';
   const dailyChartData = useMemo(
@@ -202,9 +218,20 @@ export default function MoneySummary({
   );
   const chartData = isAllTime ? [{ label: 'All time', income, expenses }] : dailyChartData;
   const metricCards = [
-    { label: 'Rent Due', value: expectedRent, color: navy },
-    { label: 'Income', value: income, color: incomeColor },
-    { label: 'Expenses', value: expenses, color: expenseColor }
+    {
+      label: 'Income',
+      description: 'Total rent collected',
+      value: income,
+      color: incomeColor,
+      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19v-3m5 3v-6m5 6v-9m5 9V5" /><path d="m4 12 5-3 5 1 5-6" /></svg>
+    },
+    {
+      label: 'Expenses',
+      description: 'Total property expenses',
+      value: expenses,
+      color: expenseColor,
+      icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21V3Z" /><path d="M9 8h6M9 12h5" /></svg>
+    }
   ];
 
   return (
@@ -323,9 +350,11 @@ export default function MoneySummary({
           <MetricCard
             key={metric.label}
             label={metric.label}
+            description={metric.description}
             value={formatCurrency(metric.value)}
             accentColor={metric.color}
             textColor={summaryTextColor}
+            icon={metric.icon}
           />
         ))}
       </Stack>

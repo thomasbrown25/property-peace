@@ -128,8 +128,11 @@ public sealed class Milestone7ConversationService(
         var latest = await visible.Select(e => (long?)e.Sequence).MaxAsync(ct) ?? 0;
         var lastRead = await db.ConversationReadWatermarks.Where(x => x.ConversationId == conversationId && x.UserId == actorUserId)
             .Select(x => (long?)x.LastReadSequence).SingleOrDefaultAsync(ct) ?? 0;
-        var count = await visible.CountAsync(e => e.Sequence > lastRead &&
-            (!e.ActorUserId.HasValue || e.ActorUserId.Value != actorUserId), ct);
+        var organizationId = activeOrganizationId ?? await db.Conversations.Where(c => c.Id == conversationId)
+            .Select(c => c.OrganizationId!.Value).SingleAsync(ct);
+        var isStaff = await db.OrganizationMembers.AnyAsync(member => member.OrganizationId == organizationId &&
+            member.UserId == actorUserId && member.IsActive, ct);
+        var count = await visible.ForReader(db, organizationId, actorUserId, isStaff, lastRead).CountAsync(ct);
         return new UnreadStateDto(conversationId, lastRead, latest, count);
     }
 

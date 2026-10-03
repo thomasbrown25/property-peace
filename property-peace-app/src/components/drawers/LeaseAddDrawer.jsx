@@ -39,6 +39,7 @@ import { getProperties } from 'store/property/property.action';
 import { leaseLengthOptions, rentDueDayOptions, rentFrequencyOptions } from 'utils/models';
 import { addCalendarMonths, calculateLeaseEndDate } from 'utils/leaseDates';
 import { buildLeaseSubmissionPayload, calculateProratedRent, isLeaseReadyToCreate } from 'utils/leaseDraft';
+import { calendarDate, incumbentLease, leaseTermError } from 'utils/successorLease.mjs';
 import { useSWRConfig } from 'swr';
 import { dashboardEndpoints } from 'api/dashbord';
 import { useDispatch, useSelector } from 'react-redux';
@@ -265,6 +266,23 @@ export default function LeaseAddDrawer() {
   const submitLease = async (values, isDraft, { setSubmitting, resetForm }) => {
     setSubmittingAction(isDraft ? 'draft' : 'create');
     try {
+      let selectedUnit = propertyOptions.find((o) => Number(o.value) === Number(values.propertyId) && String(o.unitId) === String(values.unitId))?.unit;
+      if (!selectedUnit && values.unitId) {
+        const unitsRes = await axiosServices.get(`/api/unit/${values.propertyId}`);
+        const fetched = unitsRes.data?.data || unitsRes.data || [];
+        selectedUnit = Array.isArray(fetched) ? fetched.find((u) => Number(u.id ?? u.Id) === Number(values.unitId)) : null;
+      }
+      if (!Array.isArray(selectedUnit?.leases ?? selectedUnit?.Leases) && selectedUnit) {
+        // Older unit projections include only the current lease; include future bookings.
+        const leaseList = await axiosServices.get(`/api/lease/property/${values.propertyId}`);
+        if (!leaseList.data?.success || !Array.isArray(leaseList.data.data)) {
+          throw new Error('Could not check scheduled leases. Refresh and try again.');
+        }
+        selectedUnit = { ...selectedUnit, leases: leaseList.data.data.filter((lease) =>
+          String(lease.unitId ?? lease.UnitId) === String(values.unitId)) };
+      }
+      const termError = leaseTermError(values.leaseStartDate, values.leaseEndDate, selectedUnit);
+      if (termError) throw new Error(termError);
       const property = properties.find((p) => Number(p.id ?? p.Id) === Number(values.propertyId));
 
       // Resolve unit ID: prefer explicitly selected unit, then cached units,
@@ -272,15 +290,16 @@ export default function LeaseAddDrawer() {
       const propertyUnits = property?.units || property?.Units || [];
       let resolvedUnitId = isSingleUnitProfile
         ? (propertyUnits[0]?.id ?? propertyUnits[0]?.Id)
-        : (Number(values.unitId) || propertyUnits[0]?.id || propertyUnits[0]?.Id);
+        : Number(values.unitId);
 
       if (!resolvedUnitId) {
         try {
           const unitsRes = await axiosServices.get(`/api/unit/${values.propertyId}`);
           const fetched = unitsRes.data?.data || unitsRes.data || [];
-          resolvedUnitId = Array.isArray(fetched) ? fetched[0]?.id : undefined;
-        } catch { /* fall through — backend will return a clear error */ }
+          resolvedUnitId = Array.isArray(fetched) ? (fetched.find((u) => Number(u.id ?? u.Id) === Number(values.unitId))?.id ?? (isSingleUnitProfile ? fetched[0]?.id : undefined)) : undefined;
+        } catch (lookupError) { throw lookupError; }
       }
+      if (!resolvedUnitId) throw new Error('Select a unit before creating a lease.');
 
       const payload = buildLeaseSubmissionPayload(values, resolvedUnitId, isDraft);
       const response = await axiosServices.post('/api/lease', payload);
@@ -317,7 +336,7 @@ export default function LeaseAddDrawer() {
       console.error(error);
       openSnackbar({
         open: true,
-        message: error?.response?.data?.message || (isDraft ? 'Failed to save lease draft.' : 'Failed to add lease.'),
+        message: error?.response?.data?.message || error?.response?.data?.title || error?.message || (isDraft ? 'Failed to save lease draft.' : 'Failed to add lease.'),
         variant: 'alert',
         alert: { color: 'error' }
       });
@@ -382,7 +401,7 @@ export default function LeaseAddDrawer() {
       const currentUnit = units.find((u) => String(u.id ?? u.Id) === String(values.unitId));
       const applicationUnitMatches = drawer.leaseAddApplicationContext?.propertyId === Number(values.propertyId)
         && drawer.leaseAddApplicationContext?.unitId === Number(values.unitId);
-      if (!currentUnit && !applicationUnitMatches) setFieldValue('unitId', '');
+      if (units.length && !currentUnit && !applicationUnitMatches) setFieldValue('unitId', '');
     }
   }, [currentProperty, setFieldValue, values.unitId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -417,6 +436,10 @@ export default function LeaseAddDrawer() {
     setStepError('');
     if (!values.propertyId) {
       setStepError('Please select a property.');
+      return;
+    }
+    if (!values.unitId && !isSingleUnitProfile) {
+      setStepError('Please select a unit.');
       return;
     }
     setStep(STEP_DETAILS);
@@ -471,11 +494,6 @@ export default function LeaseAddDrawer() {
                 o.value === Number(values.propertyId) && String(o.unitId || '') === String(values.unitId || '')
               )) || propertyOptions.find((o) => o.value === Number(values.propertyId)) || null}
               onChange={(_, option) => {
-                if (option?.hasLease && option?.activeLease) {
-                  drawer.closeLeaseAddDrawer();
-                  navigate(`/landlord/leases/${option.activeLease.id ?? option.activeLease.Id}/settings`);
-                  return;
-                }
                 setFieldValue('propertyId', option ? option.value : '');
                 setFieldValue('unitId', option?.unitId ? String(option.unitId) : '');
                 setStepError('');
@@ -534,6 +552,15 @@ export default function LeaseAddDrawer() {
               </Typography>
             )}
           </Stack>
+          {(() => {
+            const unit = propertyOptions.find((o) => Number(o.value) === Number(values.propertyId) && String(o.unitId) === String(values.unitId))?.unit;
+            const incumbent = incumbentLease(unit);
+            return incumbent && (
+              <Alert severity={calendarDate(incumbent.endDate ?? incumbent.EndDate) ? 'info' : 'warning'}>
+                Current lease end date: {calendarDate(incumbent.endDate ?? incumbent.EndDate) || 'not set'}. Schedule the successor on or after this date. The current resident remains through the end date; a same-day successor becomes current the next day.
+              </Alert>
+            );
+          })()}
 
           <Stack spacing={0.75}>
             <Typography variant="caption" fontWeight={600} color="text.secondary">
@@ -560,8 +587,11 @@ export default function LeaseAddDrawer() {
 
     // Step 2: Lease details
     if (step === STEP_DETAILS) {
+      const selectedUnit = propertyOptions.find((o) => Number(o.value) === Number(values.propertyId) && String(o.unitId) === String(values.unitId))?.unit;
+      const termError = leaseTermError(values.leaseStartDate, values.leaseEndDate, selectedUnit);
       return (
         <Grid container spacing={3}>
+          {termError && <Grid size={{ xs: 12 }}><Alert severity="error">{termError}</Alert></Grid>}
           <Grid size={{ xs: 12, md: 6 }}>
             <FormInput
               name="leaseStartDate"
@@ -571,6 +601,7 @@ export default function LeaseAddDrawer() {
               setFieldValue={setFieldValue}
               touched={Boolean(touched.leaseStartDate)}
               errorText={errors.leaseStartDate}
+              inputProps={{ min: calendarDate(incumbentLease(selectedUnit)?.endDate ?? incumbentLease(selectedUnit)?.EndDate) || undefined }}
             />
           </Grid>
 

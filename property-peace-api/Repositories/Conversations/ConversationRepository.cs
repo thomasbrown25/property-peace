@@ -4,6 +4,7 @@ using brownstone_hub_api.Dtos.Conversation;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using brownstone_hub_api.Models;
+using brownstone_hub_api.Services.Timelines;
 
 namespace brownstone_hub_api.Repositories.Conversations
 {
@@ -983,8 +984,8 @@ namespace brownstone_hub_api.Repositories.Conversations
                     .SingleOrDefaultAsync() ?? 0;
 
                 var visible = _context.ConversationTimelineEntries.AsNoTracking()
-                    .Where(x => x.ConversationId == conversationId && x.Sequence > lastRead &&
-                        (!x.ActorUserId.HasValue || x.ActorUserId.Value != userId));
+                    .Where(x => x.ConversationId == conversationId)
+                    .ForReader(_context, access.OrganizationId, userId, isStaff, lastRead);
                 if (!isStaff)
                 {
                     visible = visible.Where(x => x.Visibility != TimelineVisibility.StaffOnly);

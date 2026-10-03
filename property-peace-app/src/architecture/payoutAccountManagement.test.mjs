@@ -28,7 +28,7 @@ test('Bank Accounts shows the payment entity first and provides add, edit, and r
 test('Payout Assignments shows every property and edits its single truthful income and deposit destination', () => {
   assert.match(payoutAssignmentsSource, /Property payout assignments/);
   assert.match(payoutAssignmentsSource, /\['Income', 'Deposit'\]/);
-  assert.match(payoutAssignmentsSource, /Both labels currently use the same payout account/);
+  assert.doesNotMatch(payoutAssignmentsSource, /Both labels currently use the same payout account/);
   assert.match(payoutAssignmentsSource, /addOrUpdateProperty/);
   assert.match(payoutAssignmentsSource, /operatingAccountId: selectedAccount \? accountId\(selectedAccount\) : null/);
   assert.match(payoutAssignmentsSource, /Save assignment/);

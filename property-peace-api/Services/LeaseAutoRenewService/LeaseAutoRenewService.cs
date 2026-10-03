@@ -113,7 +113,6 @@ namespace brownstone_hub_api.Services.LeaseAutoRenewService
 
             var newStartDate = lease.EndDate.Value.Date.AddDays(1);
             var newEndDate = newStartDate.AddMonths(termMonths);
-
             var oldRent = lease.RentAmount ?? 0m;
             var newRent = oldRent;
             if (lease.AutoRenewRentIncrement == true && lease.AutoRenewRentIncrementValue.HasValue)
@@ -125,14 +124,11 @@ namespace brownstone_hub_api.Services.LeaseAutoRenewService
                     newRent = Math.Round(oldRent + lease.AutoRenewRentIncrementValue.Value, 2);
             }
 
-            await _leaseRepository.EndLease(sourceLeaseId);
-
             var updateDto = BuildUpdateLeaseDtoForRenewal(lease, newStartDate, newEndDate, newRent, isMonthToMonthRenewal ? -1 : termMonths);
-            var newLease = await _leaseRepository.AddLease(updateDto, organizationId);
-
-            await _leaseRepository.CopyLeaseRelatedEntitiesToNewLeaseAsync(sourceLeaseId, newLease.Id);
-
-            _logger.LogInformation("Auto-renew: completed for source lease {SourceId}, new lease {NewId}", sourceLeaseId, newLease.Id);
+            if (await _leaseRepository.RenewFixedTermLeaseAsync(sourceLeaseId, organizationId, lease.EndDate.Value.Date, updateDto))
+                _logger.LogInformation("Auto-renew: completed for source lease {SourceId}", sourceLeaseId);
+            else
+                _logger.LogInformation("Auto-renew: skipped lease {SourceId} because it changed or a successor is booked", sourceLeaseId);
         }
 
         private static UpdateLeaseDto BuildUpdateLeaseDtoForRenewal(LoadLeaseDto source, DateTime newStartDate, DateTime newEndDate, decimal newRent, int termMonths)
@@ -151,7 +147,7 @@ namespace brownstone_hub_api.Services.LeaseAutoRenewService
                 RentFrequency = source.RentFrequency,
                 RentDueDay = source.RentDueDay ?? 1,
                 IsActive = true,
-                IsDrafted = true,
+                IsDrafted = false,
                 OrganizationId = source.OrganizationId,
                 OperatingAccountId = source.OperatingAccountId,
                 ProratedRentDue = source.ProratedRentDue,

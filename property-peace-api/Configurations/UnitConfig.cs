@@ -25,11 +25,11 @@ namespace brownstone_hub_api.Configurations
              .HasForeignKey(ri => ri.UnitId)
              .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure the 1:1 from ONE side only (here)
-            b.HasOne(u => u.Lease)
+            b.HasMany(u => u.Leases)
              .WithOne(l => l.Unit)
-             .HasForeignKey<Lease>(l => l.UnitId)
+             .HasForeignKey(l => l.UnitId)
              .OnDelete(DeleteBehavior.NoAction);
+
 
             b.HasOne(u => u.Property)
            .WithMany(p => p.Units)
