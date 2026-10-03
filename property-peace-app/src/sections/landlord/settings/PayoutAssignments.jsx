@@ -203,9 +203,6 @@ export default function PayoutAssignments() {
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 760 }}>
           See where income and deposit funds are routed for each property, then edit the property’s default Stripe payout destination.
         </Typography>
-        <Alert severity="info" icon={false} sx={{ mt: 2 }}>
-          Both labels currently use the same payout account. Changing this property default affects future transfers that use the property default; lease-specific payout overrides remain unchanged.
-        </Alert>
       </Box>
       <Divider />
 

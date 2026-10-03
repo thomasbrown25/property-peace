@@ -237,11 +237,13 @@ export default function Button(theme) {
         containedError: getColorStyle({ variant: 'contained', color: 'error', theme }),
         containedSuccess: {
           ...successContained,
-          color: FILLED_PRIMARY_NAVY,
+          // Use a deeper green for readable white labels at rest and on hover.
+          backgroundColor: '#2e7d32',
+          color: theme.palette.common.white,
           '&:hover': {
             ...successContained['&:hover'],
-            backgroundColor: theme.palette.success.main,
-            color: FILLED_PRIMARY_NAVY
+            backgroundColor: '#276a2a',
+            color: theme.palette.common.white
           }
         },
         containedInfo: getColorStyle({ variant: 'contained', color: 'info', theme }),

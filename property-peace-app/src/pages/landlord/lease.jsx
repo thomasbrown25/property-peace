@@ -81,6 +81,7 @@ import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { buildLeaseMoveInReadiness, deriveExactLeaseSigners, selectCurrentSignatureStatus, validateExactLeaseSigners } from 'utils/leaseMoveIn';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { leaseById } from 'utils/leaseById.mjs';
 
 // E-Signature Status Labels
 const SIGNATURE_STATUS_LABELS = {
@@ -217,18 +218,8 @@ export default function LeasePage() {
 
   // Real-time updates: DocuSign Connect webhook + SignalR LeaseSignatureUpdated (no polling)
 
-  // ✅ FIXED: properly flatten properties with their units
-  const lease = properties
-    ?.flatMap((p) =>
-      (p.units || [])
-        .filter((u) => u.lease)
-        .map((u) => ({
-          ...u.lease,
-          unit: u,
-          propertyName: p.name
-        }))
-    )
-    ?.find((l) => l?.id?.toString() === leaseId);
+  // Resolve the requested contract, not only the unit's current lease projection.
+  const lease = leaseById(properties, leaseId);
 
   const signatureLeaseId = lease?.id ?? lease?.Id ?? null;
   const signatureEnvelopeId =

@@ -180,7 +180,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
             {
                 var properties = await _dataContext.Properties
                     .Include(p => p.Units)
-                        .ThenInclude(u => u.Lease!)
+                        .ThenInclude(u => u.Leases)
                             .ThenInclude(l => l.TenantLeases!)
                                 .ThenInclude(tl => tl.Tenant)
                     .Where(p => organizationIds.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
@@ -204,7 +204,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
             if (unitIds?.Count > 0)
             {
                 var units = await _dataContext.Units
-                    .Include(u => u.Lease!)
+                    .Include(u => u.Leases)
                         .ThenInclude(l => l.TenantLeases!)
                             .ThenInclude(tl => tl.Tenant)
                     .Where(u => unitIds.Contains(u.Id) && organizationIds.Contains(u.Property.OrganizationId ?? 0))
@@ -224,7 +224,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
             {
                 var properties = await _dataContext.Properties
                     .Include(p => p.Units)
-                        .ThenInclude(u => u.Lease!)
+                        .ThenInclude(u => u.Leases)
                             .ThenInclude(l => l.TenantLeases!)
                                 .ThenInclude(tl => tl.Tenant)
                     .Where(p => propertyIds.Contains(p.Id) && organizationIds.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
@@ -393,7 +393,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
 
                     var allProperties = await _dataContext.Properties
                         .Include(p => p.Units)
-                            .ThenInclude(u => u.Lease!)
+                            .ThenInclude(u => u.Leases)
                                 .ThenInclude(l => l.TenantLeases!)
                                     .ThenInclude(tl => tl.Tenant)
                         .Where(p => orgIdsToUse.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
@@ -423,7 +423,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     if (dto.UnitIds != null && dto.UnitIds.Any())
                     {
                         var units = await _dataContext.Units
-                            .Include(u => u.Lease!)
+                            .Include(u => u.Leases)
                                 .ThenInclude(l => l.TenantLeases!)
                                     .ThenInclude(tl => tl.Tenant)
                             .Where(u => dto.UnitIds.Contains(u.Id))
@@ -454,7 +454,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                         {
                             var properties = await _dataContext.Properties
                                 .Include(p => p.Units)
-                                    .ThenInclude(u => u.Lease!)
+                                    .ThenInclude(u => u.Leases)
                                         .ThenInclude(l => l.TenantLeases!)
                                             .ThenInclude(tl => tl.Tenant)
                                 .Where(p => propertyIdsToProcess.Contains(p.Id))
@@ -1243,7 +1243,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
 
                     var allProperties = await _dataContext.Properties
                         .Include(p => p.Units)
-                            .ThenInclude(u => u.Lease!)
+                            .ThenInclude(u => u.Leases)
                                 .ThenInclude(l => l.TenantLeases!)
                                     .ThenInclude(tl => tl.Tenant)
                         .Where(p => orgIdsToUse.Contains(p.OrganizationId ?? 0) && !p.IsDeleted)
@@ -1273,7 +1273,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     if (unitIds != null && unitIds.Any())
                     {
                         var units = await _dataContext.Units
-                            .Include(u => u.Lease!)
+                            .Include(u => u.Leases)
                                 .ThenInclude(l => l.TenantLeases!)
                                     .ThenInclude(tl => tl.Tenant)
                             .Where(u => unitIds.Contains(u.Id))
@@ -1300,7 +1300,7 @@ Subject line only (no quotes, no 'Subject:' prefix):";
                     {
                         var properties = await _dataContext.Properties
                             .Include(p => p.Units)
-                                .ThenInclude(u => u.Lease!)
+                                .ThenInclude(u => u.Leases)
                                     .ThenInclude(l => l.TenantLeases!)
                                         .ThenInclude(tl => tl.Tenant)
                             .Where(p => propertyIds.Contains(p.Id))

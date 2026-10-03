@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import dashboardImage from '../../assets/images/landing/dashboard.png';
 
 export default function Hero() {
   return (
@@ -61,13 +60,13 @@ export default function Hero() {
           </div>
           <div className="relative mb-8 mt-3 min-w-0 sm:mb-12 lg:mb-0 lg:mt-16 lg:-translate-y-10 lg:self-center">
             <Image
-              src={dashboardImage}
-              alt="Property Peace dashboard showing rent progress, property portfolio, payments, and maintenance"
-              width={1671}
-              height={1233}
+              src="/images/landing/hero-right.png"
+              alt="Property Peace overview of rent collection, listings, applications, and finances"
+              width={1448}
+              height={1086}
               priority
               sizes="(max-width: 1023px) 100vw, 48vw"
-              className="block h-auto w-full border border-white/20 shadow-[0_22px_70px_rgba(0,0,0,0.35)]"
+              className="block h-auto w-full drop-shadow-[0_22px_34px_rgba(0,0,0,0.4)]"
             />
           </div>
         </div>

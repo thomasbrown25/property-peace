@@ -18,6 +18,7 @@ const colorScale = {
 const theme = {
   palette: {
     mode: 'light',
+    common: { white: '#fff' },
     primary: colorScale,
     secondary: colorScale,
     error: colorScale,
@@ -60,7 +61,7 @@ function contrastRatio(foreground, background) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-test('contained green action buttons keep navy text at rest and on hover', async (t) => {
+test('contained green action buttons use white text on accessible green at rest and on hover', async (t) => {
   const vite = await createServer({
     root: appRoot,
     logLevel: 'silent',
@@ -72,10 +73,12 @@ test('contained green action buttons keep navy text at rest and on hover', async
   const { default: createButtonOverrides } = await vite.ssrLoadModule('/src/themes/overrides/Button.js');
   const containedSuccess = createButtonOverrides(theme).MuiButton.styleOverrides.containedSuccess;
 
-  assert.equal(containedSuccess.color, '#061e35');
-  assert.equal(containedSuccess['&:hover'].color, '#061e35');
-  assert.ok(
-    contrastRatio(containedSuccess['&:hover'].color, containedSuccess['&:hover'].backgroundColor) >= 4.5,
-    'hover text and background must meet WCAG AA contrast for normal-size button labels'
-  );
+  assert.equal(containedSuccess.color, '#fff');
+  assert.equal(containedSuccess['&:hover'].color, '#fff');
+  for (const state of [containedSuccess, containedSuccess['&:hover']]) {
+    assert.ok(
+      contrastRatio(state.color, state.backgroundColor) >= 4.5,
+      'green button text and background must meet WCAG AA contrast for normal-size labels'
+    );
+  }
 });

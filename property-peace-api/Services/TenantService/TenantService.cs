@@ -79,9 +79,9 @@ namespace brownstone_hub_api.Services.TenantService
                     {
                         return ServiceResponse<LoadTenantDto>.CreateError("Invalid unit ID", "The specified unit does not exist.");
                     }
-                    if (requestedLeaseId.HasValue && unit.Lease?.Id != requestedLeaseId.Value)
+                    if (requestedLeaseId.HasValue && !unit.Leases.Any(l => l.Id == requestedLeaseId.Value && l.UnitId == unit.Id))
                         return ServiceResponse<LoadTenantDto>.CreateError("The selected lease does not belong to the selected unit", statusCode: 400);
-                    tenant.LeaseId = unit.Lease?.Id;
+                    tenant.LeaseId = requestedLeaseId ?? unit.Lease?.Id;
                 }
 
                 // Set OrganizationId on the tenant DTO

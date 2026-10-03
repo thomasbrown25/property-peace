@@ -90,6 +90,7 @@ import DocumentsTab from 'sections/landlord/property/DocumentsTab';
 import ExpensesTab from 'sections/landlord/property/ExpensesTab';
 import OverviewTab from 'sections/landlord/property/OverviewTab';
 import PropertyOverview from 'sections/landlord/property/PropertyOverview';
+import PropertyScheduledLeases from 'sections/landlord/property/PropertyScheduledLeases';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import { bankAccountAPI } from 'api';
 import axiosServices from 'utils/axios';
@@ -2632,6 +2633,7 @@ export default function Property() {
               rentRecords={rentRecords}
               onCreateListing={drawer.openListingAddDrawer}
             />
+            <PropertyScheduledLeases property={selectedProperty} propertyId={propertyId} />
           </AnimateIn>
         </Box>
       {/* Confirmation Dialog */}

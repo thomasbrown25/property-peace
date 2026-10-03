@@ -38,6 +38,7 @@ import { selectUnits } from 'store/unit/unit.selector';
 import { openSnackbar } from 'api/snackbar';
 import useFetchProperties from 'hooks/useFetchProperties';
 import FormNumberInput from 'components/input/FormNumberInput';
+import { calendarDate, incumbentLease, leaseTermError } from 'utils/successorLease.mjs';
 
 // Date helper functions
 function firstOfNextMonth(date = new Date()) {
@@ -148,6 +149,12 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
 
   const propertyUnits = getPropertyUnits();
   
+  const selectedIncumbentEnds = propertyUnits
+    .filter((unit) => selectedUnitIds.has(unit.id) && incumbentLease(unit))
+    .map((unit) => calendarDate((unit.lease ?? unit.Lease)?.endDate ?? (unit.lease ?? unit.Lease)?.EndDate));
+  const latestIncumbentEnd = selectedIncumbentEnds.filter(Boolean).sort().at(-1);
+  const hasUndatedIncumbent = selectedIncumbentEnds.some((end) => !end);
+
   // Filter units based on search
   const filteredUnits = unitSearchValue
     ? propertyUnits.filter(unit => {
@@ -239,10 +246,6 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
   };
 
   const handleUnitToggle = (unitId, unit) => {
-    // Don't allow toggling if unit has existing lease
-    if (unitHasExistingLease(unit)) {
-      return;
-    }
     const newSelected = new Set(selectedUnitIds);
     if (newSelected.has(unitId)) {
       newSelected.delete(unitId);
@@ -253,8 +256,7 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
   };
 
   const handleSelectAll = () => {
-    // Only consider units without existing leases
-    const selectableUnits = filteredUnits.filter(u => !unitHasExistingLease(u));
+    const selectableUnits = filteredUnits;
     const selectableUnitIds = new Set(selectableUnits.map(u => u.id));
     const allSelectableSelected = selectableUnits.length > 0 && selectableUnits.every(u => selectedUnitIds.has(u.id));
     
@@ -295,6 +297,15 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
       return;
     }
 
+    for (const unitId of selectedUnitIds) {
+      const unit = propertyUnits.find((u) => u.id === unitId);
+      const termError = leaseTermError(leaseTerms.startDate, leaseTerms.endDate, unit);
+      if (termError) {
+        setError(`${unit?.name || `Unit ${unitId}`}: ${termError}`);
+        return;
+      }
+    }
+    setError(null);
     // Apply terms to selected units
     const updatedUnits = [...selectedUnits];
     
@@ -408,6 +419,11 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
         </Grid>
 
         {/* Lease Terms Form */}
+        {selectedIncumbentEnds.length > 0 && (
+          <Grid size={{ xs: 12 }}><Alert severity={hasUndatedIncumbent ? 'warning' : 'info'}>
+            {hasUndatedIncumbent ? 'A selected unit has a current lease without an end date; set its end date before scheduling.' : `Selected occupied units require a start date on or after ${latestIncumbentEnd}. The outgoing residents remain current through their end dates (including a same-day successor).`}
+          </Alert></Grid>
+        )}
         <Grid size={{ xs: 12 }}>
           <Typography variant="h6" sx={{ mb: 2, mt: 2 }}>
             Lease Terms
@@ -419,6 +435,7 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
             <DatePicker
               label="Lease Start Date *"
               value={leaseTerms.startDate}
+              minDate={latestIncumbentEnd ? new Date(`${latestIncumbentEnd}T00:00:00`) : undefined}
               onChange={handleStartDateChange}
               slotProps={{
                 textField: {
@@ -594,13 +611,13 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
                           <TableCell padding="checkbox">
                             <Checkbox
                               indeterminate={
-                                filteredUnits.filter(u => !unitHasExistingLease(u)).length > 0 &&
+                                filteredUnits.length > 0 &&
                                 selectedUnitIds.size > 0 &&
-                                selectedUnitIds.size < filteredUnits.filter(u => !unitHasExistingLease(u)).length
+                                selectedUnitIds.size < filteredUnits.length
                               }
                               checked={
-                                filteredUnits.filter(u => !unitHasExistingLease(u)).length > 0 &&
-                                filteredUnits.filter(u => !unitHasExistingLease(u)).every(u => selectedUnitIds.has(u.id))
+                                filteredUnits.length > 0 &&
+                                filteredUnits.every(u => selectedUnitIds.has(u.id))
                               }
                               onChange={handleSelectAll}
                             />
@@ -626,11 +643,11 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
                           const tableRow = (
                             <TableRow
                               key={unit.id}
-                              hover={!hasExistingLease}
-                              selected={isSelected && !hasExistingLease}
-                              onClick={() => !hasExistingLease && handleUnitToggle(unit.id, unit)}
+                              hover
+                              selected={isSelected}
+                              onClick={() => handleUnitToggle(unit.id, unit)}
                               sx={{
-                                cursor: hasExistingLease ? 'not-allowed' : 'pointer',
+                                cursor: 'pointer',
                                 ...(hasExistingLease && {
                                   bgcolor: 'success.lighter',
                                   opacity: 0.8,
@@ -649,11 +666,10 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
                               <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                   checked={isSelected}
-                                  disabled={hasExistingLease}
                                   onChange={() => handleUnitToggle(unit.id, unit)}
                                 />
                               </TableCell>
-                              <TableCell>{unit.name || `Unit ${unit.id}`}</TableCell>
+                              <TableCell>{unit.name || `Unit ${unit.id}`}{hasExistingLease && <Typography variant="caption" display="block">Current lease ends {calendarDate((unit.lease ?? unit.Lease)?.endDate ?? (unit.lease ?? unit.Lease)?.EndDate) || 'date not set'}</Typography>}</TableCell>
                               <TableCell align="center">{unit.bedrooms ?? unit.Bedrooms ?? 'N/A'}</TableCell>
                               <TableCell align="center">{unit.baths ?? unit.Baths ?? 'N/A'}</TableCell>
                               <TableCell align="right">
@@ -672,7 +688,7 @@ export default function BulkLeaseTermsStep({ selectedUnits, onUpdateSelectedUnit
 
                           if (hasExistingLease) {
                             return (
-                              <Tooltip key={unit.id} title="This unit already has a lease" arrow>
+                              <Tooltip key={unit.id} title="Schedule a successor on or after the current lease end date" arrow>
                                 {tableRow}
                               </Tooltip>
                             );

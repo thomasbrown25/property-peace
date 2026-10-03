@@ -24,6 +24,7 @@ import { selectProperties } from 'store/property/property.selector';
 import { selectUnits } from 'store/unit/unit.selector';
 import { openSnackbar } from 'api/snackbar';
 import useFetchProperties from 'hooks/useFetchProperties';
+import { calendarDate, incumbentLease } from 'utils/successorLease.mjs';
 
 // ==============================|| PROPERTY UNIT SELECTOR ||============================== //
 
@@ -41,7 +42,8 @@ export default function PropertyUnitSelector({
   startDate,
   onStartDateChange,
   endDate,
-  onEndDateChange
+  onEndDateChange,
+  allowOccupiedUnits = false
 }) {
   const dispatch = useDispatch();
   const { properties, isLoading } = useFetchProperties();
@@ -75,7 +77,7 @@ export default function PropertyUnitSelector({
     }
     // Default for lease creation: unit must NOT have an active lease
     // Units with inactive/archived leases are available for new leases
-    return !unitHasLease(unit);
+    return allowOccupiedUnits || !unitHasLease(unit);
   };
 
   // Check if property can be selected
@@ -266,7 +268,7 @@ export default function PropertyUnitSelector({
                 if (!option) return '';
                 const hasActiveLease = unitHasLease(option);
                 const baseLabel = `${option.name || `Unit ${option.id}`} - ${option.bedrooms || 0} bed, ${option.baths || 0} bath`;
-                return hasActiveLease ? `${baseLabel} (has lease)` : baseLabel;
+                return hasActiveLease ? `${baseLabel} (current lease ends ${calendarDate(incumbentLease(option)?.endDate ?? incumbentLease(option)?.EndDate) || 'date not set'})` : baseLabel;
               }}
               isOptionEqualToValue={(option, value) => {
                 if (!option || !value) return false;
@@ -295,9 +297,9 @@ export default function PropertyUnitSelector({
               renderOption={(props, option) => {
                 const canSelect = unitCanBeSelected(option);
                 const hasActiveLease = unitHasLease(option);
-                const tooltipText = getUnitTooltip ? getUnitTooltip(option) : (hasActiveLease ? 'This unit already has an active lease' : '');
+                const tooltipText = getUnitTooltip ? getUnitTooltip(option) : (hasActiveLease ? 'Schedule a successor on or after the current lease end date' : '');
                 const baseLabel = `${option.name || `Unit ${option.id}`} - ${option.bedrooms || 0} bed, ${option.baths || 0} bath`;
-                const label = hasActiveLease ? `${baseLabel} (has lease)` : baseLabel;
+                const label = hasActiveLease ? `${baseLabel} (current lease ends ${calendarDate(incumbentLease(option)?.endDate ?? incumbentLease(option)?.EndDate) || 'date not set'})` : baseLabel;
                 return (
                   <Tooltip title={tooltipText || ''} arrow>
                     <li {...props} key={option.id} style={{ opacity: canSelect ? 1 : 0.5 }}>
@@ -311,10 +313,14 @@ export default function PropertyUnitSelector({
           </Grid>
 
           {/* Optional Start and End Date Fields */}
+          {allowOccupiedUnits && incumbentLease(selectedUnit) && (
+            <Grid size={{ xs: 12 }}><Alert severity="info">Current lease end date: {calendarDate(incumbentLease(selectedUnit)?.endDate ?? incumbentLease(selectedUnit)?.EndDate) || 'not set'}. A successor needs a start date on or after this date. The outgoing resident remains current through the end date (including a same-day successor).</Alert></Grid>
+          )}
           <Grid size={{ xs: 12, sm: 6 }}>
             <DatePicker
               label="Lease Start Date (optional)"
               value={startDate}
+              minDate={allowOccupiedUnits && incumbentLease(selectedUnit) ? (calendarDate(incumbentLease(selectedUnit)?.endDate ?? incumbentLease(selectedUnit)?.EndDate) ? new Date(`${calendarDate(incumbentLease(selectedUnit)?.endDate ?? incumbentLease(selectedUnit)?.EndDate)}T00:00:00`) : undefined) : undefined}
               onChange={(date) => onStartDateChange?.(date)}
               slotProps={{
                 textField: {

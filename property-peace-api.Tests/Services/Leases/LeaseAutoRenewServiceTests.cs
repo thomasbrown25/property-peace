@@ -67,6 +67,22 @@ public sealed class LeaseAutoRenewServiceTests
     }
 
     [Fact]
+    public async Task ProcessAutoRenewalsAsync_BookedSuccessorDoesNotArchiveIncumbent()
+    {
+        var endDate = new DateTime(2026, 8, 1);
+        var lease = new LoadLeaseDto { Id = LeaseId, OrganizationId = OrganizationId, PropertyId = 3,
+            UnitId = 12, StartDate = endDate.AddYears(-1), EndDate = endDate, LeaseLength = 12,
+            AutoRenewLease = true, AutoRenewLeaseLength = 12 };
+        var repository = CreateRepository(lease);
+        repository.Setup(r => r.RenewFixedTermLeaseAsync(LeaseId, OrganizationId, endDate, It.IsAny<UpdateLeaseDto>()))
+            .ReturnsAsync(false);
+
+        await CreateService(repository.Object).ProcessAutoRenewalsAsync(endDate);
+        repository.Verify(r => r.EndLease(It.IsAny<long>()), Times.Never);
+        repository.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
+    }
+
+    [Fact]
     public async Task ProcessAutoRenewalsAsync_PreservesFixedTermRenewalAtEndDate()
     {
         var endDate = new DateTime(2026, 8, 1);
@@ -82,25 +98,26 @@ public sealed class LeaseAutoRenewServiceTests
             AutoRenewLease = true,
             AutoRenewLeaseLength = 12
         });
-        repository
-            .Setup(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), OrganizationId))
-            .ReturnsAsync(new LoadLeaseDto { Id = 99 });
+        repository.Setup(r => r.RenewFixedTermLeaseAsync(LeaseId, OrganizationId, endDate, It.IsAny<UpdateLeaseDto>()))
+            .ReturnsAsync(true);
 
         await CreateService(repository.Object).ProcessAutoRenewalsAsync(endDate);
 
-        repository.Verify(r => r.EndLease(LeaseId), Times.Once);
-        repository.Verify(r => r.AddLease(
+        repository.Verify(r => r.EndLease(It.IsAny<long>()), Times.Never);
+        repository.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
+        repository.Verify(r => r.RenewFixedTermLeaseAsync(LeaseId, OrganizationId, endDate,
             It.Is<UpdateLeaseDto>(lease =>
                 lease.StartDate == new DateTime(2026, 8, 2) &&
                 lease.EndDate == new DateTime(2027, 8, 2) &&
-                lease.LeaseLength == 12),
-            OrganizationId), Times.Once);
-        repository.Verify(r => r.CopyLeaseRelatedEntitiesToNewLeaseAsync(LeaseId, 99), Times.Once);
+                lease.LeaseLength == 12)), Times.Once);
+        repository.Verify(r => r.CopyLeaseRelatedEntitiesToNewLeaseAsync(It.IsAny<long>(), It.IsAny<long>()), Times.Never);
     }
 
     private static Mock<ILeaseRepository> CreateRepository(LoadLeaseDto lease)
     {
         var repository = new Mock<ILeaseRepository>();
+        repository.Setup(r => r.GetLeasesByPropertyId(lease.PropertyId, true, OrganizationId))
+            .ReturnsAsync(new List<LoadLeaseDto>());
         repository
             .Setup(r => r.GetLeasesEndingOnOrBeforeForAutoRenew(It.IsAny<DateTime>()))
             .ReturnsAsync([new LoadLeaseDto { Id = LeaseId, OrganizationId = OrganizationId }]);

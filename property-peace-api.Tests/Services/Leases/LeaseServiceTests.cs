@@ -268,18 +268,19 @@ namespace brownstone_hub_api.Tests.Services.Leases
         }
 
         [Fact]
-        public async Task AddOrUpdateLease_UpdatesExistingLease_WhenLeaseAlreadyExists()
+        public async Task AddOrUpdateLease_InsertsSeparateLease_WhenUnitAlreadyHasLease()
         {
             SetOrgContext(10);
             _propertyRepo.Setup(r => r.GetPropertyById(1, 10)).ReturnsAsync(MakePropertyWithUnit());
             _leaseRepo.Setup(r => r.GetLease(1, 10L)).ReturnsAsync(MakeLeaseDto(1));
-            _leaseRepo.Setup(r => r.UpdateLease(It.IsAny<UpdateLeaseDto>())).ReturnsAsync(MakeLeaseDto(1));
+            _leaseRepo.Setup(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L)).ReturnsAsync(MakeLeaseDto(2));
 
             var result = await _sut.AddOrUpdateLease(MakeUpdateLeaseDto());
 
             result.Success.Should().BeTrue();
-            _leaseRepo.Verify(r => r.UpdateLease(It.IsAny<UpdateLeaseDto>()), Times.Once);
-            _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), It.IsAny<long?>()), Times.Never);
+            result.Data!.Id.Should().Be(2);
+            _leaseRepo.Verify(r => r.UpdateLease(It.IsAny<UpdateLeaseDto>()), Times.Never);
+            _leaseRepo.Verify(r => r.AddLease(It.IsAny<UpdateLeaseDto>(), 10L), Times.Once);
         }
 
         // ── Signature tenant validation ───────────────────────────────────────────

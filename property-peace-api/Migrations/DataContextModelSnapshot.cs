@@ -3408,8 +3408,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.HasIndex("UnitId")
-                        .IsUnique();
+                    b.HasIndex("UnitId");
 
                     b.HasIndex("UnitId", "IsDeleted");
 
@@ -13342,8 +13341,8 @@ namespace brownstone_hub_api.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
-                        .WithOne("Lease")
-                        .HasForeignKey("brownstone_hub_api.Models.Lease", "UnitId")
+                        .WithMany("Leases")
+                        .HasForeignKey("UnitId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
@@ -15854,7 +15853,7 @@ namespace brownstone_hub_api.Migrations
 
                     b.Navigation("IncludedUtility");
 
-                    b.Navigation("Lease");
+                    b.Navigation("Leases");
 
                     b.Navigation("MaintenanceRequests");
 

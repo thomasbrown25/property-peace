@@ -45,17 +45,12 @@ import { getListings } from 'store/listing/listing.action';
 import { selectListings, selectListingLoading } from 'store/listing/listing.selector';
 import { formatCurrency } from 'utils/formatters';
 import placeholderImage from 'assets/images/placeholder-house.png';
+import { getImages, getReadinessIssues, getReadinessScore, isActiveListing } from './listing-readiness.mjs';
 
 const PAGE_SIZE = 10;
 
 const read = (object, camel, pascal) => object?.[camel] ?? object?.[pascal];
 const getId = (listing) => read(listing, 'id', 'Id');
-const getStatus = (listing) => {
-  const value = read(listing, 'status', 'Status');
-  if (typeof value === 'string') return value.toLowerCase();
-  return { 0: 'draft', 1: 'active', 2: 'expired', 3: 'unlisted' }[value] || 'draft';
-};
-const isActiveListing = (listing) => ['active', 'published'].includes(getStatus(listing));
 const getDisplayStatus = (listing) => (isActiveListing(listing) ? 'Active' : 'Draft');
 const getTitle = (listing) => {
   const propertyName = read(listing, 'propertyName', 'PropertyName') || 'Untitled listing';
@@ -73,13 +68,6 @@ const getDate = (listing, camel, pascal) => {
 const getAvailableDate = (listing) =>
   getDate(listing, 'dateAvailable', 'DateAvailable') || getDate(listing, 'availableDate', 'AvailableDate');
 const getUpdatedDate = (listing) => getDate(listing, 'updatedAt', 'UpdatedAt') || getDate(listing, 'createdAt', 'CreatedAt');
-const hasPhoto = (listing) => getImages(listing).length > 0 || Boolean(read(listing, 'coverImageUrl', 'CoverImageUrl'));
-const isStale = (listing) => {
-  const updated = getUpdatedDate(listing);
-  return Boolean(updated && Date.now() - updated.getTime() >= 30 * 86400000);
-};
-const getReadinessIssues = (listing) =>
-  [!hasPhoto(listing) && 'photos', getRent(listing) <= 0 && 'rent', isStale(listing) && 'stale'].filter(Boolean);
 
 function getImageUrl(listing) {
   const images = getImages(listing);
@@ -140,7 +128,7 @@ function SummaryCard({ label, value, helper, icon, color, active, onClick }) {
 function Readiness({ listing }) {
   const theme = useTheme();
   const issues = getReadinessIssues(listing);
-  const score = Math.round(((3 - issues.length) / 3) * 100);
+  const score = getReadinessScore(listing);
   const color =
     issues.length === 0 ? theme.palette.success.main : issues.length === 1 ? theme.palette.warning.main : theme.palette.error.main;
 
@@ -166,7 +154,7 @@ function Readiness({ listing }) {
       <Typography sx={{ mt: 0.5, fontSize: '0.68rem', color: 'text.secondary' }}>
         {issues.length
           ? `Check ${issues.join(', ')}`
-          : `${getImages(listing).length} photo${getImages(listing).length === 1 ? '' : 's'} · rent set`}
+          : 'Required listing details complete'}
       </Typography>
     </Box>
   );
@@ -348,7 +336,8 @@ function ListingsTab() {
       if (readiness === 'attention' && issues.length === 0) return false;
       if (readiness === 'photos' && !issues.includes('photos')) return false;
       if (readiness === 'rent' && !issues.includes('rent')) return false;
-      if (readiness === 'stale' && !issues.includes('stale')) return false;
+      if (readiness === 'address' && !issues.includes('address')) return false;
+      if (readiness === 'description' && !issues.includes('description')) return false;
       if (availability === 'now' && (!available || available > today)) return false;
       if (availability === 'upcoming') {
         const difference = available ? Math.ceil((available.getTime() - today.getTime()) / 86400000) : -1;
@@ -418,7 +407,7 @@ function ListingsTab() {
           <SummaryCard
             label="Needs attention"
             value={metrics.needsAttention}
-            helper="Photos, rent, or stale content"
+            helper="Missing required listing details"
             icon={<WarningOutlined />}
             color={theme.palette.error.main}
             active={readiness === 'attention'}
@@ -476,7 +465,8 @@ function ListingsTab() {
                 <MenuItem value="attention">Needs attention</MenuItem>
                 <MenuItem value="photos">Missing photos</MenuItem>
                 <MenuItem value="rent">Missing rent</MenuItem>
-                <MenuItem value="stale">Stale content</MenuItem>
+                <MenuItem value="address">Missing address</MenuItem>
+                <MenuItem value="description">Missing description</MenuItem>
               </Select>
               <Select
                 size="small"

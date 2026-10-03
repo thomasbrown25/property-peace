@@ -6,28 +6,33 @@ const source = fs.readFileSync(new URL('../sections/landlord/dashboard/MoneySumm
 const portfolioSource = fs.readFileSync(new URL('../sections/landlord/dashboard/Portfolio.jsx', import.meta.url), 'utf8');
 const overviewSource = fs.readFileSync(new URL('../pages/landlord/dashboard-overview.jsx', import.meta.url), 'utf8');
 
-test('money summary renders one chart and exactly three stacked summary cards', () => {
+test('money summary renders one chart and exactly two stacked summary cards', () => {
   assert.match(source, /ResponsiveContainer/);
   assert.match(source, /BarChart/);
   assert.match(source, /direction=\"column\"/);
-  assert.match(source, /const metricCards = \[/);
-  assert.doesNotMatch(source, /label:\s*['\"]Outstanding['\"]/);
+  const metricCards = source.match(/const metricCards = \[([\s\S]*?)\n  \];/)?.[1];
+  assert.ok(metricCards);
+  assert.equal((metricCards.match(/label:\s*'/g) || []).length, 2);
+  assert.doesNotMatch(metricCards, /label:\s*['\"](?:Rent Due|Outstanding)['\"]/);
 });
 
-test('money summary uses the requested metric labels and chart series', () => {
-  assert.match(source, /label:\s*['\"]Rent Due['\"]/);
+test('money summary uses the requested metric labels, subtitle copy, icons and chart series', () => {
   assert.match(source, /label:\s*['\"]Income['\"]/);
+  assert.match(source, /description:\s*['\"]Total rent collected['\"]/);
   assert.match(source, /label:\s*['\"]Expenses['\"]/);
+  assert.match(source, /description:\s*['\"]Total property expenses['\"]/);
+  assert.match(source, /color: incomeColor,[\s\S]*?icon: <svg/);
+  assert.match(source, /color: expenseColor,[\s\S]*?icon: <svg/);
   assert.match(source, /dataKey=\"income\"/);
   assert.match(source, /dataKey=\"expenses\"/);
 });
 
-test('all summary card headings and amounts use bold, dark-mode-aware typography', () => {
-  assert.match(source, /function MetricCard\(\{ label, value, accentColor, textColor \}\)/);
-  assert.match(source, /variant=\"body2\" fontWeight=\{700\} sx=\{\{ mb: 0\.75, color: textColor \}\}/);
-  assert.match(source, /variant=\"h4\" fontWeight=\{700\} sx=\{\{ color: textColor,/);
+test('summary card headings and amounts use bold, dark-mode-aware typography', () => {
+  assert.match(source, /function MetricCard\(\{ label, description, value, accentColor, textColor, icon \}\)/);
+  assert.match(source, /variant=\"body2\" fontWeight=\{700\} sx=\{\{ color: textColor, lineHeight:/);
+  assert.match(source, /variant=\"h4\" fontWeight=\{700\} sx=\{\{ ml: 7, mt: 1, color: textColor,/);
   assert.match(source, /const summaryTextColor = theme\.palette\.mode === 'dark' \? theme\.palette\.common\.white : '#061e35'/);
-  assert.match(source, /accentColor=\{metric\.color\}[\s\S]*textColor=\{summaryTextColor\}/);
+  assert.match(source, /accentColor=\{metric\.color\}[\s\S]*textColor=\{summaryTextColor\}[\s\S]*icon=\{metric\.icon\}/);
 });
 
 test('money summary exposes a working period dropdown instead of a static month chip', () => {
@@ -44,7 +49,12 @@ test('collection progress is exported as its own dashboard-grid card', () => {
   assert.match(source, /export function RentCollectionProgress/);
   assert.match(source, /height:\s*['"]100%['"]/);
   assert.match(source, /const textColor = theme\.palette\.mode === 'dark' \? theme\.palette\.common\.white : '#061e35'/);
-  assert.match(source, /<Typography variant="h5" fontWeight=\{700\} sx=\{\{ color: textColor \}\}>\s*Rent Collection Progress/);
+  assert.match(source, /<Typography variant="h5" fontWeight=\{700\} sx=\{\{ color: textColor \}\}>\s*Rent Collection\s*<\/Typography>/);
+  assert.match(source, /Collected <Box component="span" sx=\{\{ color: incomeColor, fontWeight: 700 \}\}>\{formatCurrency\(collectedRent\)\}<\/Box> of \{formatCurrency\(expectedRent\)\}/);
+  assert.match(source, /collectedRent=\{income\}/);
+  assert.match(source, /expectedRent=\{expectedRent\}/);
+  assert.match(source, /<Stack direction="row" alignItems="center" spacing=\{1\.5\}>\s*<LinearProgress/);
+  assert.match(source, /<Typography variant="body2" color="text.secondary" sx=\{\{ flexShrink: 0, minWidth: 36, textAlign: 'right' \}\}>\s*\{collectionPct\.toFixed\(0\)\}%/);
   assert.match(source, /aria-label="Rent collection progress"/);
   assert.match(overviewSource, /gridArea:\s*['"]progress['"]/);
   assert.match(overviewSource, /<RentCollectionProgress summary=\{summary\}/);

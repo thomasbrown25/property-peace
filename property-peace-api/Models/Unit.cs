@@ -23,14 +23,20 @@ namespace brownstone_hub_api.Models
 
         public List<Amenity>? Amenities { get; set; } = [];
         public List<IncludedUtility>? IncludedUtility { get; set; } = [];
-        public Lease? Lease { get; set; }
+        public ICollection<Lease> Leases { get; set; } = [];
+        // Compatibility for loaded entity consumers; never use this inside an EF query.
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+        public Lease? Lease => Leases.Where(l => !l.IsDeleted && l.IsActive && l.StartDate?.Date <= DateTime.Today)
+            .OrderBy(l => l.EndDate?.Date == DateTime.Today ? 0 : 1)
+            .ThenByDescending(l => l.StartDate)
+            .FirstOrDefault(l => !l.EndDate.HasValue || l.EndDate.Value.Date >= DateTime.Today);
         public ICollection<Tenant>? Tenants { get; set; }
         public ICollection<MaintenanceRequest>? MaintenanceRequests { get; set; } = [];
         public Unit()
         {
             Amenities = [];
             IncludedUtility = [];
-            Lease = null;
+
             Tenants = [];
             MaintenanceRequests = [];
         }

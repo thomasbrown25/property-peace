@@ -22,6 +22,8 @@ namespace brownstone_hub_api.Dtos.Unit
         public List<AmenityDto> Amenities { get; set; } = [];
         public List<IncludedUtilityDto> IncludedUtility { get; set; } = [];
         public LoadLeaseDto? Lease { get; set; }
+        // All non-deleted contracts, including scheduled successors; Lease remains the current projection.
+        public List<LoadLeaseDto> Leases { get; set; } = [];
         public ICollection<LoadTenantDto> Tenants { get; set; } = [];
         public ICollection<LoadMaintenanceRequestDto> MaintenanceRequests { get; set; } = [];
     }
