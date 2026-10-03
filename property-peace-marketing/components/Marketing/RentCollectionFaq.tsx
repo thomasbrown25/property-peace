@@ -43,24 +43,26 @@ export default function RentCollectionFaq({ live }: RentCollectionFaqProps) {
   ];
 
   return (
-    <section aria-labelledby="rent-collection-faq" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#15803D]">Frequently asked questions</p>
-        <h2 id="rent-collection-faq" className="mt-4 text-3xl font-bold text-white md:text-5xl">
-          Rent collection software FAQs
-        </h2>
-      </div>
+    <section aria-labelledby="rent-collection-faq" className="bg-[#061E35] px-4 py-20 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <div className="text-center">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-300">Frequently asked questions</p>
+          <h2 id="rent-collection-faq" className="mt-4 text-3xl font-bold text-white md:text-5xl">
+            Rent collection software FAQs
+          </h2>
+        </div>
 
-      <div className="mt-10 space-y-3">
-        {faqs.map((faq, index) => (
-          <details key={faq.question} className="group bg-[#F3F6F8] open:bg-[#EFF8F2]" open={index === 0}>
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-5 px-6 py-5 text-left text-lg font-bold text-[#061E35] marker:content-none">
-              {faq.question}
-              <FiChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" />
-            </summary>
-            <p className="px-6 pb-6 leading-relaxed text-[#405A70]">{faq.answer}</p>
-          </details>
-        ))}
+        <div className="mt-10 space-y-3">
+          {faqs.map((faq, index) => (
+            <details key={faq.question} className="group border border-white/10 bg-[#263e52] text-white" open={index === 0}>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-5 px-6 py-5 text-left text-lg font-bold marker:content-none">
+                {faq.question}
+                <FiChevronDown className="h-5 w-5 shrink-0 transition-transform group-open:rotate-180" />
+              </summary>
+              <p className="px-6 pb-6 leading-relaxed text-slate-200">{faq.answer}</p>
+            </details>
+          ))}
+        </div>
       </div>
     </section>
   );

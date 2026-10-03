@@ -4,6 +4,16 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
+test("rent collection hero uses the supplied photograph and landing fade behind the content", async () => {
+  const source = await read("../components/Marketing/RentCollectionFeaturePage.tsx");
+  const image = await readFile(new URL("../public/images/rent-collection/hero.png", import.meta.url));
+  assert.equal(image.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])), true);
+  assert.match(source, /data-marketing-hero-theme="dark"/);
+  assert.match(source, /url\(\/images\/rent-collection\/hero\.png\)/);
+  assert.match(source, /linear-gradient\(to_top,#061E35_0%/);
+  assert.match(source, /className="relative mx-auto max-w-6xl/);
+});
+
 test("rent collection route uses the dedicated page without changing generic CTAs", async () => {
   const source = await read("../app/features/[slug]/page.tsx");
   const metadata = source.slice(source.indexOf("export async function generateMetadata"), source.indexOf("export default async function"));
@@ -15,7 +25,7 @@ test("rent collection route uses the dedicated page without changing generic CTA
   assert.equal((source.match(/View Pricing/g) ?? []).length >= 2, true);
 });
 
-test("rent collection page contains the requested launch sections and honest unavailable state", async () => {
+test("rent collection page contains the requested launch sections and approval gate", async () => {
   const source = await read("../components/Marketing/RentCollectionFeaturePage.tsx");
   const required = [
     "COLLECT RENT ONLINE",
@@ -34,10 +44,14 @@ test("rent collection page contains the requested launch sections and honest una
     "A better tenant experience",
     "More than rent collection",
     "Approval comes before payment setup.",
-    "Request Rent Payment Access",
-    "not currently available",
+    "Get Started",
+    "Rent payment access starts off for every organization.",
   ];
   for (const claim of required) assert.equal(source.includes(claim), true, "Missing: " + claim);
+  assert.equal(source.includes("Back to Features"), false);
+  assert.equal(source.includes("Request Rent Payment Access"), false);
+  assert.equal((source.match(/bg-\[#263e52\]/g) ?? []).length, 3);
+  assert.match(await read("../components/Marketing/RentCollectionFaq.tsx"), /<section[^>]+bg-\[#263e52\]/);
 
   const eyebrow = source.slice(source.indexOf("COLLECT RENT ONLINE") - 160, source.indexOf("COLLECT RENT ONLINE"));
   assert.equal(/border|rounded|shadow/.test(eyebrow), false);
@@ -49,6 +63,7 @@ test("rent collection FAQ covers only supported payment behavior", async () => {
   const source = await read("../components/Marketing/RentCollectionFaq.tsx");
   assert.equal((source.match(/question:/g) ?? []).length, 8);
   for (const claim of [
+    "not currently available",
     "owner or manager requests",
     "connected-payee review",
     "Stripe-hosted",

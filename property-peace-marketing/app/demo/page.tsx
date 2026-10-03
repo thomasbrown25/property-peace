@@ -89,29 +89,38 @@ export default function DemoPage() {
 
   return (
     <div className="min-h-screen bg-[#061E35] text-white">
-      <main className="bg-[#061E35] pt-28 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <motion.div
-            className="text-center mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+      <section data-marketing-hero-theme="dark" className="relative flex min-h-[480px] items-center justify-center overflow-hidden bg-[#061E35] px-4 pb-24 pt-36 text-center sm:min-h-[540px] sm:px-6 sm:pt-40 lg:px-8">
+        <div
+          className="absolute inset-0 bg-cover bg-[position:64%_center] bg-no-repeat sm:bg-center"
+          style={{ backgroundImage: 'url(/images/book-demo/hero.png)' }}
+          aria-hidden="true"
+        />
+        <div
+          className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.82)_58%,rgba(6,30,53,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.72)_60%,rgba(6,30,53,0.62)_100%)]"
+          aria-hidden="true"
+        />
+        <motion.div
+          className="relative mx-auto max-w-4xl"
+          initial={false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        >
+          <h1
+            className="mb-4 text-4xl font-bold text-white md:text-5xl"
+            style={{ fontFamily: '"Poppins", sans-serif' }}
           >
-            <h1
-              className="text-4xl md:text-5xl font-bold text-white mb-4"
-              style={{ fontFamily: '"Poppins", sans-serif' }}
-            >
-              Simplify Your Property Management
-            </h1>
-            <p
-              className="text-xl text-white/80 max-w-2xl mx-auto"
-              style={{ fontFamily: '"Inter", sans-serif' }}
-            >
-              See how Property Peace can streamline your property management. Schedule a personalized demo with our team.
-            </p>
-          </motion.div>
-
+            Simplify Your Property Management
+          </h1>
+          <p
+            className="mx-auto max-w-2xl text-xl text-white/80"
+            style={{ fontFamily: '"Inter", sans-serif' }}
+          >
+            See how Property Peace can streamline your property management. Schedule a personalized demo with our team.
+          </p>
+        </motion.div>
+      </section>
+      <main className="bg-[#061E35] px-4 pb-16 pt-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-4xl">
           {/* Progress Indicator */}
           <motion.div
             className="flex items-center justify-center mb-12"
