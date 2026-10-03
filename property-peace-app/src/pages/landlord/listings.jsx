@@ -59,7 +59,6 @@ const getTitle = (listing) => {
 };
 const getAddress = (listing) => read(listing, 'propertyAddress', 'PropertyAddress') || 'Address not added';
 const getRent = (listing) => Number(read(listing, 'monthlyRent', 'MonthlyRent') || 0);
-const getImages = (listing) => read(listing, 'images', 'Images') || [];
 const getDate = (listing, camel, pascal) => {
   const value = read(listing, camel, pascal);
   const date = value ? new Date(value) : null;
