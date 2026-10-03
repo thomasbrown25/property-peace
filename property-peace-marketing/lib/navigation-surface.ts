@@ -33,7 +33,7 @@ export function getNavigationSurface({
   dropdownOpen,
   mobileMenuOpen,
 }: NavigationSurfaceInput): NavigationSurface {
-  if (!['/', '/listings', '/listings/', '/about', '/about/', '/pricing', '/pricing/', '/resources', '/resources/'].includes(pathname)) return 'navy';
+  if (!['/', '/listings', '/listings/', '/about', '/about/', '/pricing', '/pricing/', '/resources', '/resources/', '/demo', '/demo/', '/features/rent-collection', '/features/rent-collection/'].includes(pathname)) return 'navy';
   const desktopIntentActive =
     desktopIntentEnabled && (pointerInside || focusInside || dropdownOpen);
   return scrolled || desktopIntentActive || mobileMenuOpen ? 'navy' : 'transparent';

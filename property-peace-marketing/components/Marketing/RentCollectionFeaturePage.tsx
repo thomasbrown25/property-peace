@@ -1,6 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
-  FiArrowLeft,
   FiBell,
   FiBookOpen,
   FiCheck,
@@ -13,7 +13,6 @@ import {
   FiZap,
 } from "react-icons/fi";
 import { rentPaymentsAreLive } from "@/lib/rent-payment-launch";
-import RentCollectionHeroMock from "./RentCollectionHeroMock";
 import RentCollectionFaq from "./RentCollectionFaq";
 
 const trustItems = [
@@ -79,13 +78,17 @@ export default function RentCollectionFeaturePage() {
 
   return (
     <main className="bg-[#061E35] text-white">
-      <section data-marketing-hero-theme="light" className="relative overflow-hidden bg-[#061E35]">
-        <div className="mx-auto max-w-6xl px-4 pb-16 pt-32 sm:px-6 sm:pt-36 lg:px-8 lg:pb-24">
-          <Link href="/features" className="mb-9 inline-flex items-center text-sm font-semibold text-slate-200 transition-colors hover:text-green-300">
-            <FiArrowLeft className="mr-2 h-4 w-4" />
-            Back to Features
-          </Link>
-
+      <section data-marketing-hero-theme="dark" className="relative isolate overflow-hidden bg-[#061E35]">
+        <div
+          className="absolute inset-0 bg-cover bg-[position:70%_center] bg-no-repeat sm:bg-[position:65%_center] lg:bg-center"
+          style={{ backgroundImage: 'url(/images/rent-collection/hero.png)' }}
+          aria-hidden="true"
+        />
+        <div
+          className="absolute inset-0 bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_20%,rgba(6,30,53,0.82)_58%,rgba(6,30,53,0.72)_100%)] sm:bg-[linear-gradient(to_top,#061E35_0%,rgba(6,30,53,0.98)_18%,rgba(6,30,53,0.72)_60%,rgba(6,30,53,0.62)_100%)]"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-32 sm:px-6 sm:pt-36 lg:px-8 lg:pb-24">
           <div className="grid items-center gap-12 lg:grid-cols-[0.93fr_1.07fr]">
             <div>
               <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-green-300">
@@ -98,16 +101,10 @@ export default function RentCollectionFeaturePage() {
                 Custom late fees, automatic AI-assisted follow-ups, and secure bank connections help keep every rent cycle moving.
               </p>
 
-              {!live && (
-                <p role="status" className="mt-6 max-w-xl border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
-                  Online rent payment access is not currently available. You can still use Property Peace to organize rent records, balances, and reminders.
-                </p>
-              )}
-
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link href="https://app.propertypeace.io/register" className="inline-flex min-h-14 items-center justify-center gap-2 bg-[#16A34A] px-7 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#15803D]">
                   <FiZap className="h-4 w-4" />
-                  {live ? "Set Up Rent Payments" : "Request Rent Payment Access"}
+                  Get Started
                 </Link>
                 <Link href="/pricing" className="inline-flex min-h-14 items-center justify-center border border-[#D5E0E7] bg-white px-7 py-3 font-semibold text-[#061E35] transition hover:border-[#16A34A] hover:text-[#15803D]">
                   View Pricing
@@ -124,7 +121,15 @@ export default function RentCollectionFeaturePage() {
               </div>
             </div>
 
-            <RentCollectionHeroMock />
+            <Image
+              src="/images/rent-collection/hero-right.png"
+              alt="Illustrated rent collection dashboard with payment progress, income, expenses, and a received payment"
+              width={1448}
+              height={1086}
+              sizes="(max-width: 1023px) 100vw, 52vw"
+              className="h-auto w-full drop-shadow-[0_22px_34px_rgba(0,0,0,0.4)]"
+              priority
+            />
           </div>
         </div>
       </section>
@@ -144,21 +149,31 @@ export default function RentCollectionFeaturePage() {
             ["Follow up consistently", "Keep due-date and overdue reminders on a predictable schedule."],
             ["Reconcile with confidence", "Use verified payment events to update one organized rent ledger."],
           ].map(([title, body]) => (
-            <article key={title} className="bg-white p-7">
+            <article key={title} className="border border-white/10 bg-[#263e52] p-7">
               <FiCheck className="h-7 w-7 text-[#16A34A]" />
-              <h3 className="mt-5 text-xl font-bold text-[#061E35]">{title}</h3>
-              <p className="mt-3 leading-relaxed text-[#516A80]">{body}</p>
+              <h3 className="mt-5 text-xl font-bold text-white">{title}</h3>
+              <p className="mt-3 leading-relaxed text-slate-200">{body}</p>
             </article>
           ))}
         </div>
 
         <Link href="https://app.propertypeace.io/register" className="mt-9 inline-flex min-h-14 items-center justify-center bg-[#16A34A] px-8 py-3 font-semibold text-white transition hover:bg-[#15803D]">
-          {live ? "Collect Rent Securely" : "Request Rent Payment Access"}
+          Get Started
         </Link>
       </section>
 
-      <section className="bg-[#061E35] px-4 py-20 text-white sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl">
+      <section className="relative isolate overflow-hidden bg-[#061E35] px-4 py-20 text-white sm:px-6 lg:px-8">
+        <div
+          className="pointer-events-none absolute inset-0 bg-cover bg-[position:70%_center] bg-no-repeat lg:bg-center"
+          style={{ backgroundImage: 'url(/images/rent-collection/tenants.png)' }}
+          aria-hidden="true"
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,#061E35_0%,rgba(6,30,53,0.82)_18%,rgba(6,30,53,0.65)_48%,rgba(6,30,53,0.78)_80%,#061E35_100%)]"
+          aria-hidden="true"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,rgba(6,30,53,0.6),transparent_85%)]" aria-hidden="true" />
+        <div className="relative mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#5EE58A]">A better tenant experience</p>
             <h2 className="mt-4 text-3xl font-bold md:text-5xl">Rent day should feel straightforward for tenants, too.</h2>
@@ -207,14 +222,14 @@ export default function RentCollectionFeaturePage() {
             </div>
           </div>
 
-          <aside className="self-center bg-[#F3F6F8] p-8 md:p-10">
+          <aside className="self-center border border-white/10 bg-[#263e52] p-8 md:p-10">
             <FiBookOpen className="h-9 w-9 text-[#16A34A]" />
-            <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-[#637083]">Free landlord resource</p>
-            <h2 className="mt-3 text-2xl font-bold text-[#061E35]">Rental property cash-flow template</h2>
-            <p className="mt-4 leading-relaxed text-[#516A80]">
+            <p className="mt-6 text-xs font-bold uppercase tracking-[0.18em] text-slate-200">Free landlord resource</p>
+            <h2 className="mt-3 text-2xl font-bold text-white">Rental property cash-flow template</h2>
+            <p className="mt-4 leading-relaxed text-slate-200">
               Build a clearer monthly view of rental income, operating expenses, and the cash you can plan around.
             </p>
-            <Link className="mt-6 inline-flex items-center font-semibold text-[#15803D] underline decoration-2 underline-offset-4" href="/blog/rental-property-cash-flow-template-landlords/">
+            <Link className="mt-6 inline-flex items-center font-semibold text-green-300 underline decoration-2 underline-offset-4 hover:text-green-200" href="/blog/rental-property-cash-flow-template-landlords/">
               Get the cash-flow template
             </Link>
           </aside>
@@ -236,10 +251,10 @@ export default function RentCollectionFeaturePage() {
             ].map(([Icon, title, body]) => {
               const StepIcon = Icon as typeof FiCheck;
               return (
-                <article key={title as string} className="bg-white p-6">
+                <article key={title as string} className="border border-white/10 bg-[#263e52] p-6">
                   <StepIcon className="h-6 w-6 text-[#16A34A]" />
-                  <h3 className="mt-4 font-bold text-[#061E35]">{title as string}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#516A80]">{body as string}</p>
+                  <h3 className="mt-4 font-bold text-white">{title as string}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-200">{body as string}</p>
                 </article>
               );
             })}
