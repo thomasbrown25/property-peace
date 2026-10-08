@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const homepage = fs.readFileSync(path.join(projectRoot, 'out', 'index.html'), 'utf8');
+const source = fs.readFileSync(path.join(projectRoot, 'components/Sections/CustomerReviewMarquee.tsx'), 'utf8');
+const cssSource = fs.readFileSync(path.join(projectRoot, 'app/globals.css'), 'utf8');
 
 function indexOfMarker(marker) {
   const index = homepage.indexOf(marker);
@@ -13,172 +15,53 @@ function indexOfMarker(marker) {
   return index;
 }
 
-function readMarkedSection(marker) {
-  const markerIndex = indexOfMarker(marker);
+function readReviewSection() {
+  const markerIndex = indexOfMarker('data-homepage-review-marquee="true"');
   const sectionStart = homepage.lastIndexOf('<section', markerIndex);
-  assert.notEqual(sectionStart, -1, `${marker} should live in a section`);
-
-  const sectionTags = /<\/?section\b[^>]*>/gi;
-  sectionTags.lastIndex = sectionStart;
-  let depth = 0;
-
-  for (let match; (match = sectionTags.exec(homepage));) {
-    depth += match[0].startsWith('</') ? -1 : 1;
-    if (depth === 0) return homepage.slice(sectionStart, sectionTags.lastIndex);
-  }
-
-  assert.fail(`${marker} section should close`);
-}
-
-function readBuiltCss() {
-  const cssDirectory = path.join(projectRoot, 'out', '_next', 'static', 'chunks');
-  return fs
-    .readdirSync(cssDirectory)
-    .filter((file) => file.endsWith('.css'))
-    .map((file) => fs.readFileSync(path.join(cssDirectory, file), 'utf8'))
-    .join('\n');
+  assert.notEqual(sectionStart, -1);
+  const sectionEnd = homepage.indexOf('</section>', markerIndex);
+  assert.notEqual(sectionEnd, -1);
+  return homepage.slice(sectionStart, sectionEnd + '</section>'.length);
 }
 
 test('homepage places customer reviews immediately after the hero, before workflows and resources', () => {
   const heroIndex = indexOfMarker('data-marketing-hero="home-image"');
-  const wheelIndex = indexOfMarker('data-homepage-feature-wheel="true"');
   const reviewsIndex = indexOfMarker('data-homepage-review-marquee="true"');
+  const wheelIndex = indexOfMarker('data-homepage-feature-wheel="true"');
   const resourcesIndex = indexOfMarker('Useful before you ever open the app');
-
-  assert.ok(heroIndex < reviewsIndex, 'customer reviews should follow the hero');
-  assert.ok(reviewsIndex < wheelIndex, 'the workflow wheel should follow customer reviews');
-  assert.ok(wheelIndex < resourcesIndex, 'landlord resources should follow the workflow wheel');
+  assert.ok(heroIndex < reviewsIndex && reviewsIndex < wheelIndex && wheelIndex < resourcesIndex);
   const sectionStarts = [...homepage.matchAll(/<section\b/g)].map((match) => match.index);
   assert.equal(
     sectionStarts.findLastIndex((index) => index < reviewsIndex),
     sectionStarts.findLastIndex((index) => index < heroIndex) + 1,
-    'customer reviews should be the next section after the hero',
   );
 });
 
-test('review ribbon renders verified reviews with accessible gold ratings', () => {
-  const reviews = readMarkedSection('data-homepage-review-marquee="true"');
-  const reviewCards = reviews.match(/data-review-card="true"/g) ?? [];
-
-  assert.match(reviews, /aria-labelledby="customer-review-marquee-heading"/);
-  assert.match(reviews, /Trusted by <span[^>]*>2,000\+ Landlords Worldwide<\/span>/);
-  assert.doesNotMatch(reviews, /What landlords say|Rental management feels lighter with/);
-  assert.equal(reviewCards.length, 20, 'ten review excerpts should render twice for a full seamless loop');
-  assert.equal((reviews.match(/aria-label="5 out of 5 stars"/g) ?? []).length, 20);
-  assert.equal((reviews.match(/data-review-stars="gold"/g) ?? []).length, 20);
-  assert.match(
-    reviews,
-    /<ul(?=[^>]*data-review-group="duplicate")(?=[^>]*aria-hidden="true")[^>]*>/,
-  );
-
-  const reviewerLocations = [
-    ['David M.', 'Florida | United States'],
-    ['Monica R.', 'Texas | United States'],
-    ['Alexander C.', 'Ohio | United States'],
-    ['Priya S.', 'Colorado | United States'],
-    ['Jordan B.', 'North Carolina | United States'],
-    ['Elena T.', 'Oregon | United States'],
-    ['Marcus L.', 'Illinois | United States'],
-    ['Mato P.', 'Arizona | United States'],
-    ['Samuel T.', 'Georgia | United States'],
-    ['Nina P.', 'Washington | United States'],
+test('review section has exactly the selected three portraits and unchanged quotes', () => {
+  const reviews = readReviewSection();
+  assert.match(reviews, /Trusted by <span[^>]*>500\+ Landlords Worldwide<\/span>/);
+  assert.equal((reviews.match(/data-review-card="true"/g) ?? []).length, 3);
+  const selected = [
+    ['David M.', 'david-m.jpg', 'After years of managing rentals in Excel, I can finally see my day-to-day work in one place. Property Peace saves me time and makes the whole portfolio easier to manage.'],
+    ['Alexander C.', 'alexander-c.jpg', 'I replaced Google Sheets, QuickBooks, and Excel with Property Peace. Everything is easier to understand now, and I am very happy I made the switch.'],
+    ['Priya S.', 'priya-s.jpg', 'The support team listened to my feature requests and helped me get comfortable with the software. It genuinely feels like the people behind Property Peace care.'],
   ];
-
-  for (const [reviewer, location] of reviewerLocations) {
-    assert.equal(
-      (reviews.match(new RegExp(reviewer.replace('.', '\\.'), 'g')) ?? []).length,
-      2,
-      `${reviewer} should appear once in each marquee group`,
-    );
-    assert.equal(
-      (reviews.match(new RegExp(location.replace('|', '\\|'), 'g')) ?? []).length,
-      2,
-      `${location} should appear once in each marquee group`,
-    );
+  for (const [name, image, quote] of selected) {
+    assert.equal(reviews.split(`>${name}</span>`).length - 1, 1, `${name} should appear once`);
+    assert.ok(reviews.includes(image), `${name} portrait should render`);
+    assert.ok(reviews.includes(quote), `${name} quote should be unchanged`);
+  }
+  for (const excluded of ['Monica R.', 'Jordan B.', 'Elena T.', 'Marcus L.', 'Mato P.', 'Samuel T.', 'Nina P.']) {
+    assert.ok(!reviews.includes(excluded), `${excluded} should not render`);
   }
 });
 
-test('each review card renders the portrait matched to its reviewer', () => {
-  const reviews = readMarkedSection('data-homepage-review-marquee="true"');
-  const portraitMappings = [
-    ['David M.', 'david-m.jpg'],
-    ['Monica R.', 'monica-r.jpg'],
-    ['Alexander C.', 'alexander-c.jpg'],
-    ['Priya S.', 'priya-s.jpg'],
-    ['Jordan B.', 'jordan-b.jpg'],
-    ['Elena T.', 'elena-t.jpg'],
-    ['Marcus L.', 'marcus-l.jpg'],
-    ['Mato P.', 'mato-p.jpg'],
-    ['Samuel T.', 'samuel-t.jpg'],
-    ['Nina P.', 'nina-p.jpg'],
-  ];
-
-  for (const [reviewer, filename] of portraitMappings) {
-    const reviewerIndex = reviews.indexOf(`>${reviewer}</p>`);
-    assert.notEqual(reviewerIndex, -1, `review section should render ${reviewer}`);
-
-    const cardStart = reviews.lastIndexOf('<li', reviewerIndex);
-    const cardEnd = reviews.indexOf('</li>', reviewerIndex);
-    assert.notEqual(cardStart, -1, `${reviewer} should render inside a review card`);
-    assert.notEqual(cardEnd, -1, `${reviewer} review card should close`);
-
-    const card = reviews.slice(cardStart, cardEnd);
-    assert.match(card, new RegExp(filename.replace('.', '\\.')), `${reviewer} should use ${filename}`);
-  }
-});
-
-test('review update preserves the original six review texts', () => {
-  const reviews = readMarkedSection('data-homepage-review-marquee="true"');
-  const preservedCopy = [
-    'After years of managing rentals in Excel, I can finally see my day-to-day work in one place. Property Peace saves me time and makes the whole portfolio easier to manage.',
-    'I manage five properties and wanted useful features without paying for a lot I would never touch. Property Peace gives me the simplicity and functionality I was looking for.',
-    'I replaced Google Sheets, QuickBooks, and Excel with Property Peace. Everything is easier to understand now, and I am very happy I made the switch.',
-    'The support team listened to my feature requests and helped me get comfortable with the software. It genuinely feels like the people behind Property Peace care.',
-    'Property Peace is a great fit for a smaller portfolio. It is clear, affordable, and capable without feeling like enterprise software.',
-    'Setup was as simple as advertised. The owner walked me through it, answered my questions, and has been professional and courteous every step of the way.',
-  ];
-
-  for (const quote of preservedCopy) {
-    assert.equal(
-      reviews.split(quote).length - 1,
-      2,
-      'each original review should remain unchanged in both marquee groups',
-    );
-  }
-});
-
-test('review section continues the navy homepage with slate-blue cards and no customer labels', () => {
-  const reviews = readMarkedSection('data-homepage-review-marquee="true"');
-
-  assert.match(
-    reviews,
-    /<section(?=[^>]*data-homepage-review-marquee="true")(?=[^>]*bg-\[\#061E35\])[^>]*>/
-  );
-  assert.equal((reviews.match(/<article[^>]*bg-\[\#263e52\]/g) ?? []).length, 20);
-  assert.doesNotMatch(reviews, /-mt-8|rounded-t-\[|border-y/);
-  assert.doesNotMatch(reviews, />Property Peace customer</i);
-  assert.doesNotMatch(reviews, /radial-gradient|bg-\[\#EEF8F2\]/);
-});
-test('review ribbon moves continuously and becomes static for reduced motion', () => {
-  const css = readBuiltCss();
-
-  assert.match(css, /@keyframes review-marquee/);
-  const groupRule = css.match(/\.review-marquee-group\{([^}]*)\}/)?.[1];
-  assert.ok(groupRule, 'compiled CSS should include the full-width review group rule');
-  assert.match(groupRule, /min-width:100vw/);
-  assert.match(groupRule, /justify-content:space-around/);
-  const trackRule = css.match(/\.review-marquee-track\{([^}]*)\}/)?.[1];
-  assert.ok(trackRule, 'compiled CSS should include the marquee track rule');
-  assert.match(trackRule, /animation:[^;]*review-marquee/);
-  assert.match(trackRule, /animation:[^;]*60s/);
-  assert.match(trackRule, /animation:[^;]*linear/);
-  assert.match(trackRule, /animation:[^;]*infinite/);
-  assert.match(
-    css,
-    /@media\s*\(prefers-reduced-motion:reduce\)[\s\S]*?\.review-marquee-track\{[^}]*animation:none/,
-  );
-  assert.match(
-    css,
-    /@media\s*\(prefers-reduced-motion:reduce\)[\s\S]*?\.review-marquee-duplicate\{[^}]*display:none/,
-  );
+test('reviews use a static responsive three-column layout without marquee duplication or motion', () => {
+  const reviews = readReviewSection();
+  assert.match(reviews, /md:grid-cols-3/);
+  assert.equal((reviews.match(/<figure\b/g) ?? []).length, 3);
+  assert.equal((reviews.match(/<blockquote\b/g) ?? []).length, 3);
+  assert.doesNotMatch(reviews, /review-marquee-track|data-review-group|aria-hidden="true"[^>]*data-review-group/);
+  assert.doesNotMatch(source, /animate|transition|marquee-track|duplicate/);
+  assert.doesNotMatch(cssSource, /@keyframes review-marquee|\.review-marquee-track/);
 });
