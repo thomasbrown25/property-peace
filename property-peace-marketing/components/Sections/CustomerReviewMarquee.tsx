@@ -3,9 +3,9 @@ import Image from 'next/image';
 const reviews = [
   {
     quote: 'After years of managing rentals in Excel, I can finally see my day-to-day work in one place. Property Peace saves me time and makes the whole portfolio easier to manage.',
-    name: 'David M.',
-    location: 'Florida | United States',
-    image: '/images/reviews/david-m.jpg',
+    name: 'Mato P.',
+    location: 'Arizona | United States',
+    image: '/images/reviews/mato-p.jpg',
   },
   {
     quote: 'I replaced Google Sheets, QuickBooks, and Excel with Property Peace. Everything is easier to understand now, and I am very happy I made the switch.',
