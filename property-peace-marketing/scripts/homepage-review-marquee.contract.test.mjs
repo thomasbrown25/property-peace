@@ -42,7 +42,7 @@ test('review section has exactly the selected three portraits and unchanged quot
   assert.match(reviews, /Trusted by <span[^>]*>500\+ Landlords Worldwide<\/span>/);
   assert.equal((reviews.match(/data-review-card="true"/g) ?? []).length, 3);
   const selected = [
-    ['David M.', 'david-m.jpg', 'After years of managing rentals in Excel, I can finally see my day-to-day work in one place. Property Peace saves me time and makes the whole portfolio easier to manage.'],
+    ['Mato P.', 'mato-p.jpg', 'After years of managing rentals in Excel, I can finally see my day-to-day work in one place. Property Peace saves me time and makes the whole portfolio easier to manage.'],
     ['Alexander C.', 'alexander-c.jpg', 'I replaced Google Sheets, QuickBooks, and Excel with Property Peace. Everything is easier to understand now, and I am very happy I made the switch.'],
     ['Priya S.', 'priya-s.jpg', 'The support team listened to my feature requests and helped me get comfortable with the software. It genuinely feels like the people behind Property Peace care.'],
   ];
@@ -51,7 +51,7 @@ test('review section has exactly the selected three portraits and unchanged quot
     assert.ok(reviews.includes(image), `${name} portrait should render`);
     assert.ok(reviews.includes(quote), `${name} quote should be unchanged`);
   }
-  for (const excluded of ['Monica R.', 'Jordan B.', 'Elena T.', 'Marcus L.', 'Mato P.', 'Samuel T.', 'Nina P.']) {
+  for (const excluded of ['David M.', 'Monica R.', 'Jordan B.', 'Elena T.', 'Marcus L.', 'Samuel T.', 'Nina P.']) {
     assert.ok(!reviews.includes(excluded), `${excluded} should not render`);
   }
 });
