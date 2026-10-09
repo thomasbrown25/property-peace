@@ -30,7 +30,6 @@ import {
   RightOutlined,
   SearchOutlined
 } from '@ant-design/icons';
-import { useSelector } from 'react-redux';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
 import { addChecklist, getChecklistsByLandlord } from 'api/checklist';
@@ -40,7 +39,7 @@ import { openSnackbar } from 'api/snackbar';
 import Autocomplete from 'components/@extended/AutoComplete';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import useFetchProperties from 'hooks/useFetchProperties';
-import { selectCurrentUser, selectIsLoadingAuth } from 'store/user/user.selector';
+import useAuth from 'hooks/useAuth';
 import axiosServices from 'utils/axios';
 import {
   buildChecklistWorkspacePath,
@@ -67,10 +66,9 @@ function getPropertyAddress(property) {
 export default function ChecklistsPage() {
   const navigate = useNavigate();
   const theme = useTheme();
-  const currentUser = useSelector(selectCurrentUser);
-  const authLoading = useSelector(selectIsLoadingAuth);
+  const { user, isInitialized } = useAuth();
   const { properties, isLoading: propertiesLoading } = useFetchProperties();
-  const userId = currentUser?.id ?? currentUser?.Id;
+  const userId = user?.id ?? user?.Id;
   const headingColor = theme.palette.mode === 'dark' ? theme.palette.text.primary : '#061e35';
 
   const [checklists, setChecklists] = useState([]);
@@ -96,7 +94,7 @@ export default function ChecklistsPage() {
   const unitOptions = useMemo(() => units.map((unit) => ({ ...unit, label: unit.name || `Unit ${unit.id}` })), [units]);
 
   const loadChecklists = useCallback(async () => {
-    if (authLoading) return;
+    if (!isInitialized) return;
 
     if (!userId) {
       setChecklists([]);
@@ -116,7 +114,7 @@ export default function ChecklistsPage() {
     } finally {
       setChecklistsLoading(false);
     }
-  }, [authLoading, userId]);
+  }, [isInitialized, userId]);
 
   useEffect(() => {
     loadChecklists();

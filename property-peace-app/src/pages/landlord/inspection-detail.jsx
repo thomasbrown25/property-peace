@@ -912,7 +912,6 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
   const isMovein = type === MOVE_IN;
   const label = isMovein ? 'Move-In' : 'Move-Out';
   const accentColor = isMovein ? theme.palette.info.main : theme.palette.warning.main;
-  const accentLight = isMovein ? theme.palette.info.lighter : alpha(theme.palette.warning.main, 0.08);
 
   const roomSections = checklist ? groupItemsByRoom(checklist.items || [], [...(checklist.roomNames || []), ...customRooms]) : [];
 
@@ -1194,51 +1193,25 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
       <Box
         sx={{
           px: 3,
-          py: 2.5,
-          bgcolor: accentLight,
-          borderBottom: `2px solid ${alpha(accentColor, 0.25)}`,
-          borderRadius: '12px 12px 0 0'
+          py: 1.5,
+          borderBottom: `1px solid ${theme.palette.divider}`
         }}
       >
-        <Grid container spacing={2} alignItems="stretch">
-          <Grid size={{ xs: 12, md: checklist ? 7.5 : 12 }}>
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-              <Box>
-                <Typography variant="h6" fontWeight={700} sx={{ color: accentColor }}>
-                  {label} Checklist
-                </Typography>
-                {checklist?.inspectionDate && (
-                  <Typography variant="caption" color="text.secondary">
-                    {formatDate(checklist.inspectionDate)}
-                  </Typography>
-                )}
-              </Box>
-              {checklist && (
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip
-                    label={`${progress?.done || 0} / ${progress?.total || 0}`}
-                    size="small"
-                    sx={{
-                      bgcolor: progress?.total > 0 && progress.done === progress.total
-                        ? alpha(theme.palette.success.main, 0.12)
-                        : progress?.pct === 0
-                        ? alpha(theme.palette.grey[400], 0.15)
-                        : alpha(accentColor, 0.12),
-                      color: progress?.total > 0 && progress.done === progress.total ? 'success.main' : progress?.pct === 0 ? 'text.secondary' : accentColor,
-                      fontWeight: 700
-                    }}
-                  />
-                </Stack>
-              )}
-            </Stack>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={12}>
+            {checklist?.inspectionDate && (
+              <Typography variant="caption" color="text.secondary">
+                {formatDate(checklist.inspectionDate)}
+              </Typography>
+            )}
 
             {checklist && progress && progress.total > 0 && (
-              <Box sx={{ mt: 1.5 }}>
+              <Box sx={{ mt: 0.5 }}>
                 <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
                   <Typography variant="caption" color="text.secondary">
                     {progress.done} of {progress.total} items completed
                   </Typography>
-                  <Typography variant="caption" fontWeight={600} sx={{ color: accentColor }}>
+                  <Typography variant="caption" fontWeight={600} color="text.secondary">
                     {progress.pct}%
                   </Typography>
                 </Stack>
@@ -1246,10 +1219,10 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
                   variant="determinate"
                   value={progress.pct}
                   sx={{
-                    height: 6,
+                    height: 3,
                     borderRadius: 1,
-                    bgcolor: alpha(accentColor, 0.12),
-                    '& .MuiLinearProgress-bar': { bgcolor: accentColor, borderRadius: 1 }
+                    bgcolor: theme.palette.action.hover,
+                    '& .MuiLinearProgress-bar': { bgcolor: theme.palette.text.secondary, borderRadius: 1 }
                   }}
                 />
               </Box>
@@ -1257,13 +1230,12 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
           </Grid>
 
           {checklist && (
-            <Grid size={{ xs: 12, md: 4.5 }}>
+            <Grid size={{ xs: 12, md: 4 }}>
               <MainCard
                 content={false}
                 sx={{
                   height: '100%',
-                  border: `1px dashed ${alpha(accentColor, 0.38)}`,
-                  bgcolor: alpha(accentColor, 0.025),
+                  border: `1px dashed ${theme.palette.divider}`,
                   boxShadow: 'none'
                 }}
               >
@@ -1297,6 +1269,7 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
               </MainCard>
             </Grid>
           )}
+          {checklist && <Grid size={{ xs: 12, md: 8 }}><KeyLegend /></Grid>}
         </Grid>
       </Box>
 
@@ -1347,8 +1320,6 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
           </Box>
         ) : (
           <Stack spacing={2.25}>
-            <KeyLegend />
-
             {/* Rooms + items */}
             {roomSections.length === 0 ? (
               <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -2058,16 +2029,20 @@ export default function PropertyChecklistsPage() {
             <ArrowLeftOutlined style={{ fontSize: 14 }} />
           </IconButton>
           <Box>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               <HomeOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />
-              <Typography variant="h5" fontWeight={700}>{displayPropertyName}</Typography>
+              <Typography variant="h5" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
+                {displayPropertyName}{activeType ? ` – ${activeType === MOVE_IN ? 'Move-in' : 'Move-out'} Checklist${activeChecklist?.id != null ? ` #${activeChecklist.id}` : ''}` : ''}
+              </Typography>
               {displayUnitName && (
                 <Chip label={displayUnitName} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 12 }} />
               )}
             </Stack>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-              {isComparison ? 'Move-in and move-out condition comparison' : activeType === MOVE_IN ? 'Move-In Checklist' : activeType === MOVE_OUT ? 'Move-Out Checklist' : 'Property condition history'}
-            </Typography>
+            {!activeType && (
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                {isComparison ? 'Move-in and move-out condition comparison' : 'Property condition history'}
+              </Typography>
+            )}
           </Box>
         </Stack>
         {activeChecklist && (
@@ -2099,8 +2074,7 @@ export default function PropertyChecklistsPage() {
         <MainCard
           sx={{
             p: 0, overflow: 'hidden',
-            border: `1px solid ${alpha(activeType === MOVE_IN ? theme.palette.info.main : theme.palette.warning.main, 0.2)}`,
-            boxShadow: `0 0 24px ${alpha(activeType === MOVE_IN ? theme.palette.info.main : theme.palette.warning.main, 0.08)}`,
+            border: `1px solid ${theme.palette.divider}`,
             display: 'flex', flexDirection: 'column'
           }}
         >
