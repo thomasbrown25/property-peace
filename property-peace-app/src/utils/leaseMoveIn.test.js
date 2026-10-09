@@ -59,6 +59,7 @@ describe('validateExactLeaseSigners', () => {
 describe('buildLeaseMoveInReadiness', () => {
   const completeInput = {
     lease: {
+      Id: 136,
       RentAmount: 1800,
       DepositAmount: 900,
       RentCollectionByPlatform: false,
@@ -68,7 +69,7 @@ describe('buildLeaseMoveInReadiness', () => {
     },
     tenants: [{ Id: 4, Firstname: 'Ada', Lastname: 'L', Email: 'ada@example.com', TenantSignedAt: '2026-08-03' }],
     leaseAgreement: { BlobUrl: 'https://example.test/lease.pdf' },
-    checklists: [{ Id: 22, Status: 'Completed', CompletedAt: '2026-08-04' }]
+    checklists: [{ Id: 22, LeaseId: 136, ChecklistType: 40, IsCompleted: true, CompletedAt: '2026-08-04' }]
   };
 
   it('computes readiness only from authoritative lease state and real checklist records', () => {
@@ -78,8 +79,7 @@ describe('buildLeaseMoveInReadiness', () => {
     assert.equal(result.steps.find((step) => step.key === 'signatures').status, 'complete');
     assert.equal(result.steps.find((step) => step.key === 'rent-deposit').status, 'complete');
     assert.equal(result.steps.find((step) => step.key === 'condition-report').status, 'complete');
-    assert.equal(result.steps.find((step) => step.key === 'keys').status, 'unavailable');
-    assert.equal(result.steps.find((step) => step.key === 'keys').detail, 'Not tracked yet');
+    assert.equal(result.steps.some((step) => step.key === 'keys'), false);
     assert.equal(result.steps.find((step) => step.key === 'checklist').status, 'complete');
     assert.equal(result.completed, 6);
     assert.equal(result.totalTrackable, 6);
@@ -137,7 +137,28 @@ describe('buildLeaseMoveInReadiness', () => {
     assert.equal(staleEvidence.steps.find((step) => step.key === 'signatures').status, 'pending');
   });
 
-  it('never infers condition-report, keys, or checklist completion', () => {
+  it('marks condition report setup complete when a move-in report exists for this lease, even before inspection completion', () => {
+    const result = buildLeaseMoveInReadiness({
+      lease: { id: 136 },
+      checklists: [{ id: 42, leaseId: 136, checklistType: 40, isCompleted: false }]
+    });
+    assert.equal(result.steps.find((step) => step.key === 'condition-report').status, 'complete');
+    assert.equal(result.steps.find((step) => step.key === 'checklist').status, 'pending');
+  });
+
+  it('does not use a move-out report or a report belonging to another lease', () => {
+    const result = buildLeaseMoveInReadiness({
+      lease: { id: 136 },
+      checklists: [
+        { id: 43, leaseId: 136, checklistType: 41, isCompleted: true },
+        { id: 44, leaseId: 135, checklistType: 40, isCompleted: true }
+      ]
+    });
+    assert.equal(result.steps.find((step) => step.key === 'condition-report').status, 'pending');
+    assert.equal(result.steps.find((step) => step.key === 'checklist').status, 'pending');
+  });
+
+  it('does not infer condition-report or checklist completion, and omits untracked keys', () => {
     const result = buildLeaseMoveInReadiness({
       lease: { rentAmount: 1200, depositAmount: 0, rentCollectionByPlatform: true },
       tenants: [{ id: 1, firstname: 'A', lastname: 'B', email: 'a@example.com' }],
@@ -145,7 +166,7 @@ describe('buildLeaseMoveInReadiness', () => {
     });
     assert.equal(result.steps.find((step) => step.key === 'rent-deposit').status, 'pending');
     assert.equal(result.steps.find((step) => step.key === 'condition-report').status, 'pending');
-    assert.equal(result.steps.find((step) => step.key === 'keys').detail, 'Not tracked yet');
+    assert.equal(result.steps.some((step) => step.key === 'keys'), false);
     assert.equal(result.steps.find((step) => step.key === 'checklist').status, 'unavailable');
 
     const emptyRecords = buildLeaseMoveInReadiness({ ...completeInput, checklists: [] });
