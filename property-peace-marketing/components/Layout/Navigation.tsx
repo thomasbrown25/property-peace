@@ -362,12 +362,12 @@ export default function Navigation() {
         }}
         style={{ fontFamily: '"Poppins", sans-serif' }}
       >
-      <div className="mx-auto w-full min-w-0 max-w-[1660px] px-4 sm:px-6 lg:px-10 xl:px-12">
-        <div className="relative grid h-[72px] grid-cols-[76px_minmax(0,1fr)_64px] items-center nav:flex nav:h-[88px] nav:justify-between">
+      <div className="mx-auto w-full min-w-0 max-w-[1660px] px-5 sm:px-6 lg:px-10 xl:px-12">
+        <div className="relative grid h-[72px] grid-cols-[76px_minmax(0,1fr)_76px] items-center nav:flex nav:h-[88px] nav:justify-between">
           {/* Mobile: menu left */}
           <div className="nav:hidden flex h-11 w-[76px] flex-shrink-0 items-center justify-start">
             <button
-              className={`inline-flex h-11 items-center justify-start gap-2 rounded-xl pr-2 transition-colors duration-300 ${
+              className={`inline-flex h-11 w-11 items-center justify-start rounded-xl transition-colors duration-300 ${
                 whiteSurface ? 'text-[#061E35] hover:text-[#15803D]' : 'text-white hover:text-white'
               }`}
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -376,9 +376,6 @@ export default function Navigation() {
               aria-controls="mobile-navigation-menu"
             >
               {mobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
-              <span className="text-sm font-medium" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
-                Menu
-              </span>
             </button>
           </div>
 
@@ -413,7 +410,7 @@ export default function Navigation() {
           </Link>
 
           {/* Mobile: Login on right */}
-          <div className="nav:hidden flex h-11 w-20 flex-shrink-0 items-center justify-end">
+          <div className="nav:hidden flex h-11 w-full flex-shrink-0 items-center justify-end">
             <Link
               href={loginUrl}
               className="inline-flex h-[38px] items-center justify-center rounded-sm border border-[#B8C8D5] bg-white px-3 text-xs font-semibold uppercase text-[#061E35] transition-colors duration-[220ms] hover:bg-[#F7FAFC] motion-reduce:transition-none"
