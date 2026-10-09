@@ -71,7 +71,7 @@ import useFetchPayments from 'hooks/useFetchPayments';
 import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import useSignalRNotifications from 'hooks/useSignalRNotifications';
 import { completeLeaseDraft } from 'api/lease';
-import { getMoveInReportTemplate } from 'api/checklist';
+import { getMoveInReportTemplate, getChecklistsByLease } from 'api/checklist';
 import { useModal } from 'contexts/ModalContext';
 import PaymentModal from 'components/drawers/PaymentModal';
 import StripeConnectOnboardingDialog from 'components/dialogs/StripeConnectOnboardingDialog';
@@ -1039,16 +1039,32 @@ export default function LeasePage() {
     return () => { cancelled = true; };
   }, [lease?.id, searchParams.get('tab')]);
 
+  // Keep the report list tied to the exact lease so navigation cannot show stale evidence.
+  const [leaseChecklistRecord, setLeaseChecklistRecord] = useState(null);
+  useEffect(() => {
+    if (!leaseId) return;
+    let cancelled = false;
+    getChecklistsByLease(leaseId)
+      .then((res) => {
+        if (!cancelled) setLeaseChecklistRecord({ leaseId, records: res?.success && Array.isArray(res?.data) ? res.data : null });
+      })
+      .catch(() => {
+        if (!cancelled) setLeaseChecklistRecord({ leaseId, records: null });
+      });
+    return () => { cancelled = true; };
+  }, [leaseId]);
+  const leaseChecklists = String(leaseChecklistRecord?.leaseId) === String(leaseId) ? leaseChecklistRecord?.records : null;
+
   // Authoritative readiness is shared with the rendered move-in card.
-  // Checklist records are not loaded on this page, so checklist status stays unavailable.
   const moveInReadiness = useMemo(() => buildLeaseMoveInReadiness({
     lease,
     tenants,
     leaseAgreement,
     rentRecord,
     property,
-    signatureStatus
-  }), [lease, tenants, leaseAgreement, rentRecord, property, signatureStatus]);
+    signatureStatus,
+    checklists: leaseChecklists
+  }), [lease, tenants, leaseAgreement, rentRecord, property, signatureStatus, leaseChecklists]);
 
   // A lease is a draft only when the persisted draft flag says so, or when
   // required lease terms are genuinely missing. Signature state is a separate
@@ -1083,9 +1099,9 @@ export default function LeasePage() {
       collectionByPlatform === false ||
       (collectionByPlatform === true && Boolean(operatingAccountId))
     );
-    const hasConditionReport = Boolean(lease?.moveInReportTemplateCompletedAt ?? lease?.MoveInReportTemplateCompletedAt);
+    const hasConditionReport = moveInReadiness.steps.some((step) => step.key === 'condition-report' && step.status === 'complete');
     return hasTenants && hasAgreement && hasRentSetup && hasConditionReport;
-  }, [lease, leaseAgreement, property, rentRecord, tenants]);
+  }, [lease, leaseAgreement, property, rentRecord, tenants, moveInReadiness]);
   const isDraftedByFlag =
     lease?.leaseAgreement?.isDrafted === true ||
     lease?.LeaseAgreement?.IsDrafted === true ||

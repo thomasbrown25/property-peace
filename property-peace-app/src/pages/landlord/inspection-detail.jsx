@@ -52,6 +52,7 @@ import axiosServices from 'utils/axios';
 import { formatDate } from 'utils/formatters';
 import { selectProperties } from 'store/property/property.selector';
 import useFetchProperties from 'hooks/useFetchProperties';
+import { defaultInspectionItems } from 'utils/inspectionDefaults';
 
 const MOVE_IN = 'moveInChecklist';
 const MOVE_OUT = 'moveOutChecklist';
@@ -71,16 +72,6 @@ function isMoveOutChecklist(checklist) {
   const typeName = normalizeChecklistType(checklist?.checklistTypeName);
   return type === MOVE_OUT.toLowerCase() || type === '41' || typeName.includes('moveout') || typeName.includes('move-out');
 }
-
-// Default inspection items — SortOrder 0-N (< 1000 = default, cannot be deleted)
-const DEFAULT_INSPECTION_ITEMS = [
-  { category: 'Kitchen', names: ['Walls & Ceiling', 'Floors', 'Countertops', 'Cabinets & Drawers', 'Sink & Faucet', 'Refrigerator', 'Stove & Oven', 'Dishwasher', 'Microwave', 'Light Fixtures & Outlets'] },
-  { category: 'Living Room', names: ['Walls & Ceiling', 'Floors', 'Windows & Blinds', 'Doors & Locks', 'Light Fixtures & Outlets'] },
-  { category: 'Bedroom', names: ['Walls & Ceiling', 'Floors', 'Windows & Blinds', 'Closet & Doors', 'Light Fixtures & Outlets'] },
-  { category: 'Bathroom', names: ['Walls & Ceiling', 'Floors', 'Toilet', 'Sink & Faucet', 'Shower & Tub', 'Exhaust Fan', 'Light Fixtures & Mirror'] },
-  { category: 'Laundry', names: ['Washer & Dryer Hookups', 'Floors'] },
-  { category: 'General', names: ['Entry Door & Locks', 'Smoke Detectors', 'Carbon Monoxide Detectors', 'HVAC Filter', 'Keys & Access Cards'] }
-];
 
 const CONDITION_OPTIONS = [
   { value: 'Good',  label: 'Good – No issues' },
@@ -941,16 +932,6 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
   const handleStart = async () => {
     setStarting(true);
     try {
-      let sort = 0;
-      const defaultItems = DEFAULT_INSPECTION_ITEMS.flatMap(({ category, names }) =>
-        names.map((name) => ({
-          Name: name,
-          Category: category,
-          SortOrder: sort++,
-          IsChecked: false
-        }))
-      );
-
       const counterpartItems = counterpartChecklist?.items || [];
       const initialItems = counterpartItems.length > 0
         ? counterpartItems.map((item) => ({
@@ -959,7 +940,7 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
             SortOrder: item.sortOrder || 0,
             IsChecked: false
           }))
-        : defaultItems;
+        : defaultInspectionItems();
       const initialRoomNames = counterpartChecklist
         ? getChecklistRoomNames(counterpartChecklist)
         : getChecklistRoomNames({ items: initialItems });

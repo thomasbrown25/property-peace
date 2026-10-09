@@ -217,8 +217,24 @@ function LeaseMoveInCard({
           const complete = step.status === 'complete';
           const unavailable = step.status === 'unavailable';
           const color = complete ? theme.palette.success.main : unavailable ? theme.palette.text.disabled : theme.palette.warning.main;
+          const signatureAgreementAction = step.key === 'signatures' && !complete
+            ? (hasAgreement ? onViewAgreement : onBuildAgreement)
+            : null;
           return (
-            <Box key={step.key} sx={{ p: 1.35, borderRadius: 1.75, border: `1px solid ${alpha(color, 0.3)}`, bgcolor: alpha(color, unavailable ? 0.025 : 0.055), minWidth: 0 }}>
+            <Box
+              key={step.key}
+              role={signatureAgreementAction ? 'button' : undefined}
+              tabIndex={signatureAgreementAction ? 0 : undefined}
+              aria-label={signatureAgreementAction ? `All signatures incomplete. ${hasAgreement ? 'View agreement' : 'Build agreement'}` : undefined}
+              onClick={signatureAgreementAction}
+              onKeyDown={(event) => {
+                if (signatureAgreementAction && event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                  event.preventDefault();
+                  signatureAgreementAction();
+                }
+              }}
+              sx={{ p: 1.35, borderRadius: 1.75, border: `1px solid ${alpha(color, 0.3)}`, bgcolor: alpha(color, unavailable ? 0.025 : 0.055), minWidth: 0, cursor: signatureAgreementAction ? 'pointer' : 'default', '&:focus-visible': signatureAgreementAction ? { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 } : undefined }}
+            >
               <Stack direction="row" spacing={1} alignItems="flex-start">
                 <Box sx={{ width: 22, height: 22, borderRadius: '50%', flexShrink: 0, mt: 0.1, bgcolor: complete ? color : 'transparent', border: `1.5px solid ${color}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {complete ? <CheckOutlined style={{ color: '#fff', fontSize: 10 }} /> : <Box sx={{ width: 5, height: 5, borderRadius: '50%', bgcolor: color }} />}
@@ -228,8 +244,13 @@ function LeaseMoveInCard({
                   <Typography sx={{ fontSize: '0.64rem', color: unavailable ? 'text.disabled' : 'text.secondary', lineHeight: 1.4, minHeight: 18 }}>
                     {step.detail}
                   </Typography>
+                  {signatureAgreementAction && (
+                    <Typography sx={{ mt: 0.45, fontSize: '0.66rem', fontWeight: 700, color: 'primary.main' }}>
+                      {hasAgreement ? 'View agreement' : 'Build agreement'} →
+                    </Typography>
+                  )}
                   {action?.onClick && (
-                    <Button size="small" disabled={action.disabled} onClick={action.onClick} sx={{ mt: 0.45, p: 0, minWidth: 0, textTransform: 'none', fontSize: '0.66rem', fontWeight: 700 }}>
+                    <Button size="small" disabled={action.disabled} onClick={(event) => { event.stopPropagation(); action.onClick(); }} sx={{ mt: 0.45, p: 0, minWidth: 0, textTransform: 'none', fontSize: '0.66rem', fontWeight: 700 }}>
                       {action.label} →
                     </Button>
                   )}

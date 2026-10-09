@@ -65,7 +65,7 @@ const isChecklistComplete = (record) => {
   const id = firstDefined(record?.id, record?.Id, record?.checklistId, record?.ChecklistId);
   if (id === undefined || id === null) return false;
   const status = normalizeLeaseText(firstDefined(record?.status, record?.Status)).toLowerCase();
-  return Boolean(firstDefined(record?.completedAt, record?.CompletedAt)) || status === 'completed' || status === 'complete';
+  return Boolean(firstDefined(record?.completedAt, record?.CompletedAt, record?.isCompleted, record?.IsCompleted)) || status === 'completed' || status === 'complete';
 };
 
 export function buildLeaseMoveInReadiness({
@@ -135,12 +135,22 @@ export function buildLeaseMoveInReadiness({
   const collectionConfigured = collectionByPlatform === false || (collectionByPlatform === true && Boolean(operatingAccountId));
   const rentDepositComplete = rentConfigured && depositConfigured && collectionConfigured;
 
-  const conditionReportComplete = Boolean(firstDefined(
+  const leaseId = firstDefined(lease?.id, lease?.Id);
+  const moveInReports = Array.isArray(checklists) && leaseId != null
+    ? checklists.filter((record) => {
+      const reportLeaseId = firstDefined(record?.leaseId, record?.LeaseId);
+      const type = firstDefined(record?.checklistType, record?.ChecklistType);
+      return reportLeaseId != null && String(reportLeaseId) === String(leaseId) &&
+        (type === 40 || String(type).toLowerCase() === 'moveinchecklist');
+    })
+    : [];
+  const reportOnFile = moveInReports.some((record) => firstDefined(record?.id, record?.Id) != null);
+  const conditionReportComplete = reportOnFile || Boolean(firstDefined(
     lease?.moveInReportTemplateCompletedAt,
     lease?.MoveInReportTemplateCompletedAt
   ));
   const checklistRecordsAvailable = Array.isArray(checklists);
-  const checklistComplete = checklistRecordsAvailable && checklists.length > 0 && checklists.some(isChecklistComplete);
+  const checklistComplete = checklistRecordsAvailable && moveInReports.some(isChecklistComplete);
 
   const steps = [
     {
@@ -174,13 +184,7 @@ export function buildLeaseMoveInReadiness({
       key: 'condition-report',
       label: 'Condition report setup',
       status: conditionReportComplete ? 'complete' : 'pending',
-      detail: conditionReportComplete ? 'Customized for this lease' : 'Customize the move-in report'
-    },
-    {
-      key: 'keys',
-      label: 'Keys',
-      status: 'unavailable',
-      detail: 'Not tracked yet'
+      detail: reportOnFile ? 'Move-in report on file' : conditionReportComplete ? 'Customized for this lease' : 'Customize the move-in report'
     },
     {
       key: 'checklist',

@@ -570,7 +570,7 @@ export default function Navigation() {
           role="dialog"
           aria-modal="true"
           aria-label="Mobile navigation"
-          className={`fixed left-0 top-0 flex h-dvh w-[min(22rem,88vw)] max-w-full flex-col overflow-hidden rounded-r-[1.75rem] border-r border-white/10 shadow-[24px_0_70px_rgba(0,0,0,0.42)] transition-transform duration-300 ease-out ${
+          className={`fixed left-0 top-0 flex max-h-dvh w-[min(22rem,88vw)] max-w-full flex-col overflow-hidden rounded-r-[1.75rem] border-r border-white/10 shadow-[24px_0_70px_rgba(0,0,0,0.42)] transition-transform duration-300 ease-out ${
             mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           style={{ background: 'linear-gradient(180deg, #061e35 0%, #082b4d 55%, #061e35 100%)' }}
@@ -601,16 +601,9 @@ export default function Navigation() {
             </button>
           </div>
 
-          <div className="relative z-10 flex-1 overflow-hidden">
-            <div
-              className={`flex h-full w-[200%] transition-transform duration-300 ease-out ${
-                mobileFeaturesOpen ? '-translate-x-1/2' : 'translate-x-0'
-              }`}
-            >
-              <div className="h-full w-1/2 overflow-y-auto px-5 py-4">
-                <p className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-200/80" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
-                  Explore
-                </p>
+          <div className="relative z-10 min-h-0 overflow-y-auto">
+            {!mobileFeaturesOpen ? (
+              <div className="px-5 py-4">
                 <nav className="divide-y divide-white/10 border-y border-white/10" aria-label="Primary mobile navigation">
                   <button
                     type="button"
@@ -654,7 +647,7 @@ export default function Navigation() {
                     className="group flex min-h-[58px] items-center gap-3 py-3 text-white transition-colors hover:text-white"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/10 text-white/80"><FiFileText className="h-4 w-4" /></span>
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-400/12 text-blue-200"><FiFileText className="h-4 w-4" /></span>
                     <span className="min-w-0">
                       <span className="block text-[15px] font-semibold">Resources</span>
                       <span className="block text-xs text-white/50">Guides and practical checklists</span>
@@ -672,18 +665,9 @@ export default function Navigation() {
                     </span>
                   </Link>
                 </nav>
-
-                <div className="mt-5 rounded-[1.35rem] border border-emerald-300/15 bg-emerald-300/[0.07] p-4">
-                  <p className="text-sm font-semibold text-white" style={{ fontFamily: '"Poppins", sans-serif' }}>
-                    Built for 1–50 unit landlords
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-white/60" style={{ fontFamily: '"Inter", "Inter Placeholder", sans-serif' }}>
-                    Replace spreadsheets, reminders, and scattered tenant messages with one calm system.
-                  </p>
-                </div>
               </div>
-
-              <div className="h-full w-1/2 overflow-y-auto px-5 py-4">
+            ) : (
+              <div className="px-5 py-4">
                 <button
                   type="button"
                   className="mb-3 inline-flex min-h-11 items-center gap-2 rounded-none pr-3 text-sm font-semibold text-white/80 transition-colors hover:text-white"
@@ -737,7 +721,7 @@ export default function Navigation() {
                   ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="relative z-10 border-t border-white/10 bg-[#04182c]/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">

@@ -6,10 +6,8 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
+  FormControl,
+  IconButton,
   Divider,
   InputAdornment,
   LinearProgress,
@@ -27,13 +25,17 @@ import {
   ClockCircleOutlined,
   DownOutlined,
   HomeOutlined,
+  PlusOutlined,
+  CloseOutlined,
   RightOutlined,
   SearchOutlined
 } from '@ant-design/icons';
 import { useSelector } from 'react-redux';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 
-import { getChecklistsByLandlord } from 'api/checklist';
+import { addChecklist, getChecklistsByLandlord } from 'api/checklist';
+import { defaultInspectionItems } from 'utils/inspectionDefaults';
+import ThemeAdaptiveDrawer from 'components/drawers/shared/ThemeAdaptiveDrawer';
 import { openSnackbar } from 'api/snackbar';
 import Autocomplete from 'components/@extended/AutoComplete';
 import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
@@ -78,6 +80,9 @@ export default function ChecklistsPage() {
   const [type, setType] = useState('all');
   const [status, setStatus] = useState('all');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [createType, setCreateType] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [units, setUnits] = useState([]);
@@ -167,11 +172,42 @@ export default function ChecklistsPage() {
     setStatus('all');
   };
 
-  const openSelectedHome = () => {
-    if (!selectedProperty || (needsUnit && !selectedUnit)) return;
-    const basePath = `/landlord/checklists/property/${selectedProperty.id}`;
-    navigate(needsUnit ? `${basePath}/unit/${selectedUnit.id}` : basePath);
+  const closeCreateDrawer = () => {
+    if (creating) return;
     setPickerOpen(false);
+    setSelectedProperty(null);
+    setSelectedUnit(null);
+    setCreateType('');
+    setCreateError('');
+  };
+
+  const createChecklist = async () => {
+    if (!createType || !selectedProperty || (needsUnit && !selectedUnit) || creating) return;
+    setCreating(true);
+    setCreateError('');
+    try {
+      const isMoveIn = createType === 'move-in';
+      const home = `${getPropertyLabel(selectedProperty)}${needsUnit ? ` – ${selectedUnit.label}` : ''}`;
+      const response = await addChecklist({
+        ChecklistType: isMoveIn ? 40 : 41,
+        PropertyId: selectedProperty.id,
+        UnitId: needsUnit ? selectedUnit.id : null,
+        Title: `${home} – ${isMoveIn ? 'Move-In' : 'Move-Out'} Checklist`,
+        Items: defaultInspectionItems()
+      });
+      if (!response?.success || !response?.data?.id) throw new Error(response?.message || 'Could not create checklist');
+      setChecklists((current) => [response.data, ...current]);
+      openSnackbar({ open: true, message: 'Checklist created', variant: 'alert', alert: { color: 'success' } });
+      setPickerOpen(false);
+      setSelectedProperty(null);
+      setSelectedUnit(null);
+      setCreateType('');
+      navigate(buildChecklistWorkspacePath(response.data));
+    } catch (error) {
+      setCreateError(error?.response?.data?.message || error?.message || 'Could not create checklist');
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -198,11 +234,11 @@ export default function ChecklistsPage() {
         <Button
           variant="contained"
           color="success"
-          startIcon={<HomeOutlined />}
+          startIcon={<PlusOutlined />}
           onClick={() => setPickerOpen(true)}
           sx={{ alignSelf: { xs: 'flex-start', sm: 'center' }, textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
         >
-          Open a home
+          Create checklist
         </Button>
       </Stack>
 
@@ -346,7 +382,7 @@ export default function ChecklistsPage() {
               <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 430 }}>
                 {hasFilters
                   ? 'Try a different search or reset the filters.'
-                  : 'Open a home to review its inspection workspace and available checklists.'}
+                  : 'Create a move-in or move-out checklist for a property or unit.'}
               </Typography>
               {hasFilters ? (
                 <Button onClick={clearFilters} sx={{ textTransform: 'none' }}>
@@ -359,7 +395,7 @@ export default function ChecklistsPage() {
                   onClick={() => setPickerOpen(true)}
                   sx={{ textTransform: 'none', fontWeight: 700 }}
                 >
-                  Open a home
+                  Create checklist
                 </Button>
               )}
             </Stack>
@@ -372,8 +408,7 @@ export default function ChecklistsPage() {
                 String(checklist.checklistTypeName || checklist.title || '')
                   .toLowerCase()
                   .includes('move-in');
-              const checklistLabel =
-                checklist.checklistTypeName || checklist.title || (isMoveIn ? 'Move-in checklist' : 'Move-out checklist');
+              const checklistLabel = checklist.title || (isMoveIn ? 'Move-in checklist' : 'Move-out checklist');
               const leaseDates = [checklist.leaseStartDate, checklist.leaseEndDate].filter(Boolean).map(formatDate2).join(' – ');
               const dateSummary = getChecklistDateSummary(checklist);
 
@@ -496,24 +531,40 @@ export default function ChecklistsPage() {
         </Box>
       </Box>
 
-      <Dialog open={pickerOpen} onClose={() => setPickerOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h4" fontWeight={750}>
-            Open checklists by home
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontWeight: 400 }}>
-            Choose a property and unit to open its complete inspection workspace.
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ pt: '16px !important' }}>
-          <Stack spacing={2.25}>
+      <ThemeAdaptiveDrawer
+        anchor="right"
+        open={pickerOpen}
+        onClose={closeCreateDrawer}
+        PaperProps={{ sx: { width: { xs: '100%', sm: 480 }, bgcolor: 'background.paper', backgroundImage: 'none' } }}
+      >
+        <Stack sx={{ height: '100%' }}>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: 'divider' }}>
+            <Box>
+              <Typography variant="h4" fontWeight={750}>Create checklist</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Choose the inspection type and the home it belongs to.
+              </Typography>
+            </Box>
+            <IconButton aria-label="Close create checklist" onClick={closeCreateDrawer} disabled={creating}><CloseOutlined /></IconButton>
+          </Stack>
+          <Stack spacing={2.25} sx={{ flex: 1, overflowY: 'auto', px: 3, py: 3 }}>
+            <Stack spacing={0.75}>
+              <Typography variant="caption" fontWeight={700} color="text.secondary">Checklist type</Typography>
+              <FormControl size="small" fullWidth>
+                <Select value={createType} displayEmpty inputProps={{ 'aria-label': 'Checklist type to create' }} onChange={(event) => setCreateType(event.target.value)}>
+                  <MenuItem value="" disabled>Select checklist type</MenuItem>
+                  <MenuItem value="move-in">Move-in</MenuItem>
+                  <MenuItem value="move-out">Move-out</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
             <Stack spacing={0.75}>
               <Autocomplete
                 label="Property"
                 options={propertyOptions}
                 width="100%"
                 value={selectedProperty}
-                onChange={(_, property) => setSelectedProperty(property)}
+                onChange={(_, property) => { setSelectedProperty(property); setSelectedUnit(null); setCreateError(''); }}
                 isOptionEqualToValue={(option, value) => String(option.id) === String(value.id)}
                 getOptionLabel={(option) => option?.label || ''}
                 loading={propertiesLoading}
@@ -540,7 +591,7 @@ export default function ChecklistsPage() {
               />
               {!propertiesLoading && propertyOptions.length === 0 && (
                 <Typography variant="caption" color="text.secondary">
-                  Add a property before opening checklists.
+                  Add a property before creating a checklist.
                 </Typography>
               )}
             </Stack>
@@ -574,24 +625,25 @@ export default function ChecklistsPage() {
                 )}
               </Stack>
             )}
+            {createError && <Alert severity="error">{createError}</Alert>}
           </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setPickerOpen(false)} sx={{ textTransform: 'none' }}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="success"
-            endIcon={<RightOutlined />}
-            onClick={openSelectedHome}
-            disabled={!selectedProperty || (needsUnit && !selectedUnit)}
-            sx={{ textTransform: 'none', fontWeight: 700 }}
-          >
-            Open home
-          </Button>
-        </DialogActions>
-      </Dialog>
+          <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 3, py: 2.5, borderTop: 1, borderColor: 'divider' }}>
+            <Button onClick={closeCreateDrawer} disabled={creating} sx={{ textTransform: 'none' }}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={creating ? <CircularProgress size={16} color="inherit" /> : <PlusOutlined />}
+              onClick={createChecklist}
+              disabled={creating || !createType || !selectedProperty || (needsUnit && (!selectedUnit || unitsLoading))}
+              sx={{ textTransform: 'none', fontWeight: 700 }}
+            >
+              Create checklist
+            </Button>
+          </Stack>
+        </Stack>
+      </ThemeAdaptiveDrawer>
     </Box>
   );
 }

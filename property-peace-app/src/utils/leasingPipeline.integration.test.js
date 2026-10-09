@@ -201,6 +201,15 @@ test('lease detail wires authoritative signer status and labels only tracked com
   assert.match(leasePage, /signatureStatusRequestRef\.current !== requestVersion/);
   assert.match(leasePage, /setSignatureStatusRecord\(null\)/);
   assert.match(leasePage, /moveInReadiness=\{moveInReadiness\}/);
+  assert.match(leasePage, /getChecklistsByLease\(leaseId\)/);
+  assert.match(leasePage, /checklists: leaseChecklists/);
+  assert.match(detail, /const signatureAgreementAction = step\.key === 'signatures' && !complete/);
+  assert.match(detail, /onViewAgreement/);
+  assert.match(detail, /onClick=\{signatureAgreementAction\}/);
+  assert.match(detail, /onKeyDown=\{\(event\) => \{/);
+  assert.match(detail, /event\.stopPropagation\(\)/);
+  assert.match(detail, /label: 'Open signatures', onClick: onOpenSignature/);
+  assert.doesNotMatch(detail, /label: 'Keys'/);
   assert.match(detail, /All tracked steps complete/);
   assert.match(detail, /Tracked steps complete/);
   assert.doesNotMatch(detail, /Move-in setup is ready/);
