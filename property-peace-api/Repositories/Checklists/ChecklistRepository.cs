@@ -17,6 +17,20 @@ namespace brownstone_hub_api.Repositories.Checklists
         {
             try
             {
+                if (checklist.LeaseId.HasValue)
+                {
+                    var lease = await _context.Leases.AsNoTracking().Include(lease => lease.Unit)
+                        .FirstOrDefaultAsync(lease => lease.Id == checklist.LeaseId.Value && !lease.IsDeleted &&
+                            lease.Unit.PropertyId == checklist.PropertyId &&
+                            lease.OrganizationId == organizationId && lease.Unit.Property.OrganizationId == organizationId &&
+                            !lease.Unit.Property.IsDeleted);
+                    if (lease == null || (checklist.UnitId.HasValue && lease.UnitId != checklist.UnitId.Value))
+                        throw new InvalidOperationException("The selected lease does not belong to this property and unit.");
+                    if (await _context.Checklists.AsNoTracking().AnyAsync(existing =>
+                        existing.LeaseId == checklist.LeaseId && existing.ChecklistType == checklist.ChecklistType))
+                        throw new InvalidOperationException("This lease already has a checklist of the selected type.");
+                }
+
                 var entity = _mapper.Map<Models.Checklist>(checklist);
                 entity.LandlordId = landlordId;
                 entity.RoomNamesJson = checklist.RoomNames != null

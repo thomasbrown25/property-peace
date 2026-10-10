@@ -173,11 +173,7 @@ const MaintenanceComingSoon = Loadable(lazy(() => import('pages/maintenance/comi
 // ==============================|| MAIN ROUTING ||============================== //
 
 function LegacyInspectionRedirect() {
-  const { propertyId, unitId } = useParams();
-  const path = unitId
-    ? `/landlord/checklists/property/${propertyId}/unit/${unitId}`
-    : `/landlord/checklists/property/${propertyId}`;
-  return <Navigate to={path} replace />;
+  return <Navigate to="/landlord/checklists" replace />;
 }
 
 function LegacyLeaseBuilderRedirect() {
@@ -779,19 +775,11 @@ const MainRoutes = {
         },
         {
           path: 'landlord/checklists/property/:propertyId',
-          element: (
-            <SubscriptionPausedGuard>
-              <PropertyChecklistsPage />
-            </SubscriptionPausedGuard>
-          )
+          element: <Navigate to="/landlord/checklists" replace />
         },
         {
           path: 'landlord/checklists/property/:propertyId/unit/:unitId',
-          element: (
-            <SubscriptionPausedGuard>
-              <PropertyChecklistsPage />
-            </SubscriptionPausedGuard>
-          )
+          element: <Navigate to="/landlord/checklists" replace />
         },
         {
           path: 'landlord/checklists/property/:propertyId/checklist/:checklistId',

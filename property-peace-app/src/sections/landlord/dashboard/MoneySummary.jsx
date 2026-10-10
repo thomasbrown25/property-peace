@@ -220,7 +220,7 @@ export default function MoneySummary({
   const metricCards = [
     {
       label: 'Income',
-      description: isAllTime ? 'Rent collected all time' : 'Rent collected this month',
+      description: 'Total income collected',
       value: income,
       color: incomeColor,
       icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19v-3m5 3v-6m5 6v-9m5 9V5" /><path d="m4 12 5-3 5 1 5-6" /></svg>

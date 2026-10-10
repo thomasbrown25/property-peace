@@ -597,7 +597,7 @@ function EventDetailsDrawer({ event, onClose, onEditTask, onDeleteTask, onNaviga
     : event?.category === 'Maintenance' && event.maintenanceId ? `/landlord/maintenance/${event.maintenanceId}`
     : event?.category === 'Lease' && event.leaseId ? `/landlord/leases/${event.leaseId}`
     : event?.source === 'inspection' && checklistPropertyId
-      ? (checklistId ? `${checklistBase}/checklist/${checklistId}` : `${checklistBase}?type=${event.typeParam || 'move-in'}`)
+      ? (checklistId ? `${checklistBase}/checklist/${checklistId}` : '/landlord/checklists')
     : null;
   return (
     <ThemeAdaptiveDrawer

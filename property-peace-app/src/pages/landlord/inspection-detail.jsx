@@ -23,10 +23,8 @@ import {
   Collapse
 } from '@mui/material';
 import {
-  ArrowLeftOutlined,
   CameraOutlined,
   PlusOutlined,
-  HomeOutlined,
   AuditOutlined,
   DeleteOutlined,
   CloseOutlined,
@@ -53,6 +51,10 @@ import { formatDate } from 'utils/formatters';
 import { selectProperties } from 'store/property/property.selector';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { defaultInspectionItems } from 'utils/inspectionDefaults';
+import { getItemComplete, getRoomProgress, getRoomTone } from 'utils/checklistRoomProgress.mjs';
+import { sortRoomsByFloor } from 'utils/checklistFloorPlan.mjs';
+import { countChecklistConditions } from 'utils/checklistConditionCounts.mjs';
+import { createConditionSaveQueue } from 'utils/checklistConditionSaveQueue.mjs';
 
 const MOVE_IN = 'moveInChecklist';
 const MOVE_OUT = 'moveOutChecklist';
@@ -105,14 +107,14 @@ function fromDateTimeLocalValue(value) {
   return date.toISOString();
 }
 
-function ScheduleVisitControl({ checklist, label, onRefresh }) {
+function ScheduleVisitControl({ checklist, label, onRefresh, onDelete }) {
   const theme = useTheme();
-  const [scheduledAt, setScheduledAt] = useState('');
+  const [scheduledAt, setScheduledAt] = useState(() => toDateTimeLocalValue(checklist?.inspectionDate || new Date()));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setScheduledAt(toDateTimeLocalValue(checklist?.inspectionDate));
-  }, [checklist?.inspectionDate]);
+    setScheduledAt(toDateTimeLocalValue(checklist?.inspectionDate || new Date()));
+  }, [checklist?.id, checklist?.inspectionDate]);
 
   const handleSave = async () => {
     if (!checklist) return;
@@ -143,8 +145,8 @@ function ScheduleVisitControl({ checklist, label, onRefresh }) {
         label="Schedule visit"
         value={scheduledAt}
         onChange={(e) => setScheduledAt(e.target.value)}
-        InputLabelProps={{ shrink: true }}
-        sx={{ minWidth: { sm: 220 } }}
+        InputLabelProps={{ shrink: true, style: { background: 'transparent' } }}
+        sx={{ minWidth: { sm: 220 }, '& .MuiOutlinedInput-root': { bgcolor: 'transparent' } }}
       />
       <Button
         variant="outlined"
@@ -156,33 +158,49 @@ function ScheduleVisitControl({ checklist, label, onRefresh }) {
       >
         Save
       </Button>
+      <Button
+        variant="outlined"
+        color="error"
+        size="small"
+        onClick={onDelete}
+        disabled={saving}
+        startIcon={<DeleteOutlined />}
+        sx={{ flexShrink: 0, textTransform: 'none', borderRadius: 1.5, px: 1.5 }}
+      >
+        Delete
+      </Button>
     </Stack>
   );
 }
 
 // Key legend shown at top of each inspection column
-function KeyLegend({ sx = {} }) {
+function KeyLegend({ items = [], sx = {} }) {
   const theme = useTheme();
+  const counts = countChecklistConditions(items);
   const entries = [
+    ['Good', 'No issues'],
     ['NC', 'Needs Cleaning'],
     ['NP', 'Needs Painting'],
     ['NR', 'Needs Repair'],
     ['NSC', 'Needs Spot Cleaning'],
     ['NSP', 'Needs Spot Painting'],
-    ['RP',  'Needs Replacing'],
+    ['RP', 'Needs Replacing']
   ];
   return (
-    <Box sx={{ p: 1.75, borderRadius: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.03), border: `1px solid ${alpha(theme.palette.divider, 0.7)}`, ...sx }}>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, lineHeight: 1.4 }}>
+    <Box sx={{ p: 1.75, height: '100%', borderRadius: 1.5, bgcolor: '#fff', border: `1px solid ${theme.palette.divider}`, color: '#061e35', ...sx }}>
+      <Typography variant="caption" sx={{ display: 'block', mb: 1, lineHeight: 1.4, color: '#365069' }}>
         Unless otherwise noted, premises are in clean, good working order and undamaged. Use the key below.
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 16px' }}>
-        {entries.map(([abbr, desc]) => (
-          <Stack key={abbr} direction="row" spacing={0.75} alignItems="baseline">
-            <Typography variant="caption" fontWeight={800} sx={{ color: 'text.primary', minWidth: 26 }}>{abbr}</Typography>
-            <Typography variant="caption" color="text.secondary">{desc}</Typography>
-          </Stack>
-        ))}
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: '2px 16px' }}>
+        {entries.map(([abbr, desc]) => {
+          const conditionColor = conditionThemeColor(abbr, theme);
+          return (
+            <Stack key={abbr} direction="row" spacing={1} alignItems="baseline">
+              <Typography variant="caption" fontWeight={800} sx={{ color: conditionColor, minWidth: 40, whiteSpace: 'nowrap' }}>{abbr}</Typography>
+              <Typography variant="caption" sx={{ color: '#365069' }}>{desc}<Box component="span" sx={{ color: conditionColor, fontWeight: 800, ml: 0.75, whiteSpace: 'nowrap' }}>{counts[abbr]}</Box></Typography>
+            </Stack>
+          );
+        })}
       </Box>
     </Box>
   );
@@ -526,29 +544,43 @@ function ItemPhotoStrip({ item, checklistId, onUpdated }) {
 function InspectionItemRow({ item, checklistId, allItems, onUpdated, isDefault, onDelete }) {
   const theme = useTheme();
   const [saving, setSaving] = useState(false);
+  const [displayedCondition, setDisplayedCondition] = useState(item.condition || null);
+  const allItemsRef = useRef(allItems);
+  const onUpdatedRef = useRef(onUpdated);
+  const queueRef = useRef(null);
+  allItemsRef.current = allItems;
+  onUpdatedRef.current = onUpdated;
 
-  const isDone = !!item.condition;
-  const condColor = conditionThemeColor(item.condition, theme);
+  if (!queueRef.current) {
+    queueRef.current = createConditionSaveQueue({
+      initialCondition: item.condition,
+      onSelectionChange: setDisplayedCondition,
+      onBusyChange: setSaving,
+      onError: (err) => openSnackbar({ open: true, message: err.message || 'Failed to update item', variant: 'alert', alert: { color: 'error' } }),
+      save: async (next) => {
+        const updatedItems = allItemsRef.current.map((i) => ({
+          ...toItemDto(i),
+          Condition: i.id === item.id ? next : (i.condition || null),
+          IsChecked: i.id === item.id ? !!next : i.isChecked,
+          CheckedAt: i.id === item.id ? (next ? new Date().toISOString() : null) : (i.checkedAt || null)
+        }));
+        const res = await checklistAPI.updateChecklist(checklistId, { Id: checklistId, Items: updatedItems });
+        if (!res?.success) throw new Error(res?.message || 'Failed to update');
+        allItemsRef.current = res.data?.items || allItemsRef.current;
+        onUpdatedRef.current(res.data);
+      }
+    });
+  }
 
-  const handleConditionChange = async (newCondition) => {
-    // Clicking the already-selected value clears it (un-marks the item)
-    const next = newCondition === item.condition ? null : newCondition;
-    setSaving(true);
-    try {
-      const updatedItems = allItems.map((i) => ({
-        ...toItemDto(i),
-        Condition: i.id === item.id ? next : (i.condition || null),
-        IsChecked: i.id === item.id ? !!next : i.isChecked,
-        CheckedAt: i.id === item.id ? (next ? new Date().toISOString() : null) : (i.checkedAt || null)
-      }));
-      const res = await checklistAPI.updateChecklist(checklistId, { Id: checklistId, Items: updatedItems });
-      if (!res?.success) throw new Error(res?.message || 'Failed to update');
-      onUpdated(res.data);
-    } catch (err) {
-      openSnackbar({ open: true, message: err.message || 'Failed to update item', variant: 'alert', alert: { color: 'error' } });
-    } finally {
-      setSaving(false);
-    }
+  useEffect(() => {
+    queueRef.current.sync(item.condition);
+  }, [item.condition]);
+
+  const isDone = !!displayedCondition;
+  const condColor = conditionThemeColor(displayedCondition, theme);
+
+  const handleConditionChange = (newCondition) => {
+    queueRef.current.select(newCondition);
   };
 
   return (
@@ -556,6 +588,7 @@ function InspectionItemRow({ item, checklistId, allItems, onUpdated, isDefault, 
       direction="row"
       spacing={1.5}
       alignItems="center"
+      aria-busy={saving}
       sx={{
         py: 1.25,
         px: 0.5,
@@ -586,12 +619,11 @@ function InspectionItemRow({ item, checklistId, allItems, onUpdated, isDefault, 
         )}
       </Box>
 
-      {/* Condition select */}
+      {/* Keep the compact select on phones; show every rating on wider screens. */}
       <Select
         size="small"
         displayEmpty
-        value={item.condition || ''}
-        disabled={saving}
+        value={displayedCondition || ''}
         onChange={(e) => handleConditionChange(e.target.value)}
         renderValue={(val) => {
           if (!val) return <Typography variant="caption" color="text.disabled">Condition</Typography>;
@@ -602,6 +634,7 @@ function InspectionItemRow({ item, checklistId, allItems, onUpdated, isDefault, 
           );
         }}
         sx={{
+          display: { xs: 'inline-flex', md: 'none' },
           minWidth: 120,
           flexShrink: 0,
           fontSize: 12,
@@ -624,6 +657,38 @@ function InspectionItemRow({ item, checklistId, allItems, onUpdated, isDefault, 
         ))}
       </Select>
 
+      <Box sx={{ display: { xs: 'none', md: 'flex' }, flexWrap: 'wrap', gap: 0.5, flexShrink: 0 }} role="group" aria-label={`Condition for ${item.name}`}>
+        {CONDITION_OPTIONS.map((opt) => (
+          <Tooltip key={opt.value} title={opt.label.split('–')[1]?.trim()} arrow>
+            <Button
+              variant="outlined"
+              size="small"
+              aria-label={opt.label}
+              aria-pressed={displayedCondition === opt.value}
+              onClick={() => handleConditionChange(opt.value)}
+              sx={{
+                minWidth: 42, width: 42, height: 42, p: 0, borderRadius: 1,
+                fontSize: opt.value === 'Good' ? 10 : 11,
+                fontWeight: 800, textTransform: 'none',
+                color: conditionThemeColor(opt.value, theme),
+                borderColor: displayedCondition === opt.value
+                  ? conditionThemeColor(opt.value, theme)
+                  : theme.palette.divider,
+                bgcolor: displayedCondition === opt.value
+                  ? alpha(conditionThemeColor(opt.value, theme), 0.16)
+                  : 'transparent',
+                '&:hover': {
+                  borderColor: conditionThemeColor(opt.value, theme),
+                  bgcolor: alpha(conditionThemeColor(opt.value, theme), 0.12)
+                }
+              }}
+            >
+              {opt.value}
+            </Button>
+          </Tooltip>
+        ))}
+      </Box>
+
       {/* Delete button (custom items only) */}
       {!isDefault && (
         <Tooltip title="Remove item">
@@ -642,16 +707,6 @@ function InspectionItemRow({ item, checklistId, allItems, onUpdated, isDefault, 
 
 // ─── Inspection Column ────────────────────────────────────────────────────────
 
-function getItemComplete(item) {
-  return !!(item?.condition || item?.isChecked || item?.IsChecked);
-}
-
-function getRoomProgress(items = []) {
-  const total = items.length;
-  const done = items.filter(getItemComplete).length;
-  return { total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0 };
-}
-
 function groupItemsByRoom(items = [], extraRooms = []) {
   const grouped = new Map();
   const ensureRoom = (roomName) => {
@@ -666,7 +721,7 @@ function groupItemsByRoom(items = [], extraRooms = []) {
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
     .forEach((item) => grouped.get(ensureRoom(item.category)).push(item));
 
-  return Array.from(grouped.entries()).map(([name, roomItems]) => ({ name, items: roomItems }));
+  return sortRoomsByFloor(Array.from(grouped.entries()).map(([name, roomItems]) => ({ name, items: roomItems })));
 }
 
 function getChecklistRoomNames(checklist, extraRooms = []) {
@@ -688,15 +743,18 @@ function renameRoomName(roomNames, currentName, nextName) {
   return roomNames.map((name) => (name.toLowerCase() === currentKey ? nextName : name));
 }
 
-function RoomInspectionSection({ room, checklist, onAddItem, addingItem, draftValue, onDraftChange, onItemUpdated, onDeleteItem, onRenameRoom }) {
+function RoomInspectionSection({ room, checklist, expanded, onToggle, onAddItem, addingItem, draftValue, onDraftChange, onItemUpdated, onDeleteItem, onRenameRoom }) {
   const theme = useTheme();
-  const [expanded, setExpanded] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [roomNameDraft, setRoomNameDraft] = useState(room.name);
   const [renaming, setRenaming] = useState(false);
   const progress = getRoomProgress(room.items);
   const complete = progress.total > 0 && progress.done === progress.total;
-  const progressColor = complete ? theme.palette.success.main : progress.done > 0 ? theme.palette.primary.main : theme.palette.grey[400];
+  const roomTone = getRoomTone(room.items);
+  const progressColor = roomTone === 'error' ? theme.palette.error.main
+    : roomTone === 'warning' ? theme.palette.warning.main
+    : roomTone === 'success' ? theme.palette.success.main
+    : progress.done > 0 ? theme.palette.primary.main : theme.palette.grey[400];
 
   useEffect(() => {
     if (!editingName) setRoomNameDraft(room.name);
@@ -734,11 +792,11 @@ function RoomInspectionSection({ room, checklist, onAddItem, addingItem, draftVa
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        onClick={() => setExpanded((prev) => !prev)}
+        onClick={() => onToggle()}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            setExpanded((prev) => !prev);
+            onToggle();
           }
         }}
         sx={{
@@ -824,7 +882,7 @@ function RoomInspectionSection({ room, checklist, onAddItem, addingItem, draftVa
                   </IconButton>
                 </Tooltip>
               )}
-              <Chip label={`${progress.done} / ${progress.total}`} size="small" color={complete ? 'success' : progress.done > 0 ? 'primary' : 'default'} variant={complete ? 'filled' : 'outlined'} sx={{ height: 22, fontWeight: 700 }} />
+              <Chip label={`${progress.done} / ${progress.total}`} size="small" color={roomTone === 'neutral' ? (progress.done > 0 ? 'primary' : 'default') : roomTone} variant={complete ? 'filled' : 'outlined'} sx={{ height: 22, fontWeight: 700 }} />
             </Stack>
             <Typography variant="caption" color="text.secondary">
               {progress.total === 0 ? 'No items yet' : `${progress.done} of ${progress.total} room items complete`}
@@ -904,6 +962,7 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
   const [newRoomName, setNewRoomName] = useState('');
   const [customRooms, setCustomRooms] = useState([]);
   const [itemDrafts, setItemDrafts] = useState({});
+  const [expandedRoomName, setExpandedRoomName] = useState(null);
   const [addingRoom, setAddingRoom] = useState(false);
   const [addingItemRoom, setAddingItemRoom] = useState(null);
   const [scheduledAt, setScheduledAt] = useState('');
@@ -918,6 +977,10 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
   useEffect(() => {
     setCustomRooms(checklist?.roomNames || []);
   }, [checklist?.id, checklist?.roomNames]);
+
+  useEffect(() => {
+    setExpandedRoomName(null);
+  }, [checklist?.id]);
 
   const progress = checklist
     ? (() => {
@@ -1157,6 +1220,7 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
       });
 
       setCustomRooms((prev) => renameRoomName(prev, currentName, normalizedNextName));
+      setExpandedRoomName((current) => current === currentName ? normalizedNextName : current);
       setItemDrafts((prev) => {
         const nextDrafts = { ...prev, [normalizedNextName]: prev[currentName] || '' };
         delete nextDrafts[currentName];
@@ -1188,8 +1252,48 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Checklist summary and room controls */}
+    <Stack spacing={2}>
+      {checklist && (
+        <Grid container spacing={2} alignItems="stretch">
+          <Grid size={{ xs: 12, md: 4 }}>
+            <Box sx={{ height: '100%', p: 1.75, border: `1px solid ${theme.palette.divider}`, borderRadius: 1.5, bgcolor: '#fff' }}>
+              <Typography variant="subtitle2" fontWeight={800} sx={{ color: '#061e35' }}>Rooms</Typography>
+              <Typography variant="caption" sx={{ display: 'block', mt: 0.25, mb: 1.25, lineHeight: 1.4, color: '#365069' }}>
+                Add another room and then add its checklist items below.
+              </Typography>
+              <Stack direction="row" spacing={1}>
+                <TextField
+                  size="small"
+                  fullWidth
+                  placeholder="e.g. Basement"
+                  value={newRoomName}
+                  onChange={(e) => setNewRoomName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddRoom(); }}
+                  disabled={addingRoom}
+                  sx={{ '& .MuiInputBase-input': { color: '#061e35' }, '& .MuiOutlinedInput-notchedOutline': { borderColor: '#a8b6c3' } }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleAddRoom}
+                  disabled={!newRoomName.trim() || addingRoom}
+                  startIcon={addingRoom ? <CircularProgress size={13} color="inherit" /> : <PlusOutlined />}
+                  sx={{ flexShrink: 0, textTransform: 'none', borderRadius: 1.5, px: 1.5, bgcolor: accentColor, '&:hover': { bgcolor: alpha(accentColor, 0.85) } }}
+                >
+                  Add Room
+                </Button>
+              </Stack>
+            </Box>
+          </Grid>
+          <Grid size={{ xs: 12, md: 8 }}><KeyLegend items={checklist.items || []} /></Grid>
+        </Grid>
+      )}
+      <MainCard
+        content={false}
+        sx={{ p: 0, overflow: 'hidden', border: `1px solid ${theme.palette.divider}`, display: 'flex', flexDirection: 'column' }}
+      >
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Checklist progress */}
       <Box
         sx={{
           px: 3,
@@ -1229,47 +1333,6 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
             )}
           </Grid>
 
-          {checklist && (
-            <Grid size={{ xs: 12, md: 4 }}>
-              <MainCard
-                content={false}
-                sx={{
-                  height: '100%',
-                  border: `1px dashed ${theme.palette.divider}`,
-                  boxShadow: 'none'
-                }}
-              >
-                <Box sx={{ p: 1.75 }}>
-                  <Typography variant="subtitle2" fontWeight={800}>Rooms</Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, mb: 1.25, lineHeight: 1.4 }}>
-                    Add another room and then add its checklist items below.
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
-                    <TextField
-                      size="small"
-                      fullWidth
-                      placeholder="e.g. Basement"
-                      value={newRoomName}
-                      onChange={(e) => setNewRoomName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddRoom(); }}
-                      disabled={addingRoom}
-                    />
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={handleAddRoom}
-                      disabled={!newRoomName.trim() || addingRoom}
-                      startIcon={addingRoom ? <CircularProgress size={13} color="inherit" /> : <PlusOutlined />}
-                      sx={{ flexShrink: 0, textTransform: 'none', borderRadius: 1.5, px: 1.5, bgcolor: accentColor, '&:hover': { bgcolor: alpha(accentColor, 0.85) } }}
-                    >
-                      Add Room
-                    </Button>
-                  </Stack>
-                </Box>
-              </MainCard>
-            </Grid>
-          )}
-          {checklist && <Grid size={{ xs: 12, md: 8 }}><KeyLegend /></Grid>}
         </Grid>
       </Box>
 
@@ -1332,6 +1395,8 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
                     key={room.name}
                     room={room}
                     checklist={checklist}
+                    expanded={expandedRoomName === room.name}
+                    onToggle={() => setExpandedRoomName((current) => current === room.name ? null : room.name)}
                     onAddItem={handleAddItem}
                     addingItem={addingItemRoom === room.name}
                     draftValue={itemDrafts[room.name] || ''}
@@ -1346,8 +1411,9 @@ function InspectionColumn({ type, checklist, counterpartChecklist, relatedLease,
           </Stack>
         )}
       </Box>
-
     </Box>
+    </MainCard>
+    </Stack>
   );
 }
 
@@ -1785,21 +1851,6 @@ function ConditionComparison({ moveIn, moveOut }) {
   );
 }
 
-function buildConditionCycles(moveIns, moveOuts) {
-  const unusedMoveOuts = new Set(moveOuts.map((checklist) => String(checklist.id)));
-  const cycles = moveIns.map((moveIn) => {
-    const moveOut = moveOuts.find((candidate) => unusedMoveOuts.has(String(candidate.id)) && (
-      String(moveIn.counterpartChecklistId || '') === String(candidate.id)
-      || String(candidate.counterpartChecklistId || '') === String(moveIn.id)
-      || (moveIn.leaseId && candidate.leaseId && String(moveIn.leaseId) === String(candidate.leaseId))
-    )) || null;
-    if (moveOut) unusedMoveOuts.delete(String(moveOut.id));
-    return { id: `in-${moveIn.id}`, moveIn, moveOut };
-  });
-  moveOuts.filter((checklist) => unusedMoveOuts.has(String(checklist.id))).forEach((moveOut) => cycles.push({ id: `out-${moveOut.id}`, moveIn: null, moveOut }));
-  return cycles;
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function PropertyChecklistsPage() {
@@ -1819,7 +1870,7 @@ export default function PropertyChecklistsPage() {
   const [unitName, setUnitName] = useState('');
   const [selectedUnitData, setSelectedUnitData] = useState(null);
   const [relatedLease, setRelatedLease] = useState(null);
-  const [cycleToDelete, setCycleToDelete] = useState(null);
+  const [checklistToDelete, setChecklistToDelete] = useState(null);
   const [deletingChecklist, setDeletingChecklist] = useState(false);
 
   const load = useCallback(async () => {
@@ -1902,7 +1953,6 @@ export default function PropertyChecklistsPage() {
   const displayPropertyName = propFromRedux?.name || propFromRedux?.streetAddress || `Property ${propertyId}`;
   const displayUnitName = unitName || (unitId ? `Unit ${unitId}` : '');
 
-  const breadcrumbLabel = displayUnitName ? `${displayPropertyName} – ${displayUnitName}` : displayPropertyName;
   const overviewPath = unitId
     ? `/landlord/checklists/property/${propertyId}/unit/${unitId}`
     : `/landlord/checklists/property/${propertyId}`;
@@ -1938,61 +1988,20 @@ export default function PropertyChecklistsPage() {
       : counterpartLeaseId
         ? counterpartCandidates.find((candidate) => String(candidate.leaseId) === String(counterpartLeaseId)) || null
         : counterpartCandidates.find((candidate) => !candidate.leaseId) || null;
-  const moveInChecklists = checklists
-    .filter(isMoveInChecklist)
-    .sort((a, b) => new Date(b.inspectionDate || b.createdAt || 0) - new Date(a.inspectionDate || a.createdAt || 0));
-  const moveOutChecklists = checklists
-    .filter(isMoveOutChecklist)
-    .sort((a, b) => new Date(b.inspectionDate || b.createdAt || 0) - new Date(a.inspectionDate || a.createdAt || 0));
-  const conditionCycles = buildConditionCycles(moveInChecklists, moveOutChecklists);
-
-  const openChecklist = (checklist) => {
-    navigate(`${overviewPath}/checklist/${checklist.id}`);
-  };
-  const deleteConditionCycle = async () => {
-    if (!cycleToDelete) return;
-    const checklistIds = [cycleToDelete.moveIn?.id, cycleToDelete.moveOut?.id].filter(Boolean);
-    if (checklistIds.length === 0) return;
-
+  const deleteSelectedChecklist = async () => {
+    if (!checklistToDelete || deletingChecklist) return;
     setDeletingChecklist(true);
     try {
-      const deletedIds = [];
-      const failedDeletions = [];
-
-      for (const checklistIdToDelete of checklistIds) {
-        try {
-          const result = await checklistAPI.deleteChecklist(checklistIdToDelete);
-          if (result?.success === false) throw new Error(result?.message || 'Failed to delete checklist');
-          deletedIds.push(String(checklistIdToDelete));
-        } catch (error) {
-          failedDeletions.push(error);
-        }
-      }
-
-      if (deletedIds.length > 0) {
-        const deletedIdSet = new Set(deletedIds);
-        setChecklists((current) => current.filter((checklist) => !deletedIdSet.has(String(checklist.id))));
-      }
-      setCycleToDelete(null);
-
-      if (failedDeletions.length > 0) {
-        throw new Error(
-          deletedIds.length > 0
-            ? 'One checklist was deleted, but the other could not be deleted. Please retry from the remaining condition history.'
-            : failedDeletions[0]?.response?.data?.message || failedDeletions[0]?.message || 'Failed to delete condition history'
-        );
-      }
-
-      openSnackbar({
-        open: true,
-        message: checklistIds.length === 2 ? 'Move-in and move-out checklists deleted' : 'Checklist deleted',
-        variant: 'alert',
-        alert: { color: 'success' }
-      });
+      const result = await checklistAPI.deleteChecklist(checklistToDelete.id);
+      if (result?.success === false) throw new Error(result?.message || 'Failed to delete checklist');
+      setChecklists((current) => current.filter((checklist) => String(checklist.id) !== String(checklistToDelete.id)));
+      setChecklistToDelete(null);
+      openSnackbar({ open: true, message: 'Checklist deleted', variant: 'alert', alert: { color: 'success' } });
+      navigate('/landlord/checklists');
     } catch (error) {
       openSnackbar({
         open: true,
-        message: error?.response?.data?.message || error?.message || 'Failed to delete condition history',
+        message: error?.response?.data?.message || error?.message || 'Failed to delete checklist',
         variant: 'alert',
         alert: { color: 'error' }
       });
@@ -2000,23 +2009,12 @@ export default function PropertyChecklistsPage() {
       setDeletingChecklist(false);
     }
   };
-  const startPairedMoveIn = (moveOut) => {
-    navigate(`${overviewPath}?type=move-in&counterpart=${moveOut.id}`);
-  };
-  const startPairedMoveOut = (moveIn) => {
-    navigate(`${overviewPath}?type=move-out&counterpart=${moveIn.id}`);
-  };
-  const openComparison = (moveIn, moveOut) => {
-    navigate(`${overviewPath}/compare/${moveIn.id}/${moveOut.id}`);
-  };
-
   return (
     <Box>
       <PageBreadcrumbs
         items={[
           { label: 'Dashboard', path: '/landlord/dashboard' },
           { label: 'Checklists', path: '/landlord/checklists' },
-          { label: breadcrumbLabel, path: activeType || isComparison ? overviewPath : undefined },
           ...(activeType ? [{ label: activeType === MOVE_IN ? 'Move-In Checklist' : 'Move-Out Checklist' }] : []),
           ...(isComparison ? [{ label: 'Condition comparison' }] : [])
         ]}
@@ -2025,23 +2023,30 @@ export default function PropertyChecklistsPage() {
       {/* Header */}
       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }} spacing={2} sx={{ mb: 3 }}>
         <Stack direction="row" spacing={1.5} alignItems="center">
-          <IconButton size="small" onClick={() => navigate(activeType || isComparison ? overviewPath : '/landlord/checklists')} sx={{ border: `1px solid ${theme.palette.divider}` }}>
-            <ArrowLeftOutlined style={{ fontSize: 14 }} />
-          </IconButton>
           <Box>
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <HomeOutlined style={{ fontSize: 16, color: theme.palette.primary.main }} />
+              <AuditOutlined style={{ fontSize: 18, color: theme.palette.primary.main }} />
               <Typography variant="h5" fontWeight={700} sx={{ overflowWrap: 'anywhere' }}>
-                {displayPropertyName}{activeType ? ` – ${activeType === MOVE_IN ? 'Move-in' : 'Move-out'} Checklist${activeChecklist?.id != null ? ` #${activeChecklist.id}` : ''}` : ''}
+                {activeType ? (activeType === MOVE_IN ? 'Move-in Checklist' : 'Move-out Checklist') : displayPropertyName}
+                {activeType && activeChecklist?.id != null ? ` #${activeChecklist.id}` : ''}
               </Typography>
-              {displayUnitName && (
-                <Chip label={displayUnitName} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 12 }} />
-              )}
             </Stack>
-            {!activeType && (
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-                {isComparison ? 'Move-in and move-out condition comparison' : 'Property condition history'}
-              </Typography>
+            {activeType ? (
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.25 }}>
+                <Typography variant="body2" color="text.secondary">{displayPropertyName}</Typography>
+                {displayUnitName && (
+                  <Chip label={displayUnitName} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 12 }} />
+                )}
+              </Stack>
+            ) : (
+              <>
+                {displayUnitName && (
+                  <Chip label={displayUnitName} size="small" color="primary" variant="outlined" sx={{ height: 22, fontSize: 12, mt: 0.5 }} />
+                )}
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+                  Move-in and move-out condition comparison
+                </Typography>
+              </>
             )}
           </Box>
         </Stack>
@@ -2050,6 +2055,7 @@ export default function PropertyChecklistsPage() {
             checklist={activeChecklist}
             label={activeType === MOVE_IN ? 'Move-In' : 'Move-Out'}
             onRefresh={handleChecklistUpdated}
+            onDelete={() => setChecklistToDelete(activeChecklist)}
           />
         )}
       </Stack>
@@ -2066,108 +2072,50 @@ export default function PropertyChecklistsPage() {
             <WarningOutlined style={{ fontSize: 30, color: theme.palette.warning.main }} />
             <Typography variant="h5" fontWeight={750} sx={{ mt: 1.5 }}>Comparison unavailable</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>One of the paired checklists could not be found.</Typography>
-            <Button onClick={() => navigate(overviewPath)} sx={{ mt: 2, textTransform: 'none' }}>Return to condition history</Button>
+            <Button onClick={() => navigate('/landlord/checklists')} sx={{ mt: 2, textTransform: 'none' }}>Return to checklists</Button>
           </MainCard>
         )
       ) : activeType ? (
         // Single-type view (move-in OR move-out)
-        <MainCard
-          sx={{
-            p: 0, overflow: 'hidden',
-            border: `1px solid ${theme.palette.divider}`,
-            display: 'flex', flexDirection: 'column'
-          }}
-        >
-          <InspectionColumn
-            type={activeType}
-            checklist={activeChecklist}
-            counterpartChecklist={counterpartChecklist}
-            relatedLease={effectiveRelatedLease}
-            propertyId={propertyId}
-            unitId={unitId}
-            propertyName={displayPropertyName}
-            unitName={displayUnitName}
-            onRefresh={handleChecklistUpdated}
-          />
-        </MainCard>
-      ) : (
-        <Stack spacing={2}>
-          <MainCard content={false} sx={{ border: `1px solid ${theme.palette.divider}`, borderRadius: 2.5, overflow: 'hidden' }}>
-            <Box sx={{ px: { xs: 2, sm: 2.5 }, py: 2, bgcolor: '#061e35', color: '#fff' }}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'stretch', sm: 'center' }} spacing={1.5}>
-                <Box>
-                  <Typography variant="h5" fontWeight={800} sx={{ color: '#fff' }}>Property condition history</Typography>
-                  <Typography variant="body2" sx={{ color: alpha('#fff', 0.72), mt: 0.35 }}>
-                    Each tenancy keeps its move-in, move-out, and condition changes together.
-                  </Typography>
-                </Box>
-                <Button
-                  variant="contained"
-                  color="success"
-                  startIcon={<PlusOutlined />}
-                  onClick={() => navigate(`${overviewPath}?type=move-in`)}
-                  sx={{ textTransform: 'none', fontWeight: 800, flexShrink: 0 }}
-                >
-                  Start checklist
-                </Button>
-              </Stack>
-            </Box>
-          </MainCard>
-
-          {conditionCycles.length === 0 ? (
-            <MainCard sx={{ textAlign: 'center', py: 8, border: `1px solid ${theme.palette.divider}` }}>
-              <AuditOutlined style={{ fontSize: 34, color: alpha(theme.palette.primary.main, 0.35) }} />
-              <Typography variant="h5" fontWeight={750} sx={{ mt: 1.5 }}>No condition history yet</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-                Start with a move-in checklist. Its paired move-out will stay connected here.
-              </Typography>
-              <Button variant="contained" color="success" startIcon={<PlusOutlined />} onClick={() => navigate(`${overviewPath}?type=move-in`)} sx={{ textTransform: 'none', fontWeight: 750 }}>
-                Start checklist
-              </Button>
-            </MainCard>
-          ) : (
-            conditionCycles.map((cycle) => (
-              <ConditionCycleCard
-                key={cycle.id}
-                cycle={cycle}
-                onOpen={openChecklist}
-                onDelete={setCycleToDelete}
-                onStartMoveIn={startPairedMoveIn}
-                onStartMoveOut={startPairedMoveOut}
-                onCompare={openComparison}
-                onOpenLease={(leaseId) => navigate(`/landlord/leases/${leaseId}`)}
-              />
-            ))
-          )}
-        </Stack>
-      )}
+        <InspectionColumn
+          type={activeType}
+          checklist={activeChecklist}
+          counterpartChecklist={counterpartChecklist}
+          relatedLease={effectiveRelatedLease}
+          propertyId={propertyId}
+          unitId={unitId}
+          propertyName={displayPropertyName}
+          unitName={displayUnitName}
+          onRefresh={handleChecklistUpdated}
+        />
+      ) : null}
 
       <Dialog
-        open={Boolean(cycleToDelete)}
-        onClose={() => !deletingChecklist && setCycleToDelete(null)}
+        open={Boolean(checklistToDelete)}
+        onClose={() => !deletingChecklist && setChecklistToDelete(null)}
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle sx={{ fontWeight: 800 }}>Delete condition history?</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800 }}>Delete checklist?</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
-            This permanently deletes both the move-in and move-out checklists in this condition history,
-            including their items, notes, and photo references. This cannot be undone.
+            This checklist will be permanently removed, including its items, notes, and photo references.
+            Are you sure? This cannot be undone. The paired checklist, if any, will remain.
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setCycleToDelete(null)} disabled={deletingChecklist} sx={{ textTransform: 'none' }}>
+          <Button onClick={() => setChecklistToDelete(null)} disabled={deletingChecklist} sx={{ textTransform: 'none' }}>
             Cancel
           </Button>
           <Button
             variant="contained"
             color="error"
             startIcon={deletingChecklist ? <CircularProgress size={14} color="inherit" /> : <DeleteOutlined />}
-            onClick={deleteConditionCycle}
+            onClick={deleteSelectedChecklist}
             disabled={deletingChecklist}
             sx={{ textTransform: 'none', fontWeight: 750 }}
           >
-            {deletingChecklist ? 'Deleting…' : 'Delete both checklists'}
+            {deletingChecklist ? 'Deleting…' : 'Delete checklist'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -49,9 +49,8 @@ export default function ScheduleInspectionDrawer() {
       openSnackbar({ open: true, message: 'Please select a date', variant: 'alert', alert: { color: 'warning' } });
       return;
     }
-    const propertyId = drawer.scheduleInspectionPropertyId;
     handleClose();
-    navigate(propertyId ? `/landlord/checklists/property/${propertyId}?type=move-in` : '/landlord/checklists');
+    navigate('/landlord/checklists');
   };
 
   return (
