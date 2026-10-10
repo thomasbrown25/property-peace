@@ -69,7 +69,17 @@ public sealed class TenantInviteSecurityContractTests
             var end = service.IndexOf("\n        public ", start + 1, StringComparison.Ordinal);
             var body = service[start..(end < 0 ? service.Length : end)];
             Assert.Contains("HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false)", body, StringComparison.Ordinal);
-            Assert.Contains("GetLeaseById", body, StringComparison.Ordinal);
+            if (method == "DeleteLease")
+            {
+                // Archive resolves and scopes the target inside the repository transaction.
+                Assert.Contains("_leaseRepository.DeleteLease(leaseId, organizationId.Value, options)", body, StringComparison.Ordinal);
+                var repository = ReadSource("property-peace-api", "Repositories", "Leases", "LeaseRepository.cs");
+                Assert.Contains("l.OrganizationId == organizationId && l.Unit.Property.OrganizationId == organizationId", repository, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.Contains("GetLeaseById", body, StringComparison.Ordinal);
+            }
         }
 
         Assert.Contains("OrganizationMembers.AsNoTracking().AnyAsync", controller, StringComparison.Ordinal);

@@ -93,7 +93,7 @@ namespace brownstone_hub_api.Services.SearchService
                         .ThenInclude(u => u.Property)
                     .Include(l => l.TenantLeases)
                         .ThenInclude(tl => tl.Tenant)
-                    .Where(l => l.Unit != null &&
+                    .Where(l => !l.IsDeleted && l.Unit != null &&
                         l.Unit.Property != null &&
                         !l.Unit.Property.IsDeleted &&
                         l.Unit.Property.LandlordId == landlordId &&

@@ -18,7 +18,8 @@ namespace brownstone_hub_api.Repositories.Leases
         Task<LoadLeaseDto> GetLease(long unitId, long? organizationId = null);
         Task<LoadLeaseDto> GetLeaseById(long leaseId, long organizationId);
         Task<LoadLeaseDto?> GetLeaseById(long leaseId, long organizationId, CancellationToken cancellationToken);
-        Task<LoadLeaseDto> DeleteLease(long id);
+        Task<LoadLeaseDto> DeleteLease(long id, long organizationId, DeleteLeaseOptionsDto? options = null);
+        Task<bool> HasLeaseRecordsForUnit(long unitId, long organizationId);
         Task<List<LoadLeaseDto>> GetLeasesByLandlordId(long landlordId, bool isActive = true);
         Task<List<LoadLeaseDto>> GetLeasesByOrganizationId(long organizationId, bool isActive = true);
         Task<List<LoadLeaseDto>> GetLeasesByPropertyId(long propertyId, bool isActive = true, long? organizationId = null);

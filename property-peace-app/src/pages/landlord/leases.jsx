@@ -210,6 +210,10 @@ const getTenantDisplay = (lease) => {
   return [first, last].filter(Boolean).join(' ') || lease.tenantName || lease.TenantName || 'No tenants added';
 };
 
+// A vacant unit or an empty lease projection is not a lease-list entry.
+const isPersistedLease = (lease) =>
+  lease != null && Number(lease.id ?? lease.Id) > 0 && lease.isDeleted !== true && lease.IsDeleted !== true;
+
 const isLeaseDraft = (lease) =>
   lease?.leaseAgreement?.isDrafted === true ||
   lease?.leaseAgreement?.IsDrafted === true ||
@@ -238,6 +242,13 @@ const isStartedActiveLease = (lease) => {
   if (Number.isNaN(endDate.getTime())) return false;
   endDate.setHours(23, 59, 59, 999);
   return endDate >= todayStart;
+};
+
+const getLeaseStatusLabel = (lease) => {
+  if (isLeaseDraft(lease)) return 'Draft lease';
+  if (isStartedActiveLease(lease)) return 'Active lease';
+  if (lease.isActive === false || lease.IsActive === false || lease.isActive === 0 || lease.IsActive === 0) return 'Ended lease';
+  return 'Not started';
 };
 
 const getPropertyTenantTitle = (lease) => {
@@ -895,7 +906,7 @@ export default function LeasesPage({ onEditLease }) {
         properties.forEach((p) => {
           p.units?.forEach((u) => {
             const unitLease = u.lease || u.Lease;
-            if (unitLease && unitLease.id) {
+            if (isPersistedLease(unitLease)) {
               allLeases.push({
                 ...unitLease,
                 propertyName: p.name,
@@ -966,7 +977,7 @@ export default function LeasesPage({ onEditLease }) {
           const response = await axiosServices.get('/api/lease/history');
           if (response.data?.success && response.data?.data) {
             // Transform lease history to match the format of allLeases
-            const historyLeases = response.data.data.map((history) => ({
+            const historyLeases = response.data.data.filter(isPersistedLease).map((history) => ({
               ...history,
               propertyName: history.propertyName || '',
               propertyId: history.propertyId || 0,
@@ -993,7 +1004,7 @@ export default function LeasesPage({ onEditLease }) {
     fetchLeaseHistory();
   }, [filters.status]);
 
-  // --- Flatten leases from all properties, including units without leases ---
+  // --- Only persisted leases belong in this workspace; vacant units do not. ---
   const allLeases = useMemo(() => {
     if (!properties) return [];
     const leases = [];
@@ -1001,47 +1012,19 @@ export default function LeasesPage({ onEditLease }) {
     properties.forEach((p) => {
       p.units?.forEach((u) => {
         const unitLease = u.lease || u.Lease;
-        // Check if lease exists and is active (handle both camelCase and PascalCase)
-        // Treat isActive = 0, false, or undefined as inactive
-        const isLeaseActive = unitLease && (
-          unitLease.isActive === true || 
-          unitLease.IsActive === true ||
-          unitLease.isActive === 1 ||
-          unitLease.IsActive === 1
-        );
-        
-        // If unit has an active lease, add it to the list for current view
-        if (unitLease && isLeaseActive) {
-          leases.push({
-            ...unitLease,
-            propertyName: p.name,
-            propertyStreetAddress: p.streetAddress,
-            propertyId: p.id,
-            propertyType: p.propertyType,
-            unitName: u.name,
-            unitId: u.id,
-            tenants: unitLease.tenants || [],
-            hasLease: true
-          });
-        }
-        
-        // If unit has an inactive/ended lease (isActive = 0/false), also add it to history
-        // But treat the unit as available (no lease) in current view
-        if (unitLease && !isLeaseActive) {
-          // Add the ended lease to the list for history view
-          leases.push({
-            ...unitLease,
-            propertyName: p.name,
-            propertyStreetAddress: p.streetAddress,
-            propertyId: p.id,
-            propertyType: p.propertyType,
-            unitName: u.name,
-            unitId: u.id,
-            tenants: unitLease.tenants || [],
-            hasLease: true
-          });
-        }
-        
+        if (!isPersistedLease(unitLease)) return;
+        leases.push({
+          ...unitLease,
+          id: unitLease.id ?? unitLease.Id,
+          propertyName: p.name,
+          propertyStreetAddress: p.streetAddress,
+          propertyId: p.id,
+          propertyType: p.propertyType,
+          unitName: u.name,
+          unitId: u.id,
+          tenants: unitLease.tenants || [],
+          hasLease: true
+        });
       });
     });
     return leases;
@@ -1071,7 +1054,7 @@ export default function LeasesPage({ onEditLease }) {
       // Check if lease matches any of the selected status filters
       const matchesStatus = statusFilters.some((statusFilter) => {
         if (statusFilter === 'current') {
-          return l.isActive === true;
+          return isLeaseDraft(l) || l.isActive === true || l.IsActive === true || l.isActive === 1 || l.IsActive === 1;
         }
         
         if (statusFilter === 'active') {
@@ -1909,7 +1892,7 @@ export default function LeasesPage({ onEditLease }) {
                                         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mb: 0.55 }}>{getTenantDisplay(lease)}</Typography>
                                         <Chip
                                           size="small"
-                                          label={isActiveLease ? 'Active lease' : 'No active lease'}
+                                          label={getLeaseStatusLabel(lease)}
                                           color={isActiveLease ? 'success' : 'default'}
                                           variant={isActiveLease ? 'filled' : 'outlined'}
                                           sx={{ height: 20, width: 'fit-content', '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
@@ -2049,7 +2032,7 @@ export default function LeasesPage({ onEditLease }) {
                                   <TableCell sx={{ minWidth: 120 }}>
                                     <Chip
                                       size="small"
-                                      label={isActiveLease ? 'Active lease' : 'No active lease'}
+                                      label={getLeaseStatusLabel(lease)}
                                       color={isActiveLease ? 'success' : 'default'}
                                       variant={isActiveLease ? 'filled' : 'outlined'}
                                       sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
