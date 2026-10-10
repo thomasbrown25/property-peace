@@ -18,8 +18,8 @@ test('money summary renders one chart and exactly two stacked summary cards', ()
 
 test('money summary uses the requested metric labels, subtitle copy, icons and chart series', () => {
   assert.match(source, /label:\s*['\"]Income['\"]/);
-  assert.match(source, /description:\s*isAllTime\s*\?\s*['\"]Rent collected all time['\"]\s*:\s*['\"]Rent collected this month['\"]/);
-  assert.doesNotMatch(source, /description:\s*['\"]Total rent collected['\"]/);
+  assert.match(source, /description:\s*['\"]Total income collected['\"]/);
+  assert.doesNotMatch(source, /description:\s*['\"]Rent collected this month['\"]/);
   assert.match(source, /label:\s*['\"]Expenses['\"]/);
   assert.match(source, /description:\s*['\"]Total property expenses['\"]/);
   assert.match(source, /color: incomeColor,[\s\S]*?icon: <svg/);

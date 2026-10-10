@@ -1694,12 +1694,7 @@ export default function LeasePage() {
             unitBaths: lease?.unit?.bathrooms ?? lease?.unit?.Bathrooms
           }
         })}
-        onViewChecklists={() => {
-          const unitId = lease?.unit?.id ?? lease?.unit?.Id ?? lease?.unitId ?? lease?.UnitId;
-          navigate(propertyId
-            ? `/landlord/checklists/property/${propertyId}${unitId ? `/unit/${unitId}` : ''}`
-            : '/landlord/checklists');
-        }}
+        onViewChecklists={() => navigate('/landlord/checklists')}
         onAddTenant={() => {
           if (property) dispatch(setProperty(property));
           if (lease?.unit) dispatch(setUnit(lease.unit));

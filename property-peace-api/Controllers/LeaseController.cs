@@ -311,6 +311,31 @@ namespace brownstone_hub_api.Controllers
             return Ok(new { success = true, data = leases });
         }
 
+        // Checklist creation needs ended leases too; the existing property endpoint intentionally returns only active ones.
+        [Authorize(Roles = "Landlord,Admin")]
+        [HttpGet("property/{propertyId:long}/checklist-options")]
+        public async Task<IActionResult> GetChecklistLeaseOptions(long propertyId, CancellationToken cancellationToken)
+        {
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!await RequireLeaseManagementPermissionAsync(cancellationToken)) return Forbid();
+            var propertyExists = await _dataContext.Properties.AsNoTracking().AnyAsync(property =>
+                property.Id == propertyId && property.OrganizationId == organizationId && !property.IsDeleted,
+                cancellationToken);
+            if (!propertyExists) return NotFound(new { message = "Property not found" });
+
+            var leases = await _dataContext.Leases.AsNoTracking()
+                .Where(lease => lease.Unit.PropertyId == propertyId &&
+                    lease.Unit.Property.OrganizationId == organizationId &&
+                    lease.OrganizationId == organizationId && !lease.IsDeleted && !lease.Unit.Property.IsDeleted)
+                .OrderByDescending(lease => lease.StartDate)
+                .Select(lease => new {
+                    lease.Id, lease.UnitId, lease.StartDate, lease.EndDate, lease.IsActive,
+                    IsDrafted = lease.LeaseAgreement != null && lease.LeaseAgreement.IsDrafted == true
+                })
+                .ToListAsync(cancellationToken);
+            return Ok(new { success = true, data = leases });
+        }
+
         [Authorize(Roles = "Landlord,Admin")]
         [HttpGet("{unitId}")]
         public async Task<IActionResult> GetLease(long unitId)
