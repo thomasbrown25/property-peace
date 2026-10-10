@@ -302,25 +302,13 @@ namespace brownstone_hub_api.Services.UnitService
             try
             {
                 var organizationId = GetOrganizationIdFromContext();
-                var lease = await _leaseRepository.GetLease(id, organizationId);
-
-                // Get tenants BEFORE deleting the lease
-                long? leaseId = lease?.Id;
-                var tenants = leaseId.HasValue ? await _tenantRepository.GetTenantsByLeaseId(leaseId.Value) : null;
-
-                if (tenants != null && tenants.Count > 0)
-                {
-                    foreach (var tenant in tenants)
-                    {
-                        await _tenantRepository.DeleteTenant(tenant.Id);
-                    }
-                }
-
-                // Delete the lease (this will cascade delete payments and deposits)
-                if (lease != null)
-                {
-                    await _leaseRepository.DeleteLease(lease.Id);
-                }
+                if (!organizationId.HasValue)
+                    return ServiceResponse<LoadUnitDto>.CreateError("Organization ID is required", statusCode: 400);
+                // Archived leases still anchor retained financial and audit records. Never remove
+                // tenant accounts or hard-delete their unit through this older cascading path.
+                if (await _leaseRepository.HasLeaseRecordsForUnit(id, organizationId.Value))
+                    return ServiceResponse<LoadUnitDto>.CreateError(
+                        "Cannot delete a unit with lease records; lease and financial history must be retained", statusCode: 409);
 
                 // Delete maintenance requests for this unit
                 var maintenanceRequests = await _maintenanceRequestRepository.GetMaintenanceRequestsByUnitId(id);

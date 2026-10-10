@@ -370,9 +370,9 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteLease(long id)
+        public async Task<IActionResult> DeleteLease(long id, [FromQuery] DeleteLeaseOptionsDto options)
         {
-            var response = await _leaseService.DeleteLease(id);
+            var response = await _leaseService.DeleteLease(id, options);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new

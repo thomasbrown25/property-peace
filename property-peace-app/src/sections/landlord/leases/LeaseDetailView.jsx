@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  alpha, Avatar, Box, Button, Chip, Dialog, DialogActions, DialogContent,
+  alpha, Avatar, Box, Button, Checkbox, Chip, Dialog, DialogActions, DialogContent,
   DialogContentText, DialogTitle, Divider, Grid, IconButton, LinearProgress,
-  Menu, MenuItem, Stack, Tab, Tabs, TextField, Typography, useTheme
+  FormControlLabel, Menu, MenuItem, Stack, Tab, Tabs, TextField, Typography, useTheme
 } from '@mui/material';
 import {
   CheckOutlined, DollarOutlined, EditOutlined, EllipsisOutlined,
@@ -442,7 +442,10 @@ export default function LeaseDetailView({
 }) {
   const theme = useTheme();
   const navigate = useNavigate();
-  const [actionsAnchor, setActionsAnchor] = useState(null);
+  const [deleteLeaseOpen, setDeleteLeaseOpen] = useState(false);
+  const [deleteDocuments, setDeleteDocuments] = useState(true);
+  const [deleteChecklists, setDeleteChecklists] = useState(true);
+  const [deletingLease, setDeletingLease] = useState(false);
   const [paymentActionsAnchor, setPaymentActionsAnchor] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [paymentEditOpen, setPaymentEditOpen] = useState(false);
@@ -495,6 +498,36 @@ export default function LeaseDetailView({
   }, [lease, leaseId, property]);
 
   const statusLabel = isDraftLease ? 'Draft' : isNotStarted ? 'Not started' : lease?.isActive ? 'Active' : 'Ended';
+
+  const openDeleteLease = () => {
+    setDeleteDocuments(true);
+    setDeleteChecklists(true);
+    setDeleteLeaseOpen(true);
+  };
+
+  const confirmDeleteLease = async () => {
+    const id = lease?.id ?? lease?.Id ?? leaseId;
+    if (!id || deletingLease) return;
+    setDeletingLease(true);
+    try {
+      // DELETE /api/Lease/:id binds cleanup options from query, not from a DELETE body.
+      const response = await axios.delete(`/api/Lease/${id}`, {
+        params: { deleteLeaseDocuments: deleteDocuments, deleteChecklists }
+      });
+      if (response.data?.success === false || response.data?.Success === false) {
+        throw new Error(response.data?.message ?? response.data?.Message ?? 'Could not archive lease');
+      }
+      setDeleteLeaseOpen(false);
+      // A refresh error must not misreport a completed archive as a failed deletion.
+      try { await propertiesRefetch?.(); } catch (refreshError) { console.warn('Could not refresh leases after archive:', refreshError); }
+      openSnackbar({ open: true, message: 'Lease archived and hidden from the lease list.', variant: 'alert', alert: { color: 'success' } });
+      navigate('/landlord/leases');
+    } catch (error) {
+      openSnackbar({ open: true, message: error?.message || 'Could not archive lease. Please try again.', variant: 'alert', alert: { color: 'error' } });
+    } finally {
+      setDeletingLease(false);
+    }
+  };
 
   const handlePaymentActionsClick = (event, payment) => {
     setPaymentActionsAnchor(event.currentTarget);
@@ -827,12 +860,6 @@ export default function LeaseDetailView({
             </Box>
           </Stack>
           <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap sx={{ flexShrink: 0, pl: { xs: 7.25, sm: 8, md: 0 } }}>
-            {isDraftLease && (
-              <Button size="small" variant="contained" color="success" startIcon={<EditOutlined />} onClick={onEditTerms}
-                sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
-                Edit lease
-              </Button>
-            )}
             {!isDraftLease && (
               <Button size="small" variant="outlined" startIcon={<FileTextOutlined style={{ fontSize: 11 }} />} onClick={onUploadDocument}
                 sx={{ textTransform: 'none', fontWeight: 650, fontSize: '0.8rem', borderRadius: 1.5, borderColor: 'divider', color: theme.palette.mode === 'dark' ? 'text.primary' : '#061e35', px: 1.5, '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
@@ -845,26 +872,20 @@ export default function LeaseDetailView({
                 Record payment
               </Button>
             )}
-            <IconButton aria-label="More lease actions" size="small" onClick={e => setActionsAnchor(e.currentTarget)}
-              sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1.5, color: theme.palette.mode === 'dark' ? 'text.primary' : '#061e35', '&:hover': { borderColor: 'primary.main', bgcolor: alpha(theme.palette.primary.main, 0.04) } }}>
-              <EllipsisOutlined style={{ fontSize: 14 }} />
-            </IconButton>
-            <Menu anchorEl={actionsAnchor} open={Boolean(actionsAnchor)} onClose={() => setActionsAnchor(null)}
-              PaperProps={{ sx: { mt: 0.5, minWidth: 180, borderRadius: 1.5, boxShadow: t => `0 4px 16px ${alpha(t.palette.common.black, 0.12)}` } }}>
-              <MenuItem onClick={() => { setActionsAnchor(null); onEditTerms(); }} sx={{ py: 1, fontSize: '0.85rem' }}>
-                <EditOutlined style={{ marginRight: 8, fontSize: 13 }} /> Edit terms
-              </MenuItem>
-              {lease?.isActive && !isDraftLease && (
-                <MenuItem onClick={() => { setActionsAnchor(null); handleEndLeaseClick(); }} sx={{ py: 1, fontSize: '0.85rem', color: 'error.main' }}>
-                  <StopOutlined style={{ marginRight: 8, fontSize: 13 }} /> End lease early
-                </MenuItem>
-              )}
-              {!lease?.isActive && !isDraftLease && (
-                <MenuItem onClick={() => { setActionsAnchor(null); handleReopenLeaseClick(); }} sx={{ py: 1, fontSize: '0.85rem', color: 'success.main' }}>
-                  Reopen lease
-                </MenuItem>
-              )}
-            </Menu>
+            <Button size="small" variant="contained" color="success" startIcon={<EditOutlined />} onClick={onEditTerms}
+              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, boxShadow: 'none', '&:hover': { boxShadow: 'none' } }}>
+              Edit lease
+            </Button>
+            <Button size="small" variant="outlined" color="error" startIcon={<DeleteOutlined />} onClick={openDeleteLease}
+              sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5 }}>
+              Delete
+            </Button>
+            {!isDraftLease && (
+              <Button size="small" onClick={lease?.isActive ? handleEndLeaseClick : handleReopenLeaseClick}
+                sx={{ textTransform: 'none', fontSize: '0.75rem' }}>
+                {lease?.isActive ? 'End lease early' : 'Reopen lease'}
+              </Button>
+            )}
           </Stack>
         </Stack>
         <Box
@@ -1202,6 +1223,35 @@ export default function LeaseDetailView({
               </Box>
             </SectionCard>
           )}
+
+      <Dialog open={deleteLeaseOpen} onClose={deletingLease ? undefined : () => setDeleteLeaseOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Delete lease?</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            This archives and hides the lease from the lease list. The lease is not erased from financial history;
+            payments and other financial records are retained, and tenant profiles are retained.
+          </DialogContentText>
+          <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>Also remove from the app:</Typography>
+          <Stack>
+            <FormControlLabel control={<Checkbox checked={deleteDocuments} onChange={(event) => setDeleteDocuments(event.target.checked)} disabled={deletingLease} />} label="Lease documents" />
+            <FormControlLabel control={<Checkbox checked={deleteChecklists} onChange={(event) => setDeleteChecklists(event.target.checked)} disabled={deletingLease} />} label="Lease checklists" />
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Unchecked related data stays attached to the archived lease.
+          </Typography>
+          {(deleteDocuments || deleteChecklists) && (
+            <Typography role="alert" variant="body2" color="error.main" sx={{ mt: 1, fontWeight: 600 }}>
+              Warning: {deleteDocuments && 'Selected lease documents will be hidden (their records and stored file blobs are retained). '}{deleteChecklists && 'Selected lease checklists and their items will be permanently deleted. This cannot be undone. Checklist photo blobs may be retained.'}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteLeaseOpen(false)} disabled={deletingLease}>Cancel</Button>
+          <Button color="error" variant="contained" disabled={deletingLease} onClick={confirmDeleteLease}>
+            {deletingLease ? 'Deleting…' : 'Delete lease'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Menu
         anchorEl={paymentActionsAnchor}

@@ -57,7 +57,7 @@ test('lease header keeps the property title compact and omits tenant names from 
 });
 
 test('lease header exposes upload without a renew shortcut', () => {
-  const headerActions = between('sx={{ flexShrink: 0, pl:', '<Menu anchorEl={actionsAnchor}');
+  const headerActions = between('sx={{ flexShrink: 0, pl:', '</Stack>');
   assert.match(headerActions, />\s*Upload document\s*</);
   assert.doesNotMatch(headerActions, />\s*Renew\s*</);
 });

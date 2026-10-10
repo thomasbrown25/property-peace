@@ -1054,82 +1054,69 @@ namespace brownstone_hub_api.Repositories.Leases
             }
         }
 
-        public async Task<LoadLeaseDto> DeleteLease(long id)
+        public Task<bool> HasLeaseRecordsForUnit(long unitId, long organizationId) =>
+            _context.Leases.AnyAsync(l => l.UnitId == unitId && l.OrganizationId == organizationId &&
+                l.Unit.Property.OrganizationId == organizationId);
+
+        public async Task<LoadLeaseDto> DeleteLease(long id, long organizationId, DeleteLeaseOptionsDto? options = null)
         {
-            try
+            options ??= new DeleteLeaseOptionsDto();
+            // Keep the lease row and all financial/provider/audit/signature relationships intact.
+            // The relational transaction makes optional metadata cleanup and hiding atomic.
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
+            var lease = await _context.Leases
+                .Include(l => l.Unit)
+                .FirstOrDefaultAsync(l => l.Id == id && !l.IsDeleted &&
+                    l.OrganizationId == organizationId && l.Unit.Property.OrganizationId == organizationId)
+                ?? throw new KeyNotFoundException($"Lease with ID {id} not found");
+
+            var now = DateTime.UtcNow;
+            if (options.DeleteLeaseDocuments)
             {
-                var lease = await _context.Leases
-                    .Include(l => l.Unit)
-                    .FirstOrDefaultAsync(l => l.Id == id);
-                
-                if (lease == null)
-                    throw new KeyNotFoundException($"Lease with ID {id} not found");
-
-                // STEP 1: Archive (soft delete) all lease agreement documents associated with this lease
-                // This preserves the documents for historical/legal purposes while removing the lease
-                var leaseAgreementDocuments = await _context.TenantDocuments
-                    .Where(td => td.LeaseId == id && 
-                                td.DocumentType == ETenantDocumentType.LeaseAgreement &&
-                                !td.IsDeleted)
-                    .ToListAsync();
-
-                if (leaseAgreementDocuments.Any())
+                // Document records (including signed lease agreements) and blobs are retained,
+                // but are hidden by the existing document soft-delete filters.
+                var tenantDocuments = await _context.TenantDocuments
+                    .Where(d => d.LeaseId == id && !d.IsDeleted).ToListAsync();
+                foreach (var document in tenantDocuments)
                 {
-                    var now = DateTime.UtcNow;
-                    foreach (var document in leaseAgreementDocuments)
-                    {
-                        document.IsDeleted = true;
-                        document.DeletedAt = now;
-                        _logger.LogInformation("Archiving lease agreement document {DocumentId} (BlobName: {BlobName}) for deleted lease {LeaseId}",
-                            document.Id, document.BlobName, id);
-                    }
-                    _context.TenantDocuments.UpdateRange(leaseAgreementDocuments);
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("Archived {Count} lease agreement document(s) for lease {LeaseId}", 
-                        leaseAgreementDocuments.Count, id);
+                    document.IsDeleted = true;
+                    document.DeletedAt = now;
                 }
-
-                // STEP 2: Find and delete associated lease instance(s)
-                // Note: The relationship is configured with DeleteBehavior.Restrict, so we must delete
-                // LeaseInstances before deleting the Lease. Child entities (Variables, Documents, PolicySection)
-                // have Cascade delete configured, so they will be automatically deleted.
-                var leaseInstances = await _context.LeaseInstances
-                    .Where(li => li.LeaseId == id)
-                    .ToListAsync();
-
-                if (leaseInstances.Any())
+                var files = await _context.Files
+                    .Where(f => f.LeaseId == id && !f.IsDeleted).ToListAsync();
+                foreach (var file in files)
                 {
-                    // Delete lease instances - child entities will cascade delete automatically
-                    _context.LeaseInstances.RemoveRange(leaseInstances);
-                    // Save changes to delete instances before deleting the lease
-                    await _context.SaveChangesAsync();
+                    file.IsDeleted = true;
+                    file.DeletedAt = now;
                 }
-
-                // STEP 3: Hard delete the lease - actually remove from the table
-                // IMPORTANT: Lease history entries (LeaseHistories table) are NOT deleted.
-                // History entries are preserved permanently unless explicitly deleted from the history view.
-                // This ensures historical records remain available for legal/compliance purposes.
-                if (lease.Unit != null)
-                {
-                    lease.Unit.IsOccupied = await _context.Leases.AnyAsync(other =>
-                        other.UnitId == lease.UnitId && other.Id != id && !other.IsDeleted && other.IsActive &&
-                        other.StartDate.HasValue && other.StartDate.Value.Date <= DateTime.Today &&
-                        (!other.EndDate.HasValue || other.EndDate.Value.Date >= DateTime.Today));
-                }
-                _context.Leases.Remove(lease);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Successfully deleted lease {LeaseId} and archived {DocumentCount} lease agreement document(s). Lease history preserved.", 
-                    id, leaseAgreementDocuments.Count);
-
-                // Return a DTO before deletion for the response
-                return _mapper.Map<LoadLeaseDto>(lease);
             }
-            catch (Exception ex)
+            if (options.DeleteChecklists)
             {
-                _logger.LogError(ex, "Error deleting lease with ID {id}", id);
-                throw new Exception($"Error deleting lease with ID {id}", ex);
+                // Checklist items cascade in the database. Photo blobs are not removed.
+                var checklists = await _context.Checklists
+                    .Where(c => c.LeaseId == id).ToListAsync();
+                var checklistIds = checklists.Select(c => c.Id).ToList();
+                var counterparts = await _context.Checklists
+                    .Where(c => c.CounterpartChecklistId.HasValue && checklistIds.Contains(c.CounterpartChecklistId.Value)
+                        && !checklistIds.Contains(c.Id)).ToListAsync();
+                foreach (var counterpart in counterparts) counterpart.CounterpartChecklistId = null;
+                _context.Checklists.RemoveRange(checklists);
             }
+            lease.IsDeleted = true;
+            lease.DeletedAt = now;
+            lease.IsActive = false;
+            lease.AutoRenewLease = false;
+            lease.CreateChecklistOnStartDate = false;
+            lease.UpdatedAt = now;
+            lease.Unit.IsOccupied = await _context.Leases.AnyAsync(other =>
+                other.UnitId == lease.UnitId && other.Id != id && !other.IsDeleted && other.IsActive &&
+                other.StartDate.HasValue && other.StartDate.Value.Date <= DateTime.Today &&
+                (!other.EndDate.HasValue || other.EndDate.Value.Date >= DateTime.Today));
+            await _context.SaveChangesAsync();
+            if (transaction != null) await transaction.CommitAsync();
+            return _mapper.Map<LoadLeaseDto>(lease);
         }
 
         public async Task<LoadLeaseDto> GetLeaseById(long leaseId, long organizationId)
@@ -1153,7 +1140,8 @@ namespace brownstone_hub_api.Repositories.Leases
                     .Include(l => l.LeaseAdditionalSigners)
                     .Include(l => l.LeaseOccupants)
                     .Include(l => l.LeaseAgreement)
-                    .Where(l => l.Id == leaseId && l.OrganizationId == organizationId)
+                    .Where(l => l.Id == leaseId && l.OrganizationId == organizationId &&
+                        l.Unit.Property.OrganizationId == organizationId && !l.IsDeleted)
                     .FirstOrDefaultAsync();
 
                 return _mapper.Map<LoadLeaseDto>(lease);
@@ -1209,7 +1197,8 @@ namespace brownstone_hub_api.Repositories.Leases
                 .Include(l => l.LeaseAdditionalSigners)
                 .Include(l => l.LeaseOccupants)
                 .Include(l => l.LeaseAgreement)
-                .Where(l => l.Id == leaseId && l.OrganizationId == organizationId)
+                .Where(l => l.Id == leaseId && l.OrganizationId == organizationId &&
+                        l.Unit.Property.OrganizationId == organizationId && !l.IsDeleted)
                 .FirstOrDefaultAsync();
             if (lease == null)
                 throw new Exception($"Lease not found: {leaseId}");
@@ -1696,7 +1685,7 @@ namespace brownstone_hub_api.Repositories.Leases
                                 .ThenInclude(tl => tl.Tenant)
                             .Include(l => l.LeaseFees)
                             .Include(l => l.LeaseAgreement)
-                            .Where(l => l.Unit.Property.LandlordId == landlordId &&
+                            .Where(l => l.Unit.Property.LandlordId == landlordId && !l.IsDeleted &&
                                         !l.Unit.Property.IsDeleted &&
                                         l.IsActive)
                             .ToListAsync();
@@ -1713,7 +1702,7 @@ namespace brownstone_hub_api.Repositories.Leases
                         .ThenInclude(tl => tl.Tenant)
                     .Include(l => l.LeaseFees)
                     .Include(l => l.LeaseAgreement)
-                    .Where(l => l.Unit.Property.LandlordId == landlordId &&
+                    .Where(l => l.Unit.Property.LandlordId == landlordId && !l.IsDeleted &&
                                 !l.Unit.Property.IsDeleted)
                     .ToListAsync();
 
@@ -1764,7 +1753,7 @@ namespace brownstone_hub_api.Repositories.Leases
             {
                 return await _context.Leases
                     .AsNoTracking()
-                    .Where(l => l.OrganizationId == organizationId && l.IsActive &&
+                    .Where(l => l.OrganizationId == organizationId && !l.IsDeleted && l.IsActive &&
                                 !_context.LeaseAgreements.Any(la => la.LeaseId == l.Id && la.IsDrafted == true))
                     .Select(l => new LoadLeaseDto
                     {
@@ -1877,7 +1866,7 @@ namespace brownstone_hub_api.Repositories.Leases
                         .ThenInclude(tl => tl.Tenant)
                     .Include(l => l.LeaseFees)
                     .Include(l => l.LeaseAgreement)
-                    .Where(l => l.TenantLeases.Any(tl => tl.Tenant.UserId == tenantUserId) &&
+                    .Where(l => !l.IsDeleted && l.TenantLeases.Any(tl => tl.Tenant.UserId == tenantUserId) &&
                                 !l.Unit.Property.IsDeleted)
                     .ToListAsync();
 

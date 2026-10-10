@@ -390,7 +390,7 @@ namespace brownstone_hub_api.Services.LeaseService
             }
         }
 
-        public async Task<ServiceResponse<LoadLeaseDto>> DeleteLease(long leaseId)
+        public async Task<ServiceResponse<LoadLeaseDto>> DeleteLease(long leaseId, DeleteLeaseOptionsDto? options = null)
         {
             try
             {
@@ -399,10 +399,12 @@ namespace brownstone_hub_api.Services.LeaseService
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", statusCode: 400);
                 if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
                     return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
-                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
-                    return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
-                var lease = await _leaseRepository.DeleteLease(leaseId);
+                var lease = await _leaseRepository.DeleteLease(leaseId, organizationId.Value, options);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease);
+            }
+            catch (KeyNotFoundException)
+            {
+                return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
             }
             catch (Exception ex)
             {

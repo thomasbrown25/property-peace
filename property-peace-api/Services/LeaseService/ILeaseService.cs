@@ -10,7 +10,7 @@ namespace brownstone_hub_api.Services.LeaseService
         Task<ServiceResponse<LoadLeaseDto>> GetLeaseById(long leaseId);
         Task<ServiceResponse<List<LoadLeaseDto>>> GetLeasesByLandlordId(long landlordId);
         Task<ServiceResponse<LoadLeaseDto>> GetActiveLease(long propertyId);
-        Task<ServiceResponse<LoadLeaseDto>> DeleteLease(long leaseId);
+        Task<ServiceResponse<LoadLeaseDto>> DeleteLease(long leaseId, DeleteLeaseOptionsDto? options = null);
         Task<ServiceResponse<List<LoadLeaseDto>>> GetLeasesByTenantUserId(long tenantUserId);
         Task<ServiceResponse<LoadLeaseDto>> EndLease(long leaseId);
         Task<ServiceResponse<LoadLeaseDto>> ReopenLease(long leaseId);
