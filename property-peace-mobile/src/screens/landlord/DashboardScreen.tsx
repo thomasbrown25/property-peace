@@ -331,7 +331,11 @@ export default function DashboardScreen() {
 
         <DashboardSection>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Money summary for this month</Text>
+            <Text style={styles.cardTitle}>Money summary</Text>
+            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('RentCollection')} accessibilityRole="button" accessibilityLabel="View all rent collection">
+              <Text style={styles.cardLinkText}>View all</Text>
+              <Ionicons name="arrow-forward" size={14} color="#647585" />
+            </TouchableOpacity>
           </View>
           {scopedRentStatus === 'error' ? (
             <SectionError text="Money summary is unavailable." onRetry={loadDashboard} />

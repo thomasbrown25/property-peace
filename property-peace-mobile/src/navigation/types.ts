@@ -17,6 +17,7 @@ export type AuthStackParamList = {
 
 export type DashboardStackParamList = {
   DashboardHome: undefined;
+  RentCollection: undefined;
   AddExpense: undefined;
 };
 
