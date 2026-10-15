@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform, ScrollView } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Image, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Linking, Platform, ScrollView } from 'react-native';
 import { useAppDispatch } from '../../store/hooks';
 import { login, googleLogin } from '../../store/user/user.slice';
 import { useNavigation } from '@react-navigation/native';
@@ -152,7 +152,15 @@ export default function LoginScreen() {
             },
           ]}
         >
-          <Text style={styles.title}>Property Peace</Text>
+          <View style={styles.logoBacking}>
+            <Image
+              source={require('../../../assets/property-peace-navbar-logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+              accessible
+              accessibilityLabel="Property Peace"
+            />
+          </View>
           <Text style={styles.subtitle}>Sign in to your calm landlord dashboard.</Text>
 
           <TextInput
@@ -185,31 +193,31 @@ export default function LoginScreen() {
             <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
           </TouchableOpacity>
 
+          {(Platform.OS === 'ios' || showGoogleSignIn) && (
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+          )}
+
           {Platform.OS === 'ios' && <AppleSignInButton mode="sign-in" />}
 
           {showGoogleSignIn && (
-            <>
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.googleButton, (loading || googleLoading || googleSubmitting) && styles.buttonDisabled]}
-                onPress={handleGoogleSignIn}
-                disabled={loading || googleLoading || googleSubmitting}
-              >
-                <View style={styles.googleButtonContent}>
-                  <View style={{ marginRight: 12 }}>
-                    <GoogleLogo size={20} />
-                  </View>
-                  <Text style={styles.googleButtonText}>
-                    {googleLoading || googleSubmitting ? 'Signing in...' : 'Sign in with Google'}
-                  </Text>
+            <TouchableOpacity
+              style={[styles.googleButton, (loading || googleLoading || googleSubmitting) && styles.buttonDisabled]}
+              onPress={handleGoogleSignIn}
+              disabled={loading || googleLoading || googleSubmitting}
+            >
+              <View style={styles.googleButtonContent}>
+                <View style={{ marginRight: 12 }}>
+                  <GoogleLogo size={20} />
                 </View>
-              </TouchableOpacity>
-            </>
+                <Text style={styles.googleButtonText}>
+                  {googleLoading || googleSubmitting ? 'Signing in...' : 'Sign in with Google'}
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
 
           <TouchableOpacity
@@ -258,12 +266,19 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
-  title: {
-    fontSize: 36,
-    fontWeight: '800',
-    textAlign: 'center',
+  logoBacking: {
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     marginBottom: 8,
-    color: '#fff',
+  },
+  logo: {
+    width: 200,
+    height: 56,
   },
   subtitle: {
     fontSize: 16,
@@ -352,7 +367,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   googleButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: '#fff',
     padding: 14,
     borderRadius: 16,
     alignItems: 'center',
@@ -374,7 +389,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   googleButtonText: {
-    color: '#fff',
+    color: '#1f1f1f',
     fontSize: 16,
     fontWeight: '600',
   },

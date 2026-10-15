@@ -27,8 +27,11 @@ export default function AddTenantScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.helper}>Use mobile for quick tenant capture. Portal invites and account details can still be handled from web when needed.</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <Text style={styles.eyebrow}>NEW TENANT</Text>
+      <Text style={styles.title}>Add a tenant</Text>
+      <Text style={styles.helper}>Capture contact details here. Portal invitations and account setup can be handled on the web.</Text>
+      <Text style={styles.sectionLabel}>CONTACT DETAILS</Text>
       <TextInput style={styles.input} placeholder="First name" value={form.firstName} onChangeText={(v) => update('firstName', v)} />
       <TextInput style={styles.input} placeholder="Last name" value={form.lastName} onChangeText={(v) => update('lastName', v)} />
       <TextInput style={styles.input} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={form.email} onChangeText={(v) => update('email', v)} />
@@ -41,11 +44,14 @@ export default function AddTenantScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 36 },
-  helper: { color: '#555', marginBottom: 16, lineHeight: 20 },
-  input: { backgroundColor: '#fff', borderColor: '#ddd', borderWidth: 1, borderRadius: 8, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14, fontSize: 16 },
-  primaryButton: { backgroundColor: '#1976d2', borderRadius: 8, minHeight: 48, padding: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  container: { flex: 1, backgroundColor: '#fbf7f4' },
+  content: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 48 },
+  eyebrow: { color: '#2f8f46', fontSize: 12, fontWeight: '800', letterSpacing: 1.4, marginBottom: 8 },
+  title: { color: '#082941', fontSize: 30, fontWeight: '800', letterSpacing: -0.7, marginBottom: 8 },
+  helper: { color: '#596b79', marginBottom: 30, lineHeight: 22, fontSize: 15 },
+  sectionLabel: { color: '#647888', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 14 },
+  input: { backgroundColor: '#fff', borderColor: '#dce3e5', borderWidth: 1, borderRadius: 12, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14, fontSize: 16, color: '#102d43' },
+  primaryButton: { backgroundColor: '#2475cf', borderRadius: 12, minHeight: 50, padding: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

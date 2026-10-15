@@ -1,8 +1,14 @@
 import React from 'react';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { Image } from 'react-native';
 
-// Simple Google logo using FontAwesome icon
-// This avoids the react-native-svg dependency issue
 export default function GoogleLogo({ size = 20 }: { size?: number }) {
-  return <FontAwesome5 name="google" size={size} color="#4285F4" />;
+  return (
+    <Image
+      source={require('../../assets/g-logo.png')}
+      style={{ width: size, height: size }}
+      resizeMode="contain"
+      accessible
+      accessibilityLabel="Google"
+    />
+  );
 }

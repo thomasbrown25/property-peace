@@ -47,7 +47,7 @@ export default function ForgotPasswordScreen() {
         >
           <Text style={styles.eyebrow}>Account access</Text>
           <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>Enter your email to receive reset instructions.</Text>
+          <Text style={styles.subtitle}>Enter your email to receive reset instructions. If an account exists, we’ll send you a link.</Text>
 
           <TextInput
             style={styles.input}
@@ -88,34 +88,28 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 18,
-    paddingVertical: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 36,
   },
   eyebrow: {
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(147, 197, 253, 0.30)',
-    backgroundColor: 'rgba(96, 165, 250, 0.10)',
+    alignSelf: 'flex-start',
     color: '#93c5fd',
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    marginBottom: 18,
+    marginBottom: 10,
   },
   title: {
     fontSize: 34,
     fontWeight: '800',
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 8,
     color: '#fff',
   },
   subtitle: {
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 24,
     color: 'rgba(255, 255, 255, 0.68)',
     lineHeight: 23,
@@ -134,16 +128,12 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: '#2563eb',
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 10,
     alignItems: 'center',
     marginTop: 0,
     borderWidth: 1,
     borderColor: 'rgba(147, 197, 253, 0.45)',
-    shadowColor: '#3b82f6',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 22,
-    elevation: 5,
+
   },
   buttonDisabled: {
     opacity: 0.6,

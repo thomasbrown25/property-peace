@@ -2,12 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
+  LayoutAnimation,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,12 +57,10 @@ const getLease = (unit: any) => unit.lease || unit.Lease || unit.activeLease || 
 const getPropertyId = (property: Property) => String(property.id ?? property.Id ?? '');
 const getRequestId = (request: MaintenanceRequest) => String(request.id ?? request.Id ?? '');
 
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-};
+// LayoutAnimation requires explicit opt-in on Android's legacy renderer.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 const formatMoney = (value: number) => new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -114,6 +115,10 @@ export default function DashboardScreen() {
   const [rentStatus, setRentStatus] = useState<LoadStatus>('loading');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const toggleQuickActions = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setQuickActionsOpen((open) => !open);
+  };
   const loadGeneration = useRef(0);
   const organizationId = String(currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId ?? '');
   const currentOrganizationId = useRef(organizationId);
@@ -333,8 +338,6 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor="#2475cf" />}
       >
-        <Text style={styles.heroTitle}>{getGreeting()}, {firstName}</Text>
-
         <View style={styles.todayCard}>
           <View style={styles.dateBlock}>
             <Text style={styles.dateMonth}>{currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
@@ -375,7 +378,7 @@ export default function DashboardScreen() {
           <View style={styles.quickCardInner}>
             <TouchableOpacity
               style={styles.quickTrigger}
-              onPress={() => setQuickActionsOpen((open) => !open)}
+              onPress={toggleQuickActions}
               accessibilityRole="button"
               accessibilityLabel="Quick actions"
               accessibilityHint="Expands or collapses quick actions"
@@ -416,7 +419,7 @@ export default function DashboardScreen() {
           ) : scopedRentStatus === 'success' ? (
             <>
               <Text style={styles.progressHelper}>
-                {scopedRentMetrics.remaining > 0 ? `${formatMoney(scopedRentMetrics.remaining)} remaining this month` : 'Expected rent collected'}
+                {`${formatMoney(scopedRentMetrics.collected)} collected of ${formatMoney(scopedRentMetrics.expected)} total expected`}
               </Text>
               <View
                 style={styles.progressTrack}
@@ -432,12 +435,9 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        <DashboardCard accent="#2f8f46">
+        <DashboardSection>
           <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.cardEyebrow}>THIS MONTH</Text>
-              <Text style={styles.cardTitle}>Money summary</Text>
-            </View>
+            <Text style={styles.cardTitle}>Money summary for this month</Text>
           </View>
           {scopedRentStatus === 'error' ? (
             <SectionError text="Money summary is unavailable." onRetry={loadDashboard} />
@@ -445,17 +445,14 @@ export default function DashboardScreen() {
             <CardLoading />
           ) : (
             <View style={styles.metricList}>
-              <MoneyMetric label="Expected rent" value={formatMoney(scopedRentMetrics.expected)} color="#0b3558" />
               <MoneyMetric label="Collected" value={formatMoney(scopedRentMetrics.collected)} color="#2f8f46" />
+              <MoneyMetric label="Expected rent" value={formatMoney(scopedRentMetrics.expected)} color="#0b3558" />
               <MoneyMetric label="Remaining" value={formatMoney(scopedRentMetrics.remaining)} color="#b76a11" />
-              {scopedRentMetrics.outstanding > scopedRentMetrics.remaining && (
-                <Text style={styles.outstandingNote}>{formatMoney(scopedRentMetrics.outstanding)} total outstanding including prior months</Text>
-              )}
             </View>
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard accent="#2475cf">
+        <DashboardSection>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Portfolio</Text>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })}>
@@ -468,7 +465,7 @@ export default function DashboardScreen() {
           ) : scopedPropertiesStatus === 'loading' ? (
             <CardLoading />
           ) : (
-            <View style={styles.portfolioGrid}>
+            <View style={styles.portfolioList}>
               <PortfolioMetric icon="home-outline" label="Portfolio occupancy" value={`${portfolio.occupancy}%`} helper={`${portfolio.occupied} of ${portfolio.units} units occupied`} color="#2f8f46" background="#edf8f0" />
               <PortfolioMetric icon="business-outline" label="Vacant units" value={String(portfolio.vacant)} helper={`Across ${portfolio.properties} active ${portfolio.properties === 1 ? 'property' : 'properties'}`} color="#b76a11" background="#fff7e8" />
               <PortfolioMetric icon="cash-outline" label="Monthly rent" value={formatMoney(portfolio.monthlyRent)} helper="Scheduled rent, not collections" color="#2475cf" background="#eaf3ff" />
@@ -482,9 +479,9 @@ export default function DashboardScreen() {
               />
             </View>
           )}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard accent="#d39424">
+        <DashboardSection>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleWithIcon}>
               <Ionicons name="construct-outline" size={20} color="#b76a11" />
@@ -512,9 +509,9 @@ export default function DashboardScreen() {
               })}
             />
           ))}
-        </DashboardCard>
+        </DashboardSection>
 
-        <DashboardCard accent="#2475cf">
+        <DashboardSection>
           <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardEyebrow}>RECENT</Text>
@@ -540,14 +537,14 @@ export default function DashboardScreen() {
               </View>
             </View>
           ))}
-        </DashboardCard>
+        </DashboardSection>
       </ScrollView>
     </View>
   );
 }
 
-function DashboardCard({ accent, children }: { accent: string; children: React.ReactNode }) {
-  return <View style={[styles.dashboardCard, { borderTopColor: accent }]}>{children}</View>;
+function DashboardSection({ children }: { children: React.ReactNode }) {
+  return <View style={styles.dashboardSection}>{children}</View>;
 }
 
 function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void | Promise<void>; destructive?: boolean }) {
@@ -583,13 +580,13 @@ function MoneyMetric({ label, value, color }: { label: string; value: string; co
 
 function PortfolioMetric({ icon, label, value, helper, color, background }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; helper: string; color: string; background: string }) {
   return (
-    <View style={[styles.portfolioMetric, { borderColor: `${color}33`, backgroundColor: `${background}` }]}>
-      <View style={styles.portfolioMetricTop}>
+    <View style={styles.portfolioMetric}>
+      <View style={[styles.portfolioIcon, { backgroundColor: background }]}><Ionicons name={icon} size={18} color={color} /></View>
+      <View style={styles.portfolioMetricCopy}>
         <Text style={styles.portfolioLabel}>{label}</Text>
-        <View style={[styles.portfolioIcon, { backgroundColor: `${color}18` }]}><Ionicons name={icon} size={18} color={color} /></View>
+        <Text style={styles.portfolioHelper}>{helper}</Text>
       </View>
       <Text style={styles.portfolioValue}>{value}</Text>
-      <Text style={styles.portfolioHelper}>{helper}</Text>
     </View>
   );
 }
@@ -638,8 +635,8 @@ function CardLoading() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f7f8fa' },
-  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 12, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 12, backgroundColor: '#ffffff' },
   logo: { width: 148, height: 42 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e1e7eb' },
@@ -656,38 +653,37 @@ const styles = StyleSheet.create({
   profileAction: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#f0f2f4' },
   profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
   destructiveText: { color: '#c2413b' },
-  content: { paddingHorizontal: 18, paddingTop: 24, gap: 16 },
-  heroTitle: { color: '#061e35', fontSize: 29, lineHeight: 35, fontWeight: '900', letterSpacing: -0.9, marginBottom: 2 },
-  todayCard: { minHeight: 82, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfe6d3', shadowColor: '#061e35', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
-  dateBlock: { width: 67, backgroundColor: '#061e35', alignItems: 'center', justifyContent: 'center' },
-  dateMonth: { color: 'rgba(255,255,255,0.7)', fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  dateDay: { color: '#fff', fontSize: 25, lineHeight: 29, fontWeight: '900' },
-  dateWeekday: { color: 'rgba(255,255,255,0.7)', fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
-  todayCopy: { flex: 1, justifyContent: 'center', paddingHorizontal: 13, paddingVertical: 10, minWidth: 0 },
+  content: { paddingHorizontal: 24, paddingTop: 30, gap: 0 },
+  todayCard: { minHeight: 132, flexDirection: 'row', alignItems: 'center', paddingBottom: 30 },
+  dateBlock: { width: 76, alignItems: 'flex-start', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
+  dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
+  dateDay: { color: '#061e35', fontSize: 43, lineHeight: 48, fontWeight: '900', letterSpacing: -2 },
+  dateWeekday: { color: '#657685', fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  todayCopy: { flex: 1, justifyContent: 'center', paddingLeft: 18, minWidth: 0 },
   todayTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   focusDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: '#aab5bd' },
   focusDotActive: { backgroundColor: '#2f8f46', shadowColor: '#2f8f46', shadowOpacity: 0.3, shadowRadius: 4 },
-  todayTitle: { color: '#102d43', fontSize: 14, fontWeight: '900' },
-  todayText: { color: '#657685', fontSize: 12, lineHeight: 17, marginTop: 4 },
-  todayArrow: { width: 44, alignItems: 'center', justifyContent: 'center' },
-  warningCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff8e8', borderWidth: 1, borderColor: '#f1d8a7', borderRadius: 16, padding: 14 },
+  todayTitle: { color: '#061e35', fontSize: 19, lineHeight: 24, fontWeight: '900', letterSpacing: -0.5 },
+  todayText: { color: '#657685', fontSize: 13, lineHeight: 19, marginTop: 7 },
+  todayArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  warningCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#e9edf0', paddingVertical: 16 },
   warningCopy: { flex: 1 },
   warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
   warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
-  quickSection: { backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#dce3e8', shadowColor: '#061e35', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
-  quickCardInner: { borderRadius: 17, overflow: 'hidden' },
-  quickTrigger: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18 },
-  quickTriggerIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef3f7' },
+  quickSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', marginBottom: 24 },
+  quickCardInner: { overflow: 'hidden' },
+  quickTrigger: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  quickTriggerIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   quickTriggerText: { flex: 1, color: '#061e35', fontSize: 16, fontWeight: '900' },
   quickChevron: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  quickMenu: { borderTopWidth: 1, borderTopColor: '#e9edf0', paddingHorizontal: 18 },
+  quickMenu: { borderTopWidth: 1, borderTopColor: '#e9edf0' },
   quickAction: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   quickActionDivider: { borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   quickIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   quickCopy: { flex: 1, minWidth: 0 },
   quickTitle: { color: '#102d43', fontSize: 15, lineHeight: 19, fontWeight: '900' },
   quickSubtitle: { color: '#6a7885', fontSize: 12, lineHeight: 16, marginTop: 2 },
-  progressCard: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#dce3e8', borderRadius: 18, padding: 16, shadowColor: '#061e35', shadowOpacity: 0.055, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  progressCard: { backgroundColor: '#edf8f0', borderRadius: 18, padding: 20, marginBottom: 32 },
   progressHeader: { minHeight: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   progressTitleRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' },
   progressTitle: { color: '#061e35', fontSize: 16, fontWeight: '900' },
@@ -696,25 +692,24 @@ const styles = StyleSheet.create({
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#dff0e3' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#2f8f46' },
   loadingLine: { height: 8, marginTop: 12, borderRadius: 4, backgroundColor: '#e8edf0' },
-  dashboardCard: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#dde4e8', borderTopWidth: 3, padding: 16, shadowColor: '#061e35', shadowOpacity: 0.06, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 2 },
-  cardHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10 },
+  dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 23, paddingBottom: 28 },
+  cardHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
   cardEyebrow: { color: '#2f8f46', fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.2 },
   cardTitle: { color: '#061e35', fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.35 },
   cardTitleWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardLink: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8 },
   cardLinkText: { color: '#647585', fontSize: 12, fontWeight: '800' },
-  metricList: { gap: 8 },
-  moneyMetric: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#f8fafb', borderRadius: 14, borderWidth: 1, borderColor: '#e3e8eb' },
+  metricList: {},
+  moneyMetric: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   moneyLabel: { color: '#617280', fontSize: 13, fontWeight: '800' },
   moneyValue: { fontSize: 19, fontWeight: '900' },
-  outstandingNote: { color: '#7b6a4c', fontSize: 12, lineHeight: 17, paddingHorizontal: 4, marginTop: 2 },
-  portfolioGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  portfolioMetric: { width: '48%', minHeight: 145, padding: 13, borderRadius: 16, borderWidth: 1, justifyContent: 'space-between' },
-  portfolioMetricTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 5 },
-  portfolioLabel: { flex: 1, color: '#60717f', fontSize: 10, lineHeight: 14, fontWeight: '900', letterSpacing: 0.4, textTransform: 'uppercase' },
-  portfolioIcon: { width: 31, height: 31, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  portfolioValue: { color: '#102d43', fontSize: 24, lineHeight: 29, fontWeight: '900', marginTop: 8 },
-  portfolioHelper: { color: '#6d7c88', fontSize: 10, lineHeight: 14, marginTop: 4 },
+  portfolioList: {},
+  portfolioMetric: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
+  portfolioMetricCopy: { flex: 1, minWidth: 0 },
+  portfolioLabel: { color: '#102d43', fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  portfolioIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  portfolioValue: { color: '#102d43', fontSize: 20, lineHeight: 26, fontWeight: '900', textAlign: 'right' },
+  portfolioHelper: { color: '#6d7c88', fontSize: 11, lineHeight: 16, marginTop: 3 },
   maintenanceRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   maintenanceCopy: { flex: 1, minWidth: 0 },
   maintenanceTitle: { color: '#102d43', fontSize: 14, fontWeight: '900' },

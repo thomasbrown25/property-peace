@@ -39,7 +39,10 @@ export default function AddPropertyScreen() {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
     >
-      <Text style={styles.helper}>Mobile keeps this quick: add the property shell here, then use the web app for full listing/media setup.</Text>
+      <Text style={styles.eyebrow}>NEW PROPERTY</Text>
+      <Text style={styles.title}>Add a property</Text>
+      <Text style={styles.helper}>Start with the address. Listing details and media can be completed on the web.</Text>
+      <Text style={styles.sectionLabel}>PROPERTY DETAILS</Text>
       <TextInput style={styles.input} placeholder="Property name" value={form.name} onChangeText={(v) => update('name', v)} />
       <AddressAutocompleteInput
         value={form.address}
@@ -62,13 +65,16 @@ export default function AddPropertyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 36 },
-  helper: { color: '#555', marginBottom: 16, lineHeight: 20 },
-  input: { backgroundColor: '#fff', borderColor: '#ddd', borderWidth: 1, borderRadius: 8, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14, fontSize: 16 },
+  container: { flex: 1, backgroundColor: '#fbf7f4' },
+  content: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 48 },
+  eyebrow: { color: '#2f8f46', fontSize: 12, fontWeight: '800', letterSpacing: 1.4, marginBottom: 8 },
+  title: { color: '#082941', fontSize: 30, fontWeight: '800', letterSpacing: -0.7, marginBottom: 8 },
+  helper: { color: '#596b79', marginBottom: 30, lineHeight: 22, fontSize: 15 },
+  sectionLabel: { color: '#647888', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 14 },
+  input: { backgroundColor: '#fff', borderColor: '#dce3e5', borderWidth: 1, borderRadius: 12, minHeight: 50, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14, fontSize: 16, color: '#102d43' },
   row: { flexDirection: 'row', gap: 12 },
   rowInput: { flex: 1 },
-  primaryButton: { backgroundColor: '#1976d2', borderRadius: 8, minHeight: 48, padding: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
+  primaryButton: { backgroundColor: '#2475cf', borderRadius: 12, minHeight: 50, padding: 14, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

@@ -116,13 +116,13 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.heroCard}>
+      <View style={styles.intro}>
         <Text style={styles.eyebrow}>Account</Text>
         <Text style={styles.title}>Settings</Text>
         <Text style={styles.subtitle}>Manage this device, your account, and legal information.</Text>
       </View>
 
-      <View style={styles.card}>
+      <View style={styles.profileSection}>
         <View style={styles.profileRow}>
           {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatar} /> : <View style={styles.avatarFallback}><Text style={styles.avatarText}>{initials}</Text></View>}
           <View style={styles.profileCopy}>
@@ -135,7 +135,7 @@ export default function SettingsScreen() {
       </View>
 
       <SectionHeader icon="shield-checkmark-outline" title="Security" />
-      <View style={styles.card}>
+      <View style={styles.sectionGroup}>
         <View style={styles.settingRow}>
           <View style={styles.rowIcon}><Ionicons name="scan-outline" size={21} color="#2475cf" /></View>
           <View style={styles.rowCopy}>
@@ -154,7 +154,7 @@ export default function SettingsScreen() {
       </View>
 
       <SectionHeader icon="document-text-outline" title="Legal & support" />
-      <View style={styles.card}>
+      <View style={styles.sectionGroup}>
         <LinkRow icon="shield-outline" label="Privacy Policy" onPress={() => Linking.openURL(PRIVACY_URL)} />
         <LinkRow icon="document-outline" label="Terms of Use" onPress={() => Linking.openURL(TERMS_URL)} />
         <LinkRow icon="help-circle-outline" label="Contact support" onPress={() => Linking.openURL(SUPPORT_URL)} />
@@ -166,7 +166,7 @@ export default function SettingsScreen() {
         <Text style={styles.signOutText}>Sign out</Text>
       </TouchableOpacity>
 
-      <View style={styles.dangerCard}>
+      <View style={styles.dangerSection}>
         <Text style={styles.dangerTitle}>Delete account</Text>
         <Text style={styles.dangerCopy}>Initiate permanent account deletion inside the app. Some records may be retained where legally or financially required.</Text>
         <TouchableOpacity style={[styles.deleteButton, deleting && styles.disabled]} onPress={handleDeleteAccount} disabled={deleting}>
@@ -179,13 +179,13 @@ export default function SettingsScreen() {
 }
 
 function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
-  return <View style={styles.sectionHeader}><Ionicons name={icon} size={20} color="#2475cf" /><Text style={styles.sectionTitle}>{title}</Text></View>;
+  return <View style={styles.sectionHeader}><Ionicons name={icon} size={18} color="#64748b" /><Text style={styles.sectionTitle}>{title}</Text></View>;
 }
 
 function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.linkRow} onPress={onPress} activeOpacity={0.75}>
-      <View style={styles.rowIcon}><Ionicons name={icon} size={20} color="#2475cf" /></View>
+      <View style={styles.rowIcon}><Ionicons name={icon} size={20} color="#64748b" /></View>
       <Text style={styles.linkLabel}>{label}</Text>
       <Ionicons name="open-outline" size={18} color="#6a7885" />
     </TouchableOpacity>
@@ -193,13 +193,14 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { padding: 18, paddingBottom: 120, gap: 16 },
-  heroCard: { borderRadius: 22, padding: 18, backgroundColor: '#0b3558' },
-  eyebrow: { color: '#93c5fd', fontSize: 12, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 6 },
-  title: { color: '#fff', fontSize: 30, fontWeight: '900', marginBottom: 5 },
-  subtitle: { color: 'rgba(255,255,255,0.72)', fontSize: 15, lineHeight: 21 },
-  card: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#e4ebf0', padding: 16 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 120 },
+  intro: { paddingBottom: 28 },
+  eyebrow: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
+  title: { color: '#102d43', fontSize: 30, fontWeight: '800', marginBottom: 5 },
+  subtitle: { color: '#64748b', fontSize: 15, lineHeight: 21 },
+  profileSection: { paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: '#e8edf2' },
+  sectionGroup: { borderBottomWidth: 1, borderBottomColor: '#e8edf2' },
   profileRow: { flexDirection: 'row', alignItems: 'center', gap: 15 },
   avatar: { width: 68, height: 68, borderRadius: 24, backgroundColor: '#d8dde2' },
   avatarFallback: { width: 68, height: 68, borderRadius: 24, backgroundColor: '#0b3558', alignItems: 'center', justifyContent: 'center' },
@@ -208,23 +209,23 @@ const styles = StyleSheet.create({
   profileName: { color: '#102d43', fontSize: 20, fontWeight: '900', marginBottom: 5 },
   profileDetail: { color: '#596876', fontSize: 14, lineHeight: 20 },
   readOnlyNote: { marginTop: 14, color: '#6a7885', fontSize: 12, lineHeight: 18 },
-  sectionHeader: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4, marginTop: 4 },
-  sectionTitle: { color: '#102d43', fontSize: 17, fontWeight: '900' },
-  settingRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  rowIcon: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#edf6ff', alignItems: 'center', justifyContent: 'center' },
+  sectionHeader: { minHeight: 55, flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 17 },
+  sectionTitle: { color: '#102d43', fontSize: 17, fontWeight: '800' },
+  settingRow: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  rowIcon: { width: 30, height: 38, alignItems: 'flex-start', justifyContent: 'center' },
   rowCopy: { flex: 1, minWidth: 0 },
   rowLabel: { color: '#102d43', fontSize: 15, fontWeight: '800', marginBottom: 3 },
   rowValue: { color: '#6a7885', fontSize: 13, lineHeight: 18 },
-  linkRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#edf1f4' },
+  linkRow: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#edf1f4' },
   linkLabel: { flex: 1, color: '#102d43', fontSize: 15, fontWeight: '700' },
-  versionRow: { minHeight: 44, justifyContent: 'center', paddingLeft: 50 },
+  versionRow: { minHeight: 46, justifyContent: 'center', paddingLeft: 42 },
   versionText: { color: '#7a8793', fontSize: 12 },
-  signOutButton: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#fed7aa' },
+  signOutButton: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e8edf2' },
   signOutText: { color: '#9a3412', fontSize: 16, fontWeight: '900' },
-  dangerCard: { backgroundColor: '#fff8f7', borderRadius: 20, borderWidth: 1, borderColor: '#fecdca', padding: 17 },
+  dangerSection: { paddingTop: 28 },
   dangerTitle: { color: '#912018', fontSize: 18, fontWeight: '900', marginBottom: 6 },
   dangerCopy: { color: '#7a3b36', fontSize: 13, lineHeight: 19, marginBottom: 14 },
-  deleteButton: { minHeight: 50, borderRadius: 15, borderWidth: 1, borderColor: '#fda29b', backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9 },
+  deleteButton: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 9 },
   deleteText: { color: '#b42318', fontSize: 15, fontWeight: '900' },
   disabled: { opacity: 0.6 },
 });
