@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -54,8 +54,10 @@ export default function RegisterScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const googleInFlight = useRef(false);
   const showGoogleSignIn =
-    Platform.OS !== "ios" && Boolean(config.GOOGLE_CLIENT_ID);
+    Boolean(Platform.OS === "ios" ? config.GOOGLE_IOS_CLIENT_ID : config.GOOGLE_CLIENT_ID);
 
   useEffect(() => {
     if (step !== "verify" || emailVerified) return undefined;
@@ -148,11 +150,14 @@ export default function RegisterScreen() {
   };
 
   const handleGoogleSignUp = async () => {
-    if (!config.GOOGLE_CLIENT_ID) {
+    if (googleInFlight.current) return;
+    if (!showGoogleSignIn) {
       Alert.alert("Error", "Google sign-up is not configured");
       return;
     }
 
+    googleInFlight.current = true;
+    setGoogleSubmitting(true);
     try {
       const result = await googleSignIn();
 
@@ -168,13 +173,16 @@ export default function RegisterScreen() {
         return;
       }
 
-      await dispatch(
+      const authResult = await dispatch(
         googleLogin({
           idToken: result.idToken || undefined,
-          accessToken: result.accessToken || undefined,
+          accessToken: result.idToken ? undefined : result.accessToken || undefined,
         }),
       ).unwrap();
-      // Navigation will be handled by AppNavigator based on auth state
+      if (authResult.kind === "challenge") {
+        navigation.navigate("MfaVerification", { challenge: authResult.challenge });
+      }
+      // Authenticated navigation is handled by AppNavigator.
     } catch (error: any) {
       const errorMessage =
         error?.message || "Failed to sign up with Google. Please try again.";
@@ -192,6 +200,9 @@ export default function RegisterScreen() {
       } else {
         Alert.alert("Google Sign-Up Failed", errorMessage);
       }
+    } finally {
+      googleInFlight.current = false;
+      setGoogleSubmitting(false);
     }
   };
 
@@ -243,7 +254,7 @@ export default function RegisterScreen() {
                 </View>
               )}
               {errorMessage ? <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text> : null}
-              <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSendCode} disabled={loading || googleLoading} accessibilityRole="button">
+              <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSendCode} disabled={loading || googleLoading || googleSubmitting} accessibilityRole="button">
                 <Text style={styles.buttonText}>{loading ? "Sending code…" : "Send verification code"}</Text>
               </TouchableOpacity>
             </>
@@ -316,17 +327,17 @@ export default function RegisterScreen() {
               <TouchableOpacity
                 style={[
                   styles.googleButton,
-                  (loading || googleLoading) && styles.buttonDisabled,
+                  (loading || googleLoading || googleSubmitting) && styles.buttonDisabled,
                 ]}
                 onPress={handleGoogleSignUp}
-                disabled={loading || googleLoading}
+                disabled={loading || googleLoading || googleSubmitting}
               >
                 <View style={styles.googleButtonContent}>
                   <View style={{ marginRight: 12 }}>
                     <GoogleLogo size={20} />
                   </View>
                   <Text style={styles.googleButtonText}>
-                    {googleLoading ? "Signing up..." : "Sign up with Google"}
+                    {googleLoading || googleSubmitting ? "Signing up..." : "Sign up with Google"}
                   </Text>
                 </View>
               </TouchableOpacity>

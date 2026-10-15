@@ -103,6 +103,8 @@ const fetchGoogleClientId = async (): Promise<string | null> => {
 const config = {
   API_URL: process.env.EXPO_PUBLIC_API_URL || getEnvVars().API_URL,
   SIGNALR_URL: process.env.EXPO_PUBLIC_SIGNALR_URL || getEnvVars().SIGNALR_URL,
+  // Must match the reversed Google URL scheme in app.json; EAS env cannot change native schemes at runtime.
+  GOOGLE_IOS_CLIENT_ID: '422382677454-1ttb399tb2vucfo109s3ijvi8bvsahgt.apps.googleusercontent.com',
   // Google Client ID - prefer backend, fallback to env if not placeholder
   get GOOGLE_CLIENT_ID(): string {
     // Check if env value is a placeholder (common placeholders)

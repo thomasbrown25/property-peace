@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 import config from '../config';
 
 // Complete the auth session
@@ -16,7 +17,8 @@ export const useGoogleSignIn = () => {
   const [loading, setLoading] = useState(false);
 
   const signIn = async (): Promise<GoogleSignInResult> => {
-    if (!config.GOOGLE_CLIENT_ID) {
+    const clientId = Platform.OS === 'ios' ? config.GOOGLE_IOS_CLIENT_ID : config.GOOGLE_CLIENT_ID;
+    if (!clientId) {
       console.error('❌ Google Client ID not configured');
       return {
         idToken: null,
@@ -29,30 +31,19 @@ export const useGoogleSignIn = () => {
     setLoading(true);
 
     try {
-      // Create the auth request with authorization code flow
-      // Use iOS URL scheme for iOS OAuth Client ID
-      // The scheme format is: com.googleusercontent.apps.{CLIENT_ID_NUMBER}-{RANDOM_STRING}
-      const iosScheme = 'com.googleusercontent.apps.422382677454-i3gc63pgq0n6c33v3km2cr2bpos7m8vf';
+      // Google native iOS OAuth uses the reversed client ID with a single-slash redirect.
+      const iosScheme = `com.googleusercontent.apps.${clientId.replace(/\.apps\.googleusercontent\.com$/, '')}`;
       const redirectUri = AuthSession.makeRedirectUri({
-        scheme: iosScheme,
-        useProxy: false,
-      } as any); // Type assertion needed
-      
-      // Force the redirect URI to use the iOS scheme (in case makeRedirectUri ignores it)
-      const finalRedirectUri = redirectUri.startsWith('exp://') 
-        ? `${iosScheme}://` 
-        : redirectUri;
-
-      console.log('🔵 Redirect URI (before fix):', redirectUri);
-      console.log('🔵 Redirect URI (final):', finalRedirectUri);
-      console.log('🔵 Client ID:', config.GOOGLE_CLIENT_ID?.substring(0, 20) + '...');
+        native: Platform.OS === 'ios' ? `${iosScheme}:/oauth2redirect` : undefined,
+        scheme: Platform.OS === 'ios' ? iosScheme : 'propertypeace',
+      });
 
       const request = new AuthSession.AuthRequest({
-        clientId: config.GOOGLE_CLIENT_ID,
+        clientId,
         scopes: ['openid', 'profile', 'email'],
         responseType: AuthSession.ResponseType.Code,
-        redirectUri: finalRedirectUri,
-        usePKCE: false, // iOS OAuth Client IDs don't require PKCE
+        redirectUri,
+        usePKCE: true,
       });
 
       // Get the discovery document
@@ -78,13 +69,12 @@ export const useGoogleSignIn = () => {
         try {
           // Exchange authorization code for tokens
           const code = (result as any).params.code;
-          console.log('🔵 Exchanging code for tokens with redirect URI:', finalRedirectUri);
           const tokenResult = await AuthSession.exchangeCodeAsync(
             {
-              clientId: config.GOOGLE_CLIENT_ID,
+              clientId,
               code,
-              redirectUri: finalRedirectUri,
-              extraParams: {},
+              redirectUri,
+              extraParams: { code_verifier: request.codeVerifier! },
             },
             discovery
           );
@@ -97,19 +87,20 @@ export const useGoogleSignIn = () => {
           const accessToken = tokenResult.accessToken;
           const idToken = tokenResult.idToken;
 
-          if (!accessToken && !idToken) {
-            console.error('❌ No tokens received from exchange');
+          if (!idToken && (Platform.OS === 'ios' || !accessToken)) {
+            console.error('❌ No usable token received from exchange');
             return {
               idToken: null,
               accessToken: null,
-              error: 'No tokens received',
+              error: 'No Google ID token received',
             };
           }
 
           console.log('✅ Google sign-in successful!');
           return {
             idToken: idToken || null,
-            accessToken: accessToken || null,
+            // Backend prefers accessToken; never send it alongside an ID token.
+            accessToken: idToken ? null : accessToken || null,
             error: null,
           };
         } catch (exchangeError: any) {

@@ -21,7 +21,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
-  const showGoogleSignIn = Platform.OS !== 'ios' && Boolean(config.GOOGLE_CLIENT_ID);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const googleInFlight = useRef(false);
+  const showGoogleSignIn = Boolean(Platform.OS === 'ios' ? config.GOOGLE_IOS_CLIENT_ID : config.GOOGLE_CLIENT_ID);
   const entrance = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -78,11 +80,14 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!config.GOOGLE_CLIENT_ID) {
+    if (googleInFlight.current) return;
+    if (!showGoogleSignIn) {
       Alert.alert('Error', 'Google sign-in is not configured');
       return;
     }
 
+    googleInFlight.current = true;
+    setGoogleSubmitting(true);
     try {
       const result = await googleSignIn();
 
@@ -99,7 +104,7 @@ export default function LoginScreen() {
         return;
       }
 
-      if (!result.accessToken && !result.idToken) {
+      if (!result.idToken && !result.accessToken) {
         Alert.alert('Error', 'No authentication token received');
         return;
       }
@@ -107,7 +112,7 @@ export default function LoginScreen() {
       const authResult = await dispatch(
         googleLogin({
           idToken: result.idToken || undefined,
-          accessToken: result.accessToken || undefined,
+          accessToken: result.idToken ? undefined : result.accessToken || undefined,
         })
       ).unwrap();
       if (authResult.kind === 'challenge') {
@@ -116,6 +121,9 @@ export default function LoginScreen() {
       // Navigation will be handled by AppNavigator based on auth state
     } catch (error: any) {
       Alert.alert('Google Sign-In Failed', error?.message || 'Failed to sign in with Google. Please try again.');
+    } finally {
+      googleInFlight.current = false;
+      setGoogleSubmitting(false);
     }
   };
 
@@ -172,7 +180,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={loading || googleLoading}
+            disabled={loading || googleLoading || googleSubmitting}
           >
             <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
           </TouchableOpacity>
@@ -188,16 +196,16 @@ export default function LoginScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.googleButton, (loading || googleLoading) && styles.buttonDisabled]}
+                style={[styles.googleButton, (loading || googleLoading || googleSubmitting) && styles.buttonDisabled]}
                 onPress={handleGoogleSignIn}
-                disabled={loading || googleLoading}
+                disabled={loading || googleLoading || googleSubmitting}
               >
                 <View style={styles.googleButtonContent}>
                   <View style={{ marginRight: 12 }}>
                     <GoogleLogo size={20} />
                   </View>
                   <Text style={styles.googleButtonText}>
-                    {googleLoading ? 'Signing in...' : 'Sign in with Google'}
+                    {googleLoading || googleSubmitting ? 'Signing in...' : 'Sign in with Google'}
                   </Text>
                 </View>
               </TouchableOpacity>
