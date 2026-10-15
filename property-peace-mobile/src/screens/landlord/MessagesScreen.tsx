@@ -134,7 +134,7 @@ export default function MessagesScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View><Text style={styles.heading}>Messages</Text><Text style={styles.headerSub}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
+        <View><Text style={styles.heading}>Conversations</Text><Text style={styles.headerSub}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
         {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={styles.newGroup} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color="#fff" /><Text style={styles.newGroupText}>New group</Text></TouchableOpacity>}
       </View>
       <View style={styles.search}>

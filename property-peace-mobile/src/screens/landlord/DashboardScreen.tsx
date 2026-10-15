@@ -399,12 +399,13 @@ export default function DashboardScreen() {
                 helper={scopedMaintenanceStatus === 'success' ? 'Overdue rent or open repairs' : scopedMaintenanceStatus === 'loading' ? 'Loading attention data' : 'Maintenance data unavailable'}
                 color="#c2413b"
                 background="#fff0f1"
+                isLast
               />
             </View>
           )}
         </DashboardSection>
 
-        <DashboardSection>
+        <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleWithIcon}>
               <Ionicons name="construct-outline" size={20} color="#b76a11" />
@@ -466,8 +467,8 @@ export default function DashboardScreen() {
   );
 }
 
-function DashboardSection({ children }: { children: React.ReactNode }) {
-  return <View style={styles.dashboardSection}>{children}</View>;
+function DashboardSection({ children, borderless = false }: { children: React.ReactNode; borderless?: boolean }) {
+  return <View style={[styles.dashboardSection, borderless && styles.borderlessSection]}>{children}</View>;
 }
 
 function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void | Promise<void>; destructive?: boolean }) {
@@ -488,9 +489,9 @@ function MoneyMetric({ label, value, color }: { label: string; value: string; co
   );
 }
 
-function PortfolioMetric({ icon, label, value, helper, color, background }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; helper: string; color: string; background: string }) {
+function PortfolioMetric({ icon, label, value, helper, color, background, isLast = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; helper: string; color: string; background: string; isLast?: boolean }) {
   return (
-    <View style={styles.portfolioMetric}>
+    <View style={[styles.portfolioMetric, isLast && styles.lastRow]}>
       <View style={[styles.portfolioIcon, { backgroundColor: background }]}><Ionicons name={icon} size={18} color={color} /></View>
       <View style={styles.portfolioMetricCopy}>
         <Text style={styles.portfolioLabel}>{label}</Text>
@@ -590,6 +591,7 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#2f8f46' },
   loadingLine: { height: 8, marginTop: 12, borderRadius: 4, backgroundColor: '#e8edf0' },
   dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 23, paddingBottom: 28 },
+  borderlessSection: { borderTopWidth: 0 },
   cardHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
   cardEyebrow: { color: '#2f8f46', fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.2 },
   cardTitle: { color: '#061e35', fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.35 },

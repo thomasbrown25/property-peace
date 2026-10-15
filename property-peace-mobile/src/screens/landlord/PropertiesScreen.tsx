@@ -106,7 +106,7 @@ export default function PropertiesScreen() {
           <View>
             <View style={styles.pageHeader}>
               <Text style={styles.eyebrow}>YOUR PORTFOLIO</Text>
-              <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
+              <Text style={styles.pageTitle} accessibilityRole="header">Portfolio overview</Text>
               <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
             </View>
 
