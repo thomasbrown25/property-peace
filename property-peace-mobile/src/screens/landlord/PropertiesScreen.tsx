@@ -105,11 +105,9 @@ export default function PropertiesScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.pageHeader}>
-              <View style={styles.pageIconWrap}><Ionicons name="home-outline" size={28} color="#2475cf" /></View>
-              <View style={styles.pageHeaderCopy}>
-                <Text style={styles.pageTitle}>Properties</Text>
-                <Text style={styles.pageSubtitle}>Manage your property portfolio, view details, and track performance.</Text>
-              </View>
+              <Text style={styles.eyebrow}>YOUR PORTFOLIO</Text>
+              <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
+              <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
             </View>
 
             <View style={styles.searchWrap}>
@@ -120,20 +118,24 @@ export default function PropertiesScreen() {
                 placeholder="Search by name, address, tenant..."
                 placeholderTextColor="#8a98a6"
                 style={styles.searchInput}
+                accessibilityLabel="Search properties"
               />
             </View>
 
             <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85}>
+              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button">
                 <Ionicons name="add" size={20} color="#fff" />
                 <Text style={styles.primaryButtonText}>Add property</Text>
               </TouchableOpacity>
             </View>
-
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle} accessibilityRole="header">All properties</Text>
+              <Text style={styles.sectionCount}>{filteredProperties.length}</Text>
+            </View>
           </View>
         }
-        ListEmptyComponent={<EmptyState onAdd={() => navigation.navigate('AddProperty')} />}
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+        ListEmptyComponent={<EmptyState searching={Boolean(search.trim())} onAdd={() => navigation.navigate('AddProperty')} />}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
     </View>
   );
@@ -164,18 +166,16 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
   const statusType = summary.overdue > 0 ? 'error' : statusLabel === 'Vacant' ? 'warning' : 'success';
 
   return (
-    <TouchableOpacity style={styles.propertyCard} onPress={onPress} activeOpacity={0.84}>
+    <TouchableOpacity style={styles.propertyCard} onPress={onPress} activeOpacity={0.84} accessibilityRole="button">
       {imageUrl ? (
         <Image source={{ uri: imageUrl }} style={styles.thumbnail} />
       ) : (
         <View style={styles.thumbnailFallback}><Ionicons name="home-outline" size={28} color="#2475cf" /></View>
       )}
       <View style={styles.propertyCopy}>
-        <View style={[styles.statusChip, statusType === 'error' && styles.statusChipError, statusType === 'warning' && styles.statusChipWarning]}>
-          <Text style={[styles.statusChipText, statusType === 'error' && styles.statusChipTextError, statusType === 'warning' && styles.statusChipTextWarning]}>{statusLabel}</Text>
-        </View>
         <Text style={styles.propertyName} numberOfLines={2}>{name}</Text>
         {!!address && <Text style={styles.propertyAddress} numberOfLines={1}>{address}</Text>}
+        <Text style={[styles.statusText, statusType === 'error' && styles.statusTextError, statusType === 'warning' && styles.statusTextWarning]}>{statusLabel}</Text>
         <View style={styles.propertyMetaRow}>
           {beds > 0 && <Text style={styles.propertyMeta}>🛏 {beds}</Text>}
           {baths > 0 && <Text style={styles.propertyMeta}>🛁 {baths}</Text>}
@@ -193,15 +193,15 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
   );
 }
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
+function EmptyState({ onAdd, searching }: { onAdd: () => void; searching: boolean }) {
   return (
     <View style={styles.emptyContainer}>
-      <View style={styles.emptyIcon}><Ionicons name="home-outline" size={34} color="#2475cf" /></View>
-      <Text style={styles.emptyText}>No properties found</Text>
-      <Text style={styles.emptySubtext}>Add a property to start using mobile landlord workflows.</Text>
-      <TouchableOpacity style={styles.emptyButton} onPress={onAdd} activeOpacity={0.84}>
+      <Ionicons name="home-outline" size={30} color="#8aa5b8" />
+      <Text style={styles.emptyText}>{searching ? 'No matching properties' : 'No properties yet'}</Text>
+      <Text style={styles.emptySubtext}>{searching ? 'Try another name, address, or tenant.' : 'Add a property to start managing your portfolio.'}</Text>
+      {!searching && <TouchableOpacity style={styles.emptyButton} onPress={onAdd} activeOpacity={0.84} accessibilityRole="button">
         <Text style={styles.emptyButtonText}>Add property</Text>
-      </TouchableOpacity>
+      </TouchableOpacity>}
     </View>
   );
 }
@@ -209,39 +209,37 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
-  listContent: { padding: 18, paddingBottom: 120 },
-  pageHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 18 },
-  pageIconWrap: { width: 52, height: 52, borderRadius: 18, backgroundColor: '#eaf3ff', alignItems: 'center', justifyContent: 'center' },
-  pageHeaderCopy: { flex: 1, minWidth: 0 },
-  pageTitle: { color: '#102d43', fontSize: 30, lineHeight: 36, fontWeight: '900', letterSpacing: -0.8 },
-  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 21, marginTop: 2 },
-  actionRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
-  primaryButton: { flex: 1, minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#2475cf', borderRadius: 14, paddingVertical: 12, shadowColor: '#2475cf', shadowOpacity: 0.24, shadowRadius: 9, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
-  primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '900' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#fff', borderRadius: 15, borderWidth: 1, borderColor: '#dde4ea', paddingHorizontal: 14, height: 50, marginBottom: 10 },
+  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 120 },
+  pageHeader: { marginBottom: 26 },
+  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
+  pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
+  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6 },
+  actionRow: { flexDirection: 'row', marginBottom: 30 },
+  primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2475cf', borderRadius: 10, paddingHorizontal: 18 },
+  primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e2e5e8', paddingHorizontal: 14, height: 48, marginBottom: 14 },
   searchInput: { flex: 1, color: '#102d43', fontSize: 15, fontWeight: '600', paddingVertical: 0 },
-  propertyCard: { flexDirection: 'row', gap: 13, padding: 12, borderRadius: 20, borderWidth: 1, borderColor: '#e4e9ee', backgroundColor: '#fff', shadowColor: '#2475cf', shadowOpacity: 0.07, shadowRadius: 14, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
-  thumbnail: { width: 82, height: 82, borderRadius: 16, overflow: 'hidden', backgroundColor: '#eaf3ff' },
-
-  thumbnailFallback: { width: 82, height: 82, borderRadius: 16, backgroundColor: '#eaf3ff', borderWidth: 1, borderColor: '#d8e8fa', alignItems: 'center', justifyContent: 'center' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
+  sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
+  sectionCount: { color: '#788995', fontSize: 14 },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#dbe2e6' },
+  propertyCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 17, minHeight: 104 },
+  thumbnail: { width: 74, height: 74, borderRadius: 9, backgroundColor: '#eaf3ff' },
+  thumbnailFallback: { width: 74, height: 74, borderRadius: 9, backgroundColor: '#eaf3ff', alignItems: 'center', justifyContent: 'center' },
   propertyCopy: { flex: 1, minWidth: 0 },
-  propertyName: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '900', marginBottom: 2 },
-  statusChip: { alignSelf: 'flex-start', borderRadius: 10, backgroundColor: '#eaf8ee', paddingHorizontal: 8, paddingVertical: 4, marginBottom: 6 },
-  statusChipError: { backgroundColor: '#fdecec' },
-  statusChipWarning: { backgroundColor: '#fff3df' },
-  statusChipText: { color: '#2f8f46', fontSize: 11, lineHeight: 13, fontWeight: '900' },
-  statusChipTextError: { color: '#c2413b' },
-  statusChipTextWarning: { color: '#b76b11' },
-  propertyAddress: { color: '#697887', fontSize: 12, lineHeight: 17, marginBottom: 4 },
+  propertyName: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '700', marginBottom: 2 },
+  statusText: { color: '#2f8f46', fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
+  statusTextError: { color: '#c2413b' },
+  statusTextWarning: { color: '#b76b11' },
+  propertyAddress: { color: '#697887', fontSize: 13, lineHeight: 18 },
   propertyMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   propertyMeta: { color: '#697887', fontSize: 12, lineHeight: 17 },
   propertyRent: { color: '#2475cf', fontSize: 12, lineHeight: 17, fontWeight: '900' },
   attentionRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   attentionText: { color: '#c2413b', fontSize: 12, lineHeight: 16, fontWeight: '700' },
-  emptyContainer: { marginTop: 14, padding: 28, alignItems: 'center', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e4e9ee' },
-  emptyIcon: { width: 62, height: 62, borderRadius: 20, backgroundColor: '#eaf3ff', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  emptyText: { fontSize: 17, fontWeight: '900', color: '#102d43', marginBottom: 6 },
+  emptyContainer: { paddingVertical: 46, alignItems: 'center' },
+  emptyText: { fontSize: 18, fontWeight: '700', color: '#102d43', marginTop: 12, marginBottom: 6 },
   emptySubtext: { fontSize: 14, color: '#697887', textAlign: 'center', lineHeight: 20, marginBottom: 16 },
-  emptyButton: { backgroundColor: '#2475cf', borderRadius: 13, paddingHorizontal: 18, paddingVertical: 11 },
-  emptyButtonText: { color: '#fff', fontWeight: '900' },
+  emptyButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
+  emptyButtonText: { color: '#2475cf', fontWeight: '700' },
 });

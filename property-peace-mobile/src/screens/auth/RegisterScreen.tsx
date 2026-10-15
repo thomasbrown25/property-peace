@@ -224,7 +224,7 @@ export default function RegisterScreen() {
           contentInsetAdjustmentBehavior="automatic"
           automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
         >
-          <Text style={styles.eyebrow}>Step {step === "details" ? "1" : "2"} of 2</Text>
+          <Text style={styles.eyebrow}>ACCOUNT SETUP · {step === "details" ? "01 / 02" : "02 / 02"}</Text>
           <Text style={styles.title}>{step === "details" ? "Create Account" : "Check your inbox"}</Text>
           <Text style={styles.subtitle}>
             {step === "details"
@@ -260,6 +260,7 @@ export default function RegisterScreen() {
             </>
           ) : (
             <View style={styles.verificationCard}>
+              <Text style={styles.sectionLabel}>EMAIL VERIFICATION</Text>
               {!emailVerified && (
                 <TextInput
                   style={[styles.input, styles.codeInput]}
@@ -390,8 +391,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 36,
   },
   eyebrow: {
     color: "#86efac",
@@ -399,12 +400,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.8,
     marginBottom: 8,
-    textAlign: "center",
+    textAlign: "left",
     textTransform: "uppercase",
   },
   verificationCard: {
     width: "100%",
   },
+  sectionLabel: { color: "#93c5fd", fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginBottom: 12 },
   codeInput: {
     fontSize: 24,
     fontWeight: "700",
@@ -419,16 +421,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   statusText: {
-    backgroundColor: "rgba(34, 197, 94, 0.14)",
-    borderColor: "rgba(74, 222, 128, 0.4)",
-    borderRadius: 12,
-    borderWidth: 1,
+    borderLeftColor: "#4ade80",
+    borderLeftWidth: 2,
     color: "#bbf7d0",
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 12,
-    padding: 12,
-    textAlign: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    textAlign: "left",
   },
   errorText: {
     color: "#fecaca",
@@ -443,13 +444,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 34,
     fontWeight: "800",
-    textAlign: "center",
+    textAlign: "left",
     marginBottom: 8,
     color: "#fff",
   },
   subtitle: {
     fontSize: 16,
-    textAlign: "center",
+    textAlign: "left",
     marginBottom: 24,
     color: "rgba(255, 255, 255, 0.68)",
     lineHeight: 23,
@@ -532,16 +533,12 @@ const styles = StyleSheet.create({
   button: {
     backgroundColor: "#2563eb",
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 10,
     alignItems: "center",
     marginTop: 0,
     borderWidth: 1,
     borderColor: "rgba(147, 197, 253, 0.45)",
-    shadowColor: "#3b82f6",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 22,
-    elevation: 5,
+
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -600,19 +597,12 @@ const styles = StyleSheet.create({
   googleButton: {
     backgroundColor: "rgba(255, 255, 255, 0.08)",
     padding: 14,
-    borderRadius: 16,
+    borderRadius: 10,
     alignItems: "center",
     minHeight: 48,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.16)",
-    shadowColor: "#020617",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    elevation: 2,
+
   },
   googleButtonContent: {
     flexDirection: "row",

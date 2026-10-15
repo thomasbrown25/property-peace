@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { alpha, Box, Button, Grid, Skeleton, Stack, Typography, useTheme } from '@mui/material';
 import { ArrowRightOutlined, DollarCircleOutlined, HomeOutlined, WarningOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
@@ -63,13 +63,21 @@ function formatMoney(value) {
   }).format(value || 0);
 }
 
-function PortfolioStat({ label, value, helper, color, icon, loading }) {
+function PortfolioStat({ label, value, helper, color, icon, loading, to }) {
   const theme = useTheme();
   const overviewTextColor = theme.palette.mode === 'dark' ? theme.palette.common.white : 'text.primary';
 
   return (
     <Box
+      component={Link}
+      to={to}
+      aria-label={`${label}: ${loading ? 'loading' : value}`}
       sx={{
+        textDecoration: 'none',
+        color: 'inherit',
+        cursor: 'pointer',
+        '&:hover': { borderColor: color, bgcolor: alpha(color, theme.palette.mode === 'dark' ? 0.16 : 0.08) },
+        '&:focus-visible': { outline: `2px solid ${color}`, outlineOffset: 2 },
         height: '100%',
         minHeight: 116,
         p: { xs: 1.5, sm: 2 },
@@ -130,6 +138,7 @@ export default function Portfolio({ properties = [], isLoading = false }) {
   const stats = [
     {
       label: 'Portfolio occupancy',
+      to: '/landlord/properties',
       value: `${metrics.occupancy}%`,
       helper: `${metrics.occupiedUnits} of ${metrics.totalUnits} units occupied`,
       color: theme.palette.success.main,
@@ -137,6 +146,7 @@ export default function Portfolio({ properties = [], isLoading = false }) {
     },
     {
       label: 'Vacant units',
+      to: '/landlord/properties',
       value: metrics.vacantUnits,
       helper: 'Across active properties',
       color: theme.palette.warning.main,
@@ -144,6 +154,7 @@ export default function Portfolio({ properties = [], isLoading = false }) {
     },
     {
       label: 'Monthly rent',
+      to: '/landlord/leases',
       value: formatMoney(metrics.monthlyRent),
       helper: 'Scheduled rent, not collections',
       color: theme.palette.primary.main,
@@ -151,6 +162,7 @@ export default function Portfolio({ properties = [], isLoading = false }) {
     },
     {
       label: 'Needs attention',
+      to: '/landlord/leases?view=overdue',
       value: metrics.needsAttention,
       helper: 'Overdue, urgent, or expiring',
       color: theme.palette.error.main,

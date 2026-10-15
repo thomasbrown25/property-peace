@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import LeaseAPI, { Lease } from '../../api/leaseAPI';
 
 type LoadStatus = 'loading' | 'success' | 'error';
@@ -25,10 +26,10 @@ export default function LeasesScreen() {
   useEffect(() => { loadLeases(); }, []);
 
   const renderLease = ({ item }: { item: Lease }) => (
-    <View style={styles.leaseCard} accessibilityRole="summary">
+    <View style={styles.leaseRow} accessibilityRole="summary">
       <Text style={styles.leaseTitle}>{item.propertyName || item.PropertyName || 'Lease'}</Text>
-      {!!(item.rentAmount || item.RentAmount) && <Text style={styles.leaseMeta}>Rent: ${item.rentAmount || item.RentAmount}</Text>}
-      {!!(item.startDate || item.StartDate) && <Text style={styles.leaseMeta}>Starts: {String(item.startDate || item.StartDate).slice(0, 10)}</Text>}
+      {!!(item.rentAmount || item.RentAmount) && <Text style={styles.leaseMeta}>Rent · ${item.rentAmount || item.RentAmount}</Text>}
+      {!!(item.startDate || item.StartDate) && <Text style={styles.leaseMeta}>Starts · {String(item.startDate || item.StartDate).slice(0, 10)}</Text>}
     </View>
   );
 
@@ -43,13 +44,16 @@ export default function LeasesScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadLeases(); }} />}
         ListHeaderComponent={(
-          <>
+          <View>
+            <Text style={styles.eyebrow}>YOUR AGREEMENTS</Text>
+            <Text style={styles.pageTitle} accessibilityRole="header">Leases</Text>
+            <Text style={styles.pageSubtitle}>The details behind every tenancy.</Text>
             <View style={styles.notice}>
-              <Text style={styles.noticeTitle}>Lease overview</Text>
-              <Text style={styles.noticeText}>Leases are read-only in the mobile app. Use the web app to add or manage lease records.</Text>
+              <Ionicons name="information-circle-outline" size={19} color="#2475cf" />
+              <Text style={styles.noticeText}>View leases here. To add or manage a lease, use the web app.</Text>
             </View>
             {loadStatus === 'error' && (
-              <View style={styles.errorCard} accessibilityRole="alert">
+              <View style={styles.errorBlock} accessibilityRole="alert">
                 <Text style={styles.errorTitle}>Couldn't load leases</Text>
                 <Text style={styles.errorText}>Lease information is unavailable right now.</Text>
                 <TouchableOpacity style={styles.retryButton} onPress={loadLeases} accessibilityRole="button">
@@ -57,30 +61,41 @@ export default function LeasesScreen() {
                 </TouchableOpacity>
               </View>
             )}
-          </>
+            {loadStatus === 'success' && <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle} accessibilityRole="header">All leases</Text>
+              <Text style={styles.count}>{leases.length}</Text>
+            </View>}
+          </View>
         )}
-        ListEmptyComponent={loadStatus === 'success' ? <View style={styles.emptyContainer}><Text style={styles.emptyText}>No leases found</Text><Text style={styles.emptySubtext}>Lease records created in the web app will appear here.</Text></View> : null}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={loadStatus === 'success' ? <View style={styles.emptyContainer}><Ionicons name="document-text-outline" size={30} color="#8aa5b8" /><Text style={styles.emptyText}>No leases yet</Text><Text style={styles.emptySubtext}>Lease records created in the web app will appear here.</Text></View> : null}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 36 },
-  notice: { backgroundColor: '#eaf3ff', borderRadius: 10, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#c9def5' },
-  noticeTitle: { color: '#0b3558', fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  noticeText: { color: '#526874', fontSize: 14, lineHeight: 20 },
-  errorCard: { backgroundColor: '#fff4f2', borderRadius: 10, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#efc6c0' },
+  container: { flex: 1, backgroundColor: '#fbf7f4' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
+  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 100 },
+  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
+  pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
+  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 26 },
+  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', marginBottom: 30 },
+  noticeText: { color: '#526874', fontSize: 14, lineHeight: 20, flex: 1 },
+  errorBlock: { borderLeftWidth: 2, borderColor: '#c2413b', paddingLeft: 14, marginBottom: 24 },
   errorTitle: { color: '#8d2923', fontSize: 16, fontWeight: '700' },
   errorText: { color: '#704c48', fontSize: 14, lineHeight: 20, marginTop: 4 },
-  retryButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginTop: 8, paddingHorizontal: 4 },
-  retryText: { color: '#1976d2', fontSize: 15, fontWeight: '700' },
-  leaseCard: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#e6e6e6' },
-  leaseTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
-  leaseMeta: { color: '#666', marginTop: 4 },
-  emptyContainer: { padding: 32, alignItems: 'center' },
-  emptyText: { fontSize: 16, fontWeight: '700', color: '#333', marginBottom: 6 },
-  emptySubtext: { fontSize: 14, color: '#777', textAlign: 'center' },
+  retryButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
+  retryText: { color: '#2475cf', fontSize: 15, fontWeight: '700' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
+  sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
+  count: { color: '#788995', fontSize: 14 },
+  separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#dbe2e6' },
+  leaseRow: { paddingVertical: 18, minHeight: 80 },
+  leaseTitle: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: '#102d43', marginBottom: 3 },
+  leaseMeta: { color: '#697887', fontSize: 13, lineHeight: 19 },
+  emptyContainer: { paddingVertical: 46, alignItems: 'center' },
+  emptyText: { fontSize: 18, fontWeight: '700', color: '#102d43', marginTop: 12, marginBottom: 6 },
+  emptySubtext: { fontSize: 14, color: '#697887', textAlign: 'center', lineHeight: 20 },
 });
