@@ -14,6 +14,7 @@ import {
 import type { DashboardStackParamList } from './types';
 
 import DashboardScreen from '../screens/landlord/DashboardScreen';
+import RentCollectionScreen from '../screens/landlord/RentCollectionScreen';
 import AddExpenseScreen from '../screens/landlord/AddExpenseScreen';
 import PropertiesScreen from '../screens/landlord/PropertiesScreen';
 import PropertyDetailScreen from '../screens/landlord/PropertyDetailScreen';
@@ -60,6 +61,7 @@ function DashboardNavigator() {
   return (
     <DashboardStack.Navigator screenOptions={stackOptions}>
       <DashboardStack.Screen name="DashboardHome" component={DashboardScreen} options={{ headerShown: false }} />
+      <DashboardStack.Screen name="RentCollection" component={RentCollectionScreen} options={{ headerShown: false }} />
       <DashboardStack.Screen name="AddExpense" component={AddExpenseScreen} options={{ title: 'Add expense' }} />
     </DashboardStack.Navigator>
   );
