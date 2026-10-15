@@ -1,8 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import QuickActionsTabBar from './QuickActionsTabBar';
 
 import {
   LeasesStackParamList,
@@ -38,7 +37,7 @@ import MaintenanceEmergencyScreen from '../screens/tenant/MaintenanceEmergencySc
 import { useAppSelector } from '../store/hooks';
 import { maintenanceAudience } from '../features/maintenance/maintenanceModel';
 import ChecklistsNavigator from './ChecklistsNavigator';
-import { mainTabIconNames, resolveVisibleMainTabs, type MainTabComponentRegistry } from './mainTabModel';
+import { resolveVisibleMainTabs, type MainTabComponentRegistry } from './mainTabModel';
 import UnsupportedRoleScreen from '../screens/UnsupportedRoleScreen';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -127,10 +126,8 @@ function LeasesNavigator() {
 }
 
 export default function MainNavigator() {
-  const insets = useSafeAreaInsets();
   const currentUser = useAppSelector((state) => state.user.currentUser);
   const audience = maintenanceAudience(currentUser);
-  const bottomInset = Math.max(insets.bottom, 8);
   const visibleComponents: MainTabComponentRegistry<React.ComponentType<any>> = {
     DashboardScreen: DashboardNavigator,
     PropertiesNavigator,
@@ -147,33 +144,14 @@ export default function MainNavigator() {
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: '#ffffff',
-        tabBarInactiveTintColor: 'rgba(255,255,255,0.68)',
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '700', marginTop: 1 },
-        tabBarStyle: {
-          height: 66 + bottomInset,
-          paddingTop: 8,
-          paddingBottom: bottomInset,
-          backgroundColor: '#082f58',
-          borderTopWidth: 0,
-          elevation: 12,
-          shadowColor: '#001a33',
-          shadowOpacity: 0.22,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: -4 },
-        },
-        tabBarIcon: ({ color, size, focused }) => {
-          const icon = mainTabIconNames(route.name);
-          return icon ? <Ionicons name={(focused ? icon.active : icon.inactive) as keyof typeof Ionicons.glyphMap} size={size + 1} color={color} /> : null;
-        },
-      })}
+      tabBar={(props) => <QuickActionsTabBar {...props} audience={audience} />}
+      screenOptions={{ headerShown: false }}
     >
       {visibleTabs.map((tab) => {
         return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
       })}
       {audience === 'landlord' && <>
+        <Tab.Screen name="Checklists" component={ChecklistsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Tenants" component={TenantsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Leases" component={LeasesNavigator} options={{ tabBarButton: () => null }} />

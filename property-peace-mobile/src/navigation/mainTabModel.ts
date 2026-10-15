@@ -35,8 +35,7 @@ const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
   landlord: [
     { name: 'Dashboard', component: 'DashboardScreen', label: 'Home' },
     { name: 'Properties', component: 'PropertiesNavigator' },
-    { name: 'Checklists', component: 'ChecklistsNavigator' },
-    { name: 'Maintenance', component: 'MaintenanceNavigator' },
+    { name: 'Maintenance', component: 'MaintenanceNavigator', label: 'Repairs' },
     { name: 'Messages', component: 'MessagesNavigator' },
   ],
   tenant: [

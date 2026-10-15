@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 let visibleMainTabsForAudience;
@@ -14,17 +15,14 @@ try {
   loadError = error;
 }
 
-test('landlord navigation shows Checklists between Properties and Maintenance', () => {
+test('landlord dock keeps four primary destinations and moves checklists into quick actions', () => {
   assert.equal(loadError, undefined);
   const tabs = visibleMainTabsForAudience('landlord');
   assert.deepEqual(
     tabs.map((tab) => tab.name),
-    ['Dashboard', 'Properties', 'Checklists', 'Maintenance', 'Messages'],
+    ['Dashboard', 'Properties', 'Maintenance', 'Messages'],
   );
-  assert.equal(
-    tabs.find((tab) => tab.name === 'Checklists')?.component,
-    'ChecklistsNavigator',
-  );
+  assert.equal(tabs.find((tab) => tab.name === 'Maintenance')?.label, 'Repairs');
 });
 
 test('tenant navigation does not show the landlord Checklists tab', () => {
@@ -48,7 +46,7 @@ test('Checklists uses clipboard icons in active and inactive states', () => {
   });
 });
 
-test('landlord tab assembly resolves Checklists to its navigator component', () => {
+test('landlord dock resolves four destination components', () => {
   assert.equal(loadError, undefined);
   const tabs = resolveVisibleMainTabs('landlord', {
     DashboardScreen: 'dashboard-screen',
@@ -60,8 +58,21 @@ test('landlord tab assembly resolves Checklists to its navigator component', () 
     SettingsScreen: 'settings-screen',
   });
 
-  assert.equal(
-    tabs.find((tab) => tab.name === 'Checklists')?.component,
-    'checklists-navigator',
-  );
+  assert.equal(tabs.length, 4);
+  assert.equal(tabs.find((tab) => tab.name === 'Messages')?.component, 'messages-navigator');
+});
+
+test('quick-action sheet keeps landlord destinations and tenant actions scoped', async () => {
+  const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
+  const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
+  const dashboard = await readFile(new URL('../src/screens/landlord/DashboardScreen.tsx', import.meta.url), 'utf8');
+  for (const destination of ['AddProperty', 'AddExpense', 'AddTenant', 'ChecklistPropertySearch', 'Leases']) {
+    assert.match(sheet, new RegExp(`screen: '${destination}'|navigate\\('${destination}'\\)`));
+  }
+  assert.match(sheet, /TenantMaintenanceIntake/);
+  assert.match(sheet, /audience === 'landlord'/);
+  assert.match(sheet, /<Modal visible={open} transparent animationType="slide"/);
+  assert.match(sheet, /Math\.max\(insets\.bottom/);
+  assert.match(navigator, /name="Checklists" component={ChecklistsNavigator}/);
+  assert.doesNotMatch(dashboard, /quickActionsOpen|QuickAction|Quick actions/);
 });
