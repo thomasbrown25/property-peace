@@ -40,7 +40,7 @@ export default function MaintenanceScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} />}
         ListHeaderComponent={<View>
           <Text style={styles.eyebrow}>PROPERTY CARE</Text>
-          <Text style={styles.pageTitle} accessibilityRole="header">Maintenance</Text>
+          <Text style={styles.pageTitle} accessibilityRole="header">Repair requests</Text>
           <Text style={styles.pageSubtitle}>Keep repairs moving, from report to resolution.</Text>
           <View style={styles.tabs} accessibilityRole="tablist">
             {(['current', 'history'] as const).map((tab) => <TouchableOpacity key={tab} style={[styles.tab, view === tab && styles.tabActive]} onPress={() => setView(tab)} accessibilityRole="tab" accessibilityState={{ selected: view === tab }}><Text style={[styles.tabText, view === tab && styles.tabTextActive]}>{tab === 'current' ? 'Current' : 'History'}</Text></TouchableOpacity>)}

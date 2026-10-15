@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 
 const isUnread = (item: AppNotification) => item.isRead === false || item.IsRead === false;
 
 export default function NotificationsScreen() {
+  const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,7 +80,7 @@ export default function NotificationsScreen() {
       <FlatList
         data={notifications}
         keyExtractor={(item, index) => String(item.id ?? item.Id ?? index)}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
         ItemSeparatorComponent={() => <View style={styles.divider} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} />}
         ListHeaderComponent={(
@@ -143,7 +145,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 20, paddingBottom: 36, flexGrow: 1 },
-  headingRow: { paddingTop: 24, paddingBottom: 20 },
+  headingRow: { paddingBottom: 20 },
   heading: { color: '#0f2f47', fontSize: 28, fontWeight: '800' },
   headingSub: { color: '#64748b', fontSize: 13, marginTop: 4 },
   sectionRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#e8edf2' },

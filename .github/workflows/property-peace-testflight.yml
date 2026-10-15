@@ -1,11 +1,14 @@
 name: Property Peace iOS to TestFlight
 
 on:
+  push:
+    branches:
+      - dev
   workflow_dispatch:
 
 jobs:
   build-and-submit:
-    if: github.ref == 'refs/heads/prod'
+    if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     defaults:
       run:
