@@ -2,15 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Image,
-  LayoutAnimation,
-  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  UIManager,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,7 +20,6 @@ import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
-import { addExpenseDashboardAction, navigateToAddExpense } from '../../features/expenses/dashboardExpenseAction';
 
 const logo = require('../../../assets/property-peace-navbar-logo.png');
 
@@ -56,11 +52,6 @@ const getUnitStatus = (unit: any) => firstString(unit.status, unit.Status).toLow
 const getLease = (unit: any) => unit.lease || unit.Lease || unit.activeLease || unit.ActiveLease;
 const getPropertyId = (property: Property) => String(property.id ?? property.Id ?? '');
 const getRequestId = (request: MaintenanceRequest) => String(request.id ?? request.Id ?? '');
-
-// LayoutAnimation requires explicit opt-in on Android's legacy renderer.
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 const formatMoney = (value: number) => new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -114,11 +105,6 @@ export default function DashboardScreen() {
   const [notificationsStatus, setNotificationsStatus] = useState<LoadStatus>('loading');
   const [rentStatus, setRentStatus] = useState<LoadStatus>('loading');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [quickActionsOpen, setQuickActionsOpen] = useState(false);
-  const toggleQuickActions = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setQuickActionsOpen((open) => !open);
-  };
   const loadGeneration = useRef(0);
   const organizationId = String(currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId ?? '');
   const currentOrganizationId = useRef(organizationId);
@@ -271,37 +257,6 @@ export default function DashboardScreen() {
     [scopedNotifications],
   );
 
-  const quickActions = [
-    {
-      icon: 'business-outline' as const,
-      title: 'Add property',
-      subtitle: 'Grow your portfolio',
-      color: '#2475cf',
-      background: '#eaf3ff',
-      onPress: () => navigation.navigate('Properties', { screen: 'AddProperty' }),
-    },
-    {
-      ...addExpenseDashboardAction,
-      onPress: () => navigateToAddExpense((route) => navigation.navigate(route)),
-    },
-    {
-      icon: 'construct-outline' as const,
-      title: 'Maintenance',
-      subtitle: 'Review open workflows',
-      color: '#b76a11',
-      background: '#fff7e8',
-      onPress: () => navigation.navigate('Maintenance', { screen: 'MaintenanceList' }),
-    },
-    {
-      icon: 'document-text-outline' as const,
-      title: 'Leases',
-      subtitle: 'Review rent and balances',
-      color: '#287d43',
-      background: '#edf8f0',
-      onPress: () => navigation.navigate('Leases'),
-    },
-  ];
-
   return (
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 18) }]}>
@@ -334,7 +289,7 @@ export default function DashboardScreen() {
       )}
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 16) + 94 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 32 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor="#2475cf" />}
       >
@@ -373,38 +328,6 @@ export default function DashboardScreen() {
             </View>
           </TouchableOpacity>
         )}
-
-        <View style={styles.quickSection}>
-          <View style={styles.quickCardInner}>
-            <TouchableOpacity
-              style={styles.quickTrigger}
-              onPress={toggleQuickActions}
-              accessibilityRole="button"
-              accessibilityLabel="Quick actions"
-              accessibilityHint="Expands or collapses quick actions"
-              accessibilityState={{ expanded: quickActionsOpen }}
-            >
-              <View style={styles.quickTriggerIcon}><Ionicons name="flash-outline" size={20} color="#0b3558" /></View>
-              <Text style={styles.quickTriggerText}>Quick actions</Text>
-              <View style={styles.quickChevron}><Ionicons name={quickActionsOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#0b3558" /></View>
-            </TouchableOpacity>
-            {quickActionsOpen && (
-              <View style={styles.quickMenu}>
-                {quickActions.map((action, index) => (
-                  <QuickAction
-                    key={action.title}
-                    {...action}
-                    isLast={index === quickActions.length - 1}
-                    onPress={() => {
-                      setQuickActionsOpen(false);
-                      action.onPress();
-                    }}
-                  />
-                ))}
-              </View>
-            )}
-          </View>
-        </View>
 
         <View style={styles.progressCard}>
           <View style={styles.progressHeader}>
@@ -556,19 +479,6 @@ function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof type
   );
 }
 
-function QuickAction({ icon, title, subtitle, color, background, onPress, isLast }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; color: string; background: string; onPress: () => void; isLast: boolean }) {
-  return (
-    <TouchableOpacity style={[styles.quickAction, !isLast && styles.quickActionDivider]} onPress={onPress} activeOpacity={0.72} accessibilityRole="button" accessibilityLabel={title}>
-      <View style={[styles.quickIcon, { backgroundColor: background }]}><Ionicons name={icon} size={22} color={color} /></View>
-      <View style={styles.quickCopy}>
-        <Text style={styles.quickTitle}>{title}</Text>
-        <Text style={styles.quickSubtitle}>{subtitle}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="#8c9aa6" />
-    </TouchableOpacity>
-  );
-}
-
 function MoneyMetric({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <View style={styles.moneyMetric}>
@@ -670,19 +580,6 @@ const styles = StyleSheet.create({
   warningCopy: { flex: 1 },
   warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
   warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
-  quickSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', marginBottom: 24 },
-  quickCardInner: { overflow: 'hidden' },
-  quickTrigger: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  quickTriggerIcon: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  quickTriggerText: { flex: 1, color: '#061e35', fontSize: 16, fontWeight: '900' },
-  quickChevron: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  quickMenu: { borderTopWidth: 1, borderTopColor: '#e9edf0' },
-  quickAction: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
-  quickActionDivider: { borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
-  quickIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  quickCopy: { flex: 1, minWidth: 0 },
-  quickTitle: { color: '#102d43', fontSize: 15, lineHeight: 19, fontWeight: '900' },
-  quickSubtitle: { color: '#6a7885', fontSize: 12, lineHeight: 16, marginTop: 2 },
   progressCard: { backgroundColor: '#edf8f0', borderRadius: 18, padding: 20, marginBottom: 32 },
   progressHeader: { minHeight: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   progressTitleRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' },
