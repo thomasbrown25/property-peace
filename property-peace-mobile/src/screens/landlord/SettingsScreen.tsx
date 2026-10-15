@@ -194,8 +194,8 @@ function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMa
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { padding: 18, paddingBottom: 120, gap: 14 },
-  heroCard: { borderRadius: 22, padding: 20, backgroundColor: '#0b3558' },
+  content: { padding: 18, paddingBottom: 120, gap: 16 },
+  heroCard: { borderRadius: 22, padding: 18, backgroundColor: '#0b3558' },
   eyebrow: { color: '#93c5fd', fontSize: 12, fontWeight: '800', letterSpacing: 1.1, textTransform: 'uppercase', marginBottom: 6 },
   title: { color: '#fff', fontSize: 30, fontWeight: '900', marginBottom: 5 },
   subtitle: { color: 'rgba(255,255,255,0.72)', fontSize: 15, lineHeight: 21 },

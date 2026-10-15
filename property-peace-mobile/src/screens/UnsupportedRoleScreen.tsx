@@ -31,10 +31,10 @@ export default function UnsupportedRoleScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { flex: 1, justifyContent: 'center', padding: 28 },
+  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24 },
   eyebrow: { color: '#8a4b16', fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
   title: { color: '#102d43', fontSize: 28, fontWeight: '800', lineHeight: 35, marginBottom: 18 },
-  body: { color: '#526874', fontSize: 16, lineHeight: 24, marginBottom: 14 },
-  button: { minHeight: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b3558', borderRadius: 14, marginTop: 16 },
+  body: { color: '#526874', fontSize: 16, lineHeight: 24, marginBottom: 16 },
+  button: { minHeight: 52, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0b3558', borderRadius: 14, marginTop: 4 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

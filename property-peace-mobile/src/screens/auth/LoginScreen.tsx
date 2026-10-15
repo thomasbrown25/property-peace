@@ -21,7 +21,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
-  const showGoogleSignIn = Platform.OS !== 'ios' && Boolean(config.GOOGLE_CLIENT_ID);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const googleInFlight = useRef(false);
+  const showGoogleSignIn = Boolean(Platform.OS === 'ios' ? config.GOOGLE_IOS_CLIENT_ID : config.GOOGLE_CLIENT_ID);
   const entrance = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -78,11 +80,14 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = async () => {
-    if (!config.GOOGLE_CLIENT_ID) {
+    if (googleInFlight.current) return;
+    if (!showGoogleSignIn) {
       Alert.alert('Error', 'Google sign-in is not configured');
       return;
     }
 
+    googleInFlight.current = true;
+    setGoogleSubmitting(true);
     try {
       const result = await googleSignIn();
 
@@ -99,7 +104,7 @@ export default function LoginScreen() {
         return;
       }
 
-      if (!result.accessToken && !result.idToken) {
+      if (!result.idToken && !result.accessToken) {
         Alert.alert('Error', 'No authentication token received');
         return;
       }
@@ -107,7 +112,7 @@ export default function LoginScreen() {
       const authResult = await dispatch(
         googleLogin({
           idToken: result.idToken || undefined,
-          accessToken: result.accessToken || undefined,
+          accessToken: result.idToken ? undefined : result.accessToken || undefined,
         })
       ).unwrap();
       if (authResult.kind === 'challenge') {
@@ -116,6 +121,9 @@ export default function LoginScreen() {
       // Navigation will be handled by AppNavigator based on auth state
     } catch (error: any) {
       Alert.alert('Google Sign-In Failed', error?.message || 'Failed to sign in with Google. Please try again.');
+    } finally {
+      googleInFlight.current = false;
+      setGoogleSubmitting(false);
     }
   };
 
@@ -172,7 +180,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleLogin}
-            disabled={loading || googleLoading}
+            disabled={loading || googleLoading || googleSubmitting}
           >
             <Text style={styles.buttonText}>{loading ? 'Signing in...' : 'Sign In'}</Text>
           </TouchableOpacity>
@@ -188,16 +196,16 @@ export default function LoginScreen() {
               </View>
 
               <TouchableOpacity
-                style={[styles.googleButton, (loading || googleLoading) && styles.buttonDisabled]}
+                style={[styles.googleButton, (loading || googleLoading || googleSubmitting) && styles.buttonDisabled]}
                 onPress={handleGoogleSignIn}
-                disabled={loading || googleLoading}
+                disabled={loading || googleLoading || googleSubmitting}
               >
                 <View style={styles.googleButtonContent}>
                   <View style={{ marginRight: 12 }}>
                     <GoogleLogo size={20} />
                   </View>
                   <Text style={styles.googleButtonText}>
-                    {googleLoading ? 'Signing in...' : 'Sign in with Google'}
+                    {googleLoading || googleSubmitting ? 'Signing in...' : 'Sign in with Google'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -244,8 +252,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 24,
   },
   form: {
     width: '100%',
@@ -260,7 +268,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
     color: 'rgba(255, 255, 255, 0.68)',
     lineHeight: 23,
   },
@@ -280,7 +288,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 0,
     borderWidth: 1,
     borderColor: 'rgba(147, 197, 253, 0.45)',
     shadowColor: '#3b82f6',
@@ -298,8 +306,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   linkButton: {
-    marginTop: 16,
+    marginTop: 8,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   linkText: {
     color: '#fff',
@@ -307,7 +317,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   legalLinks: {
-    marginTop: 22,
+    marginTop: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
@@ -328,7 +338,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -346,7 +356,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 8,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     shadowColor: '#020617',

@@ -47,11 +47,17 @@ namespace brownstone_hub_api.Services.GoogleAuthService
                     return null;
                 }
 
-                // Verify the audience (client ID) matches
-                var clientId = _configuration["GoogleOAuth:ClientId"];
-                if (!string.IsNullOrEmpty(clientId) && tokenInfo.Audience != clientId)
+                // Fail closed if no audience is configured. The web and iOS OAuth client IDs
+                // are the only accepted recipients of ID tokens for this API.
+                var webClientId = _configuration["GoogleOAuth:ClientId"];
+                var iosClientId = _configuration["GoogleOAuth:IosClientId"];
+                var isWebAudience = !string.IsNullOrWhiteSpace(webClientId) &&
+                    string.Equals(tokenInfo.Audience, webClientId, StringComparison.Ordinal);
+                var isIosAudience = !string.IsNullOrWhiteSpace(iosClientId) &&
+                    string.Equals(tokenInfo.Audience, iosClientId, StringComparison.Ordinal);
+                if (string.IsNullOrWhiteSpace(tokenInfo.Audience) || (!isWebAudience && !isIosAudience))
                 {
-                    _logger.LogWarning("Google token audience mismatch. Expected: {Expected}, Got: {Actual}", clientId, tokenInfo.Audience);
+                    _logger.LogWarning("Google ID token has an unrecognized or missing audience");
                     return null;
                 }
 

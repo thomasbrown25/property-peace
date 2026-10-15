@@ -479,6 +479,110 @@ namespace brownstone_hub_api.Tests.Services.Users
             _userRepo.Verify(repository => repository.GetUserByGoogleIdAsync(It.IsAny<string>()), Times.Never);
         }
 
+        [Theory]
+        [InlineData(null)]
+        [InlineData("valid-access-token")]
+        public async Task GoogleLogin_RejectedIdTokenNeverFallsBackToAccessToken(string? accessToken)
+        {
+            _googleAuth.Setup(service => service.VerifyGoogleTokenAsync("rejected-id-token"))
+                .ReturnsAsync((GoogleUserInfo?)null);
+            _googleAuth.Setup(service => service.VerifyGoogleAccessTokenAsync(It.IsAny<string>()))
+                .ReturnsAsync(new GoogleUserInfo
+                {
+                    Id = "google-user-123",
+                    Email = "john@test.com",
+                    EmailVerified = true
+                });
+
+            var (response, isNewUser) = await _sut.GoogleLogin("rejected-id-token", accessToken: accessToken);
+
+            response.Success.Should().BeFalse();
+            isNewUser.Should().BeFalse();
+            _googleAuth.Verify(service => service.VerifyGoogleTokenAsync("rejected-id-token"), Times.Once);
+            _googleAuth.Verify(service => service.VerifyGoogleAccessTokenAsync(It.IsAny<string>()), Times.Never);
+            _userRepo.Verify(repository => repository.GetUserByGoogleIdAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GoogleLogin_AccessTokenOnlyPreservesWebFlow()
+        {
+            _googleAuth.Setup(service => service.VerifyGoogleAccessTokenAsync("web-access-token"))
+                .ReturnsAsync(new GoogleUserInfo
+                {
+                    Id = "google-user-123",
+                    Email = "john@test.com",
+                    EmailVerified = true
+                });
+            _userRepo.Setup(repository => repository.GetUserByGoogleIdAsync("google-user-123"))
+                .ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(MakeUser());
+            _userRepo.Setup(repository => repository.GetRegisteredUser("john@test.com"))
+                .ReturnsAsync(new AddUserDto { Email = "john@test.com" });
+
+            var (response, isNewUser) = await _sut.GoogleLogin(null, accessToken: "web-access-token");
+
+            response.Success.Should().BeTrue(response.Message);
+            isNewUser.Should().BeFalse();
+            _googleAuth.Verify(service => service.VerifyGoogleAccessTokenAsync("web-access-token"), Times.Once);
+            _googleAuth.Verify(service => service.VerifyGoogleTokenAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GoogleLogin_LinksVerifiedEmail_WhenAccountHasNoGoogleIdentity()
+        {
+            var user = MakeUser();
+            user.PasswordHash = [1, 2, 3];
+            user.AuthProvider = "Email";
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _googleAuth.Setup(service => service.VerifyGoogleTokenAsync("token"))
+                .ReturnsAsync(new GoogleUserInfo { Id = "google-user-123", Email = " JOHN@TEST.COM ", EmailVerified = true });
+            _userRepo.SetupSequence(repository => repository.GetUserByGoogleIdAsync("google-user-123"))
+                .ReturnsAsync((LoadUserDto?)null)
+                .ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUserByEmailAsync("john@test.com")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.GoogleLogin("token");
+
+            response.Success.Should().BeTrue(response.Message);
+            isNewUser.Should().BeFalse();
+            user.GoogleId.Should().Be("google-user-123");
+            user.AuthProvider.Should().Be("Email,Google");
+        }
+
+        [Fact]
+        public async Task GoogleLogin_RejectsVerifiedEmail_WhenAccountHasDifferentGoogleIdentity()
+        {
+            var user = MakeUser();
+            user.GoogleId = "different-google-user";
+            user.AuthProvider = "Google";
+            user.LoginCount = 4;
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync();
+            var loaded = MakeLoadUserDto();
+            _googleAuth.Setup(service => service.VerifyGoogleTokenAsync("token"))
+                .ReturnsAsync(new GoogleUserInfo { Id = "google-user-123", Email = "john@test.com", EmailVerified = true });
+            _userRepo.Setup(repository => repository.GetUserByGoogleIdAsync("google-user-123"))
+                .ReturnsAsync((LoadUserDto?)null);
+            _userRepo.Setup(repository => repository.GetUserByEmailAsync("john@test.com")).ReturnsAsync(loaded);
+            _userRepo.Setup(repository => repository.GetUser(1L)).ReturnsAsync(user);
+
+            var (response, isNewUser) = await _sut.GoogleLogin("token");
+
+            response.Success.Should().BeFalse();
+            response.StatusCode.Should().Be(409);
+            response.Data.Should().BeNull();
+            isNewUser.Should().BeFalse();
+            user.GoogleId.Should().Be("different-google-user");
+            user.AuthProvider.Should().Be("Google");
+            user.LoginCount.Should().Be(4);
+            _context.Entry(user).State.Should().Be(EntityState.Unchanged);
+            _userRepo.Verify(repository => repository.AddUser(It.IsAny<AddUserDto>()), Times.Never);
+            _userRepo.Verify(repository => repository.GetUserByGoogleIdAsync("google-user-123"), Times.Once);
+        }
+
         // ── AppleLogin ─────────────────────────────────────────────────────────────
 
         [Fact]

@@ -59,12 +59,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#082f58"
       },
-      "package": "com.propertypeace.mobile"
+      "package": "com.propertypeace.mobile",
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "scheme": "propertypeace",
+    "scheme": ["propertypeace", "com.googleusercontent.apps.422382677454-1ttb399tb2vucfo109s3ijvi8bvsahgt"],
     "plugins": [
       [
         "expo-local-authentication",
@@ -84,6 +89,12 @@
       ],
       "expo-font",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "395dd59c-943a-4ccd-b3dd-5aba55971f01"
+      }
+    },
+    "owner": "thomasbrown1125"
   }
 }

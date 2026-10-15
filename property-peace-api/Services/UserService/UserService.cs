@@ -1105,20 +1105,16 @@ namespace brownstone_hub_api.Services.UserService
             {
                 GoogleUserInfo? googleUser = null;
 
-                // If access token is provided, use it; otherwise try ID token
-                if (!string.IsNullOrEmpty(accessToken))
+                // An explicitly supplied ID token must pass ID-token validation; never
+                // downgrade to the access-token path if it is rejected (even if both are sent).
+                if (!string.IsNullOrEmpty(idToken))
                 {
-                    googleUser = await _googleAuthService.VerifyGoogleAccessTokenAsync(accessToken);
-                }
-                else if (!string.IsNullOrEmpty(idToken))
-                {
-                    // Try to verify as ID token first, then as access token
                     googleUser = await _googleAuthService.VerifyGoogleTokenAsync(idToken);
-                    if (googleUser == null)
-                    {
-                        // If ID token verification fails, try as access token
-                        googleUser = await _googleAuthService.VerifyGoogleAccessTokenAsync(idToken);
-                    }
+                }
+                else if (!string.IsNullOrEmpty(accessToken))
+                {
+                    // Preserve the web OAuth access-token-only flow.
+                    googleUser = await _googleAuthService.VerifyGoogleAccessTokenAsync(accessToken);
                 }
 
                 if (googleUser == null || !googleUser.EmailVerified || string.IsNullOrWhiteSpace(googleUser.Email))
@@ -1195,6 +1191,16 @@ namespace brownstone_hub_api.Services.UserService
                         response.Success = false;
                         response.Message = "Your account has been suspended. Please contact support for assistance.";
                         response.StatusCode = 403;
+                        return (response, false);
+                    }
+
+                    // A verified email can link an unlinked account, but must never replace
+                    // a different Google identity already associated with this account.
+                    if (dbUser != null && !string.IsNullOrEmpty(dbUser.GoogleId) && dbUser.GoogleId != googleUser.Id)
+                    {
+                        response.Success = false;
+                        response.Message = "This account is already linked to another Google ID.";
+                        response.StatusCode = StatusCodes.Status409Conflict;
                         return (response, false);
                     }
 

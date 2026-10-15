@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -54,8 +54,10 @@ export default function RegisterScreen() {
   const [errorMessage, setErrorMessage] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const googleInFlight = useRef(false);
   const showGoogleSignIn =
-    Platform.OS !== "ios" && Boolean(config.GOOGLE_CLIENT_ID);
+    Boolean(Platform.OS === "ios" ? config.GOOGLE_IOS_CLIENT_ID : config.GOOGLE_CLIENT_ID);
 
   useEffect(() => {
     if (step !== "verify" || emailVerified) return undefined;
@@ -148,11 +150,14 @@ export default function RegisterScreen() {
   };
 
   const handleGoogleSignUp = async () => {
-    if (!config.GOOGLE_CLIENT_ID) {
+    if (googleInFlight.current) return;
+    if (!showGoogleSignIn) {
       Alert.alert("Error", "Google sign-up is not configured");
       return;
     }
 
+    googleInFlight.current = true;
+    setGoogleSubmitting(true);
     try {
       const result = await googleSignIn();
 
@@ -168,13 +173,16 @@ export default function RegisterScreen() {
         return;
       }
 
-      await dispatch(
+      const authResult = await dispatch(
         googleLogin({
           idToken: result.idToken || undefined,
-          accessToken: result.accessToken || undefined,
+          accessToken: result.idToken ? undefined : result.accessToken || undefined,
         }),
       ).unwrap();
-      // Navigation will be handled by AppNavigator based on auth state
+      if (authResult.kind === "challenge") {
+        navigation.navigate("MfaVerification", { challenge: authResult.challenge });
+      }
+      // Authenticated navigation is handled by AppNavigator.
     } catch (error: any) {
       const errorMessage =
         error?.message || "Failed to sign up with Google. Please try again.";
@@ -192,6 +200,9 @@ export default function RegisterScreen() {
       } else {
         Alert.alert("Google Sign-Up Failed", errorMessage);
       }
+    } finally {
+      googleInFlight.current = false;
+      setGoogleSubmitting(false);
     }
   };
 
@@ -243,7 +254,7 @@ export default function RegisterScreen() {
                 </View>
               )}
               {errorMessage ? <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text> : null}
-              <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSendCode} disabled={loading || googleLoading} accessibilityRole="button">
+              <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSendCode} disabled={loading || googleLoading || googleSubmitting} accessibilityRole="button">
                 <Text style={styles.buttonText}>{loading ? "Sending code…" : "Send verification code"}</Text>
               </TouchableOpacity>
             </>
@@ -316,17 +327,17 @@ export default function RegisterScreen() {
               <TouchableOpacity
                 style={[
                   styles.googleButton,
-                  (loading || googleLoading) && styles.buttonDisabled,
+                  (loading || googleLoading || googleSubmitting) && styles.buttonDisabled,
                 ]}
                 onPress={handleGoogleSignUp}
-                disabled={loading || googleLoading}
+                disabled={loading || googleLoading || googleSubmitting}
               >
                 <View style={styles.googleButtonContent}>
                   <View style={{ marginRight: 12 }}>
                     <GoogleLogo size={20} />
                   </View>
                   <Text style={styles.googleButtonText}>
-                    {googleLoading ? "Signing up..." : "Sign up with Google"}
+                    {googleLoading || googleSubmitting ? "Signing up..." : "Sign up with Google"}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -379,8 +390,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 36,
+    paddingHorizontal: 18,
+    paddingVertical: 28,
   },
   eyebrow: {
     color: "#86efac",
@@ -404,7 +415,7 @@ const styles = StyleSheet.create({
   expiryText: {
     color: "rgba(255, 255, 255, 0.68)",
     fontSize: 13,
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: "center",
   },
   statusText: {
@@ -439,7 +450,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     textAlign: "center",
-    marginBottom: 28,
+    marginBottom: 24,
     color: "rgba(255, 255, 255, 0.68)",
     lineHeight: 23,
   },
@@ -450,7 +461,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    marginBottom: 14,
+    marginBottom: 16,
     fontSize: 16,
     color: "#fff",
   },
@@ -461,10 +472,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
   passwordContainerWithRequirements: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   passwordInput: {
     flex: 1,
@@ -483,8 +494,8 @@ const styles = StyleSheet.create({
   passwordRequirements: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 7,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 16,
   },
   requirementChip: {
     borderWidth: 1,
@@ -523,7 +534,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 0,
     borderWidth: 1,
     borderColor: "rgba(147, 197, 253, 0.45)",
     shadowColor: "#3b82f6",
@@ -541,8 +552,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   linkButton: {
-    marginTop: 16,
+    marginTop: 8,
+    minHeight: 44,
     alignItems: "center",
+    justifyContent: "center",
   },
   linkText: {
     color: "#fff",
@@ -550,7 +563,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   legalLinks: {
-    marginTop: 22,
+    marginTop: 16,
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
@@ -571,7 +584,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 18,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -589,7 +602,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     alignItems: "center",
-    marginTop: 8,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.16)",
     shadowColor: "#020617",

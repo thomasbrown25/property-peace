@@ -42,10 +42,10 @@ export default function AddTenantScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 16 },
+  content: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 36 },
   helper: { color: '#555', marginBottom: 16, lineHeight: 20 },
-  input: { backgroundColor: '#fff', borderColor: '#ddd', borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 12, fontSize: 16 },
-  primaryButton: { backgroundColor: '#1976d2', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 8 },
+  input: { backgroundColor: '#fff', borderColor: '#ddd', borderWidth: 1, borderRadius: 8, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 14, fontSize: 16 },
+  primaryButton: { backgroundColor: '#1976d2', borderRadius: 8, minHeight: 48, padding: 14, alignItems: 'center', justifyContent: 'center', marginTop: 6 },
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

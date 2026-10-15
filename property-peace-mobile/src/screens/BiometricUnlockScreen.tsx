@@ -174,7 +174,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#061e35',
     flex: 1,
     justifyContent: 'center',
-    padding: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 24,
   },
   iconWrap: {
     alignItems: 'center',
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 84,
     justifyContent: 'center',
-    marginBottom: 22,
+    marginBottom: 20,
     width: 84,
   },
   eyebrow: {
@@ -205,7 +206,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.70)',
     fontSize: 16,
     lineHeight: 23,
-    marginBottom: 28,
+    marginBottom: 24,
     maxWidth: 320,
     textAlign: 'center',
   },
