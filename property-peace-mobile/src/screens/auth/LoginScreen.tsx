@@ -205,7 +205,7 @@ export default function LoginScreen() {
 
           {showGoogleSignIn && (
             <TouchableOpacity
-              style={[styles.googleButton, (loading || googleLoading || googleSubmitting) && styles.buttonDisabled]}
+              style={[styles.googleButton, Platform.OS === 'ios' && styles.googleButtonAfterApple, (loading || googleLoading || googleSubmitting) && styles.buttonDisabled]}
               onPress={handleGoogleSignIn}
               disabled={loading || googleLoading || googleSubmitting}
             >
@@ -382,6 +382,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 10,
     elevation: 2,
+  },
+  googleButtonAfterApple: {
+    marginTop: 12,
   },
   googleButtonContent: {
     flexDirection: 'row',

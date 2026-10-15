@@ -67,7 +67,7 @@ test('role routing is active-context aware and never sends vendors to landlord s
  const landlordAudience=maintenanceAudience({currentOrganizationRole:'Landlord'});
  const vendorAudience=maintenanceAudience({currentOrganizationRole:'Vendor'});
  assert.equal(tenantAudience,'tenant');assert.deepEqual(visibleMainTabsForAudience(tenantAudience).map((tab)=>tab.name),['Maintenance','Messages','Settings']);
- assert.equal(landlordAudience,'landlord');assert.deepEqual(visibleMainTabsForAudience(landlordAudience).map((tab)=>tab.name),['Dashboard','Properties','Checklists','Maintenance','Messages']);
+ assert.equal(landlordAudience,'landlord');assert.deepEqual(visibleMainTabsForAudience(landlordAudience).map((tab)=>tab.name),['Dashboard','Properties','Maintenance','Messages']);
  assert.equal(vendorAudience,'unsupported');assert.deepEqual(visibleMainTabsForAudience(vendorAudience).map((tab)=>tab.name),[]);
 });
 test('pending completion lookup never falls back to decided completions',()=>{
@@ -92,7 +92,8 @@ test('completion uploads replace retry state from active current-cycle detail an
  assert.deepEqual(currentCycleCompletionAttachmentIds(detailWithCycles),[2,4]);
  assert.deepEqual(currentCycleCompletionAttachmentIds({...detailWithCycles,resolutionCycle:3}),[],'advancing the cycle must remove prior-cycle retry evidence');
  assert.equal(currentCycleCompletionAttachmentIds({resolutionCycle:4,attachments:Array.from({length:10},(_,index)=>({id:index+10,purpose:'Completion',resolutionCycle:4}))}).length,10);
- assert.match(landlordDetail,/setUploadedCompletionAttachmentIds\(currentCycleCompletionAttachmentIds\(detail\)\)/);
+ assert.match(landlordDetail,/const ids = currentCycleCompletionAttachmentIds\(detail\)/);
+ assert.match(landlordDetail,/setUploadedCompletionAttachmentIds\(ids\)/);
  assert.doesNotMatch(landlordDetail,/setUploadedCompletionAttachmentIds\(previous/);
  assert.match(landlordDetail,/evidenceCount>=10/);
 });
@@ -157,8 +158,8 @@ test('maintenance selection controls expose their state and disabled choices to 
  assert.match(intake,/accessibilityState=\{\{selected:active\}\}/);
  assert.match(intake,/accessibilityRole="checkbox"/);
  assert.match(intake,/accessibilityState=\{\{checked:signals\.includes\(x\.value\)\}\}/);
- assert.match(landlordDetail,/accessibilityRole="radio"/);
- assert.match(landlordDetail,/accessibilityState=\{\{selected:active,disabled\}\}/);
- assert.match(landlordDetail,/accessibilityState=\{\{selected:assigneeId===String\(option\.id\),disabled:!canAssign\}\}/);
- assert.match(landlordDetail,/disabled=\{!canAssign\}/);
+ assert.match(landlordDetail,/accessibilityRole=\{selected === undefined \? 'button' : 'radio'\}/);
+ assert.match(landlordDetail,/accessibilityState=\{\{ disabled: !!disabled, expanded, selected \}\}/);
+ assert.match(landlordDetail,/accessibilityState=\{\{ selected: assigneeId === String\(option\.id\) \}\}/);
+ assert.match(landlordDetail,/disabled=\{busy\}/);
 });

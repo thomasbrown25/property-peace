@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
@@ -18,6 +19,7 @@ const FILTERS: Array<{ key: ConversationFilter; label: string }> = [
 
 export default function MessagesScreen() {
   const navigation = useNavigation<Navigation>();
+  const insets = useSafeAreaInsets();
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [filter, setFilter] = useState<ConversationFilter>('inbox');
@@ -133,8 +135,8 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <View><Text style={styles.heading}>Conversations</Text><Text style={styles.headerSub}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
+      <View style={[styles.header, { paddingTop: insets.top + 22 }]}>
+        <View><Text style={styles.heading} accessibilityRole="header">Messages</Text><Text style={styles.headerSub}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
         {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={styles.newGroup} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color="#fff" /><Text style={styles.newGroupText}>New group</Text></TouchableOpacity>}
       </View>
       <View style={styles.search}>

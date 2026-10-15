@@ -68,7 +68,7 @@ function DashboardNavigator() {
 function PropertiesNavigator() {
   return (
     <PropertiesStack.Navigator screenOptions={stackOptions}>
-      <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ title: 'Properties' }} />
+      <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ headerShown: false }} />
       <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={{ title: 'Property' }} />
       <PropertiesStack.Screen name="AddProperty" component={AddPropertyScreen} options={{ title: 'Add property' }} />
 
@@ -86,7 +86,7 @@ function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
         <MaintenanceStack.Screen name="TenantMaintenanceReceipt" component={TenantMaintenanceReceiptScreen} options={{ title: 'Report received', headerBackVisible: false }} />
         <MaintenanceStack.Screen name="TenantMaintenanceDetail" component={TenantMaintenanceDetailScreen} options={{ title: 'Request detail' }} />
       </> : <>
-        <MaintenanceStack.Screen name="MaintenanceList" component={MaintenanceScreen} options={{ title: 'Maintenance' }} />
+        <MaintenanceStack.Screen name="MaintenanceList" component={MaintenanceScreen} options={{ headerShown: false }} />
         <MaintenanceStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={{ title: 'Maintenance workflow' }} />
       </>}
     </MaintenanceStack.Navigator>
@@ -101,7 +101,7 @@ function TenantMaintenanceNavigator() {
 function MessagesNavigator() {
   return (
     <MessagesStack.Navigator screenOptions={stackOptions}>
-      <MessagesStack.Screen name="MessagesList" component={MessagesScreen} options={{ title: 'Messages' }} />
+      <MessagesStack.Screen name="MessagesList" component={MessagesScreen} options={{ headerShown: false }} />
       <MessagesStack.Screen name="ConversationDetail" component={ConversationDetailScreen} options={{ title: 'Conversation' }} />
     </MessagesStack.Navigator>
   );
