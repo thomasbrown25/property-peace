@@ -244,8 +244,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 28,
+    paddingHorizontal: 18,
+    paddingVertical: 24,
   },
   form: {
     width: '100%',
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
     color: 'rgba(255, 255, 255, 0.68)',
     lineHeight: 23,
   },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 0,
     borderWidth: 1,
     borderColor: 'rgba(147, 197, 253, 0.45)',
     shadowColor: '#3b82f6',
@@ -298,8 +298,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   linkButton: {
-    marginTop: 16,
+    marginTop: 8,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   linkText: {
     color: '#fff',
@@ -307,7 +309,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   legalLinks: {
-    marginTop: 22,
+    marginTop: 16,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
@@ -328,7 +330,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -346,7 +348,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     alignItems: 'center',
-    marginTop: 8,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.16)',
     shadowColor: '#020617',

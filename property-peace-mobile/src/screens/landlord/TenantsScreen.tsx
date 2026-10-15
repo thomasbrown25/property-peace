@@ -57,10 +57,10 @@ export default function TenantsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 16 },
-  addButton: { backgroundColor: '#1976d2', borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 16 },
+  listContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 36 },
+  addButton: { backgroundColor: '#1976d2', borderRadius: 8, minHeight: 48, padding: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
   addButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e6e6e6' },
+  card: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#e6e6e6' },
   title: { fontSize: 17, fontWeight: '700', color: '#333', marginBottom: 4 },
   meta: { color: '#666', marginTop: 2 },
   emptyContainer: { padding: 32, alignItems: 'center' },

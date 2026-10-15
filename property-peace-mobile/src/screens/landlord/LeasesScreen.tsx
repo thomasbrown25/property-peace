@@ -68,7 +68,7 @@ export default function LeasesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 16 },
+  listContent: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 36 },
   notice: { backgroundColor: '#eaf3ff', borderRadius: 10, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: '#c9def5' },
   noticeTitle: { color: '#0b3558', fontSize: 16, fontWeight: '700', marginBottom: 4 },
   noticeText: { color: '#526874', fontSize: 14, lineHeight: 20 },
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   errorText: { color: '#704c48', fontSize: 14, lineHeight: 20, marginTop: 4 },
   retryButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginTop: 8, paddingHorizontal: 4 },
   retryText: { color: '#1976d2', fontSize: 15, fontWeight: '700' },
-  leaseCard: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#e6e6e6' },
+  leaseCard: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginBottom: 14, borderWidth: 1, borderColor: '#e6e6e6' },
   leaseTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
   leaseMeta: { color: '#666', marginTop: 4 },
   emptyContainer: { padding: 32, alignItems: 'center' },

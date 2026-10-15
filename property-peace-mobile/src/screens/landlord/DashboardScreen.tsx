@@ -372,30 +372,35 @@ export default function DashboardScreen() {
         )}
 
         <View style={styles.quickSection}>
-          <TouchableOpacity
-            style={[styles.quickTrigger, quickActionsOpen && styles.quickTriggerOpen]}
-            onPress={() => setQuickActionsOpen((open) => !open)}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: quickActionsOpen }}
-          >
-            <View style={styles.quickTriggerIcon}><Ionicons name="flash-outline" size={20} color="#0b3558" /></View>
-            <Text style={styles.quickTriggerText}>Quick actions</Text>
-            <Ionicons name={quickActionsOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#0b3558" />
-          </TouchableOpacity>
-          {quickActionsOpen && (
-            <View style={styles.quickMenu}>
-              {quickActions.map((action) => (
-                <QuickAction
-                  key={action.title}
-                  {...action}
-                  onPress={() => {
-                    setQuickActionsOpen(false);
-                    action.onPress();
-                  }}
-                />
-              ))}
-            </View>
-          )}
+          <View style={styles.quickCardInner}>
+            <TouchableOpacity
+              style={styles.quickTrigger}
+              onPress={() => setQuickActionsOpen((open) => !open)}
+              accessibilityRole="button"
+              accessibilityLabel="Quick actions"
+              accessibilityHint="Expands or collapses quick actions"
+              accessibilityState={{ expanded: quickActionsOpen }}
+            >
+              <View style={styles.quickTriggerIcon}><Ionicons name="flash-outline" size={20} color="#0b3558" /></View>
+              <Text style={styles.quickTriggerText}>Quick actions</Text>
+              <View style={styles.quickChevron}><Ionicons name={quickActionsOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#0b3558" /></View>
+            </TouchableOpacity>
+            {quickActionsOpen && (
+              <View style={styles.quickMenu}>
+                {quickActions.map((action, index) => (
+                  <QuickAction
+                    key={action.title}
+                    {...action}
+                    isLast={index === quickActions.length - 1}
+                    onPress={() => {
+                      setQuickActionsOpen(false);
+                      action.onPress();
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.progressCard}>
@@ -554,9 +559,9 @@ function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof type
   );
 }
 
-function QuickAction({ icon, title, subtitle, color, background, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; color: string; background: string; onPress: () => void }) {
+function QuickAction({ icon, title, subtitle, color, background, onPress, isLast }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; color: string; background: string; onPress: () => void; isLast: boolean }) {
   return (
-    <TouchableOpacity style={styles.quickAction} onPress={onPress} activeOpacity={0.82}>
+    <TouchableOpacity style={[styles.quickAction, !isLast && styles.quickActionDivider]} onPress={onPress} activeOpacity={0.72} accessibilityRole="button" accessibilityLabel={title}>
       <View style={[styles.quickIcon, { backgroundColor: background }]}><Ionicons name={icon} size={22} color={color} /></View>
       <View style={styles.quickCopy}>
         <Text style={styles.quickTitle}>{title}</Text>
@@ -651,7 +656,7 @@ const styles = StyleSheet.create({
   profileAction: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#f0f2f4' },
   profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
   destructiveText: { color: '#c2413b' },
-  content: { paddingHorizontal: 16, paddingTop: 24, gap: 16 },
+  content: { paddingHorizontal: 18, paddingTop: 24, gap: 16 },
   heroTitle: { color: '#061e35', fontSize: 29, lineHeight: 35, fontWeight: '900', letterSpacing: -0.9, marginBottom: 2 },
   todayCard: { minHeight: 82, flexDirection: 'row', alignItems: 'stretch', overflow: 'hidden', borderRadius: 18, backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfe6d3', shadowColor: '#061e35', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
   dateBlock: { width: 67, backgroundColor: '#061e35', alignItems: 'center', justifyContent: 'center' },
@@ -669,14 +674,16 @@ const styles = StyleSheet.create({
   warningCopy: { flex: 1 },
   warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
   warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
-  quickSection: { gap: 8 },
-  quickTrigger: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 14, backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#dce3e8', shadowColor: '#061e35', shadowOpacity: 0.07, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 2 },
-  quickTriggerOpen: { borderColor: '#b8c9d6' },
-  quickTriggerIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef3f7' },
-  quickTriggerText: { flex: 1, color: '#061e35', fontSize: 15, fontWeight: '900' },
-  quickMenu: { gap: 7, padding: 7, backgroundColor: '#f2f5f7', borderRadius: 16, borderWidth: 1, borderColor: '#dce3e8' },
-  quickAction: { minHeight: 60, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, backgroundColor: '#fff', borderRadius: 13, borderWidth: 1, borderColor: '#dfe6ea' },
-  quickIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  quickSection: { backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#dce3e8', shadowColor: '#061e35', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  quickCardInner: { borderRadius: 17, overflow: 'hidden' },
+  quickTrigger: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18 },
+  quickTriggerIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eef3f7' },
+  quickTriggerText: { flex: 1, color: '#061e35', fontSize: 16, fontWeight: '900' },
+  quickChevron: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  quickMenu: { borderTopWidth: 1, borderTopColor: '#e9edf0', paddingHorizontal: 18 },
+  quickAction: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  quickActionDivider: { borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
+  quickIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   quickCopy: { flex: 1, minWidth: 0 },
   quickTitle: { color: '#102d43', fontSize: 15, lineHeight: 19, fontWeight: '900' },
   quickSubtitle: { color: '#6a7885', fontSize: 12, lineHeight: 16, marginTop: 2 },

@@ -379,8 +379,8 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 36,
+    paddingHorizontal: 18,
+    paddingVertical: 28,
   },
   eyebrow: {
     color: "#86efac",
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   expiryText: {
     color: "rgba(255, 255, 255, 0.68)",
     fontSize: 13,
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: "center",
   },
   statusText: {
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     textAlign: "center",
-    marginBottom: 28,
+    marginBottom: 24,
     color: "rgba(255, 255, 255, 0.68)",
     lineHeight: 23,
   },
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    marginBottom: 14,
+    marginBottom: 16,
     fontSize: 16,
     color: "#fff",
   },
@@ -461,10 +461,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 16,
   },
   passwordContainerWithRequirements: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   passwordInput: {
     flex: 1,
@@ -483,8 +483,8 @@ const styles = StyleSheet.create({
   passwordRequirements: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 7,
-    marginBottom: 14,
+    gap: 8,
+    marginBottom: 16,
   },
   requirementChip: {
     borderWidth: 1,
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 0,
     borderWidth: 1,
     borderColor: "rgba(147, 197, 253, 0.45)",
     shadowColor: "#3b82f6",
@@ -541,8 +541,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   linkButton: {
-    marginTop: 16,
+    marginTop: 8,
+    minHeight: 44,
     alignItems: "center",
+    justifyContent: "center",
   },
   linkText: {
     color: "#fff",
@@ -550,7 +552,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   legalLinks: {
-    marginTop: 22,
+    marginTop: 16,
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "center",
@@ -571,7 +573,7 @@ const styles = StyleSheet.create({
   divider: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 18,
+    marginVertical: 16,
   },
   dividerLine: {
     flex: 1,
@@ -589,7 +591,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 16,
     alignItems: "center",
-    marginTop: 8,
+    minHeight: 48,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.16)",
     shadowColor: "#020617",
