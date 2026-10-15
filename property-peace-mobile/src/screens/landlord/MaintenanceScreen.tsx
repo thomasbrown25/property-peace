@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 
 export default function MaintenanceScreen() {
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [view, setView] = useState<'current' | 'history'>('current');
   const [loading, setLoading] = useState(true);
@@ -36,18 +38,14 @@ export default function MaintenanceScreen() {
       <FlatList
         data={requests}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} />}
         ListHeaderComponent={<View>
           <Text style={styles.eyebrow}>PROPERTY CARE</Text>
-          <Text style={styles.pageTitle} accessibilityRole="header">Repair requests</Text>
+          <Text style={styles.pageTitle} accessibilityRole="header">Maintenance</Text>
           <Text style={styles.pageSubtitle}>Keep repairs moving, from report to resolution.</Text>
           <View style={styles.tabs} accessibilityRole="tablist">
             {(['current', 'history'] as const).map((tab) => <TouchableOpacity key={tab} style={[styles.tab, view === tab && styles.tabActive]} onPress={() => setView(tab)} accessibilityRole="tab" accessibilityState={{ selected: view === tab }}><Text style={[styles.tabText, view === tab && styles.tabTextActive]}>{tab === 'current' ? 'Current' : 'History'}</Text></TouchableOpacity>)}
-          </View>
-          <View style={styles.notice}>
-            <Ionicons name="information-circle-outline" size={19} color="#2475cf" />
-            <Text style={styles.noticeText}>Open a request to assign work, review estimates, schedule visits, and close repairs. Tenant reports use structured intake; landlord quick-create is not yet available.</Text>
           </View>
           {error ? <View style={styles.error} accessibilityRole="alert"><Text style={styles.errorText}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); loadRequests(); }} accessibilityRole="button"><Text style={styles.retryText}>Retry</Text></TouchableOpacity></View> : null}
           {!error && <View style={styles.sectionHeader}>
@@ -61,7 +59,7 @@ export default function MaintenanceScreen() {
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('LandlordMaintenanceDetail', { requestId: String(item.id || item.Id), listItem: item })} accessibilityRole="button" accessibilityLabel={`Open maintenance request ${item.title || item.Title || ''}`}>
             <Text style={styles.title}>{item.title || item.Title || 'Maintenance request'}</Text>
             {!!(item.description || item.Description) && <Text style={styles.meta} numberOfLines={2}>{item.description || item.Description}</Text>}
-            {!!(item.status || item.Status) && <Text style={styles.status}>{displayStatus(item.status || item.Status)} · Open workflow →</Text>}
+            <Text style={styles.status}>{item.status || item.Status ? `${displayStatus(item.status || item.Status)} · ` : ''}Open request →</Text>
           </TouchableOpacity>
         )}
       />
@@ -85,8 +83,6 @@ const styles = StyleSheet.create({
   errorText: { color: '#8d263a', fontWeight: '700', lineHeight: 20 },
   retry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
   retryText: { color: '#2475cf', fontWeight: '700' },
-  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', marginBottom: 30 },
-  noticeText: { color: '#526874', lineHeight: 20, fontSize: 14, flex: 1 },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
   sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
   count: { color: '#788995', fontSize: 14 },

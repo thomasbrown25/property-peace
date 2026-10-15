@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PropertiesStackParamList } from '../../navigation/types';
@@ -68,6 +69,7 @@ function needsAttention(property: Property) {
 
 export default function PropertiesScreen() {
   const navigation = useNavigation<PropertiesScreenNavigationProp>();
+  const insets = useSafeAreaInsets();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,13 +102,13 @@ export default function PropertiesScreen() {
         data={filteredProperties}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         renderItem={({ item }) => <PropertyRow property={item} onPress={() => navigation.navigate('PropertyDetail', { propertyId: String(item.id || item.Id) })} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperties(); }} tintColor="#2475cf" />}
         ListHeaderComponent={
           <View>
             <View style={styles.pageHeader}>
               <Text style={styles.eyebrow}>YOUR PORTFOLIO</Text>
-              <Text style={styles.pageTitle} accessibilityRole="header">Portfolio overview</Text>
+              <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
               <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
             </View>
 

@@ -22,11 +22,12 @@ test('landlord dock keeps four primary destinations and moves checklists into qu
     tabs.map((tab) => tab.name),
     ['Dashboard', 'Properties', 'Maintenance', 'Messages'],
   );
-  assert.equal(tabs.find((tab) => tab.name === 'Maintenance')?.label, 'Repairs');
+  assert.equal(tabs.find((tab) => tab.name === 'Maintenance')?.label, undefined);
 });
 
 test('tenant navigation does not show the landlord Checklists tab', () => {
   assert.equal(loadError, undefined);
+  assert.equal(visibleMainTabsForAudience('tenant').find((tab) => tab.name === 'Maintenance')?.label, undefined);
   assert.deepEqual(
     visibleMainTabsForAudience('tenant').map((tab) => tab.name),
     ['Maintenance', 'Messages', 'Settings'],

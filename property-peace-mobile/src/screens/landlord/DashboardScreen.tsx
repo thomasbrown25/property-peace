@@ -329,35 +329,6 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        <View style={styles.progressCard}>
-          <View style={styles.progressHeader}>
-            <View style={styles.progressTitleRow}>
-              <Text style={styles.progressTitle}>Rent collection progress</Text>
-              {scopedRentStatus === 'success' && <Text style={styles.progressPercent}>{Math.round(collectionPct)}%</Text>}
-            </View>
-            {scopedRentStatus === 'loading' ? <ActivityIndicator size="small" color="#2f8f46" /> : null}
-          </View>
-          {scopedRentStatus === 'error' ? (
-            <SectionError text="Rent collection is unavailable." onRetry={loadDashboard} />
-          ) : scopedRentStatus === 'success' ? (
-            <>
-              <Text style={styles.progressHelper}>
-                {`${formatMoney(scopedRentMetrics.collected)} collected of ${formatMoney(scopedRentMetrics.expected)} total expected`}
-              </Text>
-              <View
-                style={styles.progressTrack}
-                accessibilityRole="progressbar"
-                accessibilityLabel="Rent collection progress"
-                accessibilityValue={{ min: 0, max: 100, now: Math.round(collectionPct) }}
-              >
-                <View style={[styles.progressFill, { width: `${collectionPct}%` }]} />
-              </View>
-            </>
-          ) : (
-            <View style={styles.loadingLine} />
-          )}
-        </View>
-
         <DashboardSection>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Money summary for this month</Text>
@@ -367,15 +338,34 @@ export default function DashboardScreen() {
           ) : scopedRentStatus === 'loading' ? (
             <CardLoading />
           ) : (
-            <View style={styles.metricList}>
-              <MoneyMetric label="Collected" value={formatMoney(scopedRentMetrics.collected)} color="#2f8f46" />
-              <MoneyMetric label="Expected rent" value={formatMoney(scopedRentMetrics.expected)} color="#0b3558" />
-              <MoneyMetric label="Remaining" value={formatMoney(scopedRentMetrics.remaining)} color="#b76a11" />
-            </View>
+            <>
+              <View style={styles.metricList}>
+                <MoneyMetric label="Collected" value={formatMoney(scopedRentMetrics.collected)} color="#2f8f46" />
+                <MoneyMetric label="Expected rent" value={formatMoney(scopedRentMetrics.expected)} color="#0b3558" />
+                <MoneyMetric label="Remaining" value={formatMoney(scopedRentMetrics.remaining)} color="#b76a11" isLast />
+              </View>
+              <View style={styles.progressCard}>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressTitle}>Rent collection progress</Text>
+                  <Text style={styles.progressPercent}>{Math.round(collectionPct)}%</Text>
+                </View>
+                <Text style={styles.progressHelper}>
+                  {`${formatMoney(scopedRentMetrics.collected)} collected of ${formatMoney(scopedRentMetrics.expected)} total expected`}
+                </Text>
+                <View
+                  style={styles.progressTrack}
+                  accessibilityRole="progressbar"
+                  accessibilityLabel="Rent collection progress"
+                  accessibilityValue={{ min: 0, max: 100, now: Math.round(collectionPct) }}
+                >
+                  <View style={[styles.progressFill, { width: `${collectionPct}%` }]} />
+                </View>
+              </View>
+            </>
           )}
         </DashboardSection>
 
-        <DashboardSection>
+        <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Portfolio</Text>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })}>
@@ -435,7 +425,7 @@ export default function DashboardScreen() {
           ))}
         </DashboardSection>
 
-        <DashboardSection>
+        <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardEyebrow}>RECENT</Text>
@@ -480,9 +470,9 @@ function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof type
   );
 }
 
-function MoneyMetric({ label, value, color }: { label: string; value: string; color: string }) {
+function MoneyMetric({ label, value, color, isLast = false }: { label: string; value: string; color: string; isLast?: boolean }) {
   return (
-    <View style={styles.moneyMetric}>
+    <View style={[styles.moneyMetric, isLast && styles.lastRow]}>
       <Text style={styles.moneyLabel}>{label}</Text>
       <Text style={[styles.moneyValue, { color }]}>{value}</Text>
     </View>
@@ -581,15 +571,13 @@ const styles = StyleSheet.create({
   warningCopy: { flex: 1 },
   warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
   warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
-  progressCard: { backgroundColor: '#edf8f0', borderRadius: 18, padding: 20, marginBottom: 32 },
-  progressHeader: { minHeight: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  progressTitleRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' },
+  progressCard: { backgroundColor: '#edf8f0', borderRadius: 18, padding: 20, marginTop: 16 },
+  progressHeader: { minHeight: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   progressTitle: { color: '#061e35', fontSize: 16, fontWeight: '900' },
   progressPercent: { color: '#2f8f46', fontSize: 16, fontWeight: '900' },
   progressHelper: { color: '#6b7b88', fontSize: 12, marginTop: 4, marginBottom: 11 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#dff0e3' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#2f8f46' },
-  loadingLine: { height: 8, marginTop: 12, borderRadius: 4, backgroundColor: '#e8edf0' },
   dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 23, paddingBottom: 28 },
   borderlessSection: { borderTopWidth: 0 },
   cardHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
