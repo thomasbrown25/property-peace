@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/AppTheme';
 import { dockSplitIndex, mainTabIconNames, type MainAudience } from './mainTabModel';
@@ -10,12 +10,32 @@ type Action = { label: string; detail: string; icon: keyof typeof Ionicons.glyph
 
 export default function QuickActionsTabBar({ state, descriptors, navigation, audience }: BottomTabBarProps & { audience: MainAudience }) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
   const { mode, colors } = useAppTheme();
   const [open, setOpen] = useState(false);
   const spin = useRef(new Animated.Value(0)).current;
+  const sheetOffset = useRef(new Animated.Value(height)).current;
+  const closing = useRef(false);
   useEffect(() => {
     Animated.spring(spin, { toValue: open ? 1 : 0, useNativeDriver: true, friction: 8, tension: 90 }).start();
   }, [open, spin]);
+  const showSheet = () => {
+    if (open) return;
+    closing.current = false;
+    sheetOffset.setValue(height);
+    setOpen(true);
+  };
+  const hideSheet = (afterClose?: () => void) => {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.timing(sheetOffset, { toValue: height, duration: 260, useNativeDriver: true }).start(({ finished }) => {
+      if (finished) {
+        setOpen(false);
+        afterClose?.();
+      }
+      closing.current = false;
+    });
+  };
   const actions: Action[] = audience === 'landlord' ? [
     { label: 'Add property', detail: 'Grow your portfolio', icon: 'business-outline', navigate: () => navigation.navigate('Properties', { screen: 'AddProperty' }) },
     { label: 'Add expense', detail: 'Record a property expense', icon: 'receipt-outline', navigate: () => navigation.navigate('Dashboard', { screen: 'AddExpense' }) },
@@ -48,7 +68,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         accessibilityState={{ selected }}
         accessibilityLabel={label}
         onPress={() => {
-          if (open) setOpen(false);
+          if (open) hideSheet();
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!selected && !event.defaultPrevented) navigation.navigate(route.name);
         }}
@@ -70,7 +90,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
           accessibilityHint="Opens quick actions from the bottom"
           accessibilityState={{ expanded: open }}
           style={[styles.plusButton, { backgroundColor: mode === 'dark' ? '#ffffff' : '#0b3558' }]}
-          onPress={() => setOpen(true)}
+          onPress={showSheet}
         >
           <Animated.View style={{ transform: [{ rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] }) }] }}>
             <Ionicons name="add" size={29} color={mode === 'dark' ? '#081e32' : '#ffffff'} />
@@ -79,23 +99,25 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         {visibleRoutes.slice(midpoint).map(renderTab)}
         {visibleRoutes.length % 2 !== 0 && <View style={styles.tab} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />}
       </View>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="none" onShow={() => {
+        Animated.timing(sheetOffset, { toValue: 0, duration: 300, useNativeDriver: true }).start();
+      }} onRequestClose={() => hideSheet()}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.backdrop} accessibilityLabel="Close quick actions" onPress={() => setOpen(false)} />
-          <View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 18) + 12 }]}>
+          <Pressable style={styles.backdrop} accessibilityLabel="Close quick actions" onPress={() => hideSheet()} />
+          <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 18) + 12, transform: [{ translateY: sheetOffset }] }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={[styles.sheetEyebrow, mode === 'dark' && { color: '#7bd793' }]}>PROPERTY PEACE</Text>
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>Quick actions</Text>
               </View>
-              <Pressable style={[styles.closeButton, { backgroundColor: colors.background }]} accessibilityRole="button" accessibilityLabel="Close quick actions" onPress={() => setOpen(false)}>
+              <Pressable style={[styles.closeButton, { backgroundColor: colors.background }]} accessibilityRole="button" accessibilityLabel="Close quick actions" onPress={() => hideSheet()}>
                 <Ionicons name="close" size={22} color={colors.text} />
               </Pressable>
             </View>
             <ScrollView bounces={false} style={styles.actionScroll}>
               {actions.map((action) => (
-                <Pressable key={action.label} style={[styles.action, { borderTopColor: colors.border }]} accessibilityRole="button" accessibilityLabel={action.label} onPress={() => { setOpen(false); action.navigate(); }}>
+                <Pressable key={action.label} style={[styles.action, { borderTopColor: colors.border }]} accessibilityRole="button" accessibilityLabel={action.label} onPress={() => hideSheet(action.navigate)}>
                   <View style={[styles.actionIcon, { backgroundColor: colors.background }]}><Ionicons name={action.icon} size={22} color={colors.accent} /></View>
                   <View style={styles.actionCopy}>
                     <Text style={[styles.actionLabel, { color: colors.text }]}>{action.label}</Text>
@@ -105,7 +127,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
                 </Pressable>
               ))}
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </View>

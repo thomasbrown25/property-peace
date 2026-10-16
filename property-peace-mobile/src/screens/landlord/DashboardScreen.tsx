@@ -313,8 +313,16 @@ export default function DashboardScreen() {
                 : !attentionDataAvailable
                   ? 'Some portfolio attention data is unavailable.'
                   : attentionCount > 0
-                  ? `${portfolio.openMaintenance} open ${portfolio.openMaintenance === 1 ? 'repair' : 'repairs'} · ${portfolio.unread} unread ${portfolio.unread === 1 ? 'update' : 'updates'}`
-                  : 'Nothing urgent across your portfolio.'}
+                    ? <>
+                        <Text style={portfolio.openMaintenance > 0 ? styles.todayRepairAttention : undefined}>
+                          {portfolio.openMaintenance} open {portfolio.openMaintenance === 1 ? 'repair' : 'repairs'}
+                        </Text>
+                        {' · '}
+                        <Text style={portfolio.unread > 0 ? styles.todayUnreadAttention : undefined}>
+                          {portfolio.unread} unread {portfolio.unread === 1 ? 'message' : 'messages'}
+                        </Text>
+                      </>
+                    : 'Nothing urgent across your portfolio.'}
             </Text>
           </View>
           <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="View portfolio updates">
@@ -334,41 +342,31 @@ export default function DashboardScreen() {
 
         <DashboardSection>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Money summary</Text>
+            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>Rent collection progress</Text>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('RentCollection')} accessibilityRole="button" accessibilityLabel="View all rent collection">
               <Text style={styles.cardLinkText}>View all</Text>
               <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
             </TouchableOpacity>
           </View>
           {scopedRentStatus === 'error' ? (
-            <SectionError text="Money summary is unavailable." onRetry={loadDashboard} />
+            <SectionError text="Rent collection progress is unavailable." onRetry={loadDashboard} />
           ) : scopedRentStatus === 'loading' ? (
             <CardLoading />
           ) : (
-            <>
-              <View style={styles.metricList}>
-                <MoneyMetric label="Collected" value={formatMoney(scopedRentMetrics.collected)} color={mode === 'dark' ? '#75d995' : '#2f8f46'} />
-                <MoneyMetric label="Expected rent" value={formatMoney(scopedRentMetrics.expected)} color={mode === 'dark' ? colors.text : '#0b3558'} />
-                <MoneyMetric label="Remaining" value={formatMoney(scopedRentMetrics.remaining)} color={mode === 'dark' ? '#f0ba72' : '#b76a11'} isLast />
+            <View style={styles.progressCard}>
+              <Text style={styles.progressPercent}>{Math.round(collectionPct)}%</Text>
+              <Text style={styles.progressHelper}>
+                {`${formatMoney(scopedRentMetrics.collected)} collected of ${formatMoney(scopedRentMetrics.expected)} total expected`}
+              </Text>
+              <View
+                style={styles.progressTrack}
+                accessibilityRole="progressbar"
+                accessibilityLabel="Rent collection progress"
+                accessibilityValue={{ min: 0, max: 100, now: Math.round(collectionPct) }}
+              >
+                <View style={[styles.progressFill, { width: `${collectionPct}%` }]} />
               </View>
-              <View style={styles.progressCard}>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressTitle}>Rent collection progress</Text>
-                  <Text style={styles.progressPercent}>{Math.round(collectionPct)}%</Text>
-                </View>
-                <Text style={styles.progressHelper}>
-                  {`${formatMoney(scopedRentMetrics.collected)} collected of ${formatMoney(scopedRentMetrics.expected)} total expected`}
-                </Text>
-                <View
-                  style={styles.progressTrack}
-                  accessibilityRole="progressbar"
-                  accessibilityLabel="Rent collection progress"
-                  accessibilityValue={{ min: 0, max: 100, now: Math.round(collectionPct) }}
-                >
-                  <View style={[styles.progressFill, { width: `${collectionPct}%` }]} />
-                </View>
-              </View>
-            </>
+            </View>
           )}
         </DashboardSection>
 
@@ -480,16 +478,6 @@ function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof type
   );
 }
 
-function MoneyMetric({ label, value, color, isLast = false }: { label: string; value: string; color: string; isLast?: boolean }) {
-  const styles = useScreenStyles();
-  return (
-    <View style={[styles.moneyMetric, isLast && styles.lastRow]}>
-      <Text style={styles.moneyLabel}>{label}</Text>
-      <Text style={[styles.moneyValue, { color }]}>{value}</Text>
-    </View>
-  );
-}
-
 function PortfolioMetric({ icon, label, value, helper, color, background, isLast = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; helper: string; color: string; background: string; isLast?: boolean }) {
   const styles = useScreenStyles();
   const { mode } = useAppTheme();
@@ -579,11 +567,12 @@ function useScreenStyles() {
       focusDotActive: styles.focusDotActive,
       todayTitle: { ...styles.todayTitle, color: colors.text },
       todayText: { ...styles.todayText, color: colors.muted },
+      todayRepairAttention: { ...styles.todayRepairAttention, color: '#ff8b86' },
+      todayUnreadAttention: { ...styles.todayUnreadAttention, color: colors.accent },
       warningCard: { ...styles.warningCard, borderTopColor: colors.border },
       warningTitle: { ...styles.warningTitle, color: '#f0ba72' },
       warningText: { ...styles.warningText, color: colors.muted },
       progressCard: { ...styles.progressCard, backgroundColor: colors.surface },
-      progressTitle: { ...styles.progressTitle, color: colors.text },
       progressPercent: { ...styles.progressPercent, color: '#75d995' },
       progressHelper: { ...styles.progressHelper, color: colors.muted },
       progressTrack: { ...styles.progressTrack, backgroundColor: colors.border },
@@ -591,8 +580,6 @@ function useScreenStyles() {
       cardEyebrow: { ...styles.cardEyebrow, color: '#75d995' },
       cardTitle: { ...styles.cardTitle, color: colors.text },
       cardLinkText: { ...styles.cardLinkText, color: colors.muted },
-      moneyMetric: { ...styles.moneyMetric, borderBottomColor: colors.border },
-      moneyLabel: { ...styles.moneyLabel, color: colors.muted },
       portfolioMetric: { ...styles.portfolioMetric, borderBottomColor: colors.border },
       portfolioLabel: { ...styles.portfolioLabel, color: colors.text },
       portfolioValue: { ...styles.portfolioValue, color: colors.text },
@@ -648,14 +635,14 @@ const styles = StyleSheet.create({
   focusDotActive: { backgroundColor: '#2f8f46', shadowColor: '#2f8f46', shadowOpacity: 0.3, shadowRadius: 4 },
   todayTitle: { color: '#061e35', fontSize: 19, lineHeight: 24, fontWeight: '900', letterSpacing: -0.5 },
   todayText: { color: '#657685', fontSize: 13, lineHeight: 19, marginTop: 7 },
+  todayRepairAttention: { color: '#c2413b' },
+  todayUnreadAttention: { color: '#2475cf' },
   todayArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   warningCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#e9edf0', paddingVertical: 16 },
   warningCopy: { flex: 1 },
   warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
   warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
-  progressCard: { backgroundColor: '#edf8f0', borderRadius: 18, padding: 20, marginTop: 16 },
-  progressHeader: { minHeight: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  progressTitle: { color: '#061e35', fontSize: 16, fontWeight: '900' },
+  progressCard: { backgroundColor: '#edf8f0', borderRadius: 18, padding: 20 },
   progressPercent: { color: '#2f8f46', fontSize: 16, fontWeight: '900' },
   progressHelper: { color: '#6b7b88', fontSize: 12, marginTop: 4, marginBottom: 11 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#dff0e3' },
@@ -665,13 +652,10 @@ const styles = StyleSheet.create({
   cardHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
   cardEyebrow: { color: '#2f8f46', fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.2 },
   cardTitle: { color: '#061e35', fontSize: 20, lineHeight: 25, fontWeight: '900', letterSpacing: -0.35 },
+  rentProgressHeading: { flex: 1, minWidth: 0 },
   cardTitleWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardLink: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8 },
   cardLinkText: { color: '#647585', fontSize: 12, fontWeight: '800' },
-  metricList: {},
-  moneyMetric: { minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
-  moneyLabel: { color: '#617280', fontSize: 13, fontWeight: '800' },
-  moneyValue: { fontSize: 19, fontWeight: '900' },
   portfolioList: {},
   portfolioMetric: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   portfolioMetricCopy: { flex: 1, minWidth: 0 },
