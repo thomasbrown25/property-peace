@@ -114,14 +114,10 @@ export default function RentCollectionScreen() {
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 28 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: 120 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2475cf'} />}
       >
-        <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back to dashboard">
-          <Ionicons name="arrow-back" size={22} color={dark ? colors.text : '#0b3558'} />
-          <Text style={[styles.backText, dark && { color: colors.text }]}>Home</Text>
-        </TouchableOpacity>
         <View style={styles.intro}>
           <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR RENT</Text>
           <Text style={[styles.title, dark && { color: colors.text }]} accessibilityRole="header">Rent collection</Text>
@@ -191,8 +187,6 @@ export default function RentCollectionScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   content: { paddingHorizontal: 20, paddingBottom: 32 },
-  back: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', minHeight: 44, marginBottom: 18 },
-  backText: { color: '#0b3558', fontSize: 14, fontWeight: '700' },
   intro: { marginBottom: 22 },
   eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 9 },
   title: { color: '#061e35', fontSize: 32, fontWeight: '800', letterSpacing: -0.9 },

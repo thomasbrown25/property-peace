@@ -30,6 +30,7 @@ type RentMetrics = {
   collected: number;
   remaining: number;
   outstanding: number;
+  overdue: number;
 };
 
 const firstString = (...values: any[]) => {
@@ -88,6 +89,7 @@ const normalizeRentMetrics = (payload: any): RentMetrics => {
     collected: Math.max(collected, 0),
     remaining: Math.max(remaining, 0),
     outstanding: Math.max(outstanding, 0),
+    overdue: Math.max(firstNumber(source.overdue, source.Overdue), 0),
   };
 };
 
@@ -101,7 +103,7 @@ export default function DashboardScreen() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0 });
+  const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [propertiesStatus, setPropertiesStatus] = useState<LoadStatus>('loading');
   const [maintenanceStatus, setMaintenanceStatus] = useState<LoadStatus>('loading');
@@ -118,7 +120,7 @@ export default function DashboardScreen() {
     setProperties([]);
     setMaintenance([]);
     setNotifications([]);
-    setRentMetrics({ expected: 0, collected: 0, remaining: 0, outstanding: 0 });
+    setRentMetrics({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
     setPropertiesStatus('loading');
     setMaintenanceStatus('loading');
     setNotificationsStatus('loading');
@@ -189,7 +191,7 @@ export default function DashboardScreen() {
   const scopedNotifications = dashboardScopeIsCurrent ? notifications : [];
   const scopedRentMetrics = dashboardScopeIsCurrent
     ? rentMetrics
-    : { expected: 0, collected: 0, remaining: 0, outstanding: 0 };
+    : { expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 };
   const scopedPropertiesStatus: LoadStatus = dashboardScopeIsCurrent ? propertiesStatus : 'loading';
   const scopedMaintenanceStatus: LoadStatus = dashboardScopeIsCurrent ? maintenanceStatus : 'loading';
   const scopedNotificationsStatus: LoadStatus = dashboardScopeIsCurrent ? notificationsStatus : 'loading';
@@ -242,6 +244,23 @@ export default function DashboardScreen() {
       unread: scopedNotifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
     };
   }, [scopedMaintenance, scopedNotifications, scopedProperties]);
+
+  const attentionProperty = useMemo(() => {
+    if (scopedPropertiesStatus !== 'success' || scopedMaintenanceStatus !== 'success') return null;
+    for (const property of scopedProperties) {
+      if (property.isActive === false || property.IsActive === false) continue;
+      const id = getPropertyId(property);
+      if (!id) continue;
+      const overdueUnits = getUnits(property).filter((unit: any) => getUnitStatus(unit) === 'overdue').length;
+      const openRepairs = scopedMaintenance.filter((request) => isOpenMaintenance(request) && String(read(request, 'propertyId', 'PropertyId') ?? '') === id).length;
+      if (overdueUnits || openRepairs) return {
+        property,
+        name: firstString(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed property'),
+        reason: [overdueUnits ? `${overdueUnits} overdue ${overdueUnits === 1 ? 'unit' : 'units'}` : '', openRepairs ? `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}` : ''].filter(Boolean).join(' · '),
+      };
+    }
+    return null;
+  }, [scopedProperties, scopedMaintenance, scopedPropertiesStatus, scopedMaintenanceStatus]);
 
   const collectionPct = scopedRentMetrics.expected > 0
     ? Math.min(Math.max((scopedRentMetrics.collected / scopedRentMetrics.expected) * 100, 0), 100)
@@ -296,6 +315,40 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}
       >
+        <DashboardSection borderless>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>{currentDate.toLocaleDateString('en-US', { month: 'long' })} rent</Text>
+            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('RentCollection')} accessibilityRole="button" accessibilityLabel="View all rent collection">
+              <Text style={styles.cardLinkText}>View all</Text>
+              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
+            </TouchableOpacity>
+          </View>
+          {scopedRentStatus === 'error' ? (
+            <SectionError text="Rent collection is unavailable." onRetry={loadDashboard} />
+          ) : scopedRentStatus === 'loading' ? (
+            <CardLoading />
+          ) : scopedRentMetrics.expected === 0 && scopedRentMetrics.collected === 0 && scopedRentMetrics.overdue === 0 ? (
+            <Text style={styles.rentEmpty}>No active rent expected this month. Rent figures will appear when a lease is active.</Text>
+          ) : (
+            <View style={styles.rentSummary}>
+              <Text style={styles.rentCaption}>COLLECTED THIS MONTH</Text>
+              <View style={styles.rentHeroRow}>
+                <Text style={styles.rentHeroAmount} adjustsFontSizeToFit numberOfLines={1}>{formatMoney(scopedRentMetrics.collected)}</Text>
+                {scopedRentMetrics.expected > 0 && <Text style={styles.rentPercent}>{Math.round(collectionPct)}%</Text>}
+              </View>
+              {scopedRentMetrics.expected > 0 && (
+                <View style={styles.progressTrack} accessibilityRole="progressbar" accessibilityLabel="Rent collected this month" accessibilityValue={{ min: 0, max: 100, now: Math.round(collectionPct) }}>
+                  <View style={[styles.progressFill, { width: `${collectionPct}%` }]} />
+                </View>
+              )}
+              <View style={styles.rentDetails}>
+                <View style={styles.rentDetail}><Text style={styles.rentDetailLabel}>Expected this month</Text><Text style={styles.rentDetailValue}>{formatMoney(scopedRentMetrics.expected)}</Text></View>
+                <View style={[styles.rentDetail, styles.rentDetailLast]}><Text style={styles.rentDetailLabel}>Overdue rent</Text><Text style={[styles.rentDetailValue, scopedRentMetrics.overdue > 0 && styles.rentOverdue]}>{formatMoney(scopedRentMetrics.overdue)}</Text></View>
+              </View>
+            </View>
+          )}
+        </DashboardSection>
+
         <View style={styles.todayCard}>
           <View style={styles.dateBlock}>
             <Text style={styles.dateMonth}>{currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
@@ -340,65 +393,16 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        <DashboardSection>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>Rent collection progress</Text>
-            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('RentCollection')} accessibilityRole="button" accessibilityLabel="View all rent collection">
-              <Text style={styles.cardLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
-            </TouchableOpacity>
-          </View>
-          {scopedRentStatus === 'error' ? (
-            <SectionError text="Rent collection progress is unavailable." onRetry={loadDashboard} />
-          ) : scopedRentStatus === 'loading' ? (
-            <CardLoading />
-          ) : (
-            <View style={styles.progressCard}>
-              <Text style={styles.progressPercent}>{Math.round(collectionPct)}%</Text>
-              <Text style={styles.progressHelper}>
-                {`${formatMoney(scopedRentMetrics.collected)} collected of ${formatMoney(scopedRentMetrics.expected)} total expected`}
-              </Text>
-              <View
-                style={styles.progressTrack}
-                accessibilityRole="progressbar"
-                accessibilityLabel="Rent collection progress"
-                accessibilityValue={{ min: 0, max: 100, now: Math.round(collectionPct) }}
-              >
-                <View style={[styles.progressFill, { width: `${collectionPct}%` }]} />
-              </View>
+        {attentionProperty && (
+          <TouchableOpacity style={styles.attentionProperty} onPress={() => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: getPropertyId(attentionProperty.property) } })} accessibilityRole="button" accessibilityLabel={`View ${attentionProperty.name}, ${attentionProperty.reason}`}>
+            <View style={styles.attentionCopy}>
+              <Text style={styles.attentionEyebrow}>PROPERTY TO CHECK</Text>
+              <Text style={styles.attentionName} numberOfLines={1}>{attentionProperty.name}</Text>
+              <Text style={styles.attentionReason}>{attentionProperty.reason}</Text>
             </View>
-          )}
-        </DashboardSection>
-
-        <DashboardSection borderless>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Portfolio</Text>
-            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })}>
-              <Text style={styles.cardLinkText}>View properties</Text>
-              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
-            </TouchableOpacity>
-          </View>
-          {scopedPropertiesStatus === 'error' ? (
-            <SectionError text="Portfolio details are unavailable." onRetry={loadDashboard} />
-          ) : scopedPropertiesStatus === 'loading' ? (
-            <CardLoading />
-          ) : (
-            <View style={styles.portfolioList}>
-              <PortfolioMetric icon="home-outline" label="Portfolio occupancy" value={`${portfolio.occupancy}%`} helper={`${portfolio.occupied} of ${portfolio.units} units occupied`} color="#2f8f46" background="#edf8f0" />
-              <PortfolioMetric icon="business-outline" label="Vacant units" value={String(portfolio.vacant)} helper={`Across ${portfolio.properties} active ${portfolio.properties === 1 ? 'property' : 'properties'}`} color="#b76a11" background="#fff7e8" />
-              <PortfolioMetric icon="cash-outline" label="Monthly rent" value={formatMoney(portfolio.monthlyRent)} helper="Scheduled rent, not collections" color="#2475cf" background="#eaf3ff" />
-              <PortfolioMetric
-                icon="warning-outline"
-                label="Needs attention"
-                value={scopedMaintenanceStatus === 'success' ? String(portfolio.needsAttention) : '—'}
-                helper={scopedMaintenanceStatus === 'success' ? 'Overdue rent or open repairs' : scopedMaintenanceStatus === 'loading' ? 'Loading attention data' : 'Maintenance data unavailable'}
-                color="#c2413b"
-                background="#fff0f1"
-                isLast
-              />
-            </View>
-          )}
-        </DashboardSection>
+            <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />
+          </TouchableOpacity>
+        )}
 
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
@@ -428,6 +432,27 @@ export default function DashboardScreen() {
               })}
             />
           ))}
+        </DashboardSection>
+
+        <DashboardSection borderless>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Portfolio</Text>
+            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })}>
+              <Text style={styles.cardLinkText}>View properties</Text>
+              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
+            </TouchableOpacity>
+          </View>
+          {scopedPropertiesStatus === 'error' ? (
+            <SectionError text="Portfolio details are unavailable." onRetry={loadDashboard} />
+          ) : scopedPropertiesStatus === 'loading' ? (
+            <CardLoading />
+          ) : (
+            <View style={styles.portfolioList}>
+              <PortfolioMetric icon="home-outline" label="Portfolio occupancy" value={`${portfolio.occupancy}%`} helper={`${portfolio.occupied} of ${portfolio.units} units occupied`} color="#2f8f46" background="#edf8f0" />
+              <PortfolioMetric icon="business-outline" label="Vacant units" value={String(portfolio.vacant)} helper={`Across ${portfolio.properties} active ${portfolio.properties === 1 ? 'property' : 'properties'}`} color="#b76a11" background="#fff7e8" />
+              <PortfolioMetric icon="cash-outline" label="Monthly rent" value={formatMoney(portfolio.monthlyRent)} helper="Scheduled rent, not collections" color="#2475cf" background="#eaf3ff" isLast />
+            </View>
+          )}
         </DashboardSection>
 
         <DashboardSection borderless>
@@ -572,9 +597,19 @@ function useScreenStyles() {
       warningCard: { ...styles.warningCard, borderTopColor: colors.border },
       warningTitle: { ...styles.warningTitle, color: '#f0ba72' },
       warningText: { ...styles.warningText, color: colors.muted },
-      progressCard: { ...styles.progressCard, backgroundColor: colors.surface },
-      progressPercent: { ...styles.progressPercent, color: '#75d995' },
-      progressHelper: { ...styles.progressHelper, color: colors.muted },
+      rentSummary: { ...styles.rentSummary, backgroundColor: colors.surface },
+      rentEmpty: { ...styles.rentEmpty, color: colors.muted },
+      rentCaption: { ...styles.rentCaption, color: colors.accent },
+      rentHeroAmount: { ...styles.rentHeroAmount, color: colors.text },
+      rentPercent: { ...styles.rentPercent, color: '#75d995' },
+      rentDetail: { ...styles.rentDetail, borderBottomColor: colors.border },
+      rentDetailLabel: { ...styles.rentDetailLabel, color: colors.muted },
+      rentDetailValue: { ...styles.rentDetailValue, color: colors.text },
+      rentOverdue: { ...styles.rentOverdue, color: '#ff8b86' },
+      attentionProperty: { ...styles.attentionProperty, borderColor: colors.border, backgroundColor: colors.surface },
+      attentionEyebrow: { ...styles.attentionEyebrow, color: colors.accent },
+      attentionName: { ...styles.attentionName, color: colors.text },
+      attentionReason: { ...styles.attentionReason, color: '#ff8b86' },
       progressTrack: { ...styles.progressTrack, backgroundColor: colors.border },
       dashboardSection: { ...styles.dashboardSection, borderTopColor: colors.border },
       cardEyebrow: { ...styles.cardEyebrow, color: '#75d995' },
@@ -623,8 +658,8 @@ const styles = StyleSheet.create({
   profileAction: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, borderBottomWidth: 1, borderBottomColor: '#f0f2f4' },
   profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
   destructiveText: { color: '#c2413b' },
-  content: { paddingHorizontal: 24, paddingTop: 30, gap: 0 },
-  todayCard: { minHeight: 132, flexDirection: 'row', alignItems: 'center', paddingBottom: 30 },
+  content: { paddingHorizontal: 24, paddingTop: 14, gap: 0 },
+  todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12 },
   dateBlock: { width: 76, alignItems: 'flex-start', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
   dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
   dateDay: { color: '#061e35', fontSize: 43, lineHeight: 48, fontWeight: '900', letterSpacing: -2 },
@@ -642,12 +677,26 @@ const styles = StyleSheet.create({
   warningCopy: { flex: 1 },
   warningTitle: { color: '#7a480f', fontWeight: '900', fontSize: 14 },
   warningText: { color: '#8f6b3b', marginTop: 2, fontSize: 13 },
-  progressCard: { backgroundColor: '#edf8f0', borderRadius: 18, padding: 20 },
-  progressPercent: { color: '#2f8f46', fontSize: 16, fontWeight: '900' },
-  progressHelper: { color: '#6b7b88', fontSize: 12, marginTop: 4, marginBottom: 11 },
+  rentSummary: { backgroundColor: '#f0f8f2', borderRadius: 16, paddingHorizontal: 18, paddingTop: 17, paddingBottom: 6 },
+  rentEmpty: { color: '#657685', fontSize: 13, lineHeight: 19, paddingVertical: 10 },
+  rentCaption: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  rentHeroRow: { flexDirection: 'row', alignItems: 'baseline', gap: 12, marginTop: 4, marginBottom: 14 },
+  rentHeroAmount: { flexShrink: 1, color: '#061e35', fontSize: 34, lineHeight: 42, fontWeight: '900', letterSpacing: -1.2 },
+  rentPercent: { color: '#2f8f46', fontSize: 13, fontWeight: '900' },
+  rentDetails: { marginTop: 11 },
+  rentDetail: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, borderBottomWidth: 1, borderBottomColor: '#d8e8dd' },
+  rentDetailLast: { borderBottomWidth: 0 },
+  rentDetailLabel: { color: '#536777', fontSize: 12 },
+  rentDetailValue: { color: '#102d43', fontSize: 14, fontWeight: '900' },
+  rentOverdue: { color: '#c2413b' },
+  attentionProperty: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#dce4e8', backgroundColor: '#f8fbfd', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 15 },
+  attentionCopy: { flex: 1, minWidth: 0 },
+  attentionEyebrow: { color: '#2475cf', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
+  attentionName: { color: '#061e35', fontSize: 17, fontWeight: '900', marginTop: 4 },
+  attentionReason: { color: '#c2413b', fontSize: 12, marginTop: 3 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#dff0e3' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#2f8f46' },
-  dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 23, paddingBottom: 28 },
+  dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 16, paddingBottom: 18 },
   borderlessSection: { borderTopWidth: 0 },
   cardHeader: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 },
   cardEyebrow: { color: '#2f8f46', fontSize: 9, lineHeight: 12, fontWeight: '900', letterSpacing: 1.2 },

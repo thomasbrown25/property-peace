@@ -47,10 +47,6 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     { label: 'Messages', detail: 'Open your conversations', icon: 'chatbubbles-outline', navigate: () => navigation.navigate('Messages') },
   ];
 
-  const focusedRoute = state.routes[state.index];
-  const nestedState = focusedRoute.state;
-  if (nestedState && nestedState.index !== undefined && nestedState.index > 0) return null;
-
   const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Tenants', 'Leases'].includes(route.name)
     && !(audience === 'landlord' && ['Checklists', 'Settings'].includes(route.name)));
   const midpoint = dockSplitIndex(visibleRoutes.length);

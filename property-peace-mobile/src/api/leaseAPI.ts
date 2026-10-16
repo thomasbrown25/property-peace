@@ -17,8 +17,30 @@ class LeaseAPI {
   private client = apiClient;
 
   async getLeases(): Promise<Lease[]> {
-    const response = await this.client.get<ApiResponse<Lease[]>>('/api/Lease/history');
-    return response.data;
+    // History contains archived contracts only. The property list carries the current
+    // projection and all non-deleted contracts (including drafts and successors).
+    const [propertiesResponse, historyResponse] = await Promise.all([
+      this.client.get<ApiResponse<Array<{ id?: number; name?: string; units?: Array<{ id?: number; name?: string; lease?: Lease; leases?: Lease[] }> }>>>('/api/Property/list'),
+      this.client.get<ApiResponse<Lease[]>>('/api/Lease/history'),
+    ]);
+    if (!Array.isArray(propertiesResponse.data) || !Array.isArray(historyResponse.data)) {
+      throw new Error('Invalid property or lease history response');
+    }
+
+    const current: Lease[] = [];
+    const seen = new Set<string>();
+    for (const property of propertiesResponse.data) {
+      for (const unit of property.units ?? []) {
+        for (const lease of [...(unit.leases ?? []), ...(unit.lease ? [unit.lease] : [])]) {
+          const id = Number(lease?.id ?? lease?.Id);
+          if (!Number.isSafeInteger(id) || id <= 0 || lease.isDeleted === true || lease.IsDeleted === true || seen.has(String(id))) continue;
+          seen.add(String(id));
+          current.push({ ...lease, id, propertyName: property.name, propertyId: property.id, unitName: unit.name, unitId: unit.id });
+        }
+      }
+    }
+    // Archive IDs belong to a separate table, so do not deduplicate them against live IDs.
+    return [...current, ...historyResponse.data.filter(lease => Number(lease?.id ?? lease?.Id) > 0).map(lease => ({ ...lease, archived: true }))];
   }
 
   async getLease(unitId: string | number): Promise<Lease> {
