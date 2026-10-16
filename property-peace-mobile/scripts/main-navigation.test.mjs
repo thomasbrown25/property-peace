@@ -84,7 +84,11 @@ test('quick-action sheet keeps landlord destinations and tenant actions scoped',
   }
   assert.match(sheet, /TenantMaintenanceIntake/);
   assert.match(sheet, /audience === 'landlord'/);
-  assert.match(sheet, /<Modal visible={open} transparent animationType="slide"/);
+  assert.match(sheet, /<Modal visible={open} transparent animationType="none"/);
+  assert.match(sheet, /<Pressable style={styles.backdrop}/);
+  assert.match(sheet, /<Animated.View style=\{\[styles.sheet,[\s\S]*transform: \[\{ translateY: sheetOffset \}\]/);
+  assert.match(sheet, /Animated\.timing\(sheetOffset/);
+  assert.doesNotMatch(sheet, /animationType="slide"/);
   assert.match(sheet, /Math\.max\(insets\.bottom/);
   assert.match(navigator, /name="Checklists" component={ChecklistsNavigator}/);
   assert.doesNotMatch(dashboard, /quickActionsOpen|QuickAction|Quick actions/);
