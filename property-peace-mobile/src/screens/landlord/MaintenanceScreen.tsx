@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 export default function MaintenanceScreen() {
   const navigation = useNavigation<any>();
@@ -44,6 +45,7 @@ export default function MaintenanceScreen() {
         contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={<View>
+          <PageBackButton />
           <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>PROPERTY CARE</Text>
           <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
           <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>Keep repairs moving, from report to resolution.</Text>

@@ -8,6 +8,7 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import AnimatedLoadingScreen from '../screens/AnimatedLoadingScreen';
 import BiometricUnlockScreen from '../screens/BiometricUnlockScreen';
+import BiometricOptInScreen from '../screens/BiometricOptInScreen';
 import biometricService from '../services/biometricService';
 import { initializeAuth, logout } from '../store/user/user.slice';
 import { resolveStartupPresentation } from '../features/startup/startupPresentation';
@@ -31,7 +32,10 @@ export default function AppNavigator() {
     },
   };
   const dispatch = useAppDispatch();
-  const { isAuthenticated, loading } = useAppSelector((state) => state.user);
+  const { isAuthenticated, loading, currentUser } = useAppSelector((state) => state.user);
+  const userId = currentUser?.Id || '';
+  const [checkedUserId, setCheckedUserId] = useState<string | null>(null);
+  const [showOptIn, setShowOptIn] = useState(false);
   const [checkingLock, setCheckingLock] = useState(true);
   const [introComplete, setIntroComplete] = useState(false);
   const [sessionUnlocked, setSessionUnlocked] = useState(true);
@@ -46,6 +50,9 @@ export default function AppNavigator() {
   }, []);
   const consumeAutoPrompt = useCallback(() => {
     setAutoPromptBiometric(false);
+  }, []);
+  const dismissOptIn = useCallback(() => {
+    setShowOptIn(false);
   }, []);
   const signOut = useCallback(() => {
     dispatch(logout());
@@ -62,17 +69,20 @@ export default function AppNavigator() {
         if (!restoredSession.isAuthenticated) {
           setAutoPromptBiometric(false);
           setSessionUnlocked(true);
+          setCheckedUserId(null);
           return;
         }
 
-        const lock = await resolveRestoredSessionLock(() => biometricService.isEnabled());
+        const lock = await resolveRestoredSessionLock(() => biometricService.isEnabled(restoredSession.user?.Id || ''));
         if (!active) return;
         setAutoPromptBiometric(lock.autoPrompt);
         setSessionUnlocked(lock.sessionUnlocked);
+        setShowOptIn(lock.sessionUnlocked && !!restoredSession.user?.Id);
+        setCheckedUserId(restoredSession.user?.Id || null);
       } catch {
         if (!active) return;
         setAutoPromptBiometric(false);
-        setSessionUnlocked(true);
+        setSessionUnlocked(false);
       } finally {
         if (active) setCheckingLock(false);
       }
@@ -89,24 +99,46 @@ export default function AppNavigator() {
     if (isAuthenticated === false) {
       setAutoPromptBiometric(false);
       setSessionUnlocked(true);
+      setCheckedUserId(null);
+      setShowOptIn(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
+    if (checkingLock || !isAuthenticated || !userId || checkedUserId === userId) return;
+    let active = true;
+    biometricService.isEnabled(userId)
+      .then((enabled) => {
+        if (!active) return;
+        setShowOptIn(!enabled);
+        setCheckedUserId(userId);
+      })
+      .catch(() => {
+        if (!active) return;
+        setShowOptIn(true);
+        setCheckedUserId(userId);
+      });
+    return () => { active = false; };
+  }, [checkingLock, isAuthenticated, userId, checkedUserId]);
+
+  useEffect(() => {
     let active = true;
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'background' || !isAuthenticated) return;
-
-      biometricService.isEnabled()
+      if (nextState !== 'background' || !isAuthenticated || !userId) return;
+      // Hide private screens immediately, before the asynchronous preference read completes.
+      setSessionUnlocked(false);
+      setAutoPromptBiometric(true);
+      biometricService.isEnabled(userId)
         .then((enabled) => {
-          if (!active || !enabled) return;
-          setAutoPromptBiometric(false);
-          setSessionUnlocked(false);
+          if (!active) return;
+          if (!enabled) {
+            setAutoPromptBiometric(false);
+            setSessionUnlocked(true);
+          }
         })
         .catch(() => {
           if (!active) return;
           setAutoPromptBiometric(false);
-          setSessionUnlocked(false);
         });
     });
 
@@ -114,7 +146,7 @@ export default function AppNavigator() {
       active = false;
       subscription.remove();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userId]);
 
   const startupPresentation = resolveStartupPresentation({
     introComplete,
@@ -128,6 +160,8 @@ export default function AppNavigator() {
 
   if (startupPresentation === 'waiting') return <AnimatedLoadingScreen />;
 
+  if (isAuthenticated && (!userId || checkedUserId !== userId)) return <AnimatedLoadingScreen />;
+
   if (isAuthenticated && !sessionUnlocked) {
     return (
       <BiometricUnlockScreen
@@ -137,6 +171,10 @@ export default function AppNavigator() {
         onSignOut={signOut}
       />
     );
+  }
+
+  if (isAuthenticated && showOptIn) {
+    return <BiometricOptInScreen userId={userId} onContinue={dismissOptIn} />;
   }
 
   return (

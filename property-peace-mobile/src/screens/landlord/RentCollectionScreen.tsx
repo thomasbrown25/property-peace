@@ -7,6 +7,7 @@ import RentCollectionAPI from '../../api/rentCollectionAPI';
 import { collectionPayload } from '../../features/rentCollection/collectionPayload';
 import { useAppSelector } from '../../store/hooks';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 type RentRecord = {
   id?: number; Id?: number;
@@ -118,6 +119,7 @@ export default function RentCollectionScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2475cf'} />}
       >
+        <PageBackButton />
         <View style={styles.intro}>
           <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR RENT</Text>
           <Text style={[styles.title, dark && { color: colors.text }]} accessibilityRole="header">Rent collection</Text>

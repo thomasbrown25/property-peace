@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
 import biometricService, { BiometricAvailability } from '../../services/biometricService';
 import userAPI from '../../api/userAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 const PRIVACY_URL = 'https://www.propertypeace.io/privacy';
 const TERMS_URL = 'https://www.propertypeace.io/terms';
@@ -20,6 +22,7 @@ const firstString = (...values: unknown[]) => {
 };
 
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const { mode, colors, setMode } = useAppTheme();
   const styles = useSettingsStyles();
   const dispatch = useAppDispatch();
@@ -29,13 +32,13 @@ export default function SettingsScreen() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([biometricService.getAvailability(), biometricService.isEnabled()])
+    Promise.all([biometricService.getAvailability(), biometricService.isEnabled(currentUser?.Id || '')])
       .then(([availability, enabled]) => {
         setBiometricAvailability(availability);
         setBiometricEnabled(enabled && availability.available);
       })
       .catch(() => setBiometricAvailability({ available: false, label: 'Face ID', reason: 'Biometric unlock is unavailable.' }));
-  }, []);
+  }, [currentUser?.Id]);
 
   const name = firstString(
     `${currentUser?.FirstName || currentUser?.firstName || ''} ${currentUser?.LastName || currentUser?.lastName || ''}`,
@@ -52,7 +55,7 @@ export default function SettingsScreen() {
 
   const handleBiometricToggle = async (enabled: boolean) => {
     if (!enabled) {
-      await biometricService.setEnabled(false);
+      await biometricService.setEnabled(currentUser?.Id || '', false);
       setBiometricEnabled(false);
       return;
     }
@@ -67,7 +70,7 @@ export default function SettingsScreen() {
     const authenticated = await biometricService.authenticate(`Enable ${availability.label} for Property Peace`);
     if (!authenticated) return;
 
-    await biometricService.setEnabled(true);
+    await biometricService.setEnabled(currentUser?.Id || '', true);
     setBiometricEnabled(true);
     Alert.alert(`${availability.label} enabled`, `Property Peace will lock when it moves to the background and use ${availability.label} or your device passcode to unlock.`);
   };
@@ -83,7 +86,7 @@ export default function SettingsScreen() {
     setDeleting(true);
     try {
       await userAPI.deleteAccount();
-      await biometricService.setEnabled(false);
+      await biometricService.setEnabled(currentUser?.Id || '', false);
       Alert.alert('Account deleted', 'Your account has been deactivated and your personal information will be anonymized subject to legal and financial retention requirements.', [
         { text: 'Done', onPress: () => dispatch(logout()) },
       ]);
@@ -118,7 +121,8 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
+      <PageBackButton />
       <View style={styles.intro}>
         <Text style={styles.eyebrow}>Account</Text>
         <Text style={styles.title}>Settings</Text>

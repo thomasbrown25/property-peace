@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
-const BIOMETRIC_UNLOCK_KEY = 'biometricUnlockEnabled';
+const preferenceKey = (userId: string) => `biometricUnlockEnabled.${userId}`;
 
 export type BiometricAvailability = {
   available: boolean;
@@ -31,15 +31,17 @@ class BiometricService {
     return { available: true, label };
   }
 
-  async isEnabled(): Promise<boolean> {
-    return (await SecureStore.getItemAsync(BIOMETRIC_UNLOCK_KEY)) === 'true';
+  async isEnabled(userId: string): Promise<boolean> {
+    if (!userId) return false;
+    return (await SecureStore.getItemAsync(preferenceKey(userId))) === 'true';
   }
 
-  async setEnabled(enabled: boolean): Promise<void> {
+  async setEnabled(userId: string, enabled: boolean): Promise<void> {
+    if (!userId) throw new Error('Account required for device unlock preference');
     if (enabled) {
-      await SecureStore.setItemAsync(BIOMETRIC_UNLOCK_KEY, 'true');
+      await SecureStore.setItemAsync(preferenceKey(userId), 'true');
     } else {
-      await SecureStore.deleteItemAsync(BIOMETRIC_UNLOCK_KEY);
+      await SecureStore.deleteItemAsync(preferenceKey(userId));
     }
   }
 

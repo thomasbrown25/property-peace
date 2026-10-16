@@ -12,6 +12,7 @@ import { advanceMessagingScopeGeneration, buildMessagingScopeKey, canAccessMessa
 import { RootState } from '../../store';
 import GroupConversationDialog from '../../components/messages/GroupConversationDialog';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 type Navigation = NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
 const FILTERS: Array<{ key: ConversationFilter; label: string }> = [
@@ -138,7 +139,8 @@ export default function MessagesScreen() {
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 22 }]}>
+      <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 20 }}><PageBackButton /></View>
+      <View style={[styles.header, { paddingTop: 0 }]}>
         <View><Text style={[styles.heading, dark && { color: colors.text }]} accessibilityRole="header">Messages</Text><Text style={[styles.headerSub, dark && { color: colors.muted }]}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
         {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={[styles.newGroup, dark && { backgroundColor: colors.accent }]} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color={dark ? colors.background : '#fff'} /><Text style={[styles.newGroupText, dark && { color: colors.background }]}>New group</Text></TouchableOpacity>}
       </View>

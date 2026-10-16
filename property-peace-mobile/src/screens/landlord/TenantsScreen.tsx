@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TenantAPI, { Tenant } from '../../api/tenantAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 const tenantName = (tenant: Tenant) => [tenant.firstName || tenant.FirstName, tenant.lastName || tenant.LastName].filter(Boolean).join(' ') || tenant.email || tenant.Email || 'Tenant';
 
@@ -42,6 +43,7 @@ export default function TenantsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTenants(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={
           <View>
+            <PageBackButton />
             <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
             <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Tenants</Text>
             <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>People and conversations, all in one place.</Text>
