@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
 import biometricService, { BiometricAvailability } from '../../services/biometricService';
+import { getBiometricAccountId } from '../../features/startup/biometricAccountId';
 import userAPI from '../../api/userAPI';
 import { useAppTheme } from '../../theme/AppTheme';
 import PageBackButton from '../../components/PageBackButton';
@@ -27,18 +28,19 @@ export default function SettingsScreen() {
   const styles = useSettingsStyles();
   const dispatch = useAppDispatch();
   const { currentUser } = useAppSelector((state) => state.user);
+  const accountId = getBiometricAccountId(currentUser);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricAvailability, setBiometricAvailability] = useState<BiometricAvailability>({ available: false, label: 'Face ID' });
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    Promise.all([biometricService.getAvailability(), biometricService.isEnabled(currentUser?.Id || '')])
+    Promise.all([biometricService.getAvailability(), biometricService.isEnabled(accountId)])
       .then(([availability, enabled]) => {
         setBiometricAvailability(availability);
         setBiometricEnabled(enabled && availability.available);
       })
       .catch(() => setBiometricAvailability({ available: false, label: 'Face ID', reason: 'Biometric unlock is unavailable.' }));
-  }, [currentUser?.Id]);
+  }, [accountId]);
 
   const name = firstString(
     `${currentUser?.FirstName || currentUser?.firstName || ''} ${currentUser?.LastName || currentUser?.lastName || ''}`,
@@ -55,7 +57,7 @@ export default function SettingsScreen() {
 
   const handleBiometricToggle = async (enabled: boolean) => {
     if (!enabled) {
-      await biometricService.setEnabled(currentUser?.Id || '', false);
+      await biometricService.setEnabled(accountId, false);
       setBiometricEnabled(false);
       return;
     }
@@ -70,7 +72,7 @@ export default function SettingsScreen() {
     const authenticated = await biometricService.authenticate(`Enable ${availability.label} for Property Peace`);
     if (!authenticated) return;
 
-    await biometricService.setEnabled(currentUser?.Id || '', true);
+    await biometricService.setEnabled(accountId, true);
     setBiometricEnabled(true);
     Alert.alert(`${availability.label} enabled`, `Property Peace will lock when it moves to the background and use ${availability.label} or your device passcode to unlock.`);
   };
@@ -86,7 +88,7 @@ export default function SettingsScreen() {
     setDeleting(true);
     try {
       await userAPI.deleteAccount();
-      await biometricService.setEnabled(currentUser?.Id || '', false);
+      await biometricService.setEnabled(accountId, false);
       Alert.alert('Account deleted', 'Your account has been deactivated and your personal information will be anonymized subject to legal and financial retention requirements.', [
         { text: 'Done', onPress: () => dispatch(logout()) },
       ]);

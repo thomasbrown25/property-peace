@@ -9,10 +9,12 @@ import MainNavigator from './MainNavigator';
 import AnimatedLoadingScreen from '../screens/AnimatedLoadingScreen';
 import BiometricUnlockScreen from '../screens/BiometricUnlockScreen';
 import BiometricOptInScreen from '../screens/BiometricOptInScreen';
+import MissingAccountScreen from '../screens/MissingAccountScreen';
 import biometricService from '../services/biometricService';
 import { initializeAuth, logout } from '../store/user/user.slice';
 import { resolveStartupPresentation } from '../features/startup/startupPresentation';
 import { resolveRestoredSessionLock } from '../features/startup/automaticBiometricPrompt';
+import { getBiometricAccountId } from '../features/startup/biometricAccountId';
 import { useAppTheme } from '../theme/AppTheme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -33,7 +35,7 @@ export default function AppNavigator() {
   };
   const dispatch = useAppDispatch();
   const { isAuthenticated, loading, currentUser } = useAppSelector((state) => state.user);
-  const userId = currentUser?.Id || '';
+  const userId = getBiometricAccountId(currentUser);
   const [checkedUserId, setCheckedUserId] = useState<string | null>(null);
   const [showOptIn, setShowOptIn] = useState(false);
   const [checkingLock, setCheckingLock] = useState(true);
@@ -73,12 +75,13 @@ export default function AppNavigator() {
           return;
         }
 
-        const lock = await resolveRestoredSessionLock(() => biometricService.isEnabled(restoredSession.user?.Id || ''));
+        const restoredUserId = getBiometricAccountId(restoredSession.user);
+        const lock = await resolveRestoredSessionLock(() => biometricService.isEnabled(restoredUserId));
         if (!active) return;
         setAutoPromptBiometric(lock.autoPrompt);
         setSessionUnlocked(lock.sessionUnlocked);
-        setShowOptIn(lock.sessionUnlocked && !!restoredSession.user?.Id);
-        setCheckedUserId(restoredSession.user?.Id || null);
+        setShowOptIn(lock.sessionUnlocked && !!restoredUserId);
+        setCheckedUserId(restoredUserId || null);
       } catch {
         if (!active) return;
         setAutoPromptBiometric(false);
@@ -160,7 +163,8 @@ export default function AppNavigator() {
 
   if (startupPresentation === 'waiting') return <AnimatedLoadingScreen />;
 
-  if (isAuthenticated && (!userId || checkedUserId !== userId)) return <AnimatedLoadingScreen />;
+  if (isAuthenticated && !userId) return <MissingAccountScreen onSignOut={signOut} />;
+  if (isAuthenticated && checkedUserId !== userId) return <AnimatedLoadingScreen />;
 
   if (isAuthenticated && !sessionUnlocked) {
     return (
