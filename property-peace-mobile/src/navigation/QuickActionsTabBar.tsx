@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { StackActions } from '@react-navigation/native';
 import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/AppTheme';
@@ -66,7 +67,10 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         onPress={() => {
           if (open) hideSheet();
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!selected && !event.defaultPrevented) navigation.navigate(route.name);
+          if (event.defaultPrevented) return;
+          if (selected && route.name === 'Properties' && (route.state?.index ?? 0) > 0 && route.state?.key) {
+            navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
+          } else if (!selected) navigation.navigate(route.name);
         }}
         onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
       >

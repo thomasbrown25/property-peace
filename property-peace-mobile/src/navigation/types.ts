@@ -36,6 +36,8 @@ export type MainTabParamList = {
 export type PropertiesStackParamList = {
   PropertiesList: undefined;
   PropertyDetail: { propertyId: string };
+  PropertyMaintenance: { propertyId: string; propertyName: string };
+  LandlordMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };
   AddProperty: undefined;
 
 };
@@ -57,6 +59,8 @@ export type MaintenanceStackParamList = {
 
 export type LeasesStackParamList = {
   LeasesList: undefined;
+  AddLease: undefined;
+  LeaseDetail: { leaseId: string; archived: boolean };
 };
 
 export type MessagesStackParamList = {

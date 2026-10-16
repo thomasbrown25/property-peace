@@ -4,19 +4,20 @@ import test from 'node:test';
 
 const read = (relativePath) => readFile(new URL(relativePath, import.meta.url), 'utf8');
 
-test('v1 leases are read-only and unfinished lease routes are unreachable', async () => {
-  const [navigator, types, leases] = await Promise.all([
+test('leases have a read-only, record-scoped detail without unfinished edit routes', async () => {
+  const [navigator, types, leases, detail] = await Promise.all([
     read('../src/navigation/MainNavigator.tsx'),
     read('../src/navigation/types.ts'),
     read('../src/screens/landlord/LeasesScreen.tsx'),
+    read('../src/screens/landlord/LeaseDetailScreen.tsx'),
   ]);
 
-  assert.doesNotMatch(navigator, /LeaseDetailScreen|AddLeaseScreen/);
-  assert.doesNotMatch(navigator, /name=["'](?:LeaseDetail|AddLease)["']/);
-  assert.doesNotMatch(types, /LeaseDetail:|AddLease:/);
-  assert.doesNotMatch(leases, /navigate\(["'](?:LeaseDetail|AddLease)["']/);
-  assert.doesNotMatch(leases, /Add Lease|Lease #|leaseId|unitId/);
-  assert.match(leases, /read-only/i);
+  assert.match(navigator, /name="LeaseDetail" component={LeaseDetailScreen}/);
+  assert.match(types, /LeaseDetail: \{ leaseId: string; archived: boolean \}/);
+  assert.match(leases, /navigate\('LeaseDetail', \{ leaseId: String\(item\.id \?\? item\.Id\), archived: item\.archived === true \}\)/);
+  assert.match(detail, /String\(field\(item, 'id'\)\) === leaseId && \(item\.archived === true\) === archived/);
+  assert.match(detail, /Amounts shown here are lease terms, not payment balances/);
+  assert.doesNotMatch(detail, /addOrUpdateLease|sendLeaseForSignature|Record payment/);
 });
 
 test('the duplicate property-stack checklist screen is unregistered', async () => {

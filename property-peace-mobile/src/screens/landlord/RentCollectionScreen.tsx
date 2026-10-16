@@ -121,7 +121,6 @@ export default function RentCollectionScreen() {
       >
         <PageBackButton />
         <View style={styles.intro}>
-          <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR RENT</Text>
           <Text style={[styles.title, dark && { color: colors.text }]} accessibilityRole="header">Rent collection</Text>
           <Text style={[styles.subtitle, dark && { color: colors.muted }]}>A clear view of what's collected and what's still due.</Text>
         </View>
@@ -174,8 +173,8 @@ export default function RentCollectionScreen() {
                 </View>
               );
             })}
-            <TouchableOpacity style={[styles.leaseLink, dark && { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="button" onPress={() => navigation.navigate('Leases', { screen: 'LeasesList' })}>
-              <View style={[styles.linkIcon, dark && { backgroundColor: '#233c56' }]}><Ionicons name="document-text-outline" size={21} color={dark ? colors.accent : '#0b3558'} /></View>
+            <TouchableOpacity style={[styles.leaseLink, dark && { borderTopColor: colors.border }]} accessibilityRole="button" onPress={() => navigation.navigate('Leases', { screen: 'LeasesList' })}>
+              <View style={styles.linkIcon}><Ionicons name="document-text-outline" size={21} color={dark ? colors.accent : '#0b3558'} /></View>
               <View style={styles.linkCopy}><Text style={[styles.linkTitle, dark && { color: colors.text }]}>View leases</Text><Text style={[styles.linkSubtitle, dark && { color: colors.muted }]}>Review the leases behind these balances</Text></View>
               <Ionicons name="arrow-forward" size={20} color={dark ? colors.accent : '#2475cf'} />
             </TouchableOpacity>
@@ -190,7 +189,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   content: { paddingHorizontal: 20, paddingBottom: 32 },
   intro: { marginBottom: 22 },
-  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 9 },
   title: { color: '#061e35', fontSize: 32, fontWeight: '800', letterSpacing: -0.9 },
   subtitle: { color: '#667789', fontSize: 15, lineHeight: 22, marginTop: 5 },
   period: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18, minHeight: 42 },
@@ -222,8 +220,8 @@ const styles = StyleSheet.create({
   amountBlock: { alignItems: 'flex-end', maxWidth: 112 },
   rowAmount: { color: '#102d43', fontSize: 15, fontWeight: '800' },
   amountCaption: { color: '#7c8c9b', fontSize: 11, marginTop: 4, textAlign: 'right' },
-  leaseLink: { minHeight: 76, borderWidth: 1, borderColor: '#e2e9ee', borderRadius: 16, flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14, marginTop: 16 },
-  linkIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: '#edf4f8', alignItems: 'center', justifyContent: 'center' },
+  leaseLink: { minHeight: 76, borderTopWidth: 1, borderTopColor: '#e2e9ee', flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 12, paddingTop: 12 },
+  linkIcon: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   linkCopy: { flex: 1 }, linkTitle: { color: '#102d43', fontSize: 15, fontWeight: '800' }, linkSubtitle: { color: '#667789', fontSize: 12, marginTop: 3 },
   feedback: { alignItems: 'center', paddingVertical: 48, gap: 10 },
   feedbackTitle: { color: '#102d43', fontSize: 17, fontWeight: '800', marginTop: 6 },

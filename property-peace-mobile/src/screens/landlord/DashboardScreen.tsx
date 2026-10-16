@@ -113,7 +113,7 @@ export default function DashboardScreen() {
   const [notificationsStatus, setNotificationsStatus] = useState<LoadStatus>('loading');
   const [conversationsStatus, setConversationsStatus] = useState<LoadStatus>('loading');
   const [rentStatus, setRentStatus] = useState<LoadStatus>('loading');
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<'profile' | 'notifications' | null>(null);
   const loadGeneration = useRef(0);
   const organizationId = String(currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId ?? '');
   const currentOrganizationId = useRef(organizationId);
@@ -194,6 +194,7 @@ export default function DashboardScreen() {
   useFocusEffect(useCallback(() => {
     void loadDashboard();
     return () => {
+      setOpenMenu(null);
       ++loadGeneration.current;
     };
   }, [loadDashboard]));
@@ -305,37 +306,68 @@ export default function DashboardScreen() {
     () => [...scopedMaintenance].filter(isOpenMaintenance).sort((a, b) => requestTime(b) - requestTime(a)).slice(0, 3),
     [scopedMaintenance],
   );
-  const latestNotifications = useMemo(
-    () => [...scopedNotifications].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 3),
+  const recentNotifications = useMemo(
+    () => [...scopedNotifications].sort((a, b) => notificationTime(b) - notificationTime(a)).slice(0, 5),
     [scopedNotifications],
   );
+  const latestNotifications = recentNotifications.slice(0, 3);
 
   return (
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 18) }]}>
-        <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)} accessibilityRole="button" accessibilityLabel="Open profile menu">
+        <TouchableOpacity style={[styles.avatar, openMenu === 'profile' && styles.avatarActive]} onPress={() => setOpenMenu((open) => open === 'profile' ? null : 'profile')} accessibilityRole="button" accessibilityLabel="Open profile menu" accessibilityState={{ expanded: openMenu === 'profile' }}>
           {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
         </TouchableOpacity>
         <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityLabel="Property Peace" />
-        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel="Open notifications">
+        <TouchableOpacity style={styles.headerButton} onPress={() => setOpenMenu((open) => open === 'notifications' ? null : 'notifications')} accessibilityRole="button" accessibilityLabel="Open notifications" accessibilityState={{ expanded: openMenu === 'notifications' }}>
           <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
           {scopedNotificationsStatus === 'success' && portfolio.unreadNotifications > 0 && <View style={styles.unreadDot} />}
         </TouchableOpacity>
       </View>
 
-      {profileMenuOpen && (
+      {openMenu && (
         <View style={styles.profileMenuLayer} pointerEvents="box-none">
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setProfileMenuOpen(false)} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpenMenu(null)} accessibilityLabel="Close menu" />
+          {openMenu === 'profile' ? (
           <View style={[styles.profileMenu, { top: Math.max(insets.top + 68, 78) }]}>
             <View style={styles.profileIdentity}>
               <Text style={styles.profileName}>{displayName}</Text>
               <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
             </View>
-            <ProfileAction icon="people-outline" label="Tenants" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Tenants'); }} />
-            <ProfileAction icon="document-text-outline" label="Leases" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Leases'); }} />
-            <ProfileAction icon="settings-outline" label="Settings" onPress={() => { setProfileMenuOpen(false); navigation.navigate('Settings'); }} />
-            <ProfileAction icon="log-out-outline" label="Sign out" destructive onPress={async () => { setProfileMenuOpen(false); await dispatch(logout()); }} />
+            <ProfileAction icon="people-outline" label="Tenants" onPress={() => { setOpenMenu(null); navigation.navigate('Tenants'); }} />
+            <ProfileAction icon="document-text-outline" label="Leases" onPress={() => { setOpenMenu(null); navigation.navigate('Leases'); }} />
+            <ProfileAction icon="settings-outline" label="Settings" onPress={() => { setOpenMenu(null); navigation.navigate('Settings'); }} />
+            <ProfileAction icon="log-out-outline" label="Sign out" destructive onPress={async () => { setOpenMenu(null); await dispatch(logout()); }} />
           </View>
+          ) : (
+            <View style={[styles.notificationsMenu, { top: Math.max(insets.top + 68, 78) }]}>
+              <Text style={styles.notificationsMenuHeading}>Recent notifications</Text>
+              <ScrollView style={styles.notificationsMenuList} nestedScrollEnabled>
+                {scopedNotificationsStatus === 'loading' ? (
+                  <View style={styles.notificationsMenuState}><ActivityIndicator color={colors.accent} /></View>
+                ) : scopedNotificationsStatus === 'error' ? (
+                  <View style={styles.notificationsMenuState}>
+                    <Text style={styles.notificationsMenuHint}>Couldn't load notifications.</Text>
+                    <TouchableOpacity onPress={loadDashboard} style={styles.notificationsMenuRetry} accessibilityRole="button"><Text style={styles.notificationsMenuLink}>Retry</Text></TouchableOpacity>
+                  </View>
+                ) : recentNotifications.length === 0 ? (
+                  <Text style={styles.notificationsMenuHint}>No recent notifications.</Text>
+                ) : recentNotifications.map((notification, index) => (
+                  <View key={String(notification.id ?? notification.Id ?? index)} style={styles.notificationsMenuRow}>
+                    <View style={[styles.notificationDot, (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread]} />
+                    <View style={styles.notificationCopy}>
+                      <Text style={styles.notificationTitle} numberOfLines={1}>{notification.title || notification.Title || 'Notification'}</Text>
+                      {!!(notification.message || notification.Message) && <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message || notification.Message}</Text>}
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.notificationsMenuFooter} onPress={() => { setOpenMenu(null); navigation.navigate('Notifications'); }} accessibilityRole="button" accessibilityLabel="View all notifications">
+                <Text style={styles.notificationsMenuLink}>View all</Text>
+                <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -621,6 +653,12 @@ function useScreenStyles() {
       unreadDot: { ...styles.unreadDot, borderColor: colors.surface },
       avatar: { ...styles.avatar, borderColor: colors.border },
       profileMenu: { ...styles.profileMenu, backgroundColor: colors.surface, borderColor: colors.border },
+      notificationsMenu: { ...styles.notificationsMenu, backgroundColor: colors.surface, borderColor: colors.border },
+      notificationsMenuHeading: { ...styles.notificationsMenuHeading, color: colors.text, borderBottomColor: colors.border },
+      notificationsMenuRow: { ...styles.notificationsMenuRow, borderBottomColor: colors.border },
+      notificationsMenuHint: { ...styles.notificationsMenuHint, color: colors.muted },
+      notificationsMenuFooter: { ...styles.notificationsMenuFooter, borderTopColor: colors.border },
+      notificationsMenuLink: { ...styles.notificationsMenuLink, color: colors.accent },
       profileIdentity: { ...styles.profileIdentity, backgroundColor: colors.background, borderBottomColor: colors.border },
       profileName: { ...styles.profileName, color: colors.text },
       profileEmail: { ...styles.profileEmail, color: colors.muted },
@@ -692,7 +730,16 @@ const styles = StyleSheet.create({
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#fff', fontSize: 17, fontWeight: '900' },
   profileMenuLayer: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50 },
-  profileMenu: { position: 'absolute', right: 14, width: 280, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  profileMenu: { position: 'absolute', left: 14, width: 280, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  notificationsMenu: { position: 'absolute', right: 14, width: 320, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  notificationsMenuHeading: { color: '#102d43', fontSize: 16, fontWeight: '900', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
+  notificationsMenuList: { maxHeight: 340 },
+  notificationsMenuRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
+  notificationsMenuState: { alignItems: 'center', padding: 18 },
+  notificationsMenuHint: { color: '#697887', fontSize: 13, lineHeight: 19, padding: 16 },
+  notificationsMenuRetry: { minHeight: 44, justifyContent: 'center' },
+  notificationsMenuFooter: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderTopWidth: 1, borderTopColor: '#edf1f3' },
+  notificationsMenuLink: { color: '#2475cf', fontSize: 14, fontWeight: '800' },
   profileIdentity: { padding: 18, backgroundColor: '#f8fbfd', borderBottomWidth: 1, borderBottomColor: '#edf1f3' },
   profileName: { color: '#102d43', fontSize: 17, fontWeight: '900' },
   profileEmail: { color: '#6a7885', fontSize: 13, marginTop: 4 },

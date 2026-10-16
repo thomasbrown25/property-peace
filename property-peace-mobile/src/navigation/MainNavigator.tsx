@@ -25,6 +25,8 @@ import AddTenantScreen from '../screens/landlord/AddTenantScreen';
 import MaintenanceScreen from '../screens/landlord/MaintenanceScreen';
 import LandlordMaintenanceDetailScreen from '../screens/landlord/LandlordMaintenanceDetailScreen';
 import LeasesScreen from '../screens/landlord/LeasesScreen';
+import AddLeaseScreen from '../screens/landlord/AddLeaseScreen';
+import LeaseDetailScreen from '../screens/landlord/LeaseDetailScreen';
 
 import MessagesScreen from '../screens/landlord/MessagesScreen';
 import ConversationDetailScreen from '../screens/landlord/ConversationDetailScreen';
@@ -79,7 +81,9 @@ function PropertiesNavigator() {
   return (
     <PropertiesStack.Navigator screenOptions={stackOptions}>
       <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ headerShown: false }} />
-      <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={{ title: 'Property' }} />
+      <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton translucent onPress={() => navigation.popToTop()} /> })} />
+      <PropertiesStack.Screen name="PropertyMaintenance" component={MaintenanceScreen} options={{ headerShown: false }} />
+      <PropertiesStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={{ title: 'Maintenance workflow' }} />
       <PropertiesStack.Screen name="AddProperty" component={AddPropertyScreen} options={{ title: 'Add property' }} />
 
     </PropertiesStack.Navigator>
@@ -133,7 +137,9 @@ function LeasesNavigator() {
   const stackOptions = useStackOptions();
   return (
     <LeasesStack.Navigator screenOptions={stackOptions}>
-      <LeasesStack.Screen name="LeasesList" component={LeasesScreen} options={{ title: 'Leases' }} />
+      <LeasesStack.Screen name="LeasesList" component={LeasesScreen} options={{ headerShown: false }} />
+      <LeasesStack.Screen name="AddLease" component={AddLeaseScreen} options={{ headerShown: false }} />
+      <LeasesStack.Screen name="LeaseDetail" component={LeaseDetailScreen} options={{ title: 'Lease' }} />
 
     </LeasesStack.Navigator>
   );

@@ -74,6 +74,10 @@ export default function PropertyDetailScreen() {
     return { units, name, street, locality, imageUrl, occupied, rent };
   }, [property]);
 
+  useEffect(() => {
+    navigation.setOptions({ title: details?.name || 'Property' });
+  }, [navigation, details?.name]);
+
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
   if (error || !property || !details) {
@@ -98,8 +102,6 @@ export default function PropertyDetailScreen() {
           <View style={styles.heroImageFallback}><Ionicons name="home" size={52} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
         )}
         <View style={styles.heroBody}>
-          <Text style={styles.eyebrow}>PROPERTY HUB</Text>
-          <Text style={styles.title}>{details.name}</Text>
           {!!details.street && <Text style={styles.address}>{details.street}</Text>}
           {!!details.locality && <Text style={styles.locality}>{details.locality}</Text>}
           <View style={styles.snapshotRow}>
@@ -115,7 +117,7 @@ export default function PropertyDetailScreen() {
       <Text style={styles.sectionTitle}>On-site actions</Text>
       <View style={styles.actionList}>
         <ActionRow icon="clipboard-outline" title="Open checklists" subtitle="Complete move-in and move-out items" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
-        <ActionRow icon="construct-outline" title="Maintenance workflow" subtitle="Review and manage open requests" color={mode === 'dark' ? '#ff9bad' : '#d94d63'} background={mode === 'dark' ? '#442b38' : '#fff0f3'} onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} />
+        <ActionRow icon="construct-outline" title="View maintenances" subtitle="Requests for this property" color={mode === 'dark' ? '#ff9bad' : '#d94d63'} background={mode === 'dark' ? '#442b38' : '#fff0f3'} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} />
         <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color={mode === 'dark' ? colors.accent : '#2475cf'} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
         <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color={mode === 'dark' ? '#d2a9f4' : '#8b5bb7'} background={mode === 'dark' ? '#392d49' : '#f5effb'} onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
       </View>
@@ -143,7 +145,7 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.unitName}>{stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber, `Unit ${index + 1}`)}</Text>
                   <Text style={styles.unitMeta}>{status}{rent > 0 ? ` · ${currency(rent)}/mo` : ''}</Text>
                 </View>
-                <TouchableOpacity style={styles.unitAction} onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} accessibilityLabel="Open maintenance workflow">
+                <TouchableOpacity style={styles.unitAction} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} accessibilityLabel="View property maintenances">
                   <Ionicons name="construct-outline" size={20} color={mode === 'dark' ? colors.accent : '#0b3558'} />
                 </TouchableOpacity>
               </View>

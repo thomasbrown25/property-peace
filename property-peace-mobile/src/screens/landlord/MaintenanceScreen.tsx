@@ -2,14 +2,18 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
 import PageBackButton from '../../components/PageBackButton';
+import { forProperty } from '../../features/maintenance/propertyMaintenanceScope';
 
 export default function MaintenanceScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const propertyId: string | undefined = route.params?.propertyId;
+  const propertyName: string | undefined = route.params?.propertyName;
   const insets = useSafeAreaInsets();
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
@@ -23,7 +27,7 @@ export default function MaintenanceScreen() {
     try {
       setError('');
       const data = view === 'current' ? await MaintenanceAPI.getCurrent() : await MaintenanceAPI.getHistory();
-      setRequests(data || []);
+      setRequests(forProperty(data || [], propertyId));
     } catch (loadError: any) {
       setRequests([]);
       setError(loadError?.detail || loadError?.message || 'Maintenance requests could not be loaded.');
@@ -31,35 +35,35 @@ export default function MaintenanceScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [view]);
+  }, [view, propertyId]);
 
   useEffect(() => { setLoading(true); loadRequests(); }, [loadRequests]);
 
-  if (loading) return <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View>;
-
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <FlatList
+      <View style={[styles.backRow, { paddingTop: insets.top + 4 }]}><PageBackButton /></View>
+      <View style={styles.header}>
+        <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>PROPERTY CARE</Text>
+        <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
+        <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>{propertyId ? propertyName || 'This property' : 'Keep repairs moving, from report to resolution.'}</Text>
+      </View>
+      <View style={[styles.tabs, dark && { borderBottomColor: colors.border }]} accessibilityRole="tablist">
+        {(['current', 'history'] as const).map((tab) => <TouchableOpacity key={tab} style={[styles.tab, view === tab && styles.tabActive, dark && view === tab && { borderBottomColor: colors.accent }]} onPress={() => setView(tab)} accessibilityRole="tab" accessibilityState={{ selected: view === tab }}><Text style={[styles.tabText, view === tab && styles.tabTextActive, dark && { color: view === tab ? colors.text : colors.muted }]}>{tab === 'current' ? 'Open' : 'Closed'}</Text></TouchableOpacity>)}
+      </View>
+      {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View> : <FlatList
         data={requests}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
-        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
+        contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={<View>
-          <PageBackButton />
-          <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>PROPERTY CARE</Text>
-          <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
-          <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>Keep repairs moving, from report to resolution.</Text>
-          <View style={[styles.tabs, dark && { borderColor: colors.border }]} accessibilityRole="tablist">
-            {(['current', 'history'] as const).map((tab) => <TouchableOpacity key={tab} style={[styles.tab, view === tab && styles.tabActive, dark && view === tab && { borderBottomColor: colors.accent }]} onPress={() => setView(tab)} accessibilityRole="tab" accessibilityState={{ selected: view === tab }}><Text style={[styles.tabText, view === tab && styles.tabTextActive, dark && { color: view === tab ? colors.text : colors.muted }]}>{tab === 'current' ? 'Current' : 'History'}</Text></TouchableOpacity>)}
-          </View>
           {error ? <View style={styles.error} accessibilityRole="alert"><Text style={[styles.errorText, dark && { color: colors.text }]}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); loadRequests(); }} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.accent }]}>Retry</Text></TouchableOpacity></View> : null}
           {!error && <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">{view === 'current' ? 'Open requests' : 'Past requests'}</Text>
+            <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">{view === 'current' ? 'Open requests' : 'Closed requests'}</Text>
             <Text style={[styles.count, dark && { color: colors.muted }]}>{requests.length}</Text>
           </View>}
         </View>}
         ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
-        ListEmptyComponent={!error ? <View style={styles.emptyContainer}><Ionicons name="construct-outline" size={30} color={dark ? colors.muted : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{view === 'current' ? 'No open maintenance' : 'No maintenance history'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{view === 'current' ? 'New tenant reports will appear here for acknowledgement and assignment.' : 'Resolved and cancelled requests will appear here.'}</Text></View> : null}
+        ListEmptyComponent={!error ? <View style={styles.emptyContainer}><Ionicons name="construct-outline" size={30} color={dark ? colors.muted : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{view === 'current' ? 'No open maintenance' : 'No closed maintenance'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{view === 'current' ? 'New tenant reports will appear here for acknowledgement and assignment.' : 'Resolved and cancelled requests will appear here.'}</Text></View> : null}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('LandlordMaintenanceDetail', { requestId: String(item.id || item.Id), listItem: item })} accessibilityRole="button" accessibilityLabel={`Open maintenance request ${item.title || item.Title || ''}`}>
             <Text style={[styles.title, dark && { color: colors.text }]}>{item.title || item.Title || 'Maintenance request'}</Text>
@@ -67,23 +71,25 @@ export default function MaintenanceScreen() {
             <Text style={[styles.status, dark && { color: colors.accent }]}>{item.status || item.Status ? `${displayStatus(item.status || item.Status)} · ` : ''}Open request →</Text>
           </TouchableOpacity>
         )}
-      />
+      />}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
-  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 100 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  backRow: { paddingHorizontal: 22 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
+  header: { paddingHorizontal: 20, paddingTop: 0 },
   eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
   pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
-  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 26 },
-  tabs: { flexDirection: 'row', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', marginBottom: 18 },
-  tab: { minHeight: 48, marginRight: 28, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabActive: { borderBottomColor: '#2475cf' },
-  tabText: { color: '#697887', fontSize: 15, fontWeight: '600' },
-  tabTextActive: { color: '#102d43', fontWeight: '700' },
+  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 12 },
+  tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  tab: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabActive: { borderBottomColor: '#2563eb' },
+  tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
+  tabTextActive: { color: '#0f2f47', fontWeight: '800' },
   error: { borderLeftWidth: 2, borderColor: '#c2413b', paddingLeft: 14, marginBottom: 24 },
   errorText: { color: '#8d263a', fontWeight: '700', lineHeight: 20 },
   retry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },

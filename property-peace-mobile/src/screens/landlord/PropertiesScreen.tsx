@@ -98,43 +98,42 @@ export default function PropertiesScreen() {
       .sort((a, b) => Number(needsAttention(b)) - Number(needsAttention(a)));
   }, [properties, search]);
 
-  if (loading) return <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View>;
-
   return (
     <View style={styles.container}>
-      <FlatList
+      <View style={[styles.backRow, { paddingTop: insets.top + 4 }]}><PageBackButton /></View>
+      {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : <FlatList
         data={filteredProperties}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         renderItem={({ item }) => <PropertyRow property={item} onPress={() => navigation.navigate('PropertyDetail', { propertyId: String(item.id || item.Id) })} />}
-        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
+        contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperties(); }} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View>
-            <PageBackButton />
             <View style={styles.pageHeader}>
-              <Text style={styles.eyebrow}>YOUR PORTFOLIO</Text>
-              <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
-              <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
+              <View style={styles.headerCopy}>
+                <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
+                <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
+              </View>
+              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
+                <Ionicons name="add" size={18} color={mode === 'dark' ? colors.background : '#fff'} />
+                <Text style={styles.primaryButtonText}>Add property</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.searchWrap}>
-              <Ionicons name="search-outline" size={18} color={mode === 'dark' ? colors.muted : '#667789'} />
+              <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
                 placeholder="Search by name, address, tenant..."
-                placeholderTextColor={mode === 'dark' ? colors.muted : '#8a98a6'}
+                placeholderTextColor={mode === 'dark' ? colors.muted : '#94a3b8'}
                 style={styles.searchInput}
                 accessibilityLabel="Search properties"
+                returnKeyType="search"
               />
+              {!!search && <TouchableOpacity accessibilityLabel="Clear search" onPress={() => setSearch('')}><Ionicons name="close-circle" size={19} color={mode === 'dark' ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
             </View>
 
-            <View style={styles.actionRow}>
-              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button">
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.primaryButtonText}>Add property</Text>
-              </TouchableOpacity>
-            </View>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle} accessibilityRole="header">All properties</Text>
               <Text style={styles.sectionCount}>{filteredProperties.length}</Text>
@@ -143,7 +142,7 @@ export default function PropertiesScreen() {
         }
         ListEmptyComponent={<EmptyState searching={Boolean(search.trim())} onAdd={() => navigation.navigate('AddProperty')} />}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-      />
+      />}
     </View>
   );
 }
@@ -224,10 +223,11 @@ function useScreenStyles() {
     ...StyleSheet.create({
       container: { ...styles.container, backgroundColor: colors.background },
       centerContainer: { ...styles.centerContainer, backgroundColor: colors.background },
-      eyebrow: { ...styles.eyebrow, color: colors.accent },
+      primaryButton: { ...styles.primaryButton, backgroundColor: colors.accent },
+      primaryButtonText: { ...styles.primaryButtonText, color: colors.background },
       pageTitle: { ...styles.pageTitle, color: colors.text },
       pageSubtitle: { ...styles.pageSubtitle, color: colors.muted },
-      searchWrap: { ...styles.searchWrap, backgroundColor: colors.surface, borderColor: colors.border },
+      searchWrap: { ...styles.searchWrap, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
       searchInput: { ...styles.searchInput, color: colors.text },
       sectionTitle: { ...styles.sectionTitle, color: colors.text },
       sectionCount: { ...styles.sectionCount, color: colors.muted },
@@ -250,18 +250,18 @@ function useScreenStyles() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
+  container: { flex: 1, backgroundColor: '#fff' },
+  backRow: { paddingHorizontal: 22 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 120 },
-  pageHeader: { marginBottom: 26 },
-  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
-  pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
-  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6 },
-  actionRow: { flexDirection: 'row', marginBottom: 30 },
-  primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2475cf', borderRadius: 10, paddingHorizontal: 18 },
-  primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e2e5e8', paddingHorizontal: 14, height: 48, marginBottom: 14 },
-  searchInput: { flex: 1, color: '#102d43', fontSize: 15, fontWeight: '600', paddingVertical: 0 },
+  pageHeader: { marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  headerCopy: { flex: 1, minWidth: 0 },
+  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },
+  pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },
+  primaryButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, paddingHorizontal: 10 },
+  primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 13, minHeight: 46, marginBottom: 22 },
+  searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
   sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
   sectionCount: { color: '#788995', fontSize: 14 },
