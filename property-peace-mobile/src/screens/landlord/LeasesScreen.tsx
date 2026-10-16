@@ -43,7 +43,7 @@ export default function LeasesScreen() {
       <FlatList
         data={leases}
         renderItem={renderLease}
-        keyExtractor={(item, index) => String(item.id || item.Id || index)}
+        keyExtractor={(item, index) => `${item.archived ? 'archive' : 'current'}-${item.id || item.Id || index}`}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadLeases(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={(
