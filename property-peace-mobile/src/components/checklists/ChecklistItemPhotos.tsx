@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import ChecklistAPI from '../../api/checklistAPI';
+import { useAppTheme } from '../../theme/AppTheme';
 import { toChecklistUploadAsset } from '../../features/checklists/checklistModel';
 import { getChecklistItemPhotos } from '../../features/checklists/checklistPhotoModel';
 import type {
@@ -35,6 +36,10 @@ type Props = {
 const message = (error: any, fallback: string) => error?.message || error?.Message || fallback;
 
 export default function ChecklistItemPhotos({ checklistId, item, disabled, failedAsset, onFailedAssetChange, onBusyChange, onChecklistUpdated }: Props) {
+  const { colors, mode } = useAppTheme();
+  const dark = mode === 'dark';
+  const actionColor = dark ? '#9de0d1' : '#0b5d55';
+  const warningColor = dark ? '#ffb692' : '#9a3412';
   const [uploading, setUploading] = useState(false);
   const [deletingKey, setDeletingKey] = useState('');
   const [error, setError] = useState('');
@@ -122,16 +127,16 @@ export default function ChecklistItemPhotos({ checklistId, item, disabled, faile
   return (
     <View style={styles.container}>
       <View style={styles.headingRow}>
-        <Text style={styles.heading}>Photos</Text>
+        <Text style={[styles.heading, dark && { color: colors.muted }]}>Photos</Text>
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel="Add room photo"
-          style={[styles.addButton, (itemId == null || uploading || disabled) && styles.disabled]}
+          style={[styles.addButton, dark && { backgroundColor: '#23463f' }, (itemId == null || uploading || disabled) && styles.disabled]}
           onPress={chooseSource}
           disabled={itemId == null || uploading || disabled}
         >
-          {uploading ? <ActivityIndicator size="small" color="#0b5d55" /> : <Ionicons name="camera-outline" size={18} color="#0b5d55" />}
-          <Text style={styles.addText}>{uploading ? 'Uploading…' : 'Add photo'}</Text>
+          {uploading ? <ActivityIndicator size="small" color={actionColor} /> : <Ionicons name="camera-outline" size={18} color={actionColor} />}
+          <Text style={[styles.addText, dark && { color: actionColor }]}>{uploading ? 'Uploading…' : 'Add photo'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -139,7 +144,7 @@ export default function ChecklistItemPhotos({ checklistId, item, disabled, faile
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoStrip}>
           {photos.map((photo) => (
             <View key={photo.key} style={styles.photoWrap}>
-              <Image source={{ uri: photo.url }} style={styles.photo} accessibilityLabel={`${item.name} inspection photo`} />
+              <Image source={{ uri: photo.url }} style={[styles.photo, dark && { backgroundColor: colors.border }]} accessibilityLabel={`${item.name} inspection photo`} />
               {photo.blobName && (
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -160,12 +165,12 @@ export default function ChecklistItemPhotos({ checklistId, item, disabled, faile
 
       {!!failedAsset && !uploading && (
         <TouchableOpacity style={styles.retryButton} onPress={() => void upload(failedAsset)} disabled={disabled}>
-          <Ionicons name="refresh" size={16} color="#9a3412" />
-          <Text style={styles.retryText}>Upload failed · Retry {failedAsset.name}</Text>
+          <Ionicons name="refresh" size={16} color={warningColor} />
+          <Text style={[styles.retryText, dark && { color: warningColor }]}>Upload failed · Retry {failedAsset.name}</Text>
         </TouchableOpacity>
       )}
-      {!!error && <Text style={styles.error}>{error}</Text>}
-      {itemId == null && <Text style={styles.hint}>Save this item before adding photos.</Text>}
+      {!!error && <Text style={[styles.error, dark && { color: '#ffaaa2' }]}>{error}</Text>}
+      {itemId == null && <Text style={[styles.hint, dark && { color: colors.muted }]}>Save this item before adding photos.</Text>}
     </View>
   );
 }

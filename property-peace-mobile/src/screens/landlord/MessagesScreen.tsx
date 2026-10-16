@@ -11,6 +11,7 @@ import signalRService from '../../services/signalRService';
 import { advanceMessagingScopeGeneration, buildMessagingScopeKey, canAccessMessages, ConversationFilter, ConversationSummary, filterConversations, formatConversationTime, getConversationPresentation, getMessageCapabilities, getMessagesAudience, isMessagingOperationCurrent, MessagingScopeGeneration } from '../../features/messages/messagesModel';
 import { RootState } from '../../store';
 import GroupConversationDialog from '../../components/messages/GroupConversationDialog';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type Navigation = NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
 const FILTERS: Array<{ key: ConversationFilter; label: string }> = [
@@ -20,6 +21,8 @@ const FILTERS: Array<{ key: ConversationFilter; label: string }> = [
 export default function MessagesScreen() {
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
+  const { mode, colors } = useAppTheme();
+  const dark = mode === 'dark';
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [filter, setFilter] = useState<ConversationFilter>('inbox');
@@ -114,51 +117,51 @@ export default function MessagesScreen() {
         style={styles.conversationRow}
         onPress={() => navigation.navigate('ConversationDetail', { conversationId: String(item.id), selectedConversation: item })}
       >
-        <View style={[styles.avatar, card.unreadCount > 0 && styles.unreadAvatar]}><Text style={styles.avatarText}>{card.initials}</Text></View>
+        <View style={[styles.avatar, card.unreadCount > 0 && styles.unreadAvatar, dark && { backgroundColor: colors.border }]}><Text style={[styles.avatarText, dark && { color: colors.accent }]}>{card.initials}</Text></View>
         <View style={styles.copy}>
           <View style={styles.row}>
-            <Text style={[styles.title, card.unreadCount > 0 && styles.unreadText]} numberOfLines={1}>{card.title}</Text>
-            <Text style={styles.time}>{formatConversationTime(item.lastMessageAt ?? item.updatedAt)}</Text>
+            <Text style={[styles.title, card.unreadCount > 0 && styles.unreadText, dark && { color: colors.text }]} numberOfLines={1}>{card.title}</Text>
+            <Text style={[styles.time, dark && { color: colors.muted }]}>{formatConversationTime(item.lastMessageAt ?? item.updatedAt)}</Text>
           </View>
-          {!!card.subtitle && <Text style={styles.subtitle} numberOfLines={1}>{card.subtitle}</Text>}
+          {!!card.subtitle && <Text style={[styles.subtitle, dark && { color: colors.muted }]} numberOfLines={1}>{card.subtitle}</Text>}
           <View style={styles.row}>
-            <Text style={[styles.preview, card.unreadCount > 0 && styles.unreadText]} numberOfLines={1}>{card.preview}</Text>
-            {capabilities.pin && card.isPinned && <Ionicons name="pin" size={14} color="#64748b" style={styles.pin} />}
-            {card.unreadCount > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{Math.min(99, card.unreadCount)}</Text></View>}
+            <Text style={[styles.preview, card.unreadCount > 0 && styles.unreadText, dark && { color: card.unreadCount > 0 ? colors.text : colors.muted }]} numberOfLines={1}>{card.preview}</Text>
+            {capabilities.pin && card.isPinned && <Ionicons name="pin" size={14} color={dark ? colors.muted : '#64748b'} style={styles.pin} />}
+            {card.unreadCount > 0 && <View style={[styles.badge, dark && { backgroundColor: colors.accent }]}><Text style={[styles.badgeText, dark && { color: colors.background }]}>{Math.min(99, card.unreadCount)}</Text></View>}
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
-  if (!hasMessageAccess) return <View style={styles.center}><Ionicons name="lock-closed-outline" size={40} color="#64748b" /><Text style={styles.error}>Messages aren’t available for this role.</Text></View>;
+  if (!hasMessageAccess) return <View style={[styles.center, dark && { backgroundColor: colors.background }]}><Ionicons name="lock-closed-outline" size={40} color={dark ? colors.muted : '#64748b'} /><Text style={[styles.error, dark && { color: colors.text }]}>Messages aren’t available for this role.</Text></View>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 22 }]}>
-        <View><Text style={styles.heading} accessibilityRole="header">Messages</Text><Text style={styles.headerSub}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
-        {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={styles.newGroup} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color="#fff" /><Text style={styles.newGroupText}>New group</Text></TouchableOpacity>}
+        <View><Text style={[styles.heading, dark && { color: colors.text }]} accessibilityRole="header">Messages</Text><Text style={[styles.headerSub, dark && { color: colors.muted }]}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
+        {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={[styles.newGroup, dark && { backgroundColor: colors.accent }]} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color={dark ? colors.background : '#fff'} /><Text style={[styles.newGroupText, dark && { color: colors.background }]}>New group</Text></TouchableOpacity>}
       </View>
-      <View style={styles.search}>
-        <Ionicons name="search" size={19} color="#64748b" />
-        <TextInput value={query} onChangeText={setQuery} placeholder="Search people, properties, or messages" placeholderTextColor="#94a3b8" style={styles.searchInput} returnKeyType="search" />
-        {!!query && <TouchableOpacity accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color="#94a3b8" /></TouchableOpacity>}
+      <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+        <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
+        <TextInput value={query} onChangeText={setQuery} placeholder="Search people, properties, or messages" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} returnKeyType="search" />
+        {!!query && <TouchableOpacity accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color={dark ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
       </View>
-      <View style={styles.filters}>
+      <View style={[styles.filters, dark && { borderBottomColor: colors.border }]}>
         {FILTERS.filter((option) => capabilities.archive || option.key !== 'archived').map((option) => {
           const count = option.key === 'unread' ? scopedConversations.filter((c) => !c.isArchived && (c.unreadCount ?? 0) > 0).length : undefined;
-          return <TouchableOpacity key={option.key} style={[styles.filter, filter === option.key && styles.activeFilter]} onPress={() => setFilter(option.key)}>
-            <Text style={[styles.filterText, filter === option.key && styles.activeFilterText]}>{option.label}{count ? ` ${count}` : ''}</Text>
+          return <TouchableOpacity key={option.key} style={[styles.filter, filter === option.key && styles.activeFilter, dark && filter === option.key && { borderBottomColor: colors.accent }]} onPress={() => setFilter(option.key)}>
+            <Text style={[styles.filterText, filter === option.key && styles.activeFilterText, dark && { color: filter === option.key ? colors.text : colors.muted }]}>{option.label}{count ? ` ${count}` : ''}</Text>
           </TouchableOpacity>;
         })}
       </View>
-      {scopedLoading && scopedConversations.length === 0 ? <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /><Text style={styles.status}>Loading conversations…</Text></View> :
-        scopedError && scopedConversations.length === 0 ? <View style={styles.center}><Ionicons name="cloud-offline-outline" size={38} color="#94a3b8" /><Text style={styles.error}>{scopedError}</Text><TouchableOpacity style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Try again</Text></TouchableOpacity></View> :
+      {scopedLoading && scopedConversations.length === 0 ? <View style={styles.center}><ActivityIndicator size="large" color={dark ? colors.accent : '#2563eb'} /><Text style={[styles.status, dark && { color: colors.muted }]}>Loading conversations…</Text></View> :
+        scopedError && scopedConversations.length === 0 ? <View style={styles.center}><Ionicons name="cloud-offline-outline" size={38} color={dark ? colors.muted : '#94a3b8'} /><Text style={[styles.error, dark && { color: colors.text }]}>{scopedError}</Text><TouchableOpacity style={[styles.retry, dark && { backgroundColor: colors.accent }]} onPress={() => void load()}><Text style={[styles.retryText, dark && { color: colors.background }]}>Try again</Text></TouchableOpacity></View> :
         <FlatList data={visible} renderItem={renderItem} keyExtractor={(item) => String(item.id)} contentContainerStyle={[styles.list, visible.length === 0 && styles.emptyList]}
-          ItemSeparatorComponent={() => <View style={styles.divider} />}
-          ListHeaderComponent={visible.length > 0 ? <Text style={styles.listLabel}>{filter === 'archived' ? 'ARCHIVED' : filter === 'unread' ? 'UNREAD' : 'CONVERSATIONS'}</Text> : null}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#2563eb" />}
-          ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubbles-outline" size={42} color="#94a3b8" /><Text style={styles.emptyTitle}>{query ? 'No matching conversations' : filter === 'unread' ? 'You’re all caught up' : filter === 'archived' ? 'No archived conversations' : 'No messages yet'}</Text><Text style={styles.status}>{query ? 'Try another name, property, or keyword.' : 'New conversations will appear here.'}</Text></View>} />}
+          ItemSeparatorComponent={() => <View style={[styles.divider, dark && { backgroundColor: colors.border }]} />}
+          ListHeaderComponent={visible.length > 0 ? <Text style={[styles.listLabel, dark && { color: colors.muted }]}>{filter === 'archived' ? 'ARCHIVED' : filter === 'unread' ? 'UNREAD' : 'CONVERSATIONS'}</Text> : null}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2563eb'} />}
+          ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubbles-outline" size={42} color={dark ? colors.muted : '#94a3b8'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{query ? 'No matching conversations' : filter === 'unread' ? 'You’re all caught up' : filter === 'archived' ? 'No archived conversations' : 'No messages yet'}</Text><Text style={[styles.status, dark && { color: colors.muted }]}>{query ? 'Try another name, property, or keyword.' : 'New conversations will appear here.'}</Text></View>} />}
       {capabilities.createGroup && <GroupConversationDialog visible={groupDialogVisible && scopeIsCurrent} organizationId={organizationId} currentUserId={currentUserId} onClose={() => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) setGroupDialogVisible(false); }} onCreated={(id) => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) { setGroupDialogVisible(false); navigation.navigate('ConversationDetail', { conversationId: id }); } }} />}
     </View>
   );
@@ -168,6 +171,6 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' }, header: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, heading: { color: '#0f2f47', fontSize: 28, fontWeight: '800' }, headerSub: { color: '#64748b', marginTop: 3, fontSize: 13 }, newGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }, newGroupText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   search: { marginHorizontal: 20, minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 }, searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   filters: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }, filter: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeFilter: { borderBottomColor: '#2563eb' }, filterText: { color: '#64748b', fontWeight: '600', fontSize: 13 }, activeFilterText: { color: '#0f2f47', fontWeight: '800' },
-  list: { paddingHorizontal: 20, paddingBottom: 28 }, emptyList: { flexGrow: 1 }, listLabel: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, paddingTop: 23, paddingBottom: 6 }, conversationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }, divider: { height: 1, backgroundColor: '#e8edf2', marginLeft: 60 }, avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8f1f1', marginRight: 12 }, unreadAvatar: { backgroundColor: '#dbeafe' }, avatarText: { color: '#087b79', fontWeight: '800', fontSize: 16 }, copy: { flex: 1, minWidth: 0 }, row: { flexDirection: 'row', alignItems: 'center' }, title: { flex: 1, color: '#1e293b', fontWeight: '700', fontSize: 16, marginRight: 8 }, unreadText: { color: '#0f172a', fontWeight: '900' }, time: { color: '#64748b', fontSize: 12 }, subtitle: { color: '#64748b', marginTop: 3, fontSize: 12 }, preview: { flex: 1, color: '#64748b', marginTop: 5, fontSize: 13 }, pin: { marginLeft: 7 }, badge: { minWidth: 21, height: 21, paddingHorizontal: 6, borderRadius: 11, marginLeft: 8, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }, badgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
+  list: { paddingHorizontal: 20, paddingBottom: 126 }, emptyList: { flexGrow: 1 }, listLabel: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, paddingTop: 23, paddingBottom: 6 }, conversationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }, divider: { height: 1, backgroundColor: '#e8edf2', marginLeft: 60 }, avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8f1f1', marginRight: 12 }, unreadAvatar: { backgroundColor: '#dbeafe' }, avatarText: { color: '#087b79', fontWeight: '800', fontSize: 16 }, copy: { flex: 1, minWidth: 0 }, row: { flexDirection: 'row', alignItems: 'center' }, title: { flex: 1, color: '#1e293b', fontWeight: '700', fontSize: 16, marginRight: 8 }, unreadText: { color: '#0f172a', fontWeight: '900' }, time: { color: '#64748b', fontSize: 12 }, subtitle: { color: '#64748b', marginTop: 3, fontSize: 12 }, preview: { flex: 1, color: '#64748b', marginTop: 5, fontSize: 13 }, pin: { marginLeft: 7 }, badge: { minWidth: 21, height: 21, paddingHorizontal: 6, borderRadius: 11, marginLeft: 8, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }, badgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },
   center: { flex: 1, minHeight: 220, padding: 30, alignItems: 'center', justifyContent: 'center' }, status: { color: '#64748b', textAlign: 'center', marginTop: 9, lineHeight: 20 }, error: { color: '#b42318', textAlign: 'center', marginTop: 10 }, retry: { backgroundColor: '#2563eb', borderRadius: 12, marginTop: 16, paddingHorizontal: 18, paddingVertical: 10 }, retryText: { color: '#fff', fontWeight: '800' }, emptyTitle: { color: '#334155', fontSize: 17, fontWeight: '800', marginTop: 12 },
 });

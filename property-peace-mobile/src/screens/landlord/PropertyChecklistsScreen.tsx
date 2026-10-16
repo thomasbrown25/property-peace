@@ -19,12 +19,15 @@ import { activeLeaseScope, buildChecklistOverviewCards, checklistHistoryScope, i
 import { startChecklistCycle } from '../../features/checklists/checklistWorkflow';
 import type { Checklist, ChecklistCycle } from '../../features/checklists/checklistTypes';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type Props = NativeStackScreenProps<ChecklistsStackParamList, 'PropertyChecklists'>;
 
 const messageOf = (error: any, fallback: string) => error?.message || error?.Message || fallback;
 
 export default function PropertyChecklistsScreen({ navigation, route }: Props) {
+  const { mode, colors } = useAppTheme();
+  const themed = mode === 'dark' ? darkStyles : styles;
   const home = route.params;
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [activeLease, setActiveLease] = useState<Lease | null>(null);
@@ -109,13 +112,13 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
     }
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2475cf" /></View>;
+  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
   const renderCycle = ({ item, index }: { item: ReturnType<typeof buildChecklistOverviewCards>[number]; index: number }) => {
     const cycle: ChecklistCycle = cycles[index];
     return (
-      <View style={styles.cycleCard}>
-        <Text style={styles.cycleEyebrow}>INSPECTION CYCLE {cards.length - index}</Text>
+      <View style={themed.cycleCard}>
+        <Text style={themed.cycleEyebrow}>INSPECTION CYCLE {cards.length - index}</Text>
         <ChecklistSide
           side={item.moveIn}
           checklist={cycle.moveIn}
@@ -126,7 +129,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
             ? startExisting(cycle.moveIn, `${item.id}-in`)
             : startMissing(40, cycle.moveOut, `${item.id}-in`)}
         />
-        <View style={styles.divider} />
+        <View style={themed.divider} />
         <ChecklistSide
           side={item.moveOut}
           checklist={cycle.moveOut}
@@ -143,40 +146,40 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
 
   return (
     <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={themed.container}
+      contentContainerStyle={themed.content}
       data={cards}
       keyExtractor={({ id }) => id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#2475cf" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
       ListHeaderComponent={(
         <View>
-          <View style={styles.hero}>
-            <View style={styles.heroIcon}><Ionicons name="home-outline" size={26} color="#2f8f46" /></View>
-            <View style={styles.heroCopy}>
-              <Text style={styles.eyebrow}>CONDITION HISTORY</Text>
-              <Text style={styles.title}>{home.propertyName}</Text>
-              {!!home.unitName && <Text style={styles.unit}>{home.unitName}</Text>}
-              <Text style={styles.subtitle}>Start an inspection or continue where you left off.</Text>
+          <View style={themed.hero}>
+            <View style={themed.heroIcon}><Ionicons name="home-outline" size={26} color={mode === 'dark' ? '#86dc9a' : '#2f8f46'} /></View>
+            <View style={themed.heroCopy}>
+              <Text style={themed.eyebrow}>CONDITION HISTORY</Text>
+              <Text style={themed.title}>{home.propertyName}</Text>
+              {!!home.unitName && <Text style={themed.unit}>{home.unitName}</Text>}
+              <Text style={themed.subtitle}>Start an inspection or continue where you left off.</Text>
             </View>
           </View>
           {!!error && (
-            <TouchableOpacity style={styles.errorCard} onPress={load}>
-              <Ionicons name="cloud-offline-outline" size={21} color="#a45f12" />
-              <View style={styles.flex}><Text style={styles.errorTitle}>Checklists are unavailable</Text><Text style={styles.errorText}>{error} Tap to retry.</Text></View>
+            <TouchableOpacity style={themed.errorCard} onPress={load}>
+              <Ionicons name="cloud-offline-outline" size={21} color={mode === 'dark' ? '#f0b669' : '#a45f12'} />
+              <View style={themed.flex}><Text style={themed.errorTitle}>Checklists are unavailable</Text><Text style={themed.errorText}>{error} Tap to retry.</Text></View>
             </TouchableOpacity>
           )}
         </View>
       )}
       renderItem={renderCycle}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
+      ItemSeparatorComponent={() => <View style={themed.separator} />}
       ListEmptyComponent={!error ? (
-        <View style={styles.emptyCard}>
-          <View style={styles.emptyIcon}><Ionicons name="clipboard-outline" size={30} color="#2f8f46" /></View>
-          <Text style={styles.emptyTitle}>No inspection history yet</Text>
-          <Text style={styles.emptyText}>Start with move-in. Its future move-out checklist will stay connected here.</Text>
-          <TouchableOpacity style={styles.primaryButton} disabled={Boolean(startingKey)} onPress={() => startMissing(40, null, 'new-in')}>
+        <View style={themed.emptyCard}>
+          <View style={themed.emptyIcon}><Ionicons name="clipboard-outline" size={30} color={mode === 'dark' ? '#86dc9a' : '#2f8f46'} /></View>
+          <Text style={themed.emptyTitle}>No inspection history yet</Text>
+          <Text style={themed.emptyText}>Start with move-in. Its future move-out checklist will stay connected here.</Text>
+          <TouchableOpacity style={themed.primaryButton} disabled={Boolean(startingKey)} onPress={() => startMissing(40, null, 'new-in')}>
             {startingKey === 'new-in' ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="add" size={20} color="#fff" />}
-            <Text style={styles.primaryText}>Start move-in checklist</Text>
+            <Text style={themed.primaryText}>Start move-in checklist</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -199,20 +202,23 @@ function ChecklistSide({
   onOpen: () => void;
   onStart: () => void;
 }) {
+  const { mode } = useAppTheme();
+  const themed = mode === 'dark' ? darkStyles : styles;
+  const displayAccent = mode === 'dark' ? (accent === '#2475cf' ? '#72b6ff' : '#f0b669') : accent;
   const started = checklist ? isChecklistStarted(checklist) : false;
   const action = side && started ? onOpen : onStart;
   return (
-    <View style={styles.side}>
-      <View style={[styles.sideIcon, { backgroundColor: `${accent}18` }]}><Ionicons name={side?.complete ? 'checkmark' : 'walk-outline'} size={21} color={accent} /></View>
-      <View style={styles.flex}>
-        <View style={styles.sideTop}>
-          <Text style={[styles.sideLabel, { color: accent }]}>{side?.label || (accent === '#2475cf' ? 'Move-in' : 'Move-out')}</Text>
-          {!!side && <Text style={styles.progress}>{side.complete ? 'Complete' : `${side.percent}%`}</Text>}
+    <View style={themed.side}>
+      <View style={[themed.sideIcon, { backgroundColor: `${displayAccent}18` }]}><Ionicons name={side?.complete ? 'checkmark' : 'walk-outline'} size={21} color={displayAccent} /></View>
+      <View style={themed.flex}>
+        <View style={themed.sideTop}>
+          <Text style={[themed.sideLabel, { color: displayAccent }]}>{side?.label || (accent === '#2475cf' ? 'Move-in' : 'Move-out')}</Text>
+          {!!side && <Text style={themed.progress}>{side.complete ? 'Complete' : `${side.percent}%`}</Text>}
         </View>
-        <Text style={styles.sideTitle}>{side?.title || 'Not created yet'}</Text>
-        {!!side && <Text style={styles.sideMeta}>{side.done} of {side.total} items · {side.tenantName || 'No tenant linked'}</Text>}
-        <TouchableOpacity style={[styles.sideButton, { borderColor: accent }]} onPress={action} disabled={starting}>
-          {starting ? <ActivityIndicator size="small" color={accent} /> : <Text style={[styles.sideButtonText, { color: accent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || (accent === '#2475cf' ? 'move-in' : 'move-out')}`}</Text>}
+        <Text style={themed.sideTitle}>{side?.title || 'Not created yet'}</Text>
+        {!!side && <Text style={themed.sideMeta}>{side.done} of {side.total} items · {side.tenantName || 'No tenant linked'}</Text>}
+        <TouchableOpacity style={[themed.sideButton, { borderColor: displayAccent }]} onPress={action} disabled={starting}>
+          {starting ? <ActivityIndicator size="small" color={displayAccent} /> : <Text style={[themed.sideButtonText, { color: displayAccent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || (accent === '#2475cf' ? 'move-in' : 'move-out')}`}</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -253,4 +259,28 @@ const styles = StyleSheet.create({
   emptyText: { color: '#697887', fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 6 },
   primaryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: '#2f8f46', borderRadius: 14, paddingHorizontal: 17, marginTop: 17 },
   primaryText: { color: '#fff', fontWeight: '900' },
+});
+
+const darkStyles = StyleSheet.create({
+  ...styles,
+  container: { ...styles.container, backgroundColor: '#101923' },
+  center: { ...styles.center, backgroundColor: '#101923' },
+  heroIcon: { ...styles.heroIcon, backgroundColor: '#1c3a34' },
+  emptyIcon: { ...styles.emptyIcon, backgroundColor: '#1c3a34' },
+  eyebrow: { ...styles.eyebrow, color: '#86dc9a' },
+  cycleEyebrow: { ...styles.cycleEyebrow, color: '#86dc9a' },
+  title: { ...styles.title, color: '#f2f6fa' },
+  emptyTitle: { ...styles.emptyTitle, color: '#f2f6fa' },
+  sideTitle: { ...styles.sideTitle, color: '#f2f6fa' },
+  unit: { ...styles.unit, color: '#72b6ff' },
+  subtitle: { ...styles.subtitle, color: '#b4c3d0' },
+  emptyText: { ...styles.emptyText, color: '#b4c3d0' },
+  sideMeta: { ...styles.sideMeta, color: '#b4c3d0' },
+  progress: { ...styles.progress, color: '#f2f6fa', backgroundColor: '#25394b' },
+  cycleCard: { ...styles.cycleCard, borderTopColor: '#35495b' },
+  emptyCard: { ...styles.emptyCard, borderTopColor: '#35495b' },
+  divider: { ...styles.divider, backgroundColor: '#35495b' },
+  errorCard: { ...styles.errorCard, borderColor: '#8b6531', backgroundColor: '#382d21' },
+  errorTitle: { ...styles.errorTitle, color: '#f8d39b' },
+  errorText: { ...styles.errorText, color: '#e5c59d' },
 });

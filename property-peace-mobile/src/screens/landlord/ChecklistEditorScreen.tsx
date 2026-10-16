@@ -36,6 +36,7 @@ import {
 import type { FailedChecklistUploads } from '../../features/checklists/checklistPhotoModel';
 import type { Checklist, ChecklistCondition, ChecklistItem, ChecklistRoom, Id } from '../../features/checklists/checklistTypes';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type Props = NativeStackScreenProps<ChecklistsStackParamList, 'ChecklistEditor'>;
 type ItemDraft = { notes: string; damageDescription: string };
@@ -44,6 +45,8 @@ const idText = (id?: Id) => String(id ?? '');
 const errorMessage = (error: any, fallback: string) => error?.message || error?.Message || fallback;
 
 export default function ChecklistEditorScreen({ route }: Props) {
+  const { mode, colors } = useAppTheme();
+  const themed = mode === 'dark' ? darkStyles : styles;
   const { checklistId } = route.params;
   const [checklist, setChecklist] = useState<Checklist | null>(null);
   const [counterpart, setCounterpart] = useState<Checklist | null>(null);
@@ -230,13 +233,13 @@ export default function ChecklistEditorScreen({ route }: Props) {
     return next;
   });
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2475cf" /></View>;
+  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
   if (!checklist) return (
-    <View style={styles.center}>
-      <Ionicons name="cloud-offline-outline" size={34} color="#a45f12" />
-      <Text style={styles.loadErrorTitle}>Checklist unavailable</Text>
-      <Text style={styles.loadErrorText}>{error}</Text>
-      <TouchableOpacity style={styles.retryButton} onPress={load}><Text style={styles.retryText}>Retry</Text></TouchableOpacity>
+    <View style={themed.center}>
+      <Ionicons name="cloud-offline-outline" size={34} color={mode === 'dark' ? '#f0b669' : '#a45f12'} />
+      <Text style={themed.loadErrorTitle}>Checklist unavailable</Text>
+      <Text style={themed.loadErrorText}>{error}</Text>
+      <TouchableOpacity style={themed.retryButton} onPress={load}><Text style={themed.retryText}>Retry</Text></TouchableOpacity>
     </View>
   );
 
@@ -245,21 +248,21 @@ export default function ChecklistEditorScreen({ route }: Props) {
     const roomDone = room.items.filter((item) => Boolean(item.condition)).length;
     const renameValue = renameDrafts[room.name] ?? room.name;
     return (
-      <View style={styles.roomCard}>
-        <TouchableOpacity style={styles.roomTop} onPress={() => toggleRoom(room.name)}>
-          <View style={styles.roomIcon}><Ionicons name="home-outline" size={20} color="#2475cf" /></View>
-          <View style={styles.flex}><Text style={styles.roomTitle}>{room.name}</Text><Text style={styles.roomProgress}>{roomDone} of {room.items.length} complete</Text></View>
-          <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={20} color="#71808d" />
+      <View style={themed.roomCard}>
+        <TouchableOpacity style={themed.roomTop} onPress={() => toggleRoom(room.name)}>
+          <View style={themed.roomIcon}><Ionicons name="home-outline" size={20} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
+          <View style={themed.flex}><Text style={themed.roomTitle}>{room.name}</Text><Text style={themed.roomProgress}>{roomDone} of {room.items.length} complete</Text></View>
+          <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={20} color={mode === 'dark' ? colors.muted : '#71808d'} />
         </TouchableOpacity>
         {!collapsed && (
           <View>
-            <View style={styles.renameRow}>
-              <TextInput value={renameValue} onChangeText={(value) => setRenameDrafts((current) => ({ ...current, [room.name]: value }))} style={styles.smallInput} accessibilityLabel={`Rename ${room.name}`} editable={!busy} />
-              <TouchableOpacity style={styles.secondaryButton} onPress={() => renameRoom(room)} disabled={busy}>
-                {savingKey === `rename-${room.name}` ? <ActivityIndicator size="small" color="#2475cf" /> : <Text style={styles.secondaryText}>Rename</Text>}
+            <View style={themed.renameRow}>
+              <TextInput value={renameValue} onChangeText={(value) => setRenameDrafts((current) => ({ ...current, [room.name]: value }))} style={themed.smallInput} accessibilityLabel={`Rename ${room.name}`} editable={!busy} />
+              <TouchableOpacity style={themed.secondaryButton} onPress={() => renameRoom(room)} disabled={busy}>
+                {savingKey === `rename-${room.name}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.secondaryText}>Rename</Text>}
               </TouchableOpacity>
             </View>
-            {room.items.length === 0 ? <Text style={styles.noItems}>Add the first checklist item for this room.</Text> : room.items.map((item) => (
+            {room.items.length === 0 ? <Text style={themed.noItems}>Add the first checklist item for this room.</Text> : room.items.map((item) => (
               <InspectionItem
                 key={idText(item.id)}
                 item={item}
@@ -278,16 +281,16 @@ export default function ChecklistEditorScreen({ route }: Props) {
                 onDelete={() => confirmDelete(item)}
               />
             ))}
-            <View style={styles.addItemRow}>
+            <View style={themed.addItemRow}>
               <TextInput
                 value={itemNameDrafts[room.name] || ''}
                 onChangeText={(value) => setItemNameDrafts((current) => ({ ...current, [room.name]: value }))}
                 placeholder={`Add item to ${room.name}`}
-                placeholderTextColor="#8795a1"
-                style={styles.smallInput}
+                placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'}
+                style={themed.smallInput}
                 editable={!busy}
               />
-              <TouchableOpacity style={styles.addButton} onPress={() => addItem(room)} disabled={busy || !itemNameDrafts[room.name]?.trim()}>
+              <TouchableOpacity style={themed.addButton} onPress={() => addItem(room)} disabled={busy || !itemNameDrafts[room.name]?.trim()}>
                 {savingKey === `add-item-${room.name}` ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="add" size={21} color="#fff" />}
               </TouchableOpacity>
             </View>
@@ -299,35 +302,35 @@ export default function ChecklistEditorScreen({ route }: Props) {
 
   return (
     <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={themed.container}
+      contentContainerStyle={themed.content}
       data={rooms}
       keyExtractor={({ name }) => name.toLowerCase()}
       renderItem={renderRoom}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-      refreshControl={<RefreshControl refreshing={refreshing} enabled={!busy} onRefresh={() => { if (!busy) { setRefreshing(true); load(); } }} tintColor="#2475cf" />}
+      ItemSeparatorComponent={() => <View style={themed.separator} />}
+      refreshControl={<RefreshControl refreshing={refreshing} enabled={!busy} onRefresh={() => { if (!busy) { setRefreshing(true); load(); } }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
       ListHeaderComponent={(
         <View>
-          <Text style={styles.eyebrow}>{Number(checklist.checklistType) === 41 ? 'MOVE-OUT INSPECTION' : 'MOVE-IN INSPECTION'}</Text>
-          <Text style={styles.title}>{checklist.title}</Text>
-          <Text style={styles.subtitle}>Set a condition for each item, then add notes for anything that needs attention.</Text>
+          <Text style={themed.eyebrow}>{Number(checklist.checklistType) === 41 ? 'MOVE-OUT INSPECTION' : 'MOVE-IN INSPECTION'}</Text>
+          <Text style={themed.title}>{checklist.title}</Text>
+          <Text style={themed.subtitle}>Set a condition for each item, then add notes for anything that needs attention.</Text>
           {!!counterpartLoadError && (
-            <View style={styles.counterpartWarning}>
-              <Text style={styles.counterpartWarningText}>{counterpartLoadError} Room changes are paused to keep both inspections matched.</Text>
-              <TouchableOpacity style={styles.counterpartRetryButton} onPress={() => { setRefreshing(true); load(); }} disabled={busy}>
-                <Text style={styles.counterpartRetryText}>Retry connected checklist</Text>
+            <View style={themed.counterpartWarning}>
+              <Text style={themed.counterpartWarningText}>{counterpartLoadError} Room changes are paused to keep both inspections matched.</Text>
+              <TouchableOpacity style={themed.counterpartRetryButton} onPress={() => { setRefreshing(true); load(); }} disabled={busy}>
+                <Text style={themed.counterpartRetryText}>Retry connected checklist</Text>
               </TouchableOpacity>
             </View>
           )}
-          <View style={styles.progressCard}>
-            <Text style={styles.progressValue}>{progress.done} of {progress.total}</Text>
-            <View style={styles.flex}><Text style={styles.progressLabel}>{progress.complete ? 'Inspection complete' : `${progress.percent}% complete`}</Text><View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progress.percent}%` }]} /></View></View>
+          <View style={themed.progressCard}>
+            <Text style={themed.progressValue}>{progress.done} of {progress.total}</Text>
+            <View style={themed.flex}><Text style={themed.progressLabel}>{progress.complete ? 'Inspection complete' : `${progress.percent}% complete`}</Text><View style={themed.progressTrack}><View style={[themed.progressFill, { width: `${progress.percent}%` }]} /></View></View>
           </View>
-          <View style={styles.addRoomCard}>
-            <Text style={styles.addRoomTitle}>Add another room</Text>
-            <View style={styles.addRoomRow}>
-              <TextInput value={roomDraft} onChangeText={setRoomDraft} placeholder="Room name" placeholderTextColor="#8795a1" style={styles.smallInput} editable={!busy} />
-              <TouchableOpacity style={styles.addButton} onPress={addRoom} disabled={busy || !roomDraft.trim()}>
+          <View style={themed.addRoomCard}>
+            <Text style={themed.addRoomTitle}>Add another room</Text>
+            <View style={themed.addRoomRow}>
+              <TextInput value={roomDraft} onChangeText={setRoomDraft} placeholder="Room name" placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'} style={themed.smallInput} editable={!busy} />
+              <TouchableOpacity style={themed.addButton} onPress={addRoom} disabled={busy || !roomDraft.trim()}>
                 {savingKey === 'add-room' ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="add" size={21} color="#fff" />}
               </TouchableOpacity>
             </View>
@@ -354,29 +357,31 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
   onDelete: () => void;
   onChecklistUpdated: (checklist: Checklist) => void;
 }) {
+  const { mode, colors } = useAppTheme();
+  const themed = mode === 'dark' ? darkStyles : styles;
   const key = idText(item.id);
   const savingCondition = savingKey === `condition-${key}`;
   const retry = retryCondition && idText(retryCondition.itemId) === key ? retryCondition : null;
   return (
-    <View style={styles.itemCard}>
-      <View style={styles.itemTop}>
-        <View style={styles.flex}><Text style={styles.itemName}>{item.name}</Text>{!!item.description && <Text style={styles.itemDescription}>{item.description}</Text>}</View>
-        {(item.sortOrder ?? 0) >= 1000 && <TouchableOpacity style={styles.iconButton} onPress={onDelete} disabled={disabled}><Ionicons name="trash-outline" size={19} color="#c2413b" /></TouchableOpacity>}
+    <View style={themed.itemCard}>
+      <View style={themed.itemTop}>
+        <View style={themed.flex}><Text style={themed.itemName}>{item.name}</Text>{!!item.description && <Text style={themed.itemDescription}>{item.description}</Text>}</View>
+        {(item.sortOrder ?? 0) >= 1000 && <TouchableOpacity style={themed.iconButton} onPress={onDelete} disabled={disabled}><Ionicons name="trash-outline" size={19} color={mode === 'dark' ? '#ff918b' : '#c2413b'} /></TouchableOpacity>}
       </View>
-      <View style={styles.conditions}>
+      <View style={themed.conditions}>
         {CHECKLIST_CONDITIONS.map((option) => {
           const selected = item.condition === option.value;
-          return <TouchableOpacity key={option.value} accessibilityLabel={option.label} style={[styles.condition, selected && styles.conditionSelected]} onPress={() => onCondition(option.value)} disabled={disabled}><Text style={[styles.conditionText, selected && styles.conditionTextSelected]}>{option.label}</Text></TouchableOpacity>;
+          return <TouchableOpacity key={option.value} accessibilityLabel={option.label} style={[themed.condition, selected && themed.conditionSelected]} onPress={() => onCondition(option.value)} disabled={disabled}><Text style={[themed.conditionText, selected && themed.conditionTextSelected]}>{option.label}</Text></TouchableOpacity>;
         })}
       </View>
-      {savingCondition && <Text style={styles.savingText}>Saving condition…</Text>}
-      {!!retry && <TouchableOpacity style={styles.retryConditionButton} onPress={() => onCondition(retry.condition)} disabled={disabled}><Text style={styles.retryInline}>Condition not saved · Retry</Text></TouchableOpacity>}
+      {savingCondition && <Text style={themed.savingText}>Saving condition…</Text>}
+      {!!retry && <TouchableOpacity style={themed.retryConditionButton} onPress={() => onCondition(retry.condition)} disabled={disabled}><Text style={themed.retryInline}>Condition not saved · Retry</Text></TouchableOpacity>}
       <TextInput
         value={draft.notes}
         onChangeText={(notes) => onDraft({ ...draft, notes })}
         placeholder="Notes"
-        placeholderTextColor="#8795a1"
-        style={[styles.detailInput, styles.multiline]}
+        placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'}
+        style={[themed.detailInput, themed.multiline]}
         multiline
         editable={!disabled}
       />
@@ -384,12 +389,12 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
         value={draft.damageDescription}
         onChangeText={(damageDescription) => onDraft({ ...draft, damageDescription })}
         placeholder="Damage or repair details (optional)"
-        placeholderTextColor="#8795a1"
-        style={styles.detailInput}
+        placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'}
+        style={themed.detailInput}
         editable={!disabled}
       />
-      <TouchableOpacity style={styles.saveDetailsButton} onPress={onSaveDetails} disabled={disabled}>
-        {savingKey === `details-${key}` ? <ActivityIndicator size="small" color="#2475cf" /> : <Text style={styles.saveDetailsText}>Save notes</Text>}
+      <TouchableOpacity style={themed.saveDetailsButton} onPress={onSaveDetails} disabled={disabled}>
+        {savingKey === `details-${key}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.saveDetailsText}>Save notes</Text>}
       </TouchableOpacity>
       <ChecklistItemPhotos checklistId={checklistId} item={item} disabled={disabled} failedAsset={failedAsset} onFailedAssetChange={onFailedAssetChange} onBusyChange={onBusyChange} onChecklistUpdated={onChecklistUpdated} />
     </View>
@@ -450,4 +455,43 @@ const styles = StyleSheet.create({
   addItemRow: { flexDirection: 'row', gap: 8, paddingVertical: 18, borderTopWidth: 1, borderTopColor: '#e2e7e9' },
   addButton: { width: 46, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#2475cf' },
   separator: { height: 30 },
+});
+
+const darkStyles = StyleSheet.create({
+  ...styles,
+  container: { ...styles.container, backgroundColor: '#101923' },
+  center: { ...styles.center, backgroundColor: '#101923' },
+  eyebrow: { ...styles.eyebrow, color: '#86dc9a' },
+  title: { ...styles.title, color: '#f2f6fa' },
+  subtitle: { ...styles.subtitle, color: '#b4c3d0' },
+  loadErrorTitle: { ...styles.loadErrorTitle, color: '#f2f6fa' },
+  loadErrorText: { ...styles.loadErrorText, color: '#b4c3d0' },
+  counterpartWarning: { ...styles.counterpartWarning, backgroundColor: '#382d21', borderColor: '#8b6531' },
+  counterpartWarningText: { ...styles.counterpartWarningText, color: '#f8d39b' },
+  counterpartRetryText: { ...styles.counterpartRetryText, color: '#f0b669' },
+  progressCard: { ...styles.progressCard, borderColor: '#35495b' },
+  progressValue: { ...styles.progressValue, color: '#f2f6fa' },
+  progressLabel: { ...styles.progressLabel, color: '#b4c3d0' },
+  progressTrack: { ...styles.progressTrack, backgroundColor: '#35495b' },
+  addRoomTitle: { ...styles.addRoomTitle, color: '#f2f6fa' },
+  roomCard: { ...styles.roomCard, borderTopColor: '#35495b' },
+  roomIcon: { ...styles.roomIcon, backgroundColor: '#25394b' },
+  roomTitle: { ...styles.roomTitle, color: '#f2f6fa' },
+  roomProgress: { ...styles.roomProgress, color: '#b4c3d0' },
+  smallInput: { ...styles.smallInput, borderColor: '#35495b', backgroundColor: '#1b2937', color: '#f2f6fa' },
+  secondaryButton: { ...styles.secondaryButton, borderColor: '#72b6ff' },
+  secondaryText: { ...styles.secondaryText, color: '#72b6ff' },
+  noItems: { ...styles.noItems, color: '#b4c3d0' },
+  itemCard: { ...styles.itemCard, borderTopColor: '#35495b' },
+  itemName: { ...styles.itemName, color: '#f2f6fa' },
+  itemDescription: { ...styles.itemDescription, color: '#b4c3d0' },
+  condition: { ...styles.condition, borderColor: '#35495b', backgroundColor: '#1b2937' },
+  conditionText: { ...styles.conditionText, color: '#d9e6ef' },
+  conditionTextSelected: { ...styles.conditionTextSelected, color: '#fff' },
+  savingText: { ...styles.savingText, color: '#72b6ff' },
+  retryInline: { ...styles.retryInline, color: '#f0b669' },
+  detailInput: { ...styles.detailInput, borderColor: '#35495b', backgroundColor: '#1b2937', color: '#f2f6fa' },
+  saveDetailsButton: { ...styles.saveDetailsButton, backgroundColor: '#25394b' },
+  saveDetailsText: { ...styles.saveDetailsText, color: '#72b6ff' },
+  addItemRow: { ...styles.addItemRow, borderTopColor: '#35495b' },
 });

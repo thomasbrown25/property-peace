@@ -15,6 +15,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import { buildPropertyChecklistEntry } from '../../features/checklists/checklistNavigationModel';
+import { useAppTheme } from '../../theme/AppTheme';
 type PropertyDetailRoute = RouteProp<PropertiesStackParamList, 'PropertyDetail'>;
 
 type PropertyDetailNavigation = NativeStackNavigationProp<PropertiesStackParamList, 'PropertyDetail'>;
@@ -37,6 +38,8 @@ const numberValue = (...values: any[]) => {
 const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 
 export default function PropertyDetailScreen() {
+  const { mode, colors } = useAppTheme();
+  const styles = mode === 'dark' ? darkStyles : lightStyles;
   const route = useRoute<PropertyDetailRoute>();
   const navigation = useNavigation<PropertyDetailNavigation>();
   const { propertyId } = route.params;
@@ -71,7 +74,7 @@ export default function PropertyDetailScreen() {
     return { units, name, street, locality, imageUrl, occupied, rent };
   }, [property]);
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2475cf" /></View>;
+  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
   if (error || !property || !details) {
     return (
@@ -88,11 +91,11 @@ export default function PropertyDetailScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperty(); }} tintColor="#2475cf" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperty(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
     >
       <View style={styles.heroCard}>
         {details.imageUrl ? <Image source={{ uri: details.imageUrl }} style={styles.heroImage} /> : (
-          <View style={styles.heroImageFallback}><Ionicons name="home" size={52} color="#2475cf" /></View>
+          <View style={styles.heroImageFallback}><Ionicons name="home" size={52} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
         )}
         <View style={styles.heroBody}>
           <Text style={styles.eyebrow}>PROPERTY HUB</Text>
@@ -111,10 +114,10 @@ export default function PropertyDetailScreen() {
 
       <Text style={styles.sectionTitle}>On-site actions</Text>
       <View style={styles.actionList}>
-        <ActionRow icon="clipboard-outline" title="Open checklists" subtitle="Complete move-in and move-out items" color="#2f8f46" background="#edf9ef" onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
-        <ActionRow icon="construct-outline" title="Maintenance workflow" subtitle="Review and manage open requests" color="#d94d63" background="#fff0f3" onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} />
-        <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color="#2475cf" background="#eaf3ff" onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
-        <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color="#8b5bb7" background="#f5effb" onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
+        <ActionRow icon="clipboard-outline" title="Open checklists" subtitle="Complete move-in and move-out items" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
+        <ActionRow icon="construct-outline" title="Maintenance workflow" subtitle="Review and manage open requests" color={mode === 'dark' ? '#ff9bad' : '#d94d63'} background={mode === 'dark' ? '#442b38' : '#fff0f3'} onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} />
+        <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color={mode === 'dark' ? colors.accent : '#2475cf'} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
+        <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color={mode === 'dark' ? '#d2a9f4' : '#8b5bb7'} background={mode === 'dark' ? '#392d49' : '#f5effb'} onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
       </View>
 
       <View style={styles.sectionHeader}>
@@ -123,7 +126,7 @@ export default function PropertyDetailScreen() {
       </View>
       {details.units.length === 0 ? (
         <View style={styles.emptyCard}>
-          <Ionicons name="business-outline" size={27} color="#71808d" />
+          <Ionicons name="business-outline" size={27} color={mode === 'dark' ? colors.muted : '#71808d'} />
           <Text style={styles.emptyTitle}>No units to show</Text>
           <Text style={styles.emptyText}>Add or manage units in the web app, then use them here for maintenance and checklists.</Text>
         </View>
@@ -135,13 +138,13 @@ export default function PropertyDetailScreen() {
             const unitId = String(unit.id || unit.Id || index);
             return (
               <View key={unitId} style={styles.unitCard}>
-                <View style={styles.unitIcon}><Ionicons name="key-outline" size={21} color="#2475cf" /></View>
+                <View style={styles.unitIcon}><Ionicons name="key-outline" size={21} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
                 <View style={styles.unitCopy}>
                   <Text style={styles.unitName}>{stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber, `Unit ${index + 1}`)}</Text>
                   <Text style={styles.unitMeta}>{status}{rent > 0 ? ` · ${currency(rent)}/mo` : ''}</Text>
                 </View>
                 <TouchableOpacity style={styles.unitAction} onPress={() => navigation.getParent<any>()?.navigate('Maintenance', { screen: 'MaintenanceList' })} accessibilityLabel="Open maintenance workflow">
-                  <Ionicons name="construct-outline" size={20} color="#0b3558" />
+                  <Ionicons name="construct-outline" size={20} color={mode === 'dark' ? colors.accent : '#0b3558'} />
                 </TouchableOpacity>
               </View>
             );
@@ -153,20 +156,24 @@ export default function PropertyDetailScreen() {
 }
 
 function Snapshot({ label, value }: { label: string; value: string }) {
+  const { mode } = useAppTheme();
+  const styles = mode === 'dark' ? darkStyles : lightStyles;
   return <View style={styles.snapshot}><Text style={styles.snapshotValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text><Text style={styles.snapshotLabel}>{label}</Text></View>;
 }
 
 function ActionRow({ icon, title, subtitle, color, background, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; color: string; background: string; onPress: () => void }) {
+  const { mode, colors } = useAppTheme();
+  const styles = mode === 'dark' ? darkStyles : lightStyles;
   return (
     <TouchableOpacity style={styles.actionRow} onPress={onPress} activeOpacity={0.82}>
       <View style={[styles.actionIcon, { backgroundColor: background }]}><Ionicons name={icon} size={24} color={color} /></View>
       <View style={styles.actionCopy}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionSubtitle}>{subtitle}</Text></View>
-      <Ionicons name="chevron-forward" size={20} color="#8c9aa6" />
+      <Ionicons name="chevron-forward" size={20} color={mode === 'dark' ? colors.muted : '#8c9aa6'} />
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   content: { padding: 18, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fbf7f4' },
@@ -208,4 +215,38 @@ const styles = StyleSheet.create({
   unitName: { color: '#102d43', fontSize: 15, fontWeight: '900' },
   unitMeta: { color: '#71808d', fontSize: 12, marginTop: 3 },
   unitAction: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f4f7f9' },
+});
+
+const darkStyles = StyleSheet.create({
+  ...lightStyles,
+  container: { ...lightStyles.container, backgroundColor: '#101923' },
+  center: { ...lightStyles.center, backgroundColor: '#101923' },
+  errorIcon: { ...lightStyles.errorIcon, backgroundColor: '#493a25' },
+  errorTitle: { ...lightStyles.errorTitle, color: '#f2f6fa' },
+  errorText: { ...lightStyles.errorText, color: '#b4c3d0' },
+  heroImage: { ...lightStyles.heroImage, backgroundColor: '#233e59' },
+  heroImageFallback: { ...lightStyles.heroImageFallback, backgroundColor: '#233e59' },
+  eyebrow: { ...lightStyles.eyebrow, color: '#89dda0' },
+  title: { ...lightStyles.title, color: '#f2f6fa' },
+  address: { ...lightStyles.address, color: '#dbe5ee' },
+  locality: { ...lightStyles.locality, color: '#b4c3d0' },
+  snapshotRow: { ...lightStyles.snapshotRow, borderColor: '#35495b' },
+  snapshotDivider: { ...lightStyles.snapshotDivider, backgroundColor: '#35495b' },
+  snapshotValue: { ...lightStyles.snapshotValue, color: '#f2f6fa' },
+  snapshotLabel: { ...lightStyles.snapshotLabel, color: '#b4c3d0' },
+  sectionTitle: { ...lightStyles.sectionTitle, color: '#f2f6fa' },
+  actionRow: { ...lightStyles.actionRow, borderBottomColor: '#35495b' },
+  actionTitle: { ...lightStyles.actionTitle, color: '#f2f6fa' },
+  actionSubtitle: { ...lightStyles.actionSubtitle, color: '#b4c3d0' },
+  countChip: { ...lightStyles.countChip, backgroundColor: '#233e59' },
+  countText: { ...lightStyles.countText, color: '#72b6ff' },
+  emptyCard: { ...lightStyles.emptyCard, borderTopColor: '#35495b' },
+  emptyTitle: { ...lightStyles.emptyTitle, color: '#f2f6fa' },
+  emptyText: { ...lightStyles.emptyText, color: '#b4c3d0' },
+  unitList: { ...lightStyles.unitList, borderTopColor: '#35495b' },
+  unitCard: { ...lightStyles.unitCard, borderBottomColor: '#35495b' },
+  unitIcon: { ...lightStyles.unitIcon, backgroundColor: '#233e59' },
+  unitName: { ...lightStyles.unitName, color: '#f2f6fa' },
+  unitMeta: { ...lightStyles.unitMeta, color: '#b4c3d0' },
+  unitAction: { ...lightStyles.unitAction, backgroundColor: '#1b2937' },
 });

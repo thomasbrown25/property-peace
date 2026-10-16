@@ -3,10 +3,13 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, Touchabl
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus, isClosedStatus } from '../../features/maintenance/maintenanceModel';
+import { useAppTheme } from '../../theme/AppTheme';
 
 const value = (item: any, key: string) => item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
 
 export default function TenantMaintenanceScreen() {
+  const { mode, colors } = useAppTheme();
+  const dark = mode === 'dark';
   const navigation = useNavigation<any>();
   const [tab, setTab] = useState<'current' | 'history'>('current');
   const [items, setItems] = useState<MaintenanceRequest[]>([]);
@@ -27,40 +30,40 @@ export default function TenantMaintenanceScreen() {
   }, [tab]);
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
-  return <View style={styles.page}>
+  return <View style={[styles.page, dark && { backgroundColor: colors.background }]}>
     <View style={styles.hero}>
-      <Text style={styles.eyebrow}>YOUR HOME</Text>
-      <Text style={styles.heading}>Repairs & maintenance</Text>
-      <Text style={styles.sub}>Report an issue, see who is handling it, and follow every update.</Text>
+      <Text style={[styles.eyebrow, dark && { color: '#ff9cae' }]}>YOUR HOME</Text>
+      <Text style={[styles.heading, dark && { color: colors.text }]}>Repairs & maintenance</Text>
+      <Text style={[styles.sub, dark && { color: colors.muted }]}>Report an issue, see who is handling it, and follow every update.</Text>
     </View>
-    <TouchableOpacity accessibilityRole="button" style={styles.newButton} onPress={() => navigation.navigate('TenantMaintenanceIntake')}>
+    <TouchableOpacity accessibilityRole="button" style={[styles.newButton, dark && { backgroundColor: '#357bd0' }]} onPress={() => navigation.navigate('TenantMaintenanceIntake')}>
       <Text style={styles.newText}>+ Report an issue</Text>
     </TouchableOpacity>
-    <View style={styles.tabs}>
-      {(['current', 'history'] as const).map((name) => <TouchableOpacity key={name} style={[styles.tab, tab === name && styles.tabActive]} onPress={() => setTab(name)}>
-        <Text style={[styles.tabText, tab === name && styles.tabTextActive]}>{name === 'current' ? 'Current' : 'History'}</Text>
+    <View style={[styles.tabs, dark && { borderBottomColor: colors.border }]}>
+      {(['current', 'history'] as const).map((name) => <TouchableOpacity key={name} style={[styles.tab, tab === name && styles.tabActive, dark && tab === name && { borderBottomColor: colors.accent }]} onPress={() => setTab(name)}>
+        <Text style={[styles.tabText, tab === name && styles.tabTextActive, dark && { color: tab === name ? colors.text : colors.muted }]}>{name === 'current' ? 'Current' : 'History'}</Text>
       </TouchableOpacity>)}
     </View>
-    {loading ? <ActivityIndicator style={{ marginTop: 40 }} color="#0b5cab" /> : <FlatList
+    {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={dark ? colors.accent : '#0b5cab'} /> : <FlatList
       data={items}
       keyExtractor={(x, i) => String(value(x, 'id') ?? i)}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+      refreshControl={<RefreshControl refreshing={refreshing} tintColor={dark ? colors.accent : '#0b5cab'} onRefresh={() => { setRefreshing(true); load(); }} />}
       contentContainerStyle={styles.list}
-      ItemSeparatorComponent={() => <View style={styles.divider} />}
+      ItemSeparatorComponent={() => <View style={[styles.divider, dark && { backgroundColor: colors.border }]} />}
       ListHeaderComponent={<View>
-        {error && <View style={styles.error}><Text style={styles.errorText}>{error}</Text><TouchableOpacity onPress={load}><Text style={styles.retry}>Try again</Text></TouchableOpacity></View>}
-        {items.length > 0 && <Text style={styles.listLabel}>{tab === 'current' ? 'OPEN REQUESTS' : 'PAST REQUESTS'}</Text>}
+        {error && <View style={[styles.error, dark && { backgroundColor: '#432630' }]}><Text style={[styles.errorText, dark && { color: '#ffb8c2' }]}>{error}</Text><TouchableOpacity onPress={load}><Text style={[styles.retry, dark && { color: colors.accent }]}>Try again</Text></TouchableOpacity></View>}
+        {items.length > 0 && <Text style={[styles.listLabel, dark && { color: colors.muted }]}>{tab === 'current' ? 'OPEN REQUESTS' : 'PAST REQUESTS'}</Text>}
       </View>}
-      ListEmptyComponent={<View style={styles.empty}><Text style={styles.emptyTitle}>{tab === 'current' ? 'No open repairs' : 'No repair history'}</Text><Text style={styles.sub}>{tab === 'current' ? 'When something needs attention, start a structured report here.' : 'Completed and cancelled requests will appear here.'}</Text></View>}
+      ListEmptyComponent={<View style={styles.empty}><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{tab === 'current' ? 'No open repairs' : 'No repair history'}</Text><Text style={[styles.sub, dark && { color: colors.muted }]}>{tab === 'current' ? 'When something needs attention, start a structured report here.' : 'Completed and cancelled requests will appear here.'}</Text></View>}
       renderItem={({ item }) => {
         const status = value(item, 'status');
         return <TouchableOpacity style={styles.requestRow} onPress={() => navigation.navigate('TenantMaintenanceDetail', { requestId: String(value(item, 'id')), listItem: item })}>
           <View style={styles.rowTop}>
-            <Text style={styles.rowTitle} numberOfLines={2}>{value(item, 'title') || 'Maintenance request'}</Text>
-            <Text style={[styles.status, isClosedStatus(status) && styles.statusClosed]}>{displayStatus(status)}</Text>
+            <Text style={[styles.rowTitle, dark && { color: colors.text }]} numberOfLines={2}>{value(item, 'title') || 'Maintenance request'}</Text>
+            <Text style={[styles.status, isClosedStatus(status) && styles.statusClosed, dark && { color: isClosedStatus(status) ? '#8cdda4' : '#ffd28b' }]}>{displayStatus(status)}</Text>
           </View>
-          <Text style={styles.description} numberOfLines={2}>{value(item, 'description')}</Text>
-          <Text style={styles.meta}>{value(item, 'unitName') || value(item, 'location') || 'Your unit'}  ·  Tap for timeline</Text>
+          <Text style={[styles.description, dark && { color: colors.muted }]} numberOfLines={2}>{value(item, 'description')}</Text>
+          <Text style={[styles.meta, dark && { color: colors.muted }]}>{value(item, 'unitName') || value(item, 'location') || 'Your unit'}  ·  Tap for timeline</Text>
         </TouchableOpacity>;
       }}
     />}
@@ -80,7 +83,7 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: '#0b5cab' },
   tabText: { fontWeight: '700', color: '#60717e' },
   tabTextActive: { color: '#102d43', fontWeight: '800' },
-  list: { paddingHorizontal: 20, paddingBottom: 40, flexGrow: 1 },
+  list: { paddingHorizontal: 20, paddingBottom: 126, flexGrow: 1 },
   listLabel: { paddingTop: 22, paddingBottom: 5, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: '#778794' },
   requestRow: { paddingVertical: 19 },
   divider: { height: 1, backgroundColor: '#e8edf0' },

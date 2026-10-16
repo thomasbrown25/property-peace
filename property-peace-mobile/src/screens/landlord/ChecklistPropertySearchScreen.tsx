@@ -20,6 +20,7 @@ import {
 } from '../../features/checklists/checklistHomeModel';
 import { buildChecklistHomeParams, findPreselectedProperty } from '../../features/checklists/checklistNavigationModel';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type Props = NativeStackScreenProps<ChecklistsStackParamList, 'ChecklistPropertySearch'>;
 
@@ -28,6 +29,8 @@ const unitId = (unit: Unit) => String(unit.id ?? unit.Id ?? '');
 const unitName = (unit: Unit) => String(unit.name ?? unit.Name ?? `Unit ${unitId(unit)}`);
 
 export default function ChecklistPropertySearchScreen({ navigation, route }: Props) {
+  const { mode, colors } = useAppTheme();
+  const themed = mode === 'dark' ? darkStyles : styles;
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -83,41 +86,41 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
     navigation.navigate('PropertyChecklists', params);
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#2475cf" /></View>;
+  if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
   return (
     <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={themed.container}
+      contentContainerStyle={themed.content}
       data={visibleProperties}
       keyExtractor={(item) => propertyId(item)}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#2475cf" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
       ListHeaderComponent={(
         <View>
-          <View style={styles.hero}>
-            <View style={styles.heroIcon}><Ionicons name="clipboard-outline" size={28} color="#2f8f46" /></View>
-            <View style={styles.heroCopy}>
-              <Text style={styles.eyebrow}>PROPERTY INSPECTIONS</Text>
-              <Text style={styles.title}>Find the home</Text>
-              <Text style={styles.subtitle}>Choose a property to start or continue move-in and move-out checklists.</Text>
+          <View style={themed.hero}>
+            <View style={themed.heroIcon}><Ionicons name="clipboard-outline" size={28} color={mode === 'dark' ? '#86dc9a' : '#2f8f46'} /></View>
+            <View style={themed.heroCopy}>
+              <Text style={themed.eyebrow}>PROPERTY INSPECTIONS</Text>
+              <Text style={themed.title}>Find the home</Text>
+              <Text style={themed.subtitle}>Choose a property to start or continue move-in and move-out checklists.</Text>
             </View>
           </View>
-          <View style={styles.searchWrap}>
-            <Ionicons name="search" size={20} color="#70808d" />
+          <View style={themed.searchWrap}>
+            <Ionicons name="search" size={20} color={mode === 'dark' ? colors.muted : '#70808d'} />
             <TextInput
               value={search}
               onChangeText={setSearch}
               placeholder="Search name or address"
-              placeholderTextColor="#8795a1"
-              style={styles.searchInput}
+              placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'}
+              style={themed.searchInput}
               accessibilityLabel="Search properties"
               autoCapitalize="none"
             />
           </View>
           {!!error && (
-            <TouchableOpacity style={styles.errorCard} onPress={load}>
-              <Ionicons name="cloud-offline-outline" size={21} color="#a45f12" />
-              <View style={styles.flex}><Text style={styles.errorTitle}>Properties are unavailable</Text><Text style={styles.errorText}>{error} Tap to retry.</Text></View>
+            <TouchableOpacity style={themed.errorCard} onPress={load}>
+              <Ionicons name="cloud-offline-outline" size={21} color={mode === 'dark' ? '#f0b669' : '#a45f12'} />
+              <View style={themed.flex}><Text style={themed.errorTitle}>Properties are unavailable</Text><Text style={themed.errorText}>{error} Tap to retry.</Text></View>
             </TouchableOpacity>
           )}
         </View>
@@ -127,52 +130,52 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
         const address = getChecklistPropertyAddress(item);
         return (
           <TouchableOpacity
-            style={[styles.propertyCard, selected && styles.propertyCardSelected]}
+            style={[themed.propertyCard, selected && themed.propertyCardSelected]}
             onPress={() => setSelectedProperty(item)}
             accessibilityRole="radio"
             accessibilityState={{ selected }}
           >
-            <View style={[styles.propertyIcon, selected && styles.propertyIconSelected]}><Ionicons name="home-outline" size={23} color={selected ? '#fff' : '#2475cf'} /></View>
-            <View style={styles.flex}>
-              <Text style={styles.propertyName}>{getChecklistPropertyLabel(item)}</Text>
-              {!!address && <Text style={styles.propertyAddress}>{address}</Text>}
+            <View style={[themed.propertyIcon, selected && themed.propertyIconSelected]}><Ionicons name="home-outline" size={23} color={selected ? '#fff' : mode === 'dark' ? colors.accent : '#2475cf'} /></View>
+            <View style={themed.flex}>
+              <Text style={themed.propertyName}>{getChecklistPropertyLabel(item)}</Text>
+              {!!address && <Text style={themed.propertyAddress}>{address}</Text>}
             </View>
-            <Ionicons name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={23} color={selected ? '#2f8f46' : '#aab5be'} />
+            <Ionicons name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={23} color={selected ? (mode === 'dark' ? '#86dc9a' : '#2f8f46') : (mode === 'dark' ? colors.muted : '#aab5be')} />
           </TouchableOpacity>
         );
       }}
-      ItemSeparatorComponent={() => <View style={styles.separator} />}
-      ListEmptyComponent={!error ? <View style={styles.empty}><Text style={styles.emptyTitle}>No matching properties</Text><Text style={styles.emptyText}>Try a different name or address.</Text></View> : null}
+      ItemSeparatorComponent={() => <View style={themed.separator} />}
+      ListEmptyComponent={!error ? <View style={themed.empty}><Text style={themed.emptyTitle}>No matching properties</Text><Text style={themed.emptyText}>Try a different name or address.</Text></View> : null}
       ListFooterComponent={selectedProperty ? (
-        <View style={styles.footer}>
+        <View style={themed.footer}>
           {needsUnit && (
-            <View style={styles.unitCard}>
-              <Text style={styles.unitTitle}>Select a unit</Text>
-              <Text style={styles.unitHelp}>Checklists for this property are organized by unit.</Text>
-              {unitsLoading && <ActivityIndicator color="#2475cf" style={styles.unitLoader} />}
-              {!!unitsError && <TouchableOpacity onPress={() => setSelectedProperty({ ...selectedProperty })}><Text style={styles.unitError}>{unitsError} Tap to retry.</Text></TouchableOpacity>}
+            <View style={themed.unitCard}>
+              <Text style={themed.unitTitle}>Select a unit</Text>
+              <Text style={themed.unitHelp}>Checklists for this property are organized by unit.</Text>
+              {unitsLoading && <ActivityIndicator color={mode === 'dark' ? colors.accent : '#2475cf'} style={themed.unitLoader} />}
+              {!!unitsError && <TouchableOpacity onPress={() => setSelectedProperty({ ...selectedProperty })}><Text style={themed.unitError}>{unitsError} Tap to retry.</Text></TouchableOpacity>}
               {!unitsLoading && !unitsError && units.map((unit) => {
                 const selected = unitId(selectedUnit ?? {}) === unitId(unit);
                 return (
-                  <TouchableOpacity key={unitId(unit)} style={[styles.unitRow, selected && styles.unitRowSelected]} onPress={() => setSelectedUnit(unit)}>
-                    <Text style={[styles.unitName, selected && styles.unitNameSelected]}>{unitName(unit)}</Text>
-                    {selected && <Ionicons name="checkmark" size={19} color="#2f8f46" />}
+                  <TouchableOpacity key={unitId(unit)} style={[themed.unitRow, selected && themed.unitRowSelected]} onPress={() => setSelectedUnit(unit)}>
+                    <Text style={[themed.unitName, selected && themed.unitNameSelected]}>{unitName(unit)}</Text>
+                    {selected && <Ionicons name="checkmark" size={19} color={mode === 'dark' ? '#86dc9a' : '#2f8f46'} />}
                   </TouchableOpacity>
                 );
               })}
-              {!unitsLoading && !unitsError && units.length === 0 && <Text style={styles.unitError}>No units were found for this property.</Text>}
+              {!unitsLoading && !unitsError && units.length === 0 && <Text style={themed.unitError}>No units were found for this property.</Text>}
             </View>
           )}
           <TouchableOpacity
-            style={[styles.continueButton, !canContinue && styles.continueButtonDisabled]}
+            style={[themed.continueButton, !canContinue && themed.continueButtonDisabled]}
             disabled={!canContinue}
             onPress={openHome}
           >
-            <Text style={styles.continueText}>Open checklists</Text>
+            <Text style={themed.continueText}>Open checklists</Text>
             <Ionicons name="arrow-forward" size={19} color="#fff" />
           </TouchableOpacity>
         </View>
-      ) : <View style={styles.bottomSpace} />}
+      ) : <View style={themed.bottomSpace} />}
     />
   );
 }
@@ -217,4 +220,36 @@ const styles = StyleSheet.create({
   continueButtonDisabled: { opacity: 0.45 },
   continueText: { color: '#fff', fontSize: 15, fontWeight: '900' },
   bottomSpace: { height: 30 },
+});
+
+const darkStyles = StyleSheet.create({
+  ...styles,
+  container: { ...styles.container, backgroundColor: '#101923' },
+  center: { ...styles.center, backgroundColor: '#101923' },
+  heroIcon: { ...styles.heroIcon, backgroundColor: '#1c3a34' },
+  eyebrow: { ...styles.eyebrow, color: '#86dc9a' },
+  title: { ...styles.title, color: '#f2f6fa' },
+  subtitle: { ...styles.subtitle, color: '#b4c3d0' },
+  searchWrap: { ...styles.searchWrap, backgroundColor: '#1b2937', borderColor: '#35495b' },
+  searchInput: { ...styles.searchInput, color: '#f2f6fa' },
+  errorCard: { ...styles.errorCard, backgroundColor: '#382d21', borderColor: '#8b6531' },
+  errorTitle: { ...styles.errorTitle, color: '#f8d39b' },
+  errorText: { ...styles.errorText, color: '#e5c59d' },
+  propertyCard: { ...styles.propertyCard, borderBottomColor: '#35495b' },
+  propertyCardSelected: { ...styles.propertyCardSelected, backgroundColor: '#1c3a34', borderBottomColor: '#5baf73' },
+  propertyIcon: { ...styles.propertyIcon, backgroundColor: '#25394b' },
+  propertyIconSelected: { ...styles.propertyIconSelected, backgroundColor: '#2f8f46' },
+  propertyName: { ...styles.propertyName, color: '#f2f6fa' },
+  propertyAddress: { ...styles.propertyAddress, color: '#b4c3d0' },
+  empty: { ...styles.empty, borderTopColor: '#35495b' },
+  emptyTitle: { ...styles.emptyTitle, color: '#f2f6fa' },
+  emptyText: { ...styles.emptyText, color: '#b4c3d0' },
+  unitCard: { ...styles.unitCard, borderTopColor: '#35495b' },
+  unitTitle: { ...styles.unitTitle, color: '#f2f6fa' },
+  unitHelp: { ...styles.unitHelp, color: '#b4c3d0' },
+  unitError: { ...styles.unitError, color: '#f0b669' },
+  unitRow: { ...styles.unitRow, borderBottomColor: '#35495b' },
+  unitRowSelected: { ...styles.unitRowSelected, backgroundColor: '#1c3a34', borderBottomColor: '#5baf73' },
+  unitName: { ...styles.unitName, color: '#d9e6ef' },
+  unitNameSelected: { ...styles.unitNameSelected, color: '#9ee3ae' },
 });

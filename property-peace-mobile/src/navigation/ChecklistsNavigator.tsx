@@ -4,18 +4,20 @@ import { ChecklistsStackParamList } from './checklistsTypes';
 import ChecklistPropertySearchScreen from '../screens/landlord/ChecklistPropertySearchScreen';
 import PropertyChecklistsScreen from '../screens/landlord/PropertyChecklistsScreen';
 import ChecklistEditorScreen from '../screens/landlord/ChecklistEditorScreen';
+import { useAppTheme } from '../theme/AppTheme';
 
 const Stack = createNativeStackNavigator<ChecklistsStackParamList>();
 
 export default function ChecklistsNavigator() {
+  const { mode, colors } = useAppTheme();
   return (
     <Stack.Navigator
       screenOptions={{
-        headerTintColor: '#0b3558',
-        headerTitleStyle: { fontWeight: '800', color: '#102d43' },
+        headerTintColor: mode === 'dark' ? colors.text : '#0b3558',
+        headerTitleStyle: { fontWeight: '800', color: mode === 'dark' ? colors.text : '#102d43' },
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: '#fbf7f4' },
-        contentStyle: { backgroundColor: '#fbf7f4' },
+        headerStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },
+        contentStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },
       }}
     >
       <Stack.Screen name="ChecklistPropertySearch" component={ChecklistPropertySearchScreen} options={{ title: 'Property checklists' }} />

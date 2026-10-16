@@ -40,6 +40,7 @@ import { maintenanceAudience } from '../features/maintenance/maintenanceModel';
 import ChecklistsNavigator from './ChecklistsNavigator';
 import { resolveVisibleMainTabs, type MainTabComponentRegistry } from './mainTabModel';
 import UnsupportedRoleScreen from '../screens/UnsupportedRoleScreen';
+import { useAppTheme } from '../theme/AppTheme';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
@@ -49,15 +50,20 @@ const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 const TenantsStack = createNativeStackNavigator<TenantsStackParamList>();
 const LeasesStack = createNativeStackNavigator<LeasesStackParamList>();
 
-const stackOptions = {
-  headerTintColor: '#0b3558',
-  headerTitleStyle: { fontWeight: '800' as const, color: '#102d43' },
-  headerShadowVisible: false,
-  headerStyle: { backgroundColor: '#fbf7f4' },
-  contentStyle: { backgroundColor: '#fbf7f4' },
-};
+function useStackOptions() {
+  const { mode, colors } = useAppTheme();
+  const background = mode === 'dark' ? colors.background : '#fbf7f4';
+  return {
+    headerTintColor: mode === 'dark' ? colors.text : '#0b3558',
+    headerTitleStyle: { fontWeight: '800' as const, color: colors.text },
+    headerShadowVisible: false,
+    headerStyle: { backgroundColor: background },
+    contentStyle: { backgroundColor: background },
+  };
+}
 
 function DashboardNavigator() {
+  const stackOptions = useStackOptions();
   return (
     <DashboardStack.Navigator screenOptions={stackOptions}>
       <DashboardStack.Screen name="DashboardHome" component={DashboardScreen} options={{ headerShown: false }} />
@@ -68,6 +74,7 @@ function DashboardNavigator() {
 }
 
 function PropertiesNavigator() {
+  const stackOptions = useStackOptions();
   return (
     <PropertiesStack.Navigator screenOptions={stackOptions}>
       <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ headerShown: false }} />
@@ -79,6 +86,7 @@ function PropertiesNavigator() {
 }
 
 function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
+  const stackOptions = useStackOptions();
   return (
     <MaintenanceStack.Navigator screenOptions={stackOptions}>
       {tenant ? <>
@@ -101,6 +109,7 @@ function TenantMaintenanceNavigator() {
 
 
 function MessagesNavigator() {
+  const stackOptions = useStackOptions();
   return (
     <MessagesStack.Navigator screenOptions={stackOptions}>
       <MessagesStack.Screen name="MessagesList" component={MessagesScreen} options={{ headerShown: false }} />
@@ -110,6 +119,7 @@ function MessagesNavigator() {
 }
 
 function TenantsNavigator() {
+  const stackOptions = useStackOptions();
   return (
     <TenantsStack.Navigator screenOptions={stackOptions}>
       <TenantsStack.Screen name="TenantsList" component={TenantsScreen} options={{ title: 'Tenants' }} />
@@ -119,6 +129,7 @@ function TenantsNavigator() {
 }
 
 function LeasesNavigator() {
+  const stackOptions = useStackOptions();
   return (
     <LeasesStack.Navigator screenOptions={stackOptions}>
       <LeasesStack.Screen name="LeasesList" component={LeasesScreen} options={{ title: 'Leases' }} />

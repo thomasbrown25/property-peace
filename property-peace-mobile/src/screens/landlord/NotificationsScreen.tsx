@@ -2,10 +2,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
+import { useAppTheme } from '../../theme/AppTheme';
 
 const isUnread = (item: AppNotification) => item.isRead === false || item.IsRead === false;
 
 export default function NotificationsScreen() {
+  const { mode, colors } = useAppTheme();
+  const styles = mode === 'dark' ? darkStyles : lightStyles;
   const insets = useSafeAreaInsets();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +67,7 @@ export default function NotificationsScreen() {
     }
   };
 
-  if (loading) return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#1976d2" /></View>;
+  if (loading) return <View style={[styles.centerContainer, { backgroundColor: mode === 'dark' ? colors.background : '#fff' }]}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#1976d2'} /></View>;
 
   const hasUnread = notifications.some(isUnread);
 
@@ -82,7 +85,7 @@ export default function NotificationsScreen() {
         keyExtractor={(item, index) => String(item.id ?? item.Id ?? index)}
         contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
         ItemSeparatorComponent={() => <View style={styles.divider} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={mode === 'dark' ? colors.accent : undefined} />}
         ListHeaderComponent={(
           <View>
             <View style={styles.headingRow}>
@@ -141,7 +144,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 20, paddingBottom: 36, flexGrow: 1 },
@@ -172,4 +175,27 @@ const styles = StyleSheet.create({
   emptySubtext: { color: '#777', textAlign: 'center', lineHeight: 20 },
   emptyRetryButton: { marginTop: 16, minHeight: 44, paddingHorizontal: 20, justifyContent: 'center', borderRadius: 8, backgroundColor: '#1976d2' },
   emptyRetryText: { color: '#fff', fontWeight: '700' },
+});
+
+const darkStyles = StyleSheet.create({
+  ...lightStyles,
+  container: { ...lightStyles.container, backgroundColor: '#101923' },
+  centerContainer: { ...lightStyles.centerContainer, backgroundColor: '#101923' },
+  heading: { ...lightStyles.heading, color: '#f2f6fa' },
+  headingSub: { ...lightStyles.headingSub, color: '#b4c3d0' },
+  sectionRow: { ...lightStyles.sectionRow, borderBottomColor: '#35495b' },
+  sectionLabel: { ...lightStyles.sectionLabel, color: '#b4c3d0' },
+  errorBanner: { ...lightStyles.errorBanner, backgroundColor: '#493a25', borderLeftColor: '#f5b967' },
+  errorText: { ...lightStyles.errorText, color: '#ffe0a6' },
+  retryText: { ...lightStyles.retryText, color: '#72b6ff' },
+  markAllText: { ...lightStyles.markAllText, color: '#72b6ff' },
+  unreadIndicator: { ...lightStyles.unreadIndicator, backgroundColor: '#72b6ff' },
+  divider: { ...lightStyles.divider, backgroundColor: '#35495b' },
+  title: { ...lightStyles.title, color: '#dbe5ee' },
+  unreadTitle: { ...lightStyles.unreadTitle, color: '#f2f6fa' },
+  message: { ...lightStyles.message, color: '#dbe5ee' },
+  date: { ...lightStyles.date, color: '#b4c3d0' },
+  markReadText: { ...lightStyles.markReadText, color: '#72b6ff' },
+  emptyText: { ...lightStyles.emptyText, color: '#f2f6fa' },
+  emptySubtext: { ...lightStyles.emptySubtext, color: '#b4c3d0' },
 });

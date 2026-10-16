@@ -12,12 +12,15 @@ import { RootState } from '../../store';
 import * as Crypto from 'expo-crypto';
 import { advanceMessagingScopeGeneration, buildMessagingScopeKey, canAccessMessages, ConversationSummary, filterTimelineForAudience, TimelineEntry, getConversationPresentation, getMessageCapabilities, getMessagesAudience, getTimelineEntryPresentation, isMessagingOperationCurrent, loadConversationCore, mergeTimelinePages, MessagingScopeGeneration, normalizeTimelinePage, selectReadThroughSequence } from '../../features/messages/messagesModel';
 import GroupConversationDialog from '../../components/messages/GroupConversationDialog';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type DetailRoute = RouteProp<MessagesStackParamList, 'ConversationDetail'>;
 type Navigation = NativeStackNavigationProp<MessagesStackParamList, 'ConversationDetail'>;
 const MAX_MESSAGE_LENGTH = 2000;
 
 export default function ConversationDetailScreen() {
+  const { mode, colors } = useAppTheme();
+  const styles = mode === 'dark' ? darkStyles : lightStyles;
   const { conversationId, selectedConversation } = useRoute<DetailRoute>().params;
   const navigation = useNavigation<Navigation>();
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
@@ -259,7 +262,7 @@ export default function ConversationDetailScreen() {
     const entry = getTimelineEntryPresentation(item);
     const outgoing = entry.direction === 'outbound' || (entry.direction === null && String(item.actorUserId) === String(currentUser?.Id ?? currentUser?.id));
     const messageLike = ['message', 'inboundSms', 'outboundSms', 'inboundEmail', 'outboundEmail'].includes(entry.kind);
-    if (!messageLike) return <View style={[styles.activity, entry.isStaffOnly && styles.staffActivity]}><Ionicons name="information-circle-outline" size={16} color="#64748b" /><View style={styles.activityCopy}><Text style={styles.activityKind}>{entry.kindLabel}{entry.isStaffOnly ? ' · STAFF ONLY' : ''}</Text><Text style={styles.activityText}>{entry.summary}</Text>{entry.context && <><Text style={styles.context}>{entry.context.label}</Text>{capabilities.followUps && <TouchableOpacity onPress={() => setFollowUpEntry(item)}><Text style={styles.followUpLink}>Create follow-up</Text></TouchableOpacity>}</>}</View></View>;
+    if (!messageLike) return <View style={[styles.activity, entry.isStaffOnly && styles.staffActivity]}><Ionicons name="information-circle-outline" size={16} color={mode === 'dark' ? colors.muted : '#64748b'} /><View style={styles.activityCopy}><Text style={styles.activityKind}>{entry.kindLabel}{entry.isStaffOnly ? ' · STAFF ONLY' : ''}</Text><Text style={styles.activityText}>{entry.summary}</Text>{entry.context && <><Text style={styles.context}>{entry.context.label}</Text>{capabilities.followUps && <TouchableOpacity onPress={() => setFollowUpEntry(item)}><Text style={styles.followUpLink}>Create follow-up</Text></TouchableOpacity>}</>}</View></View>;
     return <View style={[styles.bubbleWrap, outgoing ? styles.outgoingWrap : styles.incomingWrap]}>
       <View style={[styles.bubble, outgoing ? styles.outgoing : styles.incoming]}>
         {!!entry.channelLabel && <Text style={[styles.channel, outgoing && styles.outgoingMuted]}>{entry.channelLabel}</Text>}
@@ -270,30 +273,30 @@ export default function ConversationDetailScreen() {
     </View>;
   };
 
-  if (!hasMessageAccess) return <View style={styles.center}><Ionicons name="lock-closed-outline" size={40} color="#64748b" /><Text style={styles.error}>Messages aren’t available for this role.</Text></View>;
-  if (loadedScope !== dataScope) return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /><Text style={styles.muted}>Loading conversation…</Text></View>;
-  if (loading && entries.length === 0) return <View style={styles.center}><ActivityIndicator size="large" color="#2563eb" /><Text style={styles.muted}>Loading conversation…</Text></View>;
-  if (error && entries.length === 0) return <View style={styles.center}><Ionicons name="alert-circle-outline" size={40} color="#b42318" /><Text style={styles.error}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Try again</Text></TouchableOpacity></View>;
+  if (!hasMessageAccess) return <View style={[styles.center, styles.container]}><Ionicons name="lock-closed-outline" size={40} color={mode === 'dark' ? colors.muted : '#64748b'} /><Text style={styles.error}>Messages aren’t available for this role.</Text></View>;
+  if (loadedScope !== dataScope) return <View style={[styles.center, styles.container]}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2563eb'} /><Text style={styles.muted}>Loading conversation…</Text></View>;
+  if (loading && entries.length === 0) return <View style={[styles.center, styles.container]}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2563eb'} /><Text style={styles.muted}>Loading conversation…</Text></View>;
+  if (error && entries.length === 0) return <View style={[styles.center, styles.container]}><Ionicons name="alert-circle-outline" size={40} color={mode === 'dark' ? '#ff9e98' : '#b42318'} /><Text style={styles.error}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => void load()}><Text style={styles.retryText}>Try again</Text></TouchableOpacity></View>;
   const card = conversation ? getConversationPresentation(conversation) : null;
 
   return <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-    <View style={styles.personBar}><View style={styles.personCopy}><Text style={styles.personName}>{card?.title ?? 'Conversation'}</Text>{!!card?.subtitle && <Text style={styles.personSub} numberOfLines={1}>{card.subtitle}</Text>}</View>{capabilities.manageGroup && conversation?.isGroupChat && <TouchableOpacity testID="manage-group" accessibilityLabel="Manage group members" style={styles.manageButton} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people-outline" size={18} color="#2563eb" /><Text style={styles.manageText}>Members</Text></TouchableOpacity>}{capabilities.archive && <TouchableOpacity accessibilityLabel={conversation?.isArchived ? 'Restore conversation' : 'Archive conversation'} style={styles.iconButton} onPress={toggleArchive}><Ionicons name={conversation?.isArchived ? 'arrow-undo-outline' : 'archive-outline'} size={20} color="#475569" /></TouchableOpacity>}</View>
-    {!!error && <View style={styles.errorBanner}><Text style={styles.errorBannerText}>{error}</Text><TouchableOpacity onPress={() => setError(null)}><Ionicons name="close" size={18} color="#b42318" /></TouchableOpacity></View>}
+    <View style={styles.personBar}><View style={styles.personCopy}><Text style={styles.personName}>{card?.title ?? 'Conversation'}</Text>{!!card?.subtitle && <Text style={styles.personSub} numberOfLines={1}>{card.subtitle}</Text>}</View>{capabilities.manageGroup && conversation?.isGroupChat && <TouchableOpacity testID="manage-group" accessibilityLabel="Manage group members" style={styles.manageButton} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people-outline" size={18} color={mode === 'dark' ? colors.accent : '#2563eb'} /><Text style={styles.manageText}>Members</Text></TouchableOpacity>}{capabilities.archive && <TouchableOpacity accessibilityLabel={conversation?.isArchived ? 'Restore conversation' : 'Archive conversation'} style={styles.iconButton} onPress={toggleArchive}><Ionicons name={conversation?.isArchived ? 'arrow-undo-outline' : 'archive-outline'} size={20} color={mode === 'dark' ? colors.muted : '#475569'} /></TouchableOpacity>}</View>
+    {!!error && <View style={styles.errorBanner}><Text style={styles.errorBannerText}>{error}</Text><TouchableOpacity onPress={() => setError(null)}><Ionicons name="close" size={18} color={mode === 'dark' ? '#ff9e98' : '#b42318'} /></TouchableOpacity></View>}
     <View style={styles.filters}>
       <Text style={styles.filterHeading}>TIMELINE</Text>
-      <TextInput style={styles.searchInput} placeholder="Search timeline" value={timelineQuery} onChangeText={setTimelineQuery} />
+      <TextInput style={styles.searchInput} placeholder="Search timeline" placeholderTextColor={mode === 'dark' ? colors.muted : undefined} value={timelineQuery} onChangeText={setTimelineQuery} />
       <View style={styles.channelFilters}>{['', 'inApp', 'sms', 'email'].map((value: string) => <TouchableOpacity key={value || 'all'} style={[styles.filterChip, timelineChannel === value && styles.filterChipActive]} onPress={() => setTimelineChannel(value)}><Text style={timelineChannel === value ? styles.filterTextActive : styles.filterText}>{value || 'All'}</Text></TouchableOpacity>)}</View>
     </View>
-    {capabilities.followUps && followUpEntry?.context && <View style={styles.followUpComposer}><Text style={styles.followUpHeading}>Follow up on {followUpEntry.context.label}</Text><TextInput style={styles.searchInput} placeholder="What needs follow-up?" value={followUpTitle} onChangeText={setFollowUpTitle} /><View style={styles.followUpActions}><TouchableOpacity onPress={() => setFollowUpEntry(null)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={!followUpTitle.trim()} onPress={() => void createContextualFollowUp()}><Text style={styles.followUpLink}>Create · due tomorrow</Text></TouchableOpacity></View></View>}
+    {capabilities.followUps && followUpEntry?.context && <View style={styles.followUpComposer}><Text style={styles.followUpHeading}>Follow up on {followUpEntry.context.label}</Text><TextInput style={styles.searchInput} placeholder="What needs follow-up?" placeholderTextColor={mode === 'dark' ? colors.muted : undefined} value={followUpTitle} onChangeText={setFollowUpTitle} /><View style={styles.followUpActions}><TouchableOpacity onPress={() => setFollowUpEntry(null)}><Text style={styles.cancelText}>Cancel</Text></TouchableOpacity><TouchableOpacity disabled={!followUpTitle.trim()} onPress={() => void createContextualFollowUp()}><Text style={styles.followUpLink}>Create · due tomorrow</Text></TouchableOpacity></View></View>}
     {capabilities.followUps && followUps.some((task) => task.status === 'open') && <View style={styles.followUpList}>{followUps.filter((task) => task.status === 'open').map((task) => <View key={task.id} style={styles.followUpRow}><Text style={styles.followUpTask}>{task.title}</Text><TouchableOpacity onPress={() => void completeFollowUp(task)}><Text style={styles.followUpLink}>Complete</Text></TouchableOpacity></View>)}</View>}
     <FlatList ref={listRef} data={entries} renderItem={renderEntry} keyExtractor={(item) => String(item.id)} contentContainerStyle={[styles.timeline, entries.length === 0 && styles.emptyTimeline]}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#2563eb" />}
-      ListHeaderComponent={nextCursor !== null ? <TouchableOpacity style={styles.more} disabled={loadingMore} onPress={() => void loadMore()}>{loadingMore ? <ActivityIndicator color="#2563eb" /> : <Text style={styles.moreText}>Load more activity</Text>}</TouchableOpacity> : null}
-      ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubble-outline" size={38} color="#94a3b8" /><Text style={styles.emptyTitle}>No activity yet</Text><Text style={styles.muted}>Send a message to start the conversation.</Text></View>}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={mode === 'dark' ? colors.accent : '#2563eb'} />}
+      ListHeaderComponent={nextCursor !== null ? <TouchableOpacity style={styles.more} disabled={loadingMore} onPress={() => void loadMore()}>{loadingMore ? <ActivityIndicator color={mode === 'dark' ? colors.accent : '#2563eb'} /> : <Text style={styles.moreText}>Load more activity</Text>}</TouchableOpacity> : null}
+      ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubble-outline" size={38} color={mode === 'dark' ? colors.muted : '#94a3b8'} /><Text style={styles.emptyTitle}>No activity yet</Text><Text style={styles.muted}>Send a message to start the conversation.</Text></View>}
       onContentSizeChange={() => !loadingMore && listRef.current?.scrollToEnd({ animated: false })} />
     {capabilities.quickReplies && quickReplies.length > 0 && <FlatList horizontal data={quickReplies} keyExtractor={(item) => String(item.id)} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickReplies} renderItem={({ item }) => <TouchableOpacity style={styles.quickReply} onPress={() => setDraft(item.body)}><Text style={styles.quickReplyText}>{item.title}</Text></TouchableOpacity>} />}
     <View style={styles.composer}>
-      <TextInput testID="message-composer" style={styles.input} placeholder="Type a message…" placeholderTextColor="#94a3b8" value={draft} onChangeText={setDraft} multiline maxLength={MAX_MESSAGE_LENGTH} accessibilityLabel="Message" />
+      <TextInput testID="message-composer" style={styles.input} placeholder="Type a message…" placeholderTextColor={mode === 'dark' ? colors.muted : '#94a3b8'} value={draft} onChangeText={setDraft} multiline maxLength={MAX_MESSAGE_LENGTH} accessibilityLabel="Message" />
       <TouchableOpacity testID="send-message" accessibilityLabel="Send message" disabled={!draft.trim() || sending} style={[styles.send, (!draft.trim() || sending) && styles.disabled]} onPress={() => void send()}>{sending ? <ActivityIndicator color="#fff" /> : <Ionicons name="send" size={20} color="#fff" />}</TouchableOpacity>
     </View>
     {draft.length > MAX_MESSAGE_LENGTH - 200 && <Text style={styles.counter}>{draft.length}/{MAX_MESSAGE_LENGTH}</Text>}
@@ -301,7 +304,7 @@ export default function ConversationDetailScreen() {
   </KeyboardAvoidingView>;
 }
 
-const styles = StyleSheet.create({
+const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' }, center: { flex: 1, minHeight: 220, alignItems: 'center', justifyContent: 'center', padding: 28 }, muted: { color: '#64748b', marginTop: 9, textAlign: 'center' }, error: { color: '#b42318', marginTop: 10, textAlign: 'center', lineHeight: 21 }, retry: { backgroundColor: '#2563eb', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, marginTop: 16 }, retryText: { color: '#fff', fontWeight: '800' },
   personBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 22, paddingTop: 20, paddingBottom: 18, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }, personCopy: { flex: 1, minWidth: 0 }, personName: { color: '#0f2f47', fontWeight: '900', fontSize: 20 }, personSub: { color: '#64748b', fontSize: 12, marginTop: 4 }, manageButton: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, height: 40 }, manageText: { color: '#2563eb', fontWeight: '800', fontSize: 11 }, iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef3f2', paddingHorizontal: 14, paddingVertical: 9 }, errorBannerText: { flex: 1, color: '#b42318', fontSize: 13 }, timeline: { paddingHorizontal: 18, paddingTop: 16, paddingBottom: 18 }, emptyTimeline: { flexGrow: 1 }, more: { alignSelf: 'center', paddingHorizontal: 18, paddingVertical: 9, borderRadius: 18, backgroundColor: '#e8eefb', marginBottom: 14 }, moreText: { color: '#2456a6', fontWeight: '800', fontSize: 13 },
@@ -310,4 +313,46 @@ const styles = StyleSheet.create({
   staffActivity: { backgroundColor: '#fff7ed', borderWidth: 1, borderColor: '#fdba74' }, filters: { paddingHorizontal: 22, paddingTop: 14, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }, filterHeading: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 8 }, searchInput: { borderWidth: 1, borderColor: '#cbd5e1', backgroundColor: '#fff', borderRadius: 9, paddingHorizontal: 10, paddingVertical: 7, color: '#0f172a' }, channelFilters: { flexDirection: 'row', gap: 6, marginTop: 7 }, filterChip: { minHeight: 44, justifyContent: 'center', borderRadius: 8, paddingHorizontal: 10 }, filterChipActive: { backgroundColor: '#2563eb' }, filterText: { color: '#475569', fontSize: 12 }, filterTextActive: { color: '#fff', fontSize: 12, fontWeight: '700' },
   followUpComposer: { padding: 10, backgroundColor: '#fff7ed', borderTopWidth: 1, borderColor: '#fed7aa' }, followUpHeading: { color: '#9a3412', fontWeight: '800', marginBottom: 6 }, followUpActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 18, marginTop: 7 }, followUpLink: { color: '#2563eb', fontWeight: '800', fontSize: 12, marginTop: 4 }, cancelText: { color: '#64748b', fontWeight: '700', fontSize: 12, marginTop: 4 }, followUpList: { backgroundColor: '#fffbeb', paddingHorizontal: 12, paddingVertical: 6 }, followUpRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }, followUpTask: { flex: 1, color: '#78350f', fontSize: 12 },
   quickReplies: { paddingHorizontal: 12, paddingVertical: 7, gap: 7 }, quickReply: { paddingHorizontal: 13, paddingVertical: 8, borderRadius: 16, borderWidth: 1, borderColor: '#bfdbfe', backgroundColor: '#eff6ff' }, quickReplyText: { color: '#1d4ed8', fontWeight: '700', fontSize: 12 }, composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, paddingHorizontal: 12, paddingTop: 9, paddingBottom: 10, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#e2e8f0' }, input: { flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a', fontSize: 15, paddingHorizontal: 15, paddingVertical: 11 }, send: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }, disabled: { opacity: 0.45 }, counter: { color: '#64748b', backgroundColor: '#fff', textAlign: 'right', paddingRight: 66, paddingBottom: 5, fontSize: 10 }, emptyTitle: { color: '#334155', fontSize: 17, fontWeight: '800', marginTop: 10 },
+});
+
+const darkStyles = StyleSheet.create({
+  ...lightStyles,
+  container: { ...lightStyles.container, backgroundColor: '#101923' },
+  muted: { ...lightStyles.muted, color: '#b4c3d0' },
+  error: { ...lightStyles.error, color: '#ff9e98' },
+  personBar: { ...lightStyles.personBar, borderBottomColor: '#35495b' },
+  personName: { ...lightStyles.personName, color: '#f2f6fa' },
+  personSub: { ...lightStyles.personSub, color: '#b4c3d0' },
+  manageText: { ...lightStyles.manageText, color: '#72b6ff' },
+  errorBanner: { ...lightStyles.errorBanner, backgroundColor: '#432c32' },
+  errorBannerText: { ...lightStyles.errorBannerText, color: '#ffb1ab' },
+  more: { ...lightStyles.more, backgroundColor: '#233e59' },
+  moreText: { ...lightStyles.moreText, color: '#aad4ff' },
+  incoming: { ...lightStyles.incoming, backgroundColor: '#1b2937', borderColor: '#35495b' },
+  message: { ...lightStyles.message, color: '#f2f6fa' },
+  channel: { ...lightStyles.channel, color: '#b4c3d0' },
+  messageTime: { ...lightStyles.messageTime, color: '#b4c3d0' },
+  delivery: { ...lightStyles.delivery, color: '#b4c3d0' },
+  failed: { ...lightStyles.failed, color: '#ffb1ab' },
+  activity: { ...lightStyles.activity, borderColor: '#35495b' },
+  activityKind: { ...lightStyles.activityKind, color: '#dbe5ee' },
+  activityText: { ...lightStyles.activityText, color: '#dbe5ee' },
+  context: { ...lightStyles.context, color: '#72b6ff' },
+  staffActivity: { ...lightStyles.staffActivity, backgroundColor: '#3d3226', borderColor: '#a97942' },
+  filters: { ...lightStyles.filters, borderBottomColor: '#35495b' },
+  filterHeading: { ...lightStyles.filterHeading, color: '#b4c3d0' },
+  searchInput: { ...lightStyles.searchInput, borderColor: '#35495b', backgroundColor: '#1b2937', color: '#f2f6fa' },
+  filterText: { ...lightStyles.filterText, color: '#dbe5ee' },
+  followUpComposer: { ...lightStyles.followUpComposer, backgroundColor: '#3d3226', borderColor: '#a97942' },
+  followUpHeading: { ...lightStyles.followUpHeading, color: '#ffe0a6' },
+  followUpLink: { ...lightStyles.followUpLink, color: '#72b6ff' },
+  cancelText: { ...lightStyles.cancelText, color: '#b4c3d0' },
+  followUpList: { ...lightStyles.followUpList, backgroundColor: '#3d3226' },
+  followUpTask: { ...lightStyles.followUpTask, color: '#ffe0a6' },
+  quickReply: { ...lightStyles.quickReply, backgroundColor: '#233e59', borderColor: '#41658a' },
+  quickReplyText: { ...lightStyles.quickReplyText, color: '#aad4ff' },
+  composer: { ...lightStyles.composer, backgroundColor: '#1b2937', borderTopColor: '#35495b' },
+  input: { ...lightStyles.input, backgroundColor: '#101923', color: '#f2f6fa' },
+  counter: { ...lightStyles.counter, backgroundColor: '#1b2937', color: '#b4c3d0' },
+  emptyTitle: { ...lightStyles.emptyTitle, color: '#f2f6fa' },
 });

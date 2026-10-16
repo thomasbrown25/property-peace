@@ -4,8 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { DrawerContentScrollView, DrawerContentComponentProps } from '@react-navigation/drawer';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { logout } from '../store/user/user.slice';
+import { useAppTheme } from '../theme/AppTheme';
 
 export default function CustomDrawerContent(props: DrawerContentComponentProps) {
+  const { colors, mode } = useAppTheme();
+  const dark = mode === 'dark';
   const navigation = useNavigation();
   const dispatch = useAppDispatch();
   const { currentUser } = useAppSelector((state) => state.user);
@@ -34,15 +37,15 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
   };
 
   return (
-    <DrawerContentScrollView {...props} style={styles.drawer}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Property Peace</Text>
+    <DrawerContentScrollView {...props} style={[styles.drawer, dark && { backgroundColor: colors.background }]}>
+      <View style={[styles.header, dark && { backgroundColor: colors.dock, borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerTitle, dark && { color: colors.dockText }]}>Property Peace</Text>
         {currentUser && (
           <>
-            <Text style={styles.headerSubtitle}>
+            <Text style={[styles.headerSubtitle, dark && { color: colors.dockText }]}>
               {currentUser.FirstName || currentUser.firstname} {currentUser.LastName || currentUser.lastname}
             </Text>
-            <Text style={styles.headerEmail}>{currentUser.Email || currentUser.email}</Text>
+            <Text style={[styles.headerEmail, dark && { color: colors.muted }]}>{currentUser.Email || currentUser.email}</Text>
           </>
         )}
       </View>
@@ -51,16 +54,16 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
         {menuItems.map((item) => (
           <TouchableOpacity
             key={item.id}
-            style={styles.menuItem}
+            style={[styles.menuItem, dark && { borderBottomColor: colors.border }]}
             onPress={() => navigateToScreen(item.route)}
           >
-            <Text style={styles.menuItemText}>{item.title}</Text>
+            <Text style={[styles.menuItemText, dark && { color: colors.text }]}>{item.title}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <View style={[styles.footer, dark && { borderTopColor: colors.border }]}>
+        <TouchableOpacity style={[styles.logoutButton, dark && { backgroundColor: '#a83131' }]} onPress={handleLogout}>
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>

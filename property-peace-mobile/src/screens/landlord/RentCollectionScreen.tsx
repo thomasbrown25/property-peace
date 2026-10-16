@@ -4,7 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
+import { collectionPayload } from '../../features/rentCollection/collectionPayload';
 import { useAppSelector } from '../../store/hooks';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type RentRecord = {
   id?: number; Id?: number;
@@ -60,6 +62,8 @@ function recordState(record: RentRecord) {
 }
 
 export default function RentCollectionScreen() {
+  const { mode, colors } = useAppTheme();
+  const dark = mode === 'dark';
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const currentUser = useAppSelector((state) => state.user.currentUser);
@@ -81,9 +85,8 @@ export default function RentCollectionScreen() {
     try {
       const response = await RentCollectionAPI.getRentCollection();
       if (request !== generation.current || scope !== currentOrganizationId.current) return;
-      // The API client returns the response body; its Data property is the collection payload.
-      if (response?.success === false || response?.Success === false || !(response?.data ?? response?.Data)) throw new Error('Collection unavailable');
-      setData(parseCollection(response.data ?? response.Data));
+      // RentCollectionAPI has already unwrapped both the HTTP body and ServiceResponse.Data.
+      setData(parseCollection(collectionPayload(response)));
       setStatus('success');
     } catch {
       if (request !== generation.current || scope !== currentOrganizationId.current) return;
@@ -109,51 +112,51 @@ export default function RentCollectionScreen() {
   const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingTop: insets.top + 28 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor="#2475cf" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2475cf'} />}
       >
         <TouchableOpacity style={styles.back} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back to dashboard">
-          <Ionicons name="arrow-back" size={22} color="#0b3558" />
-          <Text style={styles.backText}>Home</Text>
+          <Ionicons name="arrow-back" size={22} color={dark ? colors.text : '#0b3558'} />
+          <Text style={[styles.backText, dark && { color: colors.text }]}>Home</Text>
         </TouchableOpacity>
         <View style={styles.intro}>
-          <Text style={styles.eyebrow}>YOUR RENT</Text>
-          <Text style={styles.title} accessibilityRole="header">Rent collection</Text>
-          <Text style={styles.subtitle}>A clear view of what's collected and what's still due.</Text>
+          <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR RENT</Text>
+          <Text style={[styles.title, dark && { color: colors.text }]} accessibilityRole="header">Rent collection</Text>
+          <Text style={[styles.subtitle, dark && { color: colors.muted }]}>A clear view of what's collected and what's still due.</Text>
         </View>
-        <View style={styles.period}><Ionicons name="calendar-outline" size={18} color="#2475cf" /><Text style={styles.periodText}>{month}</Text><Text style={styles.periodHint}>CURRENT MONTH</Text></View>
+        <View style={styles.period}><Ionicons name="calendar-outline" size={18} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.periodText, dark && { color: colors.text }]}>{month}</Text><Text style={[styles.periodHint, dark && { color: colors.muted }]}>CURRENT MONTH</Text></View>
 
         {viewStatus === 'loading' ? (
-          <View style={styles.feedback}><ActivityIndicator color="#2475cf" /><Text style={styles.feedbackText}>Loading rent collection…</Text></View>
+          <View style={styles.feedback}><ActivityIndicator color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>Loading rent collection…</Text></View>
         ) : viewStatus === 'error' ? (
           <View style={styles.feedback}>
-            <Ionicons name="cloud-offline-outline" size={27} color="#a45f12" />
-            <Text style={styles.feedbackTitle}>Rent collection is unavailable</Text>
-            <Text style={styles.feedbackText}>We couldn't load your current rent figures.</Text>
-            <TouchableOpacity style={styles.retry} onPress={() => void load()} accessibilityRole="button"><Text style={styles.retryText}>Try again</Text></TouchableOpacity>
+            <Ionicons name="cloud-offline-outline" size={27} color={dark ? '#ffca82' : '#a45f12'} />
+            <Text style={[styles.feedbackTitle, dark && { color: colors.text }]}>Rent collection is unavailable</Text>
+            <Text style={[styles.feedbackText, dark && { color: colors.muted }]}>We couldn't load your current rent figures.</Text>
+            <TouchableOpacity style={[styles.retry, dark && { backgroundColor: colors.accent }]} onPress={() => void load()} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.background }]}>Try again</Text></TouchableOpacity>
           </View>
         ) : (
           <>
-            <View style={styles.summary}>
-              <Text style={styles.summaryLabel}>Collected this month</Text>
+            <View style={[styles.summary, dark && { backgroundColor: '#1b3833' }]}>
+              <Text style={[styles.summaryLabel, dark && { color: colors.text }]}>Collected this month</Text>
               <View style={styles.summaryValueRow}>
-                <Text style={styles.summaryValue} adjustsFontSizeToFit numberOfLines={1}>{money(visible.collected)}</Text>
-                {visible.expected > 0 && <Text style={styles.percent}>{percent}%</Text>}
+                <Text style={[styles.summaryValue, dark && { color: '#82e5a5' }]} adjustsFontSizeToFit numberOfLines={1}>{money(visible.collected)}</Text>
+                {visible.expected > 0 && <Text style={[styles.percent, dark && { color: '#82e5a5' }]}>{percent}%</Text>}
               </View>
-              <Text style={styles.expected}>{money(visible.expected)} expected</Text>
-              {visible.expected > 0 && <View style={styles.track} accessibilityRole="progressbar" accessibilityLabel="Rent collected this month" accessibilityValue={{ min: 0, max: 100, now: percent }}><View style={[styles.fill, { width: `${percent}%` }]} /></View>}
-              <Text style={styles.remaining}>{money(visible.remaining)} remaining this month</Text>
+              <Text style={[styles.expected, dark && { color: colors.muted }]}>{money(visible.expected)} expected</Text>
+              {visible.expected > 0 && <View style={[styles.track, dark && { backgroundColor: '#36584a' }]} accessibilityRole="progressbar" accessibilityLabel="Rent collected this month" accessibilityValue={{ min: 0, max: 100, now: percent }}><View style={[styles.fill, { width: `${percent}%` }, dark && { backgroundColor: '#82e5a5' }]} /></View>}
+              <Text style={[styles.remaining, dark && { color: colors.muted }]}>{money(visible.remaining)} remaining this month</Text>
             </View>
-            {visible.outstanding > 0 && <Text style={styles.outstanding}>{money(visible.outstanding)} total outstanding, including prior periods</Text>}
+            {visible.outstanding > 0 && <Text style={[styles.outstanding, dark && { color: '#ffca82' }]}>{money(visible.outstanding)} total outstanding, including prior periods</Text>}
             <View style={styles.sectionHead}>
-              <View><Text style={styles.sectionEyebrow}>BY LEASE</Text><Text style={styles.sectionTitle} accessibilityRole="header">Rent status</Text></View>
-              <Text style={styles.count}>{visible.records.length} {visible.records.length === 1 ? 'lease' : 'leases'}</Text>
+              <View><Text style={[styles.sectionEyebrow, dark && { color: colors.accent }]}>BY LEASE</Text><Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">Rent status</Text></View>
+              <Text style={[styles.count, dark && { color: colors.muted }]}>{visible.records.length} {visible.records.length === 1 ? 'lease' : 'leases'}</Text>
             </View>
             {visible.records.length === 0 ? (
-              <View style={styles.emptyState}><Ionicons name="receipt-outline" size={26} color="#2475cf" /><Text style={styles.emptyTitle}>No rent records yet</Text><Text style={styles.feedbackText}>Active lease rent will appear here when available.</Text></View>
+              <View style={styles.emptyState}><Ionicons name="receipt-outline" size={26} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>No rent records yet</Text><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>Active lease rent will appear here when available.</Text></View>
             ) : visible.records.map((record, index) => {
               const tenants = read<RentRecord['tenants']>(record, 'tenants') ?? [];
               const tenant = tenants.map((person) => [person.firstName ?? person.firstname ?? person.FirstName, person.lastName ?? person.lastname ?? person.LastName].filter(Boolean).join(' ')).filter(Boolean).join(', ');
@@ -166,17 +169,17 @@ export default function RentCollectionScreen() {
               const displayAmount = due > 0 ? due : totalDue > 0 ? totalDue : amount;
               const amountLabel = due > 0 ? 'due this month' : totalDue > 0 ? 'rent due' : 'monthly rent';
               return (
-                <View key={`${read(record, 'leaseId') ?? read(record, 'id') ?? index}`} style={[styles.row, index === visible.records.length - 1 && styles.lastRow]}>
-                  <View style={[styles.rowIcon, state.tone === 'success' ? styles.successIcon : state.tone === 'warning' ? styles.warningIcon : styles.infoIcon]}><Ionicons name={state.icon} size={23} color={state.tone === 'success' ? '#219447' : state.tone === 'warning' ? '#ae680d' : '#2475cf'} /></View>
-                  <View style={styles.rowCopy}><Text style={styles.rowName} numberOfLines={2}>{name}</Text><Text style={styles.rowLocation} numberOfLines={2}>{location}</Text><Text style={[styles.status, state.tone === 'success' ? styles.successText : state.tone === 'warning' ? styles.warningText : styles.infoText]}>{state.label}</Text></View>
-                  <View style={styles.amountBlock}><Text style={styles.rowAmount}>{money(displayAmount)}</Text><Text style={styles.amountCaption}>{amountLabel}</Text></View>
+                <View key={`${read(record, 'leaseId') ?? read(record, 'id') ?? index}`} style={[styles.row, dark && { borderBottomColor: colors.border }, index === visible.records.length - 1 && styles.lastRow]}>
+                  <View style={[styles.rowIcon, state.tone === 'success' ? styles.successIcon : state.tone === 'warning' ? styles.warningIcon : styles.infoIcon, dark && { backgroundColor: state.tone === 'success' ? '#224737' : state.tone === 'warning' ? '#4b3829' : '#233c56' }]}><Ionicons name={state.icon} size={23} color={dark ? state.tone === 'success' ? '#82e5a5' : state.tone === 'warning' ? '#ffca82' : colors.accent : state.tone === 'success' ? '#219447' : state.tone === 'warning' ? '#ae680d' : '#2475cf'} /></View>
+                  <View style={styles.rowCopy}><Text style={[styles.rowName, dark && { color: colors.text }]} numberOfLines={2}>{name}</Text><Text style={[styles.rowLocation, dark && { color: colors.muted }]} numberOfLines={2}>{location}</Text><Text style={[styles.status, state.tone === 'success' ? styles.successText : state.tone === 'warning' ? styles.warningText : styles.infoText, dark && { color: state.tone === 'success' ? '#82e5a5' : state.tone === 'warning' ? '#ffca82' : colors.accent }]}>{state.label}</Text></View>
+                  <View style={styles.amountBlock}><Text style={[styles.rowAmount, dark && { color: colors.text }]}>{money(displayAmount)}</Text><Text style={[styles.amountCaption, dark && { color: colors.muted }]}>{amountLabel}</Text></View>
                 </View>
               );
             })}
-            <TouchableOpacity style={styles.leaseLink} accessibilityRole="button" onPress={() => navigation.navigate('Leases', { screen: 'LeasesList' })}>
-              <View style={styles.linkIcon}><Ionicons name="document-text-outline" size={21} color="#0b3558" /></View>
-              <View style={styles.linkCopy}><Text style={styles.linkTitle}>View leases</Text><Text style={styles.linkSubtitle}>Review the leases behind these balances</Text></View>
-              <Ionicons name="arrow-forward" size={20} color="#2475cf" />
+            <TouchableOpacity style={[styles.leaseLink, dark && { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="button" onPress={() => navigation.navigate('Leases', { screen: 'LeasesList' })}>
+              <View style={[styles.linkIcon, dark && { backgroundColor: '#233c56' }]}><Ionicons name="document-text-outline" size={21} color={dark ? colors.accent : '#0b3558'} /></View>
+              <View style={styles.linkCopy}><Text style={[styles.linkTitle, dark && { color: colors.text }]}>View leases</Text><Text style={[styles.linkSubtitle, dark && { color: colors.muted }]}>Review the leases behind these balances</Text></View>
+              <Ionicons name="arrow-forward" size={20} color={dark ? colors.accent : '#2475cf'} />
             </TouchableOpacity>
           </>
         )}
