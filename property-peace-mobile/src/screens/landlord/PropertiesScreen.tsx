@@ -18,6 +18,7 @@ import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import { filterPropertiesForList } from '../../features/properties/propertiesList';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 type PropertiesScreenNavigationProp = NativeStackNavigationProp<PropertiesStackParamList, 'PropertiesList'>;
 const numberValue = (...values: any[]) => {
@@ -109,6 +110,7 @@ export default function PropertiesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperties(); }} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View>
+            <PageBackButton />
             <View style={styles.pageHeader}>
               <Text style={styles.eyebrow}>YOUR PORTFOLIO</Text>
               <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>

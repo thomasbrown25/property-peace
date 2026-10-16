@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, Touchabl
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 const isUnread = (item: AppNotification) => item.isRead === false || item.IsRead === false;
 
@@ -88,6 +89,7 @@ export default function NotificationsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={mode === 'dark' ? colors.accent : undefined} />}
         ListHeaderComponent={(
           <View>
+            <PageBackButton />
             <View style={styles.headingRow}>
               <View><Text style={styles.heading}>Notifications</Text><Text style={styles.headingSub}>{notifications.length} updates{hasUnread ? ` · ${notifications.filter(isUnread).length} unread` : ''}</Text></View>
             </View>

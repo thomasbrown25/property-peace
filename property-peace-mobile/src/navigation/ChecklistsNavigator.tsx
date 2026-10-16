@@ -5,6 +5,7 @@ import ChecklistPropertySearchScreen from '../screens/landlord/ChecklistProperty
 import PropertyChecklistsScreen from '../screens/landlord/PropertyChecklistsScreen';
 import ChecklistEditorScreen from '../screens/landlord/ChecklistEditorScreen';
 import { useAppTheme } from '../theme/AppTheme';
+import PageBackButton from '../components/PageBackButton';
 
 const Stack = createNativeStackNavigator<ChecklistsStackParamList>();
 
@@ -20,7 +21,7 @@ export default function ChecklistsNavigator() {
         contentStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },
       }}
     >
-      <Stack.Screen name="ChecklistPropertySearch" component={ChecklistPropertySearchScreen} options={{ title: 'Property checklists' }} />
+      <Stack.Screen name="ChecklistPropertySearch" component={ChecklistPropertySearchScreen} options={{ title: 'Property checklists', headerLeft: () => <PageBackButton /> }} />
       <Stack.Screen name="PropertyChecklists" component={PropertyChecklistsScreen} options={{ title: 'Checklists' }} />
       <Stack.Screen name="ChecklistEditor" component={ChecklistEditorScreen} options={{ title: 'Inspection' }} />
     </Stack.Navigator>

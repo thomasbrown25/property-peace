@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, Touchabl
 import { Ionicons } from '@expo/vector-icons';
 import LeaseAPI, { Lease } from '../../api/leaseAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import PageBackButton from '../../components/PageBackButton';
 
 type LoadStatus = 'loading' | 'success' | 'error';
 
@@ -48,6 +49,7 @@ export default function LeasesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadLeases(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={(
           <View>
+            <PageBackButton />
             <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR AGREEMENTS</Text>
             <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Leases</Text>
             <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>The details behind every tenancy.</Text>

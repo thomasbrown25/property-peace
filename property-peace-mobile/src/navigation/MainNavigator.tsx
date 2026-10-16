@@ -41,6 +41,7 @@ import ChecklistsNavigator from './ChecklistsNavigator';
 import { resolveVisibleMainTabs, type MainTabComponentRegistry } from './mainTabModel';
 import UnsupportedRoleScreen from '../screens/UnsupportedRoleScreen';
 import { useAppTheme } from '../theme/AppTheme';
+import PageBackButton from '../components/PageBackButton';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
@@ -90,7 +91,7 @@ function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
   return (
     <MaintenanceStack.Navigator screenOptions={stackOptions}>
       {tenant ? <>
-        <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ title: 'Maintenance' }} />
+        <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ title: 'Maintenance', headerLeft: () => <PageBackButton /> }} />
         <MaintenanceStack.Screen name="TenantMaintenanceIntake" component={TenantMaintenanceIntakeScreen} options={{ title: 'Report an issue' }} />
         <MaintenanceStack.Screen name="MaintenanceEmergency" component={MaintenanceEmergencyScreen} options={{ title: 'Emergency safety', presentation: 'modal' }} />
         <MaintenanceStack.Screen name="TenantMaintenanceReceipt" component={TenantMaintenanceReceiptScreen} options={{ title: 'Report received', headerBackVisible: false }} />

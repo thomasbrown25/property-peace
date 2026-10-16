@@ -313,16 +313,14 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 18) }]}>
-        <Image source={logo} style={styles.logo} resizeMode="contain" />
-        <View style={styles.topActions}>
-          <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="Open notifications">
-            <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
-            {scopedNotificationsStatus === 'success' && portfolio.unreadNotifications > 0 && <View style={styles.unreadDot} />}
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)} accessibilityLabel="Open profile menu">
-            {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)} accessibilityRole="button" accessibilityLabel="Open profile menu">
+          {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
+        </TouchableOpacity>
+        <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityLabel="Property Peace" />
+        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel="Open notifications">
+          <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
+          {scopedNotificationsStatus === 'success' && portfolio.unreadNotifications > 0 && <View style={styles.unreadDot} />}
+        </TouchableOpacity>
       </View>
 
       {profileMenuOpen && (
@@ -686,11 +684,10 @@ function useScreenStyles() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 12, backgroundColor: '#ffffff' },
-  logo: { width: 148, height: 42 },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerButton: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e1e7eb' },
+  logo: { position: 'absolute', width: 148, height: 42, left: '50%', marginLeft: -74, bottom: 13 },
+  headerButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e1e7eb' },
   unreadDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#d94d63', borderWidth: 1.5, borderColor: '#fff' },
-  avatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#061e35', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#ffffff' },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#061e35', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#ffffff' },
   avatarActive: { borderColor: '#5ebc68' },
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#fff', fontSize: 17, fontWeight: '900' },
