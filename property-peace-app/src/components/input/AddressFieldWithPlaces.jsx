@@ -135,20 +135,10 @@ export default function AddressFieldWithPlaces({
     const labelText = s?.placePrediction?.text?.toString?.() || '';
 
     let formatted = labelText;
+    let selectedStreet = labelText;
     let place = null;
     try {
-      // Check if toPlace method exists before calling
-      const toPlaceMethod = s?.placePrediction?.toPlace;
-      if (!toPlaceMethod || typeof toPlaceMethod !== 'function') {
-        setValue(formatted);
-        setFieldValue(name, formatted);
-        setOpen(false);
-        clear();
-        resetSession();
-        onSelected?.(formatted, null);
-        return;
-      }
-
+      // toPlaceDetails handles both the new Places API and legacy predictions.
       place = await toPlaceDetails(s, ['displayName', 'formattedAddress', 'location', 'addressComponents', 'photos']);
       
       // If place is null, just use the label text and exit early
@@ -162,7 +152,10 @@ export default function AddressFieldWithPlaces({
         return;
       }
 
-      if (place?.formattedAddress) formatted = place.formattedAddress;
+      if (place?.formattedAddress) {
+        formatted = place.formattedAddress;
+        selectedStreet = formatted;
+      }
 
       // Optional lat/lng
       const loc = place?.location;
@@ -205,6 +198,7 @@ export default function AddressFieldWithPlaces({
         
         // Set the street address (just street number + route, no city/state/zip)
         if (extractedStreetAddress) {
+          selectedStreet = extractedStreetAddress;
           setFieldValue(name, extractedStreetAddress);
           setValue(extractedStreetAddress);
         } else {
@@ -224,6 +218,7 @@ export default function AddressFieldWithPlaces({
             }
             cleanedAddress = cleanedAddress.replace(/,\s*,/g, ',').replace(/^,\s*|,\s*$/g, '').trim();
             if (cleanedAddress) {
+              selectedStreet = cleanedAddress;
               setFieldValue(name, cleanedAddress);
               setValue(cleanedAddress);
             }
@@ -245,8 +240,8 @@ export default function AddressFieldWithPlaces({
       // Don't fail silently - log the error for debugging
     }
 
-    setValue(formatted);
-    setFieldValue(name, formatted);
+    setValue(selectedStreet);
+    setFieldValue(name, selectedStreet);
 
     // Close dropdown immediately before calling onSelected (which may show a dialog)
     setOpen(false);

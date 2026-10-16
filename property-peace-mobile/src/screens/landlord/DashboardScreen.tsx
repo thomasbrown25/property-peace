@@ -18,6 +18,8 @@ import { logout } from '../../store/user/user.slice';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
+import ConversationAPI from '../../api/conversationAPI';
+import { ConversationSummary } from '../../features/messages/messagesModel';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -103,11 +105,13 @@ export default function DashboardScreen() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
   const [refreshing, setRefreshing] = useState(false);
   const [propertiesStatus, setPropertiesStatus] = useState<LoadStatus>('loading');
   const [maintenanceStatus, setMaintenanceStatus] = useState<LoadStatus>('loading');
   const [notificationsStatus, setNotificationsStatus] = useState<LoadStatus>('loading');
+  const [conversationsStatus, setConversationsStatus] = useState<LoadStatus>('loading');
   const [rentStatus, setRentStatus] = useState<LoadStatus>('loading');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const loadGeneration = useRef(0);
@@ -120,10 +124,12 @@ export default function DashboardScreen() {
     setProperties([]);
     setMaintenance([]);
     setNotifications([]);
+    setConversations([]);
     setRentMetrics({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
     setPropertiesStatus('loading');
     setMaintenanceStatus('loading');
     setNotificationsStatus('loading');
+    setConversationsStatus('loading');
     setRentStatus('loading');
     setRefreshing(false);
     setLoadedOrganizationId(null);
@@ -141,6 +147,7 @@ export default function DashboardScreen() {
       MaintenanceAPI.getCurrent(),
       NotificationAPI.getNotifications(),
       RentCollectionAPI.getRentCollection(),
+      ConversationAPI.getConversations('landlord', true),
     ]);
 
     if (generation !== loadGeneration.current || capturedOrganizationId !== currentOrganizationId.current) return;
@@ -169,6 +176,12 @@ export default function DashboardScreen() {
     } else {
       setRentStatus('error');
     }
+    if (results[4].status === 'fulfilled') {
+      setConversations(results[4].value || []);
+      setConversationsStatus('success');
+    } else {
+      setConversationsStatus('error');
+    }
     setLoadedOrganizationId(capturedOrganizationId);
     setRefreshing(false);
   }, [clearDashboard, organizationId]);
@@ -189,12 +202,14 @@ export default function DashboardScreen() {
   const scopedProperties = dashboardScopeIsCurrent ? properties : [];
   const scopedMaintenance = dashboardScopeIsCurrent ? maintenance : [];
   const scopedNotifications = dashboardScopeIsCurrent ? notifications : [];
+  const scopedConversations = dashboardScopeIsCurrent ? conversations : [];
   const scopedRentMetrics = dashboardScopeIsCurrent
     ? rentMetrics
     : { expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 };
   const scopedPropertiesStatus: LoadStatus = dashboardScopeIsCurrent ? propertiesStatus : 'loading';
   const scopedMaintenanceStatus: LoadStatus = dashboardScopeIsCurrent ? maintenanceStatus : 'loading';
   const scopedNotificationsStatus: LoadStatus = dashboardScopeIsCurrent ? notificationsStatus : 'loading';
+  const scopedConversationsStatus: LoadStatus = dashboardScopeIsCurrent ? conversationsStatus : 'loading';
   const scopedRentStatus: LoadStatus = dashboardScopeIsCurrent ? rentStatus : 'loading';
 
   const firstName = firstString(
@@ -241,34 +256,50 @@ export default function DashboardScreen() {
       monthlyRent,
       needsAttention: attentionPropertyIds.size,
       openMaintenance: scopedMaintenance.filter(isOpenMaintenance).length,
-      unread: scopedNotifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
+      unreadNotifications: scopedNotifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
     };
   }, [scopedMaintenance, scopedNotifications, scopedProperties]);
 
-  const attentionProperty = useMemo(() => {
-    if (scopedPropertiesStatus !== 'success' || scopedMaintenanceStatus !== 'success') return null;
-    for (const property of scopedProperties) {
-      if (property.isActive === false || property.IsActive === false) continue;
+  const unreadMessages = scopedConversations.reduce((total, conversation) =>
+    total + (conversation.isArchived ? 0 : Math.max(0, Number(conversation.unreadCount) || 0)), 0);
+  const attentionProperties = useMemo(() => {
+    if (scopedPropertiesStatus !== 'success' || scopedMaintenanceStatus !== 'success' || scopedConversationsStatus !== 'success') return [];
+    const repairsByProperty = new Map<string, number>();
+    scopedMaintenance.filter(isOpenMaintenance).forEach((request) => {
+      const id = String(read(request, 'propertyId', 'PropertyId') ?? '');
+      if (id) repairsByProperty.set(id, (repairsByProperty.get(id) || 0) + 1);
+    });
+    const messagesByProperty = new Map<string, number>();
+    scopedConversations.forEach((conversation) => {
+      if (conversation.isArchived) return;
+      const id = String(conversation.propertyId ?? '');
+      const unread = Math.max(0, Number(conversation.unreadCount) || 0);
+      if (id && unread) messagesByProperty.set(id, (messagesByProperty.get(id) || 0) + unread);
+    });
+    return scopedProperties.flatMap((property) => {
+      if (property.isActive === false || property.IsActive === false) return [];
       const id = getPropertyId(property);
-      if (!id) continue;
+      if (!id) return [];
       const overdueUnits = getUnits(property).filter((unit: any) => getUnitStatus(unit) === 'overdue').length;
-      const openRepairs = scopedMaintenance.filter((request) => isOpenMaintenance(request) && String(read(request, 'propertyId', 'PropertyId') ?? '') === id).length;
-      if (overdueUnits || openRepairs) return {
+      const openRepairs = repairsByProperty.get(id) || 0;
+      const unread = messagesByProperty.get(id) || 0;
+      return overdueUnits || openRepairs || unread ? [{
         property,
         name: firstString(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed property'),
-        reason: [overdueUnits ? `${overdueUnits} overdue ${overdueUnits === 1 ? 'unit' : 'units'}` : '', openRepairs ? `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}` : ''].filter(Boolean).join(' · '),
-      };
-    }
-    return null;
-  }, [scopedProperties, scopedMaintenance, scopedPropertiesStatus, scopedMaintenanceStatus]);
+        reason: [overdueUnits ? `${overdueUnits} overdue ${overdueUnits === 1 ? 'unit' : 'units'}` : '',
+          `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}`,
+          `${unread} unread ${unread === 1 ? 'message' : 'messages'}`].filter(Boolean).join(' · '),
+      }] : [];
+    }).slice(0, 5);
+  }, [scopedProperties, scopedMaintenance, scopedConversations, scopedPropertiesStatus, scopedMaintenanceStatus, scopedConversationsStatus]);
 
   const collectionPct = scopedRentMetrics.expected > 0
     ? Math.min(Math.max((scopedRentMetrics.collected / scopedRentMetrics.expected) * 100, 0), 100)
     : 0;
-  const attentionCount = portfolio.openMaintenance + portfolio.unread;
-  const attentionDataLoading = scopedMaintenanceStatus === 'loading' || scopedNotificationsStatus === 'loading';
-  const attentionDataAvailable = scopedMaintenanceStatus === 'success' && scopedNotificationsStatus === 'success';
-  const hasUnavailableData = [scopedPropertiesStatus, scopedMaintenanceStatus, scopedNotificationsStatus, scopedRentStatus].includes('error');
+  const attentionCount = portfolio.openMaintenance + unreadMessages;
+  const attentionDataLoading = scopedMaintenanceStatus === 'loading' || scopedConversationsStatus === 'loading';
+  const attentionDataAvailable = scopedMaintenanceStatus === 'success' && scopedConversationsStatus === 'success';
+  const hasUnavailableData = [scopedPropertiesStatus, scopedMaintenanceStatus, scopedNotificationsStatus, scopedConversationsStatus, scopedRentStatus].includes('error');
   const currentDate = new Date();
   const latestMaintenance = useMemo(
     () => [...scopedMaintenance].filter(isOpenMaintenance).sort((a, b) => requestTime(b) - requestTime(a)).slice(0, 3),
@@ -286,7 +317,7 @@ export default function DashboardScreen() {
         <View style={styles.topActions}>
           <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="Open notifications">
             <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
-            {scopedNotificationsStatus === 'success' && portfolio.unread > 0 && <View style={styles.unreadDot} />}
+            {scopedNotificationsStatus === 'success' && portfolio.unreadNotifications > 0 && <View style={styles.unreadDot} />}
           </TouchableOpacity>
           <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)} accessibilityLabel="Open profile menu">
             {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
@@ -315,6 +346,40 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}
       >
+        <View style={styles.todayCard}>
+          <View style={styles.dateBlock}>
+            <Text style={styles.dateMonth}>{currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
+            <Text style={styles.dateDay}>{currentDate.getDate()}</Text>
+            <Text style={styles.dateWeekday}>{currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</Text>
+          </View>
+          <View style={styles.todayCopy}>
+            <View style={styles.todayTitleRow}>
+              <View style={[styles.focusDot, attentionCount > 0 && styles.focusDotActive]} />
+              <Text style={styles.todayTitle}>Today at a glance</Text>
+            </View>
+            <Text style={styles.todayText} numberOfLines={2}>
+              {attentionDataLoading
+                ? 'Loading portfolio updates…'
+                : !attentionDataAvailable
+                  ? 'Some portfolio attention data is unavailable.'
+                  : attentionCount > 0
+                    ? <>
+                        <Text style={portfolio.openMaintenance > 0 ? styles.todayRepairAttention : undefined}>
+                          {portfolio.openMaintenance} open {portfolio.openMaintenance === 1 ? 'repair' : 'repairs'}
+                        </Text>
+                        {' · '}
+                        <Text style={unreadMessages > 0 ? styles.todayUnreadAttention : undefined}>
+                          {unreadMessages} unread {unreadMessages === 1 ? 'message' : 'messages'}
+                        </Text>
+                      </>
+                    : 'Nothing urgent across your portfolio.'}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="View portfolio updates">
+            <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.text : '#0b3558'} />
+          </TouchableOpacity>
+        </View>
+
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, styles.rentProgressHeading]}>{currentDate.toLocaleDateString('en-US', { month: 'long' })} rent</Text>
@@ -349,40 +414,6 @@ export default function DashboardScreen() {
           )}
         </DashboardSection>
 
-        <View style={styles.todayCard}>
-          <View style={styles.dateBlock}>
-            <Text style={styles.dateMonth}>{currentDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}</Text>
-            <Text style={styles.dateDay}>{currentDate.getDate()}</Text>
-            <Text style={styles.dateWeekday}>{currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}</Text>
-          </View>
-          <View style={styles.todayCopy}>
-            <View style={styles.todayTitleRow}>
-              <View style={[styles.focusDot, attentionCount > 0 && styles.focusDotActive]} />
-              <Text style={styles.todayTitle}>Today at a glance</Text>
-            </View>
-            <Text style={styles.todayText} numberOfLines={2}>
-              {attentionDataLoading
-                ? 'Loading portfolio updates…'
-                : !attentionDataAvailable
-                  ? 'Some portfolio attention data is unavailable.'
-                  : attentionCount > 0
-                    ? <>
-                        <Text style={portfolio.openMaintenance > 0 ? styles.todayRepairAttention : undefined}>
-                          {portfolio.openMaintenance} open {portfolio.openMaintenance === 1 ? 'repair' : 'repairs'}
-                        </Text>
-                        {' · '}
-                        <Text style={portfolio.unread > 0 ? styles.todayUnreadAttention : undefined}>
-                          {portfolio.unread} unread {portfolio.unread === 1 ? 'message' : 'messages'}
-                        </Text>
-                      </>
-                    : 'Nothing urgent across your portfolio.'}
-            </Text>
-          </View>
-          <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="View portfolio updates">
-            <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.text : '#0b3558'} />
-          </TouchableOpacity>
-        </View>
-
         {hasUnavailableData && (
           <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable dashboard information">
             <Ionicons name="cloud-offline-outline" size={22} color={mode === 'dark' ? '#f0ba72' : '#a45f12'} />
@@ -393,16 +424,30 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         )}
 
-        {attentionProperty && (
-          <TouchableOpacity style={styles.attentionProperty} onPress={() => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: getPropertyId(attentionProperty.property) } })} accessibilityRole="button" accessibilityLabel={`View ${attentionProperty.name}, ${attentionProperty.reason}`}>
-            <View style={styles.attentionCopy}>
-              <Text style={styles.attentionEyebrow}>PROPERTY TO CHECK</Text>
-              <Text style={styles.attentionName} numberOfLines={1}>{attentionProperty.name}</Text>
-              <Text style={styles.attentionReason}>{attentionProperty.reason}</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />
-          </TouchableOpacity>
-        )}
+        <DashboardSection borderless>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>Properties to check</Text>
+            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })} accessibilityRole="button" accessibilityLabel="View all properties">
+              <Text style={styles.cardLinkText}>View all</Text>
+              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
+            </TouchableOpacity>
+          </View>
+          {scopedPropertiesStatus === 'error' || scopedMaintenanceStatus === 'error' || scopedConversationsStatus === 'error' ? (
+            <SectionError text="Properties to check are unavailable." onRetry={loadDashboard} />
+          ) : scopedPropertiesStatus === 'loading' || scopedMaintenanceStatus === 'loading' || scopedConversationsStatus === 'loading' ? (
+            <CardLoading />
+          ) : attentionProperties.length === 0 ? (
+            <Text style={styles.rentEmpty}>No properties need checking right now.</Text>
+          ) : attentionProperties.map((item) => (
+            <TouchableOpacity key={getPropertyId(item.property)} style={styles.attentionProperty} onPress={() => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: getPropertyId(item.property) } })} accessibilityRole="button" accessibilityLabel={`View ${item.name}, ${item.reason}`}>
+              <View style={styles.attentionCopy}>
+                <Text style={styles.attentionName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.attentionReason}>{item.reason}</Text>
+              </View>
+              <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />
+            </TouchableOpacity>
+          ))}
+        </DashboardSection>
 
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
@@ -607,9 +652,8 @@ function useScreenStyles() {
       rentDetailValue: { ...styles.rentDetailValue, color: colors.text },
       rentOverdue: { ...styles.rentOverdue, color: '#ff8b86' },
       attentionProperty: { ...styles.attentionProperty, borderColor: colors.border, backgroundColor: colors.surface },
-      attentionEyebrow: { ...styles.attentionEyebrow, color: colors.accent },
       attentionName: { ...styles.attentionName, color: colors.text },
-      attentionReason: { ...styles.attentionReason, color: '#ff8b86' },
+      attentionReason: { ...styles.attentionReason, color: colors.muted },
       progressTrack: { ...styles.progressTrack, backgroundColor: colors.border },
       dashboardSection: { ...styles.dashboardSection, borderTopColor: colors.border },
       cardEyebrow: { ...styles.cardEyebrow, color: '#75d995' },
@@ -689,11 +733,10 @@ const styles = StyleSheet.create({
   rentDetailLabel: { color: '#536777', fontSize: 12 },
   rentDetailValue: { color: '#102d43', fontSize: 14, fontWeight: '900' },
   rentOverdue: { color: '#c2413b' },
-  attentionProperty: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#dce4e8', backgroundColor: '#f8fbfd', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 15 },
+  attentionProperty: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#dce4e8', backgroundColor: '#f8fbfd', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 9 },
   attentionCopy: { flex: 1, minWidth: 0 },
-  attentionEyebrow: { color: '#2475cf', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   attentionName: { color: '#061e35', fontSize: 17, fontWeight: '900', marginTop: 4 },
-  attentionReason: { color: '#c2413b', fontSize: 12, marginTop: 3 },
+  attentionReason: { color: '#536777', fontSize: 12, lineHeight: 18, marginTop: 5 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#dff0e3' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#2f8f46' },
   dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 16, paddingBottom: 18 },
