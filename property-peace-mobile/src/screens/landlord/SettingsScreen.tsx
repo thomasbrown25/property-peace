@@ -6,6 +6,7 @@ import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
 import biometricService, { BiometricAvailability } from '../../services/biometricService';
 import userAPI from '../../api/userAPI';
+import { useAppTheme } from '../../theme/AppTheme';
 
 const PRIVACY_URL = 'https://www.propertypeace.io/privacy';
 const TERMS_URL = 'https://www.propertypeace.io/terms';
@@ -19,6 +20,8 @@ const firstString = (...values: unknown[]) => {
 };
 
 export default function SettingsScreen() {
+  const { mode, colors, setMode } = useAppTheme();
+  const styles = useSettingsStyles();
   const dispatch = useAppDispatch();
   const { currentUser } = useAppSelector((state) => state.user);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -134,10 +137,28 @@ export default function SettingsScreen() {
         <Text style={styles.readOnlyNote}>Profile details are shown read-only in this release.</Text>
       </View>
 
+      <SectionHeader icon="color-palette-outline" title="Appearance" />
+      <View style={styles.sectionGroup}>
+        <View style={styles.settingRow}>
+          <View style={styles.rowIcon}><Ionicons name="moon-outline" size={21} color={colors.accent} /></View>
+          <View style={styles.rowCopy}>
+            <Text style={styles.rowLabel}>Dark mode</Text>
+            <Text style={styles.rowValue}>Use a darker appearance on this device.</Text>
+          </View>
+          <Switch
+            accessibilityLabel="Dark mode"
+            value={mode === 'dark'}
+            onValueChange={(enabled) => setMode(enabled ? 'dark' : 'light')}
+            trackColor={{ false: colors.border, true: colors.accent }}
+            thumbColor={mode === 'dark' ? colors.dockText : '#fff'}
+          />
+        </View>
+      </View>
+
       <SectionHeader icon="shield-checkmark-outline" title="Security" />
       <View style={styles.sectionGroup}>
         <View style={styles.settingRow}>
-          <View style={styles.rowIcon}><Ionicons name="scan-outline" size={21} color="#2475cf" /></View>
+          <View style={styles.rowIcon}><Ionicons name="scan-outline" size={21} color={colors.accent} /></View>
           <View style={styles.rowCopy}>
             <Text style={styles.rowLabel}>Unlock with {biometricAvailability.label}</Text>
             <Text style={styles.rowValue}>{biometricAvailability.available ? 'Require biometric authentication or your device passcode after the app is backgrounded.' : (biometricAvailability.reason || 'Checking this device…')}</Text>
@@ -147,8 +168,8 @@ export default function SettingsScreen() {
             value={biometricEnabled}
             disabled={!biometricAvailability.available}
             onValueChange={handleBiometricToggle}
-            trackColor={{ false: '#d7dde2', true: '#9bd3ff' }}
-            thumbColor={biometricEnabled ? '#2475cf' : '#fff'}
+            trackColor={{ false: colors.border, true: colors.accent }}
+            thumbColor={biometricEnabled ? colors.dockText : '#fff'}
           />
         </View>
       </View>
@@ -162,7 +183,7 @@ export default function SettingsScreen() {
       </View>
 
       <TouchableOpacity style={styles.signOutButton} onPress={handleLogout} activeOpacity={0.82}>
-        <Ionicons name="log-out-outline" size={20} color="#9a3412" />
+        <Ionicons name="log-out-outline" size={20} color={mode === 'dark' ? '#ffa77e' : '#9a3412'} />
         <Text style={styles.signOutText}>Sign out</Text>
       </TouchableOpacity>
 
@@ -170,7 +191,7 @@ export default function SettingsScreen() {
         <Text style={styles.dangerTitle}>Delete account</Text>
         <Text style={styles.dangerCopy}>Initiate permanent account deletion inside the app. Some records may be retained where legally or financially required.</Text>
         <TouchableOpacity style={[styles.deleteButton, deleting && styles.disabled]} onPress={handleDeleteAccount} disabled={deleting}>
-          <Ionicons name="trash-outline" size={20} color="#b42318" />
+          <Ionicons name="trash-outline" size={20} color={mode === 'dark' ? '#ffa5a0' : '#b42318'} />
           <Text style={styles.deleteText}>{deleting ? 'Deleting…' : 'Delete account'}</Text>
         </TouchableOpacity>
       </View>
@@ -179,20 +200,54 @@ export default function SettingsScreen() {
 }
 
 function SectionHeader({ icon, title }: { icon: keyof typeof Ionicons.glyphMap; title: string }) {
-  return <View style={styles.sectionHeader}><Ionicons name={icon} size={18} color="#64748b" /><Text style={styles.sectionTitle}>{title}</Text></View>;
+  const styles = useSettingsStyles();
+  const { colors } = useAppTheme();
+  return <View style={styles.sectionHeader}><Ionicons name={icon} size={18} color={colors.muted} /><Text style={styles.sectionTitle}>{title}</Text></View>;
 }
 
 function LinkRow({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+  const styles = useSettingsStyles();
+  const { colors } = useAppTheme();
   return (
     <TouchableOpacity style={styles.linkRow} onPress={onPress} activeOpacity={0.75}>
-      <View style={styles.rowIcon}><Ionicons name={icon} size={20} color="#64748b" /></View>
+      <View style={styles.rowIcon}><Ionicons name={icon} size={20} color={colors.muted} /></View>
       <Text style={styles.linkLabel}>{label}</Text>
-      <Ionicons name="open-outline" size={18} color="#6a7885" />
+      <Ionicons name="open-outline" size={18} color={colors.muted} />
     </TouchableOpacity>
   );
 }
 
-const styles = StyleSheet.create({
+function useSettingsStyles() {
+  const { mode, colors } = useAppTheme();
+  if (mode === 'light') return baseStyles;
+  return StyleSheet.create({
+    ...baseStyles,
+    container: { ...baseStyles.container, backgroundColor: colors.background },
+    eyebrow: { ...baseStyles.eyebrow, color: colors.muted },
+    title: { ...baseStyles.title, color: colors.text },
+    subtitle: { ...baseStyles.subtitle, color: colors.muted },
+    profileSection: { ...baseStyles.profileSection, borderBottomColor: colors.border },
+    sectionGroup: { ...baseStyles.sectionGroup, borderBottomColor: colors.border },
+    avatarFallback: { ...baseStyles.avatarFallback, backgroundColor: colors.dock },
+    avatarText: { ...baseStyles.avatarText, color: colors.dockText },
+    profileName: { ...baseStyles.profileName, color: colors.text },
+    profileDetail: { ...baseStyles.profileDetail, color: colors.muted },
+    readOnlyNote: { ...baseStyles.readOnlyNote, color: colors.muted },
+    sectionTitle: { ...baseStyles.sectionTitle, color: colors.text },
+    rowLabel: { ...baseStyles.rowLabel, color: colors.text },
+    rowValue: { ...baseStyles.rowValue, color: colors.muted },
+    linkRow: { ...baseStyles.linkRow, borderBottomColor: colors.border },
+    linkLabel: { ...baseStyles.linkLabel, color: colors.text },
+    versionText: { ...baseStyles.versionText, color: colors.muted },
+    signOutButton: { ...baseStyles.signOutButton, borderBottomColor: colors.border },
+    signOutText: { ...baseStyles.signOutText, color: '#ffa77e' },
+    dangerTitle: { ...baseStyles.dangerTitle, color: '#ffa5a0' },
+    dangerCopy: { ...baseStyles.dangerCopy, color: '#eebcb7' },
+    deleteText: { ...baseStyles.deleteText, color: '#ffa5a0' },
+  });
+}
+
+const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 120 },
   intro: { paddingBottom: 28 },

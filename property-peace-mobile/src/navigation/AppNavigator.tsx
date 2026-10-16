@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { RootStackParamList } from './types';
@@ -12,10 +12,24 @@ import biometricService from '../services/biometricService';
 import { initializeAuth, logout } from '../store/user/user.slice';
 import { resolveStartupPresentation } from '../features/startup/startupPresentation';
 import { resolveRestoredSessionLock } from '../features/startup/automaticBiometricPrompt';
+import { useAppTheme } from '../theme/AppTheme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
+  const { mode, colors } = useAppTheme();
+  const navigationTheme = {
+    ...(mode === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(mode === 'dark' ? DarkTheme.colors : DefaultTheme.colors),
+      primary: colors.accent,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.accent,
+    },
+  };
   const dispatch = useAppDispatch();
   const { isAuthenticated, loading } = useAppSelector((state) => state.user);
   const [checkingLock, setCheckingLock] = useState(true);
@@ -126,7 +140,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <Stack.Screen name="Main" component={MainNavigator} />

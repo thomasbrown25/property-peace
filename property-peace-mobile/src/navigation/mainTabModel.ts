@@ -72,3 +72,7 @@ export function resolveVisibleMainTabs<T>(
 export function mainTabIconNames(name: string) {
   return icons[name as MainTabName];
 }
+
+export function dockSplitIndex(visibleCount: number) {
+  return Math.ceil(visibleCount / 2);
+}

@@ -20,6 +20,7 @@ import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
+import { useAppTheme } from '../../theme/AppTheme';
 
 const logo = require('../../../assets/property-peace-navbar-logo.png');
 
@@ -91,6 +92,8 @@ const normalizeRentMetrics = (payload: any): RentMetrics => {
 };
 
 export default function DashboardScreen() {
+  const styles = useScreenStyles();
+  const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
@@ -263,7 +266,7 @@ export default function DashboardScreen() {
         <Image source={logo} style={styles.logo} resizeMode="contain" />
         <View style={styles.topActions}>
           <TouchableOpacity style={styles.headerButton} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="Open notifications">
-            <Ionicons name="notifications-outline" size={23} color="#0b3558" />
+            <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
             {scopedNotificationsStatus === 'success' && portfolio.unread > 0 && <View style={styles.unreadDot} />}
           </TouchableOpacity>
           <TouchableOpacity style={[styles.avatar, profileMenuOpen && styles.avatarActive]} onPress={() => setProfileMenuOpen((open) => !open)} accessibilityLabel="Open profile menu">
@@ -289,9 +292,9 @@ export default function DashboardScreen() {
       )}
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 32 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 126 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor="#2475cf" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}
       >
         <View style={styles.todayCard}>
           <View style={styles.dateBlock}>
@@ -315,13 +318,13 @@ export default function DashboardScreen() {
             </Text>
           </View>
           <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="View portfolio updates">
-            <Ionicons name="arrow-forward" size={18} color="#0b3558" />
+            <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.text : '#0b3558'} />
           </TouchableOpacity>
         </View>
 
         {hasUnavailableData && (
           <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable dashboard information">
-            <Ionicons name="cloud-offline-outline" size={22} color="#a45f12" />
+            <Ionicons name="cloud-offline-outline" size={22} color={mode === 'dark' ? '#f0ba72' : '#a45f12'} />
             <View style={styles.warningCopy}>
               <Text style={styles.warningTitle}>Some information is unavailable</Text>
               <Text style={styles.warningText}>Tap to retry the missing dashboard sections.</Text>
@@ -334,7 +337,7 @@ export default function DashboardScreen() {
             <Text style={styles.cardTitle}>Money summary</Text>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('RentCollection')} accessibilityRole="button" accessibilityLabel="View all rent collection">
               <Text style={styles.cardLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={14} color="#647585" />
+              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
             </TouchableOpacity>
           </View>
           {scopedRentStatus === 'error' ? (
@@ -344,9 +347,9 @@ export default function DashboardScreen() {
           ) : (
             <>
               <View style={styles.metricList}>
-                <MoneyMetric label="Collected" value={formatMoney(scopedRentMetrics.collected)} color="#2f8f46" />
-                <MoneyMetric label="Expected rent" value={formatMoney(scopedRentMetrics.expected)} color="#0b3558" />
-                <MoneyMetric label="Remaining" value={formatMoney(scopedRentMetrics.remaining)} color="#b76a11" isLast />
+                <MoneyMetric label="Collected" value={formatMoney(scopedRentMetrics.collected)} color={mode === 'dark' ? '#75d995' : '#2f8f46'} />
+                <MoneyMetric label="Expected rent" value={formatMoney(scopedRentMetrics.expected)} color={mode === 'dark' ? colors.text : '#0b3558'} />
+                <MoneyMetric label="Remaining" value={formatMoney(scopedRentMetrics.remaining)} color={mode === 'dark' ? '#f0ba72' : '#b76a11'} isLast />
               </View>
               <View style={styles.progressCard}>
                 <View style={styles.progressHeader}>
@@ -374,7 +377,7 @@ export default function DashboardScreen() {
             <Text style={styles.cardTitle}>Portfolio</Text>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })}>
               <Text style={styles.cardLinkText}>View properties</Text>
-              <Ionicons name="arrow-forward" size={14} color="#647585" />
+              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
             </TouchableOpacity>
           </View>
           {scopedPropertiesStatus === 'error' ? (
@@ -402,12 +405,12 @@ export default function DashboardScreen() {
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <View style={styles.cardTitleWithIcon}>
-              <Ionicons name="construct-outline" size={20} color="#b76a11" />
+              <Ionicons name="construct-outline" size={20} color={mode === 'dark' ? '#f0ba72' : '#b76a11'} />
               <Text style={styles.cardTitle}>Maintenance</Text>
             </View>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Maintenance', { screen: 'MaintenanceList' })}>
               <Text style={styles.cardLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={14} color="#647585" />
+              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
             </TouchableOpacity>
           </View>
           {scopedMaintenanceStatus === 'error' ? (
@@ -437,7 +440,7 @@ export default function DashboardScreen() {
             </View>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Notifications')}>
               <Text style={styles.cardLinkText}>View all</Text>
-              <Ionicons name="arrow-forward" size={14} color="#647585" />
+              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
             </TouchableOpacity>
           </View>
           {scopedNotificationsStatus === 'error' ? (
@@ -462,19 +465,23 @@ export default function DashboardScreen() {
 }
 
 function DashboardSection({ children, borderless = false }: { children: React.ReactNode; borderless?: boolean }) {
+  const styles = useScreenStyles();
   return <View style={[styles.dashboardSection, borderless && styles.borderlessSection]}>{children}</View>;
 }
 
 function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void | Promise<void>; destructive?: boolean }) {
+  const styles = useScreenStyles();
+  const { mode, colors } = useAppTheme();
   return (
     <TouchableOpacity style={styles.profileAction} onPress={onPress}>
-      <Ionicons name={icon} size={20} color={destructive ? '#c2413b' : '#20394d'} />
+      <Ionicons name={icon} size={20} color={destructive ? (mode === 'dark' ? '#ff8b86' : '#c2413b') : (mode === 'dark' ? colors.text : '#20394d')} />
       <Text style={[styles.profileActionText, destructive && styles.destructiveText]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 function MoneyMetric({ label, value, color, isLast = false }: { label: string; value: string; color: string; isLast?: boolean }) {
+  const styles = useScreenStyles();
   return (
     <View style={[styles.moneyMetric, isLast && styles.lastRow]}>
       <Text style={styles.moneyLabel}>{label}</Text>
@@ -484,9 +491,11 @@ function MoneyMetric({ label, value, color, isLast = false }: { label: string; v
 }
 
 function PortfolioMetric({ icon, label, value, helper, color, background, isLast = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; helper: string; color: string; background: string; isLast?: boolean }) {
+  const styles = useScreenStyles();
+  const { mode } = useAppTheme();
   return (
     <View style={[styles.portfolioMetric, isLast && styles.lastRow]}>
-      <View style={[styles.portfolioIcon, { backgroundColor: background }]}><Ionicons name={icon} size={18} color={color} /></View>
+      <View style={[styles.portfolioIcon, { backgroundColor: mode === 'dark' ? '#294052' : background }]}><Ionicons name={icon} size={18} color={mode === 'dark' ? ({ '#2f8f46': '#75d995', '#b76a11': '#f0ba72', '#2475cf': '#72b6ff', '#c2413b': '#ff8b86' } as Record<string, string>)[color] || color : color} /></View>
       <View style={styles.portfolioMetricCopy}>
         <Text style={styles.portfolioLabel}>{label}</Text>
         <Text style={styles.portfolioHelper}>{helper}</Text>
@@ -497,6 +506,7 @@ function PortfolioMetric({ icon, label, value, helper, color, background, isLast
 }
 
 function MaintenanceRow({ request, isLast, onPress }: { request: MaintenanceRequest; isLast: boolean; onPress: () => void }) {
+  const styles = useScreenStyles();
   const title = firstString(request.title, request.Title, 'Maintenance request');
   const property = firstString(request.propertyName, request.PropertyName, request.location, request.Location, 'Portfolio request');
   const status = displayStatus(request.status ?? request.Status);
@@ -512,9 +522,11 @@ function MaintenanceRow({ request, isLast, onPress }: { request: MaintenanceRequ
 }
 
 function EmptyState({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMap; title: string; text: string }) {
+  const styles = useScreenStyles();
+  const { mode } = useAppTheme();
   return (
     <View style={styles.emptyState}>
-      <View style={styles.emptyIcon}><Ionicons name={icon} size={22} color="#2f8f46" /></View>
+      <View style={styles.emptyIcon}><Ionicons name={icon} size={22} color={mode === 'dark' ? '#75d995' : '#2f8f46'} /></View>
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyText}>{text}</Text>
     </View>
@@ -522,6 +534,7 @@ function EmptyState({ icon, title, text }: { icon: keyof typeof Ionicons.glyphMa
 }
 
 function SectionError({ text, onRetry }: { text: string; onRetry: () => void }) {
+  const styles = useScreenStyles();
   return (
     <View style={styles.sectionError} accessibilityRole="alert">
       <Text style={styles.sectionErrorText}>{text}</Text>
@@ -531,12 +544,77 @@ function SectionError({ text, onRetry }: { text: string; onRetry: () => void }) 
 }
 
 function CardLoading() {
+  const styles = useScreenStyles();
+  const { colors } = useAppTheme();
   return (
     <View style={styles.cardLoading}>
-      <ActivityIndicator size="small" color="#2475cf" />
+      <ActivityIndicator size="small" color={colors.accent} />
       <Text style={styles.loadingText}>Loading dashboard data…</Text>
     </View>
   );
+}
+
+function useScreenStyles() {
+  const { mode, colors } = useAppTheme();
+  return useMemo(() => mode === 'light' ? styles : {
+    ...styles,
+    ...StyleSheet.create({
+      container: { ...styles.container, backgroundColor: colors.background },
+      topBar: { ...styles.topBar, backgroundColor: colors.background },
+      headerButton: { ...styles.headerButton, backgroundColor: colors.surface, borderColor: colors.border },
+      unreadDot: { ...styles.unreadDot, borderColor: colors.surface },
+      avatar: { ...styles.avatar, borderColor: colors.border },
+      profileMenu: { ...styles.profileMenu, backgroundColor: colors.surface, borderColor: colors.border },
+      profileIdentity: { ...styles.profileIdentity, backgroundColor: colors.background, borderBottomColor: colors.border },
+      profileName: { ...styles.profileName, color: colors.text },
+      profileEmail: { ...styles.profileEmail, color: colors.muted },
+      profileAction: { ...styles.profileAction, borderBottomColor: colors.border },
+      profileActionText: { ...styles.profileActionText, color: colors.text },
+      destructiveText: { ...styles.destructiveText, color: '#ff8b86' },
+      dateBlock: { ...styles.dateBlock, borderRightColor: colors.border },
+      dateMonth: { ...styles.dateMonth, color: colors.accent },
+      dateDay: { ...styles.dateDay, color: colors.text },
+      dateWeekday: { ...styles.dateWeekday, color: colors.muted },
+      focusDot: { ...styles.focusDot, backgroundColor: colors.muted },
+      focusDotActive: styles.focusDotActive,
+      todayTitle: { ...styles.todayTitle, color: colors.text },
+      todayText: { ...styles.todayText, color: colors.muted },
+      warningCard: { ...styles.warningCard, borderTopColor: colors.border },
+      warningTitle: { ...styles.warningTitle, color: '#f0ba72' },
+      warningText: { ...styles.warningText, color: colors.muted },
+      progressCard: { ...styles.progressCard, backgroundColor: colors.surface },
+      progressTitle: { ...styles.progressTitle, color: colors.text },
+      progressPercent: { ...styles.progressPercent, color: '#75d995' },
+      progressHelper: { ...styles.progressHelper, color: colors.muted },
+      progressTrack: { ...styles.progressTrack, backgroundColor: colors.border },
+      dashboardSection: { ...styles.dashboardSection, borderTopColor: colors.border },
+      cardEyebrow: { ...styles.cardEyebrow, color: '#75d995' },
+      cardTitle: { ...styles.cardTitle, color: colors.text },
+      cardLinkText: { ...styles.cardLinkText, color: colors.muted },
+      moneyMetric: { ...styles.moneyMetric, borderBottomColor: colors.border },
+      moneyLabel: { ...styles.moneyLabel, color: colors.muted },
+      portfolioMetric: { ...styles.portfolioMetric, borderBottomColor: colors.border },
+      portfolioLabel: { ...styles.portfolioLabel, color: colors.text },
+      portfolioValue: { ...styles.portfolioValue, color: colors.text },
+      portfolioHelper: { ...styles.portfolioHelper, color: colors.muted },
+      maintenanceRow: { ...styles.maintenanceRow, borderBottomColor: colors.border },
+      maintenanceTitle: { ...styles.maintenanceTitle, color: colors.text },
+      maintenanceLocation: { ...styles.maintenanceLocation, color: colors.muted },
+      statusChip: { ...styles.statusChip, backgroundColor: '#3b3225', borderColor: '#947143' },
+      statusChipText: { ...styles.statusChipText, color: '#f0ba72' },
+      notificationRow: { ...styles.notificationRow, borderBottomColor: colors.border },
+      notificationDot: { ...styles.notificationDot, backgroundColor: colors.muted },
+      notificationDotUnread: { ...styles.notificationDotUnread, backgroundColor: colors.accent },
+      notificationTitle: { ...styles.notificationTitle, color: colors.text },
+      notificationMessage: { ...styles.notificationMessage, color: colors.muted },
+      emptyIcon: { ...styles.emptyIcon, backgroundColor: colors.surface },
+      emptyTitle: { ...styles.emptyTitle, color: colors.text },
+      emptyText: { ...styles.emptyText, color: colors.muted },
+      sectionErrorText: { ...styles.sectionErrorText, color: '#ff8b86' },
+      inlineRetryText: { ...styles.inlineRetryText, color: colors.accent },
+      loadingText: { ...styles.loadingText, color: colors.muted },
+    }),
+  }, [mode, colors]);
 }
 
 const styles = StyleSheet.create({

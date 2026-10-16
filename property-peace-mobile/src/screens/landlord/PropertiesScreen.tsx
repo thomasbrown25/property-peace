@@ -17,6 +17,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import { filterPropertiesForList } from '../../features/properties/propertiesList';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type PropertiesScreenNavigationProp = NativeStackNavigationProp<PropertiesStackParamList, 'PropertiesList'>;
 const numberValue = (...values: any[]) => {
@@ -68,6 +69,8 @@ function needsAttention(property: Property) {
 }
 
 export default function PropertiesScreen() {
+  const styles = useScreenStyles();
+  const { mode, colors } = useAppTheme();
   const navigation = useNavigation<PropertiesScreenNavigationProp>();
   const insets = useSafeAreaInsets();
   const [properties, setProperties] = useState<Property[]>([]);
@@ -94,7 +97,7 @@ export default function PropertiesScreen() {
       .sort((a, b) => Number(needsAttention(b)) - Number(needsAttention(a)));
   }, [properties, search]);
 
-  if (loading) return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#2475cf" /></View>;
+  if (loading) return <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View>;
 
   return (
     <View style={styles.container}>
@@ -103,7 +106,7 @@ export default function PropertiesScreen() {
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         renderItem={({ item }) => <PropertyRow property={item} onPress={() => navigation.navigate('PropertyDetail', { propertyId: String(item.id || item.Id) })} />}
         contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperties(); }} tintColor="#2475cf" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperties(); }} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View>
             <View style={styles.pageHeader}>
@@ -113,12 +116,12 @@ export default function PropertiesScreen() {
             </View>
 
             <View style={styles.searchWrap}>
-              <Ionicons name="search-outline" size={18} color="#667789" />
+              <Ionicons name="search-outline" size={18} color={mode === 'dark' ? colors.muted : '#667789'} />
               <TextInput
                 value={search}
                 onChangeText={setSearch}
                 placeholder="Search by name, address, tenant..."
-                placeholderTextColor="#8a98a6"
+                placeholderTextColor={mode === 'dark' ? colors.muted : '#8a98a6'}
                 style={styles.searchInput}
                 accessibilityLabel="Search properties"
               />
@@ -144,6 +147,8 @@ export default function PropertiesScreen() {
 }
 
 function PropertyRow({ property, onPress }: { property: Property; onPress: () => void }) {
+  const styles = useScreenStyles();
+  const { mode, colors } = useAppTheme();
   const units = getUnits(property);
   const summary = getUnitSummary(property);
   const firstUnit = units[0] || {};
@@ -172,7 +177,7 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
       {imageUrl ? (
         <Image source={{ uri: imageUrl }} style={styles.thumbnail} />
       ) : (
-        <View style={styles.thumbnailFallback}><Ionicons name="home-outline" size={28} color="#2475cf" /></View>
+        <View style={styles.thumbnailFallback}><Ionicons name="home-outline" size={28} color={colors.accent} /></View>
       )}
       <View style={styles.propertyCopy}>
         <Text style={styles.propertyName} numberOfLines={2}>{name}</Text>
@@ -186,7 +191,7 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
         </View>
         {!!attentionText && (
           <View style={styles.attentionRow}>
-            <Ionicons name="warning-outline" size={13} color="#c2413b" />
+            <Ionicons name="warning-outline" size={13} color={mode === 'dark' ? '#ff8b86' : '#c2413b'} />
             <Text style={styles.attentionText}>{attentionText}</Text>
           </View>
         )}
@@ -196,9 +201,11 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
 }
 
 function EmptyState({ onAdd, searching }: { onAdd: () => void; searching: boolean }) {
+  const styles = useScreenStyles();
+  const { mode, colors } = useAppTheme();
   return (
     <View style={styles.emptyContainer}>
-      <Ionicons name="home-outline" size={30} color="#8aa5b8" />
+      <Ionicons name="home-outline" size={30} color={mode === 'dark' ? colors.muted : '#8aa5b8'} />
       <Text style={styles.emptyText}>{searching ? 'No matching properties' : 'No properties yet'}</Text>
       <Text style={styles.emptySubtext}>{searching ? 'Try another name, address, or tenant.' : 'Add a property to start managing your portfolio.'}</Text>
       {!searching && <TouchableOpacity style={styles.emptyButton} onPress={onAdd} activeOpacity={0.84} accessibilityRole="button">
@@ -206,6 +213,38 @@ function EmptyState({ onAdd, searching }: { onAdd: () => void; searching: boolea
       </TouchableOpacity>}
     </View>
   );
+}
+
+function useScreenStyles() {
+  const { mode, colors } = useAppTheme();
+  return useMemo(() => mode === 'light' ? styles : {
+    ...styles,
+    ...StyleSheet.create({
+      container: { ...styles.container, backgroundColor: colors.background },
+      centerContainer: { ...styles.centerContainer, backgroundColor: colors.background },
+      eyebrow: { ...styles.eyebrow, color: colors.accent },
+      pageTitle: { ...styles.pageTitle, color: colors.text },
+      pageSubtitle: { ...styles.pageSubtitle, color: colors.muted },
+      searchWrap: { ...styles.searchWrap, backgroundColor: colors.surface, borderColor: colors.border },
+      searchInput: { ...styles.searchInput, color: colors.text },
+      sectionTitle: { ...styles.sectionTitle, color: colors.text },
+      sectionCount: { ...styles.sectionCount, color: colors.muted },
+      separator: { ...styles.separator, backgroundColor: colors.border },
+      thumbnail: { ...styles.thumbnail, backgroundColor: colors.surface },
+      thumbnailFallback: { ...styles.thumbnailFallback, backgroundColor: colors.surface },
+      propertyName: { ...styles.propertyName, color: colors.text },
+      propertyAddress: { ...styles.propertyAddress, color: colors.muted },
+      propertyMeta: { ...styles.propertyMeta, color: colors.muted },
+      propertyRent: { ...styles.propertyRent, color: colors.accent },
+      statusText: { ...styles.statusText, color: '#75d995' },
+      statusTextError: { ...styles.statusTextError, color: '#ff8b86' },
+      statusTextWarning: { ...styles.statusTextWarning, color: '#f0ba72' },
+      attentionText: { ...styles.attentionText, color: '#ff8b86' },
+      emptyText: { ...styles.emptyText, color: colors.text },
+      emptySubtext: { ...styles.emptySubtext, color: colors.muted },
+      emptyButtonText: { ...styles.emptyButtonText, color: colors.accent },
+    }),
+  }, [mode, colors]);
 }
 
 const styles = StyleSheet.create({

@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import googlePlacesAPI from '../../api/googlePlacesAPI';
+import { useAppTheme } from '../../theme/AppTheme';
 import {
   addressAutocompleteReducer,
   createLatestRequestGate,
@@ -43,6 +44,8 @@ export default function AddressAutocompleteInput({
   onPlaceSelected,
   disabled = false,
 }: AddressAutocompleteInputProps) {
+  const { colors, mode } = useAppTheme();
+  const dark = mode === 'dark';
   const [state, dispatch] = useReducer(
     addressAutocompleteReducer,
     initialAddressAutocompleteState,
@@ -217,19 +220,20 @@ export default function AddressAutocompleteInput({
     <View style={styles.wrapper}>
       <View style={styles.inputContainer}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
           placeholder="Street address"
+          placeholderTextColor={dark ? colors.muted : undefined}
           value={value}
           onChangeText={handleChange}
           editable={!disabled}
           accessibilityLabel="Street address"
         />
         {!disabled && (state.loading || resolving) && (
-          <ActivityIndicator style={styles.loader} size="small" color="#1976d2" />
+          <ActivityIndicator style={styles.loader} size="small" color={dark ? colors.accent : '#1976d2'} />
         )}
       </View>
       {showSuggestions && (
-        <View style={styles.suggestionContainer}>
+        <View style={[styles.suggestionContainer, dark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {state.suggestions.map((suggestion) => (
             <TouchableOpacity
               key={suggestion.placeId}
@@ -239,14 +243,14 @@ export default function AddressAutocompleteInput({
               accessibilityRole="button"
               accessibilityLabel={`Select address ${suggestion.text}`}
             >
-              <Ionicons name="location-outline" size={20} color="#555" />
-              <Text style={styles.suggestionText}>{suggestion.text}</Text>
+              <Ionicons name="location-outline" size={20} color={dark ? colors.muted : '#555'} />
+              <Text style={[styles.suggestionText, dark && { color: colors.text }]}>{suggestion.text}</Text>
             </TouchableOpacity>
           ))}
-          <Text style={styles.attribution} numberOfLines={1}>Google Maps</Text>
+          <Text style={[styles.attribution, dark && { color: colors.muted, borderTopColor: colors.border }]} numberOfLines={1}>Google Maps</Text>
         </View>
       )}
-      {!!state.error && <Text style={styles.error}>{state.error}</Text>}
+      {!!state.error && <Text style={[styles.error, dark && { color: '#ffaaa2' }]}>{state.error}</Text>}
     </View>
   );
 }

@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 
 const dashboardSource = readFileSync(new URL('../src/screens/landlord/DashboardScreen.tsx', import.meta.url), 'utf8');
+const quickActionsSource = readFileSync(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
 let navigationModel;
 let loadError;
 
@@ -90,9 +91,10 @@ test('property detail requires unit selection for multi-unit properties', () => 
   });
 });
 
-test('dashboard checklist action always opens dedicated property search', () => {
+test('quick action opens dedicated checklist property search', () => {
   assert.match(
-    dashboardSource,
+    quickActionsSource,
     /navigate\('Checklists',\s*\{\s*screen:\s*'ChecklistPropertySearch'\s*\}\)/,
   );
+  assert.doesNotMatch(dashboardSource, /navigate\('Checklists',\s*\{\s*screen:\s*'ChecklistPropertySearch'\s*\}\)/);
 });

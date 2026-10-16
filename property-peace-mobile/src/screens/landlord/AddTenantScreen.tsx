@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import TenantAPI from '../../api/tenantAPI';
+import { useAppTheme } from '../../theme/AppTheme';
 
 export default function AddTenantScreen() {
+  const { mode, colors } = useAppTheme();
+  const dark = mode === 'dark';
   const navigation = useNavigation<any>();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phoneNumber: '' });
@@ -27,17 +30,17 @@ export default function AddTenantScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-      <Text style={styles.eyebrow}>NEW TENANT</Text>
-      <Text style={styles.title}>Add a tenant</Text>
-      <Text style={styles.helper}>Capture contact details here. Portal invitations and account setup can be handled on the web.</Text>
-      <Text style={styles.sectionLabel}>CONTACT DETAILS</Text>
-      <TextInput style={styles.input} placeholder="First name" value={form.firstName} onChangeText={(v) => update('firstName', v)} />
-      <TextInput style={styles.input} placeholder="Last name" value={form.lastName} onChangeText={(v) => update('lastName', v)} />
-      <TextInput style={styles.input} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={form.email} onChangeText={(v) => update('email', v)} />
-      <TextInput style={styles.input} placeholder="Phone" keyboardType="phone-pad" value={form.phoneNumber} onChangeText={(v) => update('phoneNumber', v)} />
-      <TouchableOpacity style={[styles.primaryButton, saving && styles.disabledButton]} onPress={save} disabled={saving}>
-        <Text style={styles.primaryButtonText}>{saving ? 'Adding…' : 'Add Tenant'}</Text>
+    <ScrollView style={[styles.container, dark && { backgroundColor: colors.background }]} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>NEW TENANT</Text>
+      <Text style={[styles.title, dark && { color: colors.text }]}>Add a tenant</Text>
+      <Text style={[styles.helper, dark && { color: colors.muted }]}>Capture contact details here. Portal invitations and account setup can be handled on the web.</Text>
+      <Text style={[styles.sectionLabel, dark && { color: colors.muted }]}>CONTACT DETAILS</Text>
+      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="First name" value={form.firstName} onChangeText={(v) => update('firstName', v)} />
+      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Last name" value={form.lastName} onChangeText={(v) => update('lastName', v)} />
+      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Email" autoCapitalize="none" keyboardType="email-address" value={form.email} onChangeText={(v) => update('email', v)} />
+      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Phone" keyboardType="phone-pad" value={form.phoneNumber} onChangeText={(v) => update('phoneNumber', v)} />
+      <TouchableOpacity style={[styles.primaryButton, dark && { backgroundColor: colors.accent }, saving && styles.disabledButton]} onPress={save} disabled={saving}>
+        <Text style={[styles.primaryButtonText, dark && { color: colors.background }]}>{saving ? 'Adding…' : 'Add Tenant'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

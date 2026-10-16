@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceAPI, { LocalMedia, MaintenanceAssigneeOption, MaintenanceAssignmentDirectorySource, MaintenanceAttachment, MaintenanceRequest, newIdempotencyKey } from '../../api/maintenanceAPI';
 import { MaintenanceStackParamList } from '../../navigation/types';
 import { currentCycleCompletionAttachmentIds, displayStatus, normalizeMaintenanceMediaFileName, validateMaintenanceMedia } from '../../features/maintenance/maintenanceModel';
+import { useAppTheme } from '../../theme/AppTheme';
 
 type Route = RouteProp<MaintenanceStackParamList, 'LandlordMaintenanceDetail'>;
 const value = (item: any, key: string) => item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
@@ -28,6 +29,8 @@ const friendlyHomeName = (item: any, key: 'propertyName' | 'unitName', nestedKey
 const MONEY_KEYBOARD_ACCESSORY_ID = 'maintenance-money-keyboard';
 
 export default function LandlordMaintenanceDetailScreen() {
+  const { mode, colors } = useAppTheme();
+  const s = mode === 'dark' ? darkStyles : lightStyles;
   const navigation = useNavigation<any>();
   const { requestId, listItem } = useRoute<Route>().params;
   const [item, setItem] = useState<MaintenanceRequest>(listItem ?? {});
@@ -257,7 +260,7 @@ export default function LandlordMaintenanceDetailScreen() {
   const next = closed ? 'This request is closed.' : canAcknowledge ? 'Acknowledge the request to begin.' : !assigned ? 'Assign someone to handle the repair.' : pendingCompletion ? actionableCompletions.length ? 'The tenant deadline passed. Staff can close the completion with a reason.' : 'Waiting for tenant confirmation.' : inProgressOrders.length ? 'Submit repair completion with evidence.' : issuedOrders.length ? 'Start the issued work order.' : requiresEstimate && !approvedEstimates.length ? 'Review or submit an estimate.' : 'Issue a work order when ready.';
 
   return <SafeAreaView style={s.page} edges={['bottom']}>
-    {loading ? <ActivityIndicator style={s.loading} color="#0b5cab" /> : error ?
+    {loading ? <ActivityIndicator style={s.loading} color={mode === 'dark' ? colors.accent : '#0b5cab'} /> : error ?
       <View style={s.content}><Text style={s.error}>{error}</Text><Action label="Retry loading request" onPress={reload} /></View> :
       <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}>
@@ -349,10 +352,22 @@ export default function LandlordMaintenanceDetailScreen() {
   function CloseForm(completion: any) { return <><Text style={s.muted}>The tenant confirmation deadline has passed. Give a reason for staff closure.</Text><Field placeholder="Staff close reason" value={staffCloseReason} onChangeText={setStaffCloseReason} multiline /><Action label="Confirm staff close" onPress={() => staffCloseCompletion(completion)} disabled={busy} prominent /></>; }
 }
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => <View style={s.sectionWrap}><Text style={s.section}>{title}</Text>{children}</View>;
-const Field = (props: React.ComponentProps<typeof TextInput>) => <TextInput {...props} style={[s.input, props.multiline && s.area]} placeholderTextColor="#83919a" textAlignVertical={props.multiline ? 'top' : 'center'} />;
-const Action = ({ label, onPress, disabled, prominent, expanded, selected }: { label: string; onPress: () => void; disabled?: boolean; prominent?: boolean; expanded?: boolean; selected?: boolean }) => <TouchableOpacity accessibilityRole={selected === undefined ? 'button' : 'radio'} accessibilityState={{ disabled: !!disabled, expanded, selected }} onPress={onPress} disabled={disabled} style={[s.action, prominent && s.primary, disabled && s.disabled]}><Text style={[s.link, prominent && s.primaryText]}>{label}{expanded === undefined ? '' : expanded ? '  −' : '  +'}</Text></TouchableOpacity>;
-const s = StyleSheet.create({
+const Section = ({ title, children }: { title: string; children: React.ReactNode }) => {
+  const { mode } = useAppTheme();
+  const s = mode === 'dark' ? darkStyles : lightStyles;
+  return <View style={s.sectionWrap}><Text style={s.section}>{title}</Text>{children}</View>;
+};
+const Field = (props: React.ComponentProps<typeof TextInput>) => {
+  const { mode, colors } = useAppTheme();
+  const s = mode === 'dark' ? darkStyles : lightStyles;
+  return <TextInput {...props} style={[s.input, props.multiline && s.area]} placeholderTextColor={mode === 'dark' ? colors.muted : '#83919a'} textAlignVertical={props.multiline ? 'top' : 'center'} />;
+};
+const Action = ({ label, onPress, disabled, prominent, expanded, selected }: { label: string; onPress: () => void; disabled?: boolean; prominent?: boolean; expanded?: boolean; selected?: boolean }) => {
+  const { mode } = useAppTheme();
+  const s = mode === 'dark' ? darkStyles : lightStyles;
+  return <TouchableOpacity accessibilityRole={selected === undefined ? 'button' : 'radio'} accessibilityState={{ disabled: !!disabled, expanded, selected }} onPress={onPress} disabled={disabled} style={[s.action, prominent && s.primary, disabled && s.disabled]}><Text style={[s.link, prominent && s.primaryText]}>{label}{expanded === undefined ? '' : expanded ? '  −' : '  +'}</Text></TouchableOpacity>;
+};
+const lightStyles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#f7f3ee' }, content: { padding: 18, paddingBottom: 55 }, loading: { marginTop: 60 },
   link: { color: '#0b5cab', fontWeight: '900' }, eyebrow: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 16 },
   title: { color: '#102d43', fontSize: 26, fontWeight: '900', marginTop: 4 }, statusLabel: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 22 }, status: { color: '#0b5cab', fontSize: 20, fontWeight: '900', marginTop: 3 },
@@ -361,4 +376,27 @@ const s = StyleSheet.create({
   action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4, marginTop: 5 }, primary: { alignSelf: 'stretch', alignItems: 'center', backgroundColor: '#0b5cab', marginTop: 12, paddingHorizontal: 14 }, primaryText: { color: '#fff' }, disabled: { opacity: .45 },
   form: { borderLeftWidth: 2, borderColor: '#bdcbd3', marginTop: 10, paddingLeft: 12, paddingBottom: 10 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, choice: { paddingVertical: 10, borderBottomWidth: 1, borderColor: '#e2e8eb' },
   input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#bdcbd3', minHeight: 46, paddingHorizontal: 11, marginTop: 8, color: '#19384c' }, area: { minHeight: 76, paddingTop: 11 }, error: { color: '#a92338', lineHeight: 21, marginVertical: 10 }, keyboardAccessory: { padding: 12, alignItems: 'flex-end', backgroundColor: '#f7f3ee' },
+});
+
+const darkStyles = StyleSheet.create({
+  ...lightStyles,
+  page: { ...lightStyles.page, backgroundColor: '#101923' },
+  link: { ...lightStyles.link, color: '#72b6ff' },
+  eyebrow: { ...lightStyles.eyebrow, color: '#b4c3d0' },
+  title: { ...lightStyles.title, color: '#f2f6fa' },
+  statusLabel: { ...lightStyles.statusLabel, color: '#b4c3d0' },
+  status: { ...lightStyles.status, color: '#72b6ff' },
+  body: { ...lightStyles.body, color: '#dbe5ee' },
+  meta: { ...lightStyles.meta, color: '#b4c3d0' },
+  sectionWrap: { ...lightStyles.sectionWrap, borderColor: '#35495b' },
+  section: { ...lightStyles.section, color: '#f2f6fa' },
+  record: { ...lightStyles.record, borderColor: '#35495b' },
+  recordTitle: { ...lightStyles.recordTitle, color: '#f2f6fa' },
+  muted: { ...lightStyles.muted, color: '#b4c3d0' },
+  primary: { ...lightStyles.primary, backgroundColor: '#2475cf' },
+  form: { ...lightStyles.form, borderColor: '#51697e' },
+  choice: { ...lightStyles.choice, borderColor: '#35495b' },
+  input: { ...lightStyles.input, backgroundColor: '#1b2937', borderColor: '#51697e', color: '#f2f6fa' },
+  error: { ...lightStyles.error, color: '#ff9e98' },
+  keyboardAccessory: { ...lightStyles.keyboardAccessory, backgroundColor: '#1b2937' },
 });

@@ -5,10 +5,11 @@ import test from 'node:test';
 let visibleMainTabsForAudience;
 let mainTabIconNames;
 let resolveVisibleMainTabs;
+let dockSplitIndex;
 let loadError;
 
 try {
-  ({ visibleMainTabsForAudience, mainTabIconNames, resolveVisibleMainTabs } = await import(
+  ({ visibleMainTabsForAudience, mainTabIconNames, resolveVisibleMainTabs, dockSplitIndex } = await import(
     '../src/navigation/mainTabModel.ts'
   ));
 } catch (error) {
@@ -61,6 +62,17 @@ test('landlord dock resolves four destination components', () => {
 
   assert.equal(tabs.length, 4);
   assert.equal(tabs.find((tab) => tab.name === 'Messages')?.component, 'messages-navigator');
+});
+
+test('quick-action plus occupies the center of both landlord and tenant docks', async () => {
+  assert.equal(loadError, undefined);
+  assert.equal(dockSplitIndex(visibleMainTabsForAudience('landlord').length), 2);
+  assert.equal(dockSplitIndex(visibleMainTabsForAudience('tenant').length), 2);
+  const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
+  assert.match(sheet, /visibleRoutes\.slice\(0, midpoint\)\.map\(renderTab\)[\s\S]*styles\.plusButton[\s\S]*visibleRoutes\.slice\(midpoint\)\.map\(renderTab\)/);
+  assert.match(sheet, /position: 'absolute', left: 16, right: 16/);
+  assert.match(sheet, /rgba\(34, 47, 62, 0\.82\)/);
+  assert.match(sheet, /Animated\.spring\(spin/);
 });
 
 test('quick-action sheet keeps landlord destinations and tenant actions scoped', async () => {

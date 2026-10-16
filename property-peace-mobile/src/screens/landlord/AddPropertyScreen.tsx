@@ -3,12 +3,15 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { useNavigation } from '@react-navigation/native';
 import PropertyAPI from '../../api/propertyAPI';
 import AddressAutocompleteInput from '../../components/properties/AddressAutocompleteInput';
+import { useAppTheme } from '../../theme/AppTheme';
 import {
   applyGooglePlaceDetails,
   PropertyDraft,
 } from '../../features/properties/addressAutocomplete';
 
 export default function AddPropertyScreen() {
+  const { mode, colors } = useAppTheme();
+  const dark = mode === 'dark';
   const navigation = useNavigation<any>();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<PropertyDraft>({ name: '', address: '', city: '', state: '', zipCode: '', propertyType: 'Residential' });
@@ -34,16 +37,16 @@ export default function AddPropertyScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, dark && { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
     >
-      <Text style={styles.eyebrow}>NEW PROPERTY</Text>
-      <Text style={styles.title}>Add a property</Text>
-      <Text style={styles.helper}>Start with the address. Listing details and media can be completed on the web.</Text>
-      <Text style={styles.sectionLabel}>PROPERTY DETAILS</Text>
-      <TextInput style={styles.input} placeholder="Property name" value={form.name} onChangeText={(v) => update('name', v)} />
+      <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>NEW PROPERTY</Text>
+      <Text style={[styles.title, dark && { color: colors.text }]}>Add a property</Text>
+      <Text style={[styles.helper, dark && { color: colors.muted }]}>Start with the address. Listing details and media can be completed on the web.</Text>
+      <Text style={[styles.sectionLabel, dark && { color: colors.muted }]}>PROPERTY DETAILS</Text>
+      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="Property name" value={form.name} onChangeText={(v) => update('name', v)} />
       <AddressAutocompleteInput
         value={form.address}
         onChangeText={(value) => update('address', value)}
@@ -52,13 +55,13 @@ export default function AddPropertyScreen() {
         }
         disabled={saving}
       />
-      <TextInput style={styles.input} placeholder="City" value={form.city} onChangeText={(v) => update('city', v)} />
+      <TextInput style={[styles.input, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="City" value={form.city} onChangeText={(v) => update('city', v)} />
       <View style={styles.row}>
-        <TextInput style={[styles.input, styles.rowInput]} placeholder="State" autoCapitalize="characters" value={form.state} onChangeText={(v) => update('state', v)} />
-        <TextInput style={[styles.input, styles.rowInput]} placeholder="ZIP" keyboardType="number-pad" value={form.zipCode} onChangeText={(v) => update('zipCode', v)} />
+        <TextInput style={[styles.input, styles.rowInput, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="State" autoCapitalize="characters" value={form.state} onChangeText={(v) => update('state', v)} />
+        <TextInput style={[styles.input, styles.rowInput, dark && { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholderTextColor={dark ? colors.muted : undefined} placeholder="ZIP" keyboardType="number-pad" value={form.zipCode} onChangeText={(v) => update('zipCode', v)} />
       </View>
-      <TouchableOpacity style={[styles.primaryButton, saving && styles.disabledButton]} onPress={save} disabled={saving}>
-        <Text style={styles.primaryButtonText}>{saving ? 'Adding…' : 'Add Property'}</Text>
+      <TouchableOpacity style={[styles.primaryButton, dark && { backgroundColor: colors.accent }, saving && styles.disabledButton]} onPress={save} disabled={saving}>
+        <Text style={[styles.primaryButtonText, dark && { color: colors.background }]}>{saving ? 'Adding…' : 'Add Property'}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

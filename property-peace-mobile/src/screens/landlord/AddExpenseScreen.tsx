@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PropertyAPI, { type Property, type Unit } from '../../api/propertyAPI';
 import expenseAPI from '../../api/expenseAPIRuntime';
 import { useAppSelector } from '../../store/hooks';
+import { useAppTheme } from '../../theme/AppTheme';
 import {
   buildCreateExpensePayload,
   emptyExpenseForm,
@@ -79,6 +80,8 @@ const pickerOptions: ImagePicker.ImagePickerOptions = {
 };
 
 export default function AddExpenseScreen() {
+  const styles = useExpenseStyles();
+  const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const currentUser = useAppSelector((state) => state.user.currentUser);
@@ -202,7 +205,7 @@ export default function AddExpenseScreen() {
         <View style={styles.resultSlip}>
           <Text style={styles.resultName}>{result.expense.name}</Text>
           <Text style={styles.resultAmount}>${result.expense.amount.toFixed(2)}</Text>
-          <View style={styles.categoryRow}><Ionicons name={category.status === 'categorized' ? 'sparkles-outline' : 'alert-circle-outline'} size={18} color={category.status === 'categorized' ? '#2f8f46' : '#8a5a17'} /><Text style={styles.categoryText}>{category.label}</Text></View>
+          <View style={styles.categoryRow}><Ionicons name={category.status === 'categorized' ? 'sparkles-outline' : 'alert-circle-outline'} size={18} color={mode === 'dark' ? colors.accent : category.status === 'categorized' ? '#2f8f46' : '#8a5a17'} /><Text style={styles.categoryText}>{category.label}</Text></View>
         </View>
         {saveError && <Text style={styles.inlineError}>{saveError}</Text>}
         <View style={styles.successActions}>
@@ -225,20 +228,20 @@ export default function AddExpenseScreen() {
         <Text style={styles.subtitle}>{meta.subtitle}</Text>
 
         {step === 'details' && <>
-          <Field label="Amount" error={errors.amount}><TextInput testID="expense-amount" accessibilityLabel="Expense amount" value={form.amount} onChangeText={(amount) => setForm((current) => ({ ...current, amount }))} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor="#8a98a6" style={styles.input} /></Field>
+          <Field label="Amount" error={errors.amount}><TextInput testID="expense-amount" accessibilityLabel="Expense amount" value={form.amount} onChangeText={(amount) => setForm((current) => ({ ...current, amount }))} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={mode === 'dark' ? colors.muted : '#8a98a6'} style={styles.input} /></Field>
           <Field label="Expense date" error={errors.expenseDate}>
-            <TouchableOpacity accessibilityLabel="Choose expense date" style={styles.selector} onPress={() => setShowDatePicker(true)}><Text style={styles.selectorText}>{displayDate(form.expenseDate)}</Text><Ionicons name="calendar-outline" size={20} color="#2475cf" /></TouchableOpacity>
-            {showDatePicker && <DateTimePicker value={new Date(`${form.expenseDate}T12:00:00`)} mode="date" onChange={(_, date) => { if (Platform.OS === 'android') setShowDatePicker(false); if (date) setForm((current) => ({ ...current, expenseDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` })); }} />}
+            <TouchableOpacity accessibilityLabel="Choose expense date" style={styles.selector} onPress={() => setShowDatePicker(true)}><Text style={styles.selectorText}>{displayDate(form.expenseDate)}</Text><Ionicons name="calendar-outline" size={20} color={mode === 'dark' ? colors.accent : '#2475cf'} /></TouchableOpacity>
+            {showDatePicker && <DateTimePicker value={new Date(`${form.expenseDate}T12:00:00`)} mode="date" themeVariant={mode} onChange={(_, date) => { if (Platform.OS === 'android') setShowDatePicker(false); if (date) setForm((current) => ({ ...current, expenseDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` })); }} />}
           </Field>
           <Field label="Property" error={errors.propertyId}>
-            {propertyLoading ? <View style={styles.loadingRow}><ActivityIndicator color="#2475cf" /><Text style={styles.muted}>Loading properties…</Text></View> : propertyError ? <View style={styles.notice}><Text style={styles.inlineError}>{propertyError}</Text><TouchableOpacity accessibilityLabel="Retry loading properties" onPress={() => void loadProperties()} style={styles.textButton}><Text style={styles.textButtonLabel}>Retry</Text></TouchableOpacity></View> : properties.length === 0 ? <View style={styles.notice}><Text style={styles.muted}>An expense must belong to a property.</Text><TouchableOpacity accessibilityLabel="Add property" onPress={() => navigation.navigate('Properties', { screen: 'AddProperty' })} style={styles.textButton}><Text style={styles.textButtonLabel}>Add property</Text></TouchableOpacity></View> : <View style={styles.choiceList}>{properties.map((property, index) => { const id = propertyId(property); if (!id) return null; const selected = id === form.propertyId; return <Choice key={String(id)} label={label(property, `Property ${index + 1}`)} selected={selected} onPress={() => setForm((current) => setExpenseProperty(current, id))} />; })}</View>}
+            {propertyLoading ? <View style={styles.loadingRow}><ActivityIndicator color={mode === 'dark' ? colors.accent : '#2475cf'} /><Text style={styles.muted}>Loading properties…</Text></View> : propertyError ? <View style={styles.notice}><Text style={styles.inlineError}>{propertyError}</Text><TouchableOpacity accessibilityLabel="Retry loading properties" onPress={() => void loadProperties()} style={styles.textButton}><Text style={styles.textButtonLabel}>Retry</Text></TouchableOpacity></View> : properties.length === 0 ? <View style={styles.notice}><Text style={styles.muted}>An expense must belong to a property.</Text><TouchableOpacity accessibilityLabel="Add property" onPress={() => navigation.navigate('Properties', { screen: 'AddProperty' })} style={styles.textButton}><Text style={styles.textButtonLabel}>Add property</Text></TouchableOpacity></View> : <View style={styles.choiceList}>{properties.map((property, index) => { const id = propertyId(property); if (!id) return null; const selected = id === form.propertyId; return <Choice key={String(id)} label={label(property, `Property ${index + 1}`)} selected={selected} onPress={() => setForm((current) => setExpenseProperty(current, id))} />; })}</View>}
           </Field>
           {units.length > 0 && <Field label="Unit (optional)"><View style={styles.choiceList}>{units.map((unit, index) => { const id = unitId(unit); if (!id) return null; return <Choice key={String(id)} label={label(unit, `Unit ${index + 1}`)} selected={id === form.unitId} onPress={() => setForm((current) => ({ ...current, unitId: id }))} />; })}</View></Field>}
           <ActionButton label="Continue" onPress={moveForward} disabled={propertyLoading || Boolean(propertyError) || properties.length === 0} />
         </>}
 
         {step === 'description' && <>
-          <Field label="Description" error={errors.description}><TextInput testID="expense-description" accessibilityLabel="Expense description" value={form.description} onChangeText={(description) => setForm((current) => ({ ...current, description }))} multiline maxLength={200} placeholder="e.g., Repaired the kitchen sink" placeholderTextColor="#8a98a6" style={[styles.input, styles.descriptionInput]} textAlignVertical="top" /><Text style={styles.counter}>{form.description.length}/200</Text></Field>
+          <Field label="Description" error={errors.description}><TextInput testID="expense-description" accessibilityLabel="Expense description" value={form.description} onChangeText={(description) => setForm((current) => ({ ...current, description }))} multiline maxLength={200} placeholder="e.g., Repaired the kitchen sink" placeholderTextColor={mode === 'dark' ? colors.muted : '#8a98a6'} style={[styles.input, styles.descriptionInput]} textAlignVertical="top" /><Text style={styles.counter}>{form.description.length}/200</Text></Field>
           <Field label="Receipt (optional)"><Text style={styles.help}>JPEG, PNG, or WebP up to 10 MB.</Text>{receipt ? <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} /> : <View style={styles.receiptActions}><ActionButton label="Take photo" onPress={() => void chooseReceipt('camera')} secondary compact /><ActionButton label="Choose photo" onPress={() => void chooseReceipt('library')} secondary compact /></View>}</Field>
           <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('details')} secondary /><ActionButton label="Continue" onPress={moveForward} /></View>
         </>}
@@ -253,7 +256,7 @@ export default function AddExpenseScreen() {
             <ReviewRow label="Description" value={form.description.trim() || 'Not provided'} />
             {receipt && <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} />}
           </View>
-          <View style={styles.autoNote}><Ionicons name="sparkles-outline" size={19} color="#2f8f46" /><Text style={styles.autoNoteText}>Your expense will be categorized automatically after it is saved.</Text></View>
+          <View style={styles.autoNote}><Ionicons name="sparkles-outline" size={19} color={mode === 'dark' ? colors.accent : '#2f8f46'} /><Text style={styles.autoNoteText}>Your expense will be categorized automatically after it is saved.</Text></View>
           {saveError && <Text style={styles.inlineError}>{saveError}</Text>}
           <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('description')} secondary disabled={submitting} /><ActionButton label="Save expense" onPress={() => void save()} loading={submitting} /></View>
         </>}
@@ -263,23 +266,29 @@ export default function AddExpenseScreen() {
 }
 
 function Field({ label: fieldLabel, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+  const styles = useExpenseStyles();
   return <View style={styles.field}><Text style={styles.fieldLabel}>{fieldLabel}</Text>{children}{error && <Text style={styles.fieldError}>{error}</Text>}</View>;
 }
 
 function Choice({ label: choiceLabel, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const styles = useExpenseStyles();
   return <TouchableOpacity accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={choiceLabel} onPress={onPress} style={[styles.choice, selected && styles.choiceSelected]}><View style={[styles.radio, selected && styles.radioSelected]}>{selected && <View style={styles.radioDot} />}</View><Text style={styles.choiceText}>{choiceLabel}</Text></TouchableOpacity>;
 }
 
 function ReceiptPreview({ receipt, onRemove, disabled }: { receipt: LocalExpenseReceipt; onRemove: () => void; disabled: boolean }) {
+  const styles = useExpenseStyles();
   return <View style={styles.receiptPreview}><Image source={{ uri: receipt.uri }} style={styles.receiptImage} accessibilityLabel="Selected receipt preview" /><View style={styles.receiptCopy}><Text style={styles.receiptName} numberOfLines={1}>{receipt.fileName}</Text><Text style={styles.help}>{receipt.mimeType.replace('image/', '').toUpperCase()}</Text><TouchableOpacity accessibilityLabel="Remove receipt" onPress={onRemove} disabled={disabled} style={styles.removeButton}><Text style={styles.removeText}>Remove receipt</Text></TouchableOpacity></View></View>;
 }
 
 function ReviewRow({ label: rowLabel, value }: { label: string; value: string }) {
+  const styles = useExpenseStyles();
   return <View style={styles.reviewRow}><Text style={styles.reviewLabel}>{rowLabel}</Text><Text style={styles.reviewValue}>{value}</Text></View>;
 }
 
 function ActionButton({ label: buttonLabel, onPress, secondary, compact, disabled, loading }: { label: string; onPress: () => void; secondary?: boolean; compact?: boolean; disabled?: boolean; loading?: boolean }) {
-  return <TouchableOpacity accessibilityRole="button" accessibilityLabel={buttonLabel} onPress={onPress} disabled={disabled || loading} activeOpacity={0.84} style={[styles.button, secondary ? styles.buttonSecondary : styles.buttonPrimary, compact && styles.buttonCompact, (disabled || loading) && styles.buttonDisabled]}>{loading ? <ActivityIndicator color={secondary ? '#2475cf' : '#fff'} /> : <Text style={[styles.buttonText, secondary ? styles.buttonTextSecondary : styles.buttonTextPrimary]}>{buttonLabel}</Text>}</TouchableOpacity>;
+  const styles = useExpenseStyles();
+  const { mode, colors } = useAppTheme();
+  return <TouchableOpacity accessibilityRole="button" accessibilityLabel={buttonLabel} onPress={onPress} disabled={disabled || loading} activeOpacity={0.84} style={[styles.button, secondary ? styles.buttonSecondary : styles.buttonPrimary, compact && styles.buttonCompact, (disabled || loading) && styles.buttonDisabled]}>{loading ? <ActivityIndicator color={mode === 'dark' ? secondary ? colors.accent : colors.background : secondary ? '#2475cf' : '#fff'} /> : <Text style={[styles.buttonText, secondary ? styles.buttonTextSecondary : styles.buttonTextPrimary]}>{buttonLabel}</Text>}</TouchableOpacity>;
 }
 
 const styles = StyleSheet.create({
@@ -294,3 +303,64 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 10 }, button: { minHeight: 48, borderRadius: 13, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 17, flex: 1 }, buttonPrimary: { backgroundColor: '#2475cf' }, buttonSecondary: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#cfd9de' }, buttonCompact: { minWidth: 0 }, buttonDisabled: { opacity: 0.52 }, buttonText: { fontSize: 16, fontWeight: '900' }, buttonTextPrimary: { color: '#fff' }, buttonTextSecondary: { color: '#0b3558' },
   successPage: { flex: 1, backgroundColor: '#fbf7f4', paddingHorizontal: 22, justifyContent: 'center' }, successMark: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2f8f46', marginBottom: 18 }, successTitle: { color: '#082941', fontSize: 30, fontWeight: '900', letterSpacing: -0.8 }, successCopy: { color: '#596b79', fontSize: 16, lineHeight: 23, marginTop: 6, marginBottom: 22 }, resultSlip: { borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dce3e5', paddingVertical: 18, marginBottom: 22 }, resultName: { color: '#102d43', fontSize: 17, fontWeight: '900' }, resultAmount: { color: '#0b3558', fontSize: 28, fontWeight: '900', marginTop: 6 }, categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 15 }, categoryText: { color: '#30505f', fontSize: 14, fontWeight: '800' }, successActions: { flexDirection: 'row', gap: 10 },
 });
+
+function useExpenseStyles() {
+  const { mode, colors } = useAppTheme();
+  return useMemo(() => {
+    if (mode === 'light') return styles;
+    const text = { color: colors.text };
+    const muted = { color: colors.muted };
+    const border = { borderColor: colors.border };
+    const divider = { borderBottomColor: colors.border };
+    const accent = { color: colors.accent };
+    return {
+      ...styles,
+      page: { ...styles.page, backgroundColor: colors.background },
+      successPage: { ...styles.successPage, backgroundColor: colors.background },
+      progressLabel: { ...styles.progressLabel, ...accent },
+      rail: { ...styles.rail, backgroundColor: colors.border },
+      railFill: { ...styles.railFill, backgroundColor: colors.accent },
+      title: { ...styles.title, ...text },
+      subtitle: { ...styles.subtitle, ...muted },
+      fieldLabel: { ...styles.fieldLabel, ...text },
+      input: { ...styles.input, backgroundColor: colors.surface, ...border, ...text },
+      counter: { ...styles.counter, ...muted },
+      fieldError: { ...styles.fieldError, color: '#ff9d9d' },
+      selector: { ...styles.selector, backgroundColor: colors.surface, ...border },
+      selectorText: { ...styles.selectorText, ...text },
+      muted: { ...styles.muted, ...muted },
+      notice: { ...styles.notice, backgroundColor: colors.surface, ...border },
+      textButtonLabel: { ...styles.textButtonLabel, ...accent },
+      choiceList: { ...styles.choiceList, borderTopColor: colors.border },
+      choice: { ...styles.choice, ...divider },
+      choiceSelected: { ...styles.choiceSelected, borderBottomColor: colors.accent },
+      choiceText: { ...styles.choiceText, ...text },
+      radio: { ...styles.radio, ...border },
+      radioSelected: { ...styles.radioSelected, borderColor: colors.accent },
+      radioDot: { ...styles.radioDot, backgroundColor: colors.accent },
+      help: { ...styles.help, ...muted },
+      receiptPreview: { ...styles.receiptPreview, backgroundColor: colors.surface, ...border },
+      receiptImage: { ...styles.receiptImage, backgroundColor: colors.border },
+      receiptName: { ...styles.receiptName, ...text },
+      removeText: { ...styles.removeText, color: '#ff9d9d' },
+      reviewHeading: { ...styles.reviewHeading, ...muted },
+      reviewSlip: { ...styles.reviewSlip, borderTopColor: colors.border },
+      reviewRow: { ...styles.reviewRow, ...divider },
+      reviewLabel: { ...styles.reviewLabel, ...muted },
+      reviewValue: { ...styles.reviewValue, ...text },
+      autoNote: { ...styles.autoNote, backgroundColor: colors.surface },
+      autoNoteText: { ...styles.autoNoteText, ...text },
+      inlineError: { ...styles.inlineError, color: '#ff9d9d' },
+      buttonPrimary: { ...styles.buttonPrimary, backgroundColor: colors.accent },
+      buttonSecondary: { ...styles.buttonSecondary, backgroundColor: colors.surface, ...border },
+      buttonTextPrimary: { ...styles.buttonTextPrimary, color: colors.background },
+      buttonTextSecondary: { ...styles.buttonTextSecondary, ...text },
+      successTitle: { ...styles.successTitle, ...text },
+      successCopy: { ...styles.successCopy, ...muted },
+      resultSlip: { ...styles.resultSlip, ...border },
+      resultName: { ...styles.resultName, ...text },
+      resultAmount: { ...styles.resultAmount, ...text },
+      categoryText: { ...styles.categoryText, ...text },
+    };
+  }, [mode, colors]);
+}

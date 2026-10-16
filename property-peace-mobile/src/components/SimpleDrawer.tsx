@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { logout } from '../store/user/user.slice';
+import { useAppTheme } from '../theme/AppTheme';
 
 const { width } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(width * 0.84, 340);
@@ -41,6 +42,9 @@ const firstString = (...values: any[]) => {
 };
 
 export default function SimpleDrawer({ visible, onClose, navigation }: SimpleDrawerProps) {
+  const { colors, mode } = useAppTheme();
+  const dark = mode === 'dark';
+  const danger = dark ? '#ffaaa2' : '#c2413b';
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { currentUser } = useAppSelector((state) => state.user);
@@ -79,40 +83,40 @@ export default function SimpleDrawer({ visible, onClose, navigation }: SimpleDra
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <Animated.View style={[styles.drawer, { paddingTop: Math.max(insets.top, 16), transform: [{ translateX: slideAnim }] }]}>
+        <Animated.View style={[styles.drawer, dark && { backgroundColor: colors.background }, { paddingTop: Math.max(insets.top, 16), transform: [{ translateX: slideAnim }] }]}>
           <View style={styles.header}>
             <View style={styles.logoRow}>
               <Image source={logo} style={styles.logo} resizeMode="contain" />
-              <TouchableOpacity style={styles.closeButton} onPress={onClose} activeOpacity={0.76}>
-                <Ionicons name="close" size={22} color="#0b2438" />
+              <TouchableOpacity style={[styles.closeButton, dark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onClose} activeOpacity={0.76}>
+                <Ionicons name="close" size={22} color={dark ? colors.text : '#0b2438'} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.profileCard}>
+            <View style={[styles.profileCard, dark && { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.avatar}><Text style={styles.avatarText}>{initials}</Text></View>
               <View style={styles.profileCopy}>
-                <Text style={styles.profileName} numberOfLines={1}>{displayName}</Text>
-                <Text style={styles.profileEmail} numberOfLines={1}>{email}</Text>
+                <Text style={[styles.profileName, dark && { color: colors.text }]} numberOfLines={1}>{displayName}</Text>
+                <Text style={[styles.profileEmail, dark && { color: colors.muted }]} numberOfLines={1}>{email}</Text>
               </View>
             </View>
           </View>
 
           <ScrollView style={styles.menuScroll} contentContainerStyle={styles.menuSection} showsVerticalScrollIndicator={false}>
             {menuItems.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.menuItem} onPress={() => navigateToScreen(item.route)} activeOpacity={0.78}>
-                <View style={styles.menuIconWrap}>
-                  <Ionicons name={item.icon} size={20} color="#2475cf" />
+              <TouchableOpacity key={item.id} style={[styles.menuItem, dark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => navigateToScreen(item.route)} activeOpacity={0.78}>
+                <View style={[styles.menuIconWrap, dark && { backgroundColor: colors.background }]}>
+                  <Ionicons name={item.icon} size={20} color={dark ? colors.accent : '#2475cf'} />
                 </View>
-                <Text style={styles.menuItemText}>{item.title}</Text>
-                <Ionicons name="chevron-forward" size={18} color="#95a1ad" />
+                <Text style={[styles.menuItemText, dark && { color: colors.text }]}>{item.title}</Text>
+                <Ionicons name="chevron-forward" size={18} color={dark ? colors.muted : '#95a1ad'} />
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.82}>
-              <Ionicons name="log-out-outline" size={20} color="#c2413b" />
-              <Text style={styles.logoutButtonText}>Sign out</Text>
+          <View style={[styles.footer, dark && { borderTopColor: colors.border }, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+            <TouchableOpacity style={[styles.logoutButton, dark && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleLogout} activeOpacity={0.82}>
+              <Ionicons name="log-out-outline" size={20} color={danger} />
+              <Text style={[styles.logoutButtonText, dark && { color: danger }]}>Sign out</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

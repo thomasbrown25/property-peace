@@ -3,10 +3,13 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, Touchabl
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import TenantAPI, { Tenant } from '../../api/tenantAPI';
+import { useAppTheme } from '../../theme/AppTheme';
 
 const tenantName = (tenant: Tenant) => [tenant.firstName || tenant.FirstName, tenant.lastName || tenant.LastName].filter(Boolean).join(' ') || tenant.email || tenant.Email || 'Tenant';
 
 export default function TenantsScreen() {
+  const { mode, colors } = useAppTheme();
+  const dark = mode === 'dark';
   const navigation = useNavigation<any>();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,40 +30,40 @@ export default function TenantsScreen() {
   useEffect(() => { loadTenants(); }, [loadTenants]);
 
   if (loading) {
-    return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#1976d2" /></View>;
+    return <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View>;
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <FlatList
         data={tenants}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTenants(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTenants(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={
           <View>
-            <Text style={styles.eyebrow}>YOUR COMMUNITY</Text>
-            <Text style={styles.pageTitle} accessibilityRole="header">Tenants</Text>
-            <Text style={styles.pageSubtitle}>People and conversations, all in one place.</Text>
-            <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button">
-              <Ionicons name="add" size={20} color="#fff" />
-              <Text style={styles.addButtonText}>Add tenant</Text>
+            <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
+            <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Tenants</Text>
+            <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>People and conversations, all in one place.</Text>
+            <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button">
+              <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
+              <Text style={[styles.addButtonText, dark && { color: colors.background }]}>Add tenant</Text>
             </TouchableOpacity>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle} accessibilityRole="header">All tenants</Text>
-              <Text style={styles.count}>{tenants.length}</Text>
+              <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">All tenants</Text>
+              <Text style={[styles.count, dark && { color: colors.muted }]}>{tenants.length}</Text>
             </View>
           </View>
         }
-        ListEmptyComponent={<View style={styles.emptyContainer}><Ionicons name="people-outline" size={30} color="#8aa5b8" /><Text style={styles.emptyText}>No tenants yet</Text><Text style={styles.emptySubtext}>Add a tenant to connect them with leases, messages, and portal invites.</Text></View>}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={<View style={styles.emptyContainer}><Ionicons name="people-outline" size={30} color={dark ? colors.accent : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>No tenants yet</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>Add a tenant to connect them with leases, messages, and portal invites.</Text></View>}
+        ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
         renderItem={({ item }) => (
           <View style={styles.row} accessibilityRole="summary">
-            <View style={styles.avatar}><Text style={styles.avatarText}>{tenantName(item).charAt(0).toUpperCase()}</Text></View>
+            <View style={[styles.avatar, dark && { backgroundColor: '#233c56' }]}><Text style={[styles.avatarText, dark && { color: colors.accent }]}>{tenantName(item).charAt(0).toUpperCase()}</Text></View>
             <View style={styles.rowCopy}>
-              <Text style={styles.title}>{tenantName(item)}</Text>
-              {!!(item.email || item.Email) && <Text style={styles.meta} numberOfLines={1}>{item.email || item.Email}</Text>}
-              {!!(item.phoneNumber || item.PhoneNumber) && <Text style={styles.meta}>{item.phoneNumber || item.PhoneNumber}</Text>}
+              <Text style={[styles.title, dark && { color: colors.text }]}>{tenantName(item)}</Text>
+              {!!(item.email || item.Email) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={1}>{item.email || item.Email}</Text>}
+              {!!(item.phoneNumber || item.PhoneNumber) && <Text style={[styles.meta, dark && { color: colors.muted }]}>{item.phoneNumber || item.PhoneNumber}</Text>}
             </View>
           </View>
         )}

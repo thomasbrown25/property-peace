@@ -5,10 +5,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
+import { useAppTheme } from '../../theme/AppTheme';
 
 export default function MaintenanceScreen() {
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
+  const { mode, colors } = useAppTheme();
+  const dark = mode === 'dark';
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [view, setView] = useState<'current' | 'history'>('current');
   const [loading, setLoading] = useState(true);
@@ -31,35 +34,35 @@ export default function MaintenanceScreen() {
 
   useEffect(() => { setLoading(true); loadRequests(); }, [loadRequests]);
 
-  if (loading) return <View style={styles.centerContainer}><ActivityIndicator size="large" color="#1976d2" /></View>;
+  if (loading) return <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View>;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <FlatList
         data={requests}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={<View>
-          <Text style={styles.eyebrow}>PROPERTY CARE</Text>
-          <Text style={styles.pageTitle} accessibilityRole="header">Maintenance</Text>
-          <Text style={styles.pageSubtitle}>Keep repairs moving, from report to resolution.</Text>
-          <View style={styles.tabs} accessibilityRole="tablist">
-            {(['current', 'history'] as const).map((tab) => <TouchableOpacity key={tab} style={[styles.tab, view === tab && styles.tabActive]} onPress={() => setView(tab)} accessibilityRole="tab" accessibilityState={{ selected: view === tab }}><Text style={[styles.tabText, view === tab && styles.tabTextActive]}>{tab === 'current' ? 'Current' : 'History'}</Text></TouchableOpacity>)}
+          <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>PROPERTY CARE</Text>
+          <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
+          <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>Keep repairs moving, from report to resolution.</Text>
+          <View style={[styles.tabs, dark && { borderColor: colors.border }]} accessibilityRole="tablist">
+            {(['current', 'history'] as const).map((tab) => <TouchableOpacity key={tab} style={[styles.tab, view === tab && styles.tabActive, dark && view === tab && { borderBottomColor: colors.accent }]} onPress={() => setView(tab)} accessibilityRole="tab" accessibilityState={{ selected: view === tab }}><Text style={[styles.tabText, view === tab && styles.tabTextActive, dark && { color: view === tab ? colors.text : colors.muted }]}>{tab === 'current' ? 'Current' : 'History'}</Text></TouchableOpacity>)}
           </View>
-          {error ? <View style={styles.error} accessibilityRole="alert"><Text style={styles.errorText}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); loadRequests(); }} accessibilityRole="button"><Text style={styles.retryText}>Retry</Text></TouchableOpacity></View> : null}
+          {error ? <View style={styles.error} accessibilityRole="alert"><Text style={[styles.errorText, dark && { color: colors.text }]}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); loadRequests(); }} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.accent }]}>Retry</Text></TouchableOpacity></View> : null}
           {!error && <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle} accessibilityRole="header">{view === 'current' ? 'Open requests' : 'Past requests'}</Text>
-            <Text style={styles.count}>{requests.length}</Text>
+            <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">{view === 'current' ? 'Open requests' : 'Past requests'}</Text>
+            <Text style={[styles.count, dark && { color: colors.muted }]}>{requests.length}</Text>
           </View>}
         </View>}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
-        ListEmptyComponent={!error ? <View style={styles.emptyContainer}><Ionicons name="construct-outline" size={30} color="#8aa5b8" /><Text style={styles.emptyText}>{view === 'current' ? 'No open maintenance' : 'No maintenance history'}</Text><Text style={styles.emptySubtext}>{view === 'current' ? 'New tenant reports will appear here for acknowledgement and assignment.' : 'Resolved and cancelled requests will appear here.'}</Text></View> : null}
+        ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
+        ListEmptyComponent={!error ? <View style={styles.emptyContainer}><Ionicons name="construct-outline" size={30} color={dark ? colors.muted : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{view === 'current' ? 'No open maintenance' : 'No maintenance history'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{view === 'current' ? 'New tenant reports will appear here for acknowledgement and assignment.' : 'Resolved and cancelled requests will appear here.'}</Text></View> : null}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('LandlordMaintenanceDetail', { requestId: String(item.id || item.Id), listItem: item })} accessibilityRole="button" accessibilityLabel={`Open maintenance request ${item.title || item.Title || ''}`}>
-            <Text style={styles.title}>{item.title || item.Title || 'Maintenance request'}</Text>
-            {!!(item.description || item.Description) && <Text style={styles.meta} numberOfLines={2}>{item.description || item.Description}</Text>}
-            <Text style={styles.status}>{item.status || item.Status ? `${displayStatus(item.status || item.Status)} · ` : ''}Open request →</Text>
+            <Text style={[styles.title, dark && { color: colors.text }]}>{item.title || item.Title || 'Maintenance request'}</Text>
+            {!!(item.description || item.Description) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={2}>{item.description || item.Description}</Text>}
+            <Text style={[styles.status, dark && { color: colors.accent }]}>{item.status || item.Status ? `${displayStatus(item.status || item.Status)} · ` : ''}Open request →</Text>
           </TouchableOpacity>
         )}
       />
