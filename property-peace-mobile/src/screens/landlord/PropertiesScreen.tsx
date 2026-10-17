@@ -18,7 +18,7 @@ import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import { filterPropertiesForList } from '../../features/properties/propertiesList';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
+
 
 type PropertiesScreenNavigationProp = NativeStackNavigationProp<PropertiesStackParamList, 'PropertiesList'>;
 const numberValue = (...values: any[]) => {
@@ -100,7 +100,16 @@ export default function PropertiesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.backRow, { paddingTop: insets.top + 4 }]}><PageBackButton /></View>
+      <View style={[styles.pageHeader, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.headerCopy}>
+          <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
+          <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
+        </View>
+        <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
+          <Ionicons name="add" size={18} color={mode === 'dark' ? colors.background : '#fff'} />
+          <Text style={styles.primaryButtonText}>Add property</Text>
+        </TouchableOpacity>
+      </View>
       {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : <FlatList
         data={filteredProperties}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
@@ -109,17 +118,6 @@ export default function PropertiesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperties(); }} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View>
-            <View style={styles.pageHeader}>
-              <View style={styles.headerCopy}>
-                <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
-                <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
-              </View>
-              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
-                <Ionicons name="add" size={18} color={mode === 'dark' ? colors.background : '#fff'} />
-                <Text style={styles.primaryButtonText}>Add property</Text>
-              </TouchableOpacity>
-            </View>
-
             <View style={styles.searchWrap}>
               <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
               <TextInput
@@ -251,10 +249,10 @@ function useScreenStyles() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  backRow: { paddingHorizontal: 22 },
+
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 120 },
-  pageHeader: { marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
+  pageHeader: { paddingHorizontal: 20, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   headerCopy: { flex: 1, minWidth: 0 },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },
   pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },

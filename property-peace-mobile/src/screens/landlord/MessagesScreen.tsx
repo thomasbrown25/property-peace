@@ -12,7 +12,7 @@ import { advanceMessagingScopeGeneration, buildMessagingScopeKey, canAccessMessa
 import { RootState } from '../../store';
 import GroupConversationDialog from '../../components/messages/GroupConversationDialog';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
+
 
 type Navigation = NativeStackNavigationProp<MessagesStackParamList, 'MessagesList'>;
 const FILTERS: Array<{ key: ConversationFilter; label: string }> = [
@@ -139,8 +139,7 @@ export default function MessagesScreen() {
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <View style={{ paddingTop: insets.top + 4, paddingHorizontal: 20 }}><PageBackButton /></View>
-      <View style={[styles.header, { paddingTop: 0 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View><Text style={[styles.heading, dark && { color: colors.text }]} accessibilityRole="header">Messages</Text><Text style={[styles.headerSub, dark && { color: colors.muted }]}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
         {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={[styles.newGroup, dark && { backgroundColor: colors.accent }]} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color={dark ? colors.background : '#fff'} /><Text style={[styles.newGroupText, dark && { color: colors.background }]}>New group</Text></TouchableOpacity>}
       </View>
@@ -170,7 +169,7 @@ export default function MessagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' }, header: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, heading: { color: '#0f2f47', fontSize: 28, fontWeight: '800' }, headerSub: { color: '#64748b', marginTop: 3, fontSize: 13 }, newGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }, newGroupText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  container: { flex: 1, backgroundColor: '#fff' }, header: { paddingHorizontal: 20, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, heading: { color: '#0f2f47', fontSize: 28, fontWeight: '800' }, headerSub: { color: '#64748b', marginTop: 3, fontSize: 13 }, newGroup: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2563eb', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 }, newGroupText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   search: { marginHorizontal: 20, minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 }, searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   filters: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' }, filter: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeFilter: { borderBottomColor: '#2563eb' }, filterText: { color: '#64748b', fontWeight: '600', fontSize: 13 }, activeFilterText: { color: '#0f2f47', fontWeight: '800' },
   list: { paddingHorizontal: 20, paddingBottom: 126 }, emptyList: { flexGrow: 1 }, listLabel: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, paddingTop: 23, paddingBottom: 6 }, conversationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16 }, divider: { height: 1, backgroundColor: '#e8edf2', marginLeft: 60 }, avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e8f1f1', marginRight: 12 }, unreadAvatar: { backgroundColor: '#dbeafe' }, avatarText: { color: '#087b79', fontWeight: '800', fontSize: 16 }, copy: { flex: 1, minWidth: 0 }, row: { flexDirection: 'row', alignItems: 'center' }, title: { flex: 1, color: '#1e293b', fontWeight: '700', fontSize: 16, marginRight: 8 }, unreadText: { color: '#0f172a', fontWeight: '900' }, time: { color: '#64748b', fontSize: 12 }, subtitle: { color: '#64748b', marginTop: 3, fontSize: 12 }, preview: { flex: 1, color: '#64748b', marginTop: 5, fontSize: 13 }, pin: { marginLeft: 7 }, badge: { minWidth: 21, height: 21, paddingHorizontal: 6, borderRadius: 11, marginLeft: 8, backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center' }, badgeText: { color: '#fff', fontSize: 11, fontWeight: '900' },

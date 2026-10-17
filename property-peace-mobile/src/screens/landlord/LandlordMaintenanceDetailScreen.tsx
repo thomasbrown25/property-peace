@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, InputAccessoryView, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
-import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaintenanceAPI, { LocalMedia, MaintenanceAssigneeOption, MaintenanceAssignmentDirectorySource, MaintenanceAttachment, MaintenanceRequest, newIdempotencyKey } from '../../api/maintenanceAPI';
 import { MaintenanceStackParamList } from '../../navigation/types';
@@ -31,7 +31,6 @@ const MONEY_KEYBOARD_ACCESSORY_ID = 'maintenance-money-keyboard';
 export default function LandlordMaintenanceDetailScreen() {
   const { mode, colors } = useAppTheme();
   const s = mode === 'dark' ? darkStyles : lightStyles;
-  const navigation = useNavigation<any>();
   const { requestId, listItem } = useRoute<Route>().params;
   const [item, setItem] = useState<MaintenanceRequest>(listItem ?? {});
   const [loading, setLoading] = useState(true);
@@ -264,8 +263,6 @@ export default function LandlordMaintenanceDetailScreen() {
       <View style={s.content}><Text style={s.error}>{error}</Text><Action label="Retry loading request" onPress={reload} /></View> :
       <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}>
-          <TouchableOpacity onPress={() => navigation.goBack()} accessibilityRole="button"><Text style={s.link}>‹ Maintenance</Text></TouchableOpacity>
-          <Text style={s.eyebrow}>MAINTENANCE REQUEST</Text>
           <Text style={s.title}>{value(item, 'title') || 'Maintenance request'}</Text>
           {homeDetails ? <Text style={s.meta}>{homeDetails}</Text> : null}
           <Text style={s.statusLabel}>CURRENT STATUS</Text><Text style={s.status}>{statusIs(requestStatus, 'awaitingtenant', '5') ? 'Awaiting tenant confirmation' : displayStatus(requestStatus)}</Text>
@@ -365,7 +362,7 @@ const Field = (props: React.ComponentProps<typeof TextInput>) => {
 const Action = ({ label, onPress, disabled, prominent, expanded, selected }: { label: string; onPress: () => void; disabled?: boolean; prominent?: boolean; expanded?: boolean; selected?: boolean }) => {
   const { mode } = useAppTheme();
   const s = mode === 'dark' ? darkStyles : lightStyles;
-  return <TouchableOpacity accessibilityRole={selected === undefined ? 'button' : 'radio'} accessibilityState={{ disabled: !!disabled, expanded, selected }} onPress={onPress} disabled={disabled} style={[s.action, prominent && s.primary, disabled && s.disabled]}><Text style={[s.link, prominent && s.primaryText]}>{label}{expanded === undefined ? '' : expanded ? '  −' : '  +'}</Text></TouchableOpacity>;
+  return <TouchableOpacity accessibilityRole={selected === undefined ? 'button' : 'radio'} accessibilityState={{ disabled: !!disabled, expanded, selected }} onPress={onPress} disabled={disabled} style={[s.action, prominent && s.primary, selected && s.selectedAction, disabled && s.disabled]}><Text style={[s.link, (prominent || selected) && s.primaryText]}>{label}{expanded === undefined ? '' : expanded ? '  −' : '  +'}</Text></TouchableOpacity>;
 };
 const lightStyles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#f7f3ee' }, content: { padding: 18, paddingBottom: 55 }, loading: { marginTop: 60 },
@@ -373,7 +370,7 @@ const lightStyles = StyleSheet.create({
   title: { color: '#102d43', fontSize: 26, fontWeight: '900', marginTop: 4 }, statusLabel: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 22 }, status: { color: '#0b5cab', fontSize: 20, fontWeight: '900', marginTop: 3 },
   body: { color: '#526874', lineHeight: 21, marginTop: 12 }, meta: { color: '#74848d', marginTop: 7 }, sectionWrap: { borderTopWidth: 1, borderColor: '#d3dde2', paddingTop: 18, marginTop: 24 }, section: { color: '#102d43', fontSize: 19, fontWeight: '900', marginBottom: 12 },
   record: { borderBottomWidth: 1, borderColor: '#e2e8eb', paddingVertical: 12 }, recordTitle: { color: '#19384c', fontWeight: '800' }, muted: { color: '#74848d', fontSize: 12, lineHeight: 18, marginTop: 5 },
-  action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4, marginTop: 5 }, primary: { alignSelf: 'stretch', alignItems: 'center', backgroundColor: '#0b5cab', marginTop: 12, paddingHorizontal: 14 }, primaryText: { color: '#fff' }, disabled: { opacity: .45 },
+  action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4, marginTop: 5 }, primary: { alignSelf: 'stretch', alignItems: 'center', backgroundColor: '#0b5cab', marginTop: 12, paddingHorizontal: 14 }, selectedAction: { backgroundColor: '#0b5cab', borderRadius: 6, paddingHorizontal: 14 }, primaryText: { color: '#fff' }, disabled: { opacity: .45 },
   form: { borderLeftWidth: 2, borderColor: '#bdcbd3', marginTop: 10, paddingLeft: 12, paddingBottom: 10 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, choice: { paddingVertical: 10, borderBottomWidth: 1, borderColor: '#e2e8eb' },
   input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#bdcbd3', minHeight: 46, paddingHorizontal: 11, marginTop: 8, color: '#19384c' }, area: { minHeight: 76, paddingTop: 11 }, error: { color: '#a92338', lineHeight: 21, marginVertical: 10 }, keyboardAccessory: { padding: 12, alignItems: 'flex-end', backgroundColor: '#f7f3ee' },
 });
@@ -394,6 +391,7 @@ const darkStyles = StyleSheet.create({
   recordTitle: { ...lightStyles.recordTitle, color: '#f2f6fa' },
   muted: { ...lightStyles.muted, color: '#b4c3d0' },
   primary: { ...lightStyles.primary, backgroundColor: '#2475cf' },
+  selectedAction: { ...lightStyles.selectedAction, backgroundColor: '#2475cf' },
   form: { ...lightStyles.form, borderColor: '#51697e' },
   choice: { ...lightStyles.choice, borderColor: '#35495b' },
   input: { ...lightStyles.input, backgroundColor: '#1b2937', borderColor: '#51697e', color: '#f2f6fa' },

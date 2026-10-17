@@ -287,6 +287,9 @@ export default function DashboardScreen() {
       return overdueUnits || openRepairs || unread ? [{
         property,
         name: firstString(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed property'),
+        overdueUnits,
+        openRepairs,
+        unread,
         reason: [overdueUnits ? `${overdueUnits} overdue ${overdueUnits === 1 ? 'unit' : 'units'}` : '',
           `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}`,
           `${unread} unread ${unread === 1 ? 'message' : 'messages'}`].filter(Boolean).join(' · '),
@@ -456,7 +459,7 @@ export default function DashboardScreen() {
 
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>Properties to check</Text>
+            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>Properties</Text>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })} accessibilityRole="button" accessibilityLabel="View all properties">
               <Text style={styles.cardLinkText}>View all</Text>
               <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
@@ -472,7 +475,16 @@ export default function DashboardScreen() {
             <TouchableOpacity key={getPropertyId(item.property)} style={styles.attentionProperty} onPress={() => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: getPropertyId(item.property) } })} accessibilityRole="button" accessibilityLabel={`View ${item.name}, ${item.reason}`}>
               <View style={styles.attentionCopy}>
                 <Text style={styles.attentionName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.attentionReason}>{item.reason}</Text>
+                <Text style={styles.attentionReason}>
+                  {item.overdueUnits > 0 && <>{item.overdueUnits} overdue {item.overdueUnits === 1 ? 'unit' : 'units'}{' · '}</>}
+                  <Text style={item.openRepairs > 0 ? styles.todayRepairAttention : undefined}>
+                    {item.openRepairs} open {item.openRepairs === 1 ? 'repair' : 'repairs'}
+                  </Text>
+                  {' · '}
+                  <Text style={item.unread > 0 ? styles.todayUnreadAttention : undefined}>
+                    {item.unread} unread {item.unread === 1 ? 'message' : 'messages'}
+                  </Text>
+                </Text>
               </View>
               <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />
             </TouchableOpacity>
@@ -687,7 +699,7 @@ function useScreenStyles() {
       rentDetailLabel: { ...styles.rentDetailLabel, color: colors.muted },
       rentDetailValue: { ...styles.rentDetailValue, color: colors.text },
       rentOverdue: { ...styles.rentOverdue, color: '#ff8b86' },
-      attentionProperty: { ...styles.attentionProperty, borderColor: colors.border, backgroundColor: colors.surface },
+      attentionProperty: { ...styles.attentionProperty, borderBottomColor: colors.border },
       attentionName: { ...styles.attentionName, color: colors.text },
       attentionReason: { ...styles.attentionReason, color: colors.muted },
       progressTrack: { ...styles.progressTrack, backgroundColor: colors.border },
@@ -777,10 +789,10 @@ const styles = StyleSheet.create({
   rentDetailLabel: { color: '#536777', fontSize: 12 },
   rentDetailValue: { color: '#102d43', fontSize: 14, fontWeight: '900' },
   rentOverdue: { color: '#c2413b' },
-  attentionProperty: { minHeight: 86, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#dce4e8', backgroundColor: '#f8fbfd', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, marginBottom: 9 },
+  attentionProperty: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0', paddingVertical: 12 },
   attentionCopy: { flex: 1, minWidth: 0 },
-  attentionName: { color: '#061e35', fontSize: 17, fontWeight: '900', marginTop: 4 },
-  attentionReason: { color: '#536777', fontSize: 12, lineHeight: 18, marginTop: 5 },
+  attentionName: { color: '#061e35', fontSize: 16, fontWeight: '800' },
+  attentionReason: { color: '#536777', fontSize: 12, lineHeight: 18, marginTop: 4 },
   progressTrack: { height: 8, borderRadius: 4, overflow: 'hidden', backgroundColor: '#dff0e3' },
   progressFill: { height: '100%', borderRadius: 4, backgroundColor: '#2f8f46' },
   dashboardSection: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 16, paddingBottom: 18 },

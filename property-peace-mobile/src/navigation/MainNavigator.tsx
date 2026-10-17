@@ -83,7 +83,7 @@ function PropertiesNavigator() {
       <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ headerShown: false }} />
       <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton translucent onPress={() => navigation.popToTop()} /> })} />
       <PropertiesStack.Screen name="PropertyMaintenance" component={MaintenanceScreen} options={{ headerShown: false }} />
-      <PropertiesStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={{ title: 'Maintenance workflow' }} />
+      <PropertiesStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={({ route }) => ({ title: `Maintenance #${route.params.requestId}`, headerBackVisible: false, headerLeft: () => <PageBackButton /> })} />
       <PropertiesStack.Screen name="AddProperty" component={AddPropertyScreen} options={{ title: 'Add property' }} />
 
     </PropertiesStack.Navigator>
@@ -102,7 +102,7 @@ function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
         <MaintenanceStack.Screen name="TenantMaintenanceDetail" component={TenantMaintenanceDetailScreen} options={{ title: 'Request detail' }} />
       </> : <>
         <MaintenanceStack.Screen name="MaintenanceList" component={MaintenanceScreen} options={{ headerShown: false }} />
-        <MaintenanceStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={{ title: 'Maintenance workflow' }} />
+        <MaintenanceStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={({ route }) => ({ title: `Maintenance #${route.params.requestId}`, headerBackVisible: false, headerLeft: () => <PageBackButton /> })} />
       </>}
     </MaintenanceStack.Navigator>
   );

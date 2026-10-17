@@ -6,7 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
+
 import { forProperty } from '../../features/maintenance/propertyMaintenanceScope';
 
 export default function MaintenanceScreen() {
@@ -41,9 +41,7 @@ export default function MaintenanceScreen() {
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <View style={[styles.backRow, { paddingTop: insets.top + 4 }]}><PageBackButton /></View>
-      <View style={styles.header}>
-        <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>PROPERTY CARE</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
         <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>{propertyId ? propertyName || 'This property' : 'Keep repairs moving, from report to resolution.'}</Text>
       </View>
@@ -78,14 +76,13 @@ export default function MaintenanceScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  backRow: { paddingHorizontal: 22 },
+
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingBottom: 100 },
-  header: { paddingHorizontal: 20, paddingTop: 0 },
-  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
-  pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
-  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 12 },
-  tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  header: { paddingHorizontal: 20, paddingBottom: 18 },
+  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },
+  pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },
+  tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
   tab: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   tabActive: { borderBottomColor: '#2563eb' },
   tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
