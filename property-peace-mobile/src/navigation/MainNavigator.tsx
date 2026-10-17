@@ -129,7 +129,7 @@ function PropertiesNavigator() {
       <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.popToTop()} /> })} />
       <PropertiesStack.Screen name="PropertyMaintenance" component={MaintenanceScreen} options={{ headerShown: false }} />
       <PropertiesStack.Screen name="AddMaintenanceRequest" component={AddMaintenanceRequestScreen} options={{ title: 'Add request' }} />
-      <PropertiesStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={({ route }) => ({ title: `Maintenance #${route.params.requestId}`, headerBackVisible: false, headerLeft: () => <PageBackButton /> })} />
+      <PropertiesStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={({ route }) => ({ title: `Maintenance #${route.params.requestId}`, headerTitleAlign: 'center', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader /> })} />
       <PropertiesStack.Screen name="AddProperty" component={AddPropertyScreen} options={{ title: 'Add property' }} />
 
     </PropertiesStack.Navigator>
@@ -149,7 +149,7 @@ function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
       </> : <>
         <MaintenanceStack.Screen name="MaintenanceList" component={MaintenanceScreen} options={{ headerShown: false }} />
         <MaintenanceStack.Screen name="AddMaintenanceRequest" component={AddMaintenanceRequestScreen} options={{ title: 'Add request' }} />
-        <MaintenanceStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={({ route }) => ({ title: `Maintenance #${route.params.requestId}`, headerBackVisible: false, headerLeft: () => <PageBackButton /> })} />
+        <MaintenanceStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={({ route }) => ({ title: `Maintenance #${route.params.requestId}`, headerTitleAlign: 'center', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader /> })} />
       </>}
     </MaintenanceStack.Navigator>
   );

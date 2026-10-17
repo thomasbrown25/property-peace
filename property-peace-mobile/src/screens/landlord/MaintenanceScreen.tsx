@@ -52,7 +52,7 @@ export default function MaintenanceScreen() {
   const overview = useMemo(() => {
     const open = requests.filter((request) => !isClosedStatus(request.status ?? request.Status));
     const reported = open.filter((request) => ['reported', '0'].includes(String(request.status ?? request.Status ?? 'Reported').toLowerCase())).length;
-    return { open: open.length, reported, inWorkflow: open.length - reported, closed: requests.length - open.length, total: requests.length };
+    return { open: open.length, reported, inWorkflow: open.length - reported, closed: requests.length - open.length };
   }, [requests]);
 
   const visibleRequests = useMemo(() => {
@@ -74,27 +74,25 @@ export default function MaintenanceScreen() {
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.headerRow}>
-          <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
-          <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
+        <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
+      </View>
+      {!loading && !error && <View style={[styles.maintenanceOverview, dark && { borderColor: colors.border }]}>
+        <View style={styles.overviewHeading}>
+          <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>MAINTENANCE OVERVIEW</Text>
+          <TouchableOpacity style={styles.addButton} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addText}>Request</Text>
           </TouchableOpacity>
         </View>
-        <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>{propertyId ? propertyName || 'This property' : 'Keep repairs moving, from report to resolution.'}</Text>
-      </View>
-      {!loading && !error && <View style={[styles.maintenanceOverview, dark && { borderColor: colors.border }]}>
-        <Text style={[styles.overviewEyebrow, dark && { color: colors.accent }]}>MAINTENANCE OVERVIEW</Text>
         <View style={styles.overviewTop}>
           <View>
-            <Text style={[styles.overviewValue, dark && { color: colors.text }]}>{overview.open}</Text>
+            <Text style={[styles.overviewValue, dark && { color: colors.text }, overview.open > 0 && { color: dark ? '#ff8b86' : '#c2413b' }]}>{overview.open}</Text>
             <Text style={[styles.overviewLabel, dark && { color: colors.muted }]}>Open requests</Text>
           </View>
-          <Text style={[styles.overviewContext, dark && { color: colors.muted }]}>{overview.open} of {overview.total} requests open</Text>
         </View>
         <View style={[styles.overviewStats, dark && { borderTopColor: colors.border }]}>
           <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.reported}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Reported</Text></View>
-          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.inWorkflow}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>In workflow</Text></View>
+          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.inWorkflow}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>In progress</Text></View>
           <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.closed}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Closed</Text></View>
         </View>
       </View>}
@@ -114,8 +112,8 @@ export default function MaintenanceScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={<View>
           {error ? <View style={styles.error} accessibilityRole="alert"><Text style={[styles.errorText, dark && { color: colors.text }]}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); loadRequests(); }} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.accent }]}>Retry</Text></TouchableOpacity></View> : null}
-          {!error && <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">{view === 'current' ? 'Open requests' : 'Closed requests'}</Text>
+          {!error && view === 'history' && <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">Closed requests</Text>
             <Text style={[styles.count, dark && { color: colors.muted }]}>{visibleRequests.length}</Text>
           </View>}
         </View>}
@@ -125,7 +123,11 @@ export default function MaintenanceScreen() {
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('LandlordMaintenanceDetail', { requestId: String(item.id || item.Id), listItem: item })} accessibilityRole="button" accessibilityLabel={`Open maintenance request ${item.title || item.Title || ''}`}>
             <Text style={[styles.title, dark && { color: colors.text }]}>{item.title || item.Title || 'Maintenance request'}</Text>
             {!!(item.description || item.Description) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={2}>{item.description || item.Description}</Text>}
-            <Text style={[styles.status, dark && { color: colors.accent }]}>{item.status || item.Status ? `${displayStatus(item.status || item.Status)} · ` : ''}Open request →</Text>
+            {['high', '2'].includes(String(item.priority ?? item.Priority ?? '').toLowerCase()) && <Text style={[styles.highPriority, dark && { color: '#ff8b86' }]}>High priority</Text>}
+            <View style={styles.rowFooter}>
+              <Text style={[styles.status, dark && { color: colors.accent }]}>{item.status || item.Status ? displayStatus(item.status || item.Status) : ''}</Text>
+              <Text style={[styles.openRequest, dark && { color: colors.accent }]}>Open request →</Text>
+            </View>
           </TouchableOpacity>
         )}
       />}
@@ -138,18 +140,16 @@ const styles = StyleSheet.create({
 
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingBottom: 28 },
-  header: { paddingHorizontal: 20, paddingBottom: 18 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  addButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  header: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
+  addButton: { minHeight: 44, paddingHorizontal: 12, backgroundColor: '#061e35', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   addText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', flexShrink: 1 },
-  pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },
+  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
   maintenanceOverview: { marginHorizontal: 20, marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
-  overviewEyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
+  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, flexShrink: 1 },
   overviewTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
   overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
   overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
-  overviewContext: { flexShrink: 1, color: '#617180', fontSize: 12, textAlign: 'right', paddingBottom: 3 },
   overviewStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dbe2e6', paddingTop: 16 },
   overviewStat: { flex: 1, minWidth: 0, paddingRight: 6 },
   overviewStatValue: { color: '#102d43', fontSize: 20, fontWeight: '800' },
@@ -172,7 +172,10 @@ const styles = StyleSheet.create({
   row: { paddingVertical: 18, minHeight: 82 },
   title: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: '#102d43' },
   meta: { color: '#697887', fontSize: 13, marginTop: 3, lineHeight: 19 },
-  status: { color: '#2475cf', fontSize: 13, marginTop: 7, fontWeight: '700' },
+  highPriority: { color: '#c2413b', fontSize: 13, marginTop: 4, fontWeight: '700' },
+  rowFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 7 },
+  status: { color: '#2475cf', fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  openRequest: { color: '#2475cf', fontSize: 13, fontWeight: '700', textAlign: 'right' },
   emptyContainer: { paddingVertical: 46, alignItems: 'center' },
   emptyText: { fontSize: 18, fontWeight: '700', color: '#102d43', marginTop: 12, marginBottom: 6 },
   emptySubtext: { color: '#697887', textAlign: 'center', lineHeight: 20, fontSize: 14 },

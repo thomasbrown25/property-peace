@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   destructiveText: { color: '#c2413b' },
   content: { paddingHorizontal: 24, paddingTop: 14, gap: 0 },
   todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#dce4e8' },
-  dateBlock: { width: 76, alignItems: 'flex-start', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
+  dateBlock: { width: 76, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
   dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
   dateDay: { color: '#061e35', fontSize: 43, lineHeight: 48, fontWeight: '900', letterSpacing: -2 },
   dateWeekday: { color: '#657685', fontSize: 10, fontWeight: '800', letterSpacing: 1 },

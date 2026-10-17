@@ -66,7 +66,7 @@ export default function PropertyDetailScreen() {
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [payments, setPayments] = useState<PropertyPayment[] | null>(null);
-  const [tab, setTab] = useState<'overview' | 'units' | 'actions'>('overview');
+  const [tab, setTab] = useState<'overview' | 'units' | 'checklists' | 'actions'>('overview');
   const generation = useRef(0);
 
   const loadProperty = useCallback(async () => {
@@ -199,7 +199,7 @@ export default function PropertyDetailScreen() {
       </View>
 
       <View style={styles.tabs} accessibilityRole="tablist">
-        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', 'Units'] as const] : []), ['actions', 'Actions']] as const).map(([key, label]) => (
+        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', `Units (${details.units.length})`] as const] : []), ['checklists', 'Checklists'], ['actions', 'Actions']] as const).map(([key, label]) => (
           <TouchableOpacity key={key} style={[styles.tab, visibleTab === key && styles.activeTab]} onPress={() => setTab(key)} accessibilityRole="tab" accessibilityState={{ selected: visibleTab === key }}>
             <Text style={[styles.tabText, visibleTab === key && styles.activeTabText]}>{label}</Text>
           </TouchableOpacity>
@@ -247,13 +247,6 @@ export default function PropertyDetailScreen() {
             <Text style={styles.activityMeta}>{lease.startDate || lease.StartDate ? String(lease.startDate ?? lease.StartDate).slice(0, 10) : 'Start date unknown'} – {lease.endDate || lease.EndDate ? String(lease.endDate ?? lease.EndDate).slice(0, 10) : 'Month to month'}{lease.rentAmount ?? lease.RentAmount ? ` · ${currency(Number(lease.rentAmount ?? lease.RentAmount))}/mo` : ''}</Text>
           </View>
         ))}
-        <Text style={styles.sectionTitle}>Checklists</Text>
-        {checklists === null ? <Text style={styles.activityMeta}>Checklists unavailable · Pull to retry</Text> : pendingChecklists.length === 0 ? <Text style={styles.activityMeta}>No checklists due or in progress</Text> : pendingChecklists.slice(0, 3).map((item, index) => (
-          <TouchableOpacity key={String(item.id ?? index)} style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))}>
-            <Text style={styles.activityTitle}>{item.title || item.checklistTypeName || 'Checklist'}</Text>
-            <Text style={styles.activityMeta}>{item.inspectionDate && String(item.inspectionDate).slice(0, 10) <= new Date().toISOString().slice(0, 10) ? 'Due' : 'In progress'}{item.unitName ? ` · ${item.unitName}` : ''}</Text>
-          </TouchableOpacity>
-        ))}
         <Text style={styles.sectionTitle}>Messages</Text>
         {conversations === null ? <Text style={styles.activityMeta}>Messages unavailable · Pull to retry</Text> : unreadCount === 0 ? <Text style={styles.activityMeta}>No unread messages</Text> : <TouchableOpacity style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Messages')}>
           <Text style={styles.activityTitle}>{unreadCount} unread message{unreadCount === 1 ? '' : 's'}</Text>
@@ -268,19 +261,24 @@ export default function PropertyDetailScreen() {
         ))}
       </View>}
 
-      {visibleTab === 'actions' && <><Text style={styles.sectionTitle}>On-site actions</Text>
-      <View style={styles.actionList}>
+      {visibleTab === 'checklists' && <View style={styles.checklistPanel}>
+        {checklists === null ? <Text style={styles.activityMeta}>Checklists unavailable · Pull to retry</Text> : pendingChecklists.length === 0 ? <Text style={styles.activityMeta}>No checklists due or in progress</Text> : pendingChecklists.map((item, index) => (
+          <TouchableOpacity key={String(item.id ?? index)} style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))}>
+            <Text style={styles.activityTitle}>{item.title || item.checklistTypeName || 'Checklist'}</Text>
+            <Text style={styles.activityMeta}>{item.inspectionDate && String(item.inspectionDate).slice(0, 10) <= new Date().toISOString().slice(0, 10) ? 'Due' : 'In progress'}{item.unitName ? ` · ${item.unitName}` : ''}</Text>
+          </TouchableOpacity>
+        ))}
+        <ActionRow icon="clipboard-outline" title="View all checklists" subtitle="Manage inspections and view history" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
+      </View>}
+
+      {visibleTab === 'actions' && <View style={styles.actionList}>
         <ActionRow icon="construct-outline" title={openRepairs === null ? 'Open repairs' : `${openRepairs} open repairs`} titleColor={openRepairs !== null && openRepairs > 0 ? (mode === 'dark' ? '#ff9bad' : '#c2413b') : undefined} subtitle={openRepairs === null ? 'Repair count unavailable' : 'Requests for this property'} color={mode === 'dark' ? '#ff9bad' : '#d94d63'} background={mode === 'dark' ? '#442b38' : '#fff0f3'} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} />
         <ActionRow icon="clipboard-outline" title="Checklists" subtitle="Complete move-in and move-out items" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
         <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color={mode === 'dark' ? colors.accent : '#2475cf'} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
         <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color={mode === 'dark' ? '#d2a9f4' : '#8b5bb7'} background={mode === 'dark' ? '#392d49' : '#f5effb'} onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
-      </View>
-      </>}
+      </View>}
 
-      {isMultiUnit && visibleTab === 'units' && <><View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Units</Text>
-        <View style={styles.countChip}><Text style={styles.countText}>{details.units.length}</Text></View>
-      </View>
+      {isMultiUnit && visibleTab === 'units' && <>
       {details.units.length === 0 ? (
         <View style={styles.emptyCard}>
           <Ionicons name="business-outline" size={27} color={mode === 'dark' ? colors.muted : '#71808d'} />
@@ -335,8 +333,8 @@ function ActionRow({ icon, title, titleColor, subtitle, color, background, onPre
 const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   content: { padding: 18, paddingBottom: 28 },
-  tabs: { flexDirection: 'row', gap: 24, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#fbf7f4' },
-  tab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#fbf7f4' },
+  tab: { flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: '#2563eb' },
   tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
   activeTabText: { color: '#0f2f47', fontWeight: '800' },
@@ -381,6 +379,7 @@ const lightStyles = StyleSheet.create({
   snapshotLabel: { color: '#71808d', fontSize: 10, marginTop: 3 },
   sectionTitle: { color: '#102d43', fontSize: 21, fontWeight: '900', letterSpacing: -0.3, marginBottom: 12 },
   actionList: { marginBottom: 30 },
+  checklistPanel: { paddingTop: 16, paddingBottom: 24 },
   actionRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: '#e2e7e9', paddingVertical: 12 },
   actionIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   actionCopy: { flex: 1, minWidth: 0 },

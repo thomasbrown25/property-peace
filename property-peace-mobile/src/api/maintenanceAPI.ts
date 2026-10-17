@@ -89,6 +89,7 @@ class MaintenanceAPI {
     return result.uri;
   }
   async deleteDownloadedAttachment(uri: string): Promise<void> { await FileSystem.deleteAsync(uri, { idempotent: true }); }
+  async changeStatus(id: string | number, status: string, expectedStatus: string, idempotencyKey: string) { return this.client.post(`/api/maintenance-requests/${id}/status`, { status, expectedStatus }, mutationConfig(idempotencyKey)); }
   async acknowledge(id: string | number, idempotencyKey: string) { return this.client.post(`/api/maintenance-requests/${id}/acknowledge`, {}, mutationConfig(idempotencyKey)); }
   async troubleshoot(id: string | number, stepCode: string, cycleKey: string, safety: { isWorsening: boolean; hasNewEmergency: boolean }, idempotencyKey: string) {
     return this.client.post(`/api/maintenance-requests/${id}/percy/troubleshooting`, { resolutionCycleKey: cycleKey, stepKey: `${stepCode}-${idempotencyKey}`, stepCode, ...safety }, mutationConfig(idempotencyKey));

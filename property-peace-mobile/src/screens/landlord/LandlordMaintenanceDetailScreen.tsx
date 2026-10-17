@@ -1,5 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, InputAccessoryView, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, InputAccessoryView, Keyboard, KeyboardAvoidingView, Image, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
 import { RouteProp, useFocusEffect, useRoute } from '@react-navigation/native';
@@ -27,6 +27,10 @@ const workflowStatus = (kind: 'estimate' | 'order' | 'appointment' | 'completion
 };
 const friendlyHomeName = (item: any, key: 'propertyName' | 'unitName', nestedKey: 'property' | 'unit') => String(value(item, key) ?? value(value(item, nestedKey), 'name') ?? '');
 const MONEY_KEYBOARD_ACCESSORY_ID = 'maintenance-money-keyboard';
+const REQUEST_STATUSES = ['Reported', 'Acknowledged', 'Scheduled', 'InProgress', 'Resolved', 'AwaitingTenant', 'AwaitingApproval', 'Assigned', 'Cancelled'] as const;
+type DetailTab = 'Actions' | 'Assignment' | 'Images' | 'Timeline';
+const readableStatus = (status: unknown) => statusIs(status, 'awaitingtenant', '5') ? 'Awaiting tenant confirmation' : displayStatus(status as string | number);
+const currentStatusName = (status: unknown) => REQUEST_STATUSES.find((name, index) => String(status).toLowerCase() === name.toLowerCase() || String(status) === String(index));
 
 export default function LandlordMaintenanceDetailScreen() {
   const { mode, colors } = useAppTheme();
@@ -38,7 +42,12 @@ export default function LandlordMaintenanceDetailScreen() {
   const busyRef = useRef(false);
   const [error, setError] = useState('');
   const [openingEvidence, setOpeningEvidence] = useState(false);
+  const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
+  useEffect(() => () => { if (previewImageUri) void MaintenanceAPI.deleteDownloadedAttachment(previewImageUri).catch(() => undefined); }, [previewImageUri]);
   const [expanded, setExpanded] = useState('');
+  const [tab, setTab] = useState<DetailTab>('Actions');
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+  const [statusPickerOpen, setStatusPickerOpen] = useState(false);
   const [assignmentOptions, setAssignmentOptions] = useState<MaintenanceAssigneeOption[]>([]);
   const [directoryError, setDirectoryError] = useState('');
   const [directoryFailedSources, setDirectoryFailedSources] = useState<MaintenanceAssignmentDirectorySource[]>([]);
@@ -128,6 +137,12 @@ export default function LandlordMaintenanceDetailScreen() {
       await load();
     } catch (e: any) { Alert.alert('Could not update workflow', e?.detail || e?.message || 'Refresh and retry. The same retry key will be reused.'); }
     finally { busyRef.current = false; setBusy(false); }
+  };
+  const changeRequestStatus = (status: typeof REQUEST_STATUSES[number]) => {
+    setStatusPickerOpen(false);
+    const expectedStatus = currentStatusName(requestStatus);
+    if (!expectedStatus || status === expectedStatus) return;
+    void run(`status-${expectedStatus}-${status}`, key => MaintenanceAPI.changeStatus(requestId, status, expectedStatus, key), `Status changed to ${readableStatus(status)}.`);
   };
   const acknowledge = () => { if (canAcknowledge && !closed) void run('acknowledge', key => MaintenanceAPI.acknowledge(requestId, key), 'Request acknowledged.'); };
   const assignRequest = () => {
@@ -234,6 +249,14 @@ export default function LandlordMaintenanceDetailScreen() {
     if (staffCloseReason.trim().length < 5) return Alert.alert('Close reason required', 'Enter a staff close reason of at least 5 characters.');
     void run(`staff-close-${value(completion, 'id')}-${value(completion, 'version')}-${staffCloseReason.trim()}`, key => MaintenanceAPI.staffCloseCompletion(requestId, value(completion, 'id'), value(completion, 'version'), staffCloseReason.trim(), key), 'Completion closed by staff.');
   };
+  const previewImage = async (attachment: MaintenanceAttachment) => {
+    if (openingEvidence) return;
+    setOpeningEvidence(true);
+    try { setPreviewImageUri(await MaintenanceAPI.downloadAttachment(requestId, attachment)); }
+    catch (e: any) { Alert.alert('Image unavailable', e?.detail || e?.message || 'The private image could not be opened.'); }
+    finally { setOpeningEvidence(false); }
+  };
+  const closePreview = () => setPreviewImageUri(null);
   const openEvidence = async (attachment: MaintenanceAttachment) => {
     let uri: string | undefined;
     setOpeningEvidence(true);
@@ -256,6 +279,11 @@ export default function LandlordMaintenanceDetailScreen() {
   const issuedOrders = workOrders.filter(order => statusIs(value(order, 'status'), 'issued', '2'));
   const inProgressOrders = workOrders.filter(order => statusIs(value(order, 'status'), 'inprogress', '4'));
   const actionableCompletions = completions.filter(completion => !closed && statusIs(value(completion, 'status'), 'submitted', '1') && confirmationDue(completion));
+  const description = String(value(item, 'description') ?? '');
+  const explicitPriority = value(item, 'priority');
+  const urgency = value(item, 'urgency');
+  const priorityLabel = explicitPriority != null ? (['Low', 'Medium', 'High'][Number(explicitPriority)] ?? displayStatus(explicitPriority)) : urgency == null ? 'Not set' : statusIs(urgency, 'emergency', '3') ? 'High' : statusIs(urgency, 'urgent', '2') ? 'Urgent' : 'Routine';
+  const highPriority = priorityLabel === 'High';
   const next = closed ? 'This request is closed.' : canAcknowledge ? 'Acknowledge the request to begin.' : !assigned ? 'Assign someone to handle the repair.' : pendingCompletion ? actionableCompletions.length ? 'The tenant deadline passed. Staff can close the completion with a reason.' : 'Waiting for tenant confirmation.' : inProgressOrders.length ? 'Submit repair completion with evidence.' : issuedOrders.length ? 'Start the issued work order.' : requiresEstimate && !approvedEstimates.length ? 'Review or submit an estimate.' : 'Issue a work order when ready.';
 
   return <SafeAreaView style={s.page} edges={['bottom']}>
@@ -264,12 +292,14 @@ export default function LandlordMaintenanceDetailScreen() {
       <KeyboardAvoidingView style={s.page} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}>
           <Text style={s.title}>{value(item, 'title') || 'Maintenance request'}</Text>
+          {description ? <View><Text style={s.body}>{descriptionExpanded || description.length <= 200 ? description : `${description.slice(0, 200)}…`}</Text>{description.length > 200 ? <TouchableOpacity accessibilityRole="button" onPress={() => setDescriptionExpanded(!descriptionExpanded)} style={s.moreButton}><Text style={s.link}>{descriptionExpanded ? 'Show less' : 'Show more'}</Text></TouchableOpacity> : null}</View> : null}
           {homeDetails ? <Text style={s.meta}>{homeDetails}</Text> : null}
-          <Text style={s.statusLabel}>CURRENT STATUS</Text><Text style={s.status}>{statusIs(requestStatus, 'awaitingtenant', '5') ? 'Awaiting tenant confirmation' : displayStatus(requestStatus)}</Text>
-          {value(item, 'description') ? <Text style={s.body}>{value(item, 'description')}</Text> : null}
+          <View style={s.summaryRow}><Text style={s.summaryText}>Status: <Text style={s.summaryValue}>{readableStatus(requestStatus)}</Text></Text><Text style={s.summaryText}>Priority: <Text style={highPriority ? s.highPriority : s.summaryValue}>{priorityLabel}</Text></Text></View>
+          <View style={s.tabs}>{(['Actions', 'Assignment', 'Images', 'Timeline'] as const).map(name => <TouchableOpacity key={name} accessibilityRole="tab" accessibilityState={{ selected: tab === name }} style={[s.tab, tab === name && s.activeTab]} onPress={() => setTab(name)}><Text style={[s.tabText, tab === name && s.activeTabText]}>{name}</Text></TouchableOpacity>)}</View>
+          {tab === 'Actions' ? <>
+          <Section title="Update status"><TouchableOpacity accessibilityRole="button" accessibilityLabel="Select maintenance status" style={s.statusSelect} disabled={busy} onPress={() => setStatusPickerOpen(true)}><Text style={s.recordTitle}>{readableStatus(requestStatus)}</Text><Text style={s.link}>⌄</Text></TouchableOpacity></Section>
           <Section title="Next step"><Text style={s.body}>{next}</Text>
             {canAcknowledge && !closed ? <Action label="Acknowledge request" onPress={acknowledge} disabled={busy} prominent /> : null}
-            {!closed && !canAcknowledge && !assigned && canAssign ? action('assign', 'Assign repair', AssignmentForm(), true) : null}
             {!closed && !canAcknowledge && assigned && !pendingCompletion && inProgressOrders.map(order => action(`complete-${value(order, 'id')}`, 'Submit completion', CompletionForm(order), true))}
             {!closed && !canAcknowledge && assigned && !pendingCompletion && !inProgressOrders.length && issuedOrders.map(order => <Action key={value(order, 'id')} label="Start work order" onPress={() => startWork(order)} disabled={busy} prominent />)}
             {!closed && !canAcknowledge && assigned && !pendingCompletion && !hasActiveWorkOrder && requiresEstimate && !approvedEstimates.length ? action('estimate', 'Submit estimate', EstimateForm(), true) : null}
@@ -277,10 +307,6 @@ export default function LandlordMaintenanceDetailScreen() {
             {!closed && !canAcknowledge && assigned && !pendingCompletion && canIssueWorkOrder && !requiresEstimate && !approvedEstimates.length ? action('direct-order', 'Issue work order without estimate', WorkOrderForm(), true) : null}
             {actionableCompletions.map(completion => action(`close-${value(completion, 'id')}`, 'Close completion after tenant deadline', CloseForm(completion), true))}
           </Section>
-          {canAssign && (assigned || canAcknowledge) ? <Section title="Assignment">
-            {assignment ? <Text style={s.body}>{value(assignment, 'assignedToName') || value(assignment, 'assigneeName') || displayStatus(value(assignment, 'assignedToType'))}</Text> : null}
-            {action('assign', assigned ? 'Change assignment' : 'Assign repair', AssignmentForm())}
-          </Section> : assignment ? <Section title="Assignment"><Text style={s.body}>{value(assignment, 'assignedToName') || value(assignment, 'assigneeName') || displayStatus(value(assignment, 'assignedToType'))}</Text></Section> : null}
           {(estimates.length || (canSubmitEstimate && !canAcknowledge)) ? <Section title="Estimates">
             {approvedEstimates.length ? <Text style={s.muted}>After changing vendors, a previous approval may no longer authorize work. If issuing is rejected, submit and approve a new estimate for the current assignee.</Text> : null}
             {estimates.map((estimate: any) => <View key={value(estimate, 'id')} style={s.record}>
@@ -314,14 +340,21 @@ export default function LandlordMaintenanceDetailScreen() {
             <Text style={s.muted}>{value(completion, 'resolutionNotes')} · Tenant response due {date(value(completion, 'tenantConfirmationDueAtUtc'))}</Text>
             {!closed && statusIs(value(completion, 'status'), 'submitted', '1') && confirmationDue(completion) ? action(`close-${value(completion, 'id')}`, 'Close completion after tenant deadline', CloseForm(completion)) : null}
           </View>)}</Section> : null}
-          <Section title="Evidence">{attachments.length ? attachments.map((attachment: MaintenanceAttachment) => <View key={attachment.id} style={s.record}>
-            <Text style={s.recordTitle}>{attachment.fileName}</Text><Text style={s.muted}>{attachment.contentType} · {(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB</Text>
-            <Action label="View or save private evidence" onPress={() => void openEvidence(attachment)} disabled={openingEvidence} />
-          </View>) : <Text style={s.muted}>No evidence attached.</Text>}</Section>
-          <Section title="Timeline">{activityEvents.length ? activityEvents.map((event: any, index: number) => <View key={event.id ?? index} style={s.record}>
+          </> : null}
+          {tab === 'Assignment' ? <Section title="Assignment">
+            <Text style={s.body}>{assignment ? value(assignment, 'assignedToName') || value(assignment, 'assigneeName') || displayStatus(value(assignment, 'assignedToType')) : 'Not assigned yet'}</Text>
+            {canAssign ? AssignmentForm() : <Text style={s.muted}>Assignment cannot be changed at this stage of the workflow.</Text>}
+          </Section> : null}
+          {tab === 'Images' ? <Section title="Images">{attachments.filter((attachment: MaintenanceAttachment) => String(attachment.contentType ?? '').toLowerCase().startsWith('image/')).length ? attachments.filter((attachment: MaintenanceAttachment) => String(attachment.contentType ?? '').toLowerCase().startsWith('image/')).map((attachment: MaintenanceAttachment) => <View key={attachment.id} style={s.record}>
+            <Text style={s.recordTitle}>{attachment.fileName}</Text><Text style={s.muted}>{date(attachment.createdAtUtc)}</Text>
+            <Action label="View image" onPress={() => void previewImage(attachment)} disabled={openingEvidence} />
+          </View>) : <Text style={s.muted}>No images attached.</Text>}{attachments.some((attachment: MaintenanceAttachment) => !String(attachment.contentType ?? '').toLowerCase().startsWith('image/')) ? <Text style={s.muted}>Other evidence</Text> : null}{attachments.filter((attachment: MaintenanceAttachment) => !String(attachment.contentType ?? '').toLowerCase().startsWith('image/')).map((attachment: MaintenanceAttachment) => <View key={attachment.id} style={s.record}><Text style={s.recordTitle}>{attachment.fileName}</Text><Action label="View or save private evidence" onPress={() => void openEvidence(attachment)} disabled={openingEvidence} /></View>)}</Section> : null}
+          {tab === 'Timeline' ? <Section title="Timeline">{activityEvents.length ? activityEvents.map((event: any, index: number) => <View key={event.id ?? index} style={s.record}>
             <Text style={s.recordTitle}>{event.summary || event.title || event.eventType || 'Workflow update'}</Text><Text style={s.muted}>{date(event.occurredAtUtc || event.createdAt)}</Text>
-          </View>) : <Text style={s.muted}>No workflow events yet.</Text>}</Section>
+          </View>) : <Text style={s.muted}>No workflow events yet.</Text>}</Section> : null}
         </ScrollView>
+        <Modal visible={!!previewImageUri} transparent animationType="fade" onRequestClose={closePreview}><View style={s.imageOverlay}>{previewImageUri ? <Image source={{ uri: previewImageUri }} style={s.imagePreview} resizeMode="contain" /> : null}<Action label="Close image" onPress={closePreview} /></View></Modal>
+        <Modal visible={statusPickerOpen} transparent animationType="fade" onRequestClose={() => setStatusPickerOpen(false)}><View style={s.modalOverlay}><View style={s.modalPanel}><Text style={s.section}>Select status</Text><ScrollView style={s.statusOptions}>{REQUEST_STATUSES.map(name => <TouchableOpacity key={name} accessibilityRole="button" accessibilityState={{ selected: currentStatusName(requestStatus) === name }} style={s.choice} onPress={() => changeRequestStatus(name)}><Text style={s.recordTitle}>{currentStatusName(requestStatus) === name ? '✓  ' : ''}{readableStatus(name)}</Text></TouchableOpacity>)}</ScrollView><Action label="Cancel" onPress={() => setStatusPickerOpen(false)} /></View></View></Modal>
         {Platform.OS === 'ios' ? <InputAccessoryView nativeID={MONEY_KEYBOARD_ACCESSORY_ID}><View style={s.keyboardAccessory}><TouchableOpacity accessibilityRole="button" onPress={Keyboard.dismiss}><Text style={s.link}>Done</Text></TouchableOpacity></View></InputAccessoryView> : null}
       </KeyboardAvoidingView>}
   </SafeAreaView>;
@@ -372,6 +405,10 @@ const lightStyles = StyleSheet.create({
   record: { borderBottomWidth: 1, borderColor: '#e2e8eb', paddingVertical: 12 }, recordTitle: { color: '#19384c', fontWeight: '800' }, muted: { color: '#74848d', fontSize: 12, lineHeight: 18, marginTop: 5 },
   action: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', paddingHorizontal: 4, marginTop: 5 }, primary: { alignSelf: 'stretch', alignItems: 'center', backgroundColor: '#0b5cab', marginTop: 12, paddingHorizontal: 14 }, selectedAction: { backgroundColor: '#0b5cab', borderRadius: 6, paddingHorizontal: 14 }, primaryText: { color: '#fff' }, disabled: { opacity: .45 },
   form: { borderLeftWidth: 2, borderColor: '#bdcbd3', marginTop: 10, paddingLeft: 12, paddingBottom: 10 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, choice: { paddingVertical: 10, borderBottomWidth: 1, borderColor: '#e2e8eb' },
+  moreButton: { alignSelf: 'flex-end', paddingVertical: 8 }, summaryRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 20 }, summaryText: { color: '#526874', fontSize: 13, flexShrink: 1 }, summaryValue: { color: '#0b5cab', fontWeight: '800' }, highPriority: { color: '#b42318', fontWeight: '800' },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#d3dde2', marginTop: 22 }, tab: { flex: 1, alignItems: 'center', paddingVertical: 13, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeTab: { borderBottomColor: '#2563eb' }, tabText: { color: '#74848d', fontSize: 12, fontWeight: '600' }, activeTabText: { color: '#102d43', fontWeight: '800' }, statusSelect: { minHeight: 48, borderWidth: 1, borderColor: '#bdcbd3', borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  imageOverlay: { flex: 1, backgroundColor: '#101923', padding: 20, justifyContent: 'center' }, imagePreview: { flex: 1, width: '100%' },
+  modalOverlay: { flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 24 }, modalPanel: { backgroundColor: '#fff', borderRadius: 12, padding: 18, maxHeight: '80%' }, statusOptions: { flexGrow: 0 },
   input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#bdcbd3', minHeight: 46, paddingHorizontal: 11, marginTop: 8, color: '#19384c' }, area: { minHeight: 76, paddingTop: 11 }, error: { color: '#a92338', lineHeight: 21, marginVertical: 10 }, keyboardAccessory: { padding: 12, alignItems: 'flex-end', backgroundColor: '#f7f3ee' },
 });
 
@@ -397,4 +434,5 @@ const darkStyles = StyleSheet.create({
   input: { ...lightStyles.input, backgroundColor: '#1b2937', borderColor: '#51697e', color: '#f2f6fa' },
   error: { ...lightStyles.error, color: '#ff9e98' },
   keyboardAccessory: { ...lightStyles.keyboardAccessory, backgroundColor: '#1b2937' },
+  summaryText: { ...lightStyles.summaryText, color: '#b4c3d0' }, summaryValue: { ...lightStyles.summaryValue, color: '#72b6ff' }, highPriority: { ...lightStyles.highPriority, color: '#ff9e98' }, tabs: { ...lightStyles.tabs, borderBottomColor: '#35495b' }, activeTab: { ...lightStyles.activeTab, borderBottomColor: '#72b6ff' }, tabText: { ...lightStyles.tabText, color: '#b4c3d0' }, activeTabText: { ...lightStyles.activeTabText, color: '#f2f6fa' }, statusSelect: { ...lightStyles.statusSelect, borderColor: '#51697e' }, modalPanel: { ...lightStyles.modalPanel, backgroundColor: '#1b2937' },
 });

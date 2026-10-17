@@ -121,14 +121,7 @@ export default function PropertiesScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.pageHeader, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
-          <Text style={styles.pageSubtitle}>A clearer view of every place you manage.</Text>
-        </View>
-        <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
-          <Ionicons name="add" size={18} color={mode === 'dark' ? colors.background : '#fff'} />
-          <Text style={styles.primaryButtonText}>Add property</Text>
-        </TouchableOpacity>
+        <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
       </View>
       {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : loadError ? (
         <View style={styles.centerContainer}>
@@ -145,7 +138,13 @@ export default function PropertiesScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.portfolioOverview}>
-              <Text style={styles.overviewEyebrow}>PORTFOLIO OVERVIEW</Text>
+              <View style={styles.overviewHeading}>
+                <Text style={styles.overviewEyebrow}>PORTFOLIO OVERVIEW</Text>
+                <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
+                  <Ionicons name="add" size={20} color="#fff" />
+                  <Text style={styles.primaryButtonText}>Property</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.overviewTop}>
                 <View>
                   <Text style={styles.overviewValue}>{overview.total ? `${Math.round(overview.occupied / overview.total * 100)}%` : '—'}</Text>
@@ -259,13 +258,12 @@ function useScreenStyles() {
     ...StyleSheet.create({
       container: { ...styles.container, backgroundColor: colors.background },
       centerContainer: { ...styles.centerContainer, backgroundColor: colors.background },
-      primaryButton: { ...styles.primaryButton, backgroundColor: colors.accent },
-      primaryButtonText: { ...styles.primaryButtonText, color: colors.background },
+      primaryButton: { ...styles.primaryButton, backgroundColor: '#061e35' },
+      primaryButtonText: { ...styles.primaryButtonText, color: '#fff' },
       pageTitle: { ...styles.pageTitle, color: colors.text },
-      pageSubtitle: { ...styles.pageSubtitle, color: colors.muted },
       searchWrap: { ...styles.searchWrap, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
       portfolioOverview: { ...styles.portfolioOverview, borderColor: colors.border },
-      overviewEyebrow: { ...styles.overviewEyebrow, color: colors.accent },
+      overviewEyebrow: { ...styles.overviewEyebrow, color: '#75d995' },
       overviewValue: { ...styles.overviewValue, color: colors.text },
       overviewLabel: { ...styles.overviewLabel, color: colors.muted },
       overviewContext: { ...styles.overviewContext, color: colors.muted },
@@ -287,7 +285,7 @@ function useScreenStyles() {
       attentionText: { ...styles.attentionText, color: '#ff8b86' },
       emptyText: { ...styles.emptyText, color: colors.text },
       emptySubtext: { ...styles.emptySubtext, color: colors.muted },
-      emptyButtonText: { ...styles.emptyButtonText, color: colors.accent },
+      emptyButtonText: { ...styles.emptyButtonText, color: '#fff' },
     }),
   }, [mode, colors]);
 }
@@ -297,14 +295,13 @@ const styles = StyleSheet.create({
 
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
-  pageHeader: { paddingHorizontal: 20, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  headerCopy: { flex: 1, minWidth: 0 },
-  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },
-  pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },
-  primaryButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, paddingHorizontal: 10 },
+  pageHeader: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
+  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
+  primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   portfolioOverview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
-  overviewEyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
+  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, flexShrink: 1 },
   overviewTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
   overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
   overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
@@ -336,6 +333,6 @@ const styles = StyleSheet.create({
   emptyContainer: { paddingVertical: 46, alignItems: 'center' },
   emptyText: { fontSize: 18, fontWeight: '700', color: '#102d43', marginTop: 12, marginBottom: 6 },
   emptySubtext: { fontSize: 14, color: '#697887', textAlign: 'center', lineHeight: 20, marginBottom: 16 },
-  emptyButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
-  emptyButtonText: { color: '#2475cf', fontWeight: '700' },
+  emptyButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, backgroundColor: '#061e35', borderRadius: 10 },
+  emptyButtonText: { color: '#fff', fontWeight: '700' },
 });

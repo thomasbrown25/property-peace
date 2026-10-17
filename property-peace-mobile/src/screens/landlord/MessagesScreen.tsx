@@ -143,7 +143,7 @@ export default function MessagesScreen() {
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View><Text style={[styles.heading, dark && { color: colors.text }]} accessibilityRole="header">Messages</Text><Text style={[styles.headerSub, dark && { color: colors.muted }]}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
-        {audience === 'landlord' && <TouchableOpacity testID="new-message" accessibilityLabel="New message" style={[styles.newGroup, { backgroundColor: colors.accent }]} onPress={() => setNewMessageVisible(true)}><Ionicons name="create-outline" size={18} color="#fff" /><Text style={styles.newGroupText}>New message</Text></TouchableOpacity>}
+        {audience === 'landlord' && <TouchableOpacity testID="new-message" accessibilityLabel="New message" style={[styles.newGroup, { backgroundColor: '#061e35' }]} onPress={() => setNewMessageVisible(true)}><Ionicons name="create-outline" size={18} color="#fff" /><Text style={styles.newGroupText}>New message</Text></TouchableOpacity>}
       </View>
       <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
         <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
