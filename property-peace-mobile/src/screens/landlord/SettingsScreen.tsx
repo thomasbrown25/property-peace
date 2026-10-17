@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import React, { useRef, useEffect, useState } from 'react';
 import { Alert, Image, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +24,8 @@ const firstString = (...values: unknown[]) => {
 };
 
 export default function SettingsScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+  useTabScrollReset(scrollRef);
   const insets = useSafeAreaInsets();
   const { mode, colors, setMode } = useAppTheme();
   const styles = useSettingsStyles();
@@ -123,7 +126,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
       <PageBackButton />
       <View style={styles.intro}>
         <Text style={styles.eyebrow}>Account</Text>
@@ -255,7 +258,7 @@ function useSettingsStyles() {
 
 const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  content: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 120 },
+  content: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 32 },
   intro: { paddingBottom: 28 },
   eyebrow: { color: '#64748b', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
   title: { color: '#102d43', fontSize: 30, fontWeight: '800', marginBottom: 5 },

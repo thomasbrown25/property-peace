@@ -403,7 +403,7 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { padding: 18, paddingBottom: 110 },
+  content: { padding: 18, paddingBottom: 36 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#fbf7f4' },
   flex: { flex: 1 },
   eyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },

@@ -1,6 +1,8 @@
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Image,
   Pressable,
   RefreshControl,
@@ -96,6 +98,8 @@ const normalizeRentMetrics = (payload: any): RentMetrics => {
 };
 
 export default function DashboardScreen() {
+  const scrollRef = useRef<ScrollView>(null);
+  useTabScrollReset(scrollRef);
   const styles = useScreenStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
@@ -114,6 +118,20 @@ export default function DashboardScreen() {
   const [conversationsStatus, setConversationsStatus] = useState<LoadStatus>('loading');
   const [rentStatus, setRentStatus] = useState<LoadStatus>('loading');
   const [openMenu, setOpenMenu] = useState<'profile' | 'notifications' | null>(null);
+  const [notificationMenuMounted, setNotificationMenuMounted] = useState(false);
+  const notificationMenuProgress = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (openMenu === 'notifications') setNotificationMenuMounted(true);
+    const animation = Animated.timing(notificationMenuProgress, {
+      toValue: openMenu === 'notifications' ? 1 : 0,
+      duration: openMenu === 'notifications' ? 240 : 180,
+      useNativeDriver: true,
+    });
+    animation.start(({ finished }) => {
+      if (finished && openMenu !== 'notifications') setNotificationMenuMounted(false);
+    });
+    return () => animation.stop();
+  }, [openMenu, notificationMenuProgress]);
   const loadGeneration = useRef(0);
   const organizationId = String(currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId ?? '');
   const currentOrganizationId = useRef(organizationId);
@@ -303,7 +321,7 @@ export default function DashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      {openMenu && (
+      {(openMenu || notificationMenuMounted) && (
         <View style={styles.profileMenuLayer} pointerEvents="box-none">
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setOpenMenu(null)} accessibilityLabel="Close menu" />
           {openMenu === 'profile' ? (
@@ -318,7 +336,11 @@ export default function DashboardScreen() {
             <ProfileAction icon="log-out-outline" label="Sign out" destructive onPress={async () => { setOpenMenu(null); await dispatch(logout()); }} />
           </View>
           ) : (
-            <View style={[styles.notificationsMenu, { top: Math.max(insets.top + 68, 78) }]}>
+            <Animated.View style={[styles.notificationsMenu, {
+              top: Math.max(insets.top + 68, 78),
+              opacity: notificationMenuProgress,
+              transform: [{ translateY: notificationMenuProgress.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }],
+            }]}>
               <Text style={styles.notificationsMenuHeading}>Recent notifications</Text>
               <ScrollView style={styles.notificationsMenuList} nestedScrollEnabled>
                 {scopedNotificationsStatus === 'loading' ? (
@@ -332,7 +354,12 @@ export default function DashboardScreen() {
                   <Text style={styles.notificationsMenuHint}>No recent notifications.</Text>
                 ) : recentNotifications.map((notification, index) => (
                   <View key={String(notification.id ?? notification.Id ?? index)} style={styles.notificationsMenuRow}>
-                    <View style={[styles.notificationDot, (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread]} />
+                    <View style={[styles.notificationDot,
+                      paymentActivityTone(notification) === 'received' ? styles.notificationDotReceived
+                        : paymentActivityTone(notification) === 'pending' ? styles.notificationDotPending
+                        : paymentActivityTone(notification) === 'failed' ? styles.notificationDotFailed
+                        : (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread,
+                    ]} />
                     <View style={styles.notificationCopy}>
                       <Text style={styles.notificationTitle} numberOfLines={1}>{notification.title || notification.Title || 'Notification'}</Text>
                       {!!(notification.message || notification.Message) && <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message || notification.Message}</Text>}
@@ -344,12 +371,13 @@ export default function DashboardScreen() {
                 <Text style={styles.notificationsMenuLink}>View all</Text>
                 <Ionicons name="arrow-forward" size={16} color={mode === 'dark' ? colors.accent : '#2475cf'} />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           )}
         </View>
       )}
 
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[styles.content, { paddingBottom: 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}

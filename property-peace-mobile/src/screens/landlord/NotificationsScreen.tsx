@@ -94,8 +94,6 @@ export default function NotificationsScreen() {
     }
   };
 
-  if (loading) return <View style={[styles.centerContainer, { backgroundColor: mode === 'dark' ? colors.background : '#fff' }]}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#1976d2'} /></View>;
-
   const hasUnread = notifications.some(isUnread);
 
   const errorBanner = (message: string, retry?: () => void) => (
@@ -107,19 +105,23 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.headerRow}>
+          <View style={styles.backCircle}><PageBackButton inHeader /></View>
+          <Text style={styles.heading} accessibilityRole="header">Notifications</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <Text style={styles.headingSub}>{notifications.length} updates{hasUnread ? ` · ${notifications.filter(isUnread).length} unread` : ''}</Text>
+      </View>
+      {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#1976d2'} /></View> : <FlatList
         ref={listRef}
         data={visible.items}
         keyExtractor={(item, index) => String(item.id ?? item.Id ?? index)}
-        contentContainerStyle={[styles.listContent, { paddingTop: insets.top + 28 }]}
+        contentContainerStyle={styles.listContent}
         ItemSeparatorComponent={() => <View style={styles.divider} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadNotifications(); }} tintColor={mode === 'dark' ? colors.accent : undefined} />}
         ListHeaderComponent={(
           <View>
-            <PageBackButton />
-            <View style={styles.headingRow}>
-              <View><Text style={styles.heading}>Notifications</Text><Text style={styles.headingSub}>{notifications.length} updates{hasUnread ? ` · ${notifications.filter(isUnread).length} unread` : ''}</Text></View>
-            </View>
             <View style={styles.filters}>
               {(['from', 'to'] as const).map((field) => {
                 const value = field === 'from' ? from : to;
@@ -202,7 +204,7 @@ export default function NotificationsScreen() {
             </View>
           );
         }}
-      />
+      />}
     </View>
   );
 }
@@ -211,9 +213,12 @@ const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 20, paddingBottom: 36, flexGrow: 1 },
-  headingRow: { paddingBottom: 20 },
-  heading: { color: '#0f2f47', fontSize: 28, fontWeight: '800' },
-  headingSub: { color: '#64748b', fontSize: 13, marginTop: 4 },
+  header: { paddingHorizontal: 20, paddingBottom: 18 },
+  headerRow: { flexDirection: 'row', alignItems: 'center' },
+  backCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: '#d3dce5', backgroundColor: '#f8fafc' },
+  headerSpacer: { width: 44 },
+  heading: { flex: 1, textAlign: 'center', color: '#0f2f47', fontSize: 28, fontWeight: '800' },
+  headingSub: { textAlign: 'center', color: '#64748b', fontSize: 13, marginTop: 4 },
   filters: { marginBottom: 16, gap: 8 },
   filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   filterLabel: { width: 40, fontSize: 13, fontWeight: '700', color: '#334155' },
@@ -256,6 +261,7 @@ const darkStyles = StyleSheet.create({
   ...lightStyles,
   container: { ...lightStyles.container, backgroundColor: '#101923' },
   centerContainer: { ...lightStyles.centerContainer, backgroundColor: '#101923' },
+  backCircle: { ...lightStyles.backCircle, borderColor: '#35495b', backgroundColor: '#203040' },
   heading: { ...lightStyles.heading, color: '#f2f6fa' },
   headingSub: { ...lightStyles.headingSub, color: '#b4c3d0' },
   filterLabel: { ...lightStyles.filterLabel, color: '#dbe5ee' },

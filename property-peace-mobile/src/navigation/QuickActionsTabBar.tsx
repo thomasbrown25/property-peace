@@ -138,9 +138,11 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
           if (open) hideSheet();
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (event.defaultPrevented) return;
-          if (selected && route.name === 'Properties' && (route.state?.index ?? 0) > 0 && route.state?.key) {
+          // A dock tap always opens the tab at its root, not a previously scrolled detail.
+          if ((route.state?.index ?? 0) > 0 && route.state?.key) {
             navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
-          } else if (!selected) navigation.navigate(route.name);
+          }
+          if (!selected) navigation.navigate(route.name);
         }}
         onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
       />
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
   dockArea: { paddingHorizontal: 16, zIndex: 10 },
   pill: { minHeight: 72, borderRadius: 38, borderWidth: 1, padding: 5, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
   tab: { flex: 1, minWidth: 0, minHeight: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  selectedTab: { backgroundColor: '#237a3c' },
+  selectedTab: { backgroundColor: '#061e35' },
   tabContent: { alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },

@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import {
   HomeOutlined, EnvironmentOutlined, EditOutlined,
-  ToolOutlined, DollarOutlined, FileTextOutlined, MessageOutlined,
+  ToolOutlined, FileTextOutlined, MessageOutlined,
   DeleteOutlined
 } from '@ant-design/icons';
 import { getPropertyTypeLabel, formatCurrency } from 'utils/formatters';
@@ -76,23 +76,20 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
   const monthsRemaining = leaseEndDate ? Math.max(0, differenceInMonths(parseISO(leaseEndDate), new Date())) : null;
   const daysUntilRenewal = leaseEndDate ? Math.max(0, differenceInDays(parseISO(leaseEndDate), new Date())) : null;
 
-  const rentAmount = firstUnit?.rentAmount || firstUnit?.RentAmount
-    || firstLease?.rentAmount || firstLease?.RentAmount
-    || property?.targetRent || property?.TargetRent
-    || 0;
-  const bedrooms = firstUnit?.bedrooms || firstUnit?.Bedrooms || null;
-  const baths = firstUnit?.baths || firstUnit?.Baths || null;
-  const sqft = firstUnit?.squareFeet || firstUnit?.SquareFeet || null;
-  const yearBuilt = property?.yearBuilt || property?.YearBuilt || null;
   const propertyTypeLabel = getPropertyTypeLabel(property?.propertyType) || 'Property';
 
   // Address
-  const mainHeader = property?.name?.trim() || property?.streetAddress || 'Property';
+  const street = property?.streetAddress?.split(',')[0]?.trim() || '';
+  const name = property?.name?.trim() || '';
+  // Address-derived names can include the city/state/ZIP already shown above the title.
+  const mainHeader = name && (!street || !name.toLowerCase().startsWith(`${street.toLowerCase()},`))
+    ? name
+    : street || name || 'Property';
   const addressLine = (() => {
     const parts = [];
-    if (property?.streetAddress) parts.push(property.streetAddress.split(',')[0].trim());
     if (property?.city) parts.push(property.city);
     if (property?.state) parts.push(property.zipCode ? `${property.state} ${property.zipCode}` : property.state);
+    else if (property?.zipCode) parts.push(property.zipCode);
     return parts.join(' · ').toUpperCase();
   })();
 
@@ -140,7 +137,6 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
 
   const borderColor = theme.palette.mode === 'dark' ? alpha('#cbd5e1', 0.22) : alpha(theme.palette.divider, 0.14);
   const softDivider = theme.palette.mode === 'dark' ? alpha('#cbd5e1', 0.16) : alpha(theme.palette.divider, 0.24);
-  const mutedChipBg = theme.palette.mode === 'dark' ? alpha('#ffffff', 0.07) : theme.palette.grey[100];
 
   return (
     <Box
@@ -183,8 +179,6 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
               <Chip label="Overdue" size="small" color="error"
                 sx={{ height: 22, fontSize: '0.7rem', fontWeight: 700, boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }} />
             )}
-            <Chip label={propertyTypeLabel} size="small"
-              sx={{ height: 22, fontSize: '0.7rem', fontWeight: 600, bgcolor: theme.palette.primary.main, color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }} />
           </Stack>
         </Box>
 
@@ -199,6 +193,9 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
               </Stack>
             )}
             <Typography variant="h4" fontWeight={700} sx={{ lineHeight: 1.2, mb: 0.75 }}>{mainHeader}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: tenantName ? 0.5 : 0 }}>
+              {propertyTypeLabel}
+            </Typography>
             {tenantName && (
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
                 Tenant <Box component="span" fontWeight={600} sx={{ color: 'text.primary' }}>{tenantName}</Box>
@@ -206,25 +203,6 @@ export default function PropertyHeader({ property, onEdit, onDelete, onDeactivat
               </Typography>
             )}
           </Box>
-
-          {/* Bottom: detail chips */}
-          <Stack direction="row" flexWrap="wrap" sx={{ gap: 0.75, mt: 1.5 }}>
-            {bedrooms && <Chip label={`${bedrooms} beds`} size="small" sx={{ height: 26, fontSize: '0.75rem', bgcolor: mutedChipBg, color: 'text.primary', border: 'none' }} />}
-            {baths && <Chip label={`${baths} baths`} size="small" sx={{ height: 26, fontSize: '0.75rem', bgcolor: mutedChipBg, color: 'text.primary', border: 'none' }} />}
-            {sqft > 0 && <Chip label={`${Number(sqft).toLocaleString()} sqft`} size="small" sx={{ height: 26, fontSize: '0.75rem', bgcolor: mutedChipBg, color: 'text.primary', border: 'none' }} />}
-            <Chip
-              icon={<HomeOutlined style={{ fontSize: 11 }} />}
-              label={yearBuilt > 0 ? `Built ${yearBuilt}` : 'Built —'}
-              size="small"
-              sx={{ height: 26, fontSize: '0.75rem', bgcolor: mutedChipBg, color: 'text.primary', border: 'none', '& .MuiChip-icon': { fontSize: 11, ml: 0.75 } }}
-            />
-            <Chip
-              icon={<DollarOutlined style={{ fontSize: 11, color: theme.palette.success.main }} />}
-              label={rentAmount > 0 ? `${formatCurrency(rentAmount)}/mo` : '— /mo'}
-              size="small"
-              sx={{ height: 26, fontSize: '0.75rem', fontWeight: 700, bgcolor: alpha(theme.palette.success.main, 0.1), color: theme.palette.success.main, border: 'none', '& .MuiChip-icon': { fontSize: 11, ml: 0.75, color: theme.palette.success.main } }}
-            />
-          </Stack>
         </Box>
 
         {/* Buttons column */}

@@ -77,7 +77,7 @@ export default function TenantsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
-  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 100 },
+  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 28 },
   eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
   pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
   pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 26 },

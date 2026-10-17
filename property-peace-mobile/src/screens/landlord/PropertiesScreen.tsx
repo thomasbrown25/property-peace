@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import React, { useRef, useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -61,6 +62,8 @@ function needsAttention(property: Property) {
 }
 
 export default function PropertiesScreen() {
+  const scrollRef = useRef<FlatList>(null);
+  useTabScrollReset(scrollRef);
   const styles = useScreenStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<PropertiesScreenNavigationProp>();
@@ -133,6 +136,7 @@ export default function PropertiesScreen() {
           <TouchableOpacity style={styles.emptyButton} onPress={refreshProperties} accessibilityRole="button"><Text style={styles.emptyButtonText}>Retry</Text></TouchableOpacity>
         </View>
       ) : <FlatList
+        ref={scrollRef}
         data={filteredProperties}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         renderItem={({ item }) => <PropertyRow property={item} onPress={() => navigation.navigate('PropertyDetail', { propertyId: String(item.id || item.Id) })} />}
@@ -150,7 +154,7 @@ export default function PropertiesScreen() {
                 <Text style={styles.overviewContext}>{overview.occupied} of {overview.total} units occupied</Text>
               </View>
               <View style={styles.overviewStats}>
-                <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.properties}</Text><Text style={styles.overviewStatLabel}>Active properties</Text></View>
+                <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.properties}</Text><Text style={styles.overviewStatLabel}>Properties</Text></View>
                 <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.occupied}</Text><Text style={styles.overviewStatLabel}>Occupied units</Text></View>
                 <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.vacant}</Text><Text style={styles.overviewStatLabel}>Vacant units</Text></View>
               </View>
@@ -189,11 +193,12 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
   const imageUrl = stringValue(property.mainImageUrl, property.MainImageUrl, property.images?.[0]?.blobUrl, property.Images?.[0]?.BlobUrl);
   const name = stringValue(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed Property');
   const address = [stringValue(property.streetAddress, property.StreetAddress, property.address, property.Address), stringValue(property.city, property.City)].filter(Boolean).join(', ');
-  const attentionText = summary.overdue > 0
+  const overdueText = summary.overdue > 0
     ? `${summary.overdue} unit${summary.overdue > 1 ? 's' : ''} overdue`
-    : summary.highMaint > 0
-      ? `${summary.highMaint} high priority maintenance`
-      : '';
+    : '';
+  const maintenanceText = summary.highMaint > 0
+    ? `${summary.highMaint} high priority maintenance`
+    : '';
   const statusLabel = summary.total === 0
     ? isOccupied(property) ? 'Occupied' : 'Vacant'
     : summary.vacant === summary.total ? 'Vacant'
@@ -212,11 +217,19 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
       <View style={styles.propertyCopy}>
         <Text style={styles.propertyName} numberOfLines={2}>{name}</Text>
         {!!address && <Text style={styles.propertyAddress} numberOfLines={1}>{address}</Text>}
-        <Text style={[styles.statusText, statusType === 'error' && styles.statusTextError, statusType === 'warning' && styles.statusTextWarning]}>{statusLabel}</Text>
-        {!!attentionText && (
+        <View style={styles.statusRow}>
+          <Text style={[styles.statusText, statusType === 'error' && styles.statusTextError, statusType === 'warning' && styles.statusTextWarning]}>{statusLabel}</Text>
+          {!!maintenanceText && (
+            <View style={styles.maintenanceAlert}>
+              <Ionicons name="warning-outline" size={13} color={mode === 'dark' ? '#ff8b86' : '#c2413b'} />
+              <Text style={styles.maintenanceText}>{maintenanceText}</Text>
+            </View>
+          )}
+        </View>
+        {!!overdueText && (
           <View style={styles.attentionRow}>
             <Ionicons name="warning-outline" size={13} color={mode === 'dark' ? '#ff8b86' : '#c2413b'} />
-            <Text style={styles.attentionText}>{attentionText}</Text>
+            <Text style={styles.attentionText}>{overdueText}</Text>
           </View>
         )}
       </View>
@@ -270,6 +283,7 @@ function useScreenStyles() {
       statusText: { ...styles.statusText, color: '#75d995' },
       statusTextError: { ...styles.statusTextError, color: '#ff8b86' },
       statusTextWarning: { ...styles.statusTextWarning, color: '#f0ba72' },
+      maintenanceText: { ...styles.maintenanceText, color: '#ff8b86' },
       attentionText: { ...styles.attentionText, color: '#ff8b86' },
       emptyText: { ...styles.emptyText, color: colors.text },
       emptySubtext: { ...styles.emptySubtext, color: colors.muted },
@@ -310,10 +324,13 @@ const styles = StyleSheet.create({
   thumbnailFallback: { width: 74, height: 74, borderRadius: 9, backgroundColor: '#eaf3ff', alignItems: 'center', justifyContent: 'center' },
   propertyCopy: { flex: 1, minWidth: 0 },
   propertyName: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '700', marginBottom: 2 },
-  statusText: { color: '#2f8f46', fontSize: 12, lineHeight: 18, fontWeight: '700', marginTop: 3 },
+  statusRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginTop: 3 },
+  statusText: { color: '#2f8f46', fontSize: 12, lineHeight: 18, fontWeight: '700', flexShrink: 1 },
   statusTextError: { color: '#c2413b' },
   statusTextWarning: { color: '#b76b11' },
   propertyAddress: { color: '#697887', fontSize: 13, lineHeight: 18 },
+  maintenanceAlert: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 4, flexShrink: 1, maxWidth: '65%' },
+  maintenanceText: { color: '#c2413b', fontSize: 12, lineHeight: 16, fontWeight: '700', flexShrink: 1, textAlign: 'right' },
   attentionRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   attentionText: { color: '#c2413b', fontSize: 12, lineHeight: 16, fontWeight: '700' },
   emptyContainer: { paddingVertical: 46, alignItems: 'center' },

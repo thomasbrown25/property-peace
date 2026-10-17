@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   backRow: { paddingHorizontal: 22 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 120 },
+  listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
   pageHeader: { marginBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   headerCopy: { flex: 1, minWidth: 0 },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },

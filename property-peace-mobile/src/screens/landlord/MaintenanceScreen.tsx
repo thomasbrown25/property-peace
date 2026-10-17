@@ -1,16 +1,19 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import React, { useRef, useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
-import { displayStatus } from '../../features/maintenance/maintenanceModel';
+import { displayStatus, isClosedStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
 
 import { forProperty } from '../../features/maintenance/propertyMaintenanceScope';
 
 export default function MaintenanceScreen() {
+  const scrollRef = useRef<FlatList>(null);
+  useTabScrollReset(scrollRef);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const propertyId: string | undefined = route.params?.propertyId;
@@ -29,7 +32,7 @@ export default function MaintenanceScreen() {
   const loadRequests = useCallback(async () => {
     try {
       setError('');
-      const data = view === 'current' ? await MaintenanceAPI.getCurrent() : await MaintenanceAPI.getHistory();
+      const data = await MaintenanceAPI.getAll();
       setRequests(forProperty(data || [], propertyId));
     } catch (loadError: any) {
       setRequests([]);
@@ -38,7 +41,7 @@ export default function MaintenanceScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [view, propertyId]);
+  }, [propertyId]);
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -46,10 +49,17 @@ export default function MaintenanceScreen() {
     void PropertyAPI.getProperties().then((items) => setProperties(items ?? [])).catch(() => setProperties([]));
   }, [loadRequests]));
 
+  const overview = useMemo(() => {
+    const open = requests.filter((request) => !isClosedStatus(request.status ?? request.Status));
+    const reported = open.filter((request) => ['reported', '0'].includes(String(request.status ?? request.Status ?? 'Reported').toLowerCase())).length;
+    return { open: open.length, reported, inWorkflow: open.length - reported, closed: requests.length - open.length, total: requests.length };
+  }, [requests]);
+
   const visibleRequests = useMemo(() => {
+    const inTab = requests.filter((request) => isClosedStatus(request.status ?? request.Status) === (view === 'history'));
     const search = query.trim().toLowerCase();
-    if (!search) return requests;
-    return requests.filter((request) => {
+    if (!search) return inTab;
+    return inTab.filter((request) => {
       const id = request.id ?? request.Id;
       const property = properties.find((item) => String(item.id ?? item.Id) === String(request.propertyId ?? request.PropertyId));
       const fields = [id, id != null ? `MR-${id}` : null, request.orderNumber ?? request.OrderNumber,
@@ -59,7 +69,7 @@ export default function MaintenanceScreen() {
         propertyId && String(request.propertyId ?? request.PropertyId) === String(propertyId) ? propertyName : null];
       return fields.some((field) => field != null && String(field).toLowerCase().includes(search));
     });
-  }, [requests, query, properties, propertyId, propertyName]);
+  }, [requests, query, properties, propertyId, propertyName, view]);
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
@@ -68,11 +78,26 @@ export default function MaintenanceScreen() {
           <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
           <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
             <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addText}>Add request</Text>
+            <Text style={styles.addText}>Request</Text>
           </TouchableOpacity>
         </View>
         <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>{propertyId ? propertyName || 'This property' : 'Keep repairs moving, from report to resolution.'}</Text>
       </View>
+      {!loading && !error && <View style={[styles.maintenanceOverview, dark && { borderColor: colors.border }]}>
+        <Text style={[styles.overviewEyebrow, dark && { color: colors.accent }]}>MAINTENANCE OVERVIEW</Text>
+        <View style={styles.overviewTop}>
+          <View>
+            <Text style={[styles.overviewValue, dark && { color: colors.text }]}>{overview.open}</Text>
+            <Text style={[styles.overviewLabel, dark && { color: colors.muted }]}>Open requests</Text>
+          </View>
+          <Text style={[styles.overviewContext, dark && { color: colors.muted }]}>{overview.open} of {overview.total} requests open</Text>
+        </View>
+        <View style={[styles.overviewStats, dark && { borderTopColor: colors.border }]}>
+          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.reported}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Reported</Text></View>
+          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.inWorkflow}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>In workflow</Text></View>
+          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.closed}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Closed</Text></View>
+        </View>
+      </View>}
       <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
         <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
         <TextInput value={query} onChangeText={setQuery} placeholder="Search maintenance ID or property" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} returnKeyType="search" accessibilityLabel="Search maintenance ID or property" />
@@ -82,6 +107,7 @@ export default function MaintenanceScreen() {
         {(['current', 'history'] as const).map((tab) => <TouchableOpacity key={tab} style={[styles.tab, view === tab && styles.tabActive, dark && view === tab && { borderBottomColor: colors.accent }]} onPress={() => setView(tab)} accessibilityRole="tab" accessibilityState={{ selected: view === tab }}><Text style={[styles.tabText, view === tab && styles.tabTextActive, dark && { color: view === tab ? colors.text : colors.muted }]}>{tab === 'current' ? 'Open' : 'Closed'}</Text></TouchableOpacity>)}
       </View>
       {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View> : <FlatList
+        ref={scrollRef}
         data={visibleRequests}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
@@ -111,13 +137,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 28 },
   header: { paddingHorizontal: 20, paddingBottom: 18 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   addButton: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   addText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', flexShrink: 1 },
   pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },
+  maintenanceOverview: { marginHorizontal: 20, marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
+  overviewEyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
+  overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
+  overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
+  overviewContext: { flexShrink: 1, color: '#617180', fontSize: 12, textAlign: 'right', paddingBottom: 3 },
+  overviewStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dbe2e6', paddingTop: 16 },
+  overviewStat: { flex: 1, minWidth: 0, paddingRight: 6 },
+  overviewStatValue: { color: '#102d43', fontSize: 20, fontWeight: '800' },
+  overviewStatLabel: { color: '#617180', fontSize: 11, lineHeight: 15, marginTop: 3 },
   search: { marginHorizontal: 20, minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },

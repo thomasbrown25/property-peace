@@ -136,7 +136,7 @@ export default function LeaseDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 130 },
+  content: { paddingHorizontal: 22, paddingTop: 26, paddingBottom: 32 },
   eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.6, marginBottom: 8 },
   title: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.8 },
   subline: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },

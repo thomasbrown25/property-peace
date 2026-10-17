@@ -115,7 +115,7 @@ export default function RentCollectionScreen() {
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: 120 + insets.bottom }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 28, paddingBottom: 32 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2475cf'} />}
       >

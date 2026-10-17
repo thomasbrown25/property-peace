@@ -219,7 +219,7 @@ export default function AddExpenseScreen() {
   const meta = stepDetails[step];
   return (
     <KeyboardAvoidingView style={styles.page} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 20) + 28 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 36 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.progressHeader}>
           <Text style={styles.progressLabel}>{meta.number} of 3</Text>
           <View style={styles.rail}><View style={[styles.railFill, { width: `${meta.number / 3 * 100}%` }]} /></View>

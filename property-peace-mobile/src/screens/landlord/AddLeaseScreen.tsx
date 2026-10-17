@@ -96,7 +96,7 @@ export default function AddLeaseScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  content: { paddingHorizontal: 22, paddingBottom: 120 },
+  content: { paddingHorizontal: 22, paddingBottom: 40 },
   title: { fontSize: 28, fontWeight: '800', color: '#102d43', marginTop: 8 },
   subtitle: { fontSize: 14, lineHeight: 21, color: '#617180', marginTop: 6, marginBottom: 24 },
   label: { fontSize: 16, fontWeight: '700', color: '#102d43', marginTop: 16, marginBottom: 8 },

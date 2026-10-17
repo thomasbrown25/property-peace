@@ -61,6 +61,7 @@ export default function PropertyDetailScreen() {
   const [openRepairs, setOpenRepairs] = useState<number | null>(null);
   const [rentDue, setRentDue] = useState<number | null>(null);
   const [rentPaid, setRentPaid] = useState<number | null>(null);
+  const [rentExpected, setRentExpected] = useState<number | null>(null);
   const [requests, setRequests] = useState<MaintenanceRequest[] | null>(null);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
@@ -75,10 +76,16 @@ export default function PropertyDetailScreen() {
       MaintenanceAPI.getCurrent(),
       RentCollectionAPI.getRentCollection(propertyId).then((response) => {
         const data = collectionPayload(response);
-        const summary = (data.summary ?? data.Summary) as Record<string, unknown>;
+        const summary = (data.summary ?? data.Summary ?? {}) as Record<string, unknown>;
         const rawPaid = summary.collectedThisMonth ?? summary.CollectedThisMonth;
         const paid = Number(rawPaid);
-        return { due: propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId), paid: rawPaid == null || !Number.isFinite(paid) ? null : Math.max(0, paid) };
+        const rawExpected = summary.expectedThisMonth ?? summary.ExpectedThisMonth ?? summary.totalMonthlyRent ?? summary.TotalMonthlyRent;
+        const expected = Number(rawExpected);
+        return {
+          due: propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId),
+          paid: rawPaid == null || !Number.isFinite(paid) ? null : Math.max(0, paid),
+          expected: rawExpected == null || !Number.isFinite(expected) ? null : Math.max(0, expected),
+        };
       }),
       ChecklistAPI.getByProperty(propertyId),
       ConversationAPI.getConversations('landlord'),
@@ -95,6 +102,7 @@ export default function PropertyDetailScreen() {
     setPayments(paymentResult.status === 'fulfilled' ? paymentResult.value.sort((a, b) => Date.parse(b.paymentDate) - Date.parse(a.paymentDate)).slice(0, 3) : null);
     setRentDue(rentResult.status === 'fulfilled' ? rentResult.value.due : null);
     setRentPaid(rentResult.status === 'fulfilled' ? rentResult.value.paid : null);
+    setRentExpected(rentResult.status === 'fulfilled' ? rentResult.value.expected : null);
     setLoading(false);
     setRefreshing(false);
   }, [propertyId]);
@@ -142,6 +150,8 @@ export default function PropertyDetailScreen() {
 
   const isMultiUnit = stringValue(property?.propertyType, property?.PropertyType).toLowerCase() === 'multiunit';
   const visibleTab = tab === 'units' && !isMultiUnit ? 'overview' : tab;
+  const collectionPercent = rentExpected && rentPaid !== null ? Math.min(100, Math.round(rentPaid / rentExpected * 100)) : 0;
+  const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
@@ -181,7 +191,7 @@ export default function PropertyDetailScreen() {
           <View style={styles.snapshotRow}>
             <Snapshot label="Units occupied" value={`${details.occupied}/${details.units.length}`} />
             <View style={styles.snapshotDivider} />
-            <Snapshot label="Rent paid" value={rentPaid === null ? '—' : currency(rentPaid)} />
+            <Snapshot label="Open requests" value={openRepairs === null ? '—' : String(openRepairs)} />
             <View style={styles.snapshotDivider} />
             <Snapshot label="Rent due" value={rentDue === null ? '—' : currency(rentDue)} />
           </View>
@@ -197,6 +207,22 @@ export default function PropertyDetailScreen() {
       </View>
 
       {visibleTab === 'overview' && <View style={styles.overviewDetails}>
+        <View style={styles.collectionCard}>
+          <Text style={styles.collectionLabel}>Collected this month · {month}</Text>
+          {rentPaid === null || rentExpected === null ? (
+            <Text style={styles.collectionUnavailable}>Rent collection unavailable · Pull to retry</Text>
+          ) : (
+            <>
+              <View style={styles.collectionValueRow}>
+                <Text style={styles.collectionValue} numberOfLines={1} adjustsFontSizeToFit>{currency(rentPaid)}</Text>
+                {rentExpected > 0 && <Text style={styles.collectionPercent}>{collectionPercent}%</Text>}
+              </View>
+              <Text style={styles.collectionContext}>{currency(rentExpected)} expected this month</Text>
+              {rentExpected > 0 && <View style={styles.collectionTrack} accessibilityRole="progressbar" accessibilityLabel="Rent collected this month" accessibilityValue={{ min: 0, max: 100, now: collectionPercent }}><View style={[styles.collectionFill, { width: `${collectionPercent}%` }]} /></View>}
+              <Text style={styles.collectionRemaining}>{currency(Math.max(0, rentExpected - Math.min(rentExpected, rentPaid)))} remaining this month</Text>
+            </>
+          )}
+        </View>
         <Text style={styles.sectionTitle}>Property details</Text>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Type</Text>
@@ -308,7 +334,7 @@ function ActionRow({ icon, title, titleColor, subtitle, color, background, onPre
 
 const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { padding: 18, paddingBottom: 126 },
+  content: { padding: 18, paddingBottom: 28 },
   tabs: { flexDirection: 'row', gap: 24, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#fbf7f4' },
   tab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: '#2563eb' },
@@ -322,6 +348,16 @@ const lightStyles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: '900' },
   heroCard: { marginBottom: 16 },
   overviewDetails: { paddingTop: 22 },
+  collectionCard: { backgroundColor: '#e8f8ee', borderRadius: 20, padding: 20, marginBottom: 28 },
+  collectionLabel: { color: '#18374c', fontSize: 14, fontWeight: '700' },
+  collectionValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 6 },
+  collectionValue: { color: '#188d40', fontSize: 35, fontWeight: '800', letterSpacing: -1.3, flexShrink: 1 },
+  collectionPercent: { color: '#188d40', fontSize: 19, fontWeight: '800' },
+  collectionContext: { color: '#556d64', fontSize: 14, marginTop: 3 },
+  collectionTrack: { height: 11, borderRadius: 7, overflow: 'hidden', backgroundColor: '#d1edda', marginTop: 13 },
+  collectionFill: { height: '100%', borderRadius: 7, backgroundColor: '#20a04b' },
+  collectionRemaining: { color: '#556d64', fontSize: 13, marginTop: 8 },
+  collectionUnavailable: { color: '#556d64', fontSize: 14, marginTop: 10 },
   activityRow: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#e2e7e9' },
   activityTitle: { color: '#102d43', fontSize: 15, fontWeight: '700' },
   activityMeta: { color: '#71808d', fontSize: 13, lineHeight: 19, marginBottom: 12 },
@@ -368,6 +404,15 @@ const lightStyles = StyleSheet.create({
 const darkStyles = StyleSheet.create({
   ...lightStyles,
   container: { ...lightStyles.container, backgroundColor: '#101923' },
+  collectionCard: { ...lightStyles.collectionCard, backgroundColor: '#1b3833' },
+  collectionLabel: { ...lightStyles.collectionLabel, color: '#f2f6fa' },
+  collectionValue: { ...lightStyles.collectionValue, color: '#82e5a5' },
+  collectionPercent: { ...lightStyles.collectionPercent, color: '#82e5a5' },
+  collectionContext: { ...lightStyles.collectionContext, color: '#b4c3d0' },
+  collectionTrack: { ...lightStyles.collectionTrack, backgroundColor: '#36584a' },
+  collectionFill: { ...lightStyles.collectionFill, backgroundColor: '#82e5a5' },
+  collectionRemaining: { ...lightStyles.collectionRemaining, color: '#b4c3d0' },
+  collectionUnavailable: { ...lightStyles.collectionUnavailable, color: '#b4c3d0' },
   tabs: { ...lightStyles.tabs, backgroundColor: '#101923', borderBottomColor: '#35495b' },
   detailRow: { ...lightStyles.detailRow, borderBottomColor: '#35495b' },
   activityRow: { ...lightStyles.activityRow, borderBottomColor: '#35495b' },

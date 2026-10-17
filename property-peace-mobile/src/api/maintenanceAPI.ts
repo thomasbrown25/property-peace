@@ -41,9 +41,9 @@ const safeEvidenceExtension = (contentType: string) => ({ 'image/jpeg': '.jpg', 
 class MaintenanceAPI {
   private client = apiClient;
 
-  async getCurrent(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.listScoped()).filter(item => !isClosedStatus(item.status ?? item.Status)); }
-  async getHistory(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.listScoped()).filter(item => isClosedStatus(item.status ?? item.Status)); }
-  private async listScoped(): Promise<MaintenanceRequest[]> { return unwrap(await this.client.get<ApiResponse<MaintenanceRequest[]> | MaintenanceRequest[]>('/api/maintenance-requests')) || []; }
+  async getCurrent(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.getAll()).filter(item => !isClosedStatus(item.status ?? item.Status)); }
+  async getHistory(_tenant = false): Promise<MaintenanceRequest[]> { return (await this.getAll()).filter(item => isClosedStatus(item.status ?? item.Status)); }
+  async getAll(): Promise<MaintenanceRequest[]> { return unwrap(await this.client.get<ApiResponse<MaintenanceRequest[]> | MaintenanceRequest[]>('/api/maintenance-requests')) || []; }
   async getDetail(id: string | number): Promise<MaintenanceRequest> {
     const detail = await this.client.get<MaintenanceRequest>(`/api/maintenance-requests/${id}`);
     return { ...detail, activityEvents: detail.activityEvents ?? detail.activities ?? detail.ActivityEvents ?? detail.Activities ?? [], attachments: detail.attachments ?? detail.Attachments ?? [] };

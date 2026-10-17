@@ -114,7 +114,7 @@ export default function AddMaintenanceRequestScreen() {
 
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#fff' },
-  content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 130 },
+  content: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 40 },
   heading: { color: '#102d43', fontSize: 27, fontWeight: '800' },
   hint: { color: '#617180', fontSize: 14, lineHeight: 20, marginTop: 6 },
   label: { color: '#102d43', fontSize: 15, fontWeight: '700', marginTop: 22, marginBottom: 9 },

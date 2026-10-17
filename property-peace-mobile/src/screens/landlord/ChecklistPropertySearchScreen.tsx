@@ -182,7 +182,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { padding: 18, paddingBottom: 110 },
+  content: { padding: 18, paddingBottom: 28 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fbf7f4' },
   flex: { flex: 1 },
   hero: { flexDirection: 'row', gap: 14, marginBottom: 24 },

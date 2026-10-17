@@ -1,4 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import React, { useRef, useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
@@ -8,6 +9,8 @@ import { useAppTheme } from '../../theme/AppTheme';
 const value = (item: any, key: string) => item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
 
 export default function TenantMaintenanceScreen() {
+  const scrollRef = useRef<FlatList>(null);
+  useTabScrollReset(scrollRef);
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const navigation = useNavigation<any>();
@@ -45,6 +48,7 @@ export default function TenantMaintenanceScreen() {
       </TouchableOpacity>)}
     </View>
     {loading ? <ActivityIndicator style={{ marginTop: 40 }} color={dark ? colors.accent : '#0b5cab'} /> : <FlatList
+      ref={scrollRef}
       data={items}
       keyExtractor={(x, i) => String(value(x, 'id') ?? i)}
       refreshControl={<RefreshControl refreshing={refreshing} tintColor={dark ? colors.accent : '#0b5cab'} onRefresh={() => { setRefreshing(true); load(); }} />}
@@ -83,7 +87,7 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomColor: '#0b5cab' },
   tabText: { fontWeight: '700', color: '#60717e' },
   tabTextActive: { color: '#102d43', fontWeight: '800' },
-  list: { paddingHorizontal: 20, paddingBottom: 126, flexGrow: 1 },
+  list: { paddingHorizontal: 20, paddingBottom: 28, flexGrow: 1 },
   listLabel: { paddingTop: 22, paddingBottom: 5, fontSize: 11, fontWeight: '800', letterSpacing: 1.2, color: '#778794' },
   requestRow: { paddingVertical: 19 },
   divider: { height: 1, backgroundColor: '#e8edf0' },
