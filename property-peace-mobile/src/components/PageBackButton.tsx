@@ -5,13 +5,13 @@ import { StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppTheme } from '../theme/AppTheme';
 
 /** Transparent, full-size touch target for secondary screens. */
-export default function PageBackButton({ onPress, translucent = false }: { onPress?: () => void; translucent?: boolean } = {}) {
+export default function PageBackButton({ onPress }: { onPress?: () => void } = {}) {
   const navigation = useNavigation<any>();
   const { mode, colors } = useAppTheme();
 
   return (
     <TouchableOpacity
-      style={[styles.button, translucent && { backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(11,53,88,0.08)' }]}
+      style={styles.button}
       accessibilityRole="button"
       accessibilityLabel="Go back"
       onPress={onPress ?? (() => {

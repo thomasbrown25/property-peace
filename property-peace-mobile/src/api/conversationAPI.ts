@@ -61,7 +61,7 @@ class ConversationAPI {
     return response.data;
   }
 
-  async createConversation(data: Partial<ConversationSummary>): Promise<ConversationSummary> {
+  async createConversation(data: { title: string; tenantId: number; propertyId: number | null; leaseId: number | null; participantUserIds: number[]; isGroupChat: false }): Promise<ConversationSummary> {
     const response = await apiClient.post<ApiResponse<ConversationSummary>>('/api/Conversation', data);
     return response.data;
   }

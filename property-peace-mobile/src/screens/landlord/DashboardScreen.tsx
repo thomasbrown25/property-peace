@@ -23,6 +23,7 @@ import { ConversationSummary } from '../../features/messages/messagesModel';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
+import { paymentActivityTone } from '../../features/notifications/paymentActivityTone';
 
 const logo = require('../../../assets/property-peace-navbar-logo.png');
 
@@ -459,7 +460,10 @@ export default function DashboardScreen() {
 
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, styles.rentProgressHeading]}>Properties</Text>
+            <View style={styles.cardTitleWithIcon}>
+              <Ionicons name="home-outline" size={20} color={mode === 'dark' ? '#72b4ff' : '#2475cf'} />
+              <Text style={styles.cardTitle}>Properties</Text>
+            </View>
             <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })} accessibilityRole="button" accessibilityLabel="View all properties">
               <Text style={styles.cardLinkText}>View all</Text>
               <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
@@ -561,7 +565,12 @@ export default function DashboardScreen() {
             <EmptyState icon="checkmark-circle-outline" title="No recent notifications" text="Portfolio updates will appear here." />
           ) : latestNotifications.map((notification: any, index) => (
             <View key={String(notification.id || notification.Id || index)} style={[styles.notificationRow, index === latestNotifications.length - 1 && styles.lastRow]}>
-              <View style={[styles.notificationDot, (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread]} />
+              <View style={[styles.notificationDot,
+                paymentActivityTone(notification) === 'received' ? styles.notificationDotReceived
+                  : paymentActivityTone(notification) === 'pending' ? styles.notificationDotPending
+                  : paymentActivityTone(notification) === 'failed' ? styles.notificationDotFailed
+                  : (notification.isRead === false || notification.IsRead === false) && styles.notificationDotUnread,
+              ]} />
               <View style={styles.notificationCopy}>
                 <Text style={styles.notificationTitle}>{notification.title || notification.Title || 'Notification'}</Text>
                 {!!(notification.message || notification.Message) && <Text style={styles.notificationMessage} numberOfLines={2}>{notification.message || notification.Message}</Text>}
@@ -677,6 +686,7 @@ function useScreenStyles() {
       profileAction: { ...styles.profileAction, borderBottomColor: colors.border },
       profileActionText: { ...styles.profileActionText, color: colors.text },
       destructiveText: { ...styles.destructiveText, color: '#ff8b86' },
+      todayCard: { ...styles.todayCard, borderBottomColor: colors.border },
       dateBlock: { ...styles.dateBlock, borderRightColor: colors.border },
       dateMonth: { ...styles.dateMonth, color: colors.accent },
       dateDay: { ...styles.dateDay, color: colors.text },
@@ -719,6 +729,9 @@ function useScreenStyles() {
       notificationRow: { ...styles.notificationRow, borderBottomColor: colors.border },
       notificationDot: { ...styles.notificationDot, backgroundColor: colors.muted },
       notificationDotUnread: { ...styles.notificationDotUnread, backgroundColor: colors.accent },
+      notificationDotReceived: { ...styles.notificationDotReceived, backgroundColor: '#75d995' },
+      notificationDotPending: { ...styles.notificationDotPending, backgroundColor: '#f0ba72' },
+      notificationDotFailed: { ...styles.notificationDotFailed, backgroundColor: '#ff8b86' },
       notificationTitle: { ...styles.notificationTitle, color: colors.text },
       notificationMessage: { ...styles.notificationMessage, color: colors.muted },
       emptyIcon: { ...styles.emptyIcon, backgroundColor: colors.surface },
@@ -759,7 +772,7 @@ const styles = StyleSheet.create({
   profileActionText: { color: '#20394d', fontSize: 15, fontWeight: '800' },
   destructiveText: { color: '#c2413b' },
   content: { paddingHorizontal: 24, paddingTop: 14, gap: 0 },
-  todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12 },
+  todayCard: { minHeight: 105, flexDirection: 'row', alignItems: 'center', paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#dce4e8' },
   dateBlock: { width: 76, alignItems: 'flex-start', justifyContent: 'center', borderRightWidth: 1, borderRightColor: '#dce4e8' },
   dateMonth: { color: '#2475cf', fontSize: 11, fontWeight: '900', letterSpacing: 1.6 },
   dateDay: { color: '#061e35', fontSize: 43, lineHeight: 48, fontWeight: '900', letterSpacing: -2 },
@@ -821,6 +834,9 @@ const styles = StyleSheet.create({
   lastRow: { borderBottomWidth: 0 },
   notificationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#aeb9c1', marginTop: 6, marginRight: 11 },
   notificationDotUnread: { backgroundColor: '#2475cf' },
+  notificationDotReceived: { backgroundColor: '#2f8f46' },
+  notificationDotPending: { backgroundColor: '#b76a11' },
+  notificationDotFailed: { backgroundColor: '#c2413b' },
   notificationCopy: { flex: 1 },
   notificationTitle: { color: '#102d43', fontSize: 14, fontWeight: '900', marginBottom: 3 },
   notificationMessage: { color: '#697887', fontSize: 12, lineHeight: 17 },

@@ -1,3 +1,11 @@
+export const BIOMETRIC_IDLE_THRESHOLD_MS = 10 * 60 * 1000;
+
+// Called only for a freshly restored session; same-process foreground returns do not lock.
+export const shouldLockRestoredSession = (lastActiveAt: number | null, now: number): boolean => {
+  if (lastActiveAt === null || !Number.isFinite(lastActiveAt) || lastActiveAt > now) return true;
+  return now - lastActiveAt >= BIOMETRIC_IDLE_THRESHOLD_MS;
+};
+
 export type AutomaticBiometricPromptResult =
   | 'unlocked'
   | 'already-attempted'
@@ -55,17 +63,16 @@ export type RestoredSessionLock = {
 
 export const resolveRestoredSessionLock = async (
   readBiometricEnabled: () => Promise<boolean>,
+  readLastActiveAt: () => Promise<number | null>,
+  now: number,
 ): Promise<RestoredSessionLock> => {
   try {
     const biometricEnabled = await readBiometricEnabled();
-    return {
-      autoPrompt: biometricEnabled,
-      sessionUnlocked: !biometricEnabled,
-    };
+    if (!biometricEnabled) return { autoPrompt: false, sessionUnlocked: true };
+    const lastActiveAt = await readLastActiveAt();
+    const shouldLock = shouldLockRestoredSession(lastActiveAt, now);
+    return { autoPrompt: shouldLock, sessionUnlocked: !shouldLock };
   } catch {
-    return {
-      autoPrompt: false,
-      sessionUnlocked: false,
-    };
+    return { autoPrompt: false, sessionUnlocked: false };
   }
 };

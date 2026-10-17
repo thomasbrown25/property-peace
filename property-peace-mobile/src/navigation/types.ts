@@ -37,6 +37,7 @@ export type PropertiesStackParamList = {
   PropertiesList: undefined;
   PropertyDetail: { propertyId: string };
   PropertyMaintenance: { propertyId: string; propertyName: string };
+  AddMaintenanceRequest: { propertyId?: string } | undefined;
   LandlordMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };
   AddProperty: undefined;
 
@@ -49,6 +50,7 @@ export type TenantsStackParamList = {
 
 export type MaintenanceStackParamList = {
   MaintenanceList: undefined;
+  AddMaintenanceRequest: { propertyId?: string } | undefined;
   LandlordMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };
   TenantMaintenanceList: undefined;
   TenantMaintenanceIntake: undefined;

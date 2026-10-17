@@ -4,8 +4,9 @@ import { ApiResponse } from '../types';
 class RentCollectionAPI {
   private client = apiClient;
 
-  async getRentCollection(): Promise<any> {
-    const response = await this.client.get<ApiResponse<any>>('/api/rent-collection');
+  async getRentCollection(propertyId?: string | number): Promise<any> {
+    const path = propertyId == null ? '/api/rent-collection' : `/api/rent-collection?propertyId=${encodeURIComponent(String(propertyId))}`;
+    const response = await this.client.get<ApiResponse<any>>(path);
     return response.data;
   }
 

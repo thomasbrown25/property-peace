@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,9 +11,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
+import MaintenanceAPI from '../../api/maintenanceAPI';
+import RentCollectionAPI from '../../api/rentCollectionAPI';
+import { collectionPayload } from '../../features/rentCollection/collectionPayload';
+import { propertyOpenRepairs, propertyRentDue } from '../../features/properties/propertyOverview';
 import { buildPropertyChecklistEntry } from '../../features/checklists/checklistNavigationModel';
 import { useAppTheme } from '../../theme/AppTheme';
 type PropertyDetailRoute = RouteProp<PropertiesStackParamList, 'PropertyDetail'>;
@@ -35,7 +39,7 @@ const numberValue = (...values: any[]) => {
   return 0;
 };
 
-const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
+const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
 
 export default function PropertyDetailScreen() {
   const { mode, colors } = useAppTheme();
@@ -47,20 +51,40 @@ export default function PropertyDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(false);
+  const [openRepairs, setOpenRepairs] = useState<number | null>(null);
+  const [rentDue, setRentDue] = useState<number | null>(null);
+  const [rentPaid, setRentPaid] = useState<number | null>(null);
+  const [tab, setTab] = useState<'overview' | 'units' | 'actions'>('overview');
+  const generation = useRef(0);
 
   const loadProperty = useCallback(async () => {
-    try {
-      setProperty(await PropertyAPI.getPropertyById(propertyId));
-      setError(false);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    const request = ++generation.current;
+    const [propertyResult, maintenanceResult, rentResult] = await Promise.allSettled([
+      PropertyAPI.getPropertyById(propertyId),
+      MaintenanceAPI.getCurrent(),
+      RentCollectionAPI.getRentCollection(propertyId).then((response) => {
+        const data = collectionPayload(response);
+        const summary = (data.summary ?? data.Summary) as Record<string, unknown>;
+        const rawPaid = summary.collectedThisMonth ?? summary.CollectedThisMonth;
+        const paid = Number(rawPaid);
+        return { due: propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId), paid: rawPaid == null || !Number.isFinite(paid) ? null : Math.max(0, paid) };
+      }),
+    ]);
+    if (request !== generation.current) return;
+    setProperty(propertyResult.status === 'fulfilled' ? propertyResult.value : null);
+    setError(propertyResult.status === 'rejected');
+    setOpenRepairs(maintenanceResult.status === 'fulfilled' ? propertyOpenRepairs(maintenanceResult.value, propertyId) : null);
+    setRentDue(rentResult.status === 'fulfilled' ? rentResult.value.due : null);
+    setRentPaid(rentResult.status === 'fulfilled' ? rentResult.value.paid : null);
+    setLoading(false);
+    setRefreshing(false);
   }, [propertyId]);
 
-  useEffect(() => { loadProperty(); }, [loadProperty]);
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
+    void loadProperty();
+    return () => { ++generation.current; };
+  }, [loadProperty]));
 
   const details = useMemo(() => {
     if (!property) return null;
@@ -70,13 +94,15 @@ export default function PropertyDetailScreen() {
     const locality = [stringValue(property.city, property.City), stringValue(property.state, property.State), stringValue(property.zipCode, property.ZipCode)].filter(Boolean).join(', ').replace(', ,', ',');
     const imageUrl = stringValue(property.mainImageUrl, property.MainImageUrl, property.images?.[0]?.blobUrl, property.Images?.[0]?.BlobUrl);
     const occupied = units.filter((unit: any) => ['occupied', 'overdue'].includes(stringValue(unit.status, unit.Status).toLowerCase())).length;
-    const rent = units.reduce((sum: number, unit: any) => sum + numberValue(unit.rentAmount, unit.RentAmount, unit.monthlyRent, unit.MonthlyRent), 0);
-    return { units, name, street, locality, imageUrl, occupied, rent };
+    return { units, name, street, locality, imageUrl, occupied };
   }, [property]);
 
   useEffect(() => {
     navigation.setOptions({ title: details?.name || 'Property' });
   }, [navigation, details?.name]);
+
+  const isMultiUnit = stringValue(property?.propertyType, property?.PropertyType).toLowerCase() === 'multiunit';
+  const visibleTab = tab === 'units' && !isMultiUnit ? 'overview' : tab;
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
@@ -92,12 +118,21 @@ export default function PropertyDetailScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperty(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
-    >
-      <View style={styles.heroCard}>
+    <View style={styles.container}>
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', 'Units'] as const] : []), ['actions', 'Actions']] as const).map(([key, label]) => (
+          <TouchableOpacity key={key} style={[styles.tab, visibleTab === key && styles.activeTab]} onPress={() => setTab(key)} accessibilityRole="tab" accessibilityState={{ selected: visibleTab === key }}>
+            <Text style={[styles.tabText, visibleTab === key && styles.activeTabText]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <ScrollView
+        key={visibleTab}
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperty(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
+      >
+      {visibleTab === 'overview' && <View style={styles.heroCard}>
         {details.imageUrl ? <Image source={{ uri: details.imageUrl }} style={styles.heroImage} /> : (
           <View style={styles.heroImageFallback}><Ionicons name="home" size={52} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
         )}
@@ -105,24 +140,25 @@ export default function PropertyDetailScreen() {
           {!!details.street && <Text style={styles.address}>{details.street}</Text>}
           {!!details.locality && <Text style={styles.locality}>{details.locality}</Text>}
           <View style={styles.snapshotRow}>
-            <Snapshot label="Units" value={String(details.units.length)} />
+            <Snapshot label="Units occupied" value={`${details.occupied}/${details.units.length}`} />
             <View style={styles.snapshotDivider} />
-            <Snapshot label="Occupied" value={String(details.occupied)} />
+            <Snapshot label="Rent paid" value={rentPaid === null ? '—' : currency(rentPaid)} />
             <View style={styles.snapshotDivider} />
-            <Snapshot label="Rent roll" value={details.rent > 0 ? currency(details.rent) : '—'} />
+            <Snapshot label="Rent due" value={rentDue === null ? '—' : currency(rentDue)} />
           </View>
         </View>
-      </View>
+      </View>}
 
-      <Text style={styles.sectionTitle}>On-site actions</Text>
+      {visibleTab === 'actions' && <><Text style={styles.sectionTitle}>On-site actions</Text>
       <View style={styles.actionList}>
-        <ActionRow icon="clipboard-outline" title="Open checklists" subtitle="Complete move-in and move-out items" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
-        <ActionRow icon="construct-outline" title="View maintenances" subtitle="Requests for this property" color={mode === 'dark' ? '#ff9bad' : '#d94d63'} background={mode === 'dark' ? '#442b38' : '#fff0f3'} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} />
+        <ActionRow icon="construct-outline" title={openRepairs === null ? 'Open repairs' : `${openRepairs} open repairs`} titleColor={openRepairs !== null && openRepairs > 0 ? (mode === 'dark' ? '#ff9bad' : '#c2413b') : undefined} subtitle={openRepairs === null ? 'Repair count unavailable' : 'Requests for this property'} color={mode === 'dark' ? '#ff9bad' : '#d94d63'} background={mode === 'dark' ? '#442b38' : '#fff0f3'} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} />
+        <ActionRow icon="clipboard-outline" title="Checklists" subtitle="Complete move-in and move-out items" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
         <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color={mode === 'dark' ? colors.accent : '#2475cf'} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
         <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color={mode === 'dark' ? '#d2a9f4' : '#8b5bb7'} background={mode === 'dark' ? '#392d49' : '#f5effb'} onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
       </View>
+      </>}
 
-      <View style={styles.sectionHeader}>
+      {isMultiUnit && visibleTab === 'units' && <><View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Units</Text>
         <View style={styles.countChip}><Text style={styles.countText}>{details.units.length}</Text></View>
       </View>
@@ -153,7 +189,9 @@ export default function PropertyDetailScreen() {
           })}
         </View>
       )}
-    </ScrollView>
+      </>}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -163,13 +201,13 @@ function Snapshot({ label, value }: { label: string; value: string }) {
   return <View style={styles.snapshot}><Text style={styles.snapshotValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text><Text style={styles.snapshotLabel}>{label}</Text></View>;
 }
 
-function ActionRow({ icon, title, subtitle, color, background, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; subtitle: string; color: string; background: string; onPress: () => void }) {
+function ActionRow({ icon, title, titleColor, subtitle, color, background, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; titleColor?: string; subtitle: string; color: string; background: string; onPress: () => void }) {
   const { mode, colors } = useAppTheme();
   const styles = mode === 'dark' ? darkStyles : lightStyles;
   return (
     <TouchableOpacity style={styles.actionRow} onPress={onPress} activeOpacity={0.82}>
       <View style={[styles.actionIcon, { backgroundColor: background }]}><Ionicons name={icon} size={24} color={color} /></View>
-      <View style={styles.actionCopy}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionSubtitle}>{subtitle}</Text></View>
+      <View style={styles.actionCopy}><Text style={[styles.actionTitle, titleColor && { color: titleColor }]}>{title}</Text><Text style={styles.actionSubtitle}>{subtitle}</Text></View>
       <Ionicons name="chevron-forward" size={20} color={mode === 'dark' ? colors.muted : '#8c9aa6'} />
     </TouchableOpacity>
   );
@@ -177,7 +215,12 @@ function ActionRow({ icon, title, subtitle, color, background, onPress }: { icon
 
 const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
-  content: { padding: 18, paddingBottom: 40 },
+  content: { padding: 18, paddingBottom: 126 },
+  tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#fbf7f4' },
+  tab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  activeTab: { borderBottomColor: '#2563eb' },
+  tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
+  activeTabText: { color: '#0f2f47', fontWeight: '800' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fbf7f4' },
   errorIcon: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#fff8e8', alignItems: 'center', justifyContent: 'center', marginBottom: 13 },
   errorTitle: { color: '#102d43', fontSize: 19, fontWeight: '900' },
@@ -222,6 +265,10 @@ const lightStyles = StyleSheet.create({
 const darkStyles = StyleSheet.create({
   ...lightStyles,
   container: { ...lightStyles.container, backgroundColor: '#101923' },
+  tabs: { ...lightStyles.tabs, backgroundColor: '#101923', borderBottomColor: '#35495b' },
+  activeTab: { ...lightStyles.activeTab, borderBottomColor: '#72b6ff' },
+  tabText: { ...lightStyles.tabText, color: '#b4c3d0' },
+  activeTabText: { ...lightStyles.activeTabText, color: '#f2f6fa' },
   center: { ...lightStyles.center, backgroundColor: '#101923' },
   errorIcon: { ...lightStyles.errorIcon, backgroundColor: '#493a25' },
   errorTitle: { ...lightStyles.errorTitle, color: '#f2f6fa' },

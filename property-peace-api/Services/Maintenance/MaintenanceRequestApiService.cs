@@ -90,21 +90,49 @@ public sealed partial class MaintenanceRequestApiService(
     {
         var actor = await actors.GetCurrentAsync(cancellationToken);
         if (actor is null) return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.Unauthorized, "Authentication is required.");
-        if (!actor.IsTenant) return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request not found.");
+        if (!actor.IsTenant && !actor.IsLandlord) return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request not found.");
         if (dto.PropertyId <= 0 || dto.UnitId <= 0 || string.IsNullOrWhiteSpace(dto.Description) ||
             dto.Description.Trim().Length > 4000 || dto.Location?.Trim().Length > 500 || dto.PreferredWindows?.Count > 10)
             return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.BadRequest, "Property, unit, and description are required.");
         if (dto.Signals is null || dto.Signals.Any(signal => !Enum.IsDefined(signal)) || dto.PreferredWindows is null || dto.PreferredWindows.Any(window => window.EndsAtUtc <= window.StartsAtUtc))
             return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.BadRequest, "Structured intake is invalid.");
 
-        var leaseScope = await db.TenantLeases
-            .Where(link => link.Tenant.UserId == actor.UserId && !link.Tenant.IsDeleted &&
-                           link.Lease.IsActive && !link.Lease.IsDeleted &&
-                           link.Lease.UnitId == dto.UnitId && link.Lease.Unit.PropertyId == dto.PropertyId)
-            .Select(link => new { link.TenantId, link.LeaseId, link.Lease.OrganizationId, UnitName = link.Lease.Unit.Name })
-            .SingleOrDefaultAsync(cancellationToken);
-        if (leaseScope is null)
-            return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request scope not found.");
+        long? tenantId = null;
+        long? leaseId = null;
+        long? organizationId;
+        string unitName;
+        if (actor.IsTenant)
+        {
+            // Keep the tenant submission path bound to the tenant's active lease.
+            var leaseScope = await db.TenantLeases
+                .Where(link => link.Tenant.UserId == actor.UserId && !link.Tenant.IsDeleted &&
+                               link.Lease.IsActive && !link.Lease.IsDeleted &&
+                               link.Lease.UnitId == dto.UnitId && link.Lease.Unit.PropertyId == dto.PropertyId)
+                .Select(link => new { link.TenantId, link.LeaseId, link.Lease.OrganizationId, UnitName = link.Lease.Unit.Name })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (leaseScope is null)
+                return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request scope not found.");
+            tenantId = leaseScope.TenantId;
+            leaseId = leaseScope.LeaseId;
+            organizationId = leaseScope.OrganizationId;
+            unitName = leaseScope.UnitName;
+        }
+        else
+        {
+            // Authorize against the property linked to this exact unit, not client-supplied organization or lease data.
+            var managerScope = await db.Units
+                .Where(unit => unit.Id == dto.UnitId && unit.PropertyId == dto.PropertyId &&
+                    (unit.Property.LandlordId == actor.UserId ||
+                     unit.Property.OrganizationId != null && db.OrganizationMembers.Any(member =>
+                         member.OrganizationId == unit.Property.OrganizationId && member.UserId == actor.UserId &&
+                         member.IsActive && member.CanManageMaintenance)))
+                .Select(unit => new { UnitName = unit.Name, unit.Property.OrganizationId })
+                .SingleOrDefaultAsync(cancellationToken);
+            if (managerScope is null)
+                return MaintenanceApiResult<MaintenanceRequestDetailDto>.Error(MaintenanceApiResultCode.NotFound, "Maintenance request scope not found.");
+            organizationId = managerScope.OrganizationId;
+            unitName = managerScope.UnitName;
+        }
 
         var normalizedDescription = dto.Description.Trim();
         var normalizedLocation = string.IsNullOrWhiteSpace(dto.Location) ? null : dto.Location.Trim();
@@ -124,11 +152,11 @@ public sealed partial class MaintenanceRequestApiService(
         {
             PropertyId = dto.PropertyId,
             UnitId = dto.UnitId,
-            UnitName = leaseScope.UnitName,
-            OrganizationId = leaseScope.OrganizationId,
+            UnitName = unitName,
+            OrganizationId = organizationId,
             SubmittedByUserId = actor.UserId,
-            SubmittedByTenantId = leaseScope.TenantId,
-            SubmittedUnderLeaseId = leaseScope.LeaseId,
+            SubmittedByTenantId = tenantId,
+            SubmittedUnderLeaseId = leaseId,
             Title = title,
             Description = normalizedDescription,
             LocationDetails = normalizedLocation,

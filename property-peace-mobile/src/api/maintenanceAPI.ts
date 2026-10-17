@@ -49,6 +49,7 @@ class MaintenanceAPI {
     return { ...detail, activityEvents: detail.activityEvents ?? detail.activities ?? detail.ActivityEvents ?? detail.Activities ?? [], attachments: detail.attachments ?? detail.Attachments ?? [] };
   }
   async createTenantRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
+  async createRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
   async getTenantLeaseScopes(): Promise<any[]> { return unwrap(await this.client.get<ApiResponse<any[]>>('/api/Lease/tenant/my-leases')) || []; }
   async getAssignmentDirectory(): Promise<MaintenanceAssignmentDirectory> {
     const organizationId = await storageService.getCurrentOrganizationId();

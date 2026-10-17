@@ -118,21 +118,37 @@ test('waits for the app to become active before automatically prompting once', a
   assert.equal(authenticationCalls, 1);
   assert.equal(attemptStartedCalls, 1);
 });
-test('restored-session biometric preference failures fail closed', async () => {
+test('restored sessions lock only after ten minutes away on a cold launch', async () => {
   assert.equal(loadError, undefined);
-
+  const now = 1_800_000;
   assert.deepEqual(
-    await resolveRestoredSessionLock(async () => true),
-    { autoPrompt: true, sessionUnlocked: false },
-  );
-  assert.deepEqual(
-    await resolveRestoredSessionLock(async () => false),
+    await resolveRestoredSessionLock(async () => true, async () => now - 9 * 60_000, now),
     { autoPrompt: false, sessionUnlocked: true },
   );
   assert.deepEqual(
-    await resolveRestoredSessionLock(async () => {
-      throw new Error('SecureStore unavailable');
-    }),
+    await resolveRestoredSessionLock(async () => true, async () => now - 10 * 60_000, now),
+    { autoPrompt: true, sessionUnlocked: false },
+  );
+  assert.deepEqual(
+    await resolveRestoredSessionLock(async () => false, async () => { throw Error('must not read'); }, now),
+    { autoPrompt: false, sessionUnlocked: true },
+  );
+});
+
+test('missing/invalid last active time and storage failures fail closed for opted-in sessions', async () => {
+  const now = 1_800_000;
+  for (const lastActive of [null, Number.NaN, now + 1]) {
+    assert.deepEqual(
+      await resolveRestoredSessionLock(async () => true, async () => lastActive, now),
+      { autoPrompt: true, sessionUnlocked: false },
+    );
+  }
+  assert.deepEqual(
+    await resolveRestoredSessionLock(async () => true, async () => { throw Error('storage'); }, now),
+    { autoPrompt: false, sessionUnlocked: false },
+  );
+  assert.deepEqual(
+    await resolveRestoredSessionLock(async () => { throw Error('storage'); }, async () => now, now),
     { autoPrompt: false, sessionUnlocked: false },
   );
 });

@@ -38,6 +38,9 @@ public sealed class MaintenanceRequestApiServiceTests
         result.Value.ActionByUtc.Should().Be(Now.AddHours(24));
         var stored = await db.MaintenanceRequests.SingleAsync();
         stored.OrganizationId.Should().Be(60);
+        stored.SubmittedByUserId.Should().Be(10);
+        stored.SubmittedByTenantId.Should().Be(20);
+        stored.SubmittedUnderLeaseId.Should().Be(30);
         stored.StopTroubleshooting.Should().BeFalse();
         stored.StructuredIntakeJson.Should().Contain("NoRunningWater");
         (await db.MaintenancePreferredWindows.SingleAsync()).AccessInstructions.Should().Be("Call first");
@@ -52,6 +55,86 @@ public sealed class MaintenanceRequestApiServiceTests
         var service = CreateService(db, new MaintenanceActor(10, true, false));
 
         var result = await service.CreateAsync(new CreateMaintenanceRequestDto { PropertyId = 40, UnitId = 50, Description = "Leak", Location = "Kitchen" });
+
+        result.Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        db.MaintenanceRequests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Create_PropertyOwnerOrAuthorizedStaff_PersistsManagerOriginWithoutTenantOrLease(bool staff)
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60, active: false);
+        db.ChangeTracker.Entries<Property>().Single(entry => entry.Entity.Id == 40).Entity.LandlordId = 61;
+        db.OrganizationMembers.Add(new OrganizationMember
+        {
+            Id = 1, OrganizationId = 60, UserId = 80, IsActive = true, CanManageMaintenance = true
+        });
+        await db.SaveChangesAsync();
+        var actor = new MaintenanceActor(staff ? 80 : 61, false, true);
+
+        var result = await CreateService(db, actor).CreateAsync(new CreateMaintenanceRequestDto
+        {
+            PropertyId = 40, UnitId = 50, Description = " Broken window ", Signals = [MaintenanceSignal.NoRunningWater]
+        });
+
+        result.Code.Should().Be(MaintenanceApiResultCode.Success);
+        result.Value!.Status.Should().Be(EMaintenanceStatus.Reported);
+        var stored = await db.MaintenanceRequests.SingleAsync();
+        stored.PropertyId.Should().Be(40);
+        stored.UnitId.Should().Be(50);
+        stored.UnitName.Should().Be("1A");
+        stored.OrganizationId.Should().Be(60);
+        stored.SubmittedByUserId.Should().Be(actor.UserId);
+        stored.SubmittedByTenantId.Should().BeNull();
+        stored.SubmittedUnderLeaseId.Should().BeNull();
+        stored.Description.Should().Be("Broken window");
+        stored.TriagePolicyVersion.Should().Be("maintenance-triage-v1");
+    }
+
+    [Theory]
+    [InlineData(false, true, 60, 40, 50)] // Missing maintenance permission
+    [InlineData(true, false, 60, 40, 50)] // Inactive member
+    [InlineData(true, true, 62, 40, 50)] // Permission in another organization
+    [InlineData(true, true, 60, 41, 50)] // Unit does not belong to requested property
+    [InlineData(true, true, 60, 40, 51)] // Unit does not exist
+    public async Task Create_ManagerCannotSubmitOutsideAuthorizedPropertyAndUnit(
+        bool canManage, bool active, long memberOrganizationId, long propertyId, long unitId)
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
+        db.Properties.Add(new Property { Id = 41, LandlordId = 80, OrganizationId = 62, Name = "Other" });
+        db.OrganizationMembers.Add(new OrganizationMember
+        {
+            Id = 1, OrganizationId = memberOrganizationId, UserId = 80,
+            IsActive = active, CanManageMaintenance = canManage
+        });
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db, new MaintenanceActor(80, false, true))
+            .CreateAsync(new CreateMaintenanceRequestDto { PropertyId = propertyId, UnitId = unitId, Description = "Leak" });
+
+        result.Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        db.MaintenanceRequests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(ActorKind.TeamWithPermission)]
+    [InlineData(ActorKind.AssignedVendorUser)]
+    public async Task Create_NonLandlordNonTenantCannotSubmitEvenWithMembership(ActorKind kind)
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
+        db.OrganizationMembers.Add(new OrganizationMember
+        {
+            Id = 1, OrganizationId = 60, UserId = 80, IsActive = true, CanManageMaintenance = true
+        });
+        await db.SaveChangesAsync();
+
+        var result = await CreateService(db, new MaintenanceActor(kind == ActorKind.TeamWithPermission ? 80 : 70, false, false))
+            .CreateAsync(new CreateMaintenanceRequestDto { PropertyId = 40, UnitId = 50, Description = "Leak" });
 
         result.Code.Should().Be(MaintenanceApiResultCode.NotFound);
         db.MaintenanceRequests.Should().BeEmpty();

@@ -10,7 +10,7 @@ import ConversationAPI from '../../api/conversationAPI';
 import signalRService from '../../services/signalRService';
 import { advanceMessagingScopeGeneration, buildMessagingScopeKey, canAccessMessages, ConversationFilter, ConversationSummary, filterConversations, formatConversationTime, getConversationPresentation, getMessageCapabilities, getMessagesAudience, isMessagingOperationCurrent, MessagingScopeGeneration } from '../../features/messages/messagesModel';
 import { RootState } from '../../store';
-import GroupConversationDialog from '../../components/messages/GroupConversationDialog';
+import NewMessageDialog from '../../components/messages/NewMessageDialog';
 import { useAppTheme } from '../../theme/AppTheme';
 
 
@@ -31,13 +31,12 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [groupDialogVisible, setGroupDialogVisible] = useState(false);
+  const [newMessageVisible, setNewMessageVisible] = useState(false);
   const [loadedScope, setLoadedScope] = useState<string | null>(null);
   const requestSequence = useRef(0);
   const scopeGenerationRef = useRef<MessagingScopeGeneration | undefined>(undefined);
 
   const organizationId = currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId;
-  const currentUserId = currentUser?.id ?? currentUser?.Id;
   const audience = getMessagesAudience(currentUser);
   const dataScope = buildMessagingScopeKey(currentUser, audience);
   const scopeGeneration = advanceMessagingScopeGeneration(scopeGenerationRef.current, dataScope);
@@ -141,7 +140,7 @@ export default function MessagesScreen() {
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View><Text style={[styles.heading, dark && { color: colors.text }]} accessibilityRole="header">Messages</Text><Text style={[styles.headerSub, dark && { color: colors.muted }]}>{scopedConversations.length} conversations{unread ? ` · ${unread} unread` : ''}</Text></View>
-        {capabilities.createGroup && <TouchableOpacity testID="new-group" accessibilityLabel="Create group conversation" style={[styles.newGroup, dark && { backgroundColor: colors.accent }]} onPress={() => setGroupDialogVisible(true)}><Ionicons name="people" size={18} color={dark ? colors.background : '#fff'} /><Text style={[styles.newGroupText, dark && { color: colors.background }]}>New group</Text></TouchableOpacity>}
+        {audience === 'landlord' && <TouchableOpacity testID="new-message" accessibilityLabel="New message" style={[styles.newGroup, dark && { backgroundColor: colors.accent }]} onPress={() => setNewMessageVisible(true)}><Ionicons name="create-outline" size={18} color={dark ? colors.background : '#fff'} /><Text style={[styles.newGroupText, dark && { color: colors.background }]}>New message</Text></TouchableOpacity>}
       </View>
       <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
         <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
@@ -163,7 +162,7 @@ export default function MessagesScreen() {
           ListHeaderComponent={visible.length > 0 ? <Text style={[styles.listLabel, dark && { color: colors.muted }]}>{filter === 'archived' ? 'ARCHIVED' : filter === 'unread' ? 'UNREAD' : 'CONVERSATIONS'}</Text> : null}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2563eb'} />}
           ListEmptyComponent={<View style={styles.center}><Ionicons name="chatbubbles-outline" size={42} color={dark ? colors.muted : '#94a3b8'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{query ? 'No matching conversations' : filter === 'unread' ? 'You’re all caught up' : filter === 'archived' ? 'No archived conversations' : 'No messages yet'}</Text><Text style={[styles.status, dark && { color: colors.muted }]}>{query ? 'Try another name, property, or keyword.' : 'New conversations will appear here.'}</Text></View>} />}
-      {capabilities.createGroup && <GroupConversationDialog visible={groupDialogVisible && scopeIsCurrent} organizationId={organizationId} currentUserId={currentUserId} onClose={() => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) setGroupDialogVisible(false); }} onCreated={(id) => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) { setGroupDialogVisible(false); navigation.navigate('ConversationDetail', { conversationId: id }); } }} />}
+      {audience === 'landlord' && newMessageVisible && scopeIsCurrent && <NewMessageDialog key={dataScope} onClose={() => setNewMessageVisible(false)} onOpen={(conversation) => { if (scopeGenerationRef.current && isMessagingOperationCurrent(scopeGeneration, scopeGenerationRef.current)) { setNewMessageVisible(false); navigation.navigate('ConversationDetail', { conversationId: String(conversation.id), selectedConversation: conversation }); } }} />}
     </View>
   );
 }

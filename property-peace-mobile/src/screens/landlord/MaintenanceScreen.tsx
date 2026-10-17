@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -37,12 +37,18 @@ export default function MaintenanceScreen() {
     }
   }, [view, propertyId]);
 
-  useEffect(() => { setLoading(true); loadRequests(); }, [loadRequests]);
+  useFocusEffect(useCallback(() => { setLoading(true); loadRequests(); }, [loadRequests]));
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
+        <View style={styles.headerRow}>
+          <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
+          <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
+            <Ionicons name="add" size={18} color="#fff" />
+            <Text style={styles.addText}>Add request</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>{propertyId ? propertyName || 'This property' : 'Keep repairs moving, from report to resolution.'}</Text>
       </View>
       <View style={[styles.tabs, dark && { borderBottomColor: colors.border }]} accessibilityRole="tablist">
@@ -80,7 +86,10 @@ const styles = StyleSheet.create({
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingBottom: 100 },
   header: { paddingHorizontal: 20, paddingBottom: 18 },
-  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  addButton: { minHeight: 44, paddingHorizontal: 12, borderRadius: 6, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3 },
+  addText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', flexShrink: 1 },
   pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },
   tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
   tab: { paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: 'transparent' },

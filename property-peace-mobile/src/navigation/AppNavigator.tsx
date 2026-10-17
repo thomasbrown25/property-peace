@@ -76,7 +76,18 @@ export default function AppNavigator() {
         }
 
         const restoredUserId = getBiometricAccountId(restoredSession.user);
-        const lock = await resolveRestoredSessionLock(() => biometricService.isEnabled(restoredUserId));
+        const restoredAt = Date.now();
+        const lock = await resolveRestoredSessionLock(
+          () => biometricService.isEnabled(restoredUserId),
+          async () => {
+            const lastActiveAt = await biometricService.getLastActiveAt(restoredUserId);
+            if (lastActiveAt !== null) return lastActiveAt;
+            // Existing opt-ins predate inactivity tracking; begin their grace period now.
+            await biometricService.setLastActiveAt(restoredUserId, restoredAt);
+            return restoredAt;
+          },
+          restoredAt,
+        );
         if (!active) return;
         setAutoPromptBiometric(lock.autoPrompt);
         setSessionUnlocked(lock.sessionUnlocked);
@@ -125,31 +136,26 @@ export default function AppNavigator() {
   }, [checkingLock, isAuthenticated, userId, checkedUserId]);
 
   useEffect(() => {
-    let active = true;
+    if (checkingLock || !isAuthenticated || !userId || !sessionUnlocked) return;
+    const recordActivity = () => {
+      biometricService.setLastActiveAt(userId, Date.now()).catch(() => {
+        // Missing/unreadable timestamps are handled on the next cold launch.
+      });
+    };
+    // Keep a recent timestamp even if iOS terminates the process without a background event.
+    if (AppState.currentState === 'active') recordActivity();
+    const heartbeat = setInterval(() => {
+      if (AppState.currentState === 'active') recordActivity();
+    }, 30_000);
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'background' || !isAuthenticated || !userId) return;
-      // Hide private screens immediately, before the asynchronous preference read completes.
-      setSessionUnlocked(false);
-      setAutoPromptBiometric(true);
-      biometricService.isEnabled(userId)
-        .then((enabled) => {
-          if (!active) return;
-          if (!enabled) {
-            setAutoPromptBiometric(false);
-            setSessionUnlocked(true);
-          }
-        })
-        .catch(() => {
-          if (!active) return;
-          setAutoPromptBiometric(false);
-        });
+      // Returning from the background in this process never relocks the session.
+      if (nextState === 'background' || nextState === 'active') recordActivity();
     });
-
     return () => {
-      active = false;
+      clearInterval(heartbeat);
       subscription.remove();
     };
-  }, [isAuthenticated, userId]);
+  }, [checkingLock, isAuthenticated, userId, sessionUnlocked]);
 
   const startupPresentation = resolveStartupPresentation({
     introComplete,

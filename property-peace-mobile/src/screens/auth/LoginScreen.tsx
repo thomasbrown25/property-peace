@@ -152,15 +152,13 @@ export default function LoginScreen() {
             },
           ]}
         >
-          <View style={styles.logoBacking}>
-            <Image
-              source={require('../../../assets/property-peace-navbar-logo.png')}
-              style={styles.logo}
-              resizeMode="contain"
-              accessible
-              accessibilityLabel="Property Peace"
-            />
-          </View>
+          <Image
+            source={require('../../../assets/property-peace-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessible
+            accessibilityLabel="Property Peace"
+          />
           <Text style={styles.subtitle}>Sign in to your calm landlord dashboard.</Text>
 
           <TextInput
@@ -266,19 +264,11 @@ const styles = StyleSheet.create({
   form: {
     width: '100%',
   },
-  logoBacking: {
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
   logo: {
-    width: 200,
-    height: 56,
+    alignSelf: 'center',
+    width: 240,
+    height: 68,
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,

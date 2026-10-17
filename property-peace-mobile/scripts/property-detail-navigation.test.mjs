@@ -18,9 +18,20 @@ test('property detail links to property-scoped maintenance and has a titled head
   const maintenance = source('screens/landlord/MaintenanceScreen.tsx');
   assert.match(property, /navigation\.setOptions\(\{ title: details\?\.name/);
   assert.doesNotMatch(property, /<Text style=\{styles\.title\}>\{details\.name\}/);
-  assert.match(property, /title="View maintenances"[\s\S]*navigate\('PropertyMaintenance', \{ propertyId, propertyName: details\.name \}\)/);
-  assert.match(navigator, /headerLeft: \(\) => <PageBackButton translucent onPress=\{\(\) => navigation\.popToTop\(\)\}/);
+  assert.match(property, /<ActionRow icon="construct-outline" title=\{openRepairs === null[^\n]*navigate\('PropertyMaintenance', \{ propertyId, propertyName: details\.name \}\)/);
+  assert.match(property, /titleColor=\{openRepairs !== null && openRepairs > 0/);
+  assert.match(property, /icon="construct-outline"[^\n]*\n\s*<ActionRow icon="clipboard-outline" title="Checklists"/);
+  assert.doesNotMatch(property, /title="Open checklists"|title="View maintenances"/);
+  assert.match(navigator, /headerLeft: \(\) => <PageBackButton onPress=\{\(\) => navigation\.popToTop\(\)\}/);
   assert.match(maintenance, /setRequests\(forProperty\(data \|\| \[\], propertyId\)\)/);
+});
+
+test('shared back button has no filled background on any screen', () => {
+  const button = source('components/PageBackButton.tsx');
+  const navigator = source('navigation/MainNavigator.tsx');
+  assert.match(button, /backgroundColor: 'transparent'/);
+  assert.doesNotMatch(button, /translucent|rgba\(/);
+  assert.doesNotMatch(navigator, /<PageBackButton[^>]*translucent/);
 });
 
 test('tapping already selected Properties tab at a nested page returns to list', () => {

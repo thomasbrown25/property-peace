@@ -81,7 +81,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
   };
 
   return (
-    <View style={[styles.dockArea, { bottom: Math.max(insets.bottom, 10) + 6 }]}>
+    <View style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
       <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(34, 47, 62, 0.82)' : 'rgba(241, 245, 245, 0.82)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.75)' }]} accessibilityRole="tablist">
         {visibleRoutes.slice(0, midpoint).map(renderTab)}
         <Pressable
@@ -135,7 +135,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
 }
 
 const styles = StyleSheet.create({
-  dockArea: { position: 'absolute', left: 16, right: 16, zIndex: 10 },
+  // Keep the dock in layout so every tab and nested detail ends above it.
+  dockArea: { paddingHorizontal: 16, zIndex: 10 },
   pill: { minHeight: 72, borderRadius: 38, borderWidth: 1, padding: 5, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
   tab: { flex: 1, minWidth: 0, minHeight: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },

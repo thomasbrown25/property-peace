@@ -23,11 +23,17 @@ test('enabling requires successful device authentication and stores the preferen
   assert.match(source('services/biometricService.ts'), /biometricUnlockEnabled\.\$\{userId\}/);
 });
 
-test('each background transition locks before checking the setting and schedules automatic unlock', () => {
+test('background records inactivity without relocking; cold restore checks the account-specific timestamp', () => {
   const navigation = source('navigation/AppNavigator.tsx');
-  const background = navigation.indexOf("nextState !== 'background'");
-  const locked = navigation.indexOf('setSessionUnlocked(false);', background);
-  const autoPrompt = navigation.indexOf('setAutoPromptBiometric(true);', background);
-  const read = navigation.indexOf('biometricService.isEnabled(userId)', background);
-  assert.ok(background > 0 && locked > background && autoPrompt > locked && read > autoPrompt);
+  const background = navigation.indexOf("nextState === 'background' || nextState === 'active'");
+  assert.ok(background > 0);
+  assert.match(navigation, /const recordActivity = \(\) => \{\s*biometricService\.setLastActiveAt\(userId, Date\.now\(\)\)/);
+  assert.match(navigation, /setInterval\(\(\) => \{\s*if \(AppState\.currentState === 'active'\) recordActivity\(\)/);
+  assert.doesNotMatch(navigation.slice(background), /setSessionUnlocked\(false\)/);
+  assert.match(navigation, /biometricService\.getLastActiveAt\(restoredUserId\)/);
+  assert.match(navigation, /if \(lastActiveAt !== null\) return lastActiveAt;/);
+  assert.match(navigation, /biometricService\.setLastActiveAt\(restoredUserId, restoredAt\)/);
+  const service = source('services/biometricService.ts');
+  assert.match(service, /biometricLastActiveAt\.\$\{userId\}/);
+  assert.match(service, /await this\.setLastActiveAt\(userId, Date\.now\(\)\);\s*await SecureStore\.setItemAsync\(preferenceKey\(userId\), 'true'\)/);
 });
