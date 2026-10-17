@@ -17,10 +17,8 @@ import PropertyAPI, { Property } from '../../api/propertyAPI';
 import MaintenanceAPI from '../../api/maintenanceAPI';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import ChecklistAPI, { Checklist } from '../../api/checklistAPI';
-import ConversationAPI from '../../api/conversationAPI';
 import PaymentAPI, { PropertyPayment } from '../../api/paymentAPI';
 import type { MaintenanceRequest } from '../../api/maintenanceAPI';
-import type { ConversationSummary } from '../../features/messages/messagesModel';
 import { forProperty } from '../../features/maintenance/propertyMaintenanceScope';
 import { collectionPayload } from '../../features/rentCollection/collectionPayload';
 import { propertyOpenRepairs, propertyRentDue } from '../../features/properties/propertyOverview';
@@ -60,35 +58,22 @@ export default function PropertyDetailScreen() {
   const [error, setError] = useState(false);
   const [openRepairs, setOpenRepairs] = useState<number | null>(null);
   const [rentDue, setRentDue] = useState<number | null>(null);
-  const [rentPaid, setRentPaid] = useState<number | null>(null);
-  const [rentExpected, setRentExpected] = useState<number | null>(null);
   const [requests, setRequests] = useState<MaintenanceRequest[] | null>(null);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
-  const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
   const [payments, setPayments] = useState<PropertyPayment[] | null>(null);
   const [tab, setTab] = useState<'overview' | 'units' | 'checklists' | 'actions'>('overview');
   const generation = useRef(0);
 
   const loadProperty = useCallback(async () => {
     const request = ++generation.current;
-    const [propertyResult, maintenanceResult, rentResult, checklistResult, messageResult, paymentResult] = await Promise.allSettled([
+    const [propertyResult, maintenanceResult, rentResult, checklistResult, paymentResult] = await Promise.allSettled([
       PropertyAPI.getPropertyById(propertyId),
       MaintenanceAPI.getCurrent(),
       RentCollectionAPI.getRentCollection(propertyId).then((response) => {
         const data = collectionPayload(response);
-        const summary = (data.summary ?? data.Summary ?? {}) as Record<string, unknown>;
-        const rawPaid = summary.collectedThisMonth ?? summary.CollectedThisMonth;
-        const paid = Number(rawPaid);
-        const rawExpected = summary.expectedThisMonth ?? summary.ExpectedThisMonth ?? summary.totalMonthlyRent ?? summary.TotalMonthlyRent;
-        const expected = Number(rawExpected);
-        return {
-          due: propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId),
-          paid: rawPaid == null || !Number.isFinite(paid) ? null : Math.max(0, paid),
-          expected: rawExpected == null || !Number.isFinite(expected) ? null : Math.max(0, expected),
-        };
+        return propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId);
       }),
       ChecklistAPI.getByProperty(propertyId),
-      ConversationAPI.getConversations('landlord'),
       PaymentAPI.getByProperty(propertyId),
     ]);
     if (request !== generation.current) return;
@@ -97,12 +82,8 @@ export default function PropertyDetailScreen() {
     setOpenRepairs(maintenanceResult.status === 'fulfilled' ? propertyOpenRepairs(maintenanceResult.value, propertyId) : null);
     setRequests(maintenanceResult.status === 'fulfilled' ? forProperty(maintenanceResult.value, propertyId) : null);
     setChecklists(checklistResult.status === 'fulfilled' ? checklistResult.value.filter(item => String(item.propertyId) === String(propertyId)) : null);
-    setConversations(messageResult.status === 'fulfilled' && Array.isArray(messageResult.value)
-      ? messageResult.value.filter(item => String(item.propertyId ?? item.PropertyId ?? '') === String(propertyId)) : null);
-    setPayments(paymentResult.status === 'fulfilled' ? paymentResult.value.sort((a, b) => Date.parse(b.paymentDate) - Date.parse(a.paymentDate)).slice(0, 3) : null);
-    setRentDue(rentResult.status === 'fulfilled' ? rentResult.value.due : null);
-    setRentPaid(rentResult.status === 'fulfilled' ? rentResult.value.paid : null);
-    setRentExpected(rentResult.status === 'fulfilled' ? rentResult.value.expected : null);
+    setPayments(paymentResult.status === 'fulfilled' ? paymentResult.value.sort((a, b) => Date.parse(b.paymentDate) - Date.parse(a.paymentDate)).slice(0, 1) : null);
+    setRentDue(rentResult.status === 'fulfilled' ? rentResult.value : null);
     setLoading(false);
     setRefreshing(false);
   }, [propertyId]);
@@ -118,7 +99,7 @@ export default function PropertyDetailScreen() {
     const units = property.units || property.Units || [];
     const name = stringValue(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Property');
     const street = stringValue(property.streetAddress, property.StreetAddress, property.address, property.Address);
-    const locality = [stringValue(property.city, property.City), stringValue(property.state, property.State), stringValue(property.zipCode, property.ZipCode)].filter(Boolean).join(', ').replace(', ,', ',');
+    const propertyType = stringValue(property.propertyType, property.PropertyType).toLowerCase();
     const imageUrl = stringValue(property.mainImageUrl, property.MainImageUrl, property.images?.[0]?.blobUrl, property.Images?.[0]?.BlobUrl);
     const firstUnit = units[0] || {};
     const beds = numberValue(firstUnit.bedrooms, firstUnit.Bedrooms, property.bedrooms, property.Bedrooms);
@@ -126,23 +107,10 @@ export default function PropertyDetailScreen() {
     const sqft = numberValue(firstUnit.squareFeet, firstUnit.SquareFeet, property.squareFeet, property.SquareFeet);
     const rent = numberValue(firstUnit.rentAmount, firstUnit.RentAmount, property.targetRent, property.TargetRent, property.monthlyRent, property.MonthlyRent);
     const occupied = units.filter((unit: any) => ['occupied', 'overdue'].includes(stringValue(unit.status, unit.Status).toLowerCase())).length;
-    return { units, name, street, locality, imageUrl, occupied, beds, baths, sqft, rent };
+    return { units, name, street, propertyType, imageUrl, occupied, beds, baths, sqft, rent };
   }, [property]);
 
-  const activeLeases = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    return (details?.units ?? []).flatMap((unit: any) => {
-      const lease = unit.lease ?? unit.Lease ?? unit.activeLease ?? unit.ActiveLease;
-      if (!lease || (lease.isActive ?? lease.IsActive) === false || (lease.isDrafted ?? lease.IsDrafted) === true) return [];
-      const start = lease.startDate ?? lease.StartDate;
-      const end = lease.endDate ?? lease.EndDate;
-      if ((start && String(start).slice(0, 10) > today) || (end && String(end).slice(0, 10) < today)) return [];
-      return [{ ...lease, unitName: stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber) }];
-    });
-  }, [details]);
   const pendingChecklists = checklists?.filter(item => !item.isCompleted && !item.completedAt) ?? [];
-  const unreadConversations = conversations?.filter(item => Number(item.unreadCount ?? item.UnreadCount ?? 0) > 0) ?? [];
-  const unreadCount = unreadConversations.reduce((total, item) => total + Number(item.unreadCount ?? item.UnreadCount ?? 0), 0);
 
   useEffect(() => {
     navigation.setOptions({ title: details?.name || 'Property' });
@@ -150,8 +118,6 @@ export default function PropertyDetailScreen() {
 
   const isMultiUnit = stringValue(property?.propertyType, property?.PropertyType).toLowerCase() === 'multiunit';
   const visibleTab = tab === 'units' && !isMultiUnit ? 'overview' : tab;
-  const collectionPercent = rentExpected && rentPaid !== null ? Math.min(100, Math.round(rentPaid / rentExpected * 100)) : 0;
-  const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
@@ -179,7 +145,7 @@ export default function PropertyDetailScreen() {
         )}
         <View style={styles.heroBody}>
           {!!details.street && <Text style={styles.address}>{details.street}</Text>}
-          {!!details.locality && <Text style={styles.locality}>{details.locality}</Text>}
+          {!!details.propertyType && <Text style={styles.propertyType}>{details.propertyType === 'multiunit' ? 'Multi-unit' : details.propertyType === 'singlefamily' ? 'Single-family' : details.propertyType}</Text>}
           {(details.beds > 0 || details.baths > 0 || details.sqft > 0 || details.rent > 0) && (
             <View style={styles.propertyFacts}>
               {details.beds > 0 && <Text style={styles.propertyFact}>🛏 {details.beds} beds</Text>}
@@ -207,58 +173,38 @@ export default function PropertyDetailScreen() {
       </View>
 
       {visibleTab === 'overview' && <View style={styles.overviewDetails}>
-        <View style={styles.collectionCard}>
-          <Text style={styles.collectionLabel}>Collected this month · {month}</Text>
-          {rentPaid === null || rentExpected === null ? (
-            <Text style={styles.collectionUnavailable}>Rent collection unavailable · Pull to retry</Text>
-          ) : (
-            <>
-              <View style={styles.collectionValueRow}>
-                <Text style={styles.collectionValue} numberOfLines={1} adjustsFontSizeToFit>{currency(rentPaid)}</Text>
-                {rentExpected > 0 && <Text style={styles.collectionPercent}>{collectionPercent}%</Text>}
-              </View>
-              <Text style={styles.collectionContext}>{currency(rentExpected)} expected this month</Text>
-              {rentExpected > 0 && <View style={styles.collectionTrack} accessibilityRole="progressbar" accessibilityLabel="Rent collected this month" accessibilityValue={{ min: 0, max: 100, now: collectionPercent }}><View style={[styles.collectionFill, { width: `${collectionPercent}%` }]} /></View>}
-              <Text style={styles.collectionRemaining}>{currency(Math.max(0, rentExpected - Math.min(rentExpected, rentPaid)))} remaining this month</Text>
-            </>
+        <Text style={styles.overviewKicker}>PROPERTY PULSE</Text>
+        <Text style={styles.sectionTitle} accessibilityRole="header">What needs attention</Text>
+        <Text style={styles.overviewIntro}>The next things to check for this property.</Text>
+        <TouchableOpacity style={styles.pulseRow} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} accessibilityRole="button" accessibilityLabel="View property maintenance requests">
+          <View style={[styles.pulseIcon, styles.repairIcon]}><Ionicons name="construct-outline" size={21} color={mode === 'dark' ? '#ffca82' : '#a66310'} /></View>
+          <View style={styles.pulseCopy}>
+            <Text style={styles.pulseTitle}>Maintenance</Text>
+            <Text style={styles.pulseDescription}>{requests === null ? 'Requests unavailable · Pull to retry' : requests.length ? `${requests.length} open ${requests.length === 1 ? 'request' : 'requests'}` : 'No open requests'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={19} color={mode === 'dark' ? '#b4c3d0' : '#71808d'} />
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.pulseRow, styles.lastPulseRow]} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} accessibilityRole="button" accessibilityLabel="View property checklists">
+          <View style={[styles.pulseIcon, styles.checklistIcon]}><Ionicons name="clipboard-outline" size={21} color={mode === 'dark' ? '#89dda0' : '#2f8f46'} /></View>
+          <View style={styles.pulseCopy}>
+            <Text style={styles.pulseTitle}>Checklists</Text>
+            <Text style={styles.pulseDescription}>{checklists === null ? 'Checklists unavailable · Pull to retry' : pendingChecklists.length ? `${pendingChecklists.length} ${pendingChecklists.length === 1 ? 'checklist' : 'checklists'} to review` : 'Nothing pending'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={19} color={mode === 'dark' ? '#b4c3d0' : '#71808d'} />
+        </TouchableOpacity>
+        <View style={styles.paymentPanel}>
+          <View style={styles.paymentHeader}>
+            <View style={styles.paymentIcon}><Ionicons name="receipt-outline" size={21} color={mode === 'dark' ? '#72b6ff' : '#2475cf'} /></View>
+            <Text style={styles.paymentHeading}>Latest payment</Text>
+          </View>
+          {payments === null ? <Text style={styles.paymentEmpty}>Payments unavailable · Pull to retry</Text> : payments.length === 0 ? <Text style={styles.paymentEmpty}>No payments recorded for this property yet.</Text> : (
+            <View style={styles.paymentBody}>
+              <Text style={styles.paymentAmount}>{Number.isFinite(Number(payments[0].amount)) ? currency(Number(payments[0].amount)) : 'Amount unavailable'}</Text>
+              <Text style={styles.paymentMeta}>{[payments[0].tenantName || payments[0].unitName, payments[0].paymentDate ? String(payments[0].paymentDate).slice(0, 10) : null].filter(Boolean).join(' · ') || 'Payment details unavailable'}</Text>
+              <Text style={styles.paymentStatus}>{stringValue(payments[0].status, 'Status unavailable')}</Text>
+            </View>
           )}
         </View>
-        <Text style={styles.sectionTitle}>Property details</Text>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Type</Text>
-          <Text style={styles.detailValue}>{isMultiUnit ? 'Multi-unit' : stringValue(property.propertyType, property.PropertyType).toLowerCase() === 'singlefamily' ? 'Single-family' : '—'}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Units</Text>
-          <Text style={styles.detailValue}>{details.units.length}</Text>
-        </View>
-        <Text style={styles.sectionTitle}>Open requests{requests ? ` (${requests.length})` : ''}</Text>
-        {requests === null ? <Text style={styles.activityMeta}>Requests unavailable · Pull to retry</Text> : requests.length === 0 ? <Text style={styles.activityMeta}>No open requests</Text> : requests.slice(0, 3).map((item, index) => (
-          <TouchableOpacity key={String(item.id ?? index)} style={styles.activityRow} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })}>
-            <Text style={styles.activityTitle}>{stringValue(item.title, item.Title, 'Maintenance request')}</Text>
-            <Text style={styles.activityMeta}>{stringValue(item.status, item.Status, 'Open')}{item.urgency ? ` · ${item.urgency}` : ''}</Text>
-          </TouchableOpacity>
-        ))}
-        <Text style={styles.sectionTitle}>Active lease{activeLeases.length === 1 ? '' : 's'}</Text>
-        {activeLeases.length === 0 ? <Text style={styles.activityMeta}>No active lease</Text> : activeLeases.map((lease: any, index: number) => (
-          <View key={String(lease.id ?? lease.Id ?? index)} style={styles.activityRow}>
-            <Text style={styles.activityTitle}>{lease.unitName || 'Property lease'}</Text>
-            <Text style={styles.activityMeta}>{(lease.tenants ?? lease.Tenants ?? []).map((tenant: any) => stringValue(tenant.name, tenant.Name, [tenant.firstName ?? tenant.FirstName, tenant.lastName ?? tenant.LastName].filter(Boolean).join(' '))).filter(Boolean).join(', ') || 'Tenant not listed'}</Text>
-            <Text style={styles.activityMeta}>{lease.startDate || lease.StartDate ? String(lease.startDate ?? lease.StartDate).slice(0, 10) : 'Start date unknown'} – {lease.endDate || lease.EndDate ? String(lease.endDate ?? lease.EndDate).slice(0, 10) : 'Month to month'}{lease.rentAmount ?? lease.RentAmount ? ` · ${currency(Number(lease.rentAmount ?? lease.RentAmount))}/mo` : ''}</Text>
-          </View>
-        ))}
-        <Text style={styles.sectionTitle}>Messages</Text>
-        {conversations === null ? <Text style={styles.activityMeta}>Messages unavailable · Pull to retry</Text> : unreadCount === 0 ? <Text style={styles.activityMeta}>No unread messages</Text> : <TouchableOpacity style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Messages')}>
-          <Text style={styles.activityTitle}>{unreadCount} unread message{unreadCount === 1 ? '' : 's'}</Text>
-          <Text style={styles.activityMeta}>Across {unreadConversations.length} conversation{unreadConversations.length === 1 ? '' : 's'} · View messages</Text>
-        </TouchableOpacity>}
-        <Text style={styles.sectionTitle}>Recent payments</Text>
-        {payments === null ? <Text style={styles.activityMeta}>Payments unavailable · Pull to retry</Text> : payments.length === 0 ? <Text style={styles.activityMeta}>No recent payments</Text> : payments.map((payment, index) => (
-          <View key={String(payment.id ?? index)} style={styles.activityRow}>
-            <Text style={styles.activityTitle}>{currency(Number(payment.amount))} · {payment.tenantName || payment.unitName || 'Payment'}</Text>
-            <Text style={styles.activityMeta}>{String(payment.paymentDate).slice(0, 10)} · {payment.status}{payment.feeName ? ` · ${payment.feeName}` : ''}</Text>
-          </View>
-        ))}
       </View>}
 
       {visibleTab === 'checklists' && <View style={styles.checklistPanel}>
@@ -331,14 +277,14 @@ function ActionRow({ icon, title, titleColor, subtitle, color, background, onPre
 }
 
 const lightStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
+  container: { flex: 1, backgroundColor: '#ffffff' },
   content: { padding: 18, paddingBottom: 28 },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#fbf7f4' },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#ffffff' },
   tab: { flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: '#2563eb' },
   tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
   activeTabText: { color: '#0f2f47', fontWeight: '800' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#fbf7f4' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#ffffff' },
   errorIcon: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#fff8e8', alignItems: 'center', justifyContent: 'center', marginBottom: 13 },
   errorTitle: { color: '#102d43', fontSize: 19, fontWeight: '900' },
   errorText: { color: '#697887', marginTop: 5 },
@@ -346,29 +292,35 @@ const lightStyles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: '900' },
   heroCard: { marginBottom: 16 },
   overviewDetails: { paddingTop: 22 },
-  collectionCard: { backgroundColor: '#e8f8ee', borderRadius: 20, padding: 20, marginBottom: 28 },
-  collectionLabel: { color: '#18374c', fontSize: 14, fontWeight: '700' },
-  collectionValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 6 },
-  collectionValue: { color: '#188d40', fontSize: 35, fontWeight: '800', letterSpacing: -1.3, flexShrink: 1 },
-  collectionPercent: { color: '#188d40', fontSize: 19, fontWeight: '800' },
-  collectionContext: { color: '#556d64', fontSize: 14, marginTop: 3 },
-  collectionTrack: { height: 11, borderRadius: 7, overflow: 'hidden', backgroundColor: '#d1edda', marginTop: 13 },
-  collectionFill: { height: '100%', borderRadius: 7, backgroundColor: '#20a04b' },
-  collectionRemaining: { color: '#556d64', fontSize: 13, marginTop: 8 },
-  collectionUnavailable: { color: '#556d64', fontSize: 14, marginTop: 10 },
+  overviewKicker: { color: '#2475cf', fontSize: 10, fontWeight: '800', letterSpacing: 1.4, marginBottom: 5 },
+  overviewIntro: { color: '#667789', fontSize: 14, lineHeight: 20, marginBottom: 13 },
+  pulseRow: { minHeight: 74, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e2e7e9', paddingVertical: 12 },
+  lastPulseRow: { borderBottomWidth: 0 },
+  pulseIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  repairIcon: { backgroundColor: '#fff4e5' },
+  checklistIcon: { backgroundColor: '#edf9ef' },
+  pulseCopy: { flex: 1, minWidth: 0 },
+  pulseTitle: { color: '#102d43', fontSize: 15, fontWeight: '800' },
+  pulseDescription: { color: '#667789', fontSize: 13, lineHeight: 18, marginTop: 3 },
+  paymentPanel: { backgroundColor: '#eaf3ff', borderRadius: 20, padding: 18, marginTop: 22, marginBottom: 12 },
+  paymentHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  paymentIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#d8e9ff', alignItems: 'center', justifyContent: 'center' },
+  paymentHeading: { color: '#18374c', fontSize: 15, fontWeight: '800' },
+  paymentBody: { marginTop: 11 },
+  paymentAmount: { color: '#102d43', fontSize: 29, fontWeight: '800', letterSpacing: -0.7 },
+  paymentMeta: { color: '#556d64', fontSize: 13, lineHeight: 19, marginTop: 3 },
+  paymentStatus: { color: '#18374c', fontSize: 12, fontWeight: '700', marginTop: 7 },
+  paymentEmpty: { color: '#556d64', fontSize: 13, lineHeight: 19, marginTop: 11 },
   activityRow: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#e2e7e9' },
   activityTitle: { color: '#102d43', fontSize: 15, fontWeight: '700' },
   activityMeta: { color: '#71808d', fontSize: 13, lineHeight: 19, marginBottom: 12 },
-  detailRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#e2e7e9' },
-  detailLabel: { color: '#71808d', fontSize: 14 },
-  detailValue: { color: '#102d43', fontSize: 14, fontWeight: '700' },
   heroImage: { width: '100%', height: 190, borderRadius: 18, backgroundColor: '#eaf3ff' },
   heroImageFallback: { width: '100%', height: 150, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eaf3ff' },
   heroBody: { paddingTop: 20 },
   eyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, marginBottom: 4 },
   title: { color: '#102d43', fontSize: 29, lineHeight: 35, fontWeight: '900', letterSpacing: -0.7 },
   address: { color: '#516576', fontSize: 15, lineHeight: 21, marginTop: 6 },
-  locality: { color: '#71808d', fontSize: 14, lineHeight: 20 },
+  propertyType: { color: '#71808d', fontSize: 14, lineHeight: 20 },
   propertyFacts: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 10 },
   propertyFact: { color: '#516576', fontSize: 13, lineHeight: 19 },
   propertyRent: { color: '#2475cf', fontSize: 13, lineHeight: 19, fontWeight: '700' },
@@ -403,22 +355,24 @@ const lightStyles = StyleSheet.create({
 const darkStyles = StyleSheet.create({
   ...lightStyles,
   container: { ...lightStyles.container, backgroundColor: '#101923' },
-  collectionCard: { ...lightStyles.collectionCard, backgroundColor: '#1b3833' },
-  collectionLabel: { ...lightStyles.collectionLabel, color: '#f2f6fa' },
-  collectionValue: { ...lightStyles.collectionValue, color: '#82e5a5' },
-  collectionPercent: { ...lightStyles.collectionPercent, color: '#82e5a5' },
-  collectionContext: { ...lightStyles.collectionContext, color: '#b4c3d0' },
-  collectionTrack: { ...lightStyles.collectionTrack, backgroundColor: '#36584a' },
-  collectionFill: { ...lightStyles.collectionFill, backgroundColor: '#82e5a5' },
-  collectionRemaining: { ...lightStyles.collectionRemaining, color: '#b4c3d0' },
-  collectionUnavailable: { ...lightStyles.collectionUnavailable, color: '#b4c3d0' },
+  overviewKicker: { ...lightStyles.overviewKicker, color: '#72b6ff' },
+  overviewIntro: { ...lightStyles.overviewIntro, color: '#b4c3d0' },
+  pulseRow: { ...lightStyles.pulseRow, borderBottomColor: '#35495b' },
+  repairIcon: { ...lightStyles.repairIcon, backgroundColor: '#4b3829' },
+  checklistIcon: { ...lightStyles.checklistIcon, backgroundColor: '#203b30' },
+  pulseTitle: { ...lightStyles.pulseTitle, color: '#f2f6fa' },
+  pulseDescription: { ...lightStyles.pulseDescription, color: '#b4c3d0' },
+  paymentPanel: { ...lightStyles.paymentPanel, backgroundColor: '#233e59' },
+  paymentIcon: { ...lightStyles.paymentIcon, backgroundColor: '#315372' },
+  paymentHeading: { ...lightStyles.paymentHeading, color: '#f2f6fa' },
+  paymentAmount: { ...lightStyles.paymentAmount, color: '#f2f6fa' },
+  paymentMeta: { ...lightStyles.paymentMeta, color: '#b4c3d0' },
+  paymentStatus: { ...lightStyles.paymentStatus, color: '#dbe5ee' },
+  paymentEmpty: { ...lightStyles.paymentEmpty, color: '#b4c3d0' },
   tabs: { ...lightStyles.tabs, backgroundColor: '#101923', borderBottomColor: '#35495b' },
-  detailRow: { ...lightStyles.detailRow, borderBottomColor: '#35495b' },
   activityRow: { ...lightStyles.activityRow, borderBottomColor: '#35495b' },
   activityTitle: { ...lightStyles.activityTitle, color: '#f2f6fa' },
   activityMeta: { ...lightStyles.activityMeta, color: '#b4c3d0' },
-  detailLabel: { ...lightStyles.detailLabel, color: '#b4c3d0' },
-  detailValue: { ...lightStyles.detailValue, color: '#f2f6fa' },
   activeTab: { ...lightStyles.activeTab, borderBottomColor: '#72b6ff' },
   tabText: { ...lightStyles.tabText, color: '#b4c3d0' },
   activeTabText: { ...lightStyles.activeTabText, color: '#f2f6fa' },
@@ -431,7 +385,7 @@ const darkStyles = StyleSheet.create({
   eyebrow: { ...lightStyles.eyebrow, color: '#89dda0' },
   title: { ...lightStyles.title, color: '#f2f6fa' },
   address: { ...lightStyles.address, color: '#dbe5ee' },
-  locality: { ...lightStyles.locality, color: '#b4c3d0' },
+  propertyType: { ...lightStyles.propertyType, color: '#b4c3d0' },
   propertyFact: { ...lightStyles.propertyFact, color: '#b4c3d0' },
   propertyRent: { ...lightStyles.propertyRent, color: '#72b6ff' },
   snapshotRow: { ...lightStyles.snapshotRow, borderColor: '#35495b' },

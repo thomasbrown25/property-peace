@@ -138,8 +138,9 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
           if (open) hideSheet();
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (event.defaultPrevented) return;
-          // A dock tap always opens the tab at its root, not a previously scrolled detail.
-          if ((route.state?.index ?? 0) > 0 && route.state?.key) {
+          // Switching tabs preserves each tab's stack and scroll. Re-tapping the active tab
+          // returns to its root; useTabScrollReset handles the root's saved offset.
+          if (selected && (route.state?.index ?? 0) > 0 && route.state?.key) {
             navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
           }
           if (!selected) navigation.navigate(route.name);
