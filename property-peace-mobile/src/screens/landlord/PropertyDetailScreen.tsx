@@ -16,6 +16,12 @@ import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
 import MaintenanceAPI from '../../api/maintenanceAPI';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
+import ChecklistAPI, { Checklist } from '../../api/checklistAPI';
+import ConversationAPI from '../../api/conversationAPI';
+import PaymentAPI, { PropertyPayment } from '../../api/paymentAPI';
+import type { MaintenanceRequest } from '../../api/maintenanceAPI';
+import type { ConversationSummary } from '../../features/messages/messagesModel';
+import { forProperty } from '../../features/maintenance/propertyMaintenanceScope';
 import { collectionPayload } from '../../features/rentCollection/collectionPayload';
 import { propertyOpenRepairs, propertyRentDue } from '../../features/properties/propertyOverview';
 import { buildPropertyChecklistEntry } from '../../features/checklists/checklistNavigationModel';
@@ -40,6 +46,7 @@ const numberValue = (...values: any[]) => {
 };
 
 const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value);
+const monthlyRent = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value);
 
 export default function PropertyDetailScreen() {
   const { mode, colors } = useAppTheme();
@@ -54,12 +61,16 @@ export default function PropertyDetailScreen() {
   const [openRepairs, setOpenRepairs] = useState<number | null>(null);
   const [rentDue, setRentDue] = useState<number | null>(null);
   const [rentPaid, setRentPaid] = useState<number | null>(null);
+  const [requests, setRequests] = useState<MaintenanceRequest[] | null>(null);
+  const [checklists, setChecklists] = useState<Checklist[] | null>(null);
+  const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
+  const [payments, setPayments] = useState<PropertyPayment[] | null>(null);
   const [tab, setTab] = useState<'overview' | 'units' | 'actions'>('overview');
   const generation = useRef(0);
 
   const loadProperty = useCallback(async () => {
     const request = ++generation.current;
-    const [propertyResult, maintenanceResult, rentResult] = await Promise.allSettled([
+    const [propertyResult, maintenanceResult, rentResult, checklistResult, messageResult, paymentResult] = await Promise.allSettled([
       PropertyAPI.getPropertyById(propertyId),
       MaintenanceAPI.getCurrent(),
       RentCollectionAPI.getRentCollection(propertyId).then((response) => {
@@ -69,11 +80,19 @@ export default function PropertyDetailScreen() {
         const paid = Number(rawPaid);
         return { due: propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId), paid: rawPaid == null || !Number.isFinite(paid) ? null : Math.max(0, paid) };
       }),
+      ChecklistAPI.getByProperty(propertyId),
+      ConversationAPI.getConversations('landlord'),
+      PaymentAPI.getByProperty(propertyId),
     ]);
     if (request !== generation.current) return;
     setProperty(propertyResult.status === 'fulfilled' ? propertyResult.value : null);
     setError(propertyResult.status === 'rejected');
     setOpenRepairs(maintenanceResult.status === 'fulfilled' ? propertyOpenRepairs(maintenanceResult.value, propertyId) : null);
+    setRequests(maintenanceResult.status === 'fulfilled' ? forProperty(maintenanceResult.value, propertyId) : null);
+    setChecklists(checklistResult.status === 'fulfilled' ? checklistResult.value.filter(item => String(item.propertyId) === String(propertyId)) : null);
+    setConversations(messageResult.status === 'fulfilled' && Array.isArray(messageResult.value)
+      ? messageResult.value.filter(item => String(item.propertyId ?? item.PropertyId ?? '') === String(propertyId)) : null);
+    setPayments(paymentResult.status === 'fulfilled' ? paymentResult.value.sort((a, b) => Date.parse(b.paymentDate) - Date.parse(a.paymentDate)).slice(0, 3) : null);
     setRentDue(rentResult.status === 'fulfilled' ? rentResult.value.due : null);
     setRentPaid(rentResult.status === 'fulfilled' ? rentResult.value.paid : null);
     setLoading(false);
@@ -93,9 +112,29 @@ export default function PropertyDetailScreen() {
     const street = stringValue(property.streetAddress, property.StreetAddress, property.address, property.Address);
     const locality = [stringValue(property.city, property.City), stringValue(property.state, property.State), stringValue(property.zipCode, property.ZipCode)].filter(Boolean).join(', ').replace(', ,', ',');
     const imageUrl = stringValue(property.mainImageUrl, property.MainImageUrl, property.images?.[0]?.blobUrl, property.Images?.[0]?.BlobUrl);
+    const firstUnit = units[0] || {};
+    const beds = numberValue(firstUnit.bedrooms, firstUnit.Bedrooms, property.bedrooms, property.Bedrooms);
+    const baths = numberValue(firstUnit.baths, firstUnit.Baths, property.baths, property.Baths);
+    const sqft = numberValue(firstUnit.squareFeet, firstUnit.SquareFeet, property.squareFeet, property.SquareFeet);
+    const rent = numberValue(firstUnit.rentAmount, firstUnit.RentAmount, property.targetRent, property.TargetRent, property.monthlyRent, property.MonthlyRent);
     const occupied = units.filter((unit: any) => ['occupied', 'overdue'].includes(stringValue(unit.status, unit.Status).toLowerCase())).length;
-    return { units, name, street, locality, imageUrl, occupied };
+    return { units, name, street, locality, imageUrl, occupied, beds, baths, sqft, rent };
   }, [property]);
+
+  const activeLeases = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (details?.units ?? []).flatMap((unit: any) => {
+      const lease = unit.lease ?? unit.Lease ?? unit.activeLease ?? unit.ActiveLease;
+      if (!lease || (lease.isActive ?? lease.IsActive) === false || (lease.isDrafted ?? lease.IsDrafted) === true) return [];
+      const start = lease.startDate ?? lease.StartDate;
+      const end = lease.endDate ?? lease.EndDate;
+      if ((start && String(start).slice(0, 10) > today) || (end && String(end).slice(0, 10) < today)) return [];
+      return [{ ...lease, unitName: stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber) }];
+    });
+  }, [details]);
+  const pendingChecklists = checklists?.filter(item => !item.isCompleted && !item.completedAt) ?? [];
+  const unreadConversations = conversations?.filter(item => Number(item.unreadCount ?? item.UnreadCount ?? 0) > 0) ?? [];
+  const unreadCount = unreadConversations.reduce((total, item) => total + Number(item.unreadCount ?? item.UnreadCount ?? 0), 0);
 
   useEffect(() => {
     navigation.setOptions({ title: details?.name || 'Property' });
@@ -131,6 +170,14 @@ export default function PropertyDetailScreen() {
         <View style={styles.heroBody}>
           {!!details.street && <Text style={styles.address}>{details.street}</Text>}
           {!!details.locality && <Text style={styles.locality}>{details.locality}</Text>}
+          {(details.beds > 0 || details.baths > 0 || details.sqft > 0 || details.rent > 0) && (
+            <View style={styles.propertyFacts}>
+              {details.beds > 0 && <Text style={styles.propertyFact}>🛏 {details.beds} beds</Text>}
+              {details.baths > 0 && <Text style={styles.propertyFact}>🛁 {details.baths} baths</Text>}
+              {details.sqft > 0 && <Text style={styles.propertyFact}>· {details.sqft.toLocaleString()} sqft</Text>}
+              {details.rent > 0 && <Text style={styles.propertyRent}>· {monthlyRent(details.rent)}/mo</Text>}
+            </View>
+          )}
           <View style={styles.snapshotRow}>
             <Snapshot label="Units occupied" value={`${details.occupied}/${details.units.length}`} />
             <View style={styles.snapshotDivider} />
@@ -159,6 +206,40 @@ export default function PropertyDetailScreen() {
           <Text style={styles.detailLabel}>Units</Text>
           <Text style={styles.detailValue}>{details.units.length}</Text>
         </View>
+        <Text style={styles.sectionTitle}>Open requests{requests ? ` (${requests.length})` : ''}</Text>
+        {requests === null ? <Text style={styles.activityMeta}>Requests unavailable · Pull to retry</Text> : requests.length === 0 ? <Text style={styles.activityMeta}>No open requests</Text> : requests.slice(0, 3).map((item, index) => (
+          <TouchableOpacity key={String(item.id ?? index)} style={styles.activityRow} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })}>
+            <Text style={styles.activityTitle}>{stringValue(item.title, item.Title, 'Maintenance request')}</Text>
+            <Text style={styles.activityMeta}>{stringValue(item.status, item.Status, 'Open')}{item.urgency ? ` · ${item.urgency}` : ''}</Text>
+          </TouchableOpacity>
+        ))}
+        <Text style={styles.sectionTitle}>Active lease{activeLeases.length === 1 ? '' : 's'}</Text>
+        {activeLeases.length === 0 ? <Text style={styles.activityMeta}>No active lease</Text> : activeLeases.map((lease: any, index: number) => (
+          <View key={String(lease.id ?? lease.Id ?? index)} style={styles.activityRow}>
+            <Text style={styles.activityTitle}>{lease.unitName || 'Property lease'}</Text>
+            <Text style={styles.activityMeta}>{(lease.tenants ?? lease.Tenants ?? []).map((tenant: any) => stringValue(tenant.name, tenant.Name, [tenant.firstName ?? tenant.FirstName, tenant.lastName ?? tenant.LastName].filter(Boolean).join(' '))).filter(Boolean).join(', ') || 'Tenant not listed'}</Text>
+            <Text style={styles.activityMeta}>{lease.startDate || lease.StartDate ? String(lease.startDate ?? lease.StartDate).slice(0, 10) : 'Start date unknown'} – {lease.endDate || lease.EndDate ? String(lease.endDate ?? lease.EndDate).slice(0, 10) : 'Month to month'}{lease.rentAmount ?? lease.RentAmount ? ` · ${currency(Number(lease.rentAmount ?? lease.RentAmount))}/mo` : ''}</Text>
+          </View>
+        ))}
+        <Text style={styles.sectionTitle}>Checklists</Text>
+        {checklists === null ? <Text style={styles.activityMeta}>Checklists unavailable · Pull to retry</Text> : pendingChecklists.length === 0 ? <Text style={styles.activityMeta}>No checklists due or in progress</Text> : pendingChecklists.slice(0, 3).map((item, index) => (
+          <TouchableOpacity key={String(item.id ?? index)} style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))}>
+            <Text style={styles.activityTitle}>{item.title || item.checklistTypeName || 'Checklist'}</Text>
+            <Text style={styles.activityMeta}>{item.inspectionDate && String(item.inspectionDate).slice(0, 10) <= new Date().toISOString().slice(0, 10) ? 'Due' : 'In progress'}{item.unitName ? ` · ${item.unitName}` : ''}</Text>
+          </TouchableOpacity>
+        ))}
+        <Text style={styles.sectionTitle}>Messages</Text>
+        {conversations === null ? <Text style={styles.activityMeta}>Messages unavailable · Pull to retry</Text> : unreadCount === 0 ? <Text style={styles.activityMeta}>No unread messages</Text> : <TouchableOpacity style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Messages')}>
+          <Text style={styles.activityTitle}>{unreadCount} unread message{unreadCount === 1 ? '' : 's'}</Text>
+          <Text style={styles.activityMeta}>Across {unreadConversations.length} conversation{unreadConversations.length === 1 ? '' : 's'} · View messages</Text>
+        </TouchableOpacity>}
+        <Text style={styles.sectionTitle}>Recent payments</Text>
+        {payments === null ? <Text style={styles.activityMeta}>Payments unavailable · Pull to retry</Text> : payments.length === 0 ? <Text style={styles.activityMeta}>No recent payments</Text> : payments.map((payment, index) => (
+          <View key={String(payment.id ?? index)} style={styles.activityRow}>
+            <Text style={styles.activityTitle}>{currency(Number(payment.amount))} · {payment.tenantName || payment.unitName || 'Payment'}</Text>
+            <Text style={styles.activityMeta}>{String(payment.paymentDate).slice(0, 10)} · {payment.status}{payment.feeName ? ` · ${payment.feeName}` : ''}</Text>
+          </View>
+        ))}
       </View>}
 
       {visibleTab === 'actions' && <><Text style={styles.sectionTitle}>On-site actions</Text>
@@ -241,6 +322,9 @@ const lightStyles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: '900' },
   heroCard: { marginBottom: 16 },
   overviewDetails: { paddingTop: 22 },
+  activityRow: { paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#e2e7e9' },
+  activityTitle: { color: '#102d43', fontSize: 15, fontWeight: '700' },
+  activityMeta: { color: '#71808d', fontSize: 13, lineHeight: 19, marginBottom: 12 },
   detailRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#e2e7e9' },
   detailLabel: { color: '#71808d', fontSize: 14 },
   detailValue: { color: '#102d43', fontSize: 14, fontWeight: '700' },
@@ -251,6 +335,9 @@ const lightStyles = StyleSheet.create({
   title: { color: '#102d43', fontSize: 29, lineHeight: 35, fontWeight: '900', letterSpacing: -0.7 },
   address: { color: '#516576', fontSize: 15, lineHeight: 21, marginTop: 6 },
   locality: { color: '#71808d', fontSize: 14, lineHeight: 20 },
+  propertyFacts: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 10 },
+  propertyFact: { color: '#516576', fontSize: 13, lineHeight: 19 },
+  propertyRent: { color: '#2475cf', fontSize: 13, lineHeight: 19, fontWeight: '700' },
   snapshotRow: { flexDirection: 'row', alignItems: 'stretch', borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dce4e8', marginTop: 22, paddingVertical: 16 },
   snapshot: { flex: 1, minWidth: 0, alignItems: 'center', justifyContent: 'center' },
   snapshotDivider: { width: 1, backgroundColor: '#e0e7ec' },
@@ -283,6 +370,9 @@ const darkStyles = StyleSheet.create({
   container: { ...lightStyles.container, backgroundColor: '#101923' },
   tabs: { ...lightStyles.tabs, backgroundColor: '#101923', borderBottomColor: '#35495b' },
   detailRow: { ...lightStyles.detailRow, borderBottomColor: '#35495b' },
+  activityRow: { ...lightStyles.activityRow, borderBottomColor: '#35495b' },
+  activityTitle: { ...lightStyles.activityTitle, color: '#f2f6fa' },
+  activityMeta: { ...lightStyles.activityMeta, color: '#b4c3d0' },
   detailLabel: { ...lightStyles.detailLabel, color: '#b4c3d0' },
   detailValue: { ...lightStyles.detailValue, color: '#f2f6fa' },
   activeTab: { ...lightStyles.activeTab, borderBottomColor: '#72b6ff' },
@@ -298,6 +388,8 @@ const darkStyles = StyleSheet.create({
   title: { ...lightStyles.title, color: '#f2f6fa' },
   address: { ...lightStyles.address, color: '#dbe5ee' },
   locality: { ...lightStyles.locality, color: '#b4c3d0' },
+  propertyFact: { ...lightStyles.propertyFact, color: '#b4c3d0' },
+  propertyRent: { ...lightStyles.propertyRent, color: '#72b6ff' },
   snapshotRow: { ...lightStyles.snapshotRow, borderColor: '#35495b' },
   snapshotDivider: { ...lightStyles.snapshotDivider, backgroundColor: '#35495b' },
   snapshotValue: { ...lightStyles.snapshotValue, color: '#f2f6fa' },

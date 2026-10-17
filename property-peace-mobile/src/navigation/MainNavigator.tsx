@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import { Animated, Easing, StyleSheet, useWindowDimensions } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import QuickActionsTabBar from './QuickActionsTabBar';
@@ -46,6 +48,48 @@ import UnsupportedRoleScreen from '../screens/UnsupportedRoleScreen';
 import { useAppTheme } from '../theme/AppTheme';
 import PageBackButton from '../components/PageBackButton';
 
+// A tab's stack stays mounted; animate the scene only when the tab itself gains focus.
+const TabMotionContext = createContext<{ previous: React.MutableRefObject<number | null> } | null>(null);
+
+function withTabTransition<P extends object>(Screen: React.ComponentType<P>, tabIndex: number) {
+  return function TabTransition(props: P) {
+    const focused = useIsFocused();
+    const motion = useContext(TabMotionContext);
+    const { width } = useWindowDimensions();
+    const offset = useRef(new Animated.Value(0)).current;
+    const opacity = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+      if (!focused || !motion) return;
+      const previous = motion.previous.current;
+      motion.previous.current = tabIndex;
+      if (previous === null || previous === tabIndex) {
+        offset.setValue(0);
+        opacity.setValue(1);
+        return;
+      }
+      offset.stopAnimation();
+      opacity.stopAnimation();
+      offset.setValue((tabIndex > previous ? 1 : -1) * Math.min(width * 0.18, 72));
+      opacity.setValue(0.75);
+      const animation = Animated.parallel([
+        Animated.timing(offset, { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+      ]);
+      animation.start();
+      return () => animation.stop();
+    }, [focused, motion, offset, opacity, width]);
+    return (
+      <Animated.View style={[styles.tabScene, {
+        opacity,
+        transform: [{ translateX: offset }],
+      }]}>
+        <Screen {...props} />
+      </Animated.View>
+    );
+  };
+}
+
+const styles = StyleSheet.create({ tabScene: { flex: 1 } });
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const DashboardStack = createNativeStackNavigator<DashboardStackParamList>();
 const PropertiesStack = createNativeStackNavigator<PropertiesStackParamList>();
@@ -162,15 +206,18 @@ export default function MainNavigator() {
     SettingsScreen,
   };
   const visibleTabs = resolveVisibleMainTabs(audience, visibleComponents);
+  const animatedTabs = useMemo(() => visibleTabs.map((tab, index) => ({ ...tab, component: withTabTransition(tab.component, index) })), [audience]);
+  const motion = useRef<{ previous: React.MutableRefObject<number | null> }>({ previous: { current: null } }).current;
 
   if (audience === 'unsupported') return <UnsupportedRoleScreen />;
 
   return (
+    <TabMotionContext.Provider value={motion}>
     <Tab.Navigator
       tabBar={(props) => <QuickActionsTabBar {...props} audience={audience} />}
       screenOptions={{ headerShown: false }}
     >
-      {visibleTabs.map((tab) => {
+      {animatedTabs.map((tab) => {
         return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
       })}
       {audience === 'landlord' && <>
@@ -181,5 +228,6 @@ export default function MainNavigator() {
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
       </>}
     </Tab.Navigator>
+    </TabMotionContext.Provider>
   );
 }

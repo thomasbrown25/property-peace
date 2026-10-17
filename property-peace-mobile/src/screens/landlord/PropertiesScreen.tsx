@@ -21,14 +21,6 @@ import { useAppTheme } from '../../theme/AppTheme';
 
 
 type PropertiesScreenNavigationProp = NativeStackNavigationProp<PropertiesStackParamList, 'PropertiesList'>;
-const numberValue = (...values: any[]) => {
-  for (const value of values) {
-    if (typeof value === 'number' && !Number.isNaN(value)) return value;
-    if (typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Number(value))) return Number(value);
-  }
-  return 0;
-};
-
 const stringValue = (...values: any[]) => {
   for (const value of values) {
     if (typeof value === 'string' && value.trim()) return value.trim();
@@ -37,7 +29,6 @@ const stringValue = (...values: any[]) => {
 };
 
 const getUnits = (property: Property) => property.units || property.Units || [];
-const currency = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value || 0);
 
 function getUnitSummary(property: Property) {
   const units = getUnits(property);
@@ -148,16 +139,10 @@ export default function PropertiesScreen() {
 function PropertyRow({ property, onPress }: { property: Property; onPress: () => void }) {
   const styles = useScreenStyles();
   const { mode, colors } = useAppTheme();
-  const units = getUnits(property);
   const summary = getUnitSummary(property);
-  const firstUnit = units[0] || {};
   const imageUrl = stringValue(property.mainImageUrl, property.MainImageUrl, property.images?.[0]?.blobUrl, property.Images?.[0]?.BlobUrl);
   const name = stringValue(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed Property');
   const address = [stringValue(property.streetAddress, property.StreetAddress, property.address, property.Address), stringValue(property.city, property.City)].filter(Boolean).join(', ');
-  const rent = numberValue(firstUnit.rentAmount, firstUnit.RentAmount, property.targetRent, property.TargetRent, property.monthlyRent, property.MonthlyRent);
-  const beds = numberValue(firstUnit.bedrooms, firstUnit.Bedrooms, property.bedrooms, property.Bedrooms);
-  const baths = numberValue(firstUnit.baths, firstUnit.Baths, property.baths, property.Baths);
-  const sqft = numberValue(firstUnit.squareFeet, firstUnit.SquareFeet, property.squareFeet, property.SquareFeet);
   const attentionText = summary.overdue > 0
     ? `${summary.overdue} unit${summary.overdue > 1 ? 's' : ''} overdue`
     : summary.highMaint > 0
@@ -182,12 +167,6 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
         <Text style={styles.propertyName} numberOfLines={2}>{name}</Text>
         {!!address && <Text style={styles.propertyAddress} numberOfLines={1}>{address}</Text>}
         <Text style={[styles.statusText, statusType === 'error' && styles.statusTextError, statusType === 'warning' && styles.statusTextWarning]}>{statusLabel}</Text>
-        <View style={styles.propertyMetaRow}>
-          {beds > 0 && <Text style={styles.propertyMeta}>🛏 {beds}</Text>}
-          {baths > 0 && <Text style={styles.propertyMeta}>🛁 {baths}</Text>}
-          {sqft > 0 && <Text style={styles.propertyMeta}>· {sqft.toLocaleString()} sqft</Text>}
-          {rent > 0 && <Text style={styles.propertyRent}>· {currency(rent)}/mo</Text>}
-        </View>
         {!!attentionText && (
           <View style={styles.attentionRow}>
             <Ionicons name="warning-outline" size={13} color={mode === 'dark' ? '#ff8b86' : '#c2413b'} />
@@ -234,8 +213,6 @@ function useScreenStyles() {
       thumbnailFallback: { ...styles.thumbnailFallback, backgroundColor: colors.surface },
       propertyName: { ...styles.propertyName, color: colors.text },
       propertyAddress: { ...styles.propertyAddress, color: colors.muted },
-      propertyMeta: { ...styles.propertyMeta, color: colors.muted },
-      propertyRent: { ...styles.propertyRent, color: colors.accent },
       statusText: { ...styles.statusText, color: '#75d995' },
       statusTextError: { ...styles.statusTextError, color: '#ff8b86' },
       statusTextWarning: { ...styles.statusTextWarning, color: '#f0ba72' },
@@ -251,7 +228,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
+  listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
   pageHeader: { paddingHorizontal: 20, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   headerCopy: { flex: 1, minWidth: 0 },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },
@@ -273,9 +250,6 @@ const styles = StyleSheet.create({
   statusTextError: { color: '#c2413b' },
   statusTextWarning: { color: '#b76b11' },
   propertyAddress: { color: '#697887', fontSize: 13, lineHeight: 18 },
-  propertyMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  propertyMeta: { color: '#697887', fontSize: 12, lineHeight: 17 },
-  propertyRent: { color: '#2475cf', fontSize: 12, lineHeight: 17, fontWeight: '900' },
   attentionRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   attentionText: { color: '#c2413b', fontSize: 12, lineHeight: 16, fontWeight: '700' },
   emptyContainer: { paddingVertical: 46, alignItems: 'center' },

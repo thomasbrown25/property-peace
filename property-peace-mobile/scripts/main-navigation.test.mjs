@@ -64,26 +64,23 @@ test('landlord dock resolves four destination components', () => {
   assert.equal(tabs.find((tab) => tab.name === 'Messages')?.component, 'messages-navigator');
 });
 
-test('quick-action plus occupies the center of both landlord and tenant docks', async () => {
-  assert.equal(loadError, undefined);
-  assert.equal(dockSplitIndex(visibleMainTabsForAudience('landlord').length), 2);
-  assert.equal(dockSplitIndex(visibleMainTabsForAudience('tenant').length), 2);
+test('More occupies the rightmost dock slot without the quick-action plus', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
-  assert.match(sheet, /visibleRoutes\.slice\(0, midpoint\)\.map\(renderTab\)[\s\S]*styles\.plusButton[\s\S]*visibleRoutes\.slice\(midpoint\)\.map\(renderTab\)/);
-  assert.match(sheet, /position: 'absolute', left: 16, right: 16/);
+  assert.match(sheet, /visibleRoutes\.map\(renderTab\)[\s\S]*accessibilityLabel="More"/);
+  assert.doesNotMatch(sheet, /plusButton|styles\.plusButton|accessibilityLabel="Quick actions"/);
   assert.match(sheet, /rgba\(34, 47, 62, 0\.82\)/);
-  assert.match(sheet, /Animated\.spring\(spin/);
 });
 
-test('quick-action sheet keeps landlord destinations and tenant actions scoped', async () => {
+test('scrollable More menu preserves native routes and labels web-only destinations', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
-  const dashboard = await readFile(new URL('../src/screens/landlord/DashboardScreen.tsx', import.meta.url), 'utf8');
-  for (const destination of ['AddProperty', 'AddExpense', 'AddTenant', 'ChecklistPropertySearch', 'Leases']) {
-    assert.match(sheet, new RegExp(`screen: '${destination}'|navigate\\('${destination}'\\)`));
+  for (const destination of ['Leases', 'Checklists', 'Tenants', 'Notifications', 'Settings']) {
+    assert.match(sheet, new RegExp(`route: '${destination}'`));
   }
-  assert.match(sheet, /TenantMaintenanceIntake/);
-  assert.match(sheet, /audience === 'landlord'/);
+  assert.match(sheet, /webPath: '\/landlord\/listings'/);
+  assert.match(sheet, /webPath: '\/tenant\/lease'/);
+  assert.match(sheet, /webAppUrl[\s\S]*api\.propertypeace\.io/);
+  assert.match(sheet, /<ScrollView[^>]*showsVerticalScrollIndicator/);
   assert.match(sheet, /<Modal visible={open} transparent animationType="none"/);
   assert.match(sheet, /<Pressable style={styles.backdrop}/);
   assert.match(sheet, /<Animated.View style=\{\[styles.sheet,[\s\S]*transform: \[\{ translateY: sheetOffset \}\]/);
@@ -91,5 +88,4 @@ test('quick-action sheet keeps landlord destinations and tenant actions scoped',
   assert.doesNotMatch(sheet, /animationType="slide"/);
   assert.match(sheet, /Math\.max\(insets\.bottom/);
   assert.match(navigator, /name="Checklists" component={ChecklistsNavigator}/);
-  assert.doesNotMatch(dashboard, /quickActionsOpen|QuickAction|Quick actions/);
 });

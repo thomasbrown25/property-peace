@@ -54,7 +54,6 @@ const firstNumber = (...values: any[]) => {
 const read = (item: any, camel: string, pascal: string) => item?.[camel] ?? item?.[pascal];
 const getUnits = (property: Property) => property.units || property.Units || [];
 const getUnitStatus = (unit: any) => firstString(unit.status, unit.Status).toLowerCase();
-const getLease = (unit: any) => unit.lease || unit.Lease || unit.activeLease || unit.ActiveLease;
 const getPropertyId = (property: Property) => String(property.id ?? property.Id ?? '');
 const getRequestId = (request: MaintenanceRequest) => String(request.id ?? request.Id ?? '');
 
@@ -232,35 +231,10 @@ export default function DashboardScreen() {
   const profileImageUrl = firstString(currentUser?.ProfileImageUrl, currentUser?.profileImageUrl);
   const avatarLabel = firstName.slice(0, 1).toUpperCase();
 
-  const portfolio = useMemo(() => {
-    const activeProperties = scopedProperties.filter((property: any) => property.isActive !== false && property.IsActive !== false);
-    const units = activeProperties.flatMap(getUnits);
-    const occupied = units.filter((unit: any) => ['occupied', 'overdue'].includes(getUnitStatus(unit))).length;
-    const vacant = Math.max(units.length - occupied, 0);
-    const monthlyRent = units.reduce((total: number, unit: any) => {
-      const lease = getLease(unit);
-      return total + firstNumber(lease?.rentAmount, lease?.RentAmount, unit.rentAmount, unit.RentAmount);
-    }, 0);
-    const attentionPropertyIds = new Set<string>();
-    activeProperties.forEach((property: any) => {
-      if (getUnits(property).some((unit: any) => getUnitStatus(unit) === 'overdue')) attentionPropertyIds.add(getPropertyId(property));
-    });
-    scopedMaintenance.filter(isOpenMaintenance).forEach((request) => {
-      const propertyId = String(read(request, 'propertyId', 'PropertyId') ?? '');
-      if (propertyId) attentionPropertyIds.add(propertyId);
-    });
-    return {
-      properties: activeProperties.length,
-      units: units.length,
-      occupied,
-      vacant,
-      occupancy: units.length ? Math.round((occupied / units.length) * 100) : 0,
-      monthlyRent,
-      needsAttention: attentionPropertyIds.size,
-      openMaintenance: scopedMaintenance.filter(isOpenMaintenance).length,
-      unreadNotifications: scopedNotifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
-    };
-  }, [scopedMaintenance, scopedNotifications, scopedProperties]);
+  const portfolio = useMemo(() => ({
+    openMaintenance: scopedMaintenance.filter(isOpenMaintenance).length,
+    unreadNotifications: scopedNotifications.filter((item: any) => item.isRead === false || item.IsRead === false).length,
+  }), [scopedMaintenance, scopedNotifications]);
 
   const unreadMessages = scopedConversations.reduce((total, conversation) =>
     total + (conversation.isArchived ? 0 : Math.max(0, Number(conversation.unreadCount) || 0)), 0);
@@ -376,7 +350,7 @@ export default function DashboardScreen() {
       )}
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 126 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadDashboard(); }} tintColor={colors.accent} />}
       >
@@ -527,27 +501,6 @@ export default function DashboardScreen() {
 
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>Portfolio</Text>
-            <TouchableOpacity style={styles.cardLink} onPress={() => navigation.navigate('Properties', { screen: 'PropertiesList' })}>
-              <Text style={styles.cardLinkText}>View properties</Text>
-              <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
-            </TouchableOpacity>
-          </View>
-          {scopedPropertiesStatus === 'error' ? (
-            <SectionError text="Portfolio details are unavailable." onRetry={loadDashboard} />
-          ) : scopedPropertiesStatus === 'loading' ? (
-            <CardLoading />
-          ) : (
-            <View style={styles.portfolioList}>
-              <PortfolioMetric icon="home-outline" label="Portfolio occupancy" value={`${portfolio.occupancy}%`} helper={`${portfolio.occupied} of ${portfolio.units} units occupied`} color="#2f8f46" background="#edf8f0" />
-              <PortfolioMetric icon="business-outline" label="Vacant units" value={String(portfolio.vacant)} helper={`Across ${portfolio.properties} active ${portfolio.properties === 1 ? 'property' : 'properties'}`} color="#b76a11" background="#fff7e8" />
-              <PortfolioMetric icon="cash-outline" label="Monthly rent" value={formatMoney(portfolio.monthlyRent)} helper="Scheduled rent, not collections" color="#2475cf" background="#eaf3ff" isLast />
-            </View>
-          )}
-        </DashboardSection>
-
-        <DashboardSection borderless>
-          <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardEyebrow}>RECENT</Text>
               <Text style={styles.cardTitle}>Activity</Text>
@@ -596,21 +549,6 @@ function ProfileAction({ icon, label, onPress, destructive }: { icon: keyof type
       <Ionicons name={icon} size={20} color={destructive ? (mode === 'dark' ? '#ff8b86' : '#c2413b') : (mode === 'dark' ? colors.text : '#20394d')} />
       <Text style={[styles.profileActionText, destructive && styles.destructiveText]}>{label}</Text>
     </TouchableOpacity>
-  );
-}
-
-function PortfolioMetric({ icon, label, value, helper, color, background, isLast = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; helper: string; color: string; background: string; isLast?: boolean }) {
-  const styles = useScreenStyles();
-  const { mode } = useAppTheme();
-  return (
-    <View style={[styles.portfolioMetric, isLast && styles.lastRow]}>
-      <View style={[styles.portfolioIcon, { backgroundColor: mode === 'dark' ? '#294052' : background }]}><Ionicons name={icon} size={18} color={mode === 'dark' ? ({ '#2f8f46': '#75d995', '#b76a11': '#f0ba72', '#2475cf': '#72b6ff', '#c2413b': '#ff8b86' } as Record<string, string>)[color] || color : color} /></View>
-      <View style={styles.portfolioMetricCopy}>
-        <Text style={styles.portfolioLabel}>{label}</Text>
-        <Text style={styles.portfolioHelper}>{helper}</Text>
-      </View>
-      <Text style={styles.portfolioValue}>{value}</Text>
-    </View>
   );
 }
 
@@ -718,10 +656,6 @@ function useScreenStyles() {
       cardEyebrow: { ...styles.cardEyebrow, color: '#75d995' },
       cardTitle: { ...styles.cardTitle, color: colors.text },
       cardLinkText: { ...styles.cardLinkText, color: colors.muted },
-      portfolioMetric: { ...styles.portfolioMetric, borderBottomColor: colors.border },
-      portfolioLabel: { ...styles.portfolioLabel, color: colors.text },
-      portfolioValue: { ...styles.portfolioValue, color: colors.text },
-      portfolioHelper: { ...styles.portfolioHelper, color: colors.muted },
       maintenanceRow: { ...styles.maintenanceRow, borderBottomColor: colors.border },
       maintenanceTitle: { ...styles.maintenanceTitle, color: colors.text },
       maintenanceLocation: { ...styles.maintenanceLocation, color: colors.muted },
@@ -818,13 +752,6 @@ const styles = StyleSheet.create({
   cardTitleWithIcon: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   cardLink: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 8 },
   cardLinkText: { color: '#647585', fontSize: 12, fontWeight: '800' },
-  portfolioList: {},
-  portfolioMetric: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
-  portfolioMetricCopy: { flex: 1, minWidth: 0 },
-  portfolioLabel: { color: '#102d43', fontSize: 14, lineHeight: 19, fontWeight: '800' },
-  portfolioIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  portfolioValue: { color: '#102d43', fontSize: 20, lineHeight: 26, fontWeight: '900', textAlign: 'right' },
-  portfolioHelper: { color: '#6d7c88', fontSize: 11, lineHeight: 16, marginTop: 3 },
   maintenanceRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#e9edf0' },
   maintenanceCopy: { flex: 1, minWidth: 0 },
   maintenanceTitle: { color: '#102d43', fontSize: 14, fontWeight: '900' },
