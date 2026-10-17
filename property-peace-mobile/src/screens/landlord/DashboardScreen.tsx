@@ -70,7 +70,7 @@ const isOpenMaintenance = (request: MaintenanceRequest) => {
 };
 
 const requestTime = (request: MaintenanceRequest) => {
-  const raw = read(request, 'createdAt', 'CreatedAt') || read(request, 'createdAtUtc', 'CreatedAtUtc');
+  const raw = read(request, 'createdAtUtc', 'CreatedAtUtc') || read(request, 'createdAt', 'CreatedAt');
   const time = raw ? new Date(raw).getTime() : 0;
   return Number.isNaN(time) ? 0 : time;
 };
@@ -617,13 +617,14 @@ function PortfolioMetric({ icon, label, value, helper, color, background, isLast
 function MaintenanceRow({ request, isLast, onPress }: { request: MaintenanceRequest; isLast: boolean; onPress: () => void }) {
   const styles = useScreenStyles();
   const title = firstString(request.title, request.Title, 'Maintenance request');
-  const property = firstString(request.propertyName, request.PropertyName, request.location, request.Location, 'Portfolio request');
+  const createdAt = requestTime(request);
+  const createdDate = createdAt ? new Date(createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unavailable';
   const status = displayStatus(request.status ?? request.Status);
   return (
     <TouchableOpacity style={[styles.maintenanceRow, isLast && styles.lastRow]} onPress={onPress} accessibilityLabel={`Open maintenance request ${title}`}>
       <View style={styles.maintenanceCopy}>
         <Text style={styles.maintenanceTitle} numberOfLines={1}>{title}</Text>
-        <Text style={styles.maintenanceLocation} numberOfLines={1}>{property}</Text>
+        <Text style={styles.maintenanceLocation} numberOfLines={1}>Created {createdDate}</Text>
       </View>
       <View style={styles.statusChip}><Text style={styles.statusChipText}>{status}</Text></View>
     </TouchableOpacity>
