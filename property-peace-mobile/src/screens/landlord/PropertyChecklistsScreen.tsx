@@ -17,6 +17,7 @@ import LeaseAPI, { Lease } from '../../api/leaseAPI';
 import { buildConditionCycles } from '../../features/checklists/checklistModel';
 import { activeLeaseScope, buildChecklistOverviewCards, checklistHistoryScope, isChecklistStarted, selectChecklistLease } from '../../features/checklists/checklistOverviewModel';
 import { startChecklistCycle } from '../../features/checklists/checklistWorkflow';
+import { checklistSummary, recentPropertyChecklists } from '../../features/checklists/recentPropertyChecklists';
 import type { Checklist, ChecklistCycle } from '../../features/checklists/checklistTypes';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -52,6 +53,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
       setRefreshing(false);
     }
 
+    if (home.propertyWide) return;
     try {
       const leaseScope = activeLeaseScope(home);
       const lease = leaseScope.scope === 'unit'
@@ -113,6 +115,43 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
   };
 
   if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
+
+  if (home.propertyWide) {
+    const history = recentPropertyChecklists(checklists, home.propertyId);
+    return (
+      <FlatList
+        style={themed.container}
+        contentContainerStyle={themed.content}
+        data={history}
+        keyExtractor={(item, index) => String(item.id ?? index)}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
+        ListHeaderComponent={<View>
+          <Text style={themed.eyebrow}>PROPERTY CHECKLISTS</Text>
+          <Text style={themed.title}>{home.propertyName}</Text>
+          <Text style={[themed.subtitle, { marginBottom: 18 }]}>All inspections for this property</Text>
+          <TouchableOpacity style={[themed.primaryButton, { marginBottom: 18 }]} onPress={() => navigation.navigate('ChecklistPropertySearch', { preselectedPropertyId: home.propertyId })} accessibilityRole="button">
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={themed.primaryText}>Start or continue an inspection</Text>
+          </TouchableOpacity>
+          {!!error && <TouchableOpacity style={themed.errorCard} onPress={load} accessibilityRole="button"><Text style={themed.errorText}>{error} Tap to retry.</Text></TouchableOpacity>}
+        </View>}
+        renderItem={({ item }) => (
+          <TouchableOpacity style={themed.cycleCard} onPress={() => item.id != null && navigation.navigate('ChecklistEditor', {
+            propertyId: home.propertyId,
+            propertyName: home.propertyName,
+            propertyType: home.propertyType,
+            unitId: item.unitId == null ? undefined : String(item.unitId),
+            unitName: item.unitName,
+            checklistId: String(item.id),
+          })} accessibilityRole="button" disabled={item.id == null}>
+            <Text style={themed.sideTitle}>{item.title || item.checklistTypeName || 'Checklist'}</Text>
+            <Text style={themed.sideMeta}>{checklistSummary(item)}</Text>
+          </TouchableOpacity>
+        )}
+        ListEmptyComponent={!error ? <Text style={themed.emptyText}>No checklists for this property yet.</Text> : null}
+      />
+    );
+  }
 
   const renderCycle = ({ item, index }: { item: ReturnType<typeof buildChecklistOverviewCards>[number]; index: number }) => {
     const cycle: ChecklistCycle = cycles[index];

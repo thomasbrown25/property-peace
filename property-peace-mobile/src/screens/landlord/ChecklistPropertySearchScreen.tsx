@@ -46,8 +46,9 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
     try {
       const loaded = await PropertyAPI.getProperties();
       setProperties(loaded);
-      setSelectedProperty((current) => current
-        ?? findPreselectedProperty(loaded, route.params?.preselectedPropertyId));
+      setSelectedProperty((current) => route.params?.preselectedPropertyId
+        ? findPreselectedProperty(loaded, route.params.preselectedPropertyId)
+        : current && loaded.find((property) => propertyId(property) === propertyId(current)) || null);
       setError('');
     } catch (loadError: any) {
       setError(loadError?.message || 'Properties could not be loaded.');

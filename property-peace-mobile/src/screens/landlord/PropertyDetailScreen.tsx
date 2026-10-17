@@ -22,7 +22,8 @@ import type { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { forProperty } from '../../features/maintenance/propertyMaintenanceScope';
 import { collectionPayload } from '../../features/rentCollection/collectionPayload';
 import { propertyOpenRepairs, propertyRentDue } from '../../features/properties/propertyOverview';
-import { buildPropertyChecklistEntry } from '../../features/checklists/checklistNavigationModel';
+import { buildPropertyChecklistEntry, buildPropertyChecklistHistoryEntry } from '../../features/checklists/checklistNavigationModel';
+import { checklistSummary, recentPropertyChecklists } from '../../features/checklists/recentPropertyChecklists';
 import { useAppTheme } from '../../theme/AppTheme';
 type PropertyDetailRoute = RouteProp<PropertiesStackParamList, 'PropertyDetail'>;
 
@@ -111,6 +112,7 @@ export default function PropertyDetailScreen() {
   }, [property]);
 
   const pendingChecklists = checklists?.filter(item => !item.isCompleted && !item.completedAt) ?? [];
+  const recentChecklists = recentPropertyChecklists(checklists ?? [], String(propertyId)).slice(0, 10);
 
   useEffect(() => {
     navigation.setOptions({ title: details?.name || 'Property' });
@@ -208,13 +210,19 @@ export default function PropertyDetailScreen() {
       </View>}
 
       {visibleTab === 'checklists' && <View style={styles.checklistPanel}>
-        {checklists === null ? <Text style={styles.activityMeta}>Checklists unavailable · Pull to retry</Text> : pendingChecklists.length === 0 ? <Text style={styles.activityMeta}>No checklists due or in progress</Text> : pendingChecklists.map((item, index) => (
-          <TouchableOpacity key={String(item.id ?? index)} style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))}>
+        <View style={styles.checklistHeader}>
+          <Text style={styles.checklistHeading}>Recent checklists</Text>
+          <TouchableOpacity style={styles.viewAllButton} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistHistoryEntry(property))} accessibilityRole="button" accessibilityLabel="View all checklists for this property">
+            <Text style={styles.viewAllText}>View all</Text>
+            <Ionicons name="arrow-forward" size={17} color={mode === 'dark' ? '#72b6ff' : '#2475cf'} />
+          </TouchableOpacity>
+        </View>
+        {checklists === null ? <Text style={styles.activityMeta}>Checklists unavailable · Pull to retry</Text> : recentChecklists.length === 0 ? <Text style={styles.activityMeta}>No checklists for this property yet</Text> : recentChecklists.map((item, index) => (
+          <TouchableOpacity key={String(item.id ?? index)} style={styles.activityRow} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistHistoryEntry(property))} accessibilityRole="button">
             <Text style={styles.activityTitle}>{item.title || item.checklistTypeName || 'Checklist'}</Text>
-            <Text style={styles.activityMeta}>{item.inspectionDate && String(item.inspectionDate).slice(0, 10) <= new Date().toISOString().slice(0, 10) ? 'Due' : 'In progress'}{item.unitName ? ` · ${item.unitName}` : ''}</Text>
+            <Text style={styles.activityMeta}>{checklistSummary(item)}</Text>
           </TouchableOpacity>
         ))}
-        <ActionRow icon="clipboard-outline" title="View all checklists" subtitle="Manage inspections and view history" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
       </View>}
 
       {visibleTab === 'actions' && <View style={styles.actionList}>
@@ -319,7 +327,7 @@ const lightStyles = StyleSheet.create({
   heroBody: { paddingTop: 20 },
   eyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, marginBottom: 4 },
   title: { color: '#102d43', fontSize: 29, lineHeight: 35, fontWeight: '900', letterSpacing: -0.7 },
-  address: { color: '#516576', fontSize: 15, lineHeight: 21, marginTop: 6 },
+  address: { color: '#516576', fontSize: 15, fontWeight: 'bold', lineHeight: 21, marginTop: 6 },
   propertyType: { color: '#71808d', fontSize: 14, lineHeight: 20 },
   propertyFacts: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 10 },
   propertyFact: { color: '#516576', fontSize: 13, lineHeight: 19 },
@@ -332,6 +340,10 @@ const lightStyles = StyleSheet.create({
   sectionTitle: { color: '#102d43', fontSize: 21, fontWeight: '900', letterSpacing: -0.3, marginBottom: 12 },
   actionList: { marginBottom: 30 },
   checklistPanel: { paddingTop: 16, paddingBottom: 24 },
+  checklistHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  checklistHeading: { color: '#102d43', fontSize: 17, fontWeight: '800', flex: 1 },
+  viewAllButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8 },
+  viewAllText: { color: '#2475cf', fontSize: 14, fontWeight: '800' },
   actionRow: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 14, borderBottomWidth: 1, borderBottomColor: '#e2e7e9', paddingVertical: 12 },
   actionIcon: { width: 48, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   actionCopy: { flex: 1, minWidth: 0 },
@@ -371,6 +383,8 @@ const darkStyles = StyleSheet.create({
   paymentEmpty: { ...lightStyles.paymentEmpty, color: '#b4c3d0' },
   tabs: { ...lightStyles.tabs, backgroundColor: '#101923', borderBottomColor: '#35495b' },
   activityRow: { ...lightStyles.activityRow, borderBottomColor: '#35495b' },
+  checklistHeading: { ...lightStyles.checklistHeading, color: '#f2f6fa' },
+  viewAllText: { ...lightStyles.viewAllText, color: '#72b6ff' },
   activityTitle: { ...lightStyles.activityTitle, color: '#f2f6fa' },
   activityMeta: { ...lightStyles.activityMeta, color: '#b4c3d0' },
   activeTab: { ...lightStyles.activeTab, borderBottomColor: '#72b6ff' },

@@ -23,6 +23,7 @@ import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 import ConversationAPI from '../../api/conversationAPI';
 import { ConversationSummary } from '../../features/messages/messagesModel';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
+import { propertyOverdueAmounts } from '../../features/rentCollection/propertyOverdue';
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
 import { paymentActivityTone } from '../../features/notifications/paymentActivityTone';
@@ -54,15 +55,14 @@ const firstNumber = (...values: any[]) => {
 };
 
 const read = (item: any, camel: string, pascal: string) => item?.[camel] ?? item?.[pascal];
-const getUnits = (property: Property) => property.units || property.Units || [];
-const getUnitStatus = (unit: any) => firstString(unit.status, unit.Status).toLowerCase();
 const getPropertyId = (property: Property) => String(property.id ?? property.Id ?? '');
 const getRequestId = (request: MaintenanceRequest) => String(request.id ?? request.Id ?? '');
 
 const formatMoney = (value: number) => new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
-  maximumFractionDigits: 0,
+  minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+  maximumFractionDigits: 2,
 }).format(value || 0);
 
 const isOpenMaintenance = (request: MaintenanceRequest) => {
@@ -111,6 +111,7 @@ export default function DashboardScreen() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
+  const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [propertiesStatus, setPropertiesStatus] = useState<LoadStatus>('loading');
   const [maintenanceStatus, setMaintenanceStatus] = useState<LoadStatus>('loading');
@@ -144,6 +145,7 @@ export default function DashboardScreen() {
     setNotifications([]);
     setConversations([]);
     setRentMetrics({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
+    setOverdueByProperty(null);
     setPropertiesStatus('loading');
     setMaintenanceStatus('loading');
     setNotificationsStatus('loading');
@@ -190,8 +192,10 @@ export default function DashboardScreen() {
     }
     if (results[3].status === 'fulfilled') {
       setRentMetrics(normalizeRentMetrics(results[3].value));
+      setOverdueByProperty(propertyOverdueAmounts(results[3].value));
       setRentStatus('success');
     } else {
+      setOverdueByProperty(null);
       setRentStatus('error');
     }
     if (results[4].status === 'fulfilled') {
@@ -225,6 +229,7 @@ export default function DashboardScreen() {
   const scopedRentMetrics = dashboardScopeIsCurrent
     ? rentMetrics
     : { expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 };
+  const scopedOverdueByProperty = dashboardScopeIsCurrent ? overdueByProperty : null;
   const scopedPropertiesStatus: LoadStatus = dashboardScopeIsCurrent ? propertiesStatus : 'loading';
   const scopedMaintenanceStatus: LoadStatus = dashboardScopeIsCurrent ? maintenanceStatus : 'loading';
   const scopedNotificationsStatus: LoadStatus = dashboardScopeIsCurrent ? notificationsStatus : 'loading';
@@ -257,38 +262,27 @@ export default function DashboardScreen() {
   const unreadMessages = scopedConversations.reduce((total, conversation) =>
     total + (conversation.isArchived ? 0 : Math.max(0, Number(conversation.unreadCount) || 0)), 0);
   const attentionProperties = useMemo(() => {
-    if (scopedPropertiesStatus !== 'success' || scopedMaintenanceStatus !== 'success' || scopedConversationsStatus !== 'success') return [];
+    if (scopedPropertiesStatus !== 'success' || scopedMaintenanceStatus !== 'success' || scopedRentStatus !== 'success' || !scopedOverdueByProperty) return [];
     const repairsByProperty = new Map<string, number>();
     scopedMaintenance.filter(isOpenMaintenance).forEach((request) => {
       const id = String(read(request, 'propertyId', 'PropertyId') ?? '');
       if (id) repairsByProperty.set(id, (repairsByProperty.get(id) || 0) + 1);
     });
-    const messagesByProperty = new Map<string, number>();
-    scopedConversations.forEach((conversation) => {
-      if (conversation.isArchived) return;
-      const id = String(conversation.propertyId ?? '');
-      const unread = Math.max(0, Number(conversation.unreadCount) || 0);
-      if (id && unread) messagesByProperty.set(id, (messagesByProperty.get(id) || 0) + unread);
-    });
     return scopedProperties.flatMap((property) => {
       if (property.isActive === false || property.IsActive === false) return [];
       const id = getPropertyId(property);
       if (!id) return [];
-      const overdueUnits = getUnits(property).filter((unit: any) => getUnitStatus(unit) === 'overdue').length;
       const openRepairs = repairsByProperty.get(id) || 0;
-      const unread = messagesByProperty.get(id) || 0;
-      return overdueUnits || openRepairs || unread ? [{
+      const overdueAmount = scopedOverdueByProperty.get(id) || 0;
+      return [{
         property,
         name: firstString(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed property'),
-        overdueUnits,
+        overdueAmount,
         openRepairs,
-        unread,
-        reason: [overdueUnits ? `${overdueUnits} overdue ${overdueUnits === 1 ? 'unit' : 'units'}` : '',
-          `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}`,
-          `${unread} unread ${unread === 1 ? 'message' : 'messages'}`].filter(Boolean).join(' · '),
-      }] : [];
+        reason: `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'} · ${overdueAmount > 0 ? `${formatMoney(overdueAmount)} overdue rent` : 'Paid'}`,
+      }];
     }).slice(0, 5);
-  }, [scopedProperties, scopedMaintenance, scopedConversations, scopedPropertiesStatus, scopedMaintenanceStatus, scopedConversationsStatus]);
+  }, [scopedProperties, scopedMaintenance, scopedOverdueByProperty, scopedPropertiesStatus, scopedMaintenanceStatus, scopedRentStatus]);
 
   const collectionPct = scopedRentMetrics.expected > 0
     ? Math.min(Math.max((scopedRentMetrics.collected / scopedRentMetrics.expected) * 100, 0), 100)
@@ -471,24 +465,23 @@ export default function DashboardScreen() {
               <Ionicons name="arrow-forward" size={14} color={mode === 'dark' ? colors.muted : '#647585'} />
             </TouchableOpacity>
           </View>
-          {scopedPropertiesStatus === 'error' || scopedMaintenanceStatus === 'error' || scopedConversationsStatus === 'error' ? (
-            <SectionError text="Properties to check are unavailable." onRetry={loadDashboard} />
-          ) : scopedPropertiesStatus === 'loading' || scopedMaintenanceStatus === 'loading' || scopedConversationsStatus === 'loading' ? (
+          {scopedPropertiesStatus === 'error' || scopedMaintenanceStatus === 'error' || scopedRentStatus === 'error' || (scopedRentStatus === 'success' && !scopedOverdueByProperty) ? (
+            <SectionError text="Property rent balances are unavailable." onRetry={loadDashboard} />
+          ) : scopedPropertiesStatus === 'loading' || scopedMaintenanceStatus === 'loading' || scopedRentStatus === 'loading' ? (
             <CardLoading />
           ) : attentionProperties.length === 0 ? (
-            <Text style={styles.rentEmpty}>No properties need checking right now.</Text>
+            <Text style={styles.rentEmpty}>No active properties yet.</Text>
           ) : attentionProperties.map((item) => (
             <TouchableOpacity key={getPropertyId(item.property)} style={styles.attentionProperty} onPress={() => navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: getPropertyId(item.property) } })} accessibilityRole="button" accessibilityLabel={`View ${item.name}, ${item.reason}`}>
               <View style={styles.attentionCopy}>
                 <Text style={styles.attentionName} numberOfLines={1}>{item.name}</Text>
                 <Text style={styles.attentionReason}>
-                  {item.overdueUnits > 0 && <>{item.overdueUnits} overdue {item.overdueUnits === 1 ? 'unit' : 'units'}{' · '}</>}
                   <Text style={item.openRepairs > 0 ? styles.todayRepairAttention : undefined}>
                     {item.openRepairs} open {item.openRepairs === 1 ? 'repair' : 'repairs'}
                   </Text>
                   {' · '}
-                  <Text style={item.unread > 0 ? styles.todayUnreadAttention : undefined}>
-                    {item.unread} unread {item.unread === 1 ? 'message' : 'messages'}
+                  <Text style={item.overdueAmount > 0 ? styles.rentOverdue : styles.propertyPaid}>
+                    {item.overdueAmount > 0 ? `${formatMoney(item.overdueAmount)} overdue rent` : 'Paid'}
                   </Text>
                 </Text>
               </View>
@@ -676,6 +669,7 @@ function useScreenStyles() {
       rentDetailLabel: { ...styles.rentDetailLabel, color: colors.muted },
       rentDetailValue: { ...styles.rentDetailValue, color: colors.text },
       rentOverdue: { ...styles.rentOverdue, color: '#ff8b86' },
+      propertyPaid: { ...styles.propertyPaid, color: '#75d995' },
       attentionProperty: { ...styles.attentionProperty, borderBottomColor: colors.border },
       attentionName: { ...styles.attentionName, color: colors.text },
       attentionReason: { ...styles.attentionReason, color: colors.muted },
@@ -765,6 +759,7 @@ const styles = StyleSheet.create({
   rentDetailLabel: { color: '#536777', fontSize: 12 },
   rentDetailValue: { color: '#102d43', fontSize: 14, fontWeight: '900' },
   rentOverdue: { color: '#c2413b' },
+  propertyPaid: { color: '#2f8f46' },
   attentionProperty: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e9edf0', paddingVertical: 12 },
   attentionCopy: { flex: 1, minWidth: 0 },
   attentionName: { color: '#061e35', fontSize: 16, fontWeight: '800' },

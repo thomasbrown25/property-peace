@@ -8,6 +8,6 @@ export type ChecklistHomeParams = {
 
 export type ChecklistsStackParamList = {
   ChecklistPropertySearch: { preselectedPropertyId?: string } | undefined;
-  PropertyChecklists: ChecklistHomeParams;
+  PropertyChecklists: ChecklistHomeParams & { propertyWide?: boolean };
   ChecklistEditor: ChecklistHomeParams & { checklistId: string };
 };
