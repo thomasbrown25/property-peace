@@ -53,11 +53,13 @@ const webAppUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.replace(/\/$/, '')
   || (process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') === 'https://api.propertypeace.io'
     ? 'https://app.propertypeace.io' : undefined);
 
-function AnimatedTab({ label, icon, selected, mode, onPress, onLongPress }: {
+function AnimatedTab({ label, icon, selected, mode, accent, selectedForeground, onPress, onLongPress }: {
   label: string;
   icon: ReturnType<typeof mainTabIconNames>;
   selected: boolean;
   mode: string;
+  accent: string;
+  selectedForeground: string;
   onPress: () => void;
   onLongPress: () => void;
 }) {
@@ -68,10 +70,10 @@ function AnimatedTab({ label, icon, selected, mode, onPress, onLongPress }: {
     Animated.spring(scale, { toValue: 1, friction: 5, tension: 210, useNativeDriver: true }).start();
     onPress();
   };
-  const color = selected ? '#fff' : (mode === 'dark' ? '#b4c3d0' : '#385369');
+  const color = selected ? selectedForeground : (mode === 'dark' ? '#b4c3d0' : '#385369');
   return (
     <Pressable
-      style={[styles.tab, selected && styles.selectedTab]}
+      style={[styles.tab, selected && { backgroundColor: accent }]}
       accessibilityRole="tab"
       accessibilityState={{ selected }}
       accessibilityLabel={label}
@@ -134,16 +136,22 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         icon={icon}
         selected={selected}
         mode={mode}
+        accent={colors.accent}
+        selectedForeground={mode === 'dark' ? colors.background : '#fff'}
         onPress={() => {
           if (open) hideSheet();
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (event.defaultPrevented) return;
-          // Switching tabs preserves each tab's stack and scroll. Re-tapping the active tab
-          // returns to its root; useTabScrollReset handles the root's saved offset.
-          if (selected && (route.state?.index ?? 0) > 0 && route.state?.key) {
+          // Properties always opens its list, even when returning from another tab
+          // whose Properties stack was left on a detail page.
+          if (route.name === 'Properties' && route.state?.key) {
+            navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
+          } else if (selected && (route.state?.index ?? 0) > 0 && route.state?.key) {
             navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
           }
-          if (!selected) navigation.navigate(route.name);
+          if (route.name === 'Properties' && !route.state?.key) {
+            navigation.navigate('Properties', { screen: 'PropertiesList' });
+          } else if (!selected) navigation.navigate(route.name);
         }}
         onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
       />
@@ -159,11 +167,11 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
           accessibilityLabel="More"
           accessibilityHint="Opens the rest of the navigation menu"
           accessibilityState={{ expanded: open, selected: moreSelected }}
-          style={[styles.tab, (moreSelected || open) && styles.selectedTab]}
+          style={[styles.tab, (moreSelected || open) && { backgroundColor: colors.accent }]}
           onPress={showSheet}
         >
-          <Ionicons name="menu-outline" size={22} color={(moreSelected || open) ? '#fff' : mode === 'dark' ? '#b4c3d0' : '#385369'} />
-          <Text style={[styles.tabText, { color: (moreSelected || open) ? '#fff' : mode === 'dark' ? '#b4c3d0' : '#385369' }]}>More</Text>
+          <Ionicons name="menu-outline" size={22} color={(moreSelected || open) ? (mode === 'dark' ? colors.background : '#fff') : mode === 'dark' ? '#b4c3d0' : '#385369'} />
+          <Text style={[styles.tabText, { color: (moreSelected || open) ? (mode === 'dark' ? colors.background : '#fff') : mode === 'dark' ? '#b4c3d0' : '#385369' }]}>More</Text>
         </Pressable>
       </View>
       <Modal visible={open} transparent animationType="none" onShow={() => {
@@ -217,7 +225,6 @@ const styles = StyleSheet.create({
   dockArea: { paddingHorizontal: 16, zIndex: 10 },
   pill: { minHeight: 72, borderRadius: 38, borderWidth: 1, padding: 5, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
   tab: { flex: 1, minWidth: 0, minHeight: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  selectedTab: { backgroundColor: '#061e35' },
   tabContent: { alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },

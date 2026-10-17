@@ -161,7 +161,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
         <ChecklistSide
           side={item.moveIn}
           checklist={cycle.moveIn}
-          accent="#2475cf"
+          kind="move-in"
           starting={startingKey === `${item.id}-in`}
           onOpen={() => cycle.moveIn && openEditor(cycle.moveIn)}
           onStart={() => cycle.moveIn
@@ -172,7 +172,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
         <ChecklistSide
           side={item.moveOut}
           checklist={cycle.moveOut}
-          accent="#c17620"
+          kind="move-out"
           starting={startingKey === `${item.id}-out`}
           onOpen={() => cycle.moveOut && openEditor(cycle.moveOut)}
           onStart={() => cycle.moveOut
@@ -229,35 +229,36 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
 function ChecklistSide({
   side,
   checklist,
-  accent,
+  kind,
   starting,
   onOpen,
   onStart,
 }: {
   side: ReturnType<typeof buildChecklistOverviewCards>[number]['moveIn'];
   checklist: Checklist | null;
-  accent: string;
+  kind: 'move-in' | 'move-out';
   starting: boolean;
   onOpen: () => void;
   onStart: () => void;
 }) {
   const { mode } = useAppTheme();
   const themed = mode === 'dark' ? darkStyles : styles;
-  const displayAccent = mode === 'dark' ? (accent === '#2475cf' ? '#72b6ff' : '#f0b669') : accent;
+  const displayAccent = mode === 'dark' ? '#72b6ff' : '#2475cf';
+  const completeAccent = mode === 'dark' ? '#86dc9a' : '#2f8f46';
   const started = checklist ? isChecklistStarted(checklist) : false;
   const action = side && started ? onOpen : onStart;
   return (
     <View style={themed.side}>
-      <View style={[themed.sideIcon, { backgroundColor: `${displayAccent}18` }]}><Ionicons name={side?.complete ? 'checkmark' : 'walk-outline'} size={21} color={displayAccent} /></View>
+      <View style={[themed.sideIcon, { backgroundColor: `${side?.complete ? completeAccent : displayAccent}18` }]}><Ionicons name={side?.complete ? 'checkmark' : 'walk-outline'} size={21} color={side?.complete ? completeAccent : displayAccent} /></View>
       <View style={themed.flex}>
         <View style={themed.sideTop}>
-          <Text style={[themed.sideLabel, { color: displayAccent }]}>{side?.label || (accent === '#2475cf' ? 'Move-in' : 'Move-out')}</Text>
-          {!!side && <Text style={themed.progress}>{side.complete ? 'Complete' : `${side.percent}%`}</Text>}
+          <Text style={[themed.sideLabel, { color: displayAccent }]}>{side?.label || (kind === 'move-in' ? 'Move-in' : 'Move-out')}</Text>
+          {!!side && <Text style={[themed.progress, side.complete && themed.completeProgress]}>{side.complete ? 'Complete' : `${side.percent}%`}</Text>}
         </View>
         <Text style={themed.sideTitle}>{side?.title || 'Not created yet'}</Text>
         {!!side && <Text style={themed.sideMeta}>{side.done} of {side.total} items · {side.tenantName || 'No tenant linked'}</Text>}
         <TouchableOpacity style={[themed.sideButton, { borderColor: displayAccent }]} onPress={action} disabled={starting}>
-          {starting ? <ActivityIndicator size="small" color={displayAccent} /> : <Text style={[themed.sideButtonText, { color: displayAccent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || (accent === '#2475cf' ? 'move-in' : 'move-out')}`}</Text>}
+          {starting ? <ActivityIndicator size="small" color={displayAccent} /> : <Text style={[themed.sideButtonText, { color: displayAccent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || kind}`}</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -286,6 +287,7 @@ const styles = StyleSheet.create({
   sideTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   sideLabel: { fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
   progress: { color: '#536575', fontSize: 11, fontWeight: '900', backgroundColor: '#f0f3f5', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
+  completeProgress: { color: '#2f8f46', backgroundColor: '#edf9ef' },
   sideTitle: { color: '#102d43', fontSize: 16, lineHeight: 21, fontWeight: '900', marginTop: 2 },
   sideMeta: { color: '#697887', fontSize: 12, marginTop: 3 },
   sideButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, marginTop: 10 },
@@ -316,6 +318,7 @@ const darkStyles = StyleSheet.create({
   emptyText: { ...styles.emptyText, color: '#b4c3d0' },
   sideMeta: { ...styles.sideMeta, color: '#b4c3d0' },
   progress: { ...styles.progress, color: '#f2f6fa', backgroundColor: '#25394b' },
+  completeProgress: { ...styles.completeProgress, color: '#86dc9a', backgroundColor: '#1c3a34' },
   cycleCard: { ...styles.cycleCard, borderTopColor: '#35495b' },
   emptyCard: { ...styles.emptyCard, borderTopColor: '#35495b' },
   divider: { ...styles.divider, backgroundColor: '#35495b' },

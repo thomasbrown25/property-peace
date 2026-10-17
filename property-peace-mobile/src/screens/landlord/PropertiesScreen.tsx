@@ -140,14 +140,14 @@ export default function PropertiesScreen() {
             <View style={styles.portfolioOverview}>
               <View style={styles.overviewHeading}>
                 <Text style={styles.overviewEyebrow}>PORTFOLIO OVERVIEW</Text>
-                <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
-                  <Ionicons name="add" size={20} color="#fff" />
-                  <Text style={styles.primaryButtonText}>Property</Text>
+                <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
+                  <Ionicons name="add" size={20} color={mode === 'dark' ? colors.background : '#fff'} />
+                  <Text style={[styles.primaryButtonText, mode === 'dark' && { color: colors.background }]}>Property</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.overviewTop}>
                 <View>
-                  <Text style={styles.overviewValue}>{overview.total ? `${Math.round(overview.occupied / overview.total * 100)}%` : '—'}</Text>
+                  <Text style={[styles.overviewValue, { color: colors.accent }]}>{overview.total ? `${Math.round(overview.occupied / overview.total * 100)}%` : '—'}</Text>
                   <Text style={styles.overviewLabel}>Occupancy</Text>
                 </View>
                 <Text style={styles.overviewContext}>{overview.occupied} of {overview.total} units occupied</Text>
@@ -172,10 +172,6 @@ export default function PropertiesScreen() {
               {!!search && <TouchableOpacity accessibilityLabel="Clear search" onPress={() => setSearch('')}><Ionicons name="close-circle" size={19} color={mode === 'dark' ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
             </View>
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle} accessibilityRole="header">All properties</Text>
-              <Text style={styles.sectionCount}>{filteredProperties.length}</Text>
-            </View>
           </View>
         }
         ListEmptyComponent={<EmptyState searching={Boolean(search.trim())} onAdd={() => navigation.navigate('AddProperty')} />}
@@ -198,13 +194,20 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
   const maintenanceText = summary.highMaint > 0
     ? `${summary.highMaint} high priority maintenance`
     : '';
-  const statusLabel = summary.total === 0
-    ? isOccupied(property) ? 'Occupied' : 'Vacant'
-    : summary.vacant === summary.total ? 'Vacant'
-      : summary.overdue > 0 ? 'Overdue'
-        : summary.occupied === summary.total ? 'Occupied'
-          : `${summary.occupied}/${summary.total} occupied`;
-  const statusType = summary.overdue > 0 ? 'error' : statusLabel === 'Vacant' ? 'warning' : 'success';
+  const isMultiUnit = stringValue(property.propertyType, property.PropertyType).toLowerCase() === 'multiunit';
+  const statusLabel = isMultiUnit
+    ? summary.total === 0 ? 'No units yet'
+      : summary.occupied === summary.total ? `Occupied ${summary.occupied}/${summary.total}`
+        : `Some vacancy ${summary.occupied}/${summary.total}`
+    : summary.total === 0
+      ? isOccupied(property) ? 'Occupied' : 'Vacant'
+      : summary.vacant === summary.total ? 'Vacant'
+        : summary.overdue > 0 ? 'Overdue'
+          : summary.occupied === summary.total ? 'Occupied'
+            : `${summary.occupied}/${summary.total} occupied`;
+  const statusType = isMultiUnit
+    ? summary.total === 0 ? 'neutral' : summary.occupied === summary.total ? 'success' : 'warning'
+    : summary.overdue > 0 ? 'error' : statusLabel === 'Vacant' ? 'warning' : 'success';
 
   return (
     <TouchableOpacity style={styles.propertyCard} onPress={onPress} activeOpacity={0.84} accessibilityRole="button">
@@ -217,7 +220,7 @@ function PropertyRow({ property, onPress }: { property: Property; onPress: () =>
         <Text style={styles.propertyName} numberOfLines={2}>{name}</Text>
         {!!address && <Text style={styles.propertyAddress} numberOfLines={1}>{address}</Text>}
         <View style={styles.statusRow}>
-          <Text style={[styles.statusText, statusType === 'error' && styles.statusTextError, statusType === 'warning' && styles.statusTextWarning]}>{statusLabel}</Text>
+          <Text style={[styles.statusText, statusType === 'error' && styles.statusTextError, statusType === 'warning' && styles.statusTextWarning, statusType === 'neutral' && styles.statusTextNeutral]}>{statusLabel}</Text>
           {!!maintenanceText && (
             <View style={styles.maintenanceAlert}>
               <Ionicons name="warning-outline" size={13} color={mode === 'dark' ? '#ff8b86' : '#c2413b'} />
@@ -244,8 +247,8 @@ function EmptyState({ onAdd, searching }: { onAdd: () => void; searching: boolea
       <Ionicons name="home-outline" size={30} color={mode === 'dark' ? colors.muted : '#8aa5b8'} />
       <Text style={styles.emptyText}>{searching ? 'No matching properties' : 'No properties yet'}</Text>
       <Text style={styles.emptySubtext}>{searching ? 'Try another name, address, or tenant.' : 'Add a property to start managing your portfolio.'}</Text>
-      {!searching && <TouchableOpacity style={styles.emptyButton} onPress={onAdd} activeOpacity={0.84} accessibilityRole="button">
-        <Text style={styles.emptyButtonText}>Add property</Text>
+      {!searching && <TouchableOpacity style={[styles.emptyButton, { backgroundColor: colors.accent }]} onPress={onAdd} activeOpacity={0.84} accessibilityRole="button">
+        <Text style={[styles.emptyButtonText, mode === 'dark' && { color: colors.background }]}>Add property</Text>
       </TouchableOpacity>}
     </View>
   );
@@ -271,8 +274,6 @@ function useScreenStyles() {
       overviewStatValue: { ...styles.overviewStatValue, color: colors.text },
       overviewStatLabel: { ...styles.overviewStatLabel, color: colors.muted },
       searchInput: { ...styles.searchInput, color: colors.text },
-      sectionTitle: { ...styles.sectionTitle, color: colors.text },
-      sectionCount: { ...styles.sectionCount, color: colors.muted },
       separator: { ...styles.separator, backgroundColor: colors.border },
       thumbnail: { ...styles.thumbnail, backgroundColor: colors.surface },
       thumbnailFallback: { ...styles.thumbnailFallback, backgroundColor: colors.surface },
@@ -281,6 +282,7 @@ function useScreenStyles() {
       statusText: { ...styles.statusText, color: '#75d995' },
       statusTextError: { ...styles.statusTextError, color: '#ff8b86' },
       statusTextWarning: { ...styles.statusTextWarning, color: '#f0ba72' },
+      statusTextNeutral: { ...styles.statusTextNeutral, color: colors.muted },
       maintenanceText: { ...styles.maintenanceText, color: '#ff8b86' },
       attentionText: { ...styles.attentionText, color: '#ff8b86' },
       emptyText: { ...styles.emptyText, color: colors.text },
@@ -297,7 +299,7 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
   pageHeader: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
+  primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12, transform: [{ translateY: 10 }] },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   portfolioOverview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
   overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
@@ -312,9 +314,6 @@ const styles = StyleSheet.create({
   overviewStatLabel: { color: '#617180', fontSize: 11, lineHeight: 15, marginTop: 3 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 13, minHeight: 46, marginBottom: 22 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
-  sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
-  sectionCount: { color: '#788995', fontSize: 14 },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#dbe2e6' },
   propertyCard: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 17, minHeight: 104 },
   thumbnail: { width: 74, height: 74, borderRadius: 9, backgroundColor: '#eaf3ff' },
@@ -325,6 +324,7 @@ const styles = StyleSheet.create({
   statusText: { color: '#2f8f46', fontSize: 12, lineHeight: 18, fontWeight: '700', flexShrink: 1 },
   statusTextError: { color: '#c2413b' },
   statusTextWarning: { color: '#b76b11' },
+  statusTextNeutral: { color: '#697887' },
   propertyAddress: { color: '#697887', fontSize: 13, lineHeight: 18 },
   maintenanceAlert: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 4, flexShrink: 1, maxWidth: '65%' },
   maintenanceText: { color: '#c2413b', fontSize: 12, lineHeight: 16, fontWeight: '700', flexShrink: 1, textAlign: 'right' },

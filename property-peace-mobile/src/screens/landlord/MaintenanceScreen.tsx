@@ -79,9 +79,9 @@ export default function MaintenanceScreen() {
       {!loading && !error && <View style={[styles.maintenanceOverview, dark && { borderColor: colors.border }]}>
         <View style={styles.overviewHeading}>
           <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>MAINTENANCE OVERVIEW</Text>
-          <TouchableOpacity style={styles.addButton} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addText}>Request</Text>
+          <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
+            <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
+            <Text style={[styles.addText, dark && { color: colors.background }]}>Request</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.overviewTop}>
@@ -110,26 +110,26 @@ export default function MaintenanceScreen() {
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadRequests(); }} tintColor={dark ? colors.accent : undefined} />}
-        ListHeaderComponent={<View>
-          {error ? <View style={styles.error} accessibilityRole="alert"><Text style={[styles.errorText, dark && { color: colors.text }]}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); loadRequests(); }} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.accent }]}>Retry</Text></TouchableOpacity></View> : null}
-          {!error && view === 'history' && <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">Closed requests</Text>
-            <Text style={[styles.count, dark && { color: colors.muted }]}>{visibleRequests.length}</Text>
-          </View>}
-        </View>}
+        ListHeaderComponent={error ? <View style={styles.error} accessibilityRole="alert"><Text style={[styles.errorText, dark && { color: colors.text }]}>{error}</Text><TouchableOpacity style={styles.retry} onPress={() => { setLoading(true); loadRequests(); }} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.accent }]}>Retry</Text></TouchableOpacity></View> : null}
         ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
         ListEmptyComponent={!error ? <View style={styles.emptyContainer}><Ionicons name="construct-outline" size={30} color={dark ? colors.muted : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{query.trim() ? 'No matching maintenance' : view === 'current' ? 'No open maintenance' : 'No closed maintenance'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{query.trim() ? 'Try another maintenance ID or property.' : view === 'current' ? 'New tenant reports will appear here for acknowledgement and assignment.' : 'Resolved and cancelled requests will appear here.'}</Text></View> : null}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('LandlordMaintenanceDetail', { requestId: String(item.id || item.Id), listItem: item })} accessibilityRole="button" accessibilityLabel={`Open maintenance request ${item.title || item.Title || ''}`}>
+        renderItem={({ item }) => {
+          const status = displayStatus(item.status ?? item.Status);
+          const resolved = status === 'Resolved';
+          const cancelled = status === 'Cancelled';
+          const pending = status.startsWith('Awaiting') || status === 'In Progress';
+          return <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('LandlordMaintenanceDetail', { requestId: String(item.id || item.Id), listItem: item })} accessibilityRole="button" accessibilityLabel={`Open maintenance request ${item.title || item.Title || ''}`}>
             <Text style={[styles.title, dark && { color: colors.text }]}>{item.title || item.Title || 'Maintenance request'}</Text>
             {!!(item.description || item.Description) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={2}>{item.description || item.Description}</Text>}
             {['high', '2'].includes(String(item.priority ?? item.Priority ?? '').toLowerCase()) && <Text style={[styles.highPriority, dark && { color: '#ff8b86' }]}>High priority</Text>}
             <View style={styles.rowFooter}>
-              <Text style={[styles.status, dark && { color: colors.accent }]}>{item.status || item.Status ? displayStatus(item.status || item.Status) : ''}</Text>
+              <View style={[styles.statusChip, resolved ? styles.resolvedChip : cancelled ? styles.cancelledChip : pending ? styles.pendingChip : styles.activeChip, dark && (resolved ? styles.resolvedChipDark : cancelled ? styles.cancelledChipDark : pending ? styles.pendingChipDark : styles.activeChipDark)]}>
+                <Text style={[styles.statusChipText, resolved ? styles.resolvedText : cancelled ? styles.cancelledText : pending ? styles.pendingText : styles.activeText, dark && (resolved ? styles.resolvedTextDark : cancelled ? styles.cancelledTextDark : pending ? styles.pendingTextDark : styles.activeTextDark)]}>{status}</Text>
+              </View>
               <Text style={[styles.openRequest, dark && { color: colors.accent }]}>Open request →</Text>
             </View>
-          </TouchableOpacity>
-        )}
+          </TouchableOpacity>;
+        }}
       />}
     </View>
   );
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingBottom: 28 },
   header: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
-  addButton: { minHeight: 44, paddingHorizontal: 12, backgroundColor: '#061e35', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  addButton: { minHeight: 44, paddingHorizontal: 12, backgroundColor: '#061e35', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, transform: [{ translateY: 10 }] },
   addText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
   maintenanceOverview: { marginHorizontal: 20, marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
@@ -165,16 +165,30 @@ const styles = StyleSheet.create({
   errorText: { color: '#8d263a', fontWeight: '700', lineHeight: 20 },
   retry: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
   retryText: { color: '#2475cf', fontWeight: '700' },
-  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
-  sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
-  count: { color: '#788995', fontSize: 14 },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#dbe2e6' },
   row: { paddingVertical: 18, minHeight: 82 },
   title: { fontSize: 16, lineHeight: 22, fontWeight: '700', color: '#102d43' },
   meta: { color: '#697887', fontSize: 13, marginTop: 3, lineHeight: 19 },
   highPriority: { color: '#c2413b', fontSize: 13, marginTop: 4, fontWeight: '700' },
   rowFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 7 },
-  status: { color: '#2475cf', fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  statusChip: { alignSelf: 'flex-start', maxWidth: '62%', minHeight: 28, justifyContent: 'center', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
+  statusChipText: { fontSize: 11, fontWeight: '800' },
+  activeChip: { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' },
+  activeText: { color: '#1d4f91' },
+  pendingChip: { backgroundColor: '#fff7e8', borderColor: '#f3d6a2' },
+  pendingText: { color: '#865600' },
+  resolvedChip: { backgroundColor: '#e9f8ee', borderColor: '#a7dfb7' },
+  resolvedText: { color: '#176b37' },
+  cancelledChip: { backgroundColor: '#f1f5f9', borderColor: '#cbd5e1' },
+  cancelledText: { color: '#475569' },
+  activeChipDark: { backgroundColor: '#193650', borderColor: '#386b98' },
+  activeTextDark: { color: '#a9d4ff' },
+  pendingChipDark: { backgroundColor: '#3b3225', borderColor: '#947143' },
+  pendingTextDark: { color: '#f0ba72' },
+  resolvedChipDark: { backgroundColor: '#163d2b', borderColor: '#398158' },
+  resolvedTextDark: { color: '#a3e9b9' },
+  cancelledChipDark: { backgroundColor: '#2d3944', borderColor: '#64748b' },
+  cancelledTextDark: { color: '#cbd5e1' },
   openRequest: { color: '#2475cf', fontSize: 13, fontWeight: '700', textAlign: 'right' },
   emptyContainer: { paddingVertical: 46, alignItems: 'center' },
   emptyText: { fontSize: 18, fontWeight: '700', color: '#102d43', marginTop: 12, marginBottom: 6 },

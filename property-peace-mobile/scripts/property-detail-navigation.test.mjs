@@ -22,7 +22,7 @@ test('property detail links to property-scoped maintenance and has a titled head
   assert.match(property, /titleColor=\{openRepairs !== null && openRepairs > 0/);
   assert.match(property, /icon="construct-outline"[^\n]*\n\s*<ActionRow icon="clipboard-outline" title="Checklists"/);
   assert.doesNotMatch(property, /title="Open checklists"|title="View maintenances"/);
-  assert.match(navigator, /headerLeft: \(\) => <PageBackButton onPress=\{\(\) => navigation\.popToTop\(\)\}/);
+  assert.match(navigator, /headerLeft: \(\) => <PageBackButton inHeader onPress=\{\(\) => navigation\.popToTop\(\)\}/);
   assert.match(maintenance, /setRequests\(forProperty\(data \|\| \[\], propertyId\)\)/);
 });
 
@@ -34,8 +34,10 @@ test('shared back button has no filled background on any screen', () => {
   assert.doesNotMatch(navigator, /<PageBackButton[^>]*translucent/);
 });
 
-test('tapping already selected Properties tab at a nested page returns to list', () => {
+test('Properties tab returns to its list from a detail, including when switching from another tab', () => {
   const dock = source('navigation/QuickActionsTabBar.tsx');
-  assert.match(dock, /selected && route\.name === 'Properties' && \(route\.state\?\.index \?\? 0\) > 0 && route\.state\?\.key/);
-  assert.match(dock, /navigation\.dispatch\(\{ \.\.\.StackActions\.popToTop\(\), target: route\.state\.key \}\)/);
+  assert.match(dock, /if \(event\.defaultPrevented\) return;/);
+  assert.match(dock, /if \(route\.name === 'Properties' && route\.state\?\.key\) \{\s*navigation\.dispatch\(\{ \.\.\.StackActions\.popToTop\(\), target: route\.state\.key \}\)/);
+  assert.match(dock, /navigation\.navigate\('Properties', \{ screen: 'PropertiesList' \}\)/);
+  assert.match(dock, /else if \(!selected\) navigation\.navigate\(route\.name\)/);
 });

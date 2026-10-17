@@ -2,11 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  LayoutAnimation,
+  Platform,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,7 +21,7 @@ import {
   getChecklistPropertyLabel,
   isMultiUnitProperty,
 } from '../../features/checklists/checklistHomeModel';
-import { buildChecklistHomeParams, findPreselectedProperty } from '../../features/checklists/checklistNavigationModel';
+import { buildChecklistHomeParams, buildPropertyChecklistHistoryEntry, findPreselectedProperty } from '../../features/checklists/checklistNavigationModel';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
 import { useAppTheme } from '../../theme/AppTheme';
 
@@ -28,13 +31,17 @@ const propertyId = (property: Property) => String(property.id ?? property.Id ?? 
 const unitId = (unit: Unit) => String(unit.id ?? unit.Id ?? '');
 const unitName = (unit: Unit) => String(unit.name ?? unit.Name ?? `Unit ${unitId(unit)}`);
 
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function ChecklistPropertySearchScreen({ navigation, route }: Props) {
   const { mode, colors } = useAppTheme();
   const themed = mode === 'dark' ? darkStyles : styles;
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
-  const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+  const [unitsForPropertyId, setUnitsForPropertyId] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -62,13 +69,13 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
 
   useEffect(() => {
     setUnits([]);
-    setSelectedUnit(null);
+    setUnitsForPropertyId('');
     setUnitsError('');
     if (!selectedProperty || !isMultiUnitProperty(selectedProperty)) return;
     let active = true;
     setUnitsLoading(true);
     PropertyAPI.getUnits(propertyId(selectedProperty))
-      .then((loaded) => { if (active) setUnits(loaded); })
+      .then((loaded) => { if (active) { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setUnits(loaded); setUnitsForPropertyId(propertyId(selectedProperty)); } })
       .catch((loadError: any) => { if (active) setUnitsError(loadError?.message || 'Units could not be loaded.'); })
       .finally(() => { if (active) setUnitsLoading(false); });
     return () => { active = false; };
@@ -78,13 +85,14 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
     () => filterChecklistProperties(properties, search),
     [properties, search],
   );
-  const needsUnit = isMultiUnitProperty(selectedProperty);
-  const canContinue = Boolean(selectedProperty && (!needsUnit || selectedUnit));
-
-  const openHome = () => {
-    if (!selectedProperty) return;
-    const params = buildChecklistHomeParams(selectedProperty, selectedUnit);
-    navigation.navigate('PropertyChecklists', params);
+  const openProperty = (property: Property) => {
+    if (isMultiUnitProperty(property)) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setUnitsError('');
+      setSelectedProperty((current) => current && propertyId(current) === propertyId(property) ? null : property);
+    } else {
+      navigation.navigate('PropertyChecklists', buildChecklistHomeParams(property));
+    }
   };
 
   if (loading) return <View style={themed.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
@@ -103,7 +111,7 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
             <View style={themed.heroCopy}>
               <Text style={themed.eyebrow}>PROPERTY INSPECTIONS</Text>
               <Text style={themed.title}>Find the home</Text>
-              <Text style={themed.subtitle}>Choose a property to start or continue move-in and move-out checklists.</Text>
+              <Text style={themed.subtitle}>Tap a property to see its units or open its checklists.</Text>
             </View>
           </View>
           <View style={themed.searchWrap}>
@@ -128,55 +136,53 @@ export default function ChecklistPropertySearchScreen({ navigation, route }: Pro
       )}
       renderItem={({ item }) => {
         const selected = propertyId(selectedProperty ?? {}) === propertyId(item);
+        const needsUnit = isMultiUnitProperty(item);
+        const displayedUnits = unitsForPropertyId === propertyId(item) ? units : [];
+        const waitingForUnits = unitsLoading || (unitsForPropertyId !== propertyId(item) && !unitsError);
         const address = getChecklistPropertyAddress(item);
         return (
-          <TouchableOpacity
-            style={[themed.propertyCard, selected && themed.propertyCardSelected]}
-            onPress={() => setSelectedProperty(item)}
-            accessibilityRole="radio"
-            accessibilityState={{ selected }}
-          >
-            <View style={[themed.propertyIcon, selected && themed.propertyIconSelected]}><Ionicons name="home-outline" size={23} color={selected ? '#fff' : mode === 'dark' ? colors.accent : '#2475cf'} /></View>
-            <View style={themed.flex}>
-              <Text style={themed.propertyName}>{getChecklistPropertyLabel(item)}</Text>
-              {!!address && <Text style={themed.propertyAddress}>{address}</Text>}
-            </View>
-            <Ionicons name={selected ? 'checkmark-circle' : 'ellipse-outline'} size={23} color={selected ? (mode === 'dark' ? '#86dc9a' : '#2f8f46') : (mode === 'dark' ? colors.muted : '#aab5be')} />
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={[themed.propertyCard, selected && themed.propertyCardSelected]}
+              onPress={() => openProperty(item)}
+              accessibilityRole="button"
+              accessibilityState={needsUnit ? { expanded: selected } : undefined}
+              accessibilityLabel={`${needsUnit ? 'Show units for' : 'Open checklists for'} ${getChecklistPropertyLabel(item)}`}
+            >
+              <View style={[themed.propertyIcon, selected && themed.propertyIconSelected]}><Ionicons name="home-outline" size={23} color={selected ? '#fff' : mode === 'dark' ? colors.accent : '#2475cf'} /></View>
+              <View style={themed.flex}>
+                <Text style={themed.propertyName}>{getChecklistPropertyLabel(item)}</Text>
+                {!!address && <Text style={themed.propertyAddress}>{address}</Text>}
+              </View>
+              {needsUnit && <Ionicons name={selected ? 'chevron-up' : 'chevron-down'} size={20} color={mode === 'dark' ? colors.muted : '#697887'} />}
+            </TouchableOpacity>
+            {selected && needsUnit && (
+              <View style={themed.unitCard}>
+                <Text style={themed.unitTitle}>Units</Text>
+                {waitingForUnits && <ActivityIndicator color={mode === 'dark' ? colors.accent : '#2475cf'} style={themed.unitLoader} />}
+                {!!unitsError && <TouchableOpacity accessibilityRole="button" onPress={() => setSelectedProperty({ ...item })}><Text style={themed.unitError}>{unitsError} Tap to retry.</Text></TouchableOpacity>}
+                {!waitingForUnits && !unitsError && displayedUnits.map((unit) => (
+                  <TouchableOpacity key={unitId(unit)} style={themed.unitRow} accessibilityRole="button" accessibilityLabel={`Open checklists for ${unitName(unit)}`} onPress={() => navigation.navigate('PropertyChecklists', buildChecklistHomeParams(item, unit))}>
+                    <Text style={themed.unitName}>{unitName(unit)}</Text>
+                    <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+                  </TouchableOpacity>
+                ))}
+                {!waitingForUnits && !unitsError && displayedUnits.length === 0 && <Text style={themed.unitError}>No units were found for this property.</Text>}
+                <TouchableOpacity style={themed.historyRow} accessibilityRole="button" onPress={() => {
+                  const entry = buildPropertyChecklistHistoryEntry(item);
+                  navigation.navigate(entry.screen, entry.params);
+                }}>
+                  <Text style={themed.historyText}>View all property checklists</Text>
+                  <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         );
       }}
       ItemSeparatorComponent={() => <View style={themed.separator} />}
       ListEmptyComponent={!error ? <View style={themed.empty}><Text style={themed.emptyTitle}>No matching properties</Text><Text style={themed.emptyText}>Try a different name or address.</Text></View> : null}
-      ListFooterComponent={selectedProperty ? (
-        <View style={themed.footer}>
-          {needsUnit && (
-            <View style={themed.unitCard}>
-              <Text style={themed.unitTitle}>Select a unit</Text>
-              <Text style={themed.unitHelp}>Checklists for this property are organized by unit.</Text>
-              {unitsLoading && <ActivityIndicator color={mode === 'dark' ? colors.accent : '#2475cf'} style={themed.unitLoader} />}
-              {!!unitsError && <TouchableOpacity onPress={() => setSelectedProperty({ ...selectedProperty })}><Text style={themed.unitError}>{unitsError} Tap to retry.</Text></TouchableOpacity>}
-              {!unitsLoading && !unitsError && units.map((unit) => {
-                const selected = unitId(selectedUnit ?? {}) === unitId(unit);
-                return (
-                  <TouchableOpacity key={unitId(unit)} style={[themed.unitRow, selected && themed.unitRowSelected]} onPress={() => setSelectedUnit(unit)}>
-                    <Text style={[themed.unitName, selected && themed.unitNameSelected]}>{unitName(unit)}</Text>
-                    {selected && <Ionicons name="checkmark" size={19} color={mode === 'dark' ? '#86dc9a' : '#2f8f46'} />}
-                  </TouchableOpacity>
-                );
-              })}
-              {!unitsLoading && !unitsError && units.length === 0 && <Text style={themed.unitError}>No units were found for this property.</Text>}
-            </View>
-          )}
-          <TouchableOpacity
-            style={[themed.continueButton, !canContinue && themed.continueButtonDisabled]}
-            disabled={!canContinue}
-            onPress={openHome}
-          >
-            <Text style={themed.continueText}>Open checklists</Text>
-            <Ionicons name="arrow-forward" size={19} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      ) : <View style={themed.bottomSpace} />}
+      ListFooterComponent={<View style={themed.bottomSpace} />}
     />
   );
 }
@@ -207,19 +213,14 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', padding: 28, borderTopWidth: 1, borderTopColor: '#e2e8ed' },
   emptyTitle: { color: '#102d43', fontSize: 16, fontWeight: '900' },
   emptyText: { color: '#697887', marginTop: 5 },
-  footer: { marginTop: 28 },
-  unitCard: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 20, marginBottom: 22 },
-  unitTitle: { color: '#102d43', fontSize: 17, fontWeight: '900' },
-  unitHelp: { color: '#697887', fontSize: 13, marginTop: 3, marginBottom: 10 },
+  unitCard: { backgroundColor: '#f5faf5', borderBottomWidth: 1, borderBottomColor: '#dce4e8', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
+  unitTitle: { color: '#102d43', fontSize: 13, fontWeight: '900', marginBottom: 4 },
   unitLoader: { marginVertical: 12 },
   unitError: { color: '#a45f12', lineHeight: 19, paddingVertical: 8 },
   unitRow: { minHeight: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#e2e8ed' },
-  unitRowSelected: { backgroundColor: '#edf9ef', borderBottomColor: '#65aa62' },
   unitName: { color: '#405566', fontWeight: '800' },
-  unitNameSelected: { color: '#245f31' },
-  continueButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 15, backgroundColor: '#2475cf' },
-  continueButtonDisabled: { opacity: 0.45 },
-  continueText: { color: '#fff', fontSize: 15, fontWeight: '900' },
+  historyRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 },
+  historyText: { color: '#2475cf', fontSize: 13, fontWeight: '800' },
   bottomSpace: { height: 30 },
 });
 
@@ -245,12 +246,10 @@ const darkStyles = StyleSheet.create({
   empty: { ...styles.empty, borderTopColor: '#35495b' },
   emptyTitle: { ...styles.emptyTitle, color: '#f2f6fa' },
   emptyText: { ...styles.emptyText, color: '#b4c3d0' },
-  unitCard: { ...styles.unitCard, borderTopColor: '#35495b' },
+  unitCard: { ...styles.unitCard, backgroundColor: '#1c302d', borderBottomColor: '#35495b' },
   unitTitle: { ...styles.unitTitle, color: '#f2f6fa' },
-  unitHelp: { ...styles.unitHelp, color: '#b4c3d0' },
   unitError: { ...styles.unitError, color: '#f0b669' },
   unitRow: { ...styles.unitRow, borderBottomColor: '#35495b' },
-  unitRowSelected: { ...styles.unitRowSelected, backgroundColor: '#1c3a34', borderBottomColor: '#5baf73' },
   unitName: { ...styles.unitName, color: '#d9e6ef' },
-  unitNameSelected: { ...styles.unitNameSelected, color: '#9ee3ae' },
+  historyText: { ...styles.historyText, color: '#72b6ff' },
 });

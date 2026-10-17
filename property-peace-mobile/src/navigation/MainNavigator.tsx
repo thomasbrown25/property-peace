@@ -186,7 +186,7 @@ function LeasesNavigator() {
     <LeasesStack.Navigator screenOptions={stackOptions}>
       <LeasesStack.Screen name="LeasesList" component={LeasesScreen} options={{ headerShown: false }} />
       <LeasesStack.Screen name="AddLease" component={AddLeaseScreen} options={{ headerShown: false }} />
-      <LeasesStack.Screen name="LeaseDetail" component={LeaseDetailScreen} options={{ title: 'Lease' }} />
+      <LeasesStack.Screen name="LeaseDetail" component={LeaseDetailScreen} options={({ navigation }) => ({ title: 'Lease', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
 
     </LeasesStack.Navigator>
   );

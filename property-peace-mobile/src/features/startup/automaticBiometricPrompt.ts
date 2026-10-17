@@ -59,6 +59,7 @@ export const createAutomaticBiometricPrompt = () => {
 export type RestoredSessionLock = {
   autoPrompt: boolean;
   sessionUnlocked: boolean;
+  biometricEnabled: boolean | null;
 };
 
 export const resolveRestoredSessionLock = async (
@@ -68,11 +69,11 @@ export const resolveRestoredSessionLock = async (
 ): Promise<RestoredSessionLock> => {
   try {
     const biometricEnabled = await readBiometricEnabled();
-    if (!biometricEnabled) return { autoPrompt: false, sessionUnlocked: true };
+    if (!biometricEnabled) return { autoPrompt: false, sessionUnlocked: true, biometricEnabled: false };
     const lastActiveAt = await readLastActiveAt();
     const shouldLock = shouldLockRestoredSession(lastActiveAt, now);
-    return { autoPrompt: shouldLock, sessionUnlocked: !shouldLock };
+    return { autoPrompt: shouldLock, sessionUnlocked: !shouldLock, biometricEnabled: true };
   } catch {
-    return { autoPrompt: false, sessionUnlocked: false };
+    return { autoPrompt: false, sessionUnlocked: false, biometricEnabled: null };
   }
 };

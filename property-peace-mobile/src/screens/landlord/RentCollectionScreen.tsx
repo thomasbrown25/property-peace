@@ -165,12 +165,17 @@ export default function RentCollectionScreen() {
               const amount = Math.max(0, value(read(record, 'rentAmount')));
               const displayAmount = due > 0 ? due : totalDue > 0 ? totalDue : amount;
               const amountLabel = due > 0 ? 'due this month' : totalDue > 0 ? 'rent due' : 'monthly rent';
+              const leaseId = read<number>(record, 'leaseId');
+              const canOpenLease = typeof leaseId === 'number' && Number.isSafeInteger(leaseId) && leaseId > 0;
               return (
-                <View key={`${read(record, 'leaseId') ?? read(record, 'id') ?? index}`} style={[styles.row, dark && { borderBottomColor: colors.border }, index === visible.records.length - 1 && styles.lastRow]}>
+                <TouchableOpacity key={`${leaseId ?? read(record, 'id') ?? index}`} style={[styles.row, dark && { borderBottomColor: colors.border }, index === visible.records.length - 1 && styles.lastRow]}
+                  disabled={!canOpenLease} accessibilityRole={canOpenLease ? 'button' : undefined}
+                  accessibilityLabel={canOpenLease ? `View lease for ${name} at ${location}` : undefined}
+                  onPress={() => { if (canOpenLease) navigation.getParent()?.navigate('Leases', { screen: 'LeaseDetail', params: { leaseId: String(leaseId), archived: false } }); }}>
                   <View style={[styles.rowIcon, state.tone === 'success' ? styles.successIcon : state.tone === 'warning' ? styles.warningIcon : styles.infoIcon, dark && { backgroundColor: state.tone === 'success' ? '#224737' : state.tone === 'warning' ? '#4b3829' : '#233c56' }]}><Ionicons name={state.icon} size={23} color={dark ? state.tone === 'success' ? '#82e5a5' : state.tone === 'warning' ? '#ffca82' : colors.accent : state.tone === 'success' ? '#219447' : state.tone === 'warning' ? '#ae680d' : '#2475cf'} /></View>
                   <View style={styles.rowCopy}><Text style={[styles.rowName, dark && { color: colors.text }]} numberOfLines={2}>{name}</Text><Text style={[styles.rowLocation, dark && { color: colors.muted }]} numberOfLines={2}>{location}</Text><Text style={[styles.status, state.tone === 'success' ? styles.successText : state.tone === 'warning' ? styles.warningText : styles.infoText, dark && { color: state.tone === 'success' ? '#82e5a5' : state.tone === 'warning' ? '#ffca82' : colors.accent }]}>{state.label}</Text></View>
                   <View style={styles.amountBlock}><Text style={[styles.rowAmount, dark && { color: colors.text }]}>{money(displayAmount)}</Text><Text style={[styles.amountCaption, dark && { color: colors.muted }]}>{amountLabel}</Text></View>
-                </View>
+                </TouchableOpacity>
               );
             })}
             <TouchableOpacity style={[styles.leaseLink, dark && { borderTopColor: colors.border }]} accessibilityRole="button" onPress={() => navigation.navigate('Leases', { screen: 'LeasesList' })}>

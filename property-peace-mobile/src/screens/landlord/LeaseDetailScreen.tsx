@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import LeaseAPI, { type Lease } from '../../api/leaseAPI';
+import { nextRentDueDate } from '../../features/leases/nextRentDueDate';
 import type { LeasesStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/AppTheme';
 
@@ -38,6 +39,8 @@ export default function LeaseDetailScreen() {
   const [lease, setLease] = useState<Lease | null>(null);
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'missing'>('loading');
   const [refreshing, setRefreshing] = useState(false);
+  const [today, setToday] = useState(() => new Date());
+  useFocusEffect(useCallback(() => { setToday(new Date()); }, []));
 
   const load = useCallback(async () => {
     try {
@@ -70,12 +73,12 @@ export default function LeaseDetailScreen() {
   const deposit = lease ? money(field(lease, 'depositAmount') ?? field(lease, 'securityDeposit')) : null;
   const tenants = lease && Array.isArray(field(lease, 'tenants')) ? field(lease, 'tenants') as any[] : [];
   const names = tenants.map(tenantName).filter(Boolean);
-  const dueDay = lease ? Number(field(lease, 'rentDueDay')) : NaN;
   const frequency = lease ? text(field(lease, 'rentFrequency')) : null;
   const isActive = lease ? field(lease, 'isActive') : null;
   const agreement = lease ? field(lease, 'leaseAgreement') : null;
   const draft = lease ? field(lease, 'isDrafted') === true || agreement?.isDrafted === true || agreement?.IsDrafted === true : false;
   const statusLabel = archived ? 'Archived' : draft ? 'Draft' : isActive === false ? 'Inactive' : isActive === true ? 'Active' : 'Status unavailable';
+  const nextDue = lease && !archived && !draft && isActive === true ? nextRentDueDate(lease, today) : null;
   const propertyId = lease ? field(lease, 'propertyId') : null;
 
   const detailRow = (icon: keyof typeof Ionicons.glyphMap, label: string, value: string, last = false) => (
@@ -88,7 +91,7 @@ export default function LeaseDetailScreen() {
   return (
     <ScrollView style={[styles.container, { backgroundColor: dark ? colors.background : '#fbf7f4' }]}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={accent} />}>
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setToday(new Date()); setRefreshing(true); load(); }} tintColor={accent} />}>
       {status === 'loading' ? <View style={styles.state}><ActivityIndicator color={accent} /><Text style={[styles.stateText, { color: muted }]}>Loading lease…</Text></View> :
         status !== 'success' || !lease ? <View style={styles.state} accessibilityRole="alert">
           <Ionicons name="document-text-outline" size={32} color={accent} />
@@ -102,7 +105,7 @@ export default function LeaseDetailScreen() {
             {unit ? <Text style={[styles.subtitle, { color: muted }]}>{unit}</Text> : null}
             <Text style={[styles.subtitle, { color: muted }]}>{unit ? ' · ' : ''}Lease {leaseId}</Text>
           </View>
-          <View style={[styles.statusPill, { backgroundColor: dark ? '#233e59' : '#eaf3ff' }]}><View style={[styles.statusDot, { backgroundColor: accent }]} /><Text style={[styles.statusText, { color: ink }]}>{statusLabel}</Text></View>
+          <View style={[styles.statusPill, { backgroundColor: statusLabel === 'Active' ? (dark ? '#183d2d' : '#e5f5e9') : (dark ? '#233e59' : '#eaf3ff') }]}><View style={[styles.statusDot, { backgroundColor: statusLabel === 'Active' ? (dark ? '#75d995' : '#2f8f46') : accent }]} /><Text style={[styles.statusText, { color: statusLabel === 'Active' ? (dark ? '#75d995' : '#2f8f46') : ink }]}>{statusLabel}</Text></View>
 
           <View style={[styles.termBand, { borderColor: line }]}>
             <View style={styles.termCell}><Text style={[styles.termLabel, { color: muted }]}>START DATE</Text><Text style={[styles.termValue, { color: ink }]}>{start ?? 'Not set'}</Text></View>
@@ -113,7 +116,7 @@ export default function LeaseDetailScreen() {
           <Text style={[styles.sectionTitle, { color: ink }]} accessibilityRole="header">Rent & deposit</Text>
           <View style={[styles.section, { backgroundColor: surface, borderColor: line }]}>
             {detailRow('cash-outline', 'Rent amount', rent ? `${rent}${frequency ? ` · ${frequency}` : ''}` : 'Not set')}
-            {detailRow('calendar-outline', 'Rent due day', Number.isInteger(dueDay) && dueDay >= 1 && dueDay <= 31 ? `Day ${dueDay}${frequency?.toLowerCase().includes('month') ? ' of each month' : ''}` : 'Not set')}
+            {detailRow('calendar-outline', 'Next rent due', nextDue ? date(nextDue) ?? 'Unavailable' : 'No upcoming date')}
             {detailRow('shield-checkmark-outline', 'Security deposit', deposit ?? 'Not set', true)}
           </View>
 

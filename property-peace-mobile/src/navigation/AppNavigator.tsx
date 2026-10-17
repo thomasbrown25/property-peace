@@ -91,7 +91,7 @@ export default function AppNavigator() {
         if (!active) return;
         setAutoPromptBiometric(lock.autoPrompt);
         setSessionUnlocked(lock.sessionUnlocked);
-        setShowOptIn(lock.sessionUnlocked && !!restoredUserId);
+        setShowOptIn(lock.sessionUnlocked && lock.biometricEnabled === false && !!restoredUserId);
         setCheckedUserId(restoredUserId || null);
       } catch {
         if (!active) return;

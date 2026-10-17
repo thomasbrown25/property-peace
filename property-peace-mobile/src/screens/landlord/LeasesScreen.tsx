@@ -117,10 +117,7 @@ export default function LeasesScreen() {
             <Text style={[styles.errorTitle, dark && { color: '#ffaaa3' }]}>Couldn't load leases</Text>
             <Text style={[styles.errorText, dark && { color: colors.muted }]}>Lease information is unavailable right now.</Text>
             <TouchableOpacity style={styles.retryButton} onPress={loadLeases} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.accent }]}>Retry</Text></TouchableOpacity>
-          </View> : <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">All leases</Text>
-            <Text style={[styles.count, dark && { color: colors.muted }]}>{filteredLeases.length}</Text>
-          </View>}
+          </View> : null}
         </View>}
         ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
         ListEmptyComponent={loadStatus === 'success' ? <View style={styles.emptyContainer}><Ionicons name={search.trim() ? 'search-outline' : 'document-text-outline'} size={30} color={colors.accent} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{search.trim() ? 'No matching leases' : 'No leases yet'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{search.trim() ? 'Try a different name, property, unit, or tenant.' : 'Add a lease draft to get started.'}</Text></View> : null}
@@ -152,9 +149,6 @@ const styles = StyleSheet.create({
   overviewStatLabel: { color: '#617180', fontSize: 11, lineHeight: 15, marginTop: 3 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 13, minHeight: 46, marginBottom: 22 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
-  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
-  sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
-  count: { color: '#788995', fontSize: 14 },
   separator: { height: StyleSheet.hairlineWidth, backgroundColor: '#dbe2e6' },
   leaseRow: { paddingVertical: 18, paddingRight: 32, minHeight: 80 },
   rowChevron: { position: 'absolute', right: 0, top: 30 },

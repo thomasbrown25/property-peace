@@ -18,10 +18,11 @@ import MaintenanceAPI from '../../api/maintenanceAPI';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import ChecklistAPI, { Checklist } from '../../api/checklistAPI';
 import PaymentAPI, { PropertyPayment } from '../../api/paymentAPI';
+import TenantAPI, { Tenant } from '../../api/tenantAPI';
 import type { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { forProperty } from '../../features/maintenance/propertyMaintenanceScope';
 import { collectionPayload } from '../../features/rentCollection/collectionPayload';
-import { propertyOpenRepairs, propertyRentDue } from '../../features/properties/propertyOverview';
+import { propertyOpenRepairs, propertyRentDue, propertyOverdueRent, propertyRentStatus, type PropertyRentStatus } from '../../features/properties/propertyOverview';
 import { buildPropertyChecklistEntry, buildPropertyChecklistHistoryEntry } from '../../features/checklists/checklistNavigationModel';
 import { checklistSummary, recentPropertyChecklists } from '../../features/checklists/recentPropertyChecklists';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -59,23 +60,31 @@ export default function PropertyDetailScreen() {
   const [error, setError] = useState(false);
   const [openRepairs, setOpenRepairs] = useState<number | null>(null);
   const [rentDue, setRentDue] = useState<number | null>(null);
+  const [overdueRent, setOverdueRent] = useState<boolean | null>(null);
+  const [rentStatus, setRentStatus] = useState<PropertyRentStatus | null>(null);
   const [requests, setRequests] = useState<MaintenanceRequest[] | null>(null);
   const [checklists, setChecklists] = useState<Checklist[] | null>(null);
   const [payments, setPayments] = useState<PropertyPayment[] | null>(null);
-  const [tab, setTab] = useState<'overview' | 'units' | 'checklists' | 'actions'>('overview');
+  const [tenants, setTenants] = useState<Tenant[] | null>(null);
+  const [tab, setTab] = useState<'overview' | 'units' | 'checklists' | 'tenants' | 'actions'>('overview');
   const generation = useRef(0);
 
   const loadProperty = useCallback(async () => {
     const request = ++generation.current;
-    const [propertyResult, maintenanceResult, rentResult, checklistResult, paymentResult] = await Promise.allSettled([
+    const [propertyResult, maintenanceResult, rentResult, checklistResult, paymentResult, tenantResult] = await Promise.allSettled([
       PropertyAPI.getPropertyById(propertyId),
       MaintenanceAPI.getCurrent(),
       RentCollectionAPI.getRentCollection(propertyId).then((response) => {
         const data = collectionPayload(response);
-        return propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId);
+        return {
+          due: propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId),
+          overdue: propertyOverdueRent(data.rentRecords ?? data.RentRecords, propertyId),
+          status: propertyRentStatus(data.rentRecords ?? data.RentRecords, propertyId),
+        };
       }),
       ChecklistAPI.getByProperty(propertyId),
       PaymentAPI.getByProperty(propertyId),
+      TenantAPI.getTenants(),
     ]);
     if (request !== generation.current) return;
     setProperty(propertyResult.status === 'fulfilled' ? propertyResult.value : null);
@@ -84,7 +93,10 @@ export default function PropertyDetailScreen() {
     setRequests(maintenanceResult.status === 'fulfilled' ? forProperty(maintenanceResult.value, propertyId) : null);
     setChecklists(checklistResult.status === 'fulfilled' ? checklistResult.value.filter(item => String(item.propertyId) === String(propertyId)) : null);
     setPayments(paymentResult.status === 'fulfilled' ? paymentResult.value.sort((a, b) => Date.parse(b.paymentDate) - Date.parse(a.paymentDate)).slice(0, 1) : null);
-    setRentDue(rentResult.status === 'fulfilled' ? rentResult.value : null);
+    setTenants(tenantResult.status === 'fulfilled' && Array.isArray(tenantResult.value) ? tenantResult.value.filter(item => String(item.propertyId ?? item.PropertyId) === String(propertyId)) : null);
+    setRentDue(rentResult.status === 'fulfilled' ? rentResult.value.due : null);
+    setOverdueRent(rentResult.status === 'fulfilled' ? rentResult.value.overdue : null);
+    setRentStatus(rentResult.status === 'fulfilled' ? rentResult.value.status : null);
     setLoading(false);
     setRefreshing(false);
   }, [propertyId]);
@@ -113,6 +125,7 @@ export default function PropertyDetailScreen() {
 
   const pendingChecklists = checklists?.filter(item => !item.isCompleted && !item.completedAt) ?? [];
   const recentChecklists = recentPropertyChecklists(checklists ?? [], String(propertyId)).slice(0, 10);
+  const tenantName = (tenant: Tenant) => [stringValue(tenant.firstname, tenant.firstName, tenant.Firstname, tenant.FirstName), stringValue(tenant.lastname, tenant.lastName, tenant.Lastname, tenant.LastName)].filter(Boolean).join(' ') || stringValue(tenant.email, tenant.Email, 'Tenant');
 
   useEffect(() => {
     navigation.setOptions({ title: details?.name || 'Property' });
@@ -161,18 +174,18 @@ export default function PropertyDetailScreen() {
             <View style={styles.snapshotDivider} />
             <Snapshot label="Open requests" value={openRepairs === null ? '—' : String(openRepairs)} />
             <View style={styles.snapshotDivider} />
-            <Snapshot label="Rent due" value={rentDue === null ? '—' : currency(rentDue)} />
+            <Snapshot label={rentDue !== null && overdueRent === true ? 'Overdue rent' : 'Rent due'} value={rentDue === null ? '—' : currency(rentDue)} alert={rentDue !== null && overdueRent === true} />
           </View>
         </View>
       </View>
 
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', `Units (${details.units.length})`] as const] : []), ['checklists', 'Checklists'], ['actions', 'Actions']] as const).map(([key, label]) => (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent} accessibilityRole="tablist">
+        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', `Units (${details.units.length})`] as const] : []), ['checklists', 'Checklists'], ['tenants', 'Tenants'], ['actions', 'Actions']] as const).map(([key, label]) => (
           <TouchableOpacity key={key} style={[styles.tab, visibleTab === key && styles.activeTab]} onPress={() => setTab(key)} accessibilityRole="tab" accessibilityState={{ selected: visibleTab === key }}>
             <Text style={[styles.tabText, visibleTab === key && styles.activeTabText]}>{label}</Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {visibleTab === 'overview' && <View style={styles.overviewDetails}>
         <Text style={styles.overviewKicker}>PROPERTY PULSE</Text>
@@ -197,8 +210,13 @@ export default function PropertyDetailScreen() {
         <View style={styles.paymentPanel}>
           <View style={styles.paymentHeader}>
             <View style={styles.paymentIcon}><Ionicons name="receipt-outline" size={21} color={mode === 'dark' ? '#72b6ff' : '#2475cf'} /></View>
-            <Text style={styles.paymentHeading}>Latest payment</Text>
+            <Text style={styles.paymentHeading}>Rent status</Text>
           </View>
+          <Text style={[styles.rentStatusText, rentStatus === 'overdue' && styles.rentStatusOverdue, rentStatus === 'paid' && styles.rentStatusPaid]}>
+            {rentStatus === 'overdue' ? 'Overdue' : rentStatus === 'paid' ? 'Paid up to date' : rentStatus === 'due' ? 'Rent due' : rentStatus === 'no-records' ? 'No rent records yet' : 'Rent status unavailable · Pull to retry'}
+          </Text>
+          {rentDue !== null && rentDue > 0 && (rentStatus === 'overdue' || rentStatus === 'due') ? <Text style={styles.rentBalance}>{currency(rentDue)} rent due</Text> : null}
+          <Text style={styles.paymentSubheading}>Most recent payment</Text>
           {payments === null ? <Text style={styles.paymentEmpty}>Payments unavailable · Pull to retry</Text> : payments.length === 0 ? <Text style={styles.paymentEmpty}>No payments recorded for this property yet.</Text> : (
             <View style={styles.paymentBody}>
               <Text style={styles.paymentAmount}>{Number.isFinite(Number(payments[0].amount)) ? currency(Number(payments[0].amount)) : 'Amount unavailable'}</Text>
@@ -222,6 +240,19 @@ export default function PropertyDetailScreen() {
             <Text style={styles.activityTitle}>{item.title || item.checklistTypeName || 'Checklist'}</Text>
             <Text style={styles.activityMeta}>{checklistSummary(item)}</Text>
           </TouchableOpacity>
+        ))}
+      </View>}
+
+      {visibleTab === 'tenants' && <View style={styles.tenantPanel}>
+        {tenants === null ? <Text style={styles.tenantEmpty}>Tenants unavailable · Pull to retry</Text> : tenants.length === 0 ? <Text style={styles.tenantEmpty}>No tenants for this property yet.</Text> : tenants.map((tenant, index) => (
+          <View key={String(tenant.id ?? tenant.Id ?? index)} style={styles.tenantRow} accessibilityRole="summary">
+            <View style={styles.tenantAvatar}><Text style={styles.tenantInitial}>{tenantName(tenant).charAt(0).toUpperCase()}</Text></View>
+            <View style={styles.tenantCopy}>
+              <Text style={styles.tenantName}>{tenantName(tenant)}</Text>
+              {isMultiUnit && <Text style={styles.tenantMeta}>{stringValue(tenant.unitName, tenant.UnitName, 'Unit not assigned')}</Text>}
+              {!!stringValue(tenant.email, tenant.Email) && <Text style={styles.tenantMeta}>{stringValue(tenant.email, tenant.Email)}</Text>}
+            </View>
+          </View>
         ))}
       </View>}
 
@@ -266,10 +297,10 @@ export default function PropertyDetailScreen() {
   );
 }
 
-function Snapshot({ label, value }: { label: string; value: string }) {
+function Snapshot({ label, value, alert = false }: { label: string; value: string; alert?: boolean }) {
   const { mode } = useAppTheme();
   const styles = mode === 'dark' ? darkStyles : lightStyles;
-  return <View style={styles.snapshot}><Text style={styles.snapshotValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text><Text style={styles.snapshotLabel}>{label}</Text></View>;
+  return <View style={styles.snapshot}><Text style={styles.snapshotValue} numberOfLines={1} adjustsFontSizeToFit>{value}</Text><Text style={[styles.snapshotLabel, alert && styles.snapshotAlert]}>{label}</Text></View>;
 }
 
 function ActionRow({ icon, title, titleColor, subtitle, color, background, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; titleColor?: string; subtitle: string; color: string; background: string; onPress: () => void }) {
@@ -287,8 +318,9 @@ function ActionRow({ icon, title, titleColor, subtitle, color, background, onPre
 const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   content: { padding: 18, paddingBottom: 28 },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#ffffff' },
-  tab: { flex: 1, minWidth: 0, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabs: { borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#ffffff' },
+  tabsContent: { flexGrow: 1, flexDirection: 'row' },
+  tab: { flexGrow: 1, minWidth: 72, paddingHorizontal: 8, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: '#2563eb' },
   tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
   activeTabText: { color: '#0f2f47', fontWeight: '800' },
@@ -314,6 +346,11 @@ const lightStyles = StyleSheet.create({
   paymentHeader: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   paymentIcon: { width: 34, height: 34, borderRadius: 11, backgroundColor: '#d8e9ff', alignItems: 'center', justifyContent: 'center' },
   paymentHeading: { color: '#18374c', fontSize: 15, fontWeight: '800' },
+  rentStatusText: { color: '#18374c', fontSize: 20, fontWeight: '800', marginTop: 15 },
+  rentStatusOverdue: { color: '#c2413b' },
+  rentStatusPaid: { color: '#237443' },
+  rentBalance: { color: '#556d64', fontSize: 13, marginTop: 3 },
+  paymentSubheading: { color: '#556d64', fontSize: 12, fontWeight: '700', marginTop: 16 },
   paymentBody: { marginTop: 11 },
   paymentAmount: { color: '#102d43', fontSize: 29, fontWeight: '800', letterSpacing: -0.7 },
   paymentMeta: { color: '#556d64', fontSize: 13, lineHeight: 19, marginTop: 3 },
@@ -327,7 +364,7 @@ const lightStyles = StyleSheet.create({
   heroBody: { paddingTop: 20 },
   eyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.1, marginBottom: 4 },
   title: { color: '#102d43', fontSize: 29, lineHeight: 35, fontWeight: '900', letterSpacing: -0.7 },
-  address: { color: '#516576', fontSize: 15, fontWeight: 'bold', lineHeight: 21, marginTop: 6 },
+  address: { color: '#000000', fontSize: 15, fontWeight: 'bold', lineHeight: 21, marginTop: 6 },
   propertyType: { color: '#71808d', fontSize: 14, lineHeight: 20 },
   propertyFacts: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 4, marginTop: 10 },
   propertyFact: { color: '#516576', fontSize: 13, lineHeight: 19 },
@@ -337,9 +374,18 @@ const lightStyles = StyleSheet.create({
   snapshotDivider: { width: 1, backgroundColor: '#e0e7ec' },
   snapshotValue: { color: '#102d43', fontSize: 18, fontWeight: '900', paddingHorizontal: 4 },
   snapshotLabel: { color: '#71808d', fontSize: 10, marginTop: 3 },
+  snapshotAlert: { color: '#c2413b', fontWeight: '800' },
   sectionTitle: { color: '#102d43', fontSize: 21, fontWeight: '900', letterSpacing: -0.3, marginBottom: 12 },
   actionList: { marginBottom: 30 },
   checklistPanel: { paddingTop: 16, paddingBottom: 24 },
+  tenantPanel: { paddingTop: 12, paddingBottom: 24 },
+  tenantEmpty: { color: '#71808d', fontSize: 14, paddingVertical: 18 },
+  tenantRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 76, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e2e7e9' },
+  tenantAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#eaf3ff', alignItems: 'center', justifyContent: 'center' },
+  tenantInitial: { color: '#2475cf', fontWeight: '700', fontSize: 17 },
+  tenantCopy: { flex: 1, minWidth: 0 },
+  tenantName: { color: '#102d43', fontSize: 15, fontWeight: '700' },
+  tenantMeta: { color: '#71808d', fontSize: 13, lineHeight: 19, marginTop: 2 },
   checklistHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   checklistHeading: { color: '#102d43', fontSize: 17, fontWeight: '800', flex: 1 },
   viewAllButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8 },
@@ -377,6 +423,11 @@ const darkStyles = StyleSheet.create({
   paymentPanel: { ...lightStyles.paymentPanel, backgroundColor: '#233e59' },
   paymentIcon: { ...lightStyles.paymentIcon, backgroundColor: '#315372' },
   paymentHeading: { ...lightStyles.paymentHeading, color: '#f2f6fa' },
+  rentStatusText: { ...lightStyles.rentStatusText, color: '#f2f6fa' },
+  rentStatusOverdue: { ...lightStyles.rentStatusOverdue, color: '#ff9bad' },
+  rentStatusPaid: { ...lightStyles.rentStatusPaid, color: '#89dda0' },
+  rentBalance: { ...lightStyles.rentBalance, color: '#b4c3d0' },
+  paymentSubheading: { ...lightStyles.paymentSubheading, color: '#b4c3d0' },
   paymentAmount: { ...lightStyles.paymentAmount, color: '#f2f6fa' },
   paymentMeta: { ...lightStyles.paymentMeta, color: '#b4c3d0' },
   paymentStatus: { ...lightStyles.paymentStatus, color: '#dbe5ee' },
@@ -384,6 +435,12 @@ const darkStyles = StyleSheet.create({
   tabs: { ...lightStyles.tabs, backgroundColor: '#101923', borderBottomColor: '#35495b' },
   activityRow: { ...lightStyles.activityRow, borderBottomColor: '#35495b' },
   checklistHeading: { ...lightStyles.checklistHeading, color: '#f2f6fa' },
+  tenantEmpty: { ...lightStyles.tenantEmpty, color: '#b4c3d0' },
+  tenantRow: { ...lightStyles.tenantRow, borderBottomColor: '#35495b' },
+  tenantAvatar: { ...lightStyles.tenantAvatar, backgroundColor: '#233e59' },
+  tenantInitial: { ...lightStyles.tenantInitial, color: '#72b6ff' },
+  tenantName: { ...lightStyles.tenantName, color: '#f2f6fa' },
+  tenantMeta: { ...lightStyles.tenantMeta, color: '#b4c3d0' },
   viewAllText: { ...lightStyles.viewAllText, color: '#72b6ff' },
   activityTitle: { ...lightStyles.activityTitle, color: '#f2f6fa' },
   activityMeta: { ...lightStyles.activityMeta, color: '#b4c3d0' },
@@ -406,6 +463,7 @@ const darkStyles = StyleSheet.create({
   snapshotDivider: { ...lightStyles.snapshotDivider, backgroundColor: '#35495b' },
   snapshotValue: { ...lightStyles.snapshotValue, color: '#f2f6fa' },
   snapshotLabel: { ...lightStyles.snapshotLabel, color: '#b4c3d0' },
+  snapshotAlert: { ...lightStyles.snapshotAlert, color: '#ff9bad' },
   sectionTitle: { ...lightStyles.sectionTitle, color: '#f2f6fa' },
   actionRow: { ...lightStyles.actionRow, borderBottomColor: '#35495b' },
   actionTitle: { ...lightStyles.actionTitle, color: '#f2f6fa' },
