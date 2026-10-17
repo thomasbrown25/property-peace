@@ -1,6 +1,7 @@
 // Learn more https://docs.expo.dev/guides/customizing-metro
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
+const fs = require('fs');
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
@@ -10,8 +11,11 @@ const config = getDefaultConfig(__dirname);
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '..');
 const sharedRoot = path.resolve(monorepoRoot, 'shared');
+// npm's file: dependency may retain a differently cased Windows path. Metro
+// checks the symlink's real path against watchFolders, so include both forms.
+const sharedRealRoot = fs.realpathSync(sharedRoot);
 
-config.watchFolders = [...new Set([...(config.watchFolders || []), sharedRoot])];
+config.watchFolders = [...new Set([...(config.watchFolders || []), sharedRoot, sharedRealRoot])];
 
 config.resolver = {
   ...config.resolver,
@@ -25,6 +29,7 @@ config.resolver = {
     'react-native': path.resolve(projectRoot, 'node_modules', 'react-native'),
     'react': path.resolve(projectRoot, 'node_modules', 'react'),
     'react-native-svg': path.resolve(projectRoot, 'node_modules', 'react-native-svg'),
+    '@property-peace/shared': sharedRoot,
   },
   // Enable source extensions for TypeScript files in node_modules
   sourceExts: [...config.resolver.sourceExts, 'ts', 'tsx'],

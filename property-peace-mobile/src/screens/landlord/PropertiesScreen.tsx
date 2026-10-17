@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
@@ -68,21 +68,47 @@ export default function PropertiesScreen() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [search, setSearch] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const loadProperties = async () => {
-    try {
-      const data = await PropertyAPI.getProperties();
-      setProperties(data || []);
-    } catch (error) {
-      console.error('Error loading properties:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const data = await PropertyAPI.getProperties();
+        if (active) {
+          setProperties(data || []);
+          setLoadError(false);
+        }
+      } catch (error) {
+        console.error('Error loading properties:', error);
+        if (active) {
+          setProperties([]);
+          setLoadError(true);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, [reloadKey]));
+
+  const refreshProperties = () => {
+    setRefreshing(true);
+    setReloadKey((key) => key + 1);
   };
 
-  useEffect(() => { loadProperties(); }, []);
+  const overview = useMemo(() => {
+    const activeProperties = properties.filter((property) => property.isActive !== false && property.IsActive !== false);
+    const units = activeProperties.flatMap(getUnits);
+    const occupied = units.filter((unit: any) => ['occupied', 'overdue'].includes(stringValue(unit.status, unit.Status).toLowerCase())).length;
+    return { properties: activeProperties.length, total: units.length, occupied, vacant: units.length - occupied };
+  }, [properties]);
 
   const filteredProperties = useMemo(() => {
     return filterPropertiesForList(properties, search)
@@ -101,14 +127,34 @@ export default function PropertiesScreen() {
           <Text style={styles.primaryButtonText}>Add property</Text>
         </TouchableOpacity>
       </View>
-      {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : <FlatList
+      {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : loadError ? (
+        <View style={styles.centerContainer}>
+          <Text style={styles.emptyText}>Properties are unavailable</Text>
+          <TouchableOpacity style={styles.emptyButton} onPress={refreshProperties} accessibilityRole="button"><Text style={styles.emptyButtonText}>Retry</Text></TouchableOpacity>
+        </View>
+      ) : <FlatList
         data={filteredProperties}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         renderItem={({ item }) => <PropertyRow property={item} onPress={() => navigation.navigate('PropertyDetail', { propertyId: String(item.id || item.Id) })} />}
         contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperties(); }} tintColor={colors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshProperties} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View>
+            <View style={styles.portfolioOverview}>
+              <Text style={styles.overviewEyebrow}>PORTFOLIO OVERVIEW</Text>
+              <View style={styles.overviewTop}>
+                <View>
+                  <Text style={styles.overviewValue}>{overview.total ? `${Math.round(overview.occupied / overview.total * 100)}%` : '—'}</Text>
+                  <Text style={styles.overviewLabel}>Occupancy</Text>
+                </View>
+                <Text style={styles.overviewContext}>{overview.occupied} of {overview.total} units occupied</Text>
+              </View>
+              <View style={styles.overviewStats}>
+                <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.properties}</Text><Text style={styles.overviewStatLabel}>Active properties</Text></View>
+                <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.occupied}</Text><Text style={styles.overviewStatLabel}>Occupied units</Text></View>
+                <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.vacant}</Text><Text style={styles.overviewStatLabel}>Vacant units</Text></View>
+              </View>
+            </View>
             <View style={styles.searchWrap}>
               <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
               <TextInput
@@ -205,6 +251,14 @@ function useScreenStyles() {
       pageTitle: { ...styles.pageTitle, color: colors.text },
       pageSubtitle: { ...styles.pageSubtitle, color: colors.muted },
       searchWrap: { ...styles.searchWrap, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+      portfolioOverview: { ...styles.portfolioOverview, borderColor: colors.border },
+      overviewEyebrow: { ...styles.overviewEyebrow, color: colors.accent },
+      overviewValue: { ...styles.overviewValue, color: colors.text },
+      overviewLabel: { ...styles.overviewLabel, color: colors.muted },
+      overviewContext: { ...styles.overviewContext, color: colors.muted },
+      overviewStats: { ...styles.overviewStats, borderTopColor: colors.border },
+      overviewStatValue: { ...styles.overviewStatValue, color: colors.text },
+      overviewStatLabel: { ...styles.overviewStatLabel, color: colors.muted },
       searchInput: { ...styles.searchInput, color: colors.text },
       sectionTitle: { ...styles.sectionTitle, color: colors.text },
       sectionCount: { ...styles.sectionCount, color: colors.muted },
@@ -235,6 +289,16 @@ const styles = StyleSheet.create({
   pageSubtitle: { color: '#617180', fontSize: 13, marginTop: 3 },
   primaryButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, paddingHorizontal: 10 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  portfolioOverview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
+  overviewEyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
+  overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
+  overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
+  overviewContext: { flexShrink: 1, color: '#617180', fontSize: 12, textAlign: 'right', paddingBottom: 3 },
+  overviewStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dbe2e6', paddingTop: 16 },
+  overviewStat: { flex: 1, minWidth: 0, paddingRight: 6 },
+  overviewStatValue: { color: '#102d43', fontSize: 20, fontWeight: '800' },
+  overviewStatLabel: { color: '#617180', fontSize: 11, lineHeight: 15, marginTop: 3 },
   searchWrap: { flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 13, minHeight: 46, marginBottom: 22 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },

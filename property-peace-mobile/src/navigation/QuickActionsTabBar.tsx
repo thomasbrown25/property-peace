@@ -173,7 +173,6 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={[styles.sheetEyebrow, mode === 'dark' && { color: '#7bd793' }]}>PROPERTY PEACE</Text>
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>More</Text>
               </View>
               <Pressable style={[styles.closeButton, { backgroundColor: colors.background }]} accessibilityRole="button" accessibilityLabel="Close menu" onPress={() => hideSheet()}>
                 <Ionicons name="close" size={22} color={colors.text} />
@@ -219,12 +218,11 @@ const styles = StyleSheet.create({
   tabContent: { alignItems: 'center', justifyContent: 'center', gap: 2 },
   tabText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(4, 20, 35, 0.52)' },
+  backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(4, 20, 35, 0.52)' },
   sheet: { maxHeight: '78%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10, shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 20, elevation: 18 },
   handle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 24 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
-  sheetEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 5 },
-  sheetTitle: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6 },
+  sheetEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
   closeButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   actionScroll: { flexShrink: 1 },
   scrollContent: { paddingBottom: 8 },

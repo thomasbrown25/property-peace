@@ -1154,7 +1154,7 @@ export default function Messages() {
             )}
             <Button
               variant="contained"
-              color="success"
+              color="primary"
               size="small"
               startIcon={<PlusOutlined />}
               onClick={() => {
@@ -1169,7 +1169,6 @@ export default function Messages() {
                 boxShadow: 'none',
                 minHeight: 34,
                 px: { xs: 1.25, sm: 1.5 },
-                color: '#061E35',
                 fontSize: '0.8rem'
               }}
             >

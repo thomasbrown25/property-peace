@@ -689,7 +689,7 @@ const styles = StyleSheet.create({
   avatarActive: { borderColor: '#5ebc68' },
   avatarImage: { width: '100%', height: '100%' },
   avatarText: { color: '#fff', fontSize: 17, fontWeight: '900' },
-  profileMenuLayer: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50 },
+  profileMenuLayer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 50, elevation: 50 },
   profileMenu: { position: 'absolute', left: 14, width: 280, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
   notificationsMenu: { position: 'absolute', right: 14, width: 320, maxWidth: '88%', backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#e3e9ed', overflow: 'hidden', shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
   notificationsMenuHeading: { color: '#102d43', fontSize: 16, fontWeight: '900', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#edf1f3' },

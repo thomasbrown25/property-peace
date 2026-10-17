@@ -116,7 +116,7 @@ export const useGoogleSignIn = () => {
         return {
           idToken: null,
           accessToken: null,
-          error: result.error?.message || result.error?.code || 'Authentication error',
+          error: result.error?.description || result.error?.params?.error || 'Authentication error',
         };
       } else {
         console.warn('⚠️ OAuth cancelled or dismissed');
