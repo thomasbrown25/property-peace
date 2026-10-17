@@ -79,16 +79,16 @@ export default function MaintenanceScreen() {
       {!loading && !error && <View style={[styles.maintenanceOverview, dark && { borderColor: colors.border }]}>
         <View style={styles.overviewHeading}>
           <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>MAINTENANCE OVERVIEW</Text>
-          <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
-            <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
-            <Text style={[styles.addText, dark && { color: colors.background }]}>Request</Text>
-          </TouchableOpacity>
         </View>
         <View style={styles.overviewTop}>
           <View>
             <Text style={[styles.overviewValue, dark && { color: colors.text }, overview.open > 0 && { color: dark ? '#ff8b86' : '#c2413b' }]}>{overview.open}</Text>
             <Text style={[styles.overviewLabel, dark && { color: colors.muted }]}>Open requests</Text>
           </View>
+          <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
+            <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
+            <Text style={[styles.addText, dark && { color: colors.background }]}>Request</Text>
+          </TouchableOpacity>
         </View>
         <View style={[styles.overviewStats, dark && { borderTopColor: colors.border }]}>
           <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.reported}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Reported</Text></View>
@@ -141,13 +141,13 @@ const styles = StyleSheet.create({
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingBottom: 28 },
   header: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
-  addButton: { minHeight: 44, paddingHorizontal: 12, backgroundColor: '#061e35', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, transform: [{ translateY: 10 }] },
+  addButton: { minHeight: 44, paddingHorizontal: 12, backgroundColor: '#061e35', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   addText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
   maintenanceOverview: { marginHorizontal: 20, marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
   overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, flexShrink: 1 },
-  overviewTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
+  overviewTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
   overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
   overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
   overviewStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dbe2e6', paddingTop: 16 },

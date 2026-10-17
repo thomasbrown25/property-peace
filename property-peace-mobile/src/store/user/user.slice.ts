@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { User, UserState, UserSettings, NotificationSettings } from '../../types/user';
 import authService, { LoginCredentials, RegisterData } from '../../services/authService';
-import storageService from '../../services/storageService';
 
 const initialState: UserState = {
   currentUser: null,
@@ -64,15 +63,7 @@ export const logout = createAsyncThunk('user/logout', async () => {
 });
 
 export const initializeAuth = createAsyncThunk('user/initializeAuth', async () => {
-  const token = await storageService.getToken();
-  const isAuthenticated = await authService.isAuthenticated();
-  const user = isAuthenticated ? await authService.getCurrentUser() : null;
-  
-  return {
-    token,
-    isAuthenticated,
-    user,
-  };
+  return authService.restoreSession();
 });
 
 const userSlice = createSlice({

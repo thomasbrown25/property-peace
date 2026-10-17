@@ -7,7 +7,7 @@ import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import CircularLoader from 'components/CircularLoader';
 import { propertyAccentCardSx } from './propertyAccentSx';
 
-export default function PropertyRentCollection({ propertyId, showActions = true }) {
+export default function PropertyRentCollection({ propertyId }) {
   const theme = useTheme();
   const navigate = useNavigate();
   const { summary, loading } = useFetchRentCollection(propertyId);
@@ -95,7 +95,8 @@ export default function PropertyRentCollection({ propertyId, showActions = true 
             </Grid>
           </Grid>
 
-          {showActions && <Stack direction="row" spacing={2} sx={{ pt: 1 }}>
+          {/* Action Buttons */}
+          <Stack direction="row" spacing={2} sx={{ pt: 1 }}>
             <Button
               variant="contained"
               fullWidth
@@ -124,7 +125,7 @@ export default function PropertyRentCollection({ propertyId, showActions = true 
             >
               Set Up Payments
             </Button>
-          </Stack>}
+          </Stack>
         </Stack>
       )}
     </MainCard>

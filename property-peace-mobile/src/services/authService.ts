@@ -123,11 +123,30 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
+    apiClient.invalidateSession();
     try {
+      // The server revokes the rotating refresh token and clears its HttpOnly cookie.
+      await apiClient.post('/api/user/logout');
+    } catch {
+      // Offline sign-out still removes every local credential.
+    } finally {
       await storageService.clearAuthData();
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
+    }
+  }
+
+  async restoreSession(): Promise<{ token: string | null; isAuthenticated: boolean; user: User | null }> {
+    const token = await storageService.getToken();
+    const cachedUser = await storageService.getUser<User>();
+    if (!token || !cachedUser) return { token: null, isAuthenticated: false, user: null };
+    if (await this.isAuthenticated()) {
+      return { token, isAuthenticated: true, user: cachedUser };
+    }
+    try {
+      const user = await apiClient.refreshSession() as User;
+      return { token: user.jwtToken || null, isAuthenticated: true, user };
+    } catch (error: any) {
+      if (error?.response?.status === 401) await storageService.clearAuthData();
+      return { token: null, isAuthenticated: false, user: null };
     }
   }
 

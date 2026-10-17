@@ -6,6 +6,8 @@ import storageService from './storageService';
 class ApiClient {
   private httpClient: AxiosInstance;
   private onTokenExpiredCallback?: () => void;
+  private refreshPromise: Promise<string> | null = null;
+  private sessionGeneration = 0;
 
   constructor() {
     this.httpClient = axios.create({
@@ -14,6 +16,7 @@ class ApiClient {
       withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
+        'X-PP-Mobile-Session': 'persistent',
       },
       timeout: 30000,
     });
@@ -25,9 +28,58 @@ class ApiClient {
     this.onTokenExpiredCallback = callback;
   }
 
+  invalidateSession() {
+    // A refresh already in flight must never restore credentials after explicit sign-out.
+    this.sessionGeneration += 1;
+  }
+
+  async refreshSession(): Promise<{ jwtToken: string; [key: string]: any }> {
+    if (!this.refreshPromise) {
+      const generation = this.sessionGeneration;
+      const pending = (async () => {
+        // Use a bare client: the expired access token must not block the cookie refresh.
+        const response = await axios.post<{ success: boolean; data?: { jwtToken?: string; [key: string]: any } }>(
+          `${config.API_URL}/api/user/refresh`, {}, { withCredentials: true, timeout: 30000 },
+        );
+        const user = response.data?.data;
+        if (!response.data?.success || !user?.jwtToken) throw new Error('Refresh did not return a session');
+        const cached = await storageService.getUser<{ id?: string | number; Id?: string | number }>();
+        const cachedId = cached?.id ?? cached?.Id;
+        const refreshedId = user.id ?? user.Id;
+        if (cachedId != null && String(cachedId) !== String(refreshedId)) {
+          throw new Error('Refresh returned a different account');
+        }
+        if (refreshedId == null || generation !== this.sessionGeneration) {
+          throw new Error('Refresh session is no longer valid');
+        }
+        await storageService.setToken(user.jwtToken);
+        if (generation !== this.sessionGeneration) {
+          await storageService.removeToken();
+          throw new Error('Refresh session is no longer valid');
+        }
+        await storageService.setUser(user);
+        if (generation !== this.sessionGeneration) {
+          await storageService.clearAuthData();
+          throw new Error('Refresh session is no longer valid');
+        }
+        return user.jwtToken;
+      })();
+      this.refreshPromise = pending;
+      void pending.finally(() => {
+        if (this.refreshPromise === pending) this.refreshPromise = null;
+      }).catch(() => {});
+    }
+    const token = await this.refreshPromise;
+    const user = await storageService.getUser<{ jwtToken: string; [key: string]: any }>();
+    if (!user || user.jwtToken !== token) throw new Error('Refreshed user is unavailable');
+    return user;
+  }
+
   private isAuthEndpoint(url?: string): boolean {
     if (!url) return false;
     return (
+      url.includes('/api/user/refresh') ||
+      url.includes('/api/user/logout') ||
       url.includes('/api/user/login') ||
       url.includes('/api/user/register') ||
       url.includes('/api/user/forgot-password') ||
@@ -61,14 +113,19 @@ class ApiClient {
         const organizationId = await storageService.getCurrentOrganizationId();
         const isAuthEndpoint = this.isAuthEndpoint(axiosConfig.url);
 
-        // Add auth token if available and not auth endpoint
+        // Refresh a short-lived access token before sending protected requests.
         if (token && !isAuthEndpoint) {
           const expired = await this.isTokenExpired(token);
+          let validToken = token;
           if (expired) {
-            this.onTokenExpiredCallback?.();
-            throw new Error('Token expired');
+            try {
+              validToken = (await this.refreshSession()).jwtToken;
+            } catch (refreshError: any) {
+              if (refreshError?.response?.status === 401) this.onTokenExpiredCallback?.();
+              throw refreshError;
+            }
           }
-          axiosConfig.headers.Authorization = `Bearer ${token}`;
+          axiosConfig.headers.Authorization = `Bearer ${validToken}`;
         }
 
         // Add organization header if available
@@ -88,8 +145,22 @@ class ApiClient {
         const isAuthEndpoint = this.isAuthEndpoint(error.config?.url);
         const isSubscriptionEndpoint = error.config?.url?.includes('/api/subscription');
 
-        // Handle 401 errors
-        if (error.response?.status === 401 && !isAuthEndpoint && !isSubscriptionEndpoint) {
+        // Retry one unauthorized protected request after rotating the cookie session.
+        const original = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined;
+        if (error.response?.status === 401 && !isAuthEndpoint && !isSubscriptionEndpoint && original && !original._retry) {
+          original._retry = true;
+          try {
+            const currentToken = await storageService.getToken();
+            const sentToken = String(original.headers?.Authorization ?? '').replace(/^Bearer /, '');
+            if (!currentToken || currentToken === sentToken) await this.refreshSession();
+            return await this.httpClient.request(original);
+          } catch (refreshError: any) {
+            if (refreshError?.response?.status === 401) this.onTokenExpiredCallback?.();
+            return Promise.reject(refreshError);
+          }
+        }
+
+        if (error.response?.status === 401 && !isAuthEndpoint && !isSubscriptionEndpoint && original?._retry) {
           this.onTokenExpiredCallback?.();
         }
 

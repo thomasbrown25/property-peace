@@ -39,7 +39,7 @@ import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
 import { useAppTheme } from '../../theme/AppTheme';
 
 type Props = NativeStackScreenProps<ChecklistsStackParamList, 'ChecklistEditor'>;
-type ItemDraft = { notes: string; damageDescription: string };
+type ItemDraft = { damageDescription: string };
 
 const idText = (id?: Id) => String(id ?? '');
 const errorMessage = (error: any, fallback: string) => error?.message || error?.Message || fallback;
@@ -54,7 +54,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [counterpartLoadError, setCounterpartLoadError] = useState('');
-  const [collapsedRooms, setCollapsedRooms] = useState<Set<string>>(new Set());
+  const [expandedRooms, setExpandedRooms] = useState<Set<string>>(new Set());
   const [roomDraft, setRoomDraft] = useState('');
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [itemNameDrafts, setItemNameDrafts] = useState<Record<string, string>>({});
@@ -85,7 +85,6 @@ export default function ChecklistEditorScreen({ route }: Props) {
       const loaded = await ChecklistAPI.getById(checklistId);
       setChecklist(loaded);
       setItemDrafts(Object.fromEntries(loaded.items.map((item) => [idText(item.id), {
-        notes: item.notes || '',
         damageDescription: item.damageDescription || '',
       }])));
       if (loaded.counterpartChecklistId != null) {
@@ -109,7 +108,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
     }
   }, [checklistId]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { setExpandedRooms(new Set()); load(); }, [load]));
 
   const rooms = useMemo(() => checklist ? groupChecklistRooms(checklist) : [], [checklist]);
   const progress = useMemo(() => checklist ? getChecklistProgress(checklist) : { done: 0, total: 0, percent: 0, complete: false }, [checklist]);
@@ -135,7 +134,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
     const key = `condition-${idText(item.id)}`;
     if (!beginMutation(key)) return;
     const previous = checklist;
-    const condition = item.condition === requested ? null : requested;
+    const condition = requested;
     const next = withItemCondition(previous, item.id, condition, new Date().toISOString());
     setChecklist(next);
     setRetryCondition(null);
@@ -155,11 +154,11 @@ export default function ChecklistEditorScreen({ route }: Props) {
     const key = idText(item.id);
     const mutationKey = `details-${key}`;
     if (!beginMutation(mutationKey)) return;
-    const draft = itemDrafts[key] || { notes: item.notes || '', damageDescription: item.damageDescription || '' };
+    const draft = itemDrafts[key] || { damageDescription: item.damageDescription || '' };
     try {
-      await saveActive(withChecklistItemDetails(checklist, item.id, draft));
+      await saveActive(withChecklistItemDetails(checklist, item.id, { ...draft, notes: item.notes || '' }));
     } catch (saveError: any) {
-      Alert.alert('Details not saved', errorMessage(saveError, 'Your notes were not saved. Please try again.'));
+      Alert.alert('Details not saved', errorMessage(saveError, 'Your repair details were not saved. Please try again.'));
     } finally {
       endMutation(mutationKey);
     }
@@ -227,7 +226,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
     ]);
   };
 
-  const toggleRoom = (roomName: string) => setCollapsedRooms((current) => {
+  const toggleRoom = (roomName: string) => setExpandedRooms((current) => {
     const next = new Set(current);
     if (next.has(roomName)) next.delete(roomName); else next.add(roomName);
     return next;
@@ -244,17 +243,23 @@ export default function ChecklistEditorScreen({ route }: Props) {
   );
 
   const renderRoom = ({ item: room }: { item: ChecklistRoom }) => {
-    const collapsed = collapsedRooms.has(room.name);
+    const expanded = expandedRooms.has(room.name);
     const roomDone = room.items.filter((item) => Boolean(item.condition)).length;
+    const repairsNeeded = room.items.filter((item) => item.condition === 'NR' || item.condition === 'RP').length;
     const renameValue = renameDrafts[room.name] ?? room.name;
     return (
       <View style={themed.roomCard}>
-        <TouchableOpacity style={themed.roomTop} onPress={() => toggleRoom(room.name)}>
+        <TouchableOpacity style={themed.roomTop} onPress={() => toggleRoom(room.name)} accessibilityRole="button" accessibilityState={{ expanded }}>
           <View style={themed.roomIcon}><Ionicons name="home-outline" size={20} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
-          <View style={themed.flex}><Text style={themed.roomTitle}>{room.name}</Text><Text style={themed.roomProgress}>{roomDone} of {room.items.length} complete</Text></View>
-          <Ionicons name={collapsed ? 'chevron-down' : 'chevron-up'} size={20} color={mode === 'dark' ? colors.muted : '#71808d'} />
+          <View style={themed.flex}>
+            <Text style={themed.roomTitle}>{room.name}</Text>
+            <Text style={themed.roomProgress}>{roomDone} of {room.items.length} complete</Text>
+            <Text style={themed.roomCounts}>{roomDone} checked · {repairsNeeded === 0 ? 'No repairs needed' : `${repairsNeeded} ${repairsNeeded === 1 ? 'repair' : 'repairs'} needed`}</Text>
+            {room.items.length > 0 && roomDone === room.items.length && <Text style={themed.roomComplete}>Nice work — every item is checked.</Text>}
+          </View>
+          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={mode === 'dark' ? colors.muted : '#71808d'} />
         </TouchableOpacity>
-        {!collapsed && (
+        {expanded && (
           <View>
             <View style={themed.renameRow}>
               <TextInput value={renameValue} onChangeText={(value) => setRenameDrafts((current) => ({ ...current, [room.name]: value }))} style={themed.smallInput} accessibilityLabel={`Rename ${room.name}`} editable={!busy} />
@@ -268,7 +273,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
                 item={item}
                 checklistId={checklistId}
                 onChecklistUpdated={setChecklist}
-                draft={itemDrafts[idText(item.id)] || { notes: item.notes || '', damageDescription: item.damageDescription || '' }}
+                draft={itemDrafts[idText(item.id)] || { damageDescription: item.damageDescription || '' }}
                 onDraft={(draft) => setItemDrafts((current) => ({ ...current, [idText(item.id)]: draft }))}
                 savingKey={savingKey}
                 disabled={busy}
@@ -313,7 +318,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
         <View>
           <Text style={themed.eyebrow}>{Number(checklist.checklistType) === 41 ? 'MOVE-OUT INSPECTION' : 'MOVE-IN INSPECTION'}</Text>
           <Text style={themed.title}>{checklist.title}</Text>
-          <Text style={themed.subtitle}>Set a condition for each item, then add notes for anything that needs attention.</Text>
+          <Text style={themed.subtitle}>Set a condition for each item, then describe any damage or repairs that need attention.</Text>
           {!!counterpartLoadError && (
             <View style={themed.counterpartWarning}>
               <Text style={themed.counterpartWarningText}>{counterpartLoadError} Room changes are paused to keep both inspections matched.</Text>
@@ -359,32 +364,50 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
 }) {
   const { mode, colors } = useAppTheme();
   const themed = mode === 'dark' ? darkStyles : styles;
+  const [conditionMenuOpen, setConditionMenuOpen] = useState(false);
   const key = idText(item.id);
   const savingCondition = savingKey === `condition-${key}`;
   const retry = retryCondition && idText(retryCondition.itemId) === key ? retryCondition : null;
+  const selectedCondition = CHECKLIST_CONDITIONS.find((option) => option.value === item.condition);
+  const selectedStyle = item.condition === 'Good' ? themed.conditionSelected : item.condition === 'NR' || item.condition === 'RP' ? themed.conditionRepairSelected : themed.conditionWarningSelected;
   return (
     <View style={themed.itemCard}>
       <View style={themed.itemTop}>
         <View style={themed.flex}><Text style={themed.itemName}>{item.name}</Text>{!!item.description && <Text style={themed.itemDescription}>{item.description}</Text>}</View>
         {(item.sortOrder ?? 0) >= 1000 && <TouchableOpacity style={themed.iconButton} onPress={onDelete} disabled={disabled}><Ionicons name="trash-outline" size={19} color={mode === 'dark' ? '#ff918b' : '#c2413b'} /></TouchableOpacity>}
       </View>
-      <View style={themed.conditions}>
-        {CHECKLIST_CONDITIONS.map((option) => {
-          const selected = item.condition === option.value;
-          return <TouchableOpacity key={option.value} accessibilityLabel={option.label} style={[themed.condition, selected && themed.conditionSelected]} onPress={() => onCondition(option.value)} disabled={disabled}><Text style={[themed.conditionText, selected && themed.conditionTextSelected]}>{option.label}</Text></TouchableOpacity>;
-        })}
-      </View>
+      <TouchableOpacity
+        style={[themed.conditionTrigger, selectedCondition && selectedStyle]}
+        onPress={() => setConditionMenuOpen((open) => !open)}
+        disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={`Condition: ${selectedCondition?.label ?? 'Select condition'}`}
+        accessibilityState={{ expanded: conditionMenuOpen, disabled }}
+      >
+        <Text style={[themed.conditionTriggerText, selectedCondition && themed.conditionTextSelected]}>{selectedCondition?.label ?? 'Select condition'}</Text>
+        <Ionicons name={conditionMenuOpen ? 'chevron-up' : 'chevron-down'} size={19} color={selectedCondition ? '#fff' : mode === 'dark' ? '#d9e6ef' : '#526775'} />
+      </TouchableOpacity>
+      {conditionMenuOpen && (
+        <View style={themed.conditionMenu}>
+          {CHECKLIST_CONDITIONS.map((option) => (
+            <TouchableOpacity
+              key={option.value}
+              style={themed.conditionOption}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
+              accessibilityState={{ selected: item.condition === option.value, disabled }}
+              disabled={disabled}
+              onPress={() => { setConditionMenuOpen(false); if (item.condition !== option.value) onCondition(option.value); }}
+            >
+              <Text style={themed.conditionOptionText}>{option.label}</Text>
+              {item.condition === option.value && <Ionicons name="checkmark" size={20} color={mode === 'dark' ? '#86dc9a' : '#2f8f46'} />}
+            </TouchableOpacity>
+          ))}
+          {!!selectedCondition && <TouchableOpacity style={themed.conditionOption} accessibilityRole="button" accessibilityLabel="Clear condition" disabled={disabled} onPress={() => { setConditionMenuOpen(false); onCondition(null); }}><Text style={themed.conditionOptionText}>Clear condition</Text></TouchableOpacity>}
+        </View>
+      )}
       {savingCondition && <Text style={themed.savingText}>Saving condition…</Text>}
       {!!retry && <TouchableOpacity style={themed.retryConditionButton} onPress={() => onCondition(retry.condition)} disabled={disabled}><Text style={themed.retryInline}>Condition not saved · Retry</Text></TouchableOpacity>}
-      <TextInput
-        value={draft.notes}
-        onChangeText={(notes) => onDraft({ ...draft, notes })}
-        placeholder="Notes"
-        placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'}
-        style={[themed.detailInput, themed.multiline]}
-        multiline
-        editable={!disabled}
-      />
       <TextInput
         value={draft.damageDescription}
         onChangeText={(damageDescription) => onDraft({ ...draft, damageDescription })}
@@ -394,7 +417,7 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
         editable={!disabled}
       />
       <TouchableOpacity style={themed.saveDetailsButton} onPress={onSaveDetails} disabled={disabled}>
-        {savingKey === `details-${key}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.saveDetailsText}>Save notes</Text>}
+        {savingKey === `details-${key}` ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.saveDetailsText}>Save details</Text>}
       </TouchableOpacity>
       <ChecklistItemPhotos checklistId={checklistId} item={item} disabled={disabled} failedAsset={failedAsset} onFailedAssetChange={onFailedAssetChange} onBusyChange={onBusyChange} onChecklistUpdated={onChecklistUpdated} />
     </View>
@@ -430,6 +453,8 @@ const styles = StyleSheet.create({
   roomIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eaf3ff' },
   roomTitle: { color: '#102d43', fontSize: 17, fontWeight: '900' },
   roomProgress: { color: '#697887', fontSize: 12, marginTop: 2 },
+  roomCounts: { color: '#526775', fontSize: 12, marginTop: 4 },
+  roomComplete: { color: '#2f8f46', fontSize: 12, fontWeight: '700', marginTop: 4 },
   renameRow: { flexDirection: 'row', gap: 8, paddingBottom: 16, paddingTop: 4 },
   smallInput: { flex: 1, minHeight: 44, borderWidth: 1, borderColor: '#d8e0e6', borderRadius: 12, backgroundColor: '#fff', color: '#102d43', paddingHorizontal: 12 },
   secondaryButton: { minWidth: 78, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#9cc4eb', borderRadius: 12, paddingHorizontal: 10 },
@@ -440,16 +465,19 @@ const styles = StyleSheet.create({
   itemName: { color: '#20394d', fontSize: 15, lineHeight: 20, fontWeight: '900' },
   itemDescription: { color: '#697887', fontSize: 12, marginTop: 2 },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  conditions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
-  condition: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#d7e0e6', borderRadius: 11, backgroundColor: '#f8fafb', paddingHorizontal: 10 },
+  conditionTrigger: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, borderWidth: 1, borderColor: '#d7e0e6', borderRadius: 11, backgroundColor: '#f8fafb', paddingHorizontal: 12, marginTop: 10 },
+  conditionTriggerText: { flex: 1, color: '#526775', fontSize: 13, fontWeight: '700' },
+  conditionMenu: { borderWidth: 1, borderColor: '#d7e0e6', borderRadius: 11, backgroundColor: '#fff', marginTop: 4, overflow: 'hidden' },
+  conditionOption: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12 },
+  conditionOptionText: { color: '#20394d', fontSize: 13 },
   conditionSelected: { backgroundColor: '#2f8f46', borderColor: '#2f8f46' },
-  conditionText: { color: '#526775', fontSize: 11, fontWeight: '900' },
+  conditionWarningSelected: { backgroundColor: '#a45f12', borderColor: '#a45f12' },
+  conditionRepairSelected: { backgroundColor: '#b93832', borderColor: '#b93832' },
   conditionTextSelected: { color: '#fff' },
   savingText: { color: '#2475cf', fontSize: 11, marginTop: 6 },
   retryConditionButton: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
   retryInline: { color: '#b75e10', fontSize: 12, fontWeight: '900', marginTop: 7 },
   detailInput: { minHeight: 44, borderWidth: 1, borderColor: '#dce3e8', borderRadius: 12, color: '#20394d', paddingHorizontal: 11, marginTop: 8, backgroundColor: '#fbfcfd' },
-  multiline: { minHeight: 66, paddingTop: 10, textAlignVertical: 'top' },
   saveDetailsButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 13, borderRadius: 11, backgroundColor: '#eaf3ff', marginTop: 8 },
   saveDetailsText: { color: '#2475cf', fontSize: 12, fontWeight: '900' },
   addItemRow: { flexDirection: 'row', gap: 8, paddingVertical: 18, borderTopWidth: 1, borderTopColor: '#e2e7e9' },
@@ -478,6 +506,8 @@ const darkStyles = StyleSheet.create({
   roomIcon: { ...styles.roomIcon, backgroundColor: '#25394b' },
   roomTitle: { ...styles.roomTitle, color: '#f2f6fa' },
   roomProgress: { ...styles.roomProgress, color: '#b4c3d0' },
+  roomCounts: { ...styles.roomCounts, color: '#b4c3d0' },
+  roomComplete: { ...styles.roomComplete, color: '#86dc9a' },
   smallInput: { ...styles.smallInput, borderColor: '#35495b', backgroundColor: '#1b2937', color: '#f2f6fa' },
   secondaryButton: { ...styles.secondaryButton, borderColor: '#72b6ff' },
   secondaryText: { ...styles.secondaryText, color: '#72b6ff' },
@@ -485,8 +515,10 @@ const darkStyles = StyleSheet.create({
   itemCard: { ...styles.itemCard, borderTopColor: '#35495b' },
   itemName: { ...styles.itemName, color: '#f2f6fa' },
   itemDescription: { ...styles.itemDescription, color: '#b4c3d0' },
-  condition: { ...styles.condition, borderColor: '#35495b', backgroundColor: '#1b2937' },
-  conditionText: { ...styles.conditionText, color: '#d9e6ef' },
+  conditionTrigger: { ...styles.conditionTrigger, borderColor: '#35495b', backgroundColor: '#1b2937' },
+  conditionTriggerText: { ...styles.conditionTriggerText, color: '#d9e6ef' },
+  conditionMenu: { ...styles.conditionMenu, borderColor: '#35495b', backgroundColor: '#1b2937' },
+  conditionOptionText: { ...styles.conditionOptionText, color: '#f2f6fa' },
   conditionTextSelected: { ...styles.conditionTextSelected, color: '#fff' },
   savingText: { ...styles.savingText, color: '#72b6ff' },
   retryInline: { ...styles.retryInline, color: '#f0b669' },

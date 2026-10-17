@@ -90,9 +90,7 @@ import DocumentsTab from 'sections/landlord/property/DocumentsTab';
 import ExpensesTab from 'sections/landlord/property/ExpensesTab';
 import OverviewTab from 'sections/landlord/property/OverviewTab';
 import PropertyOverview from 'sections/landlord/property/PropertyOverview';
-
-import PropertyLeasesTab from 'sections/landlord/property/PropertyLeasesTab';
-import PropertyRentCollection from 'sections/landlord/property/PropertyRentCollection';
+import PropertyScheduledLeases from 'sections/landlord/property/PropertyScheduledLeases';
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
 import { bankAccountAPI } from 'api';
 import axiosServices from 'utils/axios';
@@ -2318,8 +2316,18 @@ export default function Property() {
   const reduxSelectedProperty = useSelector(selectProperty);
 
   // Initialize tab from URL query parameter or default to 'overview'
-  const requestedTab = searchParams.get('tab');
-  const tab = ['overview', 'leases', 'payments'].includes(requestedTab) ? requestedTab : 'overview';
+  const [tab, setTab] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    return tabParam || 'overview';
+  });
+
+  // Update tab when URL query parameter changes
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) {
+      setTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Reset property selection when leaving this page
   useEffect(() => {
@@ -2361,7 +2369,7 @@ export default function Property() {
   const propertyLoading = useSelector(selectPropertyLoading);
   const maintenanceLoading = useSelector(selectMaintenanceLoading);
 
-  const { loading: rentCollectionLoading } = useFetchRentCollection(propertyId);
+  const { rentRecords, loading: rentCollectionLoading } = useFetchRentCollection(propertyId);
   const { maintenances, refetch: refetchMaintenances } = useFetchMaintenances(propertyId);
   
   // Get context to update property loading state
@@ -2578,6 +2586,13 @@ export default function Property() {
   const isSingleFamily = selectedProperty?.propertyType?.toLowerCase() === 'singlefamily';
   const downMD = useMediaQuery(theme => theme.breakpoints.down('md'));
 
+  // Redirect from units tab to overview if single-family property
+  useEffect(() => {
+    if (isSingleFamily && tab === 'units') {
+      setTab('overview');
+    }
+  }, [isSingleFamily, tab]);
+
   return (
     <>
       <Fade in={fadeIn} timeout={600}>
@@ -2600,8 +2615,8 @@ export default function Property() {
           />
         </AnimateIn>
 
-        {/* Leasing progress remains above the tabs on desktop and on mobile Overview. */}
-        <Box sx={{ mt: 2, display: { xs: tab === 'overview' ? 'block' : 'none', sm: 'block' } }}>
+        {/* Desktop/tablet leasing progress — directly below the header overview */}
+        <Box sx={{ mt: 2, display: { xs: 'none', sm: 'block' } }}>
           <PropertyLeasingPipeline
             propertyId={propertyId}
             units={selectedProperty?.units ?? selectedProperty?.Units ?? []}
@@ -2609,24 +2624,17 @@ export default function Property() {
           />
         </Box>
 
-        <Box sx={{ mt: 3, borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tab} onChange={(_, nextTab) => navigate(`?tab=${nextTab}`)} variant="scrollable" scrollButtons="auto" aria-label="Property sections">
-            <Tab value="overview" label="Overview" />
-            <Tab value="leases" label="Leases" />
-            <Tab value="payments" label="Payments" />
-          </Tabs>
-        </Box>
-        <Box role="tabpanel" aria-label={`${tab} section`} sx={{ mt: 3 }}>
-          {tab === 'overview' && (
-            <AnimateIn direction="bottom" delay={200} distance={120}>
-              <PropertyOverview
-                property={selectedProperty}
-                propertyId={propertyId}
-              />
-            </AnimateIn>
-          )}
-          {tab === 'leases' && <PropertyLeasesTab propertyId={propertyId} property={selectedProperty} />}
-          {tab === 'payments' && <PropertyRentCollection propertyId={propertyId} showActions={false} />}
+        {/* Property Overview Columns */}
+        <Box sx={{ mt: 3 }}>
+          <AnimateIn direction="bottom" delay={200} distance={120}>
+            <PropertyOverview
+              property={selectedProperty}
+              propertyId={propertyId}
+              rentRecords={rentRecords}
+              onCreateListing={drawer.openListingAddDrawer}
+            />
+            <PropertyScheduledLeases property={selectedProperty} propertyId={propertyId} />
+          </AnimateIn>
         </Box>
       {/* Confirmation Dialog */}
       <ConfirmationDialog

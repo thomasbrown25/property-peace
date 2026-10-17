@@ -138,19 +138,16 @@ export default function PropertiesScreen() {
         ListHeaderComponent={
           <View>
             <View style={styles.portfolioOverview}>
-              <View style={styles.overviewHeading}>
-                <Text style={styles.overviewEyebrow}>PORTFOLIO OVERVIEW</Text>
-                <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
-                  <Ionicons name="add" size={20} color={mode === 'dark' ? colors.background : '#fff'} />
-                  <Text style={[styles.primaryButtonText, mode === 'dark' && { color: colors.background }]}>Property</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.overviewEyebrow}>PORTFOLIO OVERVIEW</Text>
               <View style={styles.overviewTop}>
                 <View>
                   <Text style={[styles.overviewValue, { color: colors.accent }]}>{overview.total ? `${Math.round(overview.occupied / overview.total * 100)}%` : '—'}</Text>
                   <Text style={styles.overviewLabel}>Occupancy</Text>
                 </View>
-                <Text style={styles.overviewContext}>{overview.occupied} of {overview.total} units occupied</Text>
+                <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
+                  <Ionicons name="add" size={20} color={mode === 'dark' ? colors.background : '#fff'} />
+                  <Text style={[styles.primaryButtonText, mode === 'dark' && { color: colors.background }]}>Property</Text>
+                </TouchableOpacity>
               </View>
               <View style={styles.overviewStats}>
                 <View style={styles.overviewStat}><Text style={styles.overviewStatValue}>{overview.properties}</Text><Text style={styles.overviewStatLabel}>Properties</Text></View>
@@ -269,7 +266,6 @@ function useScreenStyles() {
       overviewEyebrow: { ...styles.overviewEyebrow, color: '#75d995' },
       overviewValue: { ...styles.overviewValue, color: colors.text },
       overviewLabel: { ...styles.overviewLabel, color: colors.muted },
-      overviewContext: { ...styles.overviewContext, color: colors.muted },
       overviewStats: { ...styles.overviewStats, borderTopColor: colors.border },
       overviewStatValue: { ...styles.overviewStatValue, color: colors.text },
       overviewStatLabel: { ...styles.overviewStatLabel, color: colors.muted },
@@ -299,15 +295,13 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
   pageHeader: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
   pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12, transform: [{ translateY: 10 }] },
+  primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   portfolioOverview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
-  overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
-  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, flexShrink: 1 },
-  overviewTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
+  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
   overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
   overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
-  overviewContext: { flexShrink: 1, color: '#617180', fontSize: 12, textAlign: 'right', paddingBottom: 3 },
   overviewStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dbe2e6', paddingTop: 16 },
   overviewStat: { flex: 1, minWidth: 0, paddingRight: 6 },
   overviewStatValue: { color: '#102d43', fontSize: 20, fontWeight: '800' },

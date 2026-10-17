@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TenantAPI, { Tenant } from '../../api/tenantAPI';
 import { useAppTheme } from '../../theme/AppTheme';
 import PageBackButton from '../../components/PageBackButton';
@@ -12,7 +13,9 @@ export default function TenantsScreen() {
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -28,36 +31,50 @@ export default function TenantsScreen() {
     }
   }, []);
 
-  useEffect(() => { loadTenants(); }, [loadTenants]);
+  useFocusEffect(useCallback(() => { void loadTenants(); }, [loadTenants]));
 
-  if (loading) {
-    return <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View>;
-  }
+  const filteredTenants = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return tenants;
+    return tenants.filter(tenant => [tenantName(tenant), tenant.email, tenant.Email, tenant.phoneNumber, tenant.PhoneNumber]
+      .some(value => String(value ?? '').toLowerCase().includes(term)));
+  }, [tenants, query]);
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <FlatList
-        data={tenants}
+      <View style={[styles.topHeader, { paddingTop: insets.top + 16 }]}>
+        <View style={[styles.backCircle, { borderColor: dark ? colors.border : '#dbe2e6' }]}><PageBackButton inHeader /></View>
+      </View>
+      <View style={styles.pageHeader}>
+        <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
+        <View style={styles.titleRow}>
+          <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Tenants</Text>
+          <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button" accessibilityLabel="Add tenant">
+            <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
+            <Text style={[styles.addButtonText, dark && { color: colors.background }]}>Tenant</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>People and conversations, all in one place.</Text>
+        <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+          <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
+          <TextInput value={query} onChangeText={setQuery} placeholder="Search tenants by name, email, or phone" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} accessibilityLabel="Search tenants" returnKeyType="search" />
+          {!!query && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color={dark ? colors.muted : '#94a3b8'} /></TouchableOpacity>}
+        </View>
+      </View>
+      {loading ? <View style={[styles.centerContainer, dark && { backgroundColor: colors.background }]}><ActivityIndicator size="large" color={dark ? colors.accent : '#1976d2'} /></View> : <FlatList
+        data={filteredTenants}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadTenants(); }} tintColor={dark ? colors.accent : undefined} />}
         ListHeaderComponent={
           <View>
-            <PageBackButton />
-            <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
-            <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Tenants</Text>
-            <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>People and conversations, all in one place.</Text>
-            <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button">
-              <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
-              <Text style={[styles.addButtonText, dark && { color: colors.background }]}>Add tenant</Text>
-            </TouchableOpacity>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">All tenants</Text>
               <Text style={[styles.count, dark && { color: colors.muted }]}>{tenants.length}</Text>
             </View>
           </View>
         }
-        ListEmptyComponent={<View style={styles.emptyContainer}><Ionicons name="people-outline" size={30} color={dark ? colors.accent : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>No tenants yet</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>Add a tenant to connect them with leases, messages, and portal invites.</Text></View>}
+        ListEmptyComponent={<View style={styles.emptyContainer}><Ionicons name={query.trim() ? 'search-outline' : 'people-outline'} size={30} color={dark ? colors.accent : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{query.trim() ? 'No matching tenants' : 'No tenants yet'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{query.trim() ? 'Try another name, email, or phone number.' : 'Add a tenant to connect them with leases, messages, and portal invites.'}</Text></View>}
         ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
         renderItem={({ item }) => (
           <View style={styles.row} accessibilityRole="summary">
@@ -69,7 +86,7 @@ export default function TenantsScreen() {
             </View>
           </View>
         )}
-      />
+      />}
     </View>
   );
 }
@@ -77,11 +94,17 @@ export default function TenantsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
-  listContent: { paddingHorizontal: 22, paddingTop: 28, paddingBottom: 28 },
+  topHeader: { paddingHorizontal: 22, paddingBottom: 16 },
+  backCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pageHeader: { paddingHorizontal: 22, paddingBottom: 22 },
   eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
-  pageTitle: { color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
-  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 26 },
-  addButton: { flexDirection: 'row', gap: 6, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 18, alignSelf: 'flex-start', alignItems: 'center', justifyContent: 'center', marginBottom: 30 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
+  pageTitle: { flexShrink: 1, color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
+  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 18 },
+  addButton: { flexDirection: 'row', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  search: { minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },
+  searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginBottom: 10 },
   sectionTitle: { color: '#102d43', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },

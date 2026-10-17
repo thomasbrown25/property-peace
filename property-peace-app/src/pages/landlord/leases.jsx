@@ -721,16 +721,11 @@ export default function LeasesPage({ onEditLease }) {
   // Get context to update leases page loading state
   const { setLeasesLoading } = useDashboardLoading();
 
-  // The property deep link is authoritative; never carry a stale Redux selection into this page.
+  // Reset property selection to "All" on mount
   useEffect(() => {
     dispatch(setProperty(null));
     dispatch(setUnit(null));
   }, [dispatch]);
-
-  const propertyFilterId = Number(searchParams.get('propertyId'));
-  const scopedProperty = Number.isSafeInteger(propertyFilterId) && propertyFilterId > 0
-    ? properties?.find((property) => Number(property.id) === propertyFilterId)
-    : null;
 
   // Load user settings and payment history on mount
   useEffect(() => {
@@ -780,7 +775,6 @@ export default function LeasesPage({ onEditLease }) {
     const viewParam = searchParams.get('view');
     const tabParam = searchParams.get('tab'); // Legacy support
     
-    if (viewParam === 'all') return 'all';
     if (viewParam === 'renewals') return 'renewals';
     if (viewParam === 'history') return 'history';
     if (viewParam === 'overdue') return 'overdue';
@@ -797,7 +791,7 @@ export default function LeasesPage({ onEditLease }) {
   const [clickedChipFilter, setClickedChipFilter] = useState(null); // Track which chip filter was clicked
   const filterButtonRef = useRef(null);
   const [filters, setFilters] = useState({
-    status: [getInitialView()] // Default to current, now supports multiple
+    status: ['current'] // Default to current, now supports multiple
   });
 
   // Update view when URL parameter changes
@@ -806,10 +800,7 @@ export default function LeasesPage({ onEditLease }) {
     const viewParam = searchParams.get('view');
     const tabParam = searchParams.get('tab'); // Legacy support
     
-    if (viewParam === 'all') {
-      setView('all');
-      setFilters(prev => ({ ...prev, status: ['all'] }));
-    } else if (viewParam === 'renewals') {
+    if (viewParam === 'renewals') {
       setView('renewals');
       setFilters(prev => ({ ...prev, status: ['renewals'] }));
     } else if (viewParam === 'history') {
@@ -844,7 +835,7 @@ export default function LeasesPage({ onEditLease }) {
       } else {
         newSearchParams.set('view', firstStatus);
       }
-      if (newSearchParams.toString() !== searchParams.toString()) setSearchParams(newSearchParams, { replace: true });
+      setSearchParams(newSearchParams);
     }
   }, [filters.status, searchParams, setSearchParams]);
   const [loading, setLoading] = useState(false);
@@ -980,7 +971,7 @@ export default function LeasesPage({ onEditLease }) {
   useEffect(() => {
     const fetchLeaseHistory = async () => {
       const statusFilters = Array.isArray(filters.status) ? filters.status : [filters.status || 'current'];
-      if (statusFilters.includes('history') || statusFilters.includes('all')) {
+      if (statusFilters.includes('history')) {
         setLoadingHistory(true);
         try {
           const response = await axiosServices.get('/api/lease/history');
@@ -1041,10 +1032,9 @@ export default function LeasesPage({ onEditLease }) {
 
   // --- Filter by selected property (like Rent Collection) ---
   const filteredByProperty = useMemo(() => {
-    const id = scopedProperty?.id ?? (searchParams.has('propertyId') ? null : selectedProperty?.id);
-    if (!id) return allLeases;
-    return allLeases.filter((l) => Number(l.propertyId) === Number(id));
-  }, [scopedProperty?.id, searchParams, selectedProperty?.id, allLeases]);
+    if (!selectedProperty?.id) return allLeases;
+    return allLeases.filter((l) => l.propertyId === selectedProperty.id);
+  }, [selectedProperty, allLeases]);
 
   // --- Filter by current/renewals/history/overdue/notStarted view ---
   const filteredLeases = useMemo(() => {
@@ -1052,12 +1042,7 @@ export default function LeasesPage({ onEditLease }) {
     const hasHistory = statusFilters.includes('history');
     
     // If history filter is active, use lease history instead of allLeases
-    const sourceLeases = hasHistory ? leaseHistory : statusFilters.includes('all')
-      ? [...new Map([...leaseHistory, ...filteredByProperty].map((lease) => [Number(lease.id), lease])).values()]
-      : filteredByProperty;
-    const scopedLeases = scopedProperty
-      ? sourceLeases.filter((lease) => Number(lease.propertyId) === Number(scopedProperty.id))
-      : searchParams.has('propertyId') ? [] : sourceLeases;
+    const sourceLeases = hasHistory ? leaseHistory : filteredByProperty;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1065,10 +1050,9 @@ export default function LeasesPage({ onEditLease }) {
     ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90);
 
     // Filter leases based on selected statuses
-    return scopedLeases.filter((l) => {
+    return sourceLeases.filter((l) => {
       // Check if lease matches any of the selected status filters
       const matchesStatus = statusFilters.some((statusFilter) => {
-        if (statusFilter === 'all') return true;
         if (statusFilter === 'current') {
           return isLeaseDraft(l) || l.isActive === true || l.IsActive === true || l.isActive === 1 || l.IsActive === 1;
         }
@@ -1110,7 +1094,7 @@ export default function LeasesPage({ onEditLease }) {
       
       return matchesStatus;
     });
-  }, [filters.status, filteredByProperty, leaseHistory, rentRecords, scopedProperty?.id, searchParams]);
+  }, [filters.status, filteredByProperty, leaseHistory, rentRecords]);
 
   // Handle metric card filter
   const handleMetricFilter = (key) => {
@@ -1791,7 +1775,6 @@ export default function LeasesPage({ onEditLease }) {
                       onChange={(event) => setFilters({ status: [event.target.value] })}
                       sx={{ minWidth: 150, height: 36, borderRadius: 1.75, bgcolor: 'background.paper' }}
                     >
-                      <MenuItem value="all">All leases</MenuItem>
                       <MenuItem value="current">Current leases</MenuItem>
                       <MenuItem value="active">Active leases</MenuItem>
                       <MenuItem value="notStarted">Not started</MenuItem>
@@ -1801,12 +1784,8 @@ export default function LeasesPage({ onEditLease }) {
                     </Select>
                     <Select
                       size="small"
-                      value={scopedProperty?.id ?? (searchParams.has('propertyId') ? 'all' : selectedProperty?.id) ?? 'all'}
+                      value={selectedProperty?.id || 'all'}
                       onChange={(event) => {
-                        const params = new URLSearchParams(searchParams);
-                        if (event.target.value === 'all') params.delete('propertyId');
-                        else params.set('propertyId', String(event.target.value));
-                        setSearchParams(params);
                         const property = event.target.value === 'all' ? null : (properties || []).find((item) => Number(item.id) === Number(event.target.value));
                         dispatch(setProperty(property || null));
                         dispatch(setUnit(null));
@@ -1843,10 +1822,6 @@ export default function LeasesPage({ onEditLease }) {
                     onClick={() => {
                       setLeaseSearch('');
                       setFilters({ status: ['current'] });
-                      const params = new URLSearchParams(searchParams);
-                      params.delete('propertyId');
-                      params.delete('view');
-                      setSearchParams(params);
                       dispatch(setProperty(null));
                       dispatch(setUnit(null));
                       setSortField('status');

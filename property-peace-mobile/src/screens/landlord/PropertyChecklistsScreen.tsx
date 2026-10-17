@@ -247,18 +247,19 @@ function ChecklistSide({
   const completeAccent = mode === 'dark' ? '#86dc9a' : '#2f8f46';
   const started = checklist ? isChecklistStarted(checklist) : false;
   const action = side && started ? onOpen : onStart;
+  const actionAccent = side?.complete && started ? completeAccent : displayAccent;
   return (
     <View style={themed.side}>
       <View style={[themed.sideIcon, { backgroundColor: `${side?.complete ? completeAccent : displayAccent}18` }]}><Ionicons name={side?.complete ? 'checkmark' : 'walk-outline'} size={21} color={side?.complete ? completeAccent : displayAccent} /></View>
       <View style={themed.flex}>
         <View style={themed.sideTop}>
-          <Text style={[themed.sideLabel, { color: displayAccent }]}>{side?.label || (kind === 'move-in' ? 'Move-in' : 'Move-out')}</Text>
+          <Text style={[themed.sideLabel, { color: completeAccent }]}>{side?.label || (kind === 'move-in' ? 'Move-in' : 'Move-out')}</Text>
           {!!side && <Text style={[themed.progress, side.complete && themed.completeProgress]}>{side.complete ? 'Complete' : `${side.percent}%`}</Text>}
         </View>
         <Text style={themed.sideTitle}>{side?.title || 'Not created yet'}</Text>
         {!!side && <Text style={themed.sideMeta}>{side.done} of {side.total} items · {side.tenantName || 'No tenant linked'}</Text>}
-        <TouchableOpacity style={[themed.sideButton, { borderColor: displayAccent }]} onPress={action} disabled={starting}>
-          {starting ? <ActivityIndicator size="small" color={displayAccent} /> : <Text style={[themed.sideButtonText, { color: displayAccent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || kind}`}</Text>}
+        <TouchableOpacity style={[themed.sideButton, { borderColor: actionAccent }]} onPress={action} disabled={starting}>
+          {starting ? <ActivityIndicator size="small" color={actionAccent} /> : <Text style={[themed.sideButtonText, { color: actionAccent }]}>{side && started ? 'Open checklist' : `Start ${side?.label?.toLowerCase() || kind}`}</Text>}
         </TouchableOpacity>
       </View>
     </View>

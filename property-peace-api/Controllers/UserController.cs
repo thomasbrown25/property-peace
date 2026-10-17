@@ -89,7 +89,7 @@ namespace brownstone_hub_api.Controllers
             }
             if (response.Data != null)
             {
-                var session = await _userService.CreateRefreshSession(response.Data.Id);
+                var session = await _userService.CreateRefreshSession(response.Data.Id, IsMobilePersistentSession());
                 SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
                 Response.Cookies.Delete(EmailVerificationCookieName, new CookieOptions { Path = "/" });
@@ -123,7 +123,7 @@ namespace brownstone_hub_api.Controllers
                     }
                 }
 
-                var session = await _userService.CreateRefreshSession(response.Data.Id, request.RememberMe);
+                var session = await _userService.CreateRefreshSession(response.Data.Id, request.RememberMe || IsMobilePersistentSession());
                 SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
             }
@@ -164,7 +164,7 @@ namespace brownstone_hub_api.Controllers
                     }
                 }
 
-                var session = await _userService.CreateRefreshSession(response.Data.Id);
+                var session = await _userService.CreateRefreshSession(response.Data.Id, IsMobilePersistentSession());
                 SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
             }
@@ -217,7 +217,7 @@ namespace brownstone_hub_api.Controllers
                     }
                 }
 
-                var session = await _userService.CreateRefreshSession(response.Data.Id);
+                var session = await _userService.CreateRefreshSession(response.Data.Id, IsMobilePersistentSession());
                 SetRefreshTokenCookie(session.RefreshToken, session.RefreshTokenExpiresAt, session.IsPersistent);
                 response.Data.JWTToken = session.User.JWTToken;
             }
@@ -264,6 +264,9 @@ namespace brownstone_hub_api.Controllers
             ClearRefreshTokenCookie();
             return NoContent();
         }
+
+        private bool IsMobilePersistentSession() =>
+            Request.Headers.TryGetValue("X-PP-Mobile-Session", out var preference) && preference == "persistent";
 
         private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt, bool isPersistent)
         {

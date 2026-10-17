@@ -352,7 +352,7 @@ export default function Properties() {
             />
             <Button
               variant="contained"
-              color="primary"
+              color="success"
               startIcon={<PlusOutlined />}
               onClick={() => drawer.openPropertyAddWorkflowDrawer()}
               sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}

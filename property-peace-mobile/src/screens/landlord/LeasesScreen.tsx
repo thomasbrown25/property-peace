@@ -50,7 +50,6 @@ export default function LeasesScreen() {
     const current = leases.filter(item => !item.archived);
     const isDraft = (item: Lease) => item.isDrafted === true || item.IsDrafted === true || item.leaseAgreement?.isDrafted === true || item.LeaseAgreement?.IsDrafted === true;
     return {
-      total: leases.length,
       active: current.filter(item => !isDraft(item) && (item.isActive === true || item.IsActive === true)).length,
       drafts: current.filter(isDraft).length,
       archived: leases.length - current.length,
@@ -90,18 +89,15 @@ export default function LeasesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadLeases(); }} tintColor={colors.accent} />}
         ListHeaderComponent={<View>
           <View style={[styles.overview, dark && { borderColor: colors.border }]}>
-            <View style={styles.overviewHeading}>
-              <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>LEASE OVERVIEW</Text>
-              <TouchableOpacity style={styles.primaryButton} onPress={() => navigation.navigate('AddLease')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add lease">
-                <Ionicons name="add" size={20} color="#fff" />
-                <Text style={styles.primaryButtonText}>Lease</Text>
+            <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>LEASE OVERVIEW</Text>
+            <View style={styles.overviewTop}>
+              {loadStatus === 'success' && <View><Text style={[styles.overviewValue, dark && { color: colors.text }]}>{overview.active}</Text><Text style={[styles.overviewLabel, dark && { color: colors.muted }]}>Active leases</Text></View>}
+              <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddLease')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add lease">
+                <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
+                <Text style={[styles.primaryButtonText, dark && { color: colors.background }]}>Lease</Text>
               </TouchableOpacity>
             </View>
             {loadStatus === 'success' && <>
-              <View style={styles.overviewTop}>
-                <View><Text style={[styles.overviewValue, dark && { color: colors.text }]}>{overview.active}</Text><Text style={[styles.overviewLabel, dark && { color: colors.muted }]}>Active leases</Text></View>
-                <Text style={[styles.overviewContext, dark && { color: colors.muted }]}>{overview.total} leases total</Text>
-              </View>
               <View style={[styles.overviewStats, dark && { borderTopColor: colors.border }]}>
                 <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.drafts}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Drafts</Text></View>
                 <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.archived}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Archived</Text></View>
@@ -137,12 +133,10 @@ const styles = StyleSheet.create({
   primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   overview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
-  overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
-  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, flexShrink: 1 },
+  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
   overviewTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
   overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
   overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
-  overviewContext: { flexShrink: 1, color: '#617180', fontSize: 12, textAlign: 'right', paddingBottom: 3 },
   overviewStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dbe2e6', paddingTop: 16 },
   overviewStat: { flex: 1, minWidth: 0, paddingRight: 6 },
   overviewStatValue: { color: '#102d43', fontSize: 20, fontWeight: '800' },

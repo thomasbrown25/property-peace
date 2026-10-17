@@ -174,7 +174,7 @@ function TenantsNavigator() {
   const stackOptions = useStackOptions();
   return (
     <TenantsStack.Navigator screenOptions={stackOptions}>
-      <TenantsStack.Screen name="TenantsList" component={TenantsScreen} options={{ title: 'Tenants' }} />
+      <TenantsStack.Screen name="TenantsList" component={TenantsScreen} options={{ headerShown: false }} />
       <TenantsStack.Screen name="AddTenant" component={AddTenantScreen} options={{ title: 'Add tenant' }} />
     </TenantsStack.Navigator>
   );
