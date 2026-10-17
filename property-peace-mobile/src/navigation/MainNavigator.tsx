@@ -82,7 +82,7 @@ function PropertiesNavigator() {
   return (
     <PropertiesStack.Navigator screenOptions={stackOptions}>
       <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ headerShown: false }} />
-      <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton onPress={() => navigation.popToTop()} /> })} />
+      <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.popToTop()} /> })} />
       <PropertiesStack.Screen name="PropertyMaintenance" component={MaintenanceScreen} options={{ headerShown: false }} />
       <PropertiesStack.Screen name="AddMaintenanceRequest" component={AddMaintenanceRequestScreen} options={{ title: 'Add request' }} />
       <PropertiesStack.Screen name="LandlordMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={({ route }) => ({ title: `Maintenance #${route.params.requestId}`, headerBackVisible: false, headerLeft: () => <PageBackButton /> })} />

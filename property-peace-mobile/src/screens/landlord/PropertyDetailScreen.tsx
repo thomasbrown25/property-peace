@@ -119,20 +119,12 @@ export default function PropertyDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.tabs} accessibilityRole="tablist">
-        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', 'Units'] as const] : []), ['actions', 'Actions']] as const).map(([key, label]) => (
-          <TouchableOpacity key={key} style={[styles.tab, visibleTab === key && styles.activeTab]} onPress={() => setTab(key)} accessibilityRole="tab" accessibilityState={{ selected: visibleTab === key }}>
-            <Text style={[styles.tabText, visibleTab === key && styles.activeTabText]}>{label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
       <ScrollView
-        key={visibleTab}
         style={styles.container}
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperty(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
       >
-      {visibleTab === 'overview' && <View style={styles.heroCard}>
+      <View style={styles.heroCard}>
         {details.imageUrl ? <Image source={{ uri: details.imageUrl }} style={styles.heroImage} /> : (
           <View style={styles.heroImageFallback}><Ionicons name="home" size={52} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
         )}
@@ -146,6 +138,26 @@ export default function PropertyDetailScreen() {
             <View style={styles.snapshotDivider} />
             <Snapshot label="Rent due" value={rentDue === null ? '—' : currency(rentDue)} />
           </View>
+        </View>
+      </View>
+
+      <View style={styles.tabs} accessibilityRole="tablist">
+        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', 'Units'] as const] : []), ['actions', 'Actions']] as const).map(([key, label]) => (
+          <TouchableOpacity key={key} style={[styles.tab, visibleTab === key && styles.activeTab]} onPress={() => setTab(key)} accessibilityRole="tab" accessibilityState={{ selected: visibleTab === key }}>
+            <Text style={[styles.tabText, visibleTab === key && styles.activeTabText]}>{label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {visibleTab === 'overview' && <View style={styles.overviewDetails}>
+        <Text style={styles.sectionTitle}>Property details</Text>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Type</Text>
+          <Text style={styles.detailValue}>{isMultiUnit ? 'Multi-unit' : stringValue(property.propertyType, property.PropertyType).toLowerCase() === 'singlefamily' ? 'Single-family' : '—'}</Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Units</Text>
+          <Text style={styles.detailValue}>{details.units.length}</Text>
         </View>
       </View>}
 
@@ -216,7 +228,7 @@ function ActionRow({ icon, title, titleColor, subtitle, color, background, onPre
 const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   content: { padding: 18, paddingBottom: 126 },
-  tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#fbf7f4' },
+  tabs: { flexDirection: 'row', gap: 24, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', backgroundColor: '#fbf7f4' },
   tab: { minHeight: 48, justifyContent: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
   activeTab: { borderBottomColor: '#2563eb' },
   tabText: { color: '#64748b', fontWeight: '600', fontSize: 13 },
@@ -227,7 +239,11 @@ const lightStyles = StyleSheet.create({
   errorText: { color: '#697887', marginTop: 5 },
   retryButton: { minHeight: 44, justifyContent: 'center', backgroundColor: '#2475cf', borderRadius: 13, paddingHorizontal: 18, marginTop: 16 },
   retryText: { color: '#fff', fontWeight: '900' },
-  heroCard: { marginBottom: 30 },
+  heroCard: { marginBottom: 16 },
+  overviewDetails: { paddingTop: 22 },
+  detailRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#e2e7e9' },
+  detailLabel: { color: '#71808d', fontSize: 14 },
+  detailValue: { color: '#102d43', fontSize: 14, fontWeight: '700' },
   heroImage: { width: '100%', height: 190, borderRadius: 18, backgroundColor: '#eaf3ff' },
   heroImageFallback: { width: '100%', height: 150, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#eaf3ff' },
   heroBody: { paddingTop: 20 },
@@ -266,6 +282,9 @@ const darkStyles = StyleSheet.create({
   ...lightStyles,
   container: { ...lightStyles.container, backgroundColor: '#101923' },
   tabs: { ...lightStyles.tabs, backgroundColor: '#101923', borderBottomColor: '#35495b' },
+  detailRow: { ...lightStyles.detailRow, borderBottomColor: '#35495b' },
+  detailLabel: { ...lightStyles.detailLabel, color: '#b4c3d0' },
+  detailValue: { ...lightStyles.detailValue, color: '#f2f6fa' },
   activeTab: { ...lightStyles.activeTab, borderBottomColor: '#72b6ff' },
   tabText: { ...lightStyles.tabText, color: '#b4c3d0' },
   activeTabText: { ...lightStyles.activeTabText, color: '#f2f6fa' },

@@ -60,7 +60,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     return (
       <Pressable
         key={route.key}
-        style={[styles.tab, selected && { backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.48)' }]}
+        style={[styles.tab, selected && styles.selectedTab]}
         accessibilityRole="tab"
         accessibilityState={{ selected }}
         accessibilityLabel={label}
@@ -74,8 +74,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         }}
         onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
       >
-        {icon && <Ionicons name={(selected ? icon.active : icon.inactive) as keyof typeof Ionicons.glyphMap} size={22} color={selected ? (mode === 'dark' ? '#fff' : '#0b3558') : (mode === 'dark' ? '#b4c3d0' : '#385369')} />}
-        <Text numberOfLines={1} style={[styles.tabText, { color: selected ? (mode === 'dark' ? '#fff' : '#0b3558') : (mode === 'dark' ? '#b4c3d0' : '#385369') }]}>{label}</Text>
+        {icon && <Ionicons name={(selected ? icon.active : icon.inactive) as keyof typeof Ionicons.glyphMap} size={22} color={selected ? '#fff' : (mode === 'dark' ? '#b4c3d0' : '#385369')} />}
+        <Text numberOfLines={1} style={[styles.tabText, { color: selected ? '#fff' : (mode === 'dark' ? '#b4c3d0' : '#385369') }]}>{label}</Text>
       </Pressable>
     );
   };
@@ -139,6 +139,7 @@ const styles = StyleSheet.create({
   dockArea: { paddingHorizontal: 16, zIndex: 10 },
   pill: { minHeight: 72, borderRadius: 38, borderWidth: 1, padding: 5, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
   tab: { flex: 1, minWidth: 0, minHeight: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  selectedTab: { backgroundColor: '#237a3c' },
   tabText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
   plusButton: { width: 56, height: 56, borderRadius: 28, marginHorizontal: 2, alignItems: 'center', justifyContent: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 8, shadowOffset: { width: 0, height: 3 }, elevation: 5 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
