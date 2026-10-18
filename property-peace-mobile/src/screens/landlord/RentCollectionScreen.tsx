@@ -7,7 +7,6 @@ import RentCollectionAPI from '../../api/rentCollectionAPI';
 import { collectionPayload } from '../../features/rentCollection/collectionPayload';
 import { useAppSelector } from '../../store/hooks';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
 
 type RentRecord = {
   id?: number; Id?: number;
@@ -34,6 +33,7 @@ const value = (...inputs: unknown[]) => {
   return 0;
 };
 const money = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount);
+const monthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 const read = <T,>(record: Record<string, any>, key: string): T | undefined => record[key] ?? record[key[0].toUpperCase() + key.slice(1)];
 
 function parseCollection(payload: any): Collection {
@@ -69,6 +69,12 @@ export default function RentCollectionScreen() {
   const insets = useSafeAreaInsets();
   const currentUser = useAppSelector((state) => state.user.currentUser);
   const organizationId = String(currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId ?? '');
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const month = monthKey(selectedMonth);
+  const currentMonth = monthKey(new Date());
+  const historical = month < currentMonth;
+  const oldestMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 24, 1);
+  const canGoBack = selectedMonth > oldestMonth;
   const currentOrganizationId = useRef(organizationId);
   currentOrganizationId.current = organizationId;
   const generation = useRef(0);
@@ -78,39 +84,40 @@ export default function RentCollectionScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async (refresh = false) => {
-    const scope = organizationId;
+    const scope = `${organizationId}:${month}`;
     const request = ++generation.current;
-    if (!scope) { setLoadedScope(null); setStatus('error'); setRefreshing(false); return; }
+    if (!organizationId) { setLoadedScope(null); setStatus('error'); setRefreshing(false); return; }
     if (refresh) setRefreshing(true);
     else setStatus('loading');
     try {
-      const response = await RentCollectionAPI.getRentCollection();
-      if (request !== generation.current || scope !== currentOrganizationId.current) return;
+      const response = await RentCollectionAPI.getRentCollection(undefined, month);
+      if (request !== generation.current || organizationId !== currentOrganizationId.current) return;
       // RentCollectionAPI has already unwrapped both the HTTP body and ServiceResponse.Data.
       setData(parseCollection(collectionPayload(response)));
       setStatus('success');
     } catch {
-      if (request !== generation.current || scope !== currentOrganizationId.current) return;
+      if (request !== generation.current || organizationId !== currentOrganizationId.current) return;
       setData(empty);
       setStatus('error');
     } finally {
-      if (request === generation.current && scope === currentOrganizationId.current) {
+      if (request === generation.current && organizationId === currentOrganizationId.current) {
         setLoadedScope(scope);
         setRefreshing(false);
       }
     }
-  }, [organizationId]);
+  }, [organizationId, month]);
 
   useFocusEffect(useCallback(() => {
     void load();
     return () => { ++generation.current; };
   }, [load]));
 
-  const scoped = loadedScope === organizationId;
+  const scoped = loadedScope === `${organizationId}:${month}`;
   const visible = scoped && status === 'success' ? data : empty;
   const viewStatus = scoped ? status : 'loading';
   const percent = visible.expected > 0 ? Math.min(100, Math.round(visible.collected / visible.expected * 100)) : 0;
-  const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const monthLabel = selectedMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const changeMonth = (direction: number) => setSelectedMonth(previous => new Date(previous.getFullYear(), previous.getMonth() + direction, 1));
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
@@ -119,12 +126,20 @@ export default function RentCollectionScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={dark ? colors.accent : '#2475cf'} />}
       >
-        <PageBackButton />
         <View style={styles.intro}>
           <Text style={[styles.title, dark && { color: colors.text }]} accessibilityRole="header">Rent collection</Text>
           <Text style={[styles.subtitle, dark && { color: colors.muted }]}>A clear view of what's collected and what's still due.</Text>
         </View>
-        <View style={styles.period}><Ionicons name="calendar-outline" size={18} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.periodText, dark && { color: colors.text }]}>{month}</Text><Text style={[styles.periodHint, dark && { color: colors.muted }]}>CURRENT MONTH</Text></View>
+        <View style={styles.period}>
+          <TouchableOpacity style={[styles.periodArrow, dark && { borderColor: colors.border }]} disabled={!canGoBack} onPress={() => changeMonth(-1)} accessibilityRole="button" accessibilityLabel="Previous month" accessibilityState={{ disabled: !canGoBack }}>
+            <Ionicons name="chevron-back" size={22} color={!canGoBack ? '#9ba9b5' : dark ? colors.text : '#102d43'} />
+          </TouchableOpacity>
+          <View style={styles.periodCenter}><Ionicons name="calendar-outline" size={18} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.periodText, dark && { color: colors.text }]}>{monthLabel}</Text></View>
+          <TouchableOpacity style={[styles.periodArrow, dark && { borderColor: colors.border }]} disabled={!historical} onPress={() => changeMonth(1)} accessibilityRole="button" accessibilityLabel="Next month" accessibilityState={{ disabled: !historical }}>
+            <Ionicons name="chevron-forward" size={22} color={!historical ? '#9ba9b5' : dark ? colors.text : '#102d43'} />
+          </TouchableOpacity>
+        </View>
+        {historical && <Text style={[styles.periodNote, dark && { color: colors.muted }]}>Payments applied to {monthLabel} as of today</Text>}
 
         {viewStatus === 'loading' ? (
           <View style={styles.feedback}><ActivityIndicator color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>Loading rent collection…</Text></View>
@@ -132,24 +147,23 @@ export default function RentCollectionScreen() {
           <View style={styles.feedback}>
             <Ionicons name="cloud-offline-outline" size={27} color={dark ? '#ffca82' : '#a45f12'} />
             <Text style={[styles.feedbackTitle, dark && { color: colors.text }]}>Rent collection is unavailable</Text>
-            <Text style={[styles.feedbackText, dark && { color: colors.muted }]}>We couldn't load your current rent figures.</Text>
+            <Text style={[styles.feedbackText, dark && { color: colors.muted }]}>We couldn't load figures for {monthLabel}.</Text>
             <TouchableOpacity style={[styles.retry, dark && { backgroundColor: colors.accent }]} onPress={() => void load()} accessibilityRole="button"><Text style={[styles.retryText, dark && { color: colors.background }]}>Try again</Text></TouchableOpacity>
           </View>
         ) : (
           <>
             <View style={[styles.summary, dark && { backgroundColor: '#1b3833' }]}>
-              <Text style={[styles.summaryLabel, dark && { color: colors.text }]}>Collected this month</Text>
+              <Text style={[styles.summaryLabel, dark && { color: colors.text }]}>{historical ? 'Applied to this month' : 'Collected this month'}</Text>
               <View style={styles.summaryValueRow}>
-                <Text style={[styles.summaryValue, dark && { color: '#82e5a5' }]} adjustsFontSizeToFit numberOfLines={1}>{money(visible.collected)}</Text>
+                <Text style={[styles.summaryValue, dark && { color: colors.text }]} adjustsFontSizeToFit numberOfLines={1}>{money(visible.collected)}</Text>
                 {visible.expected > 0 && <Text style={[styles.percent, dark && { color: '#82e5a5' }]}>{percent}%</Text>}
               </View>
               <Text style={[styles.expected, dark && { color: colors.muted }]}>{money(visible.expected)} expected</Text>
               {visible.expected > 0 && <View style={[styles.track, dark && { backgroundColor: '#36584a' }]} accessibilityRole="progressbar" accessibilityLabel="Rent collected this month" accessibilityValue={{ min: 0, max: 100, now: percent }}><View style={[styles.fill, { width: `${percent}%` }, dark && { backgroundColor: '#82e5a5' }]} /></View>}
-              <Text style={[styles.remaining, dark && { color: colors.muted }]}>{money(visible.remaining)} remaining this month</Text>
+              <Text style={[styles.remaining, dark && { color: colors.muted }]}>{money(visible.remaining)} {historical ? 'not yet paid for this month' : 'remaining this month'}</Text>
             </View>
-            {visible.outstanding > 0 && <Text style={[styles.outstanding, dark && { color: '#ffca82' }]}>{money(visible.outstanding)} total outstanding, including prior periods</Text>}
             <View style={styles.sectionHead}>
-              <View><Text style={[styles.sectionEyebrow, dark && { color: colors.accent }]}>BY LEASE</Text><Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">Rent status</Text></View>
+              <View><Text style={[styles.sectionEyebrow, dark && { color: colors.accent }]}>BY LEASE</Text><Text style={[styles.sectionTitle, dark && { color: colors.text }]} accessibilityRole="header">{historical ? 'Month by lease' : 'Rent status'}</Text></View>
               <Text style={[styles.count, dark && { color: colors.muted }]}>{visible.records.length} {visible.records.length === 1 ? 'lease' : 'leases'}</Text>
             </View>
             {visible.records.length === 0 ? (
@@ -159,14 +173,18 @@ export default function RentCollectionScreen() {
               const tenant = tenants.map((person) => [person.firstName ?? person.firstname ?? person.FirstName, person.lastName ?? person.lastname ?? person.LastName].filter(Boolean).join(' ')).filter(Boolean).join(', ');
               const name = tenant || 'Tenant not listed';
               const location = [read<string>(record, 'propertyName'), read<string>(record, 'unitName')].filter(Boolean).join(' · ') || 'Property not listed';
-              const state = recordState(record);
+              const state = historical
+                ? value(read(record, 'currentMonthRentDue')) > 0
+                  ? { label: 'Still unpaid', icon: 'time-outline' as const, tone: 'warning' as const }
+                  : { label: 'Paid for month', icon: 'checkmark-circle' as const, tone: 'success' as const }
+                : recordState(record);
               const due = Math.max(0, value(read(record, 'currentMonthRentDue')));
               const totalDue = Math.max(0, value(read(record, 'rentDue')));
               const amount = Math.max(0, value(read(record, 'rentAmount')));
-              const displayAmount = due > 0 ? due : totalDue > 0 ? totalDue : amount;
-              const amountLabel = due > 0 ? 'due this month' : totalDue > 0 ? 'rent due' : 'monthly rent';
+              const displayAmount = historical ? due : due > 0 ? due : totalDue > 0 ? totalDue : amount;
+              const amountLabel = historical ? 'unpaid for month' : due > 0 ? 'due this month' : totalDue > 0 ? 'rent due' : 'monthly rent';
               const leaseId = read<number>(record, 'leaseId');
-              const canOpenLease = typeof leaseId === 'number' && Number.isSafeInteger(leaseId) && leaseId > 0;
+              const canOpenLease = !historical && typeof leaseId === 'number' && Number.isSafeInteger(leaseId) && leaseId > 0;
               return (
                 <TouchableOpacity key={`${leaseId ?? read(record, 'id') ?? index}`} style={[styles.row, dark && { borderBottomColor: colors.border }, index === visible.records.length - 1 && styles.lastRow]}
                   disabled={!canOpenLease} accessibilityRole={canOpenLease ? 'button' : undefined}
@@ -194,21 +212,22 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
   content: { paddingHorizontal: 20, paddingBottom: 32 },
   intro: { marginBottom: 22 },
-  title: { color: '#061e35', fontSize: 32, fontWeight: '800', letterSpacing: -0.9 },
+  title: { color: '#061e35', fontSize: 32, fontWeight: '800', letterSpacing: -0.9, textAlign: 'center' },
   subtitle: { color: '#667789', fontSize: 15, lineHeight: 22, marginTop: 5 },
-  period: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 18, minHeight: 42 },
-  periodText: { color: '#102d43', fontSize: 15, fontWeight: '700', flex: 1 },
-  periodHint: { color: '#7c8c9b', fontSize: 10, fontWeight: '800', letterSpacing: 0.7 },
+  period: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
+  periodCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  periodArrow: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: '#dce5ec', alignItems: 'center', justifyContent: 'center' },
+  periodText: { color: '#102d43', fontSize: 15, fontWeight: '700' },
+  periodNote: { color: '#667789', fontSize: 12, marginTop: -10, marginBottom: 18, textAlign: 'center' },
   summary: { backgroundColor: '#e8f8ee', borderRadius: 20, padding: 20 },
   summaryLabel: { color: '#18374c', fontSize: 14, fontWeight: '700' },
   summaryValueRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginTop: 6 },
-  summaryValue: { color: '#188d40', fontSize: 35, fontWeight: '800', letterSpacing: -1.3, flexShrink: 1 },
+  summaryValue: { color: '#000000', fontSize: 35, fontWeight: '800', letterSpacing: -1.3, flexShrink: 1 },
   percent: { color: '#188d40', fontSize: 19, fontWeight: '800' },
   expected: { color: '#556d64', fontSize: 14, marginTop: 3 },
   track: { height: 11, borderRadius: 7, overflow: 'hidden', backgroundColor: '#d1edda', marginTop: 13 },
   fill: { height: '100%', borderRadius: 7, backgroundColor: '#20a04b' },
   remaining: { color: '#556d64', fontSize: 13, marginTop: 8 },
-  outstanding: { color: '#7a5a28', fontSize: 13, marginTop: 10, lineHeight: 19 },
   sectionHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 32, marginBottom: 7 },
   sectionEyebrow: { color: '#2475cf', fontSize: 10, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 },
   sectionTitle: { color: '#061e35', fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },

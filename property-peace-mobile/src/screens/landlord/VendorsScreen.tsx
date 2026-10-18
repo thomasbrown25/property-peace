@@ -1,9 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { VendorsStackParamList } from '../../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import PageBackButton from '../../components/PageBackButton';
 import VendorAPI, { type Vendor, type VendorInput } from '../../api/vendorAPI';
 import { useAppTheme } from '../../theme/AppTheme';
 
@@ -12,6 +13,7 @@ const active = (vendor: Vendor): boolean => (vendor.isActive ?? vendor.IsActive)
 const emptyForm: VendorInput = { name: '', businessName: '', category: '', email: '', phone: '', notes: '' };
 
 export default function VendorsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<VendorsStackParamList>>();
   const { colors, mode } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -20,7 +22,6 @@ export default function VendorsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [selected, setSelected] = useState<Vendor | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<VendorInput>(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -87,8 +88,7 @@ export default function VendorsScreen() {
   const inputStyle = [styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }];
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <View style={[styles.top, { paddingTop: insets.top + 16 }]}><View style={[styles.backCircle, { borderColor: colors.border }]}><PageBackButton inHeader /></View></View>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text style={[styles.eyebrow, { color: colors.accent }]}>YOUR NETWORK</Text>
         <View style={styles.titleRow}>
           <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Vendors</Text>
@@ -112,7 +112,7 @@ export default function VendorsScreen() {
             const name = field(item, 'name') || 'Unnamed vendor';
             const business = field(item, 'businessName');
             const category = field(item, 'category');
-            return <Pressable accessibilityRole="button" accessibilityLabel={`View ${name}`} onPress={() => setSelected(item)} style={styles.row}>
+            return <Pressable accessibilityRole="button" accessibilityLabel={`View ${name}`} onPress={() => navigation.navigate('VendorDetail', { vendorId: field(item, 'id') })} style={styles.row}>
               <View style={[styles.avatar, { backgroundColor: mode === 'dark' ? '#233c56' : '#eaf3ff' }]}><Text style={[styles.initial, { color: colors.accent }]}>{(business || name).charAt(0).toUpperCase()}</Text></View>
               <View style={styles.rowCopy}><Text style={[styles.rowTitle, { color: colors.text }]}>{name}</Text><Text style={[styles.meta, { color: colors.muted }]}>{[business, category].filter(Boolean).join(' · ') || 'Category not set'}</Text>{!!(field(item, 'phone') || field(item, 'email')) && <Text numberOfLines={1} style={[styles.meta, { color: colors.muted }]}>{field(item, 'phone') || field(item, 'email')}</Text>}{!active(item) && <Text style={[styles.meta, { color: colors.muted }]}>Inactive</Text>}</View>
               <Ionicons name="chevron-forward" size={19} color={colors.muted} />
@@ -128,26 +128,12 @@ export default function VendorsScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </Modal>
-      <Modal visible={!!selected} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelected(null)}>
-        <View style={[styles.container, { backgroundColor: bg, paddingTop: Math.max(insets.top, 16) }]}>
-          <View style={styles.modalHeader}><Text accessibilityRole="header" style={[styles.modalTitle, { color: colors.text }]}>Vendor details</Text><Pressable accessibilityRole="button" accessibilityLabel="Close vendor details" onPress={() => setSelected(null)} style={styles.close}><Ionicons name="close" size={24} color={colors.text} /></Pressable></View>
-          {selected && <ScrollView contentContainerStyle={styles.formScroll}>
-            <Text style={[styles.title, { color: colors.text }]}>{field(selected, 'name')}</Text>
-            <Text style={[styles.subtitle, { color: colors.muted }]}>{[field(selected, 'businessName'), field(selected, 'category')].filter(Boolean).join(' · ') || 'Category not set'}</Text>
-            {(['phone', 'email', 'address', 'city', 'state', 'zipCode', 'notes'] as const).map(key => {
-              const value = field(selected, key);
-              return value ? <View key={key} style={[styles.detailRow, { borderTopColor: colors.border }]}><Text style={[styles.label, { color: colors.muted }]}>{({ phone: 'Phone', email: 'Email', address: 'Address', city: 'City', state: 'State', zipCode: 'ZIP code', notes: 'Notes' })[key]}</Text><Text style={[styles.detailValue, { color: colors.text }]}>{value}</Text></View> : null;
-            })}
-            <View style={[styles.detailRow, { borderTopColor: colors.border }]}><Text style={[styles.label, { color: colors.muted }]}>Status</Text><Text style={[styles.detailValue, { color: colors.text }]}>{active(selected) ? 'Active' : 'Inactive'}</Text></View>
-          </ScrollView>}
-        </View>
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 }, top: { paddingHorizontal: 22, paddingBottom: 16 }, backCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1 },
   header: { paddingHorizontal: 22, paddingBottom: 12 }, eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 }, titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }, title: { fontSize: 34, lineHeight: 40, fontWeight: '800', flexShrink: 1 },
   add: { minHeight: 44, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', gap: 4, alignItems: 'center' }, addText: { fontSize: 14, fontWeight: '700' }, subtitle: { fontSize: 15, marginTop: 6, marginBottom: 18 },
   search: { borderWidth: 1, borderRadius: 10, minHeight: 46, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 }, searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 }, filter: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },

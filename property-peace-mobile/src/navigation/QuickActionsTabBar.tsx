@@ -12,7 +12,8 @@ type MenuItem = { label: string; icon: keyof typeof Ionicons.glyphMap; route?: s
 // Match the main app sidebar's order. Routes absent from the native app are explicitly web-only.
 const landlordMenu: MenuItem[] = [
   { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
-  { label: 'Listings & Applications', icon: 'megaphone-outline', webPath: '/landlord/listings' },
+  { label: 'Applications', icon: 'clipboard-outline', route: 'Applications' },
+  { label: 'Listings', icon: 'megaphone-outline', route: 'Listings' },
   { label: 'Percy', icon: 'sparkles-outline', webPath: '/landlord/ai-center' },
   { label: 'Checklists', icon: 'clipboard-outline', route: 'Checklists' },
   { label: 'Vendors', icon: 'people-outline', route: 'Vendors' },
@@ -40,12 +41,11 @@ const webAppUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.replace(/\/$/, '')
   || (process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') === 'https://api.propertypeace.io'
     ? 'https://app.propertypeace.io' : undefined);
 
-function AnimatedTab({ label, icon, selected, mode, accent, selectedForeground, onPress, onLongPress }: {
+function AnimatedTab({ label, icon, selected, mode, selectedForeground, onPress, onLongPress }: {
   label: string;
   icon: ReturnType<typeof mainTabIconNames>;
   selected: boolean;
   mode: string;
-  accent: string;
   selectedForeground: string;
   onPress: () => void;
   onLongPress: () => void;
@@ -57,10 +57,10 @@ function AnimatedTab({ label, icon, selected, mode, accent, selectedForeground, 
     Animated.spring(scale, { toValue: 1, friction: 5, tension: 210, useNativeDriver: true }).start();
     onPress();
   };
-  const color = selected ? selectedForeground : (mode === 'dark' ? '#b4c3d0' : '#385369');
+  const color = selected ? selectedForeground : (mode === 'dark' ? '#ffffff' : '#111113');
   return (
     <Pressable
-      style={[styles.tab, selected && { backgroundColor: accent }]}
+      style={[styles.tab, selected && { backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.58)' : 'rgba(225, 225, 230, 0.78)' }]}
       accessibilityRole="tab"
       accessibilityState={{ selected }}
       accessibilityLabel={label}
@@ -108,7 +108,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Tenants', 'Leases', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+  const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Tenants', 'Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
     && !(audience === 'landlord' && ['Checklists', 'Settings'].includes(route.name)));
   const renderTab = (route: typeof visibleRoutes[number]) => {
     const index = state.routes.findIndex((item) => item.key === route.key);
@@ -123,8 +123,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         icon={icon}
         selected={selected}
         mode={mode}
-        accent={colors.accent}
-        selectedForeground={mode === 'dark' ? colors.background : '#fff'}
+        selectedForeground={colors.accent}
         onPress={() => {
           if (open) hideSheet();
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -147,18 +146,18 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
 
   return (
     <View style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
-      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(34, 47, 62, 0.82)' : 'rgba(241, 245, 245, 0.82)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.75)' }]} accessibilityRole="tablist">
+      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.86)' : 'rgba(255, 255, 255, 0.86)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(190, 193, 200, 0.65)' }]} accessibilityRole="tablist">
         {visibleRoutes.map(renderTab)}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="More"
           accessibilityHint="Opens the rest of the navigation menu"
           accessibilityState={{ expanded: open, selected: moreSelected }}
-          style={[styles.tab, (moreSelected || open) && { backgroundColor: colors.accent }]}
+          style={[styles.tab, (moreSelected || open) && { backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.58)' : 'rgba(225, 225, 230, 0.78)' }]}
           onPress={showSheet}
         >
-          <Ionicons name="menu-outline" size={22} color={(moreSelected || open) ? (mode === 'dark' ? colors.background : '#fff') : mode === 'dark' ? '#b4c3d0' : '#385369'} />
-          <Text style={[styles.tabText, { color: (moreSelected || open) ? (mode === 'dark' ? colors.background : '#fff') : mode === 'dark' ? '#b4c3d0' : '#385369' }]}>More</Text>
+          <Ionicons name="menu-outline" size={22} color={(moreSelected || open) ? colors.accent : mode === 'dark' ? '#ffffff' : '#111113'} />
+          <Text style={[styles.tabText, { color: (moreSelected || open) ? colors.accent : mode === 'dark' ? '#ffffff' : '#111113' }]}>More</Text>
         </Pressable>
       </View>
       <Modal visible={open} transparent animationType="none" onShow={() => {

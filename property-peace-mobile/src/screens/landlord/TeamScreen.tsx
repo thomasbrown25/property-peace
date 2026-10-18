@@ -5,7 +5,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import teamAPI, { type TeamInvite, type TeamMember } from '../../api/teamAPI';
 import organizationAPI from '../../api/organizationAPI';
-import PageBackButton from '../../components/PageBackButton';
 import { useAppTheme } from '../../theme/AppTheme';
 import { useAppSelector } from '../../store/hooks';
 
@@ -77,13 +76,14 @@ export default function TeamScreen() {
 
   const current = data?.scope === scope ? data : null;
   const me = current?.people.find(item => item.kind === 'member' && item.userId === userId);
-  const canManage = Boolean(current && (current.role === 'Owner' || me?.canManageMembers));
+  const isOwner = current?.role === 'Owner' || me?.role === 'Owner';
+  const canManage = Boolean(current && (isOwner || me?.canManageMembers));
+  const ownEmail = String(user?.email ?? user?.Email ?? '').trim().toLowerCase();
   const people = useMemo(() => (current?.people ?? []).filter(item =>
     (filter === 'All' || (filter === 'Members' ? item.kind === 'member' : item.kind === 'invite')) &&
     `${item.name} ${item.email} ${item.role}`.toLowerCase().includes(query.trim().toLowerCase())
   ), [current, filter, query]);
-  const members = current?.people.filter(item => item.kind === 'member').length ?? 0;
-  const invites = current?.people.filter(item => item.kind === 'invite').length ?? 0;
+  const totalPeople = current?.people.length ?? 0;
   const background = mode === 'dark' ? colors.background : '#fbf7f4';
   const accent = colors.accent;
   const foreground = mode === 'dark' ? colors.background : '#fff';
@@ -126,8 +126,7 @@ export default function TeamScreen() {
     </Pressable>
   );
 
-  return <View style={[styles.root, { backgroundColor: background, paddingTop: insets.top + 4 }]}>
-    <View style={styles.back}><PageBackButton /></View>
+  return <View style={[styles.root, { backgroundColor: background, paddingTop: insets.top + 16 }]}>
     <View style={styles.header}>
       <View style={{ flex: 1 }}><Text style={[styles.eyebrow, { color: accent }]}>ORGANIZATION</Text><Text style={[styles.title, { color: colors.text }]}>Team members</Text></View>
       {canManage && <Pressable accessibilityRole="button" accessibilityLabel="Add team member" onPress={openInvite} style={[styles.add, { backgroundColor: accent }]}><Ionicons name="add" size={19} color={foreground} /><Text style={{ color: foreground, fontWeight: '800' }}>Invite</Text></Pressable>}
@@ -136,17 +135,18 @@ export default function TeamScreen() {
     <ScrollView keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />} contentContainerStyle={styles.content}>
       {notice ? <Text style={[styles.notice, { color: colors.text, backgroundColor: colors.surface }]}>{notice}</Text> : null}
       {loading && !current ? <ActivityIndicator style={styles.loading} color={accent} /> : error ? <View style={styles.center}><Text style={{ color: colors.text }}>{error}</Text>{action('Retry', () => void load())}</View> : current ? <>
-        <View style={styles.summary}>
-          {([['Members', members], ['Invited', invites]] as const).map(([label, count]) => <Pressable key={label} accessibilityRole="button" accessibilityState={{ selected: filter === label }} onPress={() => setFilter(filter === label ? 'All' : label)} style={[styles.metric, { backgroundColor: colors.surface, borderColor: filter === label ? accent : colors.border }]}><Text style={[styles.metricCount, { color: colors.text }]}>{count}</Text><Text style={{ color: colors.muted }}>{label}</Text></Pressable>)}
-        </View>
         {!canManage && <Text style={[styles.hint, { color: colors.muted }]}>You can view this team. An owner or member with team-management access can make changes.</Text>}
         <TextInput accessibilityLabel="Search team members" placeholder="Search name, email, or role" placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} style={[styles.search, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]} />
         <View style={styles.filters}>{(['All', 'Members', 'Invited'] as const).map(option => <Pressable key={option} onPress={() => setFilter(option)} accessibilityRole="button" accessibilityState={{ selected: filter === option }} style={[styles.chip, { borderColor: colors.border, backgroundColor: filter === option ? accent : colors.surface }]}><Text style={{ color: filter === option ? foreground : colors.text, fontWeight: '700' }}>{option}</Text></Pressable>)}</View>
-        <Text style={[styles.section, { color: colors.muted }]}>{people.length} OF {members + invites} PEOPLE & INVITATIONS</Text>
+        <Text style={[styles.section, { color: colors.muted }]}>{people.length} OF {totalPeople} PEOPLE & INVITATIONS</Text>
         {people.length === 0 ? <View style={styles.center}><Ionicons name="people-outline" size={30} color={accent} /><Text style={{ color: colors.text, textAlign: 'center', marginTop: 10 }}>{query || filter !== 'All' ? 'No team members match this view.' : 'No team members or pending invitations yet.'}</Text></View> : people.map((person, index) => <View key={`${person.kind}-${person.id || index}`} style={[styles.person, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.personTop}><View style={[styles.avatar, { backgroundColor: background }]}><Text style={{ color: accent, fontWeight: '800' }}>{(person.name || person.email || '?').slice(0, 2).toUpperCase()}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: colors.text }]}>{person.name}</Text>{person.email !== person.name && <Text style={{ color: colors.muted }}>{person.email}</Text>}</View></View>
-          <View style={styles.tags}><Text style={[styles.tag, { color: colors.text, borderColor: colors.border }]}>{person.role}</Text><Text style={[styles.tag, { color: person.kind === 'invite' ? '#9a651a' : accent, borderColor: colors.border }]}>{person.kind === 'invite' ? 'Pending invite' : 'Active'}</Text>{person.userId === userId && person.kind === 'member' && <Text style={{ color: colors.muted }}>You</Text>}</View>
-          {canManage && person.id > 0 && person.userId !== userId && <View style={styles.actions}>{person.kind === 'invite' ? <>{action('Resend', () => void mutate(() => teamAPI.resend(person.id), `Invitation resent to ${person.email}.`))}{action('Revoke', () => confirm('Revoke invitation?', `The invitation for ${person.email} will stop working.`, () => teamAPI.revoke(person.id), 'Invitation revoked.'))}</> : <>{action('Change role', () => openRole(person))}{person.userId ? action('Remove', () => confirm('Remove team member?', `${person.name} will permanently lose access to this organization. This removal cannot be undone.`, () => teamAPI.remove(current.scope, person.userId!), 'Team member removed.', true), true) : null}</>}</View>}
+          <View style={styles.personTop}><View style={[styles.avatar, { backgroundColor: background }]}><Text style={{ color: accent, fontWeight: '800' }}>{person.role.trim().charAt(0).toUpperCase() || '?'}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: colors.text }]}>{person.name}</Text>{person.email !== person.name && <Text style={{ color: colors.muted }}>{person.email}</Text>}</View></View>
+          <View style={styles.tags}><Text style={[styles.tag, { color: colors.text, borderColor: colors.border }]}>{person.role}</Text>{person.kind === 'member' && <Text style={[styles.tag, { color: accent, borderColor: colors.border }]}>Active</Text>}{person.userId === userId && person.kind === 'member' && <Text style={{ color: colors.muted }}>You</Text>}</View>
+          {person.kind === 'invite' && <View style={styles.inviteStatus}>
+            <Text style={styles.inviteWarning}>{isOwner && person.email.trim().toLowerCase() !== ownEmail ? 'Invite sent' : 'Pending invite'}</Text>
+            {isOwner && person.id > 0 && person.email.trim().toLowerCase() !== ownEmail && <Pressable accessibilityRole="button" accessibilityLabel={`Resend invite to ${person.email}`} disabled={busy} onPress={() => void mutate(() => teamAPI.resend(person.id), `Invitation resent to ${person.email}.`)} style={[styles.resend, { borderColor: colors.border, opacity: busy ? 0.5 : 1 }]}><Text style={{ color: colors.text, fontWeight: '700', fontSize: 12 }}>Resend invite</Text></Pressable>}
+          </View>}
+          {canManage && person.id > 0 && person.userId !== userId && <View style={styles.actions}>{person.kind === 'invite' ? action('Revoke', () => confirm('Revoke invitation?', `The invitation for ${person.email} will stop working.`, () => teamAPI.revoke(person.id), 'Invitation revoked.')) : <>{action('Change role', () => openRole(person))}{person.userId ? action('Remove', () => confirm('Remove team member?', `${person.name} will permanently lose access to this organization. This removal cannot be undone.`, () => teamAPI.remove(current.scope, person.id), 'Team member removed.', true), true) : null}</>}</View>}
         </View>)}
       </> : null}
     </ScrollView>
@@ -164,5 +164,39 @@ export default function TeamScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 }, back: { marginHorizontal: 18, marginBottom: 8 }, header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20 }, eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.3 }, title: { fontSize: 28, fontWeight: '800', marginTop: 4 }, subtitle: { paddingHorizontal: 20, marginTop: 7, marginBottom: 12, fontSize: 14 }, add: { minHeight: 44, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', gap: 4, alignItems: 'center' }, content: { paddingHorizontal: 20, paddingBottom: 32 }, summary: { flexDirection: 'row', gap: 12, marginBottom: 20 }, metric: { flex: 1, borderWidth: 1, borderRadius: 12, padding: 16 }, metricCount: { fontSize: 25, fontWeight: '800', marginBottom: 3 }, hint: { marginBottom: 16, lineHeight: 20 }, search: { height: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, marginBottom: 14, fontSize: 15 }, filters: { flexDirection: 'row', gap: 8, marginBottom: 20 }, chip: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 14 }, section: { fontSize: 11, fontWeight: '800', letterSpacing: 0.9, marginBottom: 10 }, person: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 10 }, personTop: { flexDirection: 'row', alignItems: 'center', gap: 12 }, avatar: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, name: { fontSize: 16, fontWeight: '800', marginBottom: 2 }, tags: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 12 }, tag: { borderWidth: 1, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12, fontWeight: '700' }, actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }, rowAction: { minHeight: 44, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12, justifyContent: 'center' }, center: { alignItems: 'center', paddingVertical: 44, gap: 10 }, loading: { marginTop: 60 }, notice: { padding: 12, borderRadius: 9, marginBottom: 12 }, modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.48)' }, modal: { borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 18, maxHeight: '92%' }, modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, modalTitle: { fontSize: 21, fontWeight: '800' }, close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, fieldLabel: { fontWeight: '700', marginBottom: 8 }, roleRow: { minHeight: 60, borderWidth: 1, borderRadius: 10, marginBottom: 8, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }, error: { color: '#b83e3e', marginTop: 8 }, submit: { minHeight: 48, borderRadius: 10, marginTop: 14, alignItems: 'center', justifyContent: 'center' },
+  root: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20 },
+  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
+  title: { fontSize: 28, fontWeight: '800', marginTop: 4 },
+  subtitle: { paddingHorizontal: 20, marginTop: 7, marginBottom: 12, fontSize: 14 },
+  add: { minHeight: 44, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', gap: 4, alignItems: 'center' },
+  content: { paddingHorizontal: 20, paddingBottom: 32 },
+  hint: { marginBottom: 16, lineHeight: 20 },
+  search: { height: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, marginBottom: 14, fontSize: 15 },
+  filters: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  chip: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 14 },
+  section: { fontSize: 11, fontWeight: '800', letterSpacing: 0.9, marginBottom: 10 },
+  person: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 10 },
+  personTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  name: { fontSize: 16, fontWeight: '800', marginBottom: 2 },
+  tags: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 7, marginTop: 12 },
+  tag: { borderWidth: 1, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 4, fontSize: 12, fontWeight: '700' },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  rowAction: { minHeight: 44, borderWidth: 1, borderRadius: 9, paddingHorizontal: 12, justifyContent: 'center' },
+  center: { alignItems: 'center', paddingVertical: 44, gap: 10 },
+  loading: { marginTop: 60 },
+  notice: { padding: 12, borderRadius: 9, marginBottom: 12 },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.48)' },
+  modal: { borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 18, maxHeight: '92%' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitle: { fontSize: 21, fontWeight: '800' },
+  close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  fieldLabel: { fontWeight: '700', marginBottom: 8 },
+  roleRow: { minHeight: 60, borderWidth: 1, borderRadius: 10, marginBottom: 8, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  error: { color: '#b83e3e', marginTop: 8 },
+  submit: { minHeight: 48, borderRadius: 10, marginTop: 14, alignItems: 'center', justifyContent: 'center' },
+  inviteStatus: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 12 },
+  inviteWarning: { color: '#9a651a', fontWeight: '800', fontSize: 13 },
+  resend: { minHeight: 44, borderWidth: 1, borderRadius: 9, paddingHorizontal: 10, justifyContent: 'center' },
 });

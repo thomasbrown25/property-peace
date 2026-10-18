@@ -74,10 +74,12 @@ test('More occupies the rightmost dock slot without the quick-action plus', asyn
 test('scrollable More menu preserves native routes and labels web-only destinations', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
-  for (const destination of ['Leases', 'Checklists', 'Tenants', 'Notifications', 'Settings', 'Team']) {
+  for (const destination of ['Leases', 'Applications', 'Listings', 'Checklists', 'Tenants', 'Notifications', 'Settings', 'Team']) {
     assert.match(sheet, new RegExp(`route: '${destination}'`));
   }
-  assert.match(sheet, /webPath: '\/landlord\/listings'/);
+  assert.doesNotMatch(sheet, /webPath: '\/landlord\/listings'/);
+  assert.match(navigator, /name="Applications" component={ApplicationsScreen}/);
+  assert.match(navigator, /name="Listings" component={ListingsScreen}/);
   assert.match(sheet, /webPath: '\/tenant\/lease'/);
   assert.match(sheet, /webAppUrl[\s\S]*api\.propertypeace\.io/);
   assert.match(sheet, /<ScrollView[^>]*showsVerticalScrollIndicator/);

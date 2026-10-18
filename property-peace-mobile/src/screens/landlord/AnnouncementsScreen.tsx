@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import announcementAPI, { type Announcement } from '../../api/announcementAPI';
-import PageBackButton from '../../components/PageBackButton';
 import { useAppTheme } from '../../theme/AppTheme';
 
 const value = (item: Announcement, key: string): any => item[key] ?? item[key[0].toUpperCase() + key.slice(1)];
@@ -88,8 +87,7 @@ export default function AnnouncementsScreen() {
   };
 
   return <View style={[styles.container, { backgroundColor: bg }]}>
-    <View style={[styles.top, { paddingTop: insets.top + 16 }]}><View style={[styles.backCircle, { borderColor: colors.border }]}><PageBackButton inHeader /></View></View>
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
       <Text style={[styles.eyebrow, { color: colors.accent }]}>TENANT COMMUNICATIONS</Text>
       <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Announcements</Text>
       <Text style={[styles.subtitle, { color: colors.muted }]}>Updates sent or scheduled for your tenants.</Text>
@@ -129,7 +127,7 @@ export default function AnnouncementsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 }, top: { paddingHorizontal: 22, paddingBottom: 16 }, backCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1 },
   header: { paddingHorizontal: 22 }, eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 8 }, title: { fontSize: 32, lineHeight: 40, fontWeight: '800' }, subtitle: { fontSize: 15, marginTop: 6, marginBottom: 18 },
   search: { borderWidth: 1, borderRadius: 10, minHeight: 46, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 }, searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 }, clear: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   filters: { gap: 8, paddingVertical: 14 }, chip: { minHeight: 44, paddingHorizontal: 16, borderWidth: 1, borderRadius: 24, alignItems: 'center', justifyContent: 'center' }, chipText: { fontSize: 14, fontWeight: '700' },

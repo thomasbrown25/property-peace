@@ -6,7 +6,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
 {
     public interface IRentCollectionService
     {
-        Task<ServiceResponse<RentCollectionResponseDto>> GetRentCollection(long organizationId, long? propertyId = null, long? leaseId = null, bool includeLifetime = false);
+        Task<ServiceResponse<RentCollectionResponseDto>> GetRentCollection(long organizationId, long? propertyId = null, long? leaseId = null, bool includeLifetime = false, DateTime? month = null);
         Task<ServiceResponse<RentRecordDto>> AddPayment(AddPaymentDto newPayment);
         Task<ServiceResponse<bool>> SendRentReminder(long leaseId);
     }

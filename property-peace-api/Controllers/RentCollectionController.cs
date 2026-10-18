@@ -25,13 +25,21 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin,Tenant")]
         [HttpGet("")]
-        public async Task<IActionResult> GetRentCollection([FromQuery] long? propertyId = null, [FromQuery] long? leaseId = null, [FromQuery] bool lifetime = false)
+        public async Task<IActionResult> GetRentCollection([FromQuery] long? propertyId = null, [FromQuery] long? leaseId = null, [FromQuery] bool lifetime = false, [FromQuery] string? month = null)
         {
+            DateTime? period = null;
+            if (month != null)
+            {
+                if (!System.Text.RegularExpressions.Regex.IsMatch(month, @"^\d{4}-(0[1-9]|1[0-2])$")
+                    || !DateTime.TryParseExact(month + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedMonth))
+                    return BadRequest(new { Message = "Month must be YYYY-MM" });
+                period = parsedMonth;
+            }
             var organizationId = this.GetCurrentOrganizationIdOrForbid();
             if (!organizationId.HasValue)
                 return StatusCode(403, new { Message = "Organization context is required" });
 
-            var response = await _rentCollectionService.GetRentCollection(organizationId.Value, propertyId, leaseId, lifetime);
+            var response = await _rentCollectionService.GetRentCollection(organizationId.Value, propertyId, leaseId, lifetime, period);
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new

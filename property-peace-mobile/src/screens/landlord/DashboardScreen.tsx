@@ -28,7 +28,8 @@ import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
 import { paymentActivityTone } from '../../features/notifications/paymentActivityTone';
 
-const logo = require('../../../assets/property-peace-navbar-logo.png');
+const lightLogo = require('../../../assets/property-peace-navbar-logo.png');
+const darkLogo = require('../../../assets/property-peace-logo.png');
 
 type LoadStatus = 'loading' | 'success' | 'error';
 type RentMetrics = {
@@ -308,7 +309,7 @@ export default function DashboardScreen() {
         <TouchableOpacity style={[styles.avatar, openMenu === 'profile' && styles.avatarActive]} onPress={() => setOpenMenu((open) => open === 'profile' ? null : 'profile')} accessibilityRole="button" accessibilityLabel="Open profile menu" accessibilityState={{ expanded: openMenu === 'profile' }}>
           {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
         </TouchableOpacity>
-        <Image source={logo} style={styles.logo} resizeMode="contain" accessibilityLabel="Property Peace" />
+        <Image source={mode === 'dark' ? darkLogo : lightLogo} style={styles.logo} resizeMode="contain" accessibilityLabel="Property Peace" />
         <TouchableOpacity style={styles.headerButton} onPress={() => setOpenMenu((open) => open === 'notifications' ? null : 'notifications')} accessibilityRole="button" accessibilityLabel="Open notifications" accessibilityState={{ expanded: openMenu === 'notifications' }}>
           <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
           {scopedNotificationsStatus === 'success' && portfolio.unreadNotifications > 0 && <View style={styles.unreadDot} />}

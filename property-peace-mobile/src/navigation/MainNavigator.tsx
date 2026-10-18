@@ -12,6 +12,7 @@ import {
   MessagesStackParamList,
   PropertiesStackParamList,
   TenantsStackParamList,
+  VendorsStackParamList,
 } from './types';
 import type { DashboardStackParamList } from './types';
 
@@ -25,9 +26,12 @@ import AddPropertyScreen from '../screens/landlord/AddPropertyScreen';
 import TenantsScreen from '../screens/landlord/TenantsScreen';
 import TenantDetailScreen from '../screens/landlord/TenantDetailScreen';
 import VendorsScreen from '../screens/landlord/VendorsScreen';
+import VendorDetailScreen from '../screens/landlord/VendorDetailScreen';
 import TeamScreen from '../screens/landlord/TeamScreen';
 import AnnouncementsScreen from '../screens/landlord/AnnouncementsScreen';
 import FinancesScreen from '../screens/landlord/FinancesScreen';
+import ListingsScreen from '../screens/landlord/ListingsScreen';
+import ApplicationsScreen from '../screens/landlord/ApplicationsScreen';
 import AddTenantScreen from '../screens/landlord/AddTenantScreen';
 import MaintenanceScreen from '../screens/landlord/MaintenanceScreen';
 import AddMaintenanceRequestScreen from '../screens/landlord/AddMaintenanceRequestScreen';
@@ -101,6 +105,7 @@ const PropertiesStack = createNativeStackNavigator<PropertiesStackParamList>();
 const MaintenanceStack = createNativeStackNavigator<MaintenanceStackParamList>();
 const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 const TenantsStack = createNativeStackNavigator<TenantsStackParamList>();
+const VendorsStack = createNativeStackNavigator<VendorsStackParamList>();
 const LeasesStack = createNativeStackNavigator<LeasesStackParamList>();
 
 function useStackOptions() {
@@ -186,6 +191,15 @@ function TenantsNavigator() {
   );
 }
 
+function VendorsNavigator() {
+  const stackOptions = useStackOptions();
+  return <VendorsStack.Navigator screenOptions={stackOptions}>
+    <VendorsStack.Screen name="VendorsList" component={VendorsScreen} options={{ headerShown: false }} />
+    <VendorsStack.Screen name="VendorDetail" component={VendorDetailScreen} options={{ title: 'Vendor', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader /> }} />
+    <VendorsStack.Screen name="VendorMaintenanceDetail" component={LandlordMaintenanceDetailScreen} options={{ title: 'Maintenance' }} />
+  </VendorsStack.Navigator>;
+}
+
 function LeasesNavigator() {
   const stackOptions = useStackOptions();
   return (
@@ -227,7 +241,7 @@ export default function MainNavigator() {
         return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
       })}
       {audience === 'landlord' && <>
-        <Tab.Screen name="Vendors" component={VendorsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Vendors" component={VendorsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Team" component={TeamScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Announcements" component={AnnouncementsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Finances" component={FinancesScreen} options={{ tabBarButton: () => null }} />
@@ -235,6 +249,8 @@ export default function MainNavigator() {
         <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Tenants" component={TenantsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Leases" component={LeasesNavigator} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Applications" component={ApplicationsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Listings" component={ListingsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
       </>}
     </Tab.Navigator>

@@ -30,10 +30,12 @@ export type MainTabParamList = {
   Notifications: undefined;
   Tenants: undefined;
   Team: undefined;
-  Vendors: undefined;
+  Vendors: NavigatorScreenParams<VendorsStackParamList> | undefined;
   Announcements: undefined;
   Finances: undefined;
   Leases: undefined;
+  Listings: undefined;
+  Applications: undefined;
   Settings: undefined;
 };
 
@@ -45,6 +47,12 @@ export type PropertiesStackParamList = {
   LandlordMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };
   AddProperty: undefined;
 
+};
+
+export type VendorsStackParamList = {
+  VendorsList: undefined;
+  VendorDetail: { vendorId: string };
+  VendorMaintenanceDetail: { requestId: string };
 };
 
 export type TenantsStackParamList = {

@@ -13,10 +13,34 @@ export interface Vendor {
   state?: string | null;
   zipCode?: string | null;
   notes?: string | null;
+  description?: string | null;
+  alternatePhone?: string | null;
+  licenseNumber?: string | null;
+  specialties?: string | null;
+  requires1099?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  expenseCount?: number;
+  totalExpenseAmount?: number;
   isActive: boolean;
   isReadyForAssignment: boolean;
   maintenanceRequestCount: number;
   [key: string]: unknown;
+}
+
+export interface VendorMaintenance {
+  id: number;
+  orderNumber?: string | null;
+  title: string;
+  propertyName: string;
+  unitName?: string | null;
+  status: string;
+  priority: string;
+  createdAt: string;
+  assignedAt?: string | null;
+  completedAt?: string | null;
+  isCurrentAssignment: boolean;
+  wasReassigned: boolean;
 }
 
 export type VendorInput = {
@@ -36,6 +60,22 @@ class VendorAPI {
     const data = unwrap(await apiClient.get<ApiResponse<Vendor[]> | Vendor[]>('/api/vendor?landlordId=0&includeInactive=true'));
     if (!Array.isArray(data)) throw new Error('Vendor directory response was invalid');
     return data;
+  }
+
+  async getVendor(id: string): Promise<Vendor> {
+    const data = unwrap(await apiClient.get<ApiResponse<Vendor>>(`/api/vendor/${encodeURIComponent(id)}`));
+    if (!data || typeof data !== 'object' || !data.id) throw new Error('Vendor response was invalid');
+    return data;
+  }
+
+  async getMaintenance(id: string): Promise<VendorMaintenance[]> {
+    const data = unwrap(await apiClient.get<ApiResponse<VendorMaintenance[]>>(`/api/vendor/${encodeURIComponent(id)}/maintenance`));
+    if (!Array.isArray(data)) throw new Error('Vendor maintenance response was invalid');
+    return data;
+  }
+
+  async patchVendor(id: string, changes: Record<string, string | null>): Promise<Vendor> {
+    return unwrap(await apiClient.request<ApiResponse<Vendor>>('PATCH', `/api/vendor/${encodeURIComponent(id)}`, changes));
   }
 
   async addVendor(input: VendorInput): Promise<Vendor> {

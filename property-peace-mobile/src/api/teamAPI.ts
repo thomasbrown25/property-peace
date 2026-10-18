@@ -65,8 +65,8 @@ const teamAPI = {
       canManageBilling: role === 'Owner', canManageMembers: role === 'Owner',
     }));
   },
-  async remove(organizationId: string, userId: number): Promise<void> {
-    unwrap(await apiClient.delete<Envelope<unknown>>(`/api/organization/members/${organizationId}/${userId}`));
+  async remove(organizationId: string, memberId: number): Promise<void> {
+    unwrap(await apiClient.delete<Envelope<unknown>>(`/api/organization/members/${organizationId}/${memberId}`));
   },
 };
 export default teamAPI;

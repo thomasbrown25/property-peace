@@ -1,11 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import moneyCenterAPI, { type FinanceScope, type MoneyCenterItem, type MoneyCenterItems, type MoneyCenterOverview } from '../../api/moneyCenterAPI';
 import propertyAPI, { type Property } from '../../api/propertyAPI';
-import PageBackButton from '../../components/PageBackButton';
 import { useAppSelector } from '../../store/hooks';
 import { useAppTheme } from '../../theme/AppTheme';
 
@@ -45,7 +44,6 @@ function relevant(item: MoneyCenterItem, section: Section) {
 export default function FinancesScreen() {
   const { colors, mode } = useAppTheme();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user.currentUser);
   const authScope = `${user?.id ?? user?.Id ?? ''}:${user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? ''}`;
   const [period, setPeriod] = useState<Period>('this-month');
@@ -104,7 +102,7 @@ export default function FinancesScreen() {
   ];
 
   return <View style={[styles.container, { backgroundColor: bg }]}>
-    <View style={[styles.top, { paddingTop: insets.top + 8 }]}><PageBackButton onPress={() => navigation.navigate('Dashboard')} />
+    <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
       <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Finances</Text>
       <Text style={[styles.subtitle, { color: colors.muted }]}>Your recorded property money, all in one place.</Text>
     </View>

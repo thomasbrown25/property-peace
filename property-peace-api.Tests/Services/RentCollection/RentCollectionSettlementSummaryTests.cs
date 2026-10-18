@@ -192,6 +192,33 @@ public sealed class RentCollectionSettlementSummaryTests : IDisposable
     }
 
     [Fact]
+    public async Task GetRentCollection_HistoricalMonth_IncludesEndedLeaseAndAllocatesFinalizedCredits()
+    {
+        var period = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-2);
+        var endedLease = ActiveLease(101);
+        endedLease.IsActive = false;
+        endedLease.RentAmount = 1_000m;
+        endedLease.StartDate = period;
+        endedLease.EndDate = period.AddMonths(1).AddDays(-1);
+        _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, false))
+            .ReturnsAsync([endedLease]);
+        _payments.Setup(repository => repository.GetLifetimeRentPaymentsByOrganizationId(OrganizationId))
+            .ReturnsAsync([
+                new LoadPaymentDto { LeaseId = 101, Amount = 400m, Status = "Completed", PaymentDate = DateTime.Today },
+                new LoadPaymentDto { LeaseId = 101, Amount = 600m, Status = "Processing", PaymentDate = DateTime.Today }
+            ]);
+
+        var result = await _sut.GetRentCollection(OrganizationId, month: period);
+
+        result.Success.Should().BeTrue();
+        result.Data!.Summary.ExpectedThisMonth.Should().Be(1_000m);
+        result.Data.Summary.CollectedThisMonth.Should().Be(400m);
+        result.Data.RentRecords.Should().ContainSingle();
+        result.Data.RentRecords.Single().CurrentMonthRentDue.Should().Be(600m);
+        _leases.Verify(repository => repository.GetLeasesByOrganizationId(OrganizationId, false), Times.Once);
+    }
+
+    [Fact]
     public async Task GetRentCollection_DoesNotExposeInternalErrors()
     {
         _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true))

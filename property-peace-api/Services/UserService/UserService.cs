@@ -1149,8 +1149,8 @@ namespace brownstone_hub_api.Services.UserService
                         dbUser.AuthProvider = (dbUser.PasswordHash != null && dbUser.PasswordHash.Length > 0)
                             ? "Email,Google"
                             : "Google";
-                        // Update profile image when Google sends a new one; otherwise keep what we have in DB
-                        if (!string.IsNullOrEmpty(googleUser.Picture))
+                        // Keep an existing profile photo (including one uploaded in Settings).
+                        if (!string.IsNullOrEmpty(googleUser.Picture) && string.IsNullOrEmpty(dbUser.ProfileImageUrl))
                         {
                             dbUser.ProfileImageUrl = await SaveGoogleProfileImageToStorageAsync(googleUser.Picture, dbUser.Id);
                         }
@@ -1211,8 +1211,8 @@ namespace brownstone_hub_api.Services.UserService
                         dbUser.AuthProvider = (dbUser.PasswordHash != null && dbUser.PasswordHash.Length > 0)
                             ? "Email,Google"
                             : "Google";
-                        // Save Google profile image when linking account; otherwise keep what we have in DB
-                        if (!string.IsNullOrEmpty(googleUser.Picture))
+                        // Only use Google's photo if this account does not already have one.
+                        if (!string.IsNullOrEmpty(googleUser.Picture) && string.IsNullOrEmpty(dbUser.ProfileImageUrl))
                         {
                             dbUser.ProfileImageUrl = await SaveGoogleProfileImageToStorageAsync(googleUser.Picture, dbUser.Id);
                         }
