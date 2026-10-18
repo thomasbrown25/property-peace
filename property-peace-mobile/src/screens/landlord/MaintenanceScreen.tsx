@@ -79,7 +79,7 @@ export default function MaintenanceScreen() {
         </View>
         <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
           <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
-          <Text style={[styles.addText, dark && { color: colors.background }]}>Request</Text>
+          <Text style={[styles.addText, dark && { color: colors.background }]}>Add request</Text>
         </TouchableOpacity>
       </View>
       <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>

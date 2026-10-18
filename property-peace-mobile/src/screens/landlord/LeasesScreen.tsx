@@ -91,7 +91,7 @@ export default function LeasesScreen() {
               {loadStatus === 'success' && <View><Text style={[styles.overviewValue, dark && { color: colors.text }]}>{overview.active}</Text><Text style={[styles.overviewLabel, dark && { color: colors.muted }]}>Active leases</Text></View>}
               <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddLease')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add lease">
                 <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
-                <Text style={[styles.primaryButtonText, dark && { color: colors.background }]}>Lease</Text>
+                <Text style={[styles.primaryButtonText, dark && { color: colors.background }]}>Add lease</Text>
               </TouchableOpacity>
             </View>
             {loadStatus === 'success' && <>

@@ -60,7 +60,7 @@ function AnimatedTab({ label, icon, selected, mode, selectedForeground, onPress,
   const color = selected ? selectedForeground : (mode === 'dark' ? '#ffffff' : '#111113');
   return (
     <Pressable
-      style={[styles.tab, selected && { backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.32)' : 'rgba(215, 225, 235, 0.46)' }]}
+      style={[styles.tab, selected && { backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.32)' : 'rgba(215, 225, 235, 0.18)' }]}
       accessibilityRole="tab"
       accessibilityState={{ selected }}
       accessibilityLabel={label}
@@ -146,14 +146,14 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
 
   return (
     <View style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
-      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.58)' : 'rgba(225, 237, 247, 0.52)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(190, 193, 200, 0.48)' }]} accessibilityRole="tablist">
+      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.58)' : 'rgba(225, 237, 247, 0.20)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(190, 193, 200, 0.28)', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
         {visibleRoutes.map(renderTab)}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="More"
           accessibilityHint="Opens the rest of the navigation menu"
           accessibilityState={{ expanded: open, selected: moreSelected }}
-          style={[styles.tab, (moreSelected || open) && { backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.32)' : 'rgba(215, 225, 235, 0.46)' }]}
+          style={[styles.tab, (moreSelected || open) && { backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.32)' : 'rgba(215, 225, 235, 0.18)' }]}
           onPress={showSheet}
         >
           <Ionicons name="menu-outline" size={22} color={(moreSelected || open) ? colors.accent : mode === 'dark' ? '#ffffff' : '#111113'} />

@@ -146,7 +146,7 @@ export default function PropertiesScreen() {
                 </View>
                 <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddProperty')} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add property">
                   <Ionicons name="add" size={20} color={mode === 'dark' ? colors.background : '#fff'} />
-                  <Text style={[styles.primaryButtonText, mode === 'dark' && { color: colors.background }]}>Property</Text>
+                  <Text style={[styles.primaryButtonText, mode === 'dark' && { color: colors.background }]}>Add property</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.overviewStats}>
