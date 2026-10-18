@@ -4,6 +4,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import QuickActionsTabBar from './QuickActionsTabBar';
+import { MoreDrawerProvider } from './MoreDrawerContext';
 
 import {
   LeasesStackParamList,
@@ -233,6 +234,7 @@ export default function MainNavigator() {
 
   return (
     <TabMotionContext.Provider value={motion}>
+    <MoreDrawerProvider>
     <Tab.Navigator
       tabBar={(props) => <QuickActionsTabBar {...props} audience={audience} />}
       screenOptions={{ headerShown: false }}
@@ -254,6 +256,7 @@ export default function MainNavigator() {
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
       </>}
     </Tab.Navigator>
+    </MoreDrawerProvider>
     </TabMotionContext.Provider>
   );
 }

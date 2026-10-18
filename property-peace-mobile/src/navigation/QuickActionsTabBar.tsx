@@ -1,8 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { StackActions } from '@react-navigation/native';
-import { Animated, Easing, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { logout } from '../store/user/user.slice';
+import { useMoreDrawer } from './MoreDrawerContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/AppTheme';
 import { mainTabIconNames, type MainAudience } from './mainTabModel';
@@ -34,6 +37,7 @@ const tenantMenu: MenuItem[] = [
   { label: 'Applications', icon: 'clipboard-outline', webPath: '/tenant/applications' },
   { label: 'Payments', icon: 'card-outline', webPath: '/tenant/payments' },
   { label: 'Documents', icon: 'folder-outline', webPath: '/tenant/documents' },
+  { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
 ];
 
 // Do not send a development/preview account to production's web app.
@@ -69,7 +73,6 @@ function AnimatedTab({ label, icon, selected, mode, selectedForeground, onPress,
     >
       <Animated.View style={[styles.tabContent, { transform: [{ scale }] }]}>
         {icon && <Ionicons name={(selected ? icon.active : icon.inactive) as keyof typeof Ionicons.glyphMap} size={22} color={color} />}
-        <Text numberOfLines={1} style={[styles.tabText, { color }]}>{label}</Text>
       </Animated.View>
     </Pressable>
   );
@@ -77,29 +80,31 @@ function AnimatedTab({ label, icon, selected, mode, selectedForeground, onPress,
 
 export default function QuickActionsTabBar({ state, descriptors, navigation, audience }: BottomTabBarProps & { audience: MainAudience }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { open, show, hide } = useMoreDrawer();
+  const currentUser = useAppSelector((state) => state.user.currentUser);
+  const dispatch = useAppDispatch();
+  const profileImageUrl = currentUser?.ProfileImageUrl ?? currentUser?.profileImageUrl;
+  const avatarLabel = String(currentUser?.FirstName ?? currentUser?.firstName ?? currentUser?.Email ?? currentUser?.email ?? '?').slice(0, 1).toUpperCase();
   const { mode, colors } = useAppTheme();
-  const [open, setOpen] = useState(false);
-  const sheetOffset = useRef(new Animated.Value(height)).current;
+  const sheetOffset = useRef(new Animated.Value(-360)).current;
   const closing = useRef(false);
   const showSheet = () => {
     if (open || closing.current) return;
-    sheetOffset.setValue(height);
-    setOpen(true);
+    sheetOffset.setValue(-360);
+    show();
   };
   const hideSheet = (afterClose?: () => void) => {
     if (!open || closing.current) return;
     closing.current = true;
-    Animated.timing(sheetOffset, { toValue: height, duration: 260, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
+    Animated.timing(sheetOffset, { toValue: -360, duration: 260, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
       closing.current = false;
       if (finished) {
-        setOpen(false);
+        hide();
         afterClose?.();
       }
     });
   };
   const menu = audience === 'landlord' ? landlordMenu : tenantMenu;
-  const moreSelected = menu.some((item) => item.route === state.routes[state.index]?.name);
   const navigateItem = (item: MenuItem) => {
     if (item.route && state.routes.some((route) => route.name === item.route)) {
       hideSheet(() => navigation.navigate(item.route as never));
@@ -109,7 +114,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
   };
 
   const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Tenants', 'Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
-    && !(audience === 'landlord' && ['Checklists', 'Settings'].includes(route.name)));
+    && !['Checklists', 'Settings'].includes(route.name));
   const renderTab = (route: typeof visibleRoutes[number]) => {
     const index = state.routes.findIndex((item) => item.key === route.key);
     const selected = state.index === index;
@@ -145,19 +150,19 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
   };
 
   return (
-    <View style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
-      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.58)' : 'rgba(225, 237, 247, 0.20)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(190, 193, 200, 0.28)', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
+    <View pointerEvents="box-none" style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
+      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.82)' : 'rgba(245, 248, 252, 0.82)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(190, 193, 200, 0.28)', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
         {visibleRoutes.map(renderTab)}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="More"
-          accessibilityHint="Opens the rest of the navigation menu"
-          accessibilityState={{ expanded: open, selected: moreSelected }}
-          style={[styles.tab, (moreSelected || open) && { backgroundColor: mode === 'dark' ? 'rgba(0, 0, 0, 0.32)' : 'rgba(215, 225, 235, 0.18)' }]}
-          onPress={showSheet}
-        >
-          <Ionicons name="menu-outline" size={22} color={(moreSelected || open) ? colors.accent : mode === 'dark' ? '#ffffff' : '#111113'} />
-          <Text style={[styles.tabText, { color: (moreSelected || open) ? colors.accent : mode === 'dark' ? '#ffffff' : '#111113' }]}>More</Text>
+        {audience === 'landlord' && <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Notifications"
+          accessibilityState={{ selected: state.routes[state.index]?.name === 'Notifications' }}
+          onPress={() => navigation.navigate('Notifications')}>
+          <Ionicons name={state.routes[state.index]?.name === 'Notifications' ? 'notifications' : 'notifications-outline'} size={24} color={state.routes[state.index]?.name === 'Notifications' ? colors.accent : colors.text} />
+        </Pressable>}
+        <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Settings" accessibilityHint="Open your settings"
+          accessibilityState={{ selected: state.routes[state.index]?.name === 'Settings' }}
+          onPress={() => navigation.navigate('Settings')}>
+          {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={[styles.avatar, { borderColor: state.routes[state.index]?.name === 'Settings' ? colors.accent : colors.border }]} />
+            : <View style={[styles.avatar, { borderColor: state.routes[state.index]?.name === 'Settings' ? colors.accent : colors.border, backgroundColor: colors.accent }]}><Text style={styles.avatarInitial}>{avatarLabel}</Text></View>}
         </Pressable>
       </View>
       <Modal visible={open} transparent animationType="none" onShow={() => {
@@ -165,8 +170,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
       }} onRequestClose={() => hideSheet()}>
         <View style={styles.modalRoot}>
           <Pressable style={styles.backdrop} accessibilityLabel="Close menu" onPress={() => hideSheet()} />
-          <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 18) + 12, transform: [{ translateY: sheetOffset }] }]}>
-            <View style={[styles.handle, { backgroundColor: colors.border }]} />
+          <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 18) + 12, paddingTop: insets.top + 18, transform: [{ translateX: sheetOffset }] }]}>
             <View style={styles.sheetHeader}>
               <View>
                 <Text style={[styles.sheetEyebrow, mode === 'dark' && { color: '#7bd793' }]}>PROPERTY PEACE</Text>
@@ -193,6 +197,11 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
                   </Pressable>
                 );
               })}
+              <Pressable style={[styles.action, { borderTopColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Sign out"
+                onPress={() => hideSheet(() => { void dispatch(logout()); })}>
+                <Ionicons name="log-out-outline" size={22} color={colors.text} />
+                <Text style={[styles.actionLabel, { color: colors.text }]}>Sign out</Text>
+              </Pressable>
             </ScrollView>
           </Animated.View>
         </View>
@@ -202,15 +211,16 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
 }
 
 const styles = StyleSheet.create({
-  // Keep the dock in layout so every tab and nested detail ends above it.
-  dockArea: { paddingHorizontal: 16, zIndex: 10 },
-  pill: { minHeight: 72, borderRadius: 38, borderWidth: 1, padding: 5, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
-  tab: { flex: 1, minWidth: 0, minHeight: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  // Overlay the scene; only the pill draws a surface, so content continues behind it.
+  dockArea: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, zIndex: 10 },
+  pill: { minHeight: 54, borderRadius: 30, borderWidth: 1, padding: 4, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
+  tab: { flex: 1, minWidth: 0, minHeight: 46, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { color: '#fff', fontSize: 16, fontWeight: '700' },
   tabContent: { alignItems: 'center', justifyContent: 'center', gap: 2 },
-  tabText: { fontSize: 10, fontWeight: '700', textAlign: 'center' },
-  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalRoot: { flex: 1, justifyContent: 'flex-start' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(4, 20, 35, 0.52)' },
-  sheet: { maxHeight: '78%', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 10, shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 20, elevation: 18 },
+  sheet: { width: '86%', maxWidth: 360, height: '100%', paddingHorizontal: 20, paddingTop: 56, shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 20, elevation: 18 },
   handle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 24 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
   sheetEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },

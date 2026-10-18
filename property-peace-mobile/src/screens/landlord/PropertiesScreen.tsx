@@ -133,7 +133,7 @@ export default function PropertiesScreen() {
         data={filteredProperties}
         keyExtractor={(item, index) => String(item.id || item.Id || index)}
         renderItem={({ item }) => <PropertyRow property={item} onPress={() => navigation.navigate('PropertyDetail', { propertyId: String(item.id || item.Id) })} />}
-        contentContainerStyle={[styles.listContent, { paddingTop: 8 }]}
+        contentContainerStyle={[styles.listContent, { paddingTop: 8, paddingBottom: 72 + Math.max(insets.bottom, 10) + 30 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refreshProperties} tintColor={colors.accent} />}
         ListHeaderComponent={
           <View>

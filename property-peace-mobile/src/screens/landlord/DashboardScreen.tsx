@@ -1,4 +1,5 @@
 import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import { useMoreDrawer } from '../../navigation/MoreDrawerContext';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -104,6 +105,7 @@ export default function DashboardScreen() {
   const styles = useScreenStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  const moreDrawer = useMoreDrawer();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
   const { currentUser } = useAppSelector((state) => state.user);
@@ -306,13 +308,22 @@ export default function DashboardScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top + 10, 18) }]}>
-        <TouchableOpacity style={[styles.avatar, openMenu === 'profile' && styles.avatarActive]} onPress={() => setOpenMenu((open) => open === 'profile' ? null : 'profile')} accessibilityRole="button" accessibilityLabel="Open profile menu" accessibilityState={{ expanded: openMenu === 'profile' }}>
-          {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={styles.avatarImage} /> : <Text style={styles.avatarText}>{avatarLabel}</Text>}
+        <TouchableOpacity style={styles.headerButton} onPress={moreDrawer.show} accessibilityRole="button" accessibilityLabel="Open more menu" accessibilityState={{ expanded: moreDrawer.open }}>
+          <Ionicons name="menu-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
         </TouchableOpacity>
         <Image source={mode === 'dark' ? darkLogo : lightLogo} style={styles.logo} resizeMode="contain" accessibilityLabel="Property Peace" />
-        <TouchableOpacity style={styles.headerButton} onPress={() => setOpenMenu((open) => open === 'notifications' ? null : 'notifications')} accessibilityRole="button" accessibilityLabel="Open notifications" accessibilityState={{ expanded: openMenu === 'notifications' }}>
-          <Ionicons name="notifications-outline" size={23} color={mode === 'dark' ? colors.text : '#0b3558'} />
-          {scopedNotificationsStatus === 'success' && portfolio.unreadNotifications > 0 && <View style={styles.unreadDot} />}
+        <TouchableOpacity
+          style={styles.headerButton}
+          onPress={() => navigation.getParent()?.navigate('Messages', { screen: 'MessagesList' })}
+          accessibilityRole="button"
+          accessibilityLabel={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
+          {scopedConversationsStatus === 'success' && unreadMessages > 0 && (
+            <View style={styles.messageBadge}>
+              <Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -708,6 +719,8 @@ const styles = StyleSheet.create({
   logo: { position: 'absolute', width: 148, height: 42, left: '50%', marginLeft: -74, bottom: 13 },
   headerButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e1e7eb' },
   unreadDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#d94d63', borderWidth: 1.5, borderColor: '#fff' },
+  messageBadge: { position: 'absolute', top: -7, right: -8, minWidth: 21, height: 21, paddingHorizontal: 4, borderRadius: 11, backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center' },
+  messageBadgeText: { color: '#fff', fontSize: 12, fontWeight: '800', lineHeight: 16, textAlign: 'center' },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#061e35', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: '#ffffff' },
   avatarActive: { borderColor: '#5ebc68' },
   avatarImage: { width: '100%', height: '100%' },
