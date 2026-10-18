@@ -14,10 +14,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ChecklistAPI from '../../api/checklistAPI';
 import LeaseAPI, { Lease } from '../../api/leaseAPI';
-import { buildConditionCycles } from '../../features/checklists/checklistModel';
+import { buildConditionCycles, isMoveInChecklist, isMoveOutChecklist } from '../../features/checklists/checklistModel';
 import { activeLeaseScope, buildChecklistOverviewCards, checklistHistoryScope, isChecklistStarted, selectChecklistLease } from '../../features/checklists/checklistOverviewModel';
 import { startChecklistCycle } from '../../features/checklists/checklistWorkflow';
-import { checklistSummary, recentPropertyChecklists } from '../../features/checklists/recentPropertyChecklists';
+import { checklistDate, recentPropertyChecklists } from '../../features/checklists/recentPropertyChecklists';
 import type { Checklist, ChecklistCycle } from '../../features/checklists/checklistTypes';
 import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -25,6 +25,15 @@ import { useAppTheme } from '../../theme/AppTheme';
 type Props = NativeStackScreenProps<ChecklistsStackParamList, 'PropertyChecklists'>;
 
 const messageOf = (error: any, fallback: string) => error?.message || error?.Message || fallback;
+
+const propertyChecklistLabel = (item: Checklist) => isMoveInChecklist(item)
+  ? 'Move-in checklist'
+  : isMoveOutChecklist(item) ? 'Move-out checklist' : 'Checklist';
+
+const propertyChecklistDate = (item: Checklist) => {
+  const date = checklistDate(item);
+  return date ? new Date(date).toLocaleDateString() : 'Date unavailable';
+};
 
 export default function PropertyChecklistsScreen({ navigation, route }: Props) {
   const { mode, colors } = useAppTheme();
@@ -136,16 +145,19 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
           {!!error && <TouchableOpacity style={themed.errorCard} onPress={load} accessibilityRole="button"><Text style={themed.errorText}>{error} Tap to retry.</Text></TouchableOpacity>}
         </View>}
         renderItem={({ item }) => (
-          <TouchableOpacity style={themed.cycleCard} onPress={() => item.id != null && navigation.navigate('ChecklistEditor', {
+          <TouchableOpacity style={themed.propertyRow} onPress={() => item.id != null && navigation.navigate('ChecklistEditor', {
             propertyId: home.propertyId,
             propertyName: home.propertyName,
             propertyType: home.propertyType,
             unitId: item.unitId == null ? undefined : String(item.unitId),
             unitName: item.unitName,
             checklistId: String(item.id),
-          })} accessibilityRole="button" disabled={item.id == null}>
-            <Text style={themed.sideTitle}>{item.title || item.checklistTypeName || 'Checklist'}</Text>
-            <Text style={themed.sideMeta}>{checklistSummary(item)}</Text>
+          })} accessibilityRole="button" accessibilityLabel={`${propertyChecklistLabel(item)}, ${propertyChecklistDate(item)}`} disabled={item.id == null}>
+            <View style={themed.flex}>
+              <Text style={themed.sideTitle}>{propertyChecklistLabel(item)}</Text>
+              <Text style={themed.sideMeta}>{propertyChecklistDate(item)}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={mode === 'dark' ? '#b4c3d0' : '#617180'} />
           </TouchableOpacity>
         )}
         ListEmptyComponent={!error ? <Text style={themed.emptyText}>No checklists for this property yet.</Text> : null}
@@ -282,6 +294,7 @@ const styles = StyleSheet.create({
   errorTitle: { color: '#7a480f', fontWeight: '900' },
   errorText: { color: '#8f6b3b', marginTop: 2, fontSize: 12 },
   cycleCard: { borderTopWidth: 1, borderTopColor: '#dce4e8', paddingTop: 18, paddingBottom: 8 },
+  propertyRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: 1, borderTopColor: '#dce4e8', paddingVertical: 14 },
   cycleEyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 18 },
   side: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 4 },
   sideIcon: { width: 43, height: 43, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
@@ -321,6 +334,7 @@ const darkStyles = StyleSheet.create({
   progress: { ...styles.progress, color: '#f2f6fa', backgroundColor: '#25394b' },
   completeProgress: { ...styles.completeProgress, color: '#86dc9a', backgroundColor: '#1c3a34' },
   cycleCard: { ...styles.cycleCard, borderTopColor: '#35495b' },
+  propertyRow: { ...styles.propertyRow, borderTopColor: '#35495b' },
   emptyCard: { ...styles.emptyCard, borderTopColor: '#35495b' },
   divider: { ...styles.divider, backgroundColor: '#35495b' },
   errorCard: { ...styles.errorCard, borderColor: '#8b6531', backgroundColor: '#382d21' },

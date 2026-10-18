@@ -23,6 +23,11 @@ import PropertyDetailScreen from '../screens/landlord/PropertyDetailScreen';
 import AddPropertyScreen from '../screens/landlord/AddPropertyScreen';
 
 import TenantsScreen from '../screens/landlord/TenantsScreen';
+import TenantDetailScreen from '../screens/landlord/TenantDetailScreen';
+import VendorsScreen from '../screens/landlord/VendorsScreen';
+import TeamScreen from '../screens/landlord/TeamScreen';
+import AnnouncementsScreen from '../screens/landlord/AnnouncementsScreen';
+import FinancesScreen from '../screens/landlord/FinancesScreen';
 import AddTenantScreen from '../screens/landlord/AddTenantScreen';
 import MaintenanceScreen from '../screens/landlord/MaintenanceScreen';
 import AddMaintenanceRequestScreen from '../screens/landlord/AddMaintenanceRequestScreen';
@@ -175,6 +180,7 @@ function TenantsNavigator() {
   return (
     <TenantsStack.Navigator screenOptions={stackOptions}>
       <TenantsStack.Screen name="TenantsList" component={TenantsScreen} options={{ headerShown: false }} />
+      <TenantsStack.Screen name="TenantDetail" component={TenantDetailScreen} options={({ navigation }) => ({ title: 'Tenant', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
       <TenantsStack.Screen name="AddTenant" component={AddTenantScreen} options={{ title: 'Add tenant' }} />
     </TenantsStack.Navigator>
   );
@@ -221,6 +227,10 @@ export default function MainNavigator() {
         return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
       })}
       {audience === 'landlord' && <>
+        <Tab.Screen name="Vendors" component={VendorsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Team" component={TeamScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Announcements" component={AnnouncementsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Finances" component={FinancesScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Checklists" component={ChecklistsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Tenants" component={TenantsNavigator} options={{ tabBarButton: () => null }} />

@@ -7,7 +7,7 @@ import TenantAPI, { Tenant } from '../../api/tenantAPI';
 import { useAppTheme } from '../../theme/AppTheme';
 import PageBackButton from '../../components/PageBackButton';
 
-const tenantName = (tenant: Tenant) => [tenant.firstName || tenant.FirstName, tenant.lastName || tenant.LastName].filter(Boolean).join(' ') || tenant.email || tenant.Email || 'Tenant';
+const tenantName = (tenant: Tenant) => [tenant.firstname || tenant.Firstname || tenant.firstName || tenant.FirstName, tenant.lastname || tenant.Lastname || tenant.lastName || tenant.LastName].filter(Boolean).join(' ') || tenant.email || tenant.Email || 'Tenant';
 
 export default function TenantsScreen() {
   const { mode, colors } = useAppTheme();
@@ -77,14 +77,15 @@ export default function TenantsScreen() {
         ListEmptyComponent={<View style={styles.emptyContainer}><Ionicons name={query.trim() ? 'search-outline' : 'people-outline'} size={30} color={dark ? colors.accent : '#8aa5b8'} /><Text style={[styles.emptyText, dark && { color: colors.text }]}>{query.trim() ? 'No matching tenants' : 'No tenants yet'}</Text><Text style={[styles.emptySubtext, dark && { color: colors.muted }]}>{query.trim() ? 'Try another name, email, or phone number.' : 'Add a tenant to connect them with leases, messages, and portal invites.'}</Text></View>}
         ItemSeparatorComponent={() => <View style={[styles.separator, dark && { backgroundColor: colors.border }]} />}
         renderItem={({ item }) => (
-          <View style={styles.row} accessibilityRole="summary">
+          <TouchableOpacity style={styles.row} accessibilityRole="button" accessibilityLabel={`View ${tenantName(item)} profile`} disabled={!/^[1-9]\d*$/.test(String(item.id ?? item.Id ?? ''))} onPress={() => navigation.navigate('TenantDetail', { tenantId: String(item.id ?? item.Id) })}>
             <View style={[styles.avatar, dark && { backgroundColor: '#233c56' }]}><Text style={[styles.avatarText, dark && { color: colors.accent }]}>{tenantName(item).charAt(0).toUpperCase()}</Text></View>
             <View style={styles.rowCopy}>
               <Text style={[styles.title, dark && { color: colors.text }]}>{tenantName(item)}</Text>
               {!!(item.email || item.Email) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={1}>{item.email || item.Email}</Text>}
               {!!(item.phoneNumber || item.PhoneNumber) && <Text style={[styles.meta, dark && { color: colors.muted }]}>{item.phoneNumber || item.PhoneNumber}</Text>}
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={dark ? colors.muted : '#788995'} />
+          </TouchableOpacity>
         )}
       />}
     </View>

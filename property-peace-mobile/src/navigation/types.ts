@@ -29,6 +29,10 @@ export type MainTabParamList = {
   Messages: undefined;
   Notifications: undefined;
   Tenants: undefined;
+  Team: undefined;
+  Vendors: undefined;
+  Announcements: undefined;
+  Finances: undefined;
   Leases: undefined;
   Settings: undefined;
 };
@@ -45,6 +49,7 @@ export type PropertiesStackParamList = {
 
 export type TenantsStackParamList = {
   TenantsList: undefined;
+  TenantDetail: { tenantId: string };
   AddTenant: undefined;
 };
 

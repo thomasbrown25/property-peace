@@ -51,8 +51,7 @@ export default function MaintenanceScreen() {
 
   const overview = useMemo(() => {
     const open = requests.filter((request) => !isClosedStatus(request.status ?? request.Status));
-    const reported = open.filter((request) => ['reported', '0'].includes(String(request.status ?? request.Status ?? 'Reported').toLowerCase())).length;
-    return { open: open.length, reported, inWorkflow: open.length - reported, closed: requests.length - open.length };
+    return { open: open.length };
   }, [requests]);
 
   const visibleRequests = useMemo(() => {
@@ -89,11 +88,6 @@ export default function MaintenanceScreen() {
             <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
             <Text style={[styles.addText, dark && { color: colors.background }]}>Request</Text>
           </TouchableOpacity>
-        </View>
-        <View style={[styles.overviewStats, dark && { borderTopColor: colors.border }]}>
-          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.reported}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Reported</Text></View>
-          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.inWorkflow}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>In progress</Text></View>
-          <View style={styles.overviewStat}><Text style={[styles.overviewStatValue, dark && { color: colors.text }]}>{overview.closed}</Text><Text style={[styles.overviewStatLabel, dark && { color: colors.muted }]}>Closed</Text></View>
         </View>
       </View>}
       <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
@@ -147,13 +141,9 @@ const styles = StyleSheet.create({
   maintenanceOverview: { marginHorizontal: 20, marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
   overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
   overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, flexShrink: 1 },
-  overviewTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 },
+  overviewTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
   overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
   overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
-  overviewStats: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#dbe2e6', paddingTop: 16 },
-  overviewStat: { flex: 1, minWidth: 0, paddingRight: 6 },
-  overviewStatValue: { color: '#102d43', fontSize: 20, fontWeight: '800' },
-  overviewStatLabel: { color: '#617180', fontSize: 11, lineHeight: 15, marginTop: 3 },
   search: { marginHorizontal: 20, minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },

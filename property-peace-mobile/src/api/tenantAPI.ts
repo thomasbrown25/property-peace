@@ -18,6 +18,11 @@ class TenantAPI {
     return response.data;
   }
 
+  async getTenant(tenantId: string): Promise<Tenant | null> {
+    const response = await this.client.get<ApiResponse<Tenant | null>>(`/api/Tenant/${tenantId}`);
+    return response.data ?? null;
+  }
+
   async createTenant(tenant: Partial<Tenant>): Promise<Tenant> {
     const response = await this.client.post<ApiResponse<Tenant>>('/api/Tenant', tenant);
     return response.data;

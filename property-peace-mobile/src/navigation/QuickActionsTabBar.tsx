@@ -8,44 +8,31 @@ import { useAppTheme } from '../theme/AppTheme';
 import { mainTabIconNames, type MainAudience } from './mainTabModel';
 
 type MenuItem = { label: string; icon: keyof typeof Ionicons.glyphMap; route?: string; webPath?: string };
-type MenuGroup = { title?: string; items: MenuItem[] };
 
 // Match the main app sidebar's order. Routes absent from the native app are explicitly web-only.
-const landlordMenu: MenuGroup[] = [
-  { items: [
-    { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
-    { label: 'Listings & Applications', icon: 'megaphone-outline', webPath: '/landlord/listings' },
-  ] },
-  { title: 'Property Operations', items: [
-    { label: 'Percy', icon: 'sparkles-outline', webPath: '/landlord/ai-center' },
-    { label: 'Checklists', icon: 'clipboard-outline', route: 'Checklists' },
-    { label: 'Vendors', icon: 'people-outline', webPath: '/landlord/vendors' },
-  ] },
-  { title: 'Admin Operations', items: [
-    { label: 'Team', icon: 'people-circle-outline', webPath: '/landlord/admin-members' },
-    { label: 'Announcements', icon: 'notifications-outline', webPath: '/landlord/announcements' },
-  ] },
-  { title: 'Accounting', items: [
-    { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/online-payments' },
-    { label: 'Finances', icon: 'cash-outline', webPath: '/landlord/finances' },
-    { label: 'Tax Center', icon: 'receipt-outline', webPath: '/landlord/accounting/tax-center' },
-    { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
-  ] },
-  { title: 'Account', items: [
-    { label: 'Tenants', icon: 'person-outline', route: 'Tenants' },
-    { label: 'Notifications', icon: 'notifications-outline', route: 'Notifications' },
-    { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
-    { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
-  ] },
+const landlordMenu: MenuItem[] = [
+  { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
+  { label: 'Listings & Applications', icon: 'megaphone-outline', webPath: '/landlord/listings' },
+  { label: 'Percy', icon: 'sparkles-outline', webPath: '/landlord/ai-center' },
+  { label: 'Checklists', icon: 'clipboard-outline', route: 'Checklists' },
+  { label: 'Vendors', icon: 'people-outline', route: 'Vendors' },
+  { label: 'Team', icon: 'people-circle-outline', route: 'Team' },
+  { label: 'Announcements', icon: 'notifications-outline', route: 'Announcements' },
+  { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/online-payments' },
+  { label: 'Finances', icon: 'cash-outline', route: 'Finances' },
+  { label: 'Tax Center', icon: 'receipt-outline', webPath: '/landlord/accounting/tax-center' },
+  { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
+  { label: 'Tenants', icon: 'person-outline', route: 'Tenants' },
+  { label: 'Notifications', icon: 'notifications-outline', route: 'Notifications' },
+  { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
+  { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
 ];
-const tenantMenu: MenuGroup[] = [
-  { items: [
-    { label: 'Dashboard', icon: 'home-outline', webPath: '/tenant/dashboard' },
-    { label: 'My Lease', icon: 'document-text-outline', webPath: '/tenant/lease' },
-    { label: 'Applications', icon: 'clipboard-outline', webPath: '/tenant/applications' },
-    { label: 'Payments', icon: 'card-outline', webPath: '/tenant/payments' },
-    { label: 'Documents', icon: 'folder-outline', webPath: '/tenant/documents' },
-  ] },
+const tenantMenu: MenuItem[] = [
+  { label: 'Dashboard', icon: 'home-outline', webPath: '/tenant/dashboard' },
+  { label: 'My Lease', icon: 'document-text-outline', webPath: '/tenant/lease' },
+  { label: 'Applications', icon: 'clipboard-outline', webPath: '/tenant/applications' },
+  { label: 'Payments', icon: 'card-outline', webPath: '/tenant/payments' },
+  { label: 'Documents', icon: 'folder-outline', webPath: '/tenant/documents' },
 ];
 
 // Do not send a development/preview account to production's web app.
@@ -112,7 +99,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     });
   };
   const menu = audience === 'landlord' ? landlordMenu : tenantMenu;
-  const moreSelected = menu.some((group) => group.items.some((item) => item.route === state.routes[state.index]?.name));
+  const moreSelected = menu.some((item) => item.route === state.routes[state.index]?.name);
   const navigateItem = (item: MenuItem) => {
     if (item.route && state.routes.some((route) => route.name === item.route)) {
       hideSheet(() => navigation.navigate(item.route as never));
@@ -121,7 +108,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Tenants', 'Leases'].includes(route.name)
+  const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Tenants', 'Leases', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
     && !(audience === 'landlord' && ['Checklists', 'Settings'].includes(route.name)));
   const renderTab = (route: typeof visibleRoutes[number]) => {
     const index = state.routes.findIndex((item) => item.key === route.key);
@@ -190,28 +177,23 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
               </Pressable>
             </View>
             <ScrollView bounces={false} style={styles.actionScroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator>
-              {menu.map((group, index) => (
-                <View key={group.title || `primary-${index}`}>
-                  {group.title && <Text style={[styles.groupTitle, { color: colors.muted }]}>{group.title}</Text>}
-                  {group.items.map((item) => {
-                    const unavailable = !!item.webPath && !webAppUrl;
-                    const selected = !!item.route && state.routes[state.index]?.name === item.route;
-                    return (
-                      <Pressable key={item.label} style={[styles.action, { borderTopColor: colors.border }, selected && { backgroundColor: colors.background }]}
-                        accessibilityRole="button" accessibilityLabel={item.label}
-                        accessibilityHint={unavailable ? 'Web app link not configured for this build' : item.webPath ? 'Opens in the web app' : undefined}
-                        accessibilityState={{ disabled: unavailable, selected }} disabled={unavailable} onPress={() => navigateItem(item)}>
-                        <View style={[styles.actionIcon, { backgroundColor: colors.background }]}><Ionicons name={item.icon} size={22} color={unavailable ? colors.muted : colors.accent} /></View>
-                        <View style={styles.actionCopy}>
-                          <Text style={[styles.actionLabel, { color: unavailable ? colors.muted : colors.text }]}>{item.label}</Text>
-                          {item.webPath && <Text style={[styles.actionDetail, { color: colors.muted }]}>{unavailable ? 'Web app · unavailable in this build' : 'Opens in web app'}</Text>}
-                        </View>
-                        <Ionicons name={item.webPath ? 'open-outline' : 'chevron-forward'} size={19} color={colors.muted} />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
+              {menu.map((item) => {
+                const unavailable = !!item.webPath && !webAppUrl;
+                const selected = !!item.route && state.routes[state.index]?.name === item.route;
+                return (
+                  <Pressable key={item.label} style={[styles.action, { borderTopColor: colors.border }, selected && { backgroundColor: colors.background }]}
+                    accessibilityRole="button" accessibilityLabel={item.label}
+                    accessibilityHint={unavailable ? 'Web app link not configured for this build' : item.webPath ? 'Opens in the web app' : undefined}
+                    accessibilityState={{ disabled: unavailable, selected }} disabled={unavailable} onPress={() => navigateItem(item)}>
+                    <View style={[styles.actionIcon, { backgroundColor: colors.background }]}><Ionicons name={item.icon} size={22} color={unavailable ? colors.muted : colors.accent} /></View>
+                    <View style={styles.actionCopy}>
+                      <Text style={[styles.actionLabel, { color: unavailable ? colors.muted : colors.text }]}>{item.label}</Text>
+                      {item.webPath && <Text style={[styles.actionDetail, { color: colors.muted }]}>{unavailable ? 'Web app · unavailable in this build' : 'Opens in web app'}</Text>}
+                    </View>
+                    <Ionicons name={item.webPath ? 'open-outline' : 'chevron-forward'} size={19} color={colors.muted} />
+                  </Pressable>
+                );
+              })}
             </ScrollView>
           </Animated.View>
         </View>
@@ -236,7 +218,6 @@ const styles = StyleSheet.create({
   closeButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   actionScroll: { flexShrink: 1 },
   scrollContent: { paddingBottom: 8 },
-  groupTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', marginTop: 22, marginBottom: 8 },
   action: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 14, borderTopWidth: 1 },
   actionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   actionCopy: { flex: 1, minWidth: 0 },
