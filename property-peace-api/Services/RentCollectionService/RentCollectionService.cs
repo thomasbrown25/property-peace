@@ -85,9 +85,11 @@ namespace brownstone_hub_api.Services.RentCollectionService
 
                 // Exclude draft leases from all rent/overdue/outstanding calculations
                 leases = leases.Where(l => l.LeaseAgreement?.IsDrafted != true).ToList();
+                // Include only leases that actually existed in the selected calendar month.
+                leases = leases.Where(l => l.StartDate.HasValue && l.EndDate.HasValue
+                    && l.StartDate.Value.Date < endOfMonth && l.EndDate.Value.Date >= startOfMonth).ToList();
                 if (historical)
                 {
-                    leases = leases.Where(l => l.StartDate < endOfMonth && l.EndDate >= startOfMonth).ToList();
                     // Calculator gates on present-day IsActive; overlapping ended leases were
                     // active during this period. These DTOs are scoped to this request only.
                     foreach (var lease in leases) lease.IsActive = true;
@@ -238,6 +240,7 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         CurrentMonthRentDue = historical ? periodRemaining : rentBalance.CurrentMonthRentDue,
                         CurrentMonthRentDueDate = rentBalance.CurrentMonthRentDueDate,
                         CurrentMonthRentIsOverdue = !historical && rentBalance.OverdueAmount > rentBalance.PriorPeriodOverdueRent,
+                        PaidLateForMonth = RentCalculator.PaidLateForPeriod(l, leasePaymentList, startOfMonth, endOfMonth, localToday),
                         PriorPeriodOverdueRent = rentBalance.PriorPeriodOverdueRent,
                         UnpaidFees = RentCalculator.GetUnpaidFeeBalances(l, leaseFeePaymentList),
                         AmountDueNow = rentBalance.RentDue,

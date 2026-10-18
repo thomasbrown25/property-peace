@@ -18,6 +18,7 @@ type RentRecord = {
   rentDue?: number; RentDue?: number;
   status?: string | number; Status?: string | number;
   currentMonthRentIsOverdue?: boolean; CurrentMonthRentIsOverdue?: boolean;
+  paidLateForMonth?: boolean; PaidLateForMonth?: boolean;
   processingPaymentCount?: number; ProcessingPaymentCount?: number;
   paymentIssueCount?: number; PaymentIssueCount?: number;
   tenants?: Array<{ firstName?: string; firstname?: string; FirstName?: string; lastName?: string; lastname?: string; LastName?: string }>;
@@ -58,6 +59,7 @@ function recordState(record: RentRecord) {
   if (read(record, 'currentMonthRentIsOverdue') || status === 'overdue' || status === '2') return { label: 'Overdue', icon: 'alert-circle-outline' as const, tone: 'warning' as const };
   if (due > 0) return { label: 'Awaiting payment', icon: 'time-outline' as const, tone: 'info' as const };
   if (value(read(record, 'rentDue')) > 0) return { label: 'Balance due', icon: 'alert-circle-outline' as const, tone: 'warning' as const };
+  if (read(record, 'paidLateForMonth')) return { label: 'Paid but late', icon: 'alert-circle-outline' as const, tone: 'warning' as const };
   if (status === 'uptodate' || status === 'paid' || status === '1') return { label: 'Up to date', icon: 'checkmark-circle' as const, tone: 'success' as const };
   return { label: 'No payment due', icon: 'remove-circle-outline' as const, tone: 'neutral' as const };
 }
@@ -167,7 +169,7 @@ export default function RentCollectionScreen() {
               <Text style={[styles.count, dark && { color: colors.muted }]}>{visible.records.length} {visible.records.length === 1 ? 'lease' : 'leases'}</Text>
             </View>
             {visible.records.length === 0 ? (
-              <View style={styles.emptyState}><Ionicons name="receipt-outline" size={26} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>No rent records yet</Text><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>Active lease rent will appear here when available.</Text></View>
+              <View style={styles.emptyState}><Ionicons name="receipt-outline" size={26} color={dark ? colors.accent : '#2475cf'} /><Text style={[styles.emptyTitle, dark && { color: colors.text }]}>{historical ? 'No leases for this month' : 'No rent records this month'}</Text><Text style={[styles.feedbackText, dark && { color: colors.muted }]}>{historical ? `No lease had rent expected in ${monthLabel}.` : 'Lease rent will appear here when available.'}</Text></View>
             ) : visible.records.map((record, index) => {
               const tenants = read<RentRecord['tenants']>(record, 'tenants') ?? [];
               const tenant = tenants.map((person) => [person.firstName ?? person.firstname ?? person.FirstName, person.lastName ?? person.lastname ?? person.LastName].filter(Boolean).join(' ')).filter(Boolean).join(', ');
@@ -176,7 +178,9 @@ export default function RentCollectionScreen() {
               const state = historical
                 ? value(read(record, 'currentMonthRentDue')) > 0
                   ? { label: 'Still unpaid', icon: 'time-outline' as const, tone: 'warning' as const }
-                  : { label: 'Paid for month', icon: 'checkmark-circle' as const, tone: 'success' as const }
+                  : read(record, 'paidLateForMonth')
+                    ? { label: 'Paid but late', icon: 'alert-circle-outline' as const, tone: 'warning' as const }
+                    : { label: 'Paid for month', icon: 'checkmark-circle' as const, tone: 'success' as const }
                 : recordState(record);
               const due = Math.max(0, value(read(record, 'currentMonthRentDue')));
               const totalDue = Math.max(0, value(read(record, 'rentDue')));

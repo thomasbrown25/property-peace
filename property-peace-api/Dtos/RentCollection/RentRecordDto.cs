@@ -23,6 +23,8 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public DateTime? CurrentMonthRentDueDate { get; set; }
         /// <summary>True when the current installment remains unpaid after its configured grace period.</summary>
         public bool CurrentMonthRentIsOverdue { get; set; }
+        /// <summary>Selected period was fully paid, but not until after its due date and grace period.</summary>
+        public bool PaidLateForMonth { get; set; }
         /// <summary>Overdue rent from periods before the current calendar month.</summary>
         public decimal PriorPeriodOverdueRent { get; set; }
         /// <summary>Outstanding lease fees, itemized separately from rent.</summary>

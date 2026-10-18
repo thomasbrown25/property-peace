@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import moneyCenterAPI, { type FinanceScope, type MoneyCenterItem, type MoneyCenterItems, type MoneyCenterOverview } from '../../api/moneyCenterAPI';
 import propertyAPI, { type Property } from '../../api/propertyAPI';
@@ -41,6 +41,13 @@ function relevant(item: MoneyCenterItem, section: Section) {
   return item.direction !== 'obligation';
 }
 
+function matchesSearch(item: MoneyCenterItem, query: string) {
+  const term = query.trim().toLocaleLowerCase();
+  if (!term) return true;
+  return [item.description, item.category, item.propertyName, item.unitName, item.counterparty, item.treatment, item.needsAttention ? 'needs review' : '']
+    .some(value => String(value ?? '').toLocaleLowerCase().includes(term));
+}
+
 export default function FinancesScreen() {
   const { colors, mode } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -48,6 +55,8 @@ export default function FinancesScreen() {
   const authScope = `${user?.id ?? user?.Id ?? ''}:${user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? ''}`;
   const [period, setPeriod] = useState<Period>('this-month');
   const [section, setSection] = useState<Section>('review');
+  const [search, setSearch] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
   const [propertyId, setPropertyId] = useState<number | undefined>();
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertiesError, setPropertiesError] = useState(false);
@@ -91,7 +100,8 @@ export default function FinancesScreen() {
   const ready = loadedKey === currentKey;
   const visibleOverview = ready ? overview : null;
   const visibleItems = ready ? items : null;
-  const list = visibleItems?.items.filter(item => relevant(item, section)) ?? [];
+  const sectionItems = visibleItems?.items.filter(item => relevant(item, section)) ?? [];
+  const list = sectionItems.filter(item => matchesSearch(item, search));
   const sectionLabel = sections.find(tab => tab.id === section)?.label ?? 'Activity';
   const bg = mode === 'dark' ? colors.background : '#fbf7f4';
   const metrics: { label: string; value: unknown; note: string; target: Section }[] = [
@@ -128,11 +138,23 @@ export default function FinancesScreen() {
         <View style={styles.metrics}>{metrics.map(metric => <Pressable key={metric.label} accessibilityRole="button" disabled={typeof metric.value !== 'number'} onPress={() => setSection(metric.target)} style={[styles.metric, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.metricLabel, { color: colors.muted }]}>{metric.label}</Text><Text adjustsFontSizeToFit numberOfLines={1} style={[styles.metricValue, { color: colors.text }]}>{amount(metric.value)}</Text><Text style={[styles.hint, { color: colors.muted }]}>{metric.note}</Text></Pressable>)}</View>
         <Text style={[styles.hint, { color: colors.muted, marginBottom: 18 }]}>Based on recorded activity, not a bank balance.</Text>
         {!!visibleOverview?.dataQuality?.warnings?.length && <View style={[styles.notice, { borderColor: colors.border }]}>{visibleOverview.dataQuality.warnings.map((warning, index) => <Text key={index} style={{ color: colors.muted, lineHeight: 21 }}>{warning}</Text>)}</View>}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>{sections.map(tab => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: section === tab.id }} onPress={() => setSection(tab.id)} style={[styles.tab, { borderBottomColor: section === tab.id ? colors.accent : colors.border }]}><Text style={{ color: section === tab.id ? colors.accent : colors.muted, fontWeight: '700' }}>{tab.label}</Text></Pressable>)}</ScrollView>
         <Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.text }]}>{sectionLabel}</Text>
+        <View style={styles.toolbar}>
+          <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="search-outline" size={19} color={colors.muted} />
+            <TextInput accessibilityLabel="Search finances" placeholder="Search records" placeholderTextColor={colors.muted} value={search} onChangeText={setSearch} style={[styles.searchInput, { color: colors.text }]} returnKeyType="search" />
+            {!!search && <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setSearch('')} style={styles.clearSearch}><Ionicons name="close-circle" size={19} color={colors.muted} /></Pressable>}
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Filter finances: ${sectionLabel}`} accessibilityState={{ expanded: filterOpen }} onPress={() => setFilterOpen(open => !open)} style={[styles.filterButton, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Ionicons name="options-outline" size={18} color={colors.text} />
+            <Text style={{ color: colors.text, fontWeight: '700' }}>Filter</Text>
+            <Ionicons name={filterOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.muted} />
+          </Pressable>
+        </View>
+        {filterOpen && <View style={[styles.filterMenu, { backgroundColor: colors.surface, borderColor: colors.border }]}>{sections.map(option => <Pressable key={option.id} accessibilityRole="button" accessibilityState={{ selected: section === option.id }} onPress={() => { setSection(option.id); setFilterOpen(false); }} style={styles.filterOption}><Text style={{ color: section === option.id ? colors.accent : colors.text, fontWeight: section === option.id ? '700' : '500' }}>{option.label}</Text>{section === option.id && <Ionicons name="checkmark" size={19} color={colors.accent} />}</Pressable>)}</View>}
         {itemsError ? <View style={styles.feedback}><Text style={{ color: colors.text }}>Financial activity is unavailable.</Text><Pressable accessibilityRole="button" onPress={() => void load()} style={styles.retry}><Text style={{ color: colors.accent, fontWeight: '700' }}>Try again</Text></Pressable></View> : <>
           {visibleItems && visibleItems.totalCount > visibleItems.items.length && <Text style={[styles.hint, { color: colors.muted, marginBottom: 12 }]}>Showing {visibleItems.items.length} of {visibleItems.totalCount} records. This list may be incomplete.</Text>}
-          {!list.length && <View style={styles.feedback}><Ionicons name="receipt-outline" size={28} color={colors.accent} /><Text style={{ color: colors.muted }}>No {sectionLabel.toLowerCase()} records for this selection.</Text></View>}
+          {!list.length && <View style={styles.feedback}><Ionicons name="receipt-outline" size={28} color={colors.accent} /><Text style={{ color: colors.muted }}>{search.trim() && sectionItems.length ? 'No records match your search.' : `No ${sectionLabel.toLowerCase()} records for this selection.`}</Text></View>}
           {list.map((item, index) => <View key={`${item.sourceId}-${index}`} style={[styles.row, { borderBottomColor: colors.border }]}><View style={styles.rowMain}><Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>{item.description || item.category || 'Recorded item'}</Text><Text style={[styles.rowAmount, { color: item.direction === 'wentOut' ? colors.text : colors.accent }]}>{amount(item.amount)}</Text></View><Text style={[styles.hint, { color: colors.muted }]}>{[item.propertyName, item.unitName, dateLabel(item.occurredAt)].filter(Boolean).join(' · ')}</Text><Text style={[styles.hint, { color: colors.muted }]}>{[item.category, item.treatment, item.needsAttention ? 'Needs review' : ''].filter(Boolean).join(' · ')}</Text></View>)}
         </>}
       </>}
@@ -146,6 +168,8 @@ const styles = StyleSheet.create({
   chips: { gap: 8, paddingBottom: 5 }, chip: { minHeight: 44, paddingHorizontal: 14, borderWidth: 1, borderRadius: 12, justifyContent: 'center' },
   hint: { fontSize: 13, lineHeight: 19 }, feedback: { alignItems: 'center', paddingVertical: 36, gap: 12 }, notice: { borderWidth: 1, borderRadius: 12, padding: 15, gap: 6, marginVertical: 12 }, retry: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   metrics: { gap: 10, marginTop: 24, marginBottom: 12 }, metric: { borderWidth: 1, borderRadius: 15, padding: 18, minHeight: 112 }, metricLabel: { fontSize: 13, fontWeight: '700' }, metricValue: { fontSize: 28, fontWeight: '800', marginVertical: 4 },
-  tabs: { gap: 8, marginTop: 6, marginBottom: 16 }, tab: { minHeight: 48, borderBottomWidth: 2, paddingHorizontal: 10, justifyContent: 'center' }, sectionTitle: { fontSize: 22, fontWeight: '800', marginBottom: 10 },
+  sectionTitle: { fontSize: 22, fontWeight: '800', marginTop: 6, marginBottom: 12 },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }, searchBox: { flex: 1, minWidth: 0, minHeight: 48, borderWidth: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 }, searchInput: { flex: 1, minWidth: 0, paddingVertical: 8, fontSize: 15 }, clearSearch: { minWidth: 32, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  filterButton: { minHeight: 48, borderWidth: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 10 }, filterMenu: { borderWidth: 1, borderRadius: 12, marginBottom: 12, overflow: 'hidden' }, filterOption: { minHeight: 48, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   row: { paddingVertical: 17, borderBottomWidth: 1, gap: 4 }, rowMain: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 }, rowTitle: { fontSize: 16, fontWeight: '700', flex: 1 }, rowAmount: { fontSize: 16, fontWeight: '800' },
 });

@@ -172,6 +172,31 @@ namespace brownstone_hub_api.Utils
                 MidpointRounding.ToEven);
         }
 
+        /// <summary>Whether a fully settled reporting period was still short at its grace deadline.
+        /// Uses the same oldest-first allocation as CollectedForPeriod and finalized rent only.</summary>
+        public static bool PaidLateForPeriod(LoadLeaseDto lease, IEnumerable<LoadPaymentDto>? payments,
+            DateTime from, DateTime to, DateTime today)
+        {
+            var expected = ExpectedForLease(lease, from, to);
+            if (expected <= 0m || CollectedForPeriod(lease, payments, from, to) < expected)
+                return false;
+
+            var dueDay = GetActualDayOfMonth(lease.RentDueDay, from.Year, from.Month);
+            var dueDate = new DateTime(from.Year, from.Month, dueDay);
+            if (lease.StartDate.HasValue && lease.StartDate.Value.Date > dueDate)
+                dueDate = lease.StartDate.Value.Date;
+            var deadline = dueDate.AddDays(GetGraceDays(lease));
+            if (today.Date <= deadline)
+                return false;
+
+            var requiredThroughPeriod = ExpectedForLease(lease, lease.StartDate!.Value.Date, from) + expected;
+            var creditedByDeadline = RentBalanceCreditingPayments(payments)
+                .Where(payment => payment.LeaseId == lease.Id
+                    && (payment.CompletedAt ?? payment.PaymentDate).Date <= deadline)
+                .Sum(payment => payment.Amount);
+            return creditedByDeadline < requiredThroughPeriod;
+        }
+
         // calculate total outstanding (expected - collected)
         public static decimal TotalOutstanding(List<LoadLeaseDto> leases, List<LoadPaymentDto> payments)
         {

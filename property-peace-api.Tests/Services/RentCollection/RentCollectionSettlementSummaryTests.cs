@@ -219,6 +219,72 @@ public sealed class RentCollectionSettlementSummaryTests : IDisposable
     }
 
     [Fact]
+    public async Task HistoricalMonth_ExcludesLeasesOutsidePeriodAndRecalculatesSummary()
+    {
+        var period = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-2);
+        var overlapping = ActiveLease(101);
+        overlapping.StartDate = period;
+        overlapping.EndDate = period.AddMonths(1).AddDays(-1);
+        overlapping.RentAmount = 1200m;
+        var later = ActiveLease(102);
+        later.StartDate = period.AddMonths(1);
+        later.EndDate = period.AddMonths(3).AddDays(-1);
+        later.RentAmount = 1500m;
+        _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, false))
+            .ReturnsAsync([overlapping, later]);
+        _payments.Setup(repository => repository.GetLifetimeRentPaymentsByOrganizationId(OrganizationId))
+            .ReturnsAsync([new LoadPaymentDto { LeaseId = 101, Amount = 1200m, Status = "Completed", PaymentDate = period.AddDays(2) }]);
+
+        var result = await _sut.GetRentCollection(OrganizationId, month: period);
+
+        result.Success.Should().BeTrue();
+        result.Data!.RentRecords.Select(record => record.LeaseId).Should().Equal(101);
+        result.Data.Summary.ExpectedThisMonth.Should().Be(1200m);
+        result.Data.Summary.CollectedThisMonth.Should().Be(1200m);
+    }
+
+    [Theory]
+    [InlineData(10, 0, true)]
+    [InlineData(4, 5, false)]
+    public async Task HistoricalMonth_ReportsPaidLateOnlyAfterGrace(int paymentDayOffset, int graceDays, bool paidLate)
+    {
+        var period = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(-2);
+        var lease = ActiveLease(101);
+        lease.StartDate = period;
+        lease.EndDate = period.AddMonths(1).AddDays(-1);
+        lease.RentAmount = 1000m;
+        lease.RentDueDay = 1;
+        lease.Fees = [new LeaseFeeDto { IsLateFee = true, AppliedAfterDays = graceDays }];
+        _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, false)).ReturnsAsync([lease]);
+        _payments.Setup(repository => repository.GetLifetimeRentPaymentsByOrganizationId(OrganizationId))
+            .ReturnsAsync([new LoadPaymentDto { LeaseId = 101, Amount = 1000m, Status = "Completed", PaymentDate = period.AddDays(paymentDayOffset) }]);
+
+        var result = await _sut.GetRentCollection(OrganizationId, month: period);
+
+        result.Success.Should().BeTrue();
+        result.Data!.RentRecords.Single().PaidLateForMonth.Should().Be(paidLate);
+        result.Data.RentRecords.Single().CurrentMonthRentDue.Should().Be(0m);
+        result.Data.Summary.CollectedThisMonth.Should().Be(1000m);
+    }
+
+    [Fact]
+    public async Task CurrentMonth_ExcludesFutureActiveLeaseFromRowsAndExpected()
+    {
+        var future = ActiveLease(101);
+        future.StartDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).AddMonths(1);
+        future.EndDate = future.StartDate.Value.AddMonths(12).AddDays(-1);
+        future.RentAmount = 1000m;
+        _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true)).ReturnsAsync([future]);
+
+        var result = await _sut.GetRentCollection(OrganizationId);
+
+        result.Success.Should().BeTrue();
+        result.Data!.RentRecords.Should().BeEmpty();
+        result.Data.Summary.ExpectedThisMonth.Should().Be(0m);
+        result.Data.Summary.CollectedThisMonth.Should().Be(0m);
+    }
+
+    [Fact]
     public async Task GetRentCollection_DoesNotExposeInternalErrors()
     {
         _leases.Setup(repository => repository.GetLeasesByOrganizationId(OrganizationId, true))

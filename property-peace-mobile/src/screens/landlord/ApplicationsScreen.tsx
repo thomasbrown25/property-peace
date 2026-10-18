@@ -1,4 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { View } from 'react-native';
+import ApplicationInviteModal from './ApplicationInviteModal';
 import { useAppSelector } from '../../store/hooks';
 import { getLandlordApplications, type RentalApplication } from '../../api/landlordApplicationsAPI';
 import RentalWorkspace, { dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
@@ -15,11 +17,14 @@ const titleFor = (item: RentalApplication): string => [label(item, 'firstName'),
 const property = (item: RentalApplication): string => [label(item, 'propertyName'), label(item, 'unitName')].filter(Boolean).join(' · ') || 'Property unavailable';
 
 export default function ApplicationsScreen() {
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const user = useAppSelector(state => state.user.currentUser);
   const landlordId = String(user?.id ?? user?.Id ?? '');
   const scope = landlordId ? `${landlordId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
   const config = useMemo<WorkspaceConfig<RentalApplication>>(() => ({
     title: 'Applications', eyebrow: 'RENTAL PIPELINE', subtitle: 'Track applications for your properties.', searchPlaceholder: 'Search applicant, property or email',
+    headerAction: { label: 'Add application', onPress: scope ? () => setInviteOpen(true) : undefined },
     filters: ['All', 'Submitted', 'Under review', 'Approved', 'Rejected', 'Draft', 'Pending', 'On hold', 'Withdrawn', 'Lease signed'],
     load: () => getLandlordApplications(landlordId), status, titleFor,
     subtitleFor: property,
@@ -33,6 +38,8 @@ export default function ApplicationsScreen() {
       ['Monthly income', field(item, 'monthlyIncome') == null ? '' : moneyLabel(field(item, 'monthlyIncome'))],
       ['Notes', label(item, 'additionalNotes')],
     ],
-  }), [landlordId]);
-  return <RentalWorkspace config={config} scope={scope} />;
+  }), [landlordId, scope]);
+  return <View style={{ flex: 1 }}><RentalWorkspace config={config} scope={scope} reloadToken={reloadToken} />
+    <ApplicationInviteModal key={scope} visible={inviteOpen && !!scope} scope={scope} onClose={() => setInviteOpen(false)} onSent={() => setReloadToken(value => value + 1)} />
+  </View>;
 }

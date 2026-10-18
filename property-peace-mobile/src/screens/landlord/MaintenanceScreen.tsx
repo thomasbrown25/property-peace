@@ -73,23 +73,15 @@ export default function MaintenanceScreen() {
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Maintenance</Text>
+          {!loading && !error && <Text numberOfLines={1} style={[styles.headerSub, dark && { color: colors.muted }, overview.open > 0 && { color: dark ? '#ff8b86' : '#c2413b' }]}>{overview.open} open requests</Text>}
+        </View>
+        <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
+          <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
+          <Text style={[styles.addText, dark && { color: colors.background }]}>Request</Text>
+        </TouchableOpacity>
       </View>
-      {!loading && !error && <View style={[styles.maintenanceOverview, dark && { borderColor: colors.border }]}>
-        <View style={styles.overviewHeading}>
-          <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>MAINTENANCE OVERVIEW</Text>
-        </View>
-        <View style={styles.overviewTop}>
-          <View>
-            <Text style={[styles.overviewValue, dark && { color: colors.text }, overview.open > 0 && { color: dark ? '#ff8b86' : '#c2413b' }]}>{overview.open}</Text>
-            <Text style={[styles.overviewLabel, dark && { color: colors.muted }]}>Open requests</Text>
-          </View>
-          <TouchableOpacity style={[styles.addButton, { backgroundColor: colors.accent }]} hitSlop={{ top: 5, bottom: 5 }} onPress={() => { setView('current'); navigation.navigate('AddMaintenanceRequest', propertyId ? { propertyId } : undefined); }} accessibilityRole="button" accessibilityLabel="Add maintenance request">
-            <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
-            <Text style={[styles.addText, dark && { color: colors.background }]}>Request</Text>
-          </TouchableOpacity>
-        </View>
-      </View>}
       <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
         <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
         <TextInput value={query} onChangeText={setQuery} placeholder="Search maintenance ID or property" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} returnKeyType="search" accessibilityLabel="Search maintenance ID or property" />
@@ -134,16 +126,12 @@ const styles = StyleSheet.create({
 
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingBottom: 28 },
-  header: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
+  header: { paddingHorizontal: 20, paddingBottom: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  headerCopy: { flex: 1, minWidth: 0 },
   addButton: { minHeight: 44, paddingHorizontal: 12, backgroundColor: '#061e35', borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   addText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
-  maintenanceOverview: { marginHorizontal: 20, marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },
-  overviewHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 },
-  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, flexShrink: 1 },
-  overviewTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
-  overviewLabel: { color: '#617180', fontSize: 13, marginTop: 1 },
+  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800' },
+  headerSub: { color: '#64748b', marginTop: 3, fontSize: 13 },
   search: { marginHorizontal: 20, minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },
   tabs: { flexDirection: 'row', gap: 24, paddingHorizontal: 20, marginTop: 12, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },

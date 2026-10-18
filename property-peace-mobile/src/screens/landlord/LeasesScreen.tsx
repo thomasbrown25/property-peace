@@ -7,7 +7,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LeaseAPI, { Lease } from '../../api/leaseAPI';
 import { LeasesStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
 
 type LoadStatus = 'loading' | 'success' | 'error';
 
@@ -77,9 +76,7 @@ export default function LeasesScreen() {
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <View style={[styles.topHeader, { paddingTop: insets.top + 16 }]}>
-        <View style={[styles.backCircle, { borderColor: dark ? colors.border : '#dbe2e6' }]}><PageBackButton inHeader /></View>
         <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Leases</Text>
-        <View style={styles.headerSpacer} />
       </View>
       {loadStatus === 'loading' ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : <FlatList
         data={loadStatus === 'error' ? [] : filteredLeases}
@@ -125,11 +122,9 @@ export default function LeasesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   topHeader: { paddingHorizontal: 22, paddingBottom: 18, flexDirection: 'row', alignItems: 'center' },
-  backCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerSpacer: { width: 44 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
-  pageTitle: { flex: 1, textAlign: 'center', color: '#102d43', fontSize: 28, fontWeight: '800' },
+  pageTitle: { flex: 1, textAlign: 'center', lineHeight: 44, color: '#102d43', fontSize: 28, fontWeight: '800' },
   primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   overview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },

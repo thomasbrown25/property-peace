@@ -20,6 +20,7 @@ export const moneyLabel = (input: unknown): string => {
 
 export interface WorkspaceConfig<T extends RecordData> {
   title: string;
+  headerAction?: { label: string; onPress?: () => void; hint?: string };
   eyebrow: string;
   subtitle: string;
   searchPlaceholder: string;
@@ -33,7 +34,7 @@ export interface WorkspaceConfig<T extends RecordData> {
   details: (item: T) => Array<[string, string]>;
 }
 
-export default function RentalWorkspace<T extends RecordData>({ config, scope }: { config: WorkspaceConfig<T>; scope: string }) {
+export default function RentalWorkspace<T extends RecordData>({ config, scope, reloadToken }: { config: WorkspaceConfig<T>; scope: string; reloadToken?: number }) {
   const { colors, mode } = useAppTheme();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<T[]>([]);
@@ -63,7 +64,7 @@ export default function RentalWorkspace<T extends RecordData>({ config, scope }:
   useFocusEffect(useCallback(() => {
     void load();
     return () => { generation.current += 1; setSelected(null); };
-  }, [load]));
+  }, [load, reloadToken]));
   const current = loadedScope === scope && !!scope;
   const filtered = useMemo(() => (current ? items : []).filter(item =>
     (filter === 'All' || config.status(item) === filter) && config.searchFor(item).toLowerCase().includes(query.trim().toLowerCase())
@@ -72,7 +73,13 @@ export default function RentalWorkspace<T extends RecordData>({ config, scope }:
   return <View style={[styles.root, { backgroundColor: bg }]}>
     <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
       <Text style={[styles.eyebrow, { color: colors.accent }]}>{config.eyebrow}</Text>
-      <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{config.title}</Text>
+      <View style={styles.titleRow}>
+        <Text accessibilityRole="header" numberOfLines={1} style={[styles.title, config.headerAction && { flexShrink: 1, fontSize: 28 }, { color: colors.text }]}>{config.title}</Text>
+        {config.headerAction && <Pressable accessibilityRole="button" accessibilityLabel={config.headerAction.label} accessibilityHint={config.headerAction.hint} accessibilityState={{ disabled: !config.headerAction.onPress }} disabled={!config.headerAction.onPress} onPress={config.headerAction.onPress} style={[styles.headerAction, { backgroundColor: colors.accent, opacity: config.headerAction.onPress ? 1 : 0.5 }]}>
+          <Ionicons name="add" size={20} color={mode === 'dark' ? colors.background : '#fff'} />
+          <Text style={[styles.headerActionText, { color: mode === 'dark' ? colors.background : '#fff' }]}>{config.headerAction.label.replace(/^Add /, '')}</Text>
+        </Pressable>}
+      </View>
       <Text style={[styles.subtitle, { color: colors.muted }]}>{config.subtitle}</Text>
       <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <Ionicons name="search" size={19} color={colors.muted} />
@@ -103,6 +110,7 @@ export default function RentalWorkspace<T extends RecordData>({ config, scope }:
 
 const styles = StyleSheet.create({
   root: { flex: 1 }, header: { paddingHorizontal: 22 }, eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, marginBottom: 8 }, title: { fontSize: 32, lineHeight: 40, fontWeight: '800' }, subtitle: { fontSize: 15, marginTop: 6, marginBottom: 18 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }, headerAction: { minHeight: 44, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }, headerActionText: { fontSize: 14, fontWeight: '700' },
   search: { minHeight: 46, borderWidth: 1, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12 }, searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 }, close: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, filters: { gap: 8, paddingVertical: 14 }, chip: { minHeight: 44, paddingHorizontal: 16, borderRadius: 24, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, chipText: { fontSize: 14, fontWeight: '700' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 24 }, message: { fontSize: 18, fontWeight: '700', textAlign: 'center' }, retry: { minHeight: 44, justifyContent: 'center' }, list: { paddingHorizontal: 22, paddingBottom: 28, flexGrow: 1 }, section: { fontSize: 16, fontWeight: '800', marginBottom: 4 }, empty: { alignItems: 'center', paddingVertical: 60, gap: 12 }, hint: { fontSize: 14, textAlign: 'center' }, row: { paddingVertical: 18, minHeight: 112 }, rowTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 }, rowTitle: { flex: 1, fontSize: 17, fontWeight: '800' }, badge: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 5 }, badgeText: { fontSize: 11, fontWeight: '800' }, preview: { fontSize: 14, lineHeight: 20, marginTop: 8 }, meta: { fontSize: 12, marginTop: 9 },
   modalHeader: { paddingHorizontal: 22, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, modalTitle: { fontSize: 23, fontWeight: '800' }, detail: { paddingHorizontal: 22, paddingBottom: 40 }, detailTitle: { fontSize: 27, fontWeight: '800' }, detailRow: { borderTopWidth: 1, paddingVertical: 14 }, detailLabel: { fontSize: 12, fontWeight: '700', marginBottom: 5 }, detailValue: { fontSize: 15, lineHeight: 22 },
