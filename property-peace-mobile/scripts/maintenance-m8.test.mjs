@@ -67,7 +67,7 @@ test('role routing is active-context aware and never sends vendors to landlord s
  const landlordAudience=maintenanceAudience({currentOrganizationRole:'Landlord'});
  const vendorAudience=maintenanceAudience({currentOrganizationRole:'Vendor'});
  assert.equal(tenantAudience,'tenant');assert.deepEqual(visibleMainTabsForAudience(tenantAudience).map((tab)=>tab.name),['Maintenance','Messages','Settings']);
- assert.equal(landlordAudience,'landlord');assert.deepEqual(visibleMainTabsForAudience(landlordAudience).map((tab)=>tab.name),['Dashboard','Properties','Maintenance','Messages']);
+ assert.equal(landlordAudience,'landlord');assert.deepEqual(visibleMainTabsForAudience(landlordAudience).map((tab)=>tab.name),['Dashboard','Properties','Tenants','Maintenance']);
  assert.equal(vendorAudience,'unsupported');assert.deepEqual(visibleMainTabsForAudience(vendorAudience).map((tab)=>tab.name),[]);
 });
 test('pending completion lookup never falls back to decided completions',()=>{

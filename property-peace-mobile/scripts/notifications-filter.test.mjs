@@ -33,10 +33,12 @@ test('empty and out-of-range pages are safe', () => {
   assert.deepEqual(filterNotificationPage([notification(1, '2026-10-16T09:00:00')], null, null, 5).items, []);
 });
 
-test('date and time controls sit beneath the heading and list uses capped results', async () => {
+test('notification feed replaces date controls with unread and calendar sections', async () => {
   const screen = await readFile(new URL('../src/screens/landlord/NotificationsScreen.tsx', import.meta.url), 'utf8');
-  assert.match(screen, /filterNotificationPage\(notifications, from, to, page\)/);
-  assert.match(screen, /data=\{visible\.items\}/);
-  assert.match(screen, /<Text style=\{styles\.heading\}>Notifications<\/Text>[\s\S]*?<View style=\{styles\.filters\}>[\s\S]*?DateTimePicker/);
+  assert.match(screen, /notificationFeedPage\(notifications, page, now\)/);
+  assert.match(screen, /data=\{visible\.rows\}/);
+  assert.match(screen, /row\.kind === 'heading'/);
+  assert.match(screen, /relativeNotificationTime\(item, now\)/);
+  assert.doesNotMatch(screen, /DateTimePicker|Filter dates|Recent activity/);
   assert.match(screen, /Older/);
 });

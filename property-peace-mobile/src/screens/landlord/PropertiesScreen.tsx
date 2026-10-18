@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { PropertiesStackParamList } from '../../navigation/types';
@@ -120,9 +121,7 @@ export default function PropertiesScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.pageHeader, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.pageTitle} accessibilityRole="header">Properties</Text>
-      </View>
+      <LandlordPageHeader title="Properties" />
       {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : loadError ? (
         <View style={styles.centerContainer}>
           <Text style={styles.emptyText}>Properties are unavailable</Text>
@@ -260,7 +259,7 @@ function useScreenStyles() {
       centerContainer: { ...styles.centerContainer, backgroundColor: colors.background },
       primaryButton: { ...styles.primaryButton, backgroundColor: '#061e35' },
       primaryButtonText: { ...styles.primaryButtonText, color: '#fff' },
-      pageTitle: { ...styles.pageTitle, color: colors.text },
+
       searchWrap: { ...styles.searchWrap, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
       portfolioOverview: { ...styles.portfolioOverview, borderColor: colors.border },
       overviewEyebrow: { ...styles.overviewEyebrow, color: '#75d995' },
@@ -293,8 +292,7 @@ const styles = StyleSheet.create({
 
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
-  pageHeader: { paddingHorizontal: 20, paddingBottom: 18, alignItems: 'center' },
-  pageTitle: { color: '#102d43', fontSize: 28, fontWeight: '800', textAlign: 'center' },
+
   primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   portfolioOverview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },

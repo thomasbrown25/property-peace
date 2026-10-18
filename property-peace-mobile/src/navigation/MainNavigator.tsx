@@ -222,6 +222,7 @@ export default function MainNavigator() {
     ChecklistsNavigator,
     MaintenanceNavigator,
     TenantMaintenanceNavigator,
+    TenantsNavigator,
 
     MessagesNavigator,
     SettingsScreen,
@@ -249,7 +250,7 @@ export default function MainNavigator() {
         <Tab.Screen name="Finances" component={FinancesScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Checklists" component={ChecklistsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Tenants" component={TenantsNavigator} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Messages" component={MessagesNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Leases" component={LeasesNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Applications" component={ApplicationsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Listings" component={ListingsScreen} options={{ tabBarButton: () => null }} />

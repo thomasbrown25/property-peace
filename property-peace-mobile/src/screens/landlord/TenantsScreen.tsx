@@ -2,10 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import TenantAPI, { Tenant } from '../../api/tenantAPI';
 import { useAppTheme } from '../../theme/AppTheme';
-import PageBackButton from '../../components/PageBackButton';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 
 const tenantName = (tenant: Tenant) => [tenant.firstname || tenant.Firstname || tenant.firstName || tenant.FirstName, tenant.lastname || tenant.Lastname || tenant.lastName || tenant.LastName].filter(Boolean).join(' ') || tenant.email || tenant.Email || 'Tenant';
 
@@ -13,7 +12,7 @@ export default function TenantsScreen() {
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const navigation = useNavigation<any>();
-  const insets = useSafeAreaInsets();
+
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -42,13 +41,10 @@ export default function TenantsScreen() {
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <View style={[styles.topHeader, { paddingTop: insets.top + 16 }]}>
-        <View style={[styles.backCircle, { borderColor: dark ? colors.border : '#dbe2e6' }]}><PageBackButton inHeader /></View>
-      </View>
+      <LandlordPageHeader title="Tenants" />
       <View style={styles.pageHeader}>
         <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
         <View style={styles.titleRow}>
-          <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Tenants</Text>
           <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button" accessibilityLabel="Add tenant">
             <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
             <Text style={[styles.addButtonText, dark && { color: colors.background }]}>Tenant</Text>
@@ -95,13 +91,12 @@ export default function TenantsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
-  topHeader: { paddingHorizontal: 22, paddingBottom: 16 },
-  backCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+
   pageHeader: { paddingHorizontal: 22, paddingBottom: 22 },
   eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
   listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
-  pageTitle: { flexShrink: 1, color: '#102d43', fontSize: 34, lineHeight: 40, fontWeight: '800', letterSpacing: -1 },
+
   pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 18 },
   addButton: { flexDirection: 'row', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   search: { minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },

@@ -23,17 +23,17 @@ export type DashboardStackParamList = {
 
 export type MainTabParamList = {
   Dashboard: NavigatorScreenParams<DashboardStackParamList> | undefined;
-  Properties: undefined;
+  Properties: NavigatorScreenParams<PropertiesStackParamList> | undefined;
   Checklists: NavigatorScreenParams<ChecklistsStackParamList> | undefined;
   Maintenance: undefined;
-  Messages: undefined;
+  Messages: NavigatorScreenParams<MessagesStackParamList> | undefined;
   Notifications: undefined;
-  Tenants: undefined;
+  Tenants: NavigatorScreenParams<TenantsStackParamList> | undefined;
   Team: undefined;
   Vendors: NavigatorScreenParams<VendorsStackParamList> | undefined;
   Announcements: undefined;
   Finances: undefined;
-  Leases: undefined;
+  Leases: NavigatorScreenParams<LeasesStackParamList> | undefined;
   Listings: undefined;
   Applications: undefined;
   Settings: undefined;

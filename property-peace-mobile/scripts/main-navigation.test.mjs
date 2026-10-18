@@ -16,14 +16,15 @@ try {
   loadError = error;
 }
 
-test('landlord dock keeps four primary destinations and moves checklists into quick actions', () => {
+test('landlord dock places Tenants directly before Maintenance instead of Messages', () => {
   assert.equal(loadError, undefined);
   const tabs = visibleMainTabsForAudience('landlord');
   assert.deepEqual(
     tabs.map((tab) => tab.name),
-    ['Dashboard', 'Properties', 'Maintenance', 'Messages'],
+    ['Dashboard', 'Properties', 'Tenants', 'Maintenance'],
   );
   assert.equal(tabs.find((tab) => tab.name === 'Maintenance')?.label, undefined);
+  assert.deepEqual(mainTabIconNames('Tenants'), { active: 'people', inactive: 'people-outline' });
 });
 
 test('tenant navigation does not show the landlord Checklists tab', () => {
@@ -56,12 +57,23 @@ test('landlord dock resolves four destination components', () => {
     ChecklistsNavigator: 'checklists-navigator',
     MaintenanceNavigator: 'maintenance-navigator',
     TenantMaintenanceNavigator: 'tenant-maintenance-navigator',
+    TenantsNavigator: 'tenants-navigator',
     MessagesNavigator: 'messages-navigator',
     SettingsScreen: 'settings-screen',
   });
 
   assert.equal(tabs.length, 4);
-  assert.equal(tabs.find((tab) => tab.name === 'Messages')?.component, 'messages-navigator');
+  assert.equal(tabs.find((tab) => tab.name === 'Tenants')?.component, 'tenants-navigator');
+  assert.equal(tabs.find((tab) => tab.name === 'Messages'), undefined);
+});
+
+test('landlord Messages stays accessible in the menu without a dock icon', async () => {
+  const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
+  const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
+  assert.match(sheet, /label: 'Messages'[^\n]*route: 'Messages'/);
+  assert.match(sheet, /audience === 'landlord' && route\.name === 'Messages'/);
+  assert.match(navigator, /name="Messages" component={MessagesNavigator} options={{ tabBarButton: \(\) => null }}/);
+  assert.doesNotMatch(navigator, /name="Tenants" component={TenantsNavigator} options={{ tabBarButton: \(\) => null }}/);
 });
 
 test('More occupies the rightmost dock slot without the quick-action plus', async () => {

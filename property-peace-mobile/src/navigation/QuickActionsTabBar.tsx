@@ -26,7 +26,8 @@ const landlordMenu: MenuItem[] = [
   { label: 'Finances', icon: 'cash-outline', route: 'Finances' },
   { label: 'Tax Center', icon: 'receipt-outline', webPath: '/landlord/accounting/tax-center' },
   { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
-  { label: 'Tenants', icon: 'person-outline', route: 'Tenants' },
+  { label: 'Tenants', icon: 'people-outline', route: 'Tenants' },
+  { label: 'Messages', icon: 'chatbubble-ellipses-outline', route: 'Messages' },
   { label: 'Notifications', icon: 'notifications-outline', route: 'Notifications' },
   { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
   { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
@@ -113,7 +114,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Tenants', 'Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+  const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+    && !(audience === 'landlord' && route.name === 'Messages')
     && !['Checklists', 'Settings'].includes(route.name));
   const renderTab = (route: typeof visibleRoutes[number]) => {
     const index = state.routes.findIndex((item) => item.key === route.key);

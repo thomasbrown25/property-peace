@@ -9,8 +9,8 @@ test('dashboard counts every unread notification while limiting only recent acti
 
   assert.match(dashboard, /setNotifications\(results\[2\]\.value \|\| \[\]\)/);
   assert.doesNotMatch(dashboard, /setNotifications\([^\n]*slice\(0,\s*3\)/);
-  assert.match(dashboard, /notifications\.filter\([^\n]*isRead === false[^\n]*IsRead === false/);
-  assert.match(dashboard, /notifications\.slice\(0,\s*3\)\.map/);
+  assert.match(dashboard, /scopedNotifications\.filter\([^\n]*isRead === false[^\n]*IsRead === false/);
+  assert.match(dashboard, /recentNotifications\.slice\(0,\s*3\)/);
 });
 
 test('notification load failures have an explicit error state and retry instead of a false empty state', async () => {
@@ -20,7 +20,7 @@ test('notification load failures have an explicit error state and retry instead 
   assert.match(screen, /setLoadError\(/);
   assert.match(screen, /Couldn.t load notifications/);
   assert.match(screen, />Retry</);
-  assert.match(screen, /loadError\s*\?/);
+  assert.match(screen, /loadError && notifications\.length === 0 \?/);
 });
 
 test('notification read mutations report failures and update local read state only after API success', async () => {
@@ -36,8 +36,8 @@ test('notification read mutations report failures and update local read state on
 test('notification cards are static content with an explicit mark-read action', async () => {
   const screen = await read('../src/screens/landlord/NotificationsScreen.tsx');
 
-  assert.doesNotMatch(screen, /<TouchableOpacity\s+style=\{\[styles\.card/);
-  assert.match(screen, /<View\s+style=\{\[styles\.card/);
+  assert.doesNotMatch(screen, /<TouchableOpacity\s+style=\{\[styles\.notificationRow/);
+  assert.match(screen, /<View\s+style=\{\[styles\.notificationRow/);
   assert.match(screen, /accessibilityLabel=\{`Mark .* as read`\}/);
   assert.match(screen, /['"]Mark read['"]/);
 });
