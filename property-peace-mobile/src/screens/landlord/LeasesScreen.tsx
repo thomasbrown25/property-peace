@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TextInpu
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 import LeaseAPI, { Lease } from '../../api/leaseAPI';
 import { LeasesStackParamList } from '../../navigation/types';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -14,7 +14,6 @@ export default function LeasesScreen() {
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const navigation = useNavigation<NativeStackNavigationProp<LeasesStackParamList, 'LeasesList'>>();
-  const insets = useSafeAreaInsets();
   const [leases, setLeases] = useState<Lease[]>([]);
   const [search, setSearch] = useState('');
   const [loadStatus, setLoadStatus] = useState<LoadStatus>('loading');
@@ -75,9 +74,7 @@ export default function LeasesScreen() {
 
   return (
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
-      <View style={[styles.topHeader, { paddingTop: insets.top + 16 }]}>
-        <Text style={[styles.pageTitle, dark && { color: colors.text }]} accessibilityRole="header">Leases</Text>
-      </View>
+      <LandlordPageHeader title="Leases" />
       {loadStatus === 'loading' ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={colors.accent} /></View> : <FlatList
         data={loadStatus === 'error' ? [] : filteredLeases}
         renderItem={renderLease}
@@ -121,10 +118,8 @@ export default function LeasesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  topHeader: { paddingHorizontal: 22, paddingBottom: 18, flexDirection: 'row', alignItems: 'center' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
-  pageTitle: { flex: 1, textAlign: 'center', lineHeight: 44, color: '#102d43', fontSize: 28, fontWeight: '800' },
   primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   overview: { marginBottom: 24, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#dbe2e6', paddingTop: 8, paddingBottom: 20 },

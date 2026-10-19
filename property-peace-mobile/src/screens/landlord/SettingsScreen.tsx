@@ -1,7 +1,10 @@
 import { useTabScrollReset } from '../../navigation/useTabScrollReset';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { SettingsCategory, SettingsStackParamList } from '../../navigation/types';
 import React, { useRef, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Image, Linking, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,7 +57,7 @@ const categories = [
   { key: 'notifications', title: 'Notifications', icon: 'notifications-outline' },
   { key: 'appearance', title: 'Appearance', icon: 'color-palette-outline' },
 ] as const;
-type Category = typeof categories[number]['key'];
+type Category = SettingsCategory;
 
 const firstString = (...values: unknown[]) => {
   for (const value of values) {
@@ -66,8 +69,9 @@ const firstString = (...values: unknown[]) => {
 export default function SettingsScreen() {
   const scrollRef = useRef<ScrollView>(null);
   useTabScrollReset(scrollRef);
-  const navigation = useNavigation();
-  const route = useRoute();
+  const navigation = useNavigation<NativeStackNavigationProp<SettingsStackParamList>>();
+  const route = useRoute<RouteProp<SettingsStackParamList, 'SettingsIndex' | 'SettingsCategory'>>();
+  const category: Category | null = route.name === 'SettingsCategory' ? route.params?.category ?? null : null;
   const insets = useSafeAreaInsets();
   const { mode, colors, setMode } = useAppTheme();
   const styles = useSettingsStyles();
@@ -81,7 +85,6 @@ export default function SettingsScreen() {
   const [deleting, setDeleting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const photoUploadInProgress = useRef(false);
-  const [category, setCategory] = useState<Category | null>(null);
   const [general, setGeneral] = useState<Record<string, any> | null>(null);
   const [notifications, setNotifications] = useState<Record<string, any> | null>(null);
   const [profile, setProfile] = useState<ProfileForm | null>(null);
@@ -97,26 +100,8 @@ export default function SettingsScreen() {
   const savingDetailRef = useRef(false);
   const isCurrent = (id: number, owner: string) => id === requestId.current && !!owner && activeAccountId.current === owner;
 
-  // Settings sections are local state, not stack routes. Re-selecting the avatar
-  // (or returning from another tab) should open the Settings index.
-  useEffect(() => navigation.addListener('tabPress' as never, (event: { target?: string }) => {
-    if (event.target !== route.key) return;
-    requestId.current += 1;
-    setPassword({ current: '', next: '', confirm: '' });
-    setCategory(null);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  }), [navigation, route.key]);
-
-  useEffect(() => {
-    if (!category) return;
-    const listener = BackHandler.addEventListener('hardwareBackPress', () => {
-      requestId.current += 1;
-      setPassword({ current: '', next: '', confirm: '' });
-      setCategory(null);
-      return true;
-    });
-    return () => listener.remove();
-  }, [category]);
+  // Invalidate in-flight reads and saves when a detail route is popped.
+  useEffect(() => () => { requestId.current += 1; }, []);
 
   useEffect(() => {
     const id = ++requestId.current;
@@ -147,16 +132,7 @@ export default function SettingsScreen() {
     });
   }, [category, accountId]);
 
-  const openCategory = (next: Category) => {
-    requestId.current += 1;
-    setGeneral(null);
-    setNotifications(null);
-    setProfile(null);
-    setProfileBase(null);
-    setPassword({ current: '', next: '', confirm: '' });
-    setCategory(next);
-    scrollRef.current?.scrollTo({ y: 0, animated: false });
-  };
+  const openCategory = (next: Category) => navigation.navigate('SettingsCategory', { category: next });
 
   const updateGeneral = async (field: string, value: string) => {
     if (!general || savingDetailRef.current) return;
@@ -441,12 +417,12 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.navigationHeader, { paddingTop: insets.top + 8 }]}>
-        {category && <TouchableOpacity style={styles.backButton} onPress={() => { requestId.current += 1; setPassword({ current: '', next: '', confirm: '' }); setCategory(null); }} accessibilityRole="button" accessibilityLabel="Back to settings">
+        {category && <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back to settings">
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>}
         <Text style={[styles.navigationTitle, !category && styles.mainNavigationTitle]}>{category ? categories.find((item) => item.key === category)?.title : 'Settings'}</Text>
       </View>
-      <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 72 + Math.max(insets.bottom, 10) + (category ? 48 : 30) }]} showsVerticalScrollIndicator={false}>
       {!category && categories.map((item) => (
         <TouchableOpacity key={item.key} style={styles.menuRow} onPress={() => openCategory(item.key)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={item.title}>
           <Ionicons name={item.icon} size={24} color={colors.text} />

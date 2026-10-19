@@ -7,11 +7,15 @@ import QuickActionsTabBar from './QuickActionsTabBar';
 import { MoreDrawerProvider } from './MoreDrawerContext';
 
 import {
+  AnnouncementsStackParamList,
+  ApplicationsStackParamList,
+  ListingsStackParamList,
   LeasesStackParamList,
   MainTabParamList,
   MaintenanceStackParamList,
   MessagesStackParamList,
   PropertiesStackParamList,
+  SettingsStackParamList,
   TenantsStackParamList,
   VendorsStackParamList,
 } from './types';
@@ -30,10 +34,10 @@ import TenantDetailScreen from '../screens/landlord/TenantDetailScreen';
 import VendorsScreen from '../screens/landlord/VendorsScreen';
 import VendorDetailScreen from '../screens/landlord/VendorDetailScreen';
 import TeamScreen from '../screens/landlord/TeamScreen';
-import AnnouncementsScreen from '../screens/landlord/AnnouncementsScreen';
+import AnnouncementsScreen, { AnnouncementDetailScreen } from '../screens/landlord/AnnouncementsScreen';
 import FinancesScreen from '../screens/landlord/FinancesScreen';
-import ListingsScreen from '../screens/landlord/ListingsScreen';
-import ApplicationsScreen from '../screens/landlord/ApplicationsScreen';
+import ListingsScreen, { ListingDetailScreen } from '../screens/landlord/ListingsScreen';
+import ApplicationsScreen, { ApplicationDetailScreen } from '../screens/landlord/ApplicationsScreen';
 import AddTenantScreen from '../screens/landlord/AddTenantScreen';
 import MaintenanceScreen from '../screens/landlord/MaintenanceScreen';
 import AddMaintenanceRequestScreen from '../screens/landlord/AddMaintenanceRequestScreen';
@@ -109,6 +113,10 @@ const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 const TenantsStack = createNativeStackNavigator<TenantsStackParamList>();
 const VendorsStack = createNativeStackNavigator<VendorsStackParamList>();
 const LeasesStack = createNativeStackNavigator<LeasesStackParamList>();
+const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
+const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
+const ApplicationsStack = createNativeStackNavigator<ApplicationsStackParamList>();
+const AnnouncementsStack = createNativeStackNavigator<AnnouncementsStackParamList>();
 
 function useStackOptions() {
   const { mode, colors } = useAppTheme();
@@ -119,6 +127,7 @@ function useStackOptions() {
     headerShadowVisible: false,
     headerStyle: { backgroundColor: background },
     contentStyle: { backgroundColor: background },
+    animation: 'slide_from_right' as const,
   };
 }
 
@@ -215,6 +224,40 @@ function LeasesNavigator() {
   );
 }
 
+function SettingsNavigator() {
+  const stackOptions = useStackOptions();
+  return (
+    <SettingsStack.Navigator screenOptions={stackOptions}>
+      <SettingsStack.Screen name="SettingsIndex" component={SettingsScreen} options={{ headerShown: false }} />
+      <SettingsStack.Screen name="SettingsCategory" component={SettingsScreen} options={{ headerShown: false }} />
+    </SettingsStack.Navigator>
+  );
+}
+
+function ListingsNavigator() {
+  const options = useStackOptions();
+  return <ListingsStack.Navigator screenOptions={options}>
+    <ListingsStack.Screen name="ListingsList" component={ListingsScreen} options={{ headerShown: false }} />
+    <ListingsStack.Screen name="ListingDetail" component={ListingDetailScreen} options={({ navigation }) => ({ title: 'Listing details', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
+  </ListingsStack.Navigator>;
+}
+
+function ApplicationsNavigator() {
+  const options = useStackOptions();
+  return <ApplicationsStack.Navigator screenOptions={options}>
+    <ApplicationsStack.Screen name="ApplicationsList" component={ApplicationsScreen} options={{ headerShown: false }} />
+    <ApplicationsStack.Screen name="ApplicationDetail" component={ApplicationDetailScreen} options={({ navigation }) => ({ title: 'Application details', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
+  </ApplicationsStack.Navigator>;
+}
+
+function AnnouncementsNavigator() {
+  const options = useStackOptions();
+  return <AnnouncementsStack.Navigator screenOptions={options}>
+    <AnnouncementsStack.Screen name="AnnouncementsList" component={AnnouncementsScreen} options={{ headerShown: false }} />
+    <AnnouncementsStack.Screen name="AnnouncementDetail" component={AnnouncementDetailScreen} options={({ navigation }) => ({ title: 'Announcement', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
+  </AnnouncementsStack.Navigator>;
+}
+
 export default function MainNavigator() {
   const currentUser = useAppSelector((state) => state.user.currentUser);
   const audience = maintenanceAudience(currentUser);
@@ -227,7 +270,8 @@ export default function MainNavigator() {
     TenantsNavigator,
 
     MessagesNavigator,
-    SettingsScreen,
+    NotificationsScreen,
+    SettingsScreen: SettingsNavigator,
   };
   const visibleTabs = resolveVisibleMainTabs(audience, visibleComponents);
   const animatedTabs = useMemo(() => visibleTabs.map((tab, index) => ({ ...tab, component: withTabTransition(tab.component, index) })), [audience]);
@@ -248,15 +292,14 @@ export default function MainNavigator() {
       {audience === 'landlord' && <>
         <Tab.Screen name="Vendors" component={VendorsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Team" component={TeamScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Announcements" component={AnnouncementsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Announcements" component={AnnouncementsNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Finances" component={FinancesScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Checklists" component={ChecklistsNavigator} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Messages" component={MessagesNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Leases" component={LeasesNavigator} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Applications" component={ApplicationsScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Listings" component={ListingsScreen} options={{ tabBarButton: () => null }} />
-        <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Applications" component={ApplicationsNavigator} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Listings" component={ListingsNavigator} options={{ tabBarButton: () => null }} />
+        <Tab.Screen name="Settings" component={SettingsNavigator} options={{ tabBarButton: () => null }} />
       </>}
     </Tab.Navigator>
     </MoreDrawerProvider>

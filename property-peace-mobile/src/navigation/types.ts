@@ -32,12 +32,31 @@ export type MainTabParamList = {
   Tenants: NavigatorScreenParams<TenantsStackParamList> | undefined;
   Team: undefined;
   Vendors: NavigatorScreenParams<VendorsStackParamList> | undefined;
-  Announcements: undefined;
+  Announcements: NavigatorScreenParams<AnnouncementsStackParamList> | undefined;
   Finances: undefined;
   Leases: NavigatorScreenParams<LeasesStackParamList> | undefined;
-  Listings: undefined;
-  Applications: undefined;
-  Settings: undefined;
+  Listings: NavigatorScreenParams<ListingsStackParamList> | undefined;
+  Applications: NavigatorScreenParams<ApplicationsStackParamList> | undefined;
+  Settings: NavigatorScreenParams<SettingsStackParamList> | undefined;
+};
+
+export type SettingsCategory = 'account' | 'general' | 'profile' | 'subscription' | 'payments' | 'smsnumber' | 'notifications' | 'appearance';
+export type SettingsStackParamList = {
+  SettingsIndex: undefined;
+  SettingsCategory: { category: SettingsCategory };
+};
+
+export type ListingsStackParamList = {
+  ListingsList: undefined;
+  ListingDetail: { item: import('../api/listingAPI').Listing; scope: string };
+};
+export type ApplicationsStackParamList = {
+  ApplicationsList: undefined;
+  ApplicationDetail: { item: import('../api/landlordApplicationsAPI').RentalApplication; scope: string };
+};
+export type AnnouncementsStackParamList = {
+  AnnouncementsList: undefined;
+  AnnouncementDetail: { item: import('../api/announcementAPI').Announcement };
 };
 
 export type PropertiesStackParamList = {

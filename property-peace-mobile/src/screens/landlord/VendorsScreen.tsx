@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { VendorsStackParamList } from '../../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 import VendorAPI, { type Vendor, type VendorInput } from '../../api/vendorAPI';
 import { useAppTheme } from '../../theme/AppTheme';
 
@@ -56,6 +57,7 @@ export default function VendorsScreen() {
     const text = [field(vendor, 'name'), field(vendor, 'businessName'), field(vendor, 'category'), field(vendor, 'email'), field(vendor, 'phone')].join(' ').toLowerCase();
     return text.includes(query.trim().toLowerCase());
   }), [vendors, query, showInactive]);
+  const activeCount = useMemo(() => vendors.filter(active).length, [vendors]);
 
   const openForm = () => {
     setForm({ ...emptyForm });
@@ -84,28 +86,30 @@ export default function VendorsScreen() {
     }
   };
 
-  const bg = mode === 'dark' ? colors.background : '#fbf7f4';
+  const bg = mode === 'dark' ? colors.background : '#fff';
   const inputStyle = [styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }];
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>YOUR NETWORK</Text>
-        <View style={styles.titleRow}>
-          <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Vendors</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Add vendor" onPress={openForm} style={[styles.add, { backgroundColor: colors.accent }]}><Ionicons name="add" size={20} color={bg} /><Text style={[styles.addText, { color: bg }]}>Vendor</Text></Pressable>
-        </View>
-        <Text style={[styles.subtitle, { color: colors.muted }]}>Keep your trusted service providers close.</Text>
-        <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Ionicons name="search" size={19} color={colors.muted} />
-          <TextInput accessibilityLabel="Search vendors" placeholder="Search name, trade, or contact" placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} style={[styles.searchInput, { color: colors.text }]} returnKeyType="search" />
-          {!!query && <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={20} color={colors.muted} /></Pressable>}
-        </View>
-        <Pressable accessibilityRole="button" accessibilityState={{ selected: showInactive }} onPress={() => setShowInactive(value => !value)} style={styles.filter}><Ionicons name={showInactive ? 'checkbox' : 'square-outline'} size={22} color={colors.accent} /><Text style={{ color: colors.text }}>Show inactive vendors</Text></Pressable>
-      </View>
+      <LandlordPageHeader title="Vendors" />
       {loading ? <View style={styles.center}><ActivityIndicator color={colors.accent} /></View> : error ? <View style={styles.center}><Text style={[styles.message, { color: colors.text }]}>{error}</Text><Pressable accessibilityRole="button" onPress={() => { void refresh(); }} style={styles.retry}><Text style={{ color: colors.accent, fontWeight: '700' }}>Retry</Text></Pressable></View> :
         <FlatList data={filtered} keyExtractor={(item, index) => field(item, 'id') || String(index)} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refresh(); }} tintColor={colors.accent} />}
-          ListHeaderComponent={<Text accessibilityRole="header" style={[styles.section, { color: colors.text }]}>All vendors <Text style={{ color: colors.muted, fontSize: 14 }}>{filtered.length}</Text></Text>}
+          ListHeaderComponent={<View>
+            <View style={[styles.overview, { borderBottomColor: colors.border }]}>
+              <Text style={[styles.overviewEyebrow, { color: mode === 'dark' ? '#75d995' : '#2f8f46' }]}>VENDOR OVERVIEW</Text>
+              <View style={styles.overviewRow}>
+                <View><Text style={[styles.overviewValue, { color: colors.text }]}>{activeCount}</Text><Text style={[styles.overviewLabel, { color: colors.muted }]}>Active vendors</Text></View>
+                <Pressable accessibilityRole="button" accessibilityLabel="Add vendor" onPress={openForm} style={[styles.add, { backgroundColor: colors.accent }]}><Ionicons name="add" size={18} color={mode === 'dark' ? colors.background : '#fff'} /><Text style={[styles.addText, { color: mode === 'dark' ? colors.background : '#fff' }]}>Add vendor</Text></Pressable>
+              </View>
+            </View>
+            <View style={[styles.search, mode === 'dark' ? { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 } : { backgroundColor: '#f1f5f9' }]}>
+              <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
+              <TextInput accessibilityLabel="Search vendors" placeholder="Search name, trade, or contact" placeholderTextColor={mode === 'dark' ? colors.muted : '#94a3b8'} value={query} onChangeText={setQuery} style={[styles.searchInput, { color: colors.text }]} returnKeyType="search" />
+              {!!query && <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={20} color={colors.muted} /></Pressable>}
+            </View>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: showInactive }} onPress={() => setShowInactive(value => !value)} style={styles.filter}><Ionicons name={showInactive ? 'checkbox' : 'square-outline'} size={22} color={colors.accent} /><Text style={{ color: colors.text }}>Show inactive vendors</Text></Pressable>
+            <Text accessibilityRole="header" style={[styles.section, { color: colors.text }]}>{showInactive ? 'All vendors' : 'Active vendors'} <Text style={{ color: colors.muted, fontSize: 14 }}>{filtered.length}</Text></Text>
+          </View>}
           ListEmptyComponent={<View style={styles.empty}><Ionicons name="construct-outline" size={34} color={colors.accent} /><Text style={[styles.message, { color: colors.text }]}>{query.trim() ? 'No matching vendors' : showInactive ? 'No vendors yet' : 'No active vendors yet'}</Text><Text style={[styles.hint, { color: colors.muted }]}>{query.trim() ? 'Try a different search.' : 'Add a vendor to start your directory.'}</Text></View>}
           ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: colors.border }} />}
           renderItem={({ item }) => {
@@ -134,9 +138,13 @@ export default function VendorsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 22, paddingBottom: 12 }, eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 }, titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }, title: { fontSize: 34, lineHeight: 40, fontWeight: '800', flexShrink: 1 },
-  add: { minHeight: 44, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', gap: 4, alignItems: 'center' }, addText: { fontSize: 14, fontWeight: '700' }, subtitle: { fontSize: 15, marginTop: 6, marginBottom: 18 },
-  search: { borderWidth: 1, borderRadius: 10, minHeight: 46, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 }, searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 }, filter: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
-  list: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: 28, flexGrow: 1 }, section: { fontSize: 20, fontWeight: '800', marginBottom: 12 }, row: { minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 }, avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }, initial: { fontSize: 18, fontWeight: '700' }, rowCopy: { flex: 1, minWidth: 0 }, rowTitle: { fontSize: 16, fontWeight: '700' }, meta: { fontSize: 13, marginTop: 3 }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }, empty: { alignItems: 'center', paddingVertical: 48 }, message: { fontSize: 18, fontWeight: '700', marginTop: 12, textAlign: 'center' }, hint: { fontSize: 14, marginTop: 8, textAlign: 'center' }, retry: { minHeight: 44, justifyContent: 'center' },
+  overview: { marginBottom: 20, paddingTop: 8, paddingBottom: 20, borderBottomWidth: StyleSheet.hairlineWidth },
+  overviewEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  overviewValue: { fontSize: 34, lineHeight: 39, fontWeight: '800' },
+  overviewLabel: { fontSize: 13, marginTop: 1 },
+  add: { minHeight: 44, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' }, addText: { fontSize: 12, fontWeight: '800' },
+  search: { borderRadius: 10, minHeight: 46, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, gap: 9 }, searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 }, filter: { minHeight: 48, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8 },
+  list: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28, flexGrow: 1 }, section: { fontSize: 20, fontWeight: '800', marginBottom: 12 }, row: { minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14 }, avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' }, initial: { fontSize: 18, fontWeight: '700' }, rowCopy: { flex: 1, minWidth: 0 }, rowTitle: { fontSize: 16, fontWeight: '700' }, meta: { fontSize: 13, marginTop: 3 }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }, empty: { alignItems: 'center', paddingVertical: 48 }, message: { fontSize: 18, fontWeight: '700', marginTop: 12, textAlign: 'center' }, hint: { fontSize: 14, marginTop: 8, textAlign: 'center' }, retry: { minHeight: 44, justifyContent: 'center' },
   modalHeader: { paddingHorizontal: 22, paddingBottom: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, modalTitle: { fontSize: 26, fontWeight: '800' }, close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }, formScroll: { paddingHorizontal: 22, paddingBottom: 48 }, field: { marginBottom: 16 }, label: { fontSize: 14, fontWeight: '700', marginBottom: 7 }, detailRow: { borderTopWidth: 1, paddingVertical: 14 }, detailValue: { fontSize: 16 }, input: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, fontSize: 16 }, notes: { minHeight: 90, textAlignVertical: 'top', paddingTop: 12 }, error: { color: '#bc3131', marginBottom: 14 }, save: { minHeight: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, saveText: { fontSize: 16, fontWeight: '700' },
 });

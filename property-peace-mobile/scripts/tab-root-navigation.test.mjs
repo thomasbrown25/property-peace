@@ -18,8 +18,13 @@ test('dock and native More destinations use a common root-navigation action', ()
   assert.match(dock, /hideSheet\(\(\) => openTabRoot\(item\.route!\)\)/);
 });
 
-test('Settings avatar resets locally-rendered categories to the settings index', () => {
-  assert.match(settings, /navigation\.addListener\('tabPress' as never, \(event: \{ target\?: string \}\) => \{/);
-  assert.match(settings, /if \(event\.target !== route\.key\) return;\s*requestId\.current \+= 1;\s*setPassword\(\{ current: '', next: '', confirm: '' \}\);\s*setCategory\(null\);/);
-  assert.match(settings, /scrollRef\.current\?\.scrollTo\(\{ y: 0, animated: false \}\)/);
+test('Settings categories use a native detail stack and avatar returns to its index', async () => {
+  const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
+  assert.match(navigator, /SettingsStack\.Screen name="SettingsIndex" component=\{SettingsScreen\}/);
+  assert.match(navigator, /SettingsStack\.Screen name="SettingsCategory" component=\{SettingsScreen\}/);
+  assert.match(navigator, /animation: 'slide_from_right'/);
+  assert.match(navigator, /Tab\.Screen name="Settings" component=\{SettingsNavigator\}/);
+  assert.match(settings, /navigation\.navigate\('SettingsCategory', \{ category: next \}\)/);
+  assert.match(settings, /onPress=\{\(\) => navigation\.goBack\(\)\}/);
+  assert.doesNotMatch(settings, /setCategory\(/);
 });

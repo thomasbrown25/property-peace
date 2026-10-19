@@ -1,8 +1,8 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 import moneyCenterAPI, { type FinanceScope, type MoneyCenterItem, type MoneyCenterItems, type MoneyCenterOverview } from '../../api/moneyCenterAPI';
 import propertyAPI, { type Property } from '../../api/propertyAPI';
 import { useAppSelector } from '../../store/hooks';
@@ -19,6 +19,10 @@ const sections: { id: Section; label: string }[] = [
   { id: 'expenses', label: 'Expenses' }, { id: 'payments', label: 'Payments' },
   { id: 'upcoming', label: 'Upcoming' },
 ];
+// A preview account must never be sent to production's payment recording flow.
+const webAppUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.replace(/\/$/, '')
+  || (process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') === 'https://api.propertypeace.io'
+    ? 'https://app.propertypeace.io' : undefined);
 const money = (n: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 const amount = (n: unknown) => typeof n === 'number' && Number.isFinite(n) ? money(n) : 'Unavailable';
 const dateLabel = (date: string) => {
@@ -50,7 +54,6 @@ function matchesSearch(item: MoneyCenterItem, query: string) {
 
 export default function FinancesScreen() {
   const { colors, mode } = useAppTheme();
-  const insets = useSafeAreaInsets();
   const user = useAppSelector(state => state.user.currentUser);
   const authScope = `${user?.id ?? user?.Id ?? ''}:${user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? ''}`;
   const [period, setPeriod] = useState<Period>('this-month');
@@ -103,21 +106,34 @@ export default function FinancesScreen() {
   const sectionItems = visibleItems?.items.filter(item => relevant(item, section)) ?? [];
   const list = sectionItems.filter(item => matchesSearch(item, search));
   const sectionLabel = sections.find(tab => tab.id === section)?.label ?? 'Activity';
-  const bg = mode === 'dark' ? colors.background : '#fbf7f4';
+  const dark = mode === 'dark';
+  const bg = dark ? colors.background : '#fff';
   const metrics: { label: string; value: unknown; note: string; target: Section }[] = [
-    { label: 'Income', value: visibleOverview?.cameIn, note: 'Recorded money in', target: 'payments' },
     { label: 'Expenses', value: visibleOverview?.wentOut, note: 'Recorded money out', target: 'expenses' },
     { label: 'Net cash flow', value: visibleOverview?.recordedNetCashFlow, note: 'Income minus expenses', target: 'activity' },
     { label: 'Due now', value: visibleOverview?.dueNow, note: 'Unpaid obligations', target: 'upcoming' },
   ];
 
   return <View style={[styles.container, { backgroundColor: bg }]}>
-    <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
-      <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>Finances</Text>
-      <Text style={[styles.subtitle, { color: colors.muted }]}>Your recorded property money, all in one place.</Text>
-    </View>
+    <LandlordPageHeader title="Finances" />
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.accent} />}>
+      <View style={[styles.overview, dark && { borderBottomColor: colors.border }]}>
+        <Text style={[styles.overviewEyebrow, dark && { color: '#75d995' }]}>FINANCES OVERVIEW</Text>
+        <View style={styles.overviewRow}>
+          <View style={styles.overviewSummary}>
+            <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.overviewValue, { color: colors.text }]}>{ready ? amount(visibleOverview?.cameIn) : 'Loading…'}</Text>
+            <Text style={[styles.overviewLabel, { color: colors.muted }]}>Recorded income · {periods.find(option => option.id === period)?.label.toLowerCase()}</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="Record payment in web app" accessibilityHint={webAppUrl ? 'Opens the payment recording flow in your browser; you may need to sign in there' : 'Web app link not configured for this build'} accessibilityState={{ disabled: !webAppUrl }} disabled={!webAppUrl}
+            onPress={() => { if (webAppUrl) void Linking.openURL(`${webAppUrl}/landlord/payments/add`).catch(() => Alert.alert('Could not open web app', 'Please try again later.')); }}
+            style={[styles.recordButton, { backgroundColor: colors.accent }, !webAppUrl && styles.disabledButton]}>
+            <Ionicons name="add" size={18} color={dark ? colors.background : '#fff'} />
+            <Text style={[styles.recordText, dark && { color: colors.background }]}>Record payment</Text>
+          </Pressable>
+        </View>
+        {!webAppUrl && <Text style={[styles.webHint, { color: colors.muted }]}>Payment recording needs a web app link for this build.</Text>}
+      </View>
       <Text style={[styles.label, { color: colors.muted }]}>PROPERTY</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         <Pressable accessibilityRole="button" accessibilityState={{ selected: !propertyId }} onPress={() => setPropertyId(undefined)} style={[styles.chip, { borderColor: colors.border, backgroundColor: !propertyId ? colors.accent : colors.surface }]}><Text style={{ color: !propertyId ? bg : colors.text, fontWeight: '700' }}>All properties</Text></Pressable>
@@ -163,11 +179,22 @@ export default function FinancesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 }, top: { paddingHorizontal: 22, paddingBottom: 14 }, title: { fontSize: 34, fontWeight: '800' }, subtitle: { fontSize: 15, marginTop: 5 },
-  content: { paddingHorizontal: 22, paddingBottom: 32 }, label: { fontSize: 11, fontWeight: '800', letterSpacing: 1.3, marginTop: 16, marginBottom: 10 },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 },
+  overview: { marginBottom: 4, paddingTop: 8, paddingBottom: 20, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#dbe2e6' },
+  overviewEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  overviewSummary: { flex: 1, minWidth: 0 },
+  overviewValue: { color: '#102d43', fontSize: 34, lineHeight: 39, fontWeight: '800' },
+  overviewLabel: { color: '#617180', fontSize: 12, marginTop: 1 },
+  recordButton: { minHeight: 44, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 },
+  recordText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  disabledButton: { opacity: 0.45 },
+  webHint: { fontSize: 12, lineHeight: 18, marginTop: 12 },
+  label: { fontSize: 11, fontWeight: '800', letterSpacing: 1.3, marginTop: 16, marginBottom: 10 },
   chips: { gap: 8, paddingBottom: 5 }, chip: { minHeight: 44, paddingHorizontal: 14, borderWidth: 1, borderRadius: 12, justifyContent: 'center' },
   hint: { fontSize: 13, lineHeight: 19 }, feedback: { alignItems: 'center', paddingVertical: 36, gap: 12 }, notice: { borderWidth: 1, borderRadius: 12, padding: 15, gap: 6, marginVertical: 12 }, retry: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
-  metrics: { gap: 10, marginTop: 24, marginBottom: 12 }, metric: { borderWidth: 1, borderRadius: 15, padding: 18, minHeight: 112 }, metricLabel: { fontSize: 13, fontWeight: '700' }, metricValue: { fontSize: 28, fontWeight: '800', marginVertical: 4 },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 20, marginBottom: 12 }, metric: { width: '48%', flexGrow: 1, borderWidth: 1, borderRadius: 12, padding: 14, minHeight: 98 }, metricLabel: { fontSize: 13, fontWeight: '700' }, metricValue: { fontSize: 24, fontWeight: '800', marginVertical: 4 },
   sectionTitle: { fontSize: 22, fontWeight: '800', marginTop: 6, marginBottom: 12 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }, searchBox: { flex: 1, minWidth: 0, minHeight: 48, borderWidth: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 }, searchInput: { flex: 1, minWidth: 0, paddingVertical: 8, fontSize: 15 }, clearSearch: { minWidth: 32, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   filterButton: { minHeight: 48, borderWidth: 1, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 10 }, filterMenu: { borderWidth: 1, borderRadius: 12, marginBottom: 12, overflow: 'hidden' }, filterOption: { minHeight: 48, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

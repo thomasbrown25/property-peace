@@ -3,7 +3,9 @@ import { View } from 'react-native';
 import ApplicationInviteModal from './ApplicationInviteModal';
 import { useAppSelector } from '../../store/hooks';
 import { getLandlordApplications, type RentalApplication } from '../../api/landlordApplicationsAPI';
-import RentalWorkspace, { dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
+import RentalWorkspace, { RentalWorkspaceDetail, dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { ApplicationsStackParamList } from '../../navigation/types';
 
 const statuses = ['Draft', 'Submitted', 'Under review', 'Approved', 'Rejected', 'Withdrawn', 'On hold', 'Lease signed', 'Pending'];
 const status = (item: RentalApplication): string => {
@@ -16,15 +18,9 @@ const status = (item: RentalApplication): string => {
 const titleFor = (item: RentalApplication): string => [label(item, 'firstName'), label(item, 'lastName')].filter(Boolean).join(' ') || 'Applicant';
 const property = (item: RentalApplication): string => [label(item, 'propertyName'), label(item, 'unitName')].filter(Boolean).join(' · ') || 'Property unavailable';
 
-export default function ApplicationsScreen() {
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [reloadToken, setReloadToken] = useState(0);
-  const user = useAppSelector(state => state.user.currentUser);
-  const landlordId = String(user?.id ?? user?.Id ?? '');
-  const scope = landlordId ? `${landlordId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
-  const config = useMemo<WorkspaceConfig<RentalApplication>>(() => ({
+const applicationConfig = (landlordId: string, scope: string, openInvite?: () => void): WorkspaceConfig<RentalApplication> => ({
     title: 'Applications', eyebrow: 'RENTAL PIPELINE', subtitle: 'Track applications for your properties.', searchPlaceholder: 'Search applicant, property or email',
-    headerAction: { label: 'Add application', onPress: scope ? () => setInviteOpen(true) : undefined },
+    headerAction: { label: 'Add application', onPress: scope ? openInvite : undefined },
     filters: ['All', 'Submitted', 'Under review', 'Approved', 'Rejected', 'Draft', 'Pending', 'On hold', 'Withdrawn', 'Lease signed'],
     load: () => getLandlordApplications(landlordId), status, titleFor,
     subtitleFor: property,
@@ -38,8 +34,20 @@ export default function ApplicationsScreen() {
       ['Monthly income', field(item, 'monthlyIncome') == null ? '' : moneyLabel(field(item, 'monthlyIncome'))],
       ['Notes', label(item, 'additionalNotes')],
     ],
-  }), [landlordId, scope]);
-  return <View style={{ flex: 1 }}><RentalWorkspace config={config} scope={scope} reloadToken={reloadToken} />
+  });
+
+export default function ApplicationsScreen() {
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
+  const user = useAppSelector(state => state.user.currentUser);
+  const landlordId = String(user?.id ?? user?.Id ?? '');
+  const scope = landlordId ? `${landlordId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
+  const config = useMemo(() => applicationConfig(landlordId, scope, () => setInviteOpen(true)), [landlordId, scope]);
+  return <View style={{ flex: 1 }}><RentalWorkspace config={config} scope={scope} reloadToken={reloadToken} detailRoute="ApplicationDetail" />
     <ApplicationInviteModal key={scope} visible={inviteOpen && !!scope} scope={scope} onClose={() => setInviteOpen(false)} onSent={() => setReloadToken(value => value + 1)} />
   </View>;
+}
+
+export function ApplicationDetailScreen({ route }: NativeStackScreenProps<ApplicationsStackParamList, 'ApplicationDetail'>) {
+  return <RentalWorkspaceDetail config={applicationConfig('', '')} item={route.params.item} scope={route.params.scope} />;
 }

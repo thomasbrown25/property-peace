@@ -19,6 +19,7 @@ export type MainTabComponentName =
   | 'TenantMaintenanceNavigator'
   | 'TenantsNavigator'
   | 'MessagesNavigator'
+  | 'NotificationsScreen'
   | 'SettingsScreen';
 
 export type VisibleMainTab = {
@@ -38,6 +39,7 @@ const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
     { name: 'Properties', component: 'PropertiesNavigator' },
     { name: 'Tenants', component: 'TenantsNavigator' },
     { name: 'Maintenance', component: 'MaintenanceNavigator' },
+    { name: 'Notifications', component: 'NotificationsScreen' },
   ],
   tenant: [
     { name: 'Maintenance', component: 'TenantMaintenanceNavigator' },
@@ -54,6 +56,7 @@ const icons: Partial<Record<MainTabName, { active: string; inactive: string }>> 
   Maintenance: { active: 'construct', inactive: 'construct-outline' },
   Tenants: { active: 'people', inactive: 'people-outline' },
   Messages: { active: 'chatbubble-ellipses', inactive: 'chatbubble-ellipses-outline' },
+  Notifications: { active: 'notifications', inactive: 'notifications-outline' },
   Settings: { active: 'settings', inactive: 'settings-outline' },
 };
 

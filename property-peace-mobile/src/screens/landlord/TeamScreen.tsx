@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView,
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 import teamAPI, { type TeamInvite, type TeamMember } from '../../api/teamAPI';
 import organizationAPI from '../../api/organizationAPI';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -36,7 +37,6 @@ export default function TeamScreen() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState<'All' | 'Members' | 'Invited'>('All');
   const [editor, setEditor] = useState<'invite' | 'role' | null>(null);
   const [selected, setSelected] = useState<Person | null>(null);
   const [email, setEmail] = useState('');
@@ -80,10 +80,10 @@ export default function TeamScreen() {
   const canManage = Boolean(current && (isOwner || me?.canManageMembers));
   const ownEmail = String(user?.email ?? user?.Email ?? '').trim().toLowerCase();
   const people = useMemo(() => (current?.people ?? []).filter(item =>
-    (filter === 'All' || (filter === 'Members' ? item.kind === 'member' : item.kind === 'invite')) &&
     `${item.name} ${item.email} ${item.role}`.toLowerCase().includes(query.trim().toLowerCase())
-  ), [current, filter, query]);
+  ), [current, query]);
   const totalPeople = current?.people.length ?? 0;
+  const activeMembers = current?.people.filter(item => item.kind === 'member').length ?? 0;
   const background = mode === 'dark' ? colors.background : '#fbf7f4';
   const accent = colors.accent;
   const foreground = mode === 'dark' ? colors.background : '#fff';
@@ -126,20 +126,27 @@ export default function TeamScreen() {
     </Pressable>
   );
 
-  return <View style={[styles.root, { backgroundColor: background, paddingTop: insets.top + 16 }]}>
-    <View style={styles.header}>
-      <View style={{ flex: 1 }}><Text style={[styles.eyebrow, { color: accent }]}>ORGANIZATION</Text><Text style={[styles.title, { color: colors.text }]}>Team members</Text></View>
-      {canManage && <Pressable accessibilityRole="button" accessibilityLabel="Add team member" onPress={openInvite} style={[styles.add, { backgroundColor: accent }]}><Ionicons name="add" size={19} color={foreground} /><Text style={{ color: foreground, fontWeight: '800' }}>Invite</Text></Pressable>}
-    </View>
-    <Text style={[styles.subtitle, { color: colors.muted }]}>{current ? `Manage access for ${current.organization}` : 'People and invitations in your organization'}</Text>
+  return <View style={[styles.root, { backgroundColor: background }]}>
+    <LandlordPageHeader title="Team" />
     <ScrollView keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />} contentContainerStyle={styles.content}>
       {notice ? <Text style={[styles.notice, { color: colors.text, backgroundColor: colors.surface }]}>{notice}</Text> : null}
       {loading && !current ? <ActivityIndicator style={styles.loading} color={accent} /> : error ? <View style={styles.center}><Text style={{ color: colors.text }}>{error}</Text>{action('Retry', () => void load())}</View> : current ? <>
+        <View style={[styles.overview, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.overviewEyebrow, { color: mode === 'dark' ? '#75d995' : '#2f8f46' }]}>TEAM OVERVIEW</Text>
+          <View style={styles.overviewRow}>
+            <View style={styles.overviewMetric}><Text style={[styles.overviewValue, { color: colors.text }]}>{activeMembers}</Text><Text style={[styles.overviewLabel, { color: colors.muted }]}>Active members</Text></View>
+            {canManage && <Pressable accessibilityRole="button" accessibilityLabel="Invite team member" onPress={openInvite} style={[styles.add, { backgroundColor: accent }]}><Ionicons name="add" size={18} color={foreground} /><Text style={[styles.addText, { color: foreground }]}>Invite</Text></Pressable>}
+          </View>
+          <Text style={[styles.organization, { color: colors.muted }]} numberOfLines={2}>{current.organization}</Text>
+        </View>
         {!canManage && <Text style={[styles.hint, { color: colors.muted }]}>You can view this team. An owner or member with team-management access can make changes.</Text>}
-        <TextInput accessibilityLabel="Search team members" placeholder="Search name, email, or role" placeholderTextColor={colors.muted} value={query} onChangeText={setQuery} style={[styles.search, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]} />
-        <View style={styles.filters}>{(['All', 'Members', 'Invited'] as const).map(option => <Pressable key={option} onPress={() => setFilter(option)} accessibilityRole="button" accessibilityState={{ selected: filter === option }} style={[styles.chip, { borderColor: colors.border, backgroundColor: filter === option ? accent : colors.surface }]}><Text style={{ color: filter === option ? foreground : colors.text, fontWeight: '700' }}>{option}</Text></Pressable>)}</View>
+        <View style={[styles.search, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+          <Ionicons name="search" size={19} color={mode === 'dark' ? colors.muted : '#64748b'} />
+          <TextInput accessibilityLabel="Search team members" placeholder="Search name, email, or role" placeholderTextColor={mode === 'dark' ? colors.muted : '#94a3b8'} value={query} onChangeText={setQuery} returnKeyType="search" style={[styles.searchInput, { color: colors.text }]} />
+          {!!query && <Pressable accessibilityRole="button" accessibilityLabel="Clear search" onPress={() => setQuery('')}><Ionicons name="close-circle" size={19} color={mode === 'dark' ? colors.muted : '#94a3b8'} /></Pressable>}
+        </View>
         <Text style={[styles.section, { color: colors.muted }]}>{people.length} OF {totalPeople} PEOPLE & INVITATIONS</Text>
-        {people.length === 0 ? <View style={styles.center}><Ionicons name="people-outline" size={30} color={accent} /><Text style={{ color: colors.text, textAlign: 'center', marginTop: 10 }}>{query || filter !== 'All' ? 'No team members match this view.' : 'No team members or pending invitations yet.'}</Text></View> : people.map((person, index) => <View key={`${person.kind}-${person.id || index}`} style={[styles.person, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        {people.length === 0 ? <View style={styles.center}><Ionicons name="people-outline" size={30} color={accent} /><Text style={{ color: colors.text, textAlign: 'center', marginTop: 10 }}>{query.trim() ? 'No team members match your search.' : 'No team members or pending invitations yet.'}</Text></View> : people.map((person, index) => <View key={`${person.kind}-${person.id || index}`} style={[styles.person, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.personTop}><View style={[styles.avatar, { backgroundColor: background }]}><Text style={{ color: accent, fontWeight: '800' }}>{person.role.trim().charAt(0).toUpperCase() || '?'}</Text></View><View style={{ flex: 1 }}><Text style={[styles.name, { color: colors.text }]}>{person.name}</Text>{person.email !== person.name && <Text style={{ color: colors.muted }}>{person.email}</Text>}</View></View>
           <View style={styles.tags}><Text style={[styles.tag, { color: colors.text, borderColor: colors.border }]}>{person.role}</Text>{person.kind === 'member' && <Text style={[styles.tag, { color: accent, borderColor: colors.border }]}>Active</Text>}{person.userId === userId && person.kind === 'member' && <Text style={{ color: colors.muted }}>You</Text>}</View>
           {person.kind === 'invite' && <View style={styles.inviteStatus}>
@@ -153,7 +160,7 @@ export default function TeamScreen() {
     <Modal visible={!!editor} transparent animationType="slide" onRequestClose={() => { if (!busy) setEditor(null); }}><View style={styles.modalBackdrop}><View style={[styles.modal, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 18) + 16 }]}>
       <View style={styles.modalHeader}><Text style={[styles.modalTitle, { color: colors.text }]}>{editor === 'invite' ? 'Add a team member' : 'Change role'}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close" disabled={busy} onPress={() => setEditor(null)} style={styles.close}><Ionicons name="close" size={24} color={colors.text} /></Pressable></View>
       <Text style={{ color: colors.muted, marginBottom: 16 }}>{editor === 'invite' ? `Email an invitation to join ${current?.organization ?? 'your organization'}.` : selected?.name}</Text>
-      {editor === 'invite' && <><Text style={[styles.fieldLabel, { color: colors.text }]}>Email address</Text><TextInput autoCapitalize="none" keyboardType="email-address" autoCorrect={false} value={email} onChangeText={setEmail} placeholder="team.member@company.com" placeholderTextColor={colors.muted} style={[styles.search, { backgroundColor: background, color: colors.text, borderColor: colors.border }]} /></>}
+      {editor === 'invite' && <><Text style={[styles.fieldLabel, { color: colors.text }]}>Email address</Text><TextInput autoCapitalize="none" keyboardType="email-address" autoCorrect={false} value={email} onChangeText={setEmail} placeholder="team.member@company.com" placeholderTextColor={colors.muted} style={[styles.formInput, { backgroundColor: background, color: colors.text, borderColor: colors.border }]} /></>}
       <Text style={[styles.fieldLabel, { color: colors.text }]}>Organization role</Text>
       {permissions.map(option => <Pressable key={option} accessibilityRole="radio" accessibilityState={{ checked: role === option }} onPress={() => setRole(option)} style={[styles.roleRow, { borderColor: role === option ? accent : colors.border, backgroundColor: background }]}><View style={{ flex: 1 }}><Text style={{ color: colors.text, fontWeight: '800' }}>{option}</Text><Text style={{ color: colors.muted, marginTop: 3 }}>{roleDescription[option]}</Text></View><Ionicons name={role === option ? 'radio-button-on' : 'radio-button-off'} size={22} color={accent} /></Pressable>)}
       {role === 'Owner' && <Text style={{ color: colors.text, marginTop: 8 }}>Owners can manage billing, team members, and all organization settings.</Text>}
@@ -165,16 +172,20 @@ export default function TeamScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20 },
-  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
-  title: { fontSize: 28, fontWeight: '800', marginTop: 4 },
-  subtitle: { paddingHorizontal: 20, marginTop: 7, marginBottom: 12, fontSize: 14 },
-  add: { minHeight: 44, borderRadius: 10, paddingHorizontal: 13, flexDirection: 'row', gap: 4, alignItems: 'center' },
+  overview: { marginBottom: 20, paddingTop: 8, paddingBottom: 20, borderBottomWidth: StyleSheet.hairlineWidth },
+  overviewEyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
+  overviewRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  overviewMetric: { flexShrink: 1 },
+  overviewValue: { fontSize: 34, lineHeight: 39, fontWeight: '800' },
+  overviewLabel: { fontSize: 13, marginTop: 1 },
+  organization: { fontSize: 13, marginTop: 10 },
+  add: { minHeight: 44, borderRadius: 10, paddingHorizontal: 12, flexDirection: 'row', gap: 6, alignItems: 'center' },
+  addText: { color: '#fff', fontSize: 12, fontWeight: '800' },
   content: { paddingHorizontal: 20, paddingBottom: 32 },
   hint: { marginBottom: 16, lineHeight: 20 },
-  search: { height: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, marginBottom: 14, fontSize: 15 },
-  filters: { flexDirection: 'row', gap: 8, marginBottom: 20 },
-  chip: { minHeight: 44, justifyContent: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 14 },
+  search: { minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 14 },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 10 },
+  formInput: { height: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, marginBottom: 14, fontSize: 15 },
   section: { fontSize: 11, fontWeight: '800', letterSpacing: 0.9, marginBottom: 10 },
   person: { borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 10 },
   personTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },

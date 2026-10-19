@@ -12,34 +12,52 @@ import { mainTabIconNames, type MainAudience } from './mainTabModel';
 
 type MenuItem = { label: string; icon: keyof typeof Ionicons.glyphMap; route?: string; screen?: string; webPath?: string };
 
-// Match the main app sidebar's order. Routes absent from the native app are explicitly web-only.
-const landlordMenu: MenuItem[] = [
-  { label: 'Calendar', icon: 'calendar-outline', route: 'Dashboard', screen: 'Calendar' },
-  { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
-  { label: 'Applications', icon: 'clipboard-outline', route: 'Applications' },
-  { label: 'Listings', icon: 'megaphone-outline', route: 'Listings' },
-  { label: 'Percy', icon: 'sparkles-outline', webPath: '/landlord/ai-center' },
-  { label: 'Checklists', icon: 'clipboard-outline', route: 'Checklists' },
-  { label: 'Vendors', icon: 'people-outline', route: 'Vendors' },
-  { label: 'Team', icon: 'people-circle-outline', route: 'Team' },
-  { label: 'Announcements', icon: 'notifications-outline', route: 'Announcements' },
-  { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/online-payments' },
-  { label: 'Finances', icon: 'cash-outline', route: 'Finances' },
-  { label: 'Tax Center', icon: 'receipt-outline', webPath: '/landlord/accounting/tax-center' },
-  { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
-  { label: 'Tenants', icon: 'people-outline', route: 'Tenants' },
-  { label: 'Messages', icon: 'chatbubble-ellipses-outline', route: 'Messages' },
-  { label: 'Notifications', icon: 'notifications-outline', route: 'Notifications' },
-  { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
-  { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
+type MenuSection = { title: string; items: MenuItem[] };
+
+// Group by the landlord's workflow. Routes absent from native remain explicitly web-only.
+const landlordMenu: MenuSection[] = [
+  { title: 'Leasing', items: [
+    { label: 'Calendar', icon: 'calendar-outline', route: 'Dashboard', screen: 'Calendar' },
+    { label: 'Listings', icon: 'megaphone-outline', route: 'Listings' },
+    { label: 'Applications', icon: 'clipboard-outline', route: 'Applications' },
+    { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
+  ] },
+  { title: 'Property Operations', items: [
+    { label: 'Percy', icon: 'sparkles-outline', webPath: '/landlord/ai-center' },
+    { label: 'Checklists', icon: 'clipboard-outline', route: 'Checklists' },
+    { label: 'Vendors', icon: 'people-outline', route: 'Vendors' },
+  ] },
+  { title: 'People & Communication', items: [
+    { label: 'Tenants', icon: 'people-outline', route: 'Tenants' },
+    { label: 'Team', icon: 'people-circle-outline', route: 'Team' },
+    { label: 'Messages', icon: 'chatbubble-ellipses-outline', route: 'Messages' },
+    { label: 'Announcements', icon: 'notifications-outline', route: 'Announcements' },
+    { label: 'Notifications', icon: 'notifications-outline', route: 'Notifications' },
+  ] },
+  { title: 'Accounting', items: [
+    { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/online-payments' },
+    { label: 'Finances', icon: 'cash-outline', route: 'Finances' },
+    { label: 'Tax Center', icon: 'receipt-outline', webPath: '/landlord/accounting/tax-center' },
+    { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
+  ] },
+  { title: 'Account & Help', items: [
+    { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
+    { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
+  ] },
 ];
-const tenantMenu: MenuItem[] = [
-  { label: 'Dashboard', icon: 'home-outline', webPath: '/tenant/dashboard' },
-  { label: 'My Lease', icon: 'document-text-outline', webPath: '/tenant/lease' },
-  { label: 'Applications', icon: 'clipboard-outline', webPath: '/tenant/applications' },
-  { label: 'Payments', icon: 'card-outline', webPath: '/tenant/payments' },
-  { label: 'Documents', icon: 'folder-outline', webPath: '/tenant/documents' },
-  { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
+const tenantMenu: MenuSection[] = [
+  { title: 'Home & Leasing', items: [
+    { label: 'Dashboard', icon: 'home-outline', webPath: '/tenant/dashboard' },
+    { label: 'My Lease', icon: 'document-text-outline', webPath: '/tenant/lease' },
+    { label: 'Applications', icon: 'clipboard-outline', webPath: '/tenant/applications' },
+  ] },
+  { title: 'Payments & Documents', items: [
+    { label: 'Payments', icon: 'card-outline', webPath: '/tenant/payments' },
+    { label: 'Documents', icon: 'folder-outline', webPath: '/tenant/documents' },
+  ] },
+  { title: 'Account', items: [
+    { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
+  ] },
 ];
 
 // Do not send a development/preview account to production's web app.
@@ -126,7 +144,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !['Notifications', 'Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+  const visibleRoutes = state.routes.filter((route) => !['Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
     && !(audience === 'landlord' && route.name === 'Messages')
     && !['Checklists', 'Settings'].includes(route.name));
   const renderTab = (route: typeof visibleRoutes[number]) => {
@@ -153,14 +171,9 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
   };
 
   return (
-    <View pointerEvents="box-none" style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
+    <View pointerEvents="box-none" style={[styles.dockArea, { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4', paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
       <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.82)' : 'rgba(245, 248, 252, 0.82)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(190, 193, 200, 0.28)', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
         {visibleRoutes.map(renderTab)}
-        {audience === 'landlord' && <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Notifications"
-          accessibilityState={{ selected: state.routes[state.index]?.name === 'Notifications' }}
-          onPress={() => openTabRoot('Notifications')}>
-          <Ionicons name={state.routes[state.index]?.name === 'Notifications' ? 'notifications' : 'notifications-outline'} size={24} color={state.routes[state.index]?.name === 'Notifications' ? colors.accent : colors.text} />
-        </Pressable>}
         <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Settings" accessibilityHint="Open your settings"
           accessibilityState={{ selected: state.routes[state.index]?.name === 'Settings' }}
           onPress={() => openTabRoot('Settings')}>
@@ -183,29 +196,36 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
               </Pressable>
             </View>
             <ScrollView bounces={false} style={styles.actionScroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator>
-              {menu.map((item) => {
-                const unavailable = !!item.webPath && !webAppUrl;
-                const currentRoute = state.routes[state.index];
-                const selected = !!item.route && currentRoute?.name === item.route && (!item.screen || currentRoute.state?.routes[currentRoute.state.index ?? 0]?.name === item.screen);
-                return (
-                  <Pressable key={item.label} style={[styles.action, { borderTopColor: colors.border }, selected && { backgroundColor: colors.background }]}
-                    accessibilityRole="button" accessibilityLabel={item.label}
-                    accessibilityHint={unavailable ? 'Web app link not configured for this build' : item.webPath ? 'Opens in the web app' : undefined}
-                    accessibilityState={{ disabled: unavailable, selected }} disabled={unavailable} onPress={() => navigateItem(item)}>
-                    <View style={[styles.actionIcon, { backgroundColor: colors.background }]}><Ionicons name={item.icon} size={22} color={unavailable ? colors.muted : colors.accent} /></View>
-                    <View style={styles.actionCopy}>
-                      <Text style={[styles.actionLabel, { color: unavailable ? colors.muted : colors.text }]}>{item.label}</Text>
-                      {item.webPath && <Text style={[styles.actionDetail, { color: colors.muted }]}>{unavailable ? 'Web app · unavailable in this build' : 'Opens in web app'}</Text>}
-                    </View>
-                    <Ionicons name={item.webPath ? 'open-outline' : 'chevron-forward'} size={19} color={colors.muted} />
-                  </Pressable>
-                );
-              })}
-              <Pressable style={[styles.action, { borderTopColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Sign out"
-                onPress={() => hideSheet(() => { void dispatch(logout()); })}>
-                <Ionicons name="log-out-outline" size={22} color={colors.text} />
-                <Text style={[styles.actionLabel, { color: colors.text }]}>Sign out</Text>
-              </Pressable>
+              {menu.map((section) => (
+                <View key={section.title} style={styles.menuSection}>
+                  <Text style={[styles.sectionHeading, { color: colors.muted }]} accessibilityRole="header">{section.title}</Text>
+                  {section.items.map((item) => {
+                    const unavailable = !!item.webPath && !webAppUrl;
+                    const currentRoute = state.routes[state.index];
+                    const selected = !!item.route && currentRoute?.name === item.route && (!item.screen || currentRoute.state?.routes[currentRoute.state.index ?? 0]?.name === item.screen);
+                    return (
+                      <Pressable key={item.label} style={[styles.action, { borderTopColor: colors.border }, selected && { backgroundColor: colors.background }]}
+                        accessibilityRole="button" accessibilityLabel={item.label}
+                        accessibilityHint={unavailable ? 'Web app link not configured for this build' : item.webPath ? 'Opens in the web app' : undefined}
+                        accessibilityState={{ disabled: unavailable, selected }} disabled={unavailable} onPress={() => navigateItem(item)}>
+                        <View style={[styles.actionIcon, { backgroundColor: colors.background }]}><Ionicons name={item.icon} size={22} color={unavailable ? colors.muted : colors.accent} /></View>
+                        <View style={styles.actionCopy}>
+                          <Text style={[styles.actionLabel, { color: unavailable ? colors.muted : colors.text }]}>{item.label}</Text>
+                          {item.webPath && <Text style={[styles.actionDetail, { color: colors.muted }]}>{unavailable ? 'Web app · unavailable in this build' : 'Opens in web app'}</Text>}
+                        </View>
+                        <Ionicons name={item.webPath ? 'open-outline' : 'chevron-forward'} size={19} color={colors.muted} />
+                      </Pressable>
+                    );
+                  })}
+                  {section === menu[menu.length - 1] && (
+                    <Pressable style={[styles.action, { borderTopColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Sign out"
+                      onPress={() => hideSheet(() => { void dispatch(logout()); })}>
+                      <Ionicons name="log-out-outline" size={22} color={colors.text} />
+                      <Text style={[styles.actionLabel, { color: colors.text }]}>Sign out</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ))}
             </ScrollView>
           </Animated.View>
         </View>
@@ -215,8 +235,9 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
 }
 
 const styles = StyleSheet.create({
-  // Overlay the scene; only the pill draws a surface, so content continues behind it.
-  dockArea: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, zIndex: 10 },
+  // Keep the dock in the tab navigator's layout so every screen (including nested details)
+  // ends above it instead of scrolling its final content underneath the pill.
+  dockArea: { paddingHorizontal: 16, paddingTop: 12 },
   pill: { minHeight: 54, borderRadius: 30, borderWidth: 1, padding: 4, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
   tab: { flex: 1, minWidth: 0, minHeight: 46, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   avatar: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
@@ -231,6 +252,8 @@ const styles = StyleSheet.create({
   closeButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   actionScroll: { flexShrink: 1 },
   scrollContent: { paddingBottom: 8 },
+  menuSection: { marginTop: 12 },
+  sectionHeading: { fontSize: 11, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8, paddingHorizontal: 2 },
   action: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 14, borderTopWidth: 1 },
   actionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   actionCopy: { flex: 1, minWidth: 0 },

@@ -2,7 +2,9 @@ import React from 'react';
 import { Alert, Linking } from 'react-native';
 import { useAppSelector } from '../../store/hooks';
 import { getListings, type Listing } from '../../api/listingAPI';
-import RentalWorkspace, { dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
+import RentalWorkspace, { RentalWorkspaceDetail, dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { ListingsStackParamList } from '../../navigation/types';
 
 const status = (item: Listing): string => {
   const raw = field(item, 'status');
@@ -16,8 +18,9 @@ const webAppUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.replace(/\/$/, '')
     ? 'https://app.propertypeace.io' : undefined);
 const config: WorkspaceConfig<Listing> = {
   title: 'Listings', eyebrow: 'RENTAL MARKETING', subtitle: 'Your property listings in one place.', searchPlaceholder: 'Search property, address or listing number',
+  overview: { heading: 'LISTINGS OVERVIEW', metricLabel: 'Active listings', count: items => items.filter(item => status(item) === 'Active').length },
   headerAction: {
-    label: 'Add listing',
+    label: 'New listing',
     hint: webAppUrl ? 'Opens the listing creation flow in the web app; you may need to sign in there' : 'Web app link not configured for this build',
     onPress: webAppUrl ? () => {
       void Linking.openURL(`${webAppUrl}/landlord/listings/add`).catch(() => Alert.alert('Could not open web app', 'Please try again later.'));
@@ -39,5 +42,9 @@ export default function ListingsScreen() {
   const user = useAppSelector(state => state.user.currentUser);
   const userId = String(user?.id ?? user?.Id ?? '');
   const scope = userId ? `${userId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
-  return <RentalWorkspace config={config} scope={scope} />;
+  return <RentalWorkspace config={config} scope={scope} detailRoute="ListingDetail" />;
+}
+
+export function ListingDetailScreen({ route }: NativeStackScreenProps<ListingsStackParamList, 'ListingDetail'>) {
+  return <RentalWorkspaceDetail config={config} item={route.params.item} scope={route.params.scope} />;
 }

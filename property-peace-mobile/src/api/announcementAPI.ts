@@ -42,6 +42,16 @@ const announcementAPI = {
     if (!data || typeof data !== 'object') throw new Error('Invalid announcement');
     return data;
   },
+  async previewRecipients(): Promise<{ userId: number }[]> {
+    const data = unwrap(await apiClient.post<ApiResponse<{ userId: number }[]> | { userId: number }[]>('/api/announcement/recipients/preview', {}));
+    if (!Array.isArray(data)) throw new Error('Invalid recipient preview');
+    return data;
+  },
+  async send(message: string, sendEmail: boolean, sendNotification: boolean): Promise<void> {
+    unwrap(await apiClient.post<ApiResponse<unknown>>('/api/announcement/send', {
+      propertyIds: null, unitIds: null, message, sendEmail, sendNotification,
+    }));
+  },
 };
 
 export default announcementAPI;

@@ -45,7 +45,7 @@ export default function TenantsScreen() {
       <View style={styles.pageHeader}>
         <View style={styles.titleRow}>
           <View style={styles.headerCopy}>
-            <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
+            <Text style={[styles.eyebrow, dark && { color: '#75d995' }]}>YOUR COMMUNITY</Text>
             <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>Your people, all in one place.</Text>
           </View>
           <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button" accessibilityLabel="Add tenant">
@@ -94,8 +94,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fbf7f4' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
 
-  pageHeader: { paddingHorizontal: 22, paddingBottom: 22 },
-  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
+  pageHeader: { paddingHorizontal: 22, paddingTop: 16, paddingBottom: 22 },
+  eyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
   headerCopy: { flex: 1, minWidth: 0, gap: 4 },
   listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
