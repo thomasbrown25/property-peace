@@ -17,14 +17,24 @@ test('unseen items form New regardless of age; read items use local calendar day
   assert.equal(notificationSection(item(8, at(18, 0, 0)), now), 'Today');
 });
 
-test('relative timestamps use elapsed whole minutes, then hours, without ago', () => {
+test('relative timestamps use elapsed whole minutes, hours, days, then 30-day months', () => {
   const elapsed = (ms) => item(1, new Date(now.getTime() - ms).toISOString());
+  const minute = 60_000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
   assert.equal(relativeNotificationTime(elapsed(0), now), '0m');
-  assert.equal(relativeNotificationTime(elapsed(36 * 60_000), now), '36m');
-  assert.equal(relativeNotificationTime(elapsed(59 * 60_000 + 59_000), now), '59m');
-  assert.equal(relativeNotificationTime(elapsed(60 * 60_000), now), '1h');
-  assert.equal(relativeNotificationTime(elapsed(119 * 60_000), now), '1h');
-  assert.equal(relativeNotificationTime(elapsed(36 * 3_600_000), now), '36h');
+  assert.equal(relativeNotificationTime(elapsed(36 * minute), now), '36m');
+  assert.equal(relativeNotificationTime(elapsed(60 * minute - 1), now), '59m');
+  assert.equal(relativeNotificationTime(elapsed(hour), now), '1h');
+  assert.equal(relativeNotificationTime(elapsed(119 * minute), now), '1h');
+  assert.equal(relativeNotificationTime(elapsed(day - 1), now), '23h');
+  assert.equal(relativeNotificationTime(elapsed(day), now), '1d');
+  assert.equal(relativeNotificationTime(elapsed(36 * hour), now), '1d');
+  assert.equal(relativeNotificationTime(elapsed(29 * day + 23 * hour), now), '29d');
+  assert.equal(relativeNotificationTime(elapsed(30 * day - 1), now), '29d');
+  assert.equal(relativeNotificationTime(elapsed(30 * day), now), '1mo');
+  assert.equal(relativeNotificationTime(elapsed(59 * day), now), '1mo');
+  assert.equal(relativeNotificationTime(elapsed(60 * day), now), '2mo');
   assert.equal(relativeNotificationTime(item(9, 'bad'), now), null);
   assert.equal(relativeNotificationTime(item(10, '2026-10-17T23:30:00'), new Date('2026-10-18T00:30:00Z')), '1h');
 });

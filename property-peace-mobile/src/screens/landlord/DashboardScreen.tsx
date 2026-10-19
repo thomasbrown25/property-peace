@@ -11,6 +11,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,7 @@ import { propertyOverdueAmounts } from '../../features/rentCollection/propertyOv
 import { displayStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
 import { paymentActivityTone } from '../../features/notifications/paymentActivityTone';
+import GlobalSearchModal from '../../components/GlobalSearchModal';
 
 const lightLogo = require('../../../assets/property-peace-navbar-logo.png');
 const darkLogo = require('../../../assets/property-peace-logo.png');
@@ -108,11 +110,13 @@ export default function DashboardScreen() {
   const moreDrawer = useMoreDrawer();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const { currentUser } = useAppSelector((state) => state.user);
   const [properties, setProperties] = useState<Property[]>([]);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [rentMetrics, setRentMetrics] = useState<RentMetrics>({ expected: 0, collected: 0, remaining: 0, outstanding: 0, overdue: 0 });
   const [overdueByProperty, setOverdueByProperty] = useState<Map<string, number> | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -311,21 +315,33 @@ export default function DashboardScreen() {
         <TouchableOpacity style={styles.headerButton} onPress={moreDrawer.show} accessibilityRole="button" accessibilityLabel="Open more menu" accessibilityState={{ expanded: moreDrawer.open }}>
           <Ionicons name="menu-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
         </TouchableOpacity>
-        <Image source={mode === 'dark' ? darkLogo : lightLogo} style={styles.logo} resizeMode="contain" accessibilityLabel="Property Peace" />
-        <TouchableOpacity
-          style={styles.headerButton}
-          onPress={() => navigation.getParent()?.navigate('Messages', { screen: 'MessagesList' })}
-          accessibilityRole="button"
-          accessibilityLabel={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
-        >
-          <Ionicons name="chatbubble-ellipses-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
-          {scopedConversationsStatus === 'success' && unreadMessages > 0 && (
-            <View style={styles.messageBadge}>
-              <Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <Image source={mode === 'dark' ? darkLogo : lightLogo} style={[styles.logo, screenWidth < 370 && styles.compactLogo]} resizeMode="contain" accessibilityLabel="Property Peace" />
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search properties, tenants, and leases">
+            <Ionicons name="search-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => navigation.getParent()?.navigate('Messages', { screen: 'MessagesList' })}
+            accessibilityRole="button"
+            accessibilityLabel={unreadMessages > 0 ? `Messages, ${unreadMessages} unread` : 'Messages'}
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={25} color={mode === 'dark' ? colors.text : '#0b3558'} />
+            {scopedConversationsStatus === 'success' && unreadMessages > 0 && (
+              <View style={styles.messageBadge}>
+                <Text style={styles.messageBadgeText}>{unreadMessages > 99 ? '99+' : unreadMessages}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <GlobalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} onSelect={(type, id) => {
+        const tabs = navigation.getParent();
+        if (type === 'property') tabs?.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: String(id) } });
+        if (type === 'tenant') tabs?.navigate('Tenants', { screen: 'TenantDetail', params: { tenantId: String(id) } });
+        if (type === 'lease') tabs?.navigate('Leases', { screen: 'LeaseDetail', params: { leaseId: String(id), archived: false } });
+      }} />
 
       {(openMenu || notificationMenuMounted) && (
         <View style={styles.profileMenuLayer} pointerEvents="box-none">
@@ -417,7 +433,7 @@ export default function DashboardScreen() {
                     : 'Nothing urgent across your portfolio.'}
             </Text>
           </View>
-          <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Notifications')} accessibilityLabel="View portfolio updates">
+          <TouchableOpacity style={styles.todayArrow} onPress={() => navigation.navigate('Calendar')} accessibilityRole="button" accessibilityLabel="View calendar">
             <Ionicons name="arrow-forward" size={18} color={mode === 'dark' ? colors.text : '#0b3558'} />
           </TouchableOpacity>
         </View>
@@ -715,8 +731,10 @@ function useScreenStyles() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#ffffff' },
-  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingBottom: 12, backgroundColor: '#ffffff' },
+  topBar: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingBottom: 12, backgroundColor: '#ffffff' },
   logo: { position: 'absolute', width: 148, height: 42, left: '50%', marginLeft: -74, bottom: 13 },
+  compactLogo: { width: 112, marginLeft: -56 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   headerButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e1e7eb' },
   unreadDot: { position: 'absolute', top: 10, right: 10, width: 8, height: 8, borderRadius: 4, backgroundColor: '#d94d63', borderWidth: 1.5, borderColor: '#fff' },
   messageBadge: { position: 'absolute', top: -7, right: -8, minWidth: 21, height: 21, paddingHorizontal: 4, borderRadius: 11, backgroundColor: '#dc2626', alignItems: 'center', justifyContent: 'center' },

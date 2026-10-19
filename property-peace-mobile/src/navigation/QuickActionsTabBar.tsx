@@ -10,10 +10,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/AppTheme';
 import { mainTabIconNames, type MainAudience } from './mainTabModel';
 
-type MenuItem = { label: string; icon: keyof typeof Ionicons.glyphMap; route?: string; webPath?: string };
+type MenuItem = { label: string; icon: keyof typeof Ionicons.glyphMap; route?: string; screen?: string; webPath?: string };
 
 // Match the main app sidebar's order. Routes absent from the native app are explicitly web-only.
 const landlordMenu: MenuItem[] = [
+  { label: 'Calendar', icon: 'calendar-outline', route: 'Dashboard', screen: 'Calendar' },
   { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
   { label: 'Applications', icon: 'clipboard-outline', route: 'Applications' },
   { label: 'Listings', icon: 'megaphone-outline', route: 'Listings' },
@@ -106,9 +107,20 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     });
   };
   const menu = audience === 'landlord' ? landlordMenu : tenantMenu;
+  // The dock represents section roots, not the last detail visited in each stack.
+  const openTabRoot = (routeName: string) => {
+    const route = state.routes.find((item) => item.name === routeName);
+    if (!route) return;
+    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (event.defaultPrevented) return;
+    if (route.state?.key && (route.state.index ?? 0) > 0) {
+      navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
+    }
+    if (state.routes[state.index]?.key !== route.key) navigation.navigate(route.name);
+  };
   const navigateItem = (item: MenuItem) => {
     if (item.route && state.routes.some((route) => route.name === item.route)) {
-      hideSheet(() => navigation.navigate(item.route as never));
+      hideSheet(() => item.screen ? navigation.navigate(item.route!, { screen: item.screen }) : openTabRoot(item.route!));
     } else if (item.webPath && webAppUrl) {
       hideSheet(() => { void Linking.openURL(`${webAppUrl}${item.webPath}`); });
     }
@@ -133,18 +145,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         selectedForeground={colors.accent}
         onPress={() => {
           if (open) hideSheet();
-          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (event.defaultPrevented) return;
-          // Properties always opens its list, even when returning from another tab
-          // whose Properties stack was left on a detail page.
-          if (route.name === 'Properties' && route.state?.key) {
-            navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
-          } else if (selected && (route.state?.index ?? 0) > 0 && route.state?.key) {
-            navigation.dispatch({ ...StackActions.popToTop(), target: route.state.key });
-          }
-          if (route.name === 'Properties' && !route.state?.key) {
-            navigation.navigate('Properties', { screen: 'PropertiesList' });
-          } else if (!selected) navigation.navigate(route.name);
+          openTabRoot(route.name);
         }}
         onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
       />
@@ -157,12 +158,12 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
         {visibleRoutes.map(renderTab)}
         {audience === 'landlord' && <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Notifications"
           accessibilityState={{ selected: state.routes[state.index]?.name === 'Notifications' }}
-          onPress={() => navigation.navigate('Notifications')}>
+          onPress={() => openTabRoot('Notifications')}>
           <Ionicons name={state.routes[state.index]?.name === 'Notifications' ? 'notifications' : 'notifications-outline'} size={24} color={state.routes[state.index]?.name === 'Notifications' ? colors.accent : colors.text} />
         </Pressable>}
         <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Settings" accessibilityHint="Open your settings"
           accessibilityState={{ selected: state.routes[state.index]?.name === 'Settings' }}
-          onPress={() => navigation.navigate('Settings')}>
+          onPress={() => openTabRoot('Settings')}>
           {profileImageUrl ? <Image source={{ uri: profileImageUrl }} style={[styles.avatar, { borderColor: state.routes[state.index]?.name === 'Settings' ? colors.accent : colors.border }]} />
             : <View style={[styles.avatar, { borderColor: state.routes[state.index]?.name === 'Settings' ? colors.accent : colors.border, backgroundColor: colors.accent }]}><Text style={styles.avatarInitial}>{avatarLabel}</Text></View>}
         </Pressable>
@@ -184,7 +185,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
             <ScrollView bounces={false} style={styles.actionScroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator>
               {menu.map((item) => {
                 const unavailable = !!item.webPath && !webAppUrl;
-                const selected = !!item.route && state.routes[state.index]?.name === item.route;
+                const currentRoute = state.routes[state.index];
+                const selected = !!item.route && currentRoute?.name === item.route && (!item.screen || currentRoute.state?.routes[currentRoute.state.index ?? 0]?.name === item.screen);
                 return (
                   <Pressable key={item.label} style={[styles.action, { borderTopColor: colors.border }, selected && { backgroundColor: colors.background }]}
                     accessibilityRole="button" accessibilityLabel={item.label}

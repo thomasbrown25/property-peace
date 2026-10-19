@@ -43,14 +43,16 @@ export default function TenantsScreen() {
     <View style={[styles.container, dark && { backgroundColor: colors.background }]}>
       <LandlordPageHeader title="Tenants" />
       <View style={styles.pageHeader}>
-        <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
         <View style={styles.titleRow}>
+          <View style={styles.headerCopy}>
+            <Text style={[styles.eyebrow, dark && { color: colors.accent }]}>YOUR COMMUNITY</Text>
+            <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>Your people, all in one place.</Text>
+          </View>
           <TouchableOpacity style={[styles.addButton, dark && { backgroundColor: colors.accent }]} onPress={() => navigation.navigate('AddTenant')} accessibilityRole="button" accessibilityLabel="Add tenant">
             <Ionicons name="add" size={20} color={dark ? colors.background : '#fff'} />
             <Text style={[styles.addButtonText, dark && { color: colors.background }]}>Tenant</Text>
           </TouchableOpacity>
         </View>
-        <Text style={[styles.pageSubtitle, dark && { color: colors.muted }]}>People and conversations, all in one place.</Text>
         <View style={[styles.search, dark && { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
           <Ionicons name="search" size={19} color={dark ? colors.muted : '#64748b'} />
           <TextInput value={query} onChangeText={setQuery} placeholder="Search tenants by name, email, or phone" placeholderTextColor={dark ? colors.muted : '#94a3b8'} style={[styles.searchInput, dark && { color: colors.text }]} accessibilityLabel="Search tenants" returnKeyType="search" />
@@ -93,11 +95,12 @@ const styles = StyleSheet.create({
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
 
   pageHeader: { paddingHorizontal: 22, paddingBottom: 22 },
-  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8, marginBottom: 8 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 },
+  eyebrow: { color: '#2475cf', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
+  headerCopy: { flex: 1, minWidth: 0, gap: 4 },
   listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
 
-  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22, marginTop: 6, marginBottom: 18 },
+  pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22 },
   addButton: { flexDirection: 'row', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
   search: { minHeight: 46, paddingHorizontal: 13, borderRadius: 10, backgroundColor: '#f1f5f9', flexDirection: 'row', alignItems: 'center', gap: 9 },
   searchInput: { flex: 1, color: '#0f172a', fontSize: 15, paddingVertical: 10 },

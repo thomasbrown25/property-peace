@@ -1,25 +1,16 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { notificationFeedPage, relativeNotificationTime, isUnreadNotification, NOTIFICATIONS_PAGE_SIZE, type FeedRow } from '../../features/notifications/notificationFeed';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 import { useAppTheme } from '../../theme/AppTheme';
-import GlobalSearchModal from '../../components/GlobalSearchModal';
-import { useMoreDrawer } from '../../navigation/MoreDrawerContext';
-import type { MainTabParamList } from '../../navigation/types';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
 
 const isUnread = isUnreadNotification;
 
 export default function NotificationsScreen() {
   const { mode, colors } = useAppTheme();
   const styles = mode === 'dark' ? darkStyles : lightStyles;
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-  const moreDrawer = useMoreDrawer();
-  const [searchOpen, setSearchOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -102,25 +93,7 @@ export default function NotificationsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.headerAction} onPress={moreDrawer.show} accessibilityRole="button" accessibilityLabel="Open more menu" accessibilityState={{ expanded: moreDrawer.open }}>
-            <Ionicons name="menu-outline" size={27} color={colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.heading} accessibilityRole="header">Notifications</Text>
-          <TouchableOpacity style={styles.headerAction} onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search properties, tenants, and leases">
-            <Ionicons name="search-outline" size={25} color={colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerAction} onPress={() => navigation.navigate('Messages')} accessibilityRole="button" accessibilityLabel="Messages">
-            <Ionicons name="chatbubble-ellipses-outline" size={25} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
-      <GlobalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} onSelect={(type, id) => {
-        if (type === 'property') navigation.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: String(id) } });
-        if (type === 'tenant') navigation.navigate('Tenants', { screen: 'TenantDetail', params: { tenantId: String(id) } });
-        if (type === 'lease') navigation.navigate('Leases', { screen: 'LeaseDetail', params: { leaseId: String(id), archived: false } });
-      }} />
+      <LandlordPageHeader title="Notifications" />
       {loading ? <View style={styles.centerContainer}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#1976d2'} /></View> : <FlatList
         ref={listRef}
         data={visible.rows}
@@ -199,10 +172,6 @@ const lightStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   listContent: { paddingBottom: 120, flexGrow: 1 },
-  header: { paddingHorizontal: 12, paddingBottom: 10, backgroundColor: '#fff' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  headerAction: { width: 42, height: 48, alignItems: 'center', justifyContent: 'center' },
-  heading: { flex: 1, color: '#102d43', fontSize: 25, fontWeight: '800', marginLeft: 2 },
   clearText: { color: '#1976d2', fontWeight: '700' },
   pagination: { alignItems: 'center', paddingVertical: 18, gap: 4 },
   pageText: { color: '#64748b', fontSize: 13 },
@@ -240,8 +209,6 @@ const darkStyles = StyleSheet.create({
   ...lightStyles,
   container: { ...lightStyles.container, backgroundColor: '#101923' },
   centerContainer: { ...lightStyles.centerContainer, backgroundColor: '#101923' },
-  header: { ...lightStyles.header, backgroundColor: '#101923' },
-  heading: { ...lightStyles.heading, color: '#f2f6fa' },
   unreadRow: { ...lightStyles.unreadRow, backgroundColor: '#1c3042' },
   notificationIcon: { ...lightStyles.notificationIcon, backgroundColor: '#30465a' },
   unreadIcon: { ...lightStyles.unreadIcon, backgroundColor: '#2475cf' },

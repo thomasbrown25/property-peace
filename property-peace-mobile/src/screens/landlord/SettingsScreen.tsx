@@ -1,4 +1,5 @@
 import { useTabScrollReset } from '../../navigation/useTabScrollReset';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import React, { useRef, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler, Image, Linking, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,6 +66,8 @@ const firstString = (...values: unknown[]) => {
 export default function SettingsScreen() {
   const scrollRef = useRef<ScrollView>(null);
   useTabScrollReset(scrollRef);
+  const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const { mode, colors, setMode } = useAppTheme();
   const styles = useSettingsStyles();
@@ -93,6 +96,16 @@ export default function SettingsScreen() {
   const savingPasswordRef = useRef(false);
   const savingDetailRef = useRef(false);
   const isCurrent = (id: number, owner: string) => id === requestId.current && !!owner && activeAccountId.current === owner;
+
+  // Settings sections are local state, not stack routes. Re-selecting the avatar
+  // (or returning from another tab) should open the Settings index.
+  useEffect(() => navigation.addListener('tabPress' as never, (event: { target?: string }) => {
+    if (event.target !== route.key) return;
+    requestId.current += 1;
+    setPassword({ current: '', next: '', confirm: '' });
+    setCategory(null);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }), [navigation, route.key]);
 
   useEffect(() => {
     if (!category) return;
@@ -431,7 +444,7 @@ export default function SettingsScreen() {
         {category && <TouchableOpacity style={styles.backButton} onPress={() => { requestId.current += 1; setPassword({ current: '', next: '', confirm: '' }); setCategory(null); }} accessibilityRole="button" accessibilityLabel="Back to settings">
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>}
-        <Text style={styles.navigationTitle}>{category ? categories.find((item) => item.key === category)?.title : 'Settings'}</Text>
+        <Text style={[styles.navigationTitle, !category && styles.mainNavigationTitle]}>{category ? categories.find((item) => item.key === category)?.title : 'Settings'}</Text>
       </View>
       <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {!category && categories.map((item) => (
@@ -659,6 +672,7 @@ const baseStyles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
   navigationHeader: { minHeight: 62, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e8edf2', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 14, paddingHorizontal: 20 },
   navigationTitle: { color: '#102d43', fontSize: 17, fontWeight: '800', textAlign: 'center' },
+  mainNavigationTitle: { fontSize: 22 },
   backButton: { position: 'absolute', left: 20, bottom: 4, height: 44, width: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#e8edf2', backgroundColor: '#fff', zIndex: 1 },
   menuRow: { minHeight: 63, flexDirection: 'row', alignItems: 'center', gap: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e8edf2' },
   menuLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: '#102d43' },
