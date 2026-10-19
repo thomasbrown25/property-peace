@@ -109,7 +109,7 @@ export default function RentalWorkspace<T extends RecordData>({ config, scope, r
       </View>
       <Text style={[styles.subtitle, { color: colors.muted }]}>{config.subtitle}</Text>
       {searchAndFilters}
-    </View>
+    </View>}
     {(!listingLayout && (!scope || (current && error))) ? <View style={styles.center}><Text accessibilityRole="alert" style={[styles.message, { color: colors.text }]}>{!scope ? 'Sign in again to view this page.' : error}</Text>{!!scope && <Pressable accessibilityRole="button" onPress={() => { void load(); }} style={styles.retry}><Text style={{ color: colors.accent, fontWeight: '700' }}>Retry</Text></Pressable>}</View> : (!listingLayout && (loading || !current)) ? <View style={styles.center}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.muted }}>Loading {config.title.toLowerCase()}…</Text></View> :
       <FlatList data={current && !error && !loading ? filtered : []} keyExtractor={(item, index) => String(field(item, 'id') ?? index)} contentContainerStyle={[styles.list, listingLayout && styles.listOverview]} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void load(true); }} tintColor={colors.accent} />}
         ListHeaderComponent={listingLayout ? <View>{overview}{searchAndFilters}{current && !error && !loading && <Text style={[styles.section, { color: colors.text }]}>{filtered.length} {config.title.toLowerCase()}</Text>}</View> : <Text style={[styles.section, { color: colors.text }]}>{filtered.length} {config.title.toLowerCase()}</Text>}
