@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, TouchableOpacity, StyleSheet, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -45,6 +46,9 @@ export default function ForgotPasswordScreen() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
         >
+          <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('Login')} accessibilityRole="button" accessibilityLabel="Back to sign in">
+            <Ionicons name="arrow-back" size={24} color="#bfdbfe" />
+          </TouchableOpacity>
           <Text style={styles.eyebrow}>Account access</Text>
           <Text style={styles.title}>Reset Password</Text>
           <Text style={styles.subtitle}>Enter your email to receive reset instructions. If an account exists, we’ll send you a link.</Text>
@@ -66,13 +70,6 @@ export default function ForgotPasswordScreen() {
             disabled={loading}
           >
             <Text style={styles.buttonText}>{loading ? 'Sending...' : 'Send Reset Email'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.linkButton}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.linkText}>Back to Sign In</Text>
           </TouchableOpacity>
         </ScrollView>
       </AuthMarketingBackground>
@@ -144,14 +141,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   linkButton: {
-    marginTop: 8,
-    minHeight: 44,
+    width: 44,
+    height: 44,
+    marginBottom: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  linkText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });

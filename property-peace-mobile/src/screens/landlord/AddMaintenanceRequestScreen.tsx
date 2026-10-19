@@ -1,8 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
+import { buildMaintenanceWindow, validateMaintenanceRequest } from '../../features/maintenance/maintenanceForm';
+import { SIGNAL_OPTIONS, emergencyGuidance, normalizeMaintenanceMediaFileName, validateMaintenanceMedia, type MaintenanceSignal } from '../../features/maintenance/maintenanceModel';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import PropertyAPI, { Property, Unit } from '../../api/propertyAPI';
-import MaintenanceAPI, { newIdempotencyKey } from '../../api/maintenanceAPI';
+import MaintenanceAPI, { newIdempotencyKey, type LocalMedia } from '../../api/maintenanceAPI';
 import { useAppTheme } from '../../theme/AppTheme';
 
 const idOf = (item: any) => Number(item?.id ?? item?.Id);
@@ -21,6 +25,13 @@ export default function AddMaintenanceRequestScreen() {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
+  const [signals, setSignals] = useState<MaintenanceSignal[]>([]);
+  const [media, setMedia] = useState<LocalMedia[]>([]);
+  const [startsAt, setStartsAt] = useState<Date | null>(null);
+  const [endsAt, setEndsAt] = useState<Date | null>(null);
+  const [access, setAccess] = useState('');
+  const [picker, setPicker] = useState<'start-date' | 'start-time' | 'end-date' | 'end-time' | null>(null);
+  const createdId = useRef<string | number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,20 +71,49 @@ export default function AddMaintenanceRequestScreen() {
     return () => { active = false; selection.current++; };
   }, [scopedPropertyId]);
 
+  const pickMedia = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) return Alert.alert('Photo access needed', 'Allow photo access in device settings.');
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], allowsMultipleSelection: true, selectionLimit: 10 - media.length, videoMaxDuration: 60, quality: .8, preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible });
+      if (result.canceled) return;
+      const selected: LocalMedia[] = [];
+      for (const asset of result.assets) {
+        const type = asset.type === 'video' ? 'video' : 'image';
+        const mimeType = asset.mimeType || (type === 'video' ? 'video/mp4' : 'image/jpeg');
+        const file: LocalMedia = { uri: asset.uri, fileName: normalizeMaintenanceMediaFileName(asset.fileName, mimeType), mimeType, fileSize: asset.fileSize, type, idempotencyKey: newIdempotencyKey() };
+        const issue = validateMaintenanceMedia(file, media.length + selected.length);
+        if (issue) Alert.alert('Media not added', issue); else selected.push(file);
+      }
+      setMedia(old => [...old, ...selected]);
+    } catch (cause: any) { Alert.alert('Media unavailable', cause?.message || 'Try again.'); }
+  };
   const submit = async () => {
     if (saving) return;
-    if (!property || !unit || !title.trim() || description.trim().length < 10) {
-      Alert.alert('Check the request', 'Choose a property and unit, add a title, and describe the issue in at least 10 characters.');
+    const issue = validateMaintenanceRequest({ propertyId: property && idOf(property), unitId: unit && idOf(unit), title, description, startsAt, endsAt });
+    if (issue && !createdId.current) {
+      Alert.alert('Check the request', issue);
       return;
     }
     setSaving(true);
     try {
-      await MaintenanceAPI.createRequest({
-        propertyId: idOf(property), unitId: idOf(unit), title: title.trim(),
-        description: description.trim(), location: location.trim(),
-        signals: [], hasPhotos: false, preferredWindows: [],
-      }, createKey.current);
-      createKey.current = newIdempotencyKey();
+      if (!createdId.current) {
+        const created = await MaintenanceAPI.createRequest({
+          propertyId: idOf(property), unitId: idOf(unit), title: title.trim(),
+          description: description.trim(), location: location.trim(),
+          signals, hasPhotos: media.some(file => file.type === 'image'), preferredWindows: buildMaintenanceWindow(startsAt, endsAt, access),
+        }, createKey.current);
+        const id = created.id ?? created.Id;
+        if (!id && media.length) throw new Error('Request created but no ID was returned for attaching media. Check your requests before retrying.');
+        createdId.current = id || null;
+        createKey.current = newIdempotencyKey();
+      }
+      if (media.length && createdId.current) {
+        const results = await Promise.allSettled(media.map(file => MaintenanceAPI.uploadAttachment(createdId.current!, 'Intake', file)));
+        const failed = media.filter((_, index) => results[index].status === 'rejected');
+        setMedia(failed);
+        if (failed.length) throw new Error(`Request saved, but ${failed.length} attachment${failed.length === 1 ? '' : 's'} could not be uploaded. Retry only the remaining files.`);
+      }
       navigation.goBack();
     } catch (cause: any) {
       Alert.alert('Could not add request', cause?.detail || cause?.response?.data?.message || cause?.message || 'Please try again.');
@@ -104,6 +144,17 @@ export default function AddMaintenanceRequestScreen() {
       <TextInput style={[styles.input, dark && { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]} placeholder="e.g. Kitchen" placeholderTextColor={colors.muted} value={location} onChangeText={setLocation} maxLength={500} accessibilityLabel="Location" />
       <Text style={[styles.label, dark && { color: colors.text }]}>Describe the issue</Text>
       <TextInput style={[styles.input, styles.description, dark && { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]} placeholder="What needs to be repaired?" placeholderTextColor={colors.muted} value={description} onChangeText={setDescription} multiline textAlignVertical="top" maxLength={4000} accessibilityLabel="Describe the issue" />
+      <Text style={[styles.label, dark && { color: colors.text }]}>Safety / urgency signals</Text>
+      {SIGNAL_OPTIONS.map(option => <TouchableOpacity key={option.value} accessibilityRole="checkbox" accessibilityState={{ checked: signals.includes(option.value) }} style={[styles.option, dark && { borderColor: colors.border }]} onPress={() => setSignals(old => old.includes(option.value) ? old.filter(signal => signal !== option.value) : [...old, option.value])}><Text style={[styles.optionText, dark && { color: colors.text }]}>{signals.includes(option.value) ? '☑' : '☐'}  {option.label}</Text></TouchableOpacity>)}
+      {emergencyGuidance(signals) && <Text style={styles.error}>{emergencyGuidance(signals)}</Text>}
+      <Text style={[styles.label, dark && { color: colors.text }]}>Preferred access window (optional)</Text>
+      {(['start-date', 'start-time', 'end-date', 'end-time'] as const).map(part => <TouchableOpacity key={part} accessibilityRole="button" accessibilityLabel={`Choose ${part.replace('-', ' ')}`} style={[styles.option, dark && { borderColor: colors.border }]} onPress={() => setPicker(part)}><Text style={[styles.optionText, dark && { color: colors.text }]}>{part.replace('-', ' ')}: {(part.startsWith('start') ? startsAt : endsAt)?.toLocaleString() ?? 'Not set'}</Text></TouchableOpacity>)}
+      {!!picker && <DateTimePicker value={(picker.startsWith('start') ? startsAt : endsAt) || new Date(Date.now() + 86400000)} mode={picker.endsWith('date') ? 'date' : 'time'} onChange={(_, selected) => { const part = picker; setPicker(null); if (!selected) return; const prior = (part.startsWith('start') ? startsAt : endsAt) || new Date(Date.now() + 86400000); const next = new Date(prior); if (part.endsWith('date')) next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate()); else next.setHours(selected.getHours(), selected.getMinutes()); if (part.startsWith('start')) setStartsAt(next); else setEndsAt(next); }} />}
+      {(startsAt || endsAt) && <TouchableOpacity accessibilityRole="button" onPress={() => { setStartsAt(null); setEndsAt(null); }}><Text style={{ color: colors.accent }}>Clear access window</Text></TouchableOpacity>}
+      <TextInput style={[styles.input, dark && { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]} placeholder="Access instructions (optional)" placeholderTextColor={colors.muted} value={access} onChangeText={setAccess} accessibilityLabel="Access instructions" />
+      <Text style={[styles.label, dark && { color: colors.text }]}>Photos or videos (optional)</Text>
+      <TouchableOpacity accessibilityRole="button" style={[styles.option, dark && { borderColor: colors.border }]} onPress={() => void pickMedia()} disabled={media.length >= 10}><Text style={[styles.optionText, dark && { color: colors.text }]}>Add evidence ({media.length}/10)</Text></TouchableOpacity>
+      {media.map(file => <TouchableOpacity key={file.idempotencyKey} accessibilityRole="button" onPress={() => setMedia(old => old.filter(item => item !== file))}><Text style={[styles.hint, dark && { color: colors.muted }]}>{file.fileName} · Remove</Text></TouchableOpacity>)}
       {!!error && <Text style={styles.error} accessibilityRole="alert">{error}</Text>}
       <TouchableOpacity style={[styles.save, { backgroundColor: colors.accent }, (!property || !unit || saving) && styles.disabled]} onPress={submit} disabled={!property || !unit || saving} accessibilityRole="button" accessibilityLabel="Submit maintenance request">
         {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Submit request</Text>}

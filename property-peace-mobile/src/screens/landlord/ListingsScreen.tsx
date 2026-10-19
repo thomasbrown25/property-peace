@@ -1,7 +1,8 @@
-import React from 'react';
-import { Alert, Linking } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View } from 'react-native';
+import ListingFormModal from './ListingFormModal';
 import { useAppSelector } from '../../store/hooks';
-import { getListings, type Listing } from '../../api/listingAPI';
+import { getListing, getListings, type Listing } from '../../api/listingAPI';
 import RentalWorkspace, { RentalWorkspaceDetail, dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ListingsStackParamList } from '../../navigation/types';
@@ -12,20 +13,10 @@ const status = (item: Listing): string => {
 };
 const titleFor = (item: Listing): string => label(item, 'propertyName') || 'Unnamed property';
 const location = (item: Listing): string => [label(item, 'propertyAddress'), label(item, 'unitName')].filter(Boolean).join(' · ') || 'Location unavailable';
-// Only use the production web app for production API builds; previews need an explicit matching URL.
-const webAppUrl = process.env.EXPO_PUBLIC_WEB_APP_URL?.replace(/\/$/, '')
-  || (process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') === 'https://api.propertypeace.io'
-    ? 'https://app.propertypeace.io' : undefined);
-const config: WorkspaceConfig<Listing> = {
+const config = (onCreate?: () => void): WorkspaceConfig<Listing> => ({
   title: 'Listings', eyebrow: 'RENTAL MARKETING', subtitle: 'Your property listings in one place.', searchPlaceholder: 'Search property, address or listing number',
   overview: { heading: 'LISTINGS OVERVIEW', metricLabel: 'Active listings', count: items => items.filter(item => status(item) === 'Active').length },
-  headerAction: {
-    label: 'New listing',
-    hint: webAppUrl ? 'Opens the listing creation flow in the web app; you may need to sign in there' : 'Web app link not configured for this build',
-    onPress: webAppUrl ? () => {
-      void Linking.openURL(`${webAppUrl}/landlord/listings/add`).catch(() => Alert.alert('Could not open web app', 'Please try again later.'));
-    } : undefined,
-  },
+  headerAction: { label: 'New listing', onPress: onCreate },
   filters: ['All', 'Active', 'Draft', 'Expired', 'Unlisted'], load: getListings, status, titleFor,
   subtitleFor: location,
   metaFor: item => `${moneyLabel(field(item, 'monthlyRent'))} / month · #${label(item, 'listingNumber') || label(item, 'id')}`,
@@ -36,15 +27,24 @@ const config: WorkspaceConfig<Listing> = {
     ['Published', field(item, 'publishedAt') ? dateLabel(field(item, 'publishedAt')) : 'Not published'],
     ['Description', label(item, 'marketingDescription')],
   ],
-};
+});
 
 export default function ListingsScreen() {
+  const [open, setOpen] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const user = useAppSelector(state => state.user.currentUser);
   const userId = String(user?.id ?? user?.Id ?? '');
   const scope = userId ? `${userId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
-  return <RentalWorkspace config={config} scope={scope} detailRoute="ListingDetail" />;
+  const workspaceConfig = useMemo(() => config(scope ? () => setOpen(true) : undefined), [scope]);
+  return <View style={{ flex: 1 }}><RentalWorkspace config={workspaceConfig} scope={scope} reloadToken={reloadToken} detailRoute="ListingDetail" />
+    <ListingFormModal key={scope} visible={open && !!scope} scope={scope} onClose={() => setOpen(false)} onSaved={() => setReloadToken(value => value + 1)} />
+  </View>;
 }
 
 export function ListingDetailScreen({ route }: NativeStackScreenProps<ListingsStackParamList, 'ListingDetail'>) {
-  return <RentalWorkspaceDetail config={config} item={route.params.item} scope={route.params.scope} />;
+  const [edit, setEdit] = useState(false);
+  const [current, setCurrent] = useState(route.params.item);
+  return <View style={{ flex: 1 }}><RentalWorkspaceDetail config={config()} item={current} scope={route.params.scope} action={{ label: 'Edit listing', onPress: () => setEdit(true) }} />
+    <ListingFormModal visible={edit} scope={route.params.scope} item={current} onClose={() => setEdit(false)} onSaved={() => { void getListing(current.id).then(setCurrent).catch(() => {}); }} />
+  </View>;
 }

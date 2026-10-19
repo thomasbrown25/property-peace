@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { UNSTABLE_usePreventRemove as usePreventRemove, useNavigation } from '@react-navigation/native';
+import { UNSTABLE_usePreventRemove as usePreventRemove, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PropertyAPI, { type Property, type Unit } from '../../api/propertyAPI';
 import expenseAPI from '../../api/expenseAPIRuntime';
@@ -32,6 +32,7 @@ import {
 } from '../../features/expenses/expenseModel';
 import { toLocalExpenseReceipt } from '../../features/expenses/expenseReceiptModel';
 import { createRequestGate } from '../../features/expenses/requestGate';
+import { buildExpenseUpdate, expenseEditForm, type EditableExpenseRecord } from '../../features/expenses/expenseEdit';
 import {
   getExpenseErrorMessage,
   retryExpenseReceipt,
@@ -83,10 +84,15 @@ export default function AddExpenseScreen() {
   const styles = useExpenseStyles();
   const { mode, colors } = useAppTheme();
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const editId = route.params?.expenseId ? Number(route.params.expenseId) : null;
   const insets = useSafeAreaInsets();
   const currentUser = useAppSelector((state) => state.user.currentUser);
   const [step, setStep] = useState<ExpenseStep>('details');
   const [form, setForm] = useState(() => emptyExpenseForm());
+  const [original, setOriginal] = useState<EditableExpenseRecord | null>(null);
+  const [detailLoading, setDetailLoading] = useState(Boolean(editId));
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [propertyLoading, setPropertyLoading] = useState(true);
   const [propertyError, setPropertyError] = useState<string | null>(null);
@@ -111,6 +117,18 @@ export default function AddExpenseScreen() {
   }, []);
 
   useEffect(() => { void loadProperties(); }, [loadProperties]);
+  const loadDetail = useCallback(async () => {
+    if (!editId) return;
+    setDetailLoading(true); setDetailError(null);
+    try {
+      const detail = await expenseAPI.getExpense(editId);
+      setForm(expenseEditForm(detail));
+      setOriginal(detail);
+      navigation.setOptions({ title: 'Edit expense' });
+    } catch (error) { setDetailError(getExpenseErrorMessage(error, 'Expense could not be loaded.')); }
+    finally { setDetailLoading(false); }
+  }, [editId, navigation]);
+  useEffect(() => { void loadDetail(); }, [loadDetail]);
 
   usePreventRemove(submitting, () => {
     Alert.alert('Please wait', 'Your expense is still being saved.');
@@ -158,7 +176,7 @@ export default function AddExpenseScreen() {
     const validation = validateExpenseStep(form, 'review');
     setErrors(validation);
     setSaveError(null);
-    if (!Number.isInteger(landlordId) || landlordId <= 0) {
+    if (!editId && (!Number.isInteger(landlordId) || landlordId <= 0)) {
       setSaveError('Your landlord account could not be identified.');
       return;
     }
@@ -166,11 +184,22 @@ export default function AddExpenseScreen() {
       setSaveError(Object.values(validation)[0]);
       return;
     }
+    if (editId && (!original || detailLoading || detailError)) { setSaveError('Load expense details before saving changes.'); return; }
+    if (form.propertyId !== null && !properties.some(property => propertyId(property) === form.propertyId)) { setSaveError('Selected property is no longer available.'); return; }
+    if (form.unitId !== null && !units.some(unit => unitId(unit) === form.unitId)) { setSaveError('Selected unit is no longer available for this property.'); return; }
     if (!requestGate.tryAcquire()) return;
     setSubmitting(true);
     try {
-      const payload = buildCreateExpensePayload(form, landlordId, new Date().toISOString());
-      setResult(await submitExpense(payload, receipt, expenseAPI));
+      if (editId && original) {
+        const updated = await expenseAPI.updateExpense(editId, buildExpenseUpdate(form, original));
+        if (receipt) {
+          try { await expenseAPI.uploadReceipt(editId, receipt); setResult({ status: 'saved', expense: updated }); }
+          catch (error) { setResult({ status: 'receipt-failed', expense: updated, receipt, message: getExpenseErrorMessage(error, 'Receipt upload failed.') }); }
+        } else setResult({ status: 'saved', expense: updated });
+      } else {
+        const payload = buildCreateExpensePayload(form, landlordId, new Date().toISOString());
+        setResult(await submitExpense(payload, receipt, expenseAPI));
+      }
     } catch (error) {
       setSaveError(getExpenseErrorMessage(error, 'Expense could not be saved.'));
     } finally {
@@ -201,7 +230,7 @@ export default function AddExpenseScreen() {
       <View style={styles.successPage}>
         <View style={styles.successMark}><Ionicons name={receiptFailed ? 'cloud-offline-outline' : 'checkmark'} size={34} color="#fff" /></View>
         <Text style={styles.successTitle}>{receiptFailed ? 'Expense saved' : 'Expense saved'}</Text>
-        <Text style={styles.successCopy}>{receiptFailed ? 'Expense saved; receipt not uploaded' : 'Your paid property expense is recorded.'}</Text>
+        <Text style={styles.successCopy}>{receiptFailed ? 'Expense saved; receipt not uploaded' : editId ? 'Your changes have been saved.' : 'Your paid property expense is recorded.'}</Text>
         <View style={styles.resultSlip}>
           <Text style={styles.resultName}>{result.expense.name}</Text>
           <Text style={styles.resultAmount}>${result.expense.amount.toFixed(2)}</Text>
@@ -215,6 +244,8 @@ export default function AddExpenseScreen() {
       </View>
     );
   }
+
+  if (editId && (detailLoading || detailError)) return <View style={styles.successPage}>{detailLoading ? <ActivityIndicator /> : <><Text style={styles.inlineError}>{detailError}</Text><ActionButton label="Retry loading expense" onPress={() => void loadDetail()} /></>}</View>;
 
   const meta = stepDetails[step];
   return (
@@ -242,7 +273,10 @@ export default function AddExpenseScreen() {
 
         {step === 'description' && <>
           <Field label="Description" error={errors.description}><TextInput testID="expense-description" accessibilityLabel="Expense description" value={form.description} onChangeText={(description) => setForm((current) => ({ ...current, description }))} multiline maxLength={200} placeholder="e.g., Repaired the kitchen sink" placeholderTextColor={mode === 'dark' ? colors.muted : '#8a98a6'} style={[styles.input, styles.descriptionInput]} textAlignVertical="top" /><Text style={styles.counter}>{form.description.length}/200</Text></Field>
-          <Field label="Receipt (optional)"><Text style={styles.help}>JPEG, PNG, or WebP up to 10 MB.</Text>{receipt ? <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} /> : <View style={styles.receiptActions}><ActionButton label="Take photo" onPress={() => void chooseReceipt('camera')} secondary compact /><ActionButton label="Choose photo" onPress={() => void chooseReceipt('library')} secondary compact /></View>}</Field>
+          <Field label="Vendor (optional)" error={errors.vendor}><TextInput accessibilityLabel="Expense vendor" value={form.vendor || ''} onChangeText={vendor => setForm(current => ({ ...current, vendor }))} maxLength={201} style={styles.input} placeholderTextColor={colors.muted} placeholder="Vendor name" /></Field>
+          <Field label="Payment method (optional)" error={errors.paymentMethod}><TextInput accessibilityLabel="Expense payment method" value={form.paymentMethod || ''} onChangeText={paymentMethod => setForm(current => ({ ...current, paymentMethod }))} maxLength={51} style={styles.input} placeholderTextColor={colors.muted} placeholder="e.g., Cash or bank transfer" /></Field>
+          <Field label="Category (optional override)" error={errors.category}><TextInput accessibilityLabel="Expense category" value={form.category || ''} onChangeText={category => setForm(current => ({ ...current, category }))} maxLength={101} style={styles.input} placeholderTextColor={colors.muted} placeholder="Automatic if blank" /></Field>
+          <Field label={editId ? 'Add receipt (existing receipts kept)' : 'Receipt (optional)'}><Text style={styles.help}>JPEG, PNG, or WebP up to 10 MB.</Text>{receipt ? <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} /> : <View style={styles.receiptActions}><ActionButton label="Take photo" onPress={() => void chooseReceipt('camera')} secondary compact /><ActionButton label="Choose photo" onPress={() => void chooseReceipt('library')} secondary compact /></View>}</Field>
           <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('details')} secondary /><ActionButton label="Continue" onPress={moveForward} /></View>
         </>}
 
@@ -254,11 +288,14 @@ export default function AddExpenseScreen() {
             <ReviewRow label="Property" value={selectedProperty ? label(selectedProperty, 'Property') : 'Not selected'} />
             {selectedUnit && <ReviewRow label="Unit" value={label(selectedUnit, 'Unit')} />}
             <ReviewRow label="Description" value={form.description.trim() || 'Not provided'} />
+            {form.vendor?.trim() && <ReviewRow label="Vendor" value={form.vendor.trim()} />}
+            {form.paymentMethod?.trim() && <ReviewRow label="Payment method" value={form.paymentMethod.trim()} />}
+            <ReviewRow label="Category" value={form.category?.trim() || 'Automatic'} />
             {receipt && <ReceiptPreview receipt={receipt} onRemove={() => !submitting && setReceipt(null)} disabled={submitting} />}
           </View>
-          <View style={styles.autoNote}><Ionicons name="sparkles-outline" size={19} color={mode === 'dark' ? colors.accent : '#2f8f46'} /><Text style={styles.autoNoteText}>Your expense will be categorized automatically after it is saved.</Text></View>
+          <View style={styles.autoNote}><Ionicons name="sparkles-outline" size={19} color={mode === 'dark' ? colors.accent : '#2f8f46'} /><Text style={styles.autoNoteText}>{form.category?.trim() ? 'Your selected category will be saved with this expense.' : editId ? 'The existing category will be kept.' : 'Your expense will be categorized automatically after it is saved.'}</Text></View>
           {saveError && <Text style={styles.inlineError}>{saveError}</Text>}
-          <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('description')} secondary disabled={submitting} /><ActionButton label="Save expense" onPress={() => void save()} loading={submitting} /></View>
+          <View style={styles.actionRow}><ActionButton label="Back" onPress={() => setStep('description')} secondary disabled={submitting} /><ActionButton label={editId ? 'Save changes' : 'Save expense'} onPress={() => void save()} loading={submitting} disabled={propertyLoading || Boolean(propertyError)} /></View>
         </>}
       </ScrollView>
     </KeyboardAvoidingView>

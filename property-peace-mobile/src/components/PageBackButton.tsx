@@ -4,14 +4,14 @@ import { useNavigation } from '@react-navigation/native';
 import { StyleSheet, TouchableOpacity } from 'react-native';
 import { useAppTheme } from '../theme/AppTheme';
 
-/** Transparent, full-size touch target for secondary screens. */
+/** Back control for native stack headers and custom screen headers. */
 export default function PageBackButton({ onPress, inHeader = false }: { onPress?: () => void; inHeader?: boolean } = {}) {
   const navigation = useNavigation<any>();
   const { mode, colors } = useAppTheme();
 
   return (
     <TouchableOpacity
-      style={[styles.button, { backgroundColor: colors.surface, borderColor: colors.border }, inHeader && styles.headerButton]}
+      style={[styles.button, inHeader ? styles.headerButton : { backgroundColor: colors.surface, borderColor: colors.border }]}
       accessibilityRole="button"
       accessibilityLabel="Go back"
       onPress={onPress ?? (() => {
@@ -26,5 +26,5 @@ export default function PageBackButton({ onPress, inHeader = false }: { onPress?
 
 const styles = StyleSheet.create({
   button: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  headerButton: { marginBottom: 0 },
+  headerButton: { marginBottom: 0, borderWidth: 0, backgroundColor: 'transparent' },
 });

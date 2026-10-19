@@ -18,7 +18,7 @@ export function useTabScrollReset(ref: RefObject<ScrollView | FlatList<any> | nu
       const activeRoute = state.routes[state.index];
       // Only the root of the currently selected stack can request a reset.
       // An inactive tab's first press must preserve its saved position.
-      if (event.target === activeRoute?.key && activeRoute.state?.key === navigation.getState().key
+      if (event.target === activeRoute?.key && activeRoute.state?.key === navigation.getState()?.key
         && !navigation.isFocused()) {
         pendingReset.current = true;
       }

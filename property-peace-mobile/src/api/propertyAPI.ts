@@ -42,7 +42,6 @@ class PropertyAPI {
   async createProperty(property: Partial<Property>): Promise<Property> {
     const formData = new FormData();
     formData.append('propertyData', JSON.stringify(property));
-    formData.append('files', '' as any);
     const response = await this.client.post<ApiResponse<Property>>('/api/Property', formData);
     return response.data;
   }
@@ -50,7 +49,6 @@ class PropertyAPI {
   async updateProperty(propertyId: string | number, property: Partial<Property>): Promise<Property> {
     const formData = new FormData();
     formData.append('propertyData', JSON.stringify({ ...property, id: propertyId }));
-    formData.append('files', '' as any);
     const response = await this.client.post<ApiResponse<Property>>('/api/Property', formData);
     return response.data;
   }

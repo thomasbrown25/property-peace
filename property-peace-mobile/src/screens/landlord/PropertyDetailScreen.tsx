@@ -155,6 +155,10 @@ export default function PropertyDetailScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadProperty(); }} tintColor={mode === 'dark' ? colors.accent : '#2475cf'} />}
       >
       <View style={styles.heroCard}>
+        <TouchableOpacity style={styles.editEntry} accessibilityRole="button" accessibilityLabel="Edit property" onPress={() => navigation.navigate('AddProperty', { propertyId })}>
+          <Ionicons name="create-outline" size={18} color={mode === 'dark' ? colors.accent : '#2475cf'} />
+          <Text style={styles.editEntryText}>Edit property</Text>
+        </TouchableOpacity>
         {details.imageUrl ? <Image source={{ uri: details.imageUrl }} style={styles.heroImage} /> : (
           <View style={styles.heroImageFallback}><Ionicons name="home" size={52} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
         )}
@@ -261,14 +265,19 @@ export default function PropertyDetailScreen() {
         <ActionRow icon="clipboard-outline" title="Checklists" subtitle="Complete move-in and move-out items" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
         <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color={mode === 'dark' ? colors.accent : '#2475cf'} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
         <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color={mode === 'dark' ? '#d2a9f4' : '#8b5bb7'} background={mode === 'dark' ? '#392d49' : '#f5effb'} onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
+        <ActionRow icon="create-outline" title="Edit property" subtitle="Update building and address details" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId })} />
+        {!isMultiUnit && details.units[0] && <ActionRow icon="key-outline" title="Edit unit" subtitle="Update beds, baths, and rent" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit', unitId: String(details.units[0].id ?? details.units[0].Id) })} />}
+        {!isMultiUnit && !details.units.length && <ActionRow icon="add-circle-outline" title="Add unit" subtitle="Set up the home's unit" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit' })} />}
+        {isMultiUnit && <ActionRow icon="add-circle-outline" title="Add units" subtitle="Create units for this property" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit' })} />}
       </View>}
 
       {isMultiUnit && visibleTab === 'units' && <>
+      <TouchableOpacity style={styles.editEntry} accessibilityRole="button" accessibilityLabel="Add units" onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit' })}><Ionicons name="add-circle-outline" size={18} color={mode === 'dark' ? colors.accent : '#2475cf'} /><Text style={styles.editEntryText}>Add units</Text></TouchableOpacity>
       {details.units.length === 0 ? (
         <View style={styles.emptyCard}>
           <Ionicons name="business-outline" size={27} color={mode === 'dark' ? colors.muted : '#71808d'} />
           <Text style={styles.emptyTitle}>No units to show</Text>
-          <Text style={styles.emptyText}>Add or manage units in the web app, then use them here for maintenance and checklists.</Text>
+          <Text style={styles.emptyText}>Add a unit to start managing this building.</Text>
         </View>
       ) : (
         <View style={styles.unitList}>
@@ -283,8 +292,8 @@ export default function PropertyDetailScreen() {
                   <Text style={styles.unitName}>{stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber, `Unit ${index + 1}`)}</Text>
                   <Text style={styles.unitMeta}>{status}{rent > 0 ? ` · ${currency(rent)}/mo` : ''}</Text>
                 </View>
-                <TouchableOpacity style={styles.unitAction} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} accessibilityLabel="View property maintenances">
-                  <Ionicons name="construct-outline" size={20} color={mode === 'dark' ? colors.accent : '#0b3558'} />
+                <TouchableOpacity style={styles.unitAction} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit', unitId: String(unit.id ?? unit.Id) })} accessibilityRole="button" accessibilityLabel={`Edit unit ${stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber, `Unit ${index + 1}`)}`}>
+                  <Ionicons name="create-outline" size={20} color={mode === 'dark' ? colors.accent : '#0b3558'} />
                 </TouchableOpacity>
               </View>
             );
@@ -331,6 +340,8 @@ const lightStyles = StyleSheet.create({
   retryButton: { minHeight: 44, justifyContent: 'center', backgroundColor: '#2475cf', borderRadius: 13, paddingHorizontal: 18, marginTop: 16 },
   retryText: { color: '#fff', fontWeight: '900' },
   heroCard: { marginBottom: 16 },
+  editEntry: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', minHeight: 44, gap: 6, paddingHorizontal: 8 },
+  editEntryText: { color: '#2475cf', fontWeight: '800', fontSize: 14 },
   overviewDetails: { paddingTop: 22 },
   overviewKicker: { color: '#2475cf', fontSize: 10, fontWeight: '800', letterSpacing: 1.4, marginBottom: 5 },
   overviewIntro: { color: '#667789', fontSize: 14, lineHeight: 20, marginBottom: 13 },
@@ -452,6 +463,7 @@ const darkStyles = StyleSheet.create({
   errorTitle: { ...lightStyles.errorTitle, color: '#f2f6fa' },
   errorText: { ...lightStyles.errorText, color: '#b4c3d0' },
   heroImage: { ...lightStyles.heroImage, backgroundColor: '#233e59' },
+  editEntryText: { ...lightStyles.editEntryText, color: '#72b6ff' },
   heroImageFallback: { ...lightStyles.heroImageFallback, backgroundColor: '#233e59' },
   eyebrow: { ...lightStyles.eyebrow, color: '#89dda0' },
   title: { ...lightStyles.title, color: '#f2f6fa' },

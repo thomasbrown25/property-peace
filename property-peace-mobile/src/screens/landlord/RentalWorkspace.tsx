@@ -122,7 +122,7 @@ export default function RentalWorkspace<T extends RecordData>({ config, scope, r
   </View>;
 }
 
-export function RentalWorkspaceDetail<T extends RecordData>({ config, item, scope }: { config: WorkspaceConfig<T>; item: T; scope: string }) {
+export function RentalWorkspaceDetail<T extends RecordData>({ config, item, scope, action }: { config: WorkspaceConfig<T>; item: T; scope: string; action?: { label: string; onPress: () => void } }) {
   const { colors, mode } = useAppTheme();
   const user = useAppSelector(state => state.user.currentUser);
   const userId = String(user?.id ?? user?.Id ?? '');
@@ -132,6 +132,7 @@ export function RentalWorkspaceDetail<T extends RecordData>({ config, item, scop
   return <ScrollView style={{ backgroundColor: bg }} contentContainerStyle={styles.detail}>
     <Text accessibilityRole="header" style={[styles.detailTitle, { color: colors.text }]}>{config.titleFor(item)}</Text>
     <Text style={[styles.subtitle, { color: colors.muted }]}>{config.subtitleFor(item)}</Text>
+    {action && <Pressable accessibilityRole="button" accessibilityLabel={action.label} onPress={action.onPress} style={[styles.headerAction, { backgroundColor: colors.accent, alignSelf: 'flex-start', marginVertical: 14 }]}><Text style={[styles.headerActionText, { color: mode === 'dark' ? colors.background : '#fff' }]}>{action.label}</Text></Pressable>}
     {config.details(item).filter(([, value]) => !!value).map(([heading, value]) => <View key={heading} style={[styles.detailRow, { borderTopColor: colors.border }]}><Text style={[styles.detailLabel, { color: colors.muted }]}>{heading}</Text><Text style={[styles.detailValue, { color: colors.text }]}>{value}</Text></View>)}
   </ScrollView>;
 }

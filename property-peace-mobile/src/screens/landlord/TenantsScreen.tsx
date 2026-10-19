@@ -81,6 +81,8 @@ export default function TenantsScreen() {
               <Text style={[styles.title, dark && { color: colors.text }]}>{tenantName(item)}</Text>
               {!!(item.email || item.Email) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={1}>{item.email || item.Email}</Text>}
               {!!(item.phoneNumber || item.PhoneNumber) && <Text style={[styles.meta, dark && { color: colors.muted }]}>{item.phoneNumber || item.PhoneNumber}</Text>}
+              {!!(item.propertyName || item.PropertyName) && <Text style={[styles.meta, dark && { color: colors.muted }]} numberOfLines={1}>{item.propertyName || item.PropertyName}{(item.unitName || item.UnitName) ? ` · ${item.unitName || item.UnitName}` : ''}</Text>}
+              {(item.isActive ?? item.IsActive) === false && <Text style={[styles.meta, dark && { color: colors.muted }]}>Archived</Text>}
             </View>
             <Ionicons name="chevron-forward" size={18} color={dark ? colors.muted : '#788995'} />
           </TouchableOpacity>

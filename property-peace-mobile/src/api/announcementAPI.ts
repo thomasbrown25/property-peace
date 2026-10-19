@@ -1,5 +1,6 @@
 import apiClient from '../services/apiClient';
 import type { ApiResponse } from '../types';
+import { buildAnnouncementCommand, type AnnouncementDraft } from '../features/announcements/announcementForm';
 
 export interface Announcement {
   id: number;
@@ -42,10 +43,16 @@ const announcementAPI = {
     if (!data || typeof data !== 'object') throw new Error('Invalid announcement');
     return data;
   },
-  async previewRecipients(): Promise<{ userId: number }[]> {
-    const data = unwrap(await apiClient.post<ApiResponse<{ userId: number }[]> | { userId: number }[]>('/api/announcement/recipients/preview', {}));
+  async previewRecipients(draft?: AnnouncementDraft): Promise<{ userId: number }[]> {
+    const command = draft ? buildAnnouncementCommand(draft) : { propertyIds: null, unitIds: null, organizationIds: null };
+    const data = unwrap(await apiClient.post<ApiResponse<{ userId: number }[]> | { userId: number }[]>('/api/announcement/recipients/preview', {
+      propertyIds: command.propertyIds, unitIds: command.unitIds, organizationIds: command.organizationIds,
+    }));
     if (!Array.isArray(data)) throw new Error('Invalid recipient preview');
     return data;
+  },
+  async save(draft: AnnouncementDraft, id?: number): Promise<void> {
+    unwrap(await apiClient.post<ApiResponse<unknown>>('/api/announcement/send', buildAnnouncementCommand(draft, id)));
   },
   async send(message: string, sendEmail: boolean, sendNotification: boolean): Promise<void> {
     unwrap(await apiClient.post<ApiResponse<unknown>>('/api/announcement/send', {

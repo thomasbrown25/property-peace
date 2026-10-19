@@ -8,10 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LandlordPageHeader from '../../components/LandlordPageHeader';
 import VendorAPI, { type Vendor, type VendorInput } from '../../api/vendorAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import { emptyVendorForm, vendorCreatePayload, vendorFormError, type VendorCreateForm } from '../../features/vendors/vendorForm';
 
 const field = (vendor: Vendor, key: string): string => String(vendor[key] ?? vendor[key[0].toUpperCase() + key.slice(1)] ?? '');
 const active = (vendor: Vendor): boolean => (vendor.isActive ?? vendor.IsActive) === true;
-const emptyForm: VendorInput = { name: '', businessName: '', category: '', email: '', phone: '', notes: '' };
+const createFields = ['name', 'businessName', 'category', 'description', 'specialties', 'email', 'phone', 'alternatePhone', 'address', 'city', 'state', 'zipCode', 'taxId', 'licenseNumber', 'notes'] as const;
+const labels: Record<typeof createFields[number], string> = { name: 'Name *', businessName: 'Business name', category: 'Category / trade', description: 'Description', specialties: 'Specialties', email: 'Email', phone: 'Phone', alternatePhone: 'Alternate phone', address: 'Address', city: 'City', state: 'State', zipCode: 'ZIP code', taxId: 'Tax ID (EIN/SSN)', licenseNumber: 'License number', notes: 'Notes' };
 
 export default function VendorsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<VendorsStackParamList>>();
@@ -24,7 +26,7 @@ export default function VendorsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState<VendorInput>(emptyForm);
+  const [form, setForm] = useState<VendorCreateForm>({ ...emptyVendorForm });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -60,25 +62,28 @@ export default function VendorsScreen() {
   const activeCount = useMemo(() => vendors.filter(active).length, [vendors]);
 
   const openForm = () => {
-    setForm({ ...emptyForm });
+    setForm({ ...emptyVendorForm });
     setFormError('');
     setFormOpen(true);
   };
+  const closeForm = () => {
+    if (saving) return;
+    setFormOpen(false);
+    setForm({ ...emptyVendorForm });
+  };
 
   const save = async () => {
-    const name = form.name.trim();
-    const email = form.email?.trim() ?? '';
-    if (!name) { setFormError('Enter a vendor name.'); return; }
-    if (name.length > 200 || (form.businessName?.length ?? 0) > 200 || (form.category?.length ?? 0) > 100 || (form.phone?.length ?? 0) > 50 || (form.notes?.length ?? 0) > 2000) { setFormError('One or more fields exceed the allowed length.'); return; }
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setFormError('Enter a valid email address.'); return; }
-    if (email.length > 200) { setFormError('Email must be 200 characters or fewer.'); return; }
-    const input = { ...form, name, email };
+    if (saving) return;
+    const invalid = vendorFormError(form);
+    if (invalid) { setFormError(invalid); return; }
+    const input: VendorInput = vendorCreatePayload(form);
     setSaving(true);
     setFormError('');
     try {
       await VendorAPI.addVendor(input);
       await refresh();
       setFormOpen(false);
+      setForm({ ...emptyVendorForm });
     } catch {
       setFormError('Could not save vendor. Check your connection and try again.');
     } finally {
@@ -122,11 +127,12 @@ export default function VendorsScreen() {
               <Ionicons name="chevron-forward" size={19} color={colors.muted} />
             </Pressable>;
           }} />}
-      <Modal visible={formOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { if (!saving) setFormOpen(false); }}>
+      <Modal visible={formOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeForm}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { backgroundColor: bg }]}>
-          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 16) }]}><Text accessibilityRole="header" style={[styles.modalTitle, { color: colors.text }]}>Add vendor</Text><Pressable accessibilityRole="button" accessibilityLabel="Close vendor form" disabled={saving} onPress={() => setFormOpen(false)} style={styles.close}><Ionicons name="close" size={24} color={colors.text} /></Pressable></View>
+          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 16) }]}><Text accessibilityRole="header" style={[styles.modalTitle, { color: colors.text }]}>Add vendor</Text><Pressable accessibilityRole="button" accessibilityLabel="Close vendor form" disabled={saving} onPress={closeForm} style={styles.close}><Ionicons name="close" size={24} color={colors.text} /></Pressable></View>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.formScroll}>
-            {(['name', 'businessName', 'category', 'email', 'phone', 'notes'] as const).map(key => <View key={key} style={styles.field}><Text style={[styles.label, { color: colors.text }]}>{({ name: 'Name *', businessName: 'Business name', category: 'Category / trade', email: 'Email', phone: 'Phone', notes: 'Notes' })[key]}</Text><TextInput accessibilityLabel={key} value={form[key]} onChangeText={value => setForm(previous => ({ ...previous, [key]: value }))} style={[inputStyle, key === 'notes' && styles.notes]} multiline={key === 'notes'} keyboardType={key === 'email' ? 'email-address' : key === 'phone' ? 'phone-pad' : 'default'} autoCapitalize={key === 'email' ? 'none' : 'sentences'} /></View>)}
+            {createFields.map(key => <View key={key} style={styles.field}><Text style={[styles.label, { color: colors.text }]}>{labels[key]}</Text><TextInput accessibilityLabel={labels[key]} value={form[key]} onChangeText={value => setForm(previous => ({ ...previous, [key]: value }))} style={[inputStyle, (key === 'notes' || key === 'description') && styles.notes]} multiline={key === 'notes' || key === 'description'} secureTextEntry={key === 'taxId'} keyboardType={key === 'email' ? 'email-address' : key === 'phone' || key === 'alternatePhone' ? 'phone-pad' : 'default'} autoCapitalize={key === 'email' || key === 'taxId' ? 'none' : 'sentences'} /></View>)}
+            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: form.requires1099 }} accessibilityLabel="Requires 1099" onPress={() => setForm(previous => ({ ...previous, requires1099: !previous.requires1099 }))} style={styles.filter}><Ionicons name={form.requires1099 ? 'checkbox' : 'square-outline'} size={22} color={colors.accent} /><Text style={{ color: colors.text }}>Requires 1099</Text></Pressable>
             {!!formError && <Text accessibilityRole="alert" style={styles.error}>{formError}</Text>}
             <Pressable accessibilityRole="button" accessibilityLabel="Save vendor" disabled={saving} onPress={() => { void save(); }} style={[styles.save, { backgroundColor: colors.accent }]}>{saving ? <ActivityIndicator color={bg} /> : <Text style={[styles.saveText, { color: bg }]}>Save vendor</Text>}</Pressable>
           </ScrollView>

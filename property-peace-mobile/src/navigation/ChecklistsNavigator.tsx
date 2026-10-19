@@ -15,6 +15,7 @@ export default function ChecklistsNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerTintColor: mode === 'dark' ? colors.text : '#0b3558',
+        headerBackTitleVisible: false,
         headerTitleStyle: { fontWeight: '800', color: mode === 'dark' ? colors.text : '#102d43' },
         headerShadowVisible: false,
         headerStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },

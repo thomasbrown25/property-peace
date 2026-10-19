@@ -5,8 +5,8 @@ export interface Tenant {
   id?: string | number;
   firstName?: string;
   lastName?: string;
-  email?: string;
-  phoneNumber?: string;
+  email?: string | null;
+  phoneNumber?: string | null;
   [key: string]: any;
 }
 
@@ -24,6 +24,11 @@ class TenantAPI {
   }
 
   async createTenant(tenant: Partial<Tenant>): Promise<Tenant> {
+    const response = await this.client.post<ApiResponse<Tenant>>('/api/Tenant', tenant);
+    return response.data;
+  }
+
+  async updateTenant(tenant: Omit<Partial<Tenant>, 'email' | 'phoneNumber'> & { id: string; email: string | null; phoneNumber: string | null }): Promise<Tenant> {
     const response = await this.client.post<ApiResponse<Tenant>>('/api/Tenant', tenant);
     return response.data;
   }

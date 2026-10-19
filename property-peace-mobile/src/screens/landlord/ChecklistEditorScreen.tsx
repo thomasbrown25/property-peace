@@ -15,6 +15,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import ChecklistAPI from '../../api/checklistAPI';
 import ChecklistItemPhotos from '../../components/checklists/ChecklistItemPhotos';
+import { applyChecklistFormDraft, checklistFormDraft } from '../../features/checklists/checklistFormModel';
+import type { ChecklistFormDraft } from '../../features/checklists/checklistFormModel';
 import {
   CHECKLIST_CONDITIONS,
   addChecklistItem,
@@ -39,7 +41,7 @@ import { ChecklistsStackParamList } from '../../navigation/checklistsTypes';
 import { useAppTheme } from '../../theme/AppTheme';
 
 type Props = NativeStackScreenProps<ChecklistsStackParamList, 'ChecklistEditor'>;
-type ItemDraft = { damageDescription: string };
+type ItemDraft = { damageDescription: string; notes: string };
 
 const idText = (id?: Id) => String(id ?? '');
 const errorMessage = (error: any, fallback: string) => error?.message || error?.Message || fallback;
@@ -59,6 +61,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [itemNameDrafts, setItemNameDrafts] = useState<Record<string, string>>({});
   const [itemDrafts, setItemDrafts] = useState<Record<string, ItemDraft>>({});
+  const [formDraft, setFormDraft] = useState<ChecklistFormDraft | null>(null);
   const [savingKey, setSavingKey] = useState('');
   const [retryCondition, setRetryCondition] = useState<{ itemId: Id; condition: ChecklistCondition | null } | null>(null);
   const [failedUploads, setFailedUploads] = useState<FailedChecklistUploads>({});
@@ -84,8 +87,10 @@ export default function ChecklistEditorScreen({ route }: Props) {
     try {
       const loaded = await ChecklistAPI.getById(checklistId);
       setChecklist(loaded);
+      setFormDraft(checklistFormDraft(loaded));
       setItemDrafts(Object.fromEntries(loaded.items.map((item) => [idText(item.id), {
         damageDescription: item.damageDescription || '',
+        notes: item.notes || '',
       }])));
       if (loaded.counterpartChecklistId != null) {
         try {
@@ -118,6 +123,18 @@ export default function ChecklistEditorScreen({ route }: Props) {
     const saved = await ChecklistAPI.update(next.id, next);
     setChecklist(saved);
     return saved;
+  };
+
+  const saveInspection = async () => {
+    if (!checklist || !formDraft || !beginMutation('inspection')) return;
+    try {
+      const saved = await saveActive(applyChecklistFormDraft(checklist, formDraft));
+      setFormDraft(checklistFormDraft(saved));
+    } catch (saveError: any) {
+      Alert.alert('Inspection not saved', errorMessage(saveError, 'Please check the visit date and try again.'));
+    } finally {
+      endMutation('inspection');
+    }
   };
 
   const savePair = async (nextActive: Checklist, nextCounterpart: Checklist | null) => {
@@ -154,9 +171,9 @@ export default function ChecklistEditorScreen({ route }: Props) {
     const key = idText(item.id);
     const mutationKey = `details-${key}`;
     if (!beginMutation(mutationKey)) return;
-    const draft = itemDrafts[key] || { damageDescription: item.damageDescription || '' };
+    const draft = itemDrafts[key] || { damageDescription: item.damageDescription || '', notes: item.notes || '' };
     try {
-      await saveActive(withChecklistItemDetails(checklist, item.id, { ...draft, notes: item.notes || '' }));
+      await saveActive(withChecklistItemDetails(checklist, item.id, draft));
     } catch (saveError: any) {
       Alert.alert('Details not saved', errorMessage(saveError, 'Your repair details were not saved. Please try again.'));
     } finally {
@@ -273,7 +290,7 @@ export default function ChecklistEditorScreen({ route }: Props) {
                 item={item}
                 checklistId={checklistId}
                 onChecklistUpdated={setChecklist}
-                draft={itemDrafts[idText(item.id)] || { damageDescription: item.damageDescription || '' }}
+                draft={itemDrafts[idText(item.id)] || { damageDescription: item.damageDescription || '', notes: item.notes || '' }}
                 onDraft={(draft) => setItemDrafts((current) => ({ ...current, [idText(item.id)]: draft }))}
                 savingKey={savingKey}
                 disabled={busy}
@@ -319,6 +336,22 @@ export default function ChecklistEditorScreen({ route }: Props) {
           <Text style={themed.eyebrow}>{Number(checklist.checklistType) === 41 ? 'MOVE-OUT INSPECTION' : 'MOVE-IN INSPECTION'}</Text>
           <Text style={themed.title}>{checklist.title}</Text>
           <Text style={themed.subtitle}>Set a condition for each item, then describe any damage or repairs that need attention.</Text>
+          {!!formDraft && <View style={themed.inspectionCard}>
+            <Text style={themed.addRoomTitle}>Inspection details</Text>
+            <Text style={themed.fieldLabel}>Title</Text>
+            <TextInput style={themed.smallInput} value={formDraft.title} onChangeText={(title) => setFormDraft({ ...formDraft, title })} editable={!busy} accessibilityLabel="Checklist title" />
+            <Text style={themed.fieldLabel}>Schedule visit (local date and time)</Text>
+            <TextInput style={themed.smallInput} value={formDraft.inspectionDate} onChangeText={(inspectionDate) => setFormDraft({ ...formDraft, inspectionDate })} placeholder="YYYY-MM-DD HH:mm" placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'} keyboardType="numbers-and-punctuation" editable={!busy} accessibilityLabel="Schedule visit" />
+            <Text style={themed.fieldLabel}>General notes</Text>
+            <TextInput style={themed.detailInput} value={formDraft.generalNotes} onChangeText={(generalNotes) => setFormDraft({ ...formDraft, generalNotes })} multiline editable={!busy} accessibilityLabel="General notes" />
+            <Text style={themed.fieldLabel}>Condition notes</Text>
+            <TextInput style={themed.detailInput} value={formDraft.conditionNotes} onChangeText={(conditionNotes) => setFormDraft({ ...formDraft, conditionNotes })} multiline editable={!busy} accessibilityLabel="Condition notes" />
+            <Text style={themed.roomProgress}>Property: {checklist.propertyName || checklist.propertyId} · Unit: {checklist.unitName || checklist.unitId || 'Entire property'}</Text>
+            <Text style={themed.roomProgress}>Lease: {checklist.leaseId || 'None'} · Tenant: {checklist.tenantName || checklist.tenantId || 'None'}</Text>
+            <TouchableOpacity style={themed.saveDetailsButton} onPress={saveInspection} disabled={busy} accessibilityRole="button">
+              {savingKey === 'inspection' ? <ActivityIndicator size="small" color={mode === 'dark' ? colors.accent : '#2475cf'} /> : <Text style={themed.saveDetailsText}>Save inspection details</Text>}
+            </TouchableOpacity>
+          </View>}
           {!!counterpartLoadError && (
             <View style={themed.counterpartWarning}>
               <Text style={themed.counterpartWarningText}>{counterpartLoadError} Room changes are paused to keep both inspections matched.</Text>
@@ -409,6 +442,15 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
       {savingCondition && <Text style={themed.savingText}>Saving condition…</Text>}
       {!!retry && <TouchableOpacity style={themed.retryConditionButton} onPress={() => onCondition(retry.condition)} disabled={disabled}><Text style={themed.retryInline}>Condition not saved · Retry</Text></TouchableOpacity>}
       <TextInput
+        value={draft.notes}
+        onChangeText={(notes) => onDraft({ ...draft, notes })}
+        placeholder="Item notes (optional)"
+        placeholderTextColor={mode === 'dark' ? colors.muted : '#8795a1'}
+        style={themed.detailInput}
+        multiline
+        editable={!disabled}
+      />
+      <TextInput
         value={draft.damageDescription}
         onChangeText={(damageDescription) => onDraft({ ...draft, damageDescription })}
         placeholder="Damage or repair details (optional)"
@@ -441,6 +483,8 @@ const styles = StyleSheet.create({
   retryButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 13, backgroundColor: '#2475cf', marginTop: 15 },
   retryText: { color: '#fff', fontWeight: '900' },
   progressCard: { flexDirection: 'row', alignItems: 'center', gap: 18, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#dce4e8', paddingVertical: 18, marginBottom: 24 },
+  inspectionCard: { marginBottom: 20, gap: 5 },
+  fieldLabel: { color: '#526775', fontSize: 12, fontWeight: '800', marginTop: 8 },
   progressValue: { color: '#102d43', fontSize: 23, fontWeight: '900' },
   progressLabel: { color: '#617180', fontSize: 12, marginBottom: 7 },
   progressTrack: { height: 7, borderRadius: 5, overflow: 'hidden', backgroundColor: '#dfe8e6' },
@@ -498,6 +542,7 @@ const darkStyles = StyleSheet.create({
   counterpartWarningText: { ...styles.counterpartWarningText, color: '#f8d39b' },
   counterpartRetryText: { ...styles.counterpartRetryText, color: '#f0b669' },
   progressCard: { ...styles.progressCard, borderColor: '#35495b' },
+  fieldLabel: { ...styles.fieldLabel, color: '#b4c3d0' },
   progressValue: { ...styles.progressValue, color: '#f2f6fa' },
   progressLabel: { ...styles.progressLabel, color: '#b4c3d0' },
   progressTrack: { ...styles.progressTrack, backgroundColor: '#35495b' },

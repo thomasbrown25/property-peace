@@ -76,6 +76,7 @@ export default function LeaseDetailScreen() {
   const frequency = lease ? text(field(lease, 'rentFrequency')) : null;
   const isActive = lease ? field(lease, 'isActive') : null;
   const agreement = lease ? field(lease, 'leaseAgreement') : null;
+  const signed = Boolean(agreement && (agreement.landlordSignedAt || agreement.LandlordSignedAt || agreement.signatureCompletedAt || agreement.SignatureCompletedAt || agreement.docuSignEnvelopeId || agreement.DocuSignEnvelopeId));
   const draft = lease ? field(lease, 'isDrafted') === true || agreement?.isDrafted === true || agreement?.IsDrafted === true : false;
   const statusLabel = archived ? 'Archived' : draft ? 'Draft' : isActive === false ? 'Inactive' : isActive === true ? 'Active' : 'Status unavailable';
   const nextDue = lease && !archived && !draft && isActive === true ? nextRentDueDate(lease, today) : null;
@@ -131,7 +132,8 @@ export default function LeaseDetailScreen() {
             <Text style={[styles.propertyLinkText, { color: ink }]}>View property</Text>
             <Ionicons name="arrow-forward" size={19} color={muted} />
           </TouchableOpacity> : null}
-          <Text style={[styles.footnote, { color: muted }]}>To edit, renew, sign, or manage payments for this lease, use the web app. Amounts shown here are lease terms, not payment balances.</Text>
+          {!signed && !archived && <TouchableOpacity style={[styles.propertyLink, { borderColor: line }]} accessibilityRole="button" accessibilityLabel="Edit lease" onPress={() => navigation.navigate('AddLease' as any, { leaseId } as any)}><Ionicons name="create-outline" size={21} color={accent} /><Text style={[styles.propertyLinkText, { color: ink }]}>Edit lease terms</Text><Ionicons name="arrow-forward" size={19} color={muted} /></TouchableOpacity>}
+          <Text style={[styles.footnote, { color: muted }]}>Renewal, signatures, and payments are not managed here. Amounts shown are lease terms, not payment balances.</Text>
         </>}
     </ScrollView>
   );

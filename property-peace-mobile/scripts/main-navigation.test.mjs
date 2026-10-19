@@ -37,6 +37,23 @@ test('tenant navigation does not show the landlord Checklists tab', () => {
   );
 });
 
+test('every visible native-stack back button hides its previous-screen title', async () => {
+  const main = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
+  const checklists = await readFile(new URL('../src/navigation/ChecklistsNavigator.tsx', import.meta.url), 'utf8');
+  const auth = await readFile(new URL('../src/navigation/AuthNavigator.tsx', import.meta.url), 'utf8');
+  assert.match(main, /function useStackOptions\(\)[\s\S]*headerBackTitleVisible: false/);
+  assert.match(checklists, /<Stack\.Navigator[\s\S]*headerBackTitleVisible: false/);
+  assert.match(auth, /<Stack\.Navigator[\s\S]*headerShown: false/);
+  assert.doesNotMatch(main + checklists, /headerBackTitleVisible: true|headerBackTitle:/);
+  const detail = await readFile(new URL('../src/screens/tenant/TenantMaintenanceDetailScreen.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(detail, /‹ Maintenance/);
+  for (const screen of ['ForgotPasswordScreen', 'MfaVerificationScreen']) {
+    const source = await readFile(new URL(`../src/screens/auth/${screen}.tsx`, import.meta.url), 'utf8');
+    assert.match(source, /<Ionicons name="arrow-back"/);
+    assert.doesNotMatch(source, /<Text[^>]*>Back to (?:login|Sign In)<\/Text>/);
+  }
+});
+
 test('unsupported roles do not receive an empty tab navigator', () => {
   assert.equal(loadError, undefined);
   assert.deepEqual(visibleMainTabsForAudience('unsupported'), []);

@@ -113,7 +113,7 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
     try {
       const started = await ChecklistAPI.update(checklist.id, {
         ...checklist,
-        inspectionDate: new Date().toISOString(),
+        inspectionDate: checklist.inspectionDate || new Date().toISOString(),
       });
       openEditor(started);
     } catch (startError: any) {
@@ -213,6 +213,10 @@ export default function PropertyChecklistsScreen({ navigation, route }: Props) {
               <Text style={themed.subtitle}>Start an inspection or continue where you left off.</Text>
             </View>
           </View>
+          {cards.length > 0 && !error && <TouchableOpacity style={[themed.primaryButton, { marginBottom: 18 }]} disabled={Boolean(startingKey)} onPress={() => startMissing(40, null, 'new-in')} accessibilityRole="button">
+            {startingKey === 'new-in' ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="add" size={20} color="#fff" />}
+            <Text style={themed.primaryText}>Add move-in inspection</Text>
+          </TouchableOpacity>}
           {!!error && (
             <TouchableOpacity style={themed.errorCard} onPress={load}>
               <Ionicons name="cloud-offline-outline" size={21} color={mode === 'dark' ? '#f0b669' : '#a45f12'} />

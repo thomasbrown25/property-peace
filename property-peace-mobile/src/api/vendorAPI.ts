@@ -17,6 +17,7 @@ export interface Vendor {
   alternatePhone?: string | null;
   licenseNumber?: string | null;
   specialties?: string | null;
+  // Tax ID is intentionally omitted from API reads.
   requires1099?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -50,6 +51,16 @@ export type VendorInput = {
   email?: string;
   phone?: string;
   notes?: string;
+  description?: string;
+  specialties?: string;
+  alternatePhone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  taxId?: string;
+  licenseNumber?: string;
+  requires1099?: boolean;
 };
 
 const unwrap = <T>(response: ApiResponse<T> | T): T =>

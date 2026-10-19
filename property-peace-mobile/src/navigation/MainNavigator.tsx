@@ -123,6 +123,8 @@ function useStackOptions() {
   const background = mode === 'dark' ? colors.background : '#fbf7f4';
   return {
     headerTintColor: mode === 'dark' ? colors.text : '#0b3558',
+    // Native iOS otherwise prints the previous screen's title beside the arrow.
+    headerBackTitleVisible: false,
     headerTitleStyle: { fontWeight: '800' as const, color: colors.text },
     headerShadowVisible: false,
     headerStyle: { backgroundColor: background },
@@ -163,7 +165,7 @@ function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
   return (
     <MaintenanceStack.Navigator screenOptions={stackOptions}>
       {tenant ? <>
-        <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ title: 'Maintenance', headerLeft: () => <PageBackButton /> }} />
+        <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ title: 'Maintenance', headerLeft: () => <PageBackButton inHeader /> }} />
         <MaintenanceStack.Screen name="TenantMaintenanceIntake" component={TenantMaintenanceIntakeScreen} options={{ title: 'Report an issue' }} />
         <MaintenanceStack.Screen name="MaintenanceEmergency" component={MaintenanceEmergencyScreen} options={{ title: 'Emergency safety', presentation: 'modal' }} />
         <MaintenanceStack.Screen name="TenantMaintenanceReceipt" component={TenantMaintenanceReceiptScreen} options={{ title: 'Report received', headerBackVisible: false }} />

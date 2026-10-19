@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+const require = createRequire(import.meta.url);
+const ts = require('typescript');
+const source = readFileSync(new URL('../src/features/leases/leaseForm.ts', import.meta.url), 'utf8');
+const exports = {};
+vm.runInNewContext(ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, { exports });
+const { hydrateLease, leasePayload, validateLease, isSignedLease } = exports;
+const original = { Id: 42, PropertyId: 3, UnitId: 9, Name: 'Existing', StartDate: '2026-11-01T00:00:00', EndDate: '2027-10-31T00:00:00', LeaseLength: -1, CustomDateSelected: true, RentAmount: 1200, DepositAmount: 400, RentFrequency: 'Quarterly', RentDueDay: 7, IsActive: true, OrganizationId: 19, OperatingAccountId: 77, IsScreeningComplete: true, RentIncreaseType: 'percentage', RentIncreaseValue: 3, RentIncreaseInterval: 12, AutoRenewLease: true, AutoRenewLeaseLength: -1, AutoRenewRentIncrement: true, AutoRenewRentIncrementType: 'amount', AutoRenewRentIncrementValue: 25, CreateChecklistOnStartDate: true, OverdueAmount: 45, PetDepositAmount: 100, ProratedRentDue: true, IsProratedRent: true, ProratedRentAmount: 250, ProrationMethod: 'manual', Fees: [{ Id: 5, Name: 'Late', Amount: 35, IsLateFee: true, FeeType: 'Flat', DueDate: '2026-11-01' }], LeaseDeposits: [{ Id: 8, Name: 'Key', Amount: 20, DueDate: '2026-11-01' }], PetsAllowed: false, SmokingAllowed: 'outsideOnly', AdditionalTerms: 'Quiet hours', IncludeEarlyTerminationClause: true, EarlyTerminationClauseText: '60 days', LeaseOccupants: [{ Id: 4, Name: 'Child' }], LeaseCoSigners: [{ Id: 3 }], Parking: { Spaces: 2 }, UtilityServiceResponsibilities: [{ Id: 10 }], MaintenanceResponsibilities: [{ Id: 11 }], LeaseKeys: [{ Id: 12 }], RentCollectionOtherOptions: '["cash"]', TenantMailingCity: 'Boston', LeaseAgreement: { IsDrafted: false } };
+test('edit hydrate and round-trip retain DTO scalars and relationship collections without read-only projection keys', () => {
+  const form = hydrateLease(original);
+  assert.equal(form.leaseLength, -1);
+  assert.equal(form.proratedRentAmount, '250');
+  assert.equal(form.autoRenewRentIncrementValue, '25');
+  assert.equal(form.petsAllowed, false);
+  const payload = leasePayload({ ...form, rentAmount: '1300', additionalTerms: 'No parties' }, false);
+  assert.equal(payload.rentAmount, 1300);
+  assert.equal(payload.leaseLength, -1);
+  assert.equal(payload.organizationId, 19);
+  assert.equal(payload.operatingAccountId, 77);
+  assert.equal(payload.rentIncreaseInterval, 12);
+  assert.equal(payload.autoRenewRentIncrementValue, 25);
+  assert.equal(payload.additionalTerms, 'No parties');
+  assert.deepEqual(JSON.parse(JSON.stringify(payload.fees)), original.Fees);
+  assert.deepEqual(JSON.parse(JSON.stringify(payload.leaseDeposits)), original.LeaseDeposits);
+  assert.deepEqual(JSON.parse(JSON.stringify(payload.leaseOccupants)), original.LeaseOccupants);
+  assert.deepEqual(JSON.parse(JSON.stringify(payload.parking)), original.Parking);
+  assert.equal(payload.propertyName, undefined);
+  assert.equal(payload.leaseAgreement, undefined);
+});
+test('missing non-exposed DTO keys are omitted, never turned into null/false/empty collections', () => {
+  const payload = leasePayload(hydrateLease({ ...original, Fees: undefined, LeaseDeposits: undefined, LeaseOccupants: undefined, Parking: undefined, OperatingAccountId: undefined }), false);
+  for (const key of ['fees', 'leaseDeposits', 'leaseOccupants', 'parking', 'operatingAccountId']) assert.equal(Object.hasOwn(payload, key), false, key);
+});
+test('native editor renders sectioned DTO fields and rechecks signatures before posting', () => {
+  const screen = readFileSync(new URL('../src/screens/landlord/AddLeaseScreen.tsx', import.meta.url), 'utf8');
+  for (const field of ['petDepositAmount', 'overdueAmount', 'proratedRentAmount', 'autoRenewLeaseLength', 'autoRenewRentIncrementValue', 'rentIncreaseInterval', 'createChecklistOnStartDate', 'smokingAllowed', 'earlyTerminationClauseText', 'additionalTerms']) assert.ok(screen.includes(`'${field}'`), field);
+  assert.ok(screen.includes('payloadForm = { ...form, original: latest }'));
+  assert.ok(screen.includes('if (isSignedLease(latest))'));
+});
+test('validate added financial and renewal fields and signed statuses', () => {
+  const form = hydrateLease(original);
+  for (const change of [{ petDepositAmount: '-1' }, { proratedRentAmount: 'bad' }, { autoRenewLeaseLength: '1.5' }, { autoRenewRentIncrementValue: '-2' }, { rentIncreaseValue: '101' }, { rentIncreaseInterval: '0' }]) assert.ok(validateLease({ ...form, ...change }, false), JSON.stringify(change));
+  assert.equal(validateLease(form, false), null);
+  assert.equal(isSignedLease({ LeaseAgreement: { SignatureStatus: 'Completed' } }), true);
+  assert.equal(isSignedLease({ LeaseAgreement: { LandlordSignedAt: '2026-01-01' } }), true);
+  assert.equal(isSignedLease(original), false);
+});

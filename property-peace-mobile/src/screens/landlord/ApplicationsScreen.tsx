@@ -1,8 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { View, Pressable, Text, Modal } from 'react-native';
+import ApplicationFormModal from './ApplicationFormModal';
+import { useAppTheme } from '../../theme/AppTheme';
 import ApplicationInviteModal from './ApplicationInviteModal';
 import { useAppSelector } from '../../store/hooks';
-import { getLandlordApplications, type RentalApplication } from '../../api/landlordApplicationsAPI';
+import { getApplication, getLandlordApplications, type RentalApplication } from '../../api/landlordApplicationsAPI';
 import RentalWorkspace, { RentalWorkspaceDetail, dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ApplicationsStackParamList } from '../../navigation/types';
@@ -38,16 +40,29 @@ const applicationConfig = (landlordId: string, scope: string, openInvite?: () =>
 
 export default function ApplicationsScreen() {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [chooseOpen, setChooseOpen] = useState(false);
+  const { colors } = useAppTheme();
   const [reloadToken, setReloadToken] = useState(0);
   const user = useAppSelector(state => state.user.currentUser);
   const landlordId = String(user?.id ?? user?.Id ?? '');
   const scope = landlordId ? `${landlordId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
-  const config = useMemo(() => applicationConfig(landlordId, scope, () => setInviteOpen(true)), [landlordId, scope]);
+  const config = useMemo(() => applicationConfig(landlordId, scope, () => setChooseOpen(true)), [landlordId, scope]);
   return <View style={{ flex: 1 }}><RentalWorkspace config={config} scope={scope} reloadToken={reloadToken} detailRoute="ApplicationDetail" />
-    <ApplicationInviteModal key={scope} visible={inviteOpen && !!scope} scope={scope} onClose={() => setInviteOpen(false)} onSent={() => setReloadToken(value => value + 1)} />
+    <Modal visible={chooseOpen && !!scope} transparent animationType="fade" onRequestClose={() => setChooseOpen(false)}><View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0009' }}><View style={{ backgroundColor: colors.background, padding: 24, borderRadius: 16 }}><Text accessibilityRole="header" style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 16 }}>Add application</Text>
+      <Pressable accessibilityRole="button" onPress={() => { setChooseOpen(false); setFormOpen(true); }} style={{ padding: 14 }}><Text style={{ color: colors.accent, fontWeight: '700' }}>Enter application myself</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => { setChooseOpen(false); setInviteOpen(true); }} style={{ padding: 14 }}><Text style={{ color: colors.accent, fontWeight: '700' }}>Invite applicant by email</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => setChooseOpen(false)} style={{ padding: 14 }}><Text style={{ color: colors.text }}>Cancel</Text></Pressable>
+    </View></View></Modal>
+    <ApplicationFormModal key={scope} visible={formOpen && !!scope} scope={scope} onClose={() => setFormOpen(false)} onSaved={() => setReloadToken(value => value + 1)} />
+    <ApplicationInviteModal key={`invite:${scope}`} visible={inviteOpen && !!scope} scope={scope} onClose={() => setInviteOpen(false)} onSent={() => setReloadToken(value => value + 1)} />
   </View>;
 }
 
 export function ApplicationDetailScreen({ route }: NativeStackScreenProps<ApplicationsStackParamList, 'ApplicationDetail'>) {
-  return <RentalWorkspaceDetail config={applicationConfig('', '')} item={route.params.item} scope={route.params.scope} />;
+  const [edit, setEdit] = useState(false);
+  const [current, setCurrent] = useState(route.params.item);
+  return <View style={{ flex: 1 }}><RentalWorkspaceDetail config={applicationConfig('', '')} item={current} scope={route.params.scope} action={{ label: 'Edit application', onPress: () => setEdit(true) }} />
+    <ApplicationFormModal visible={edit} scope={route.params.scope} item={current} onClose={() => setEdit(false)} onSaved={() => { void getApplication(current.id).then(setCurrent); }} />
+  </View>;
 }

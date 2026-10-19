@@ -8,6 +8,9 @@ export interface ExpenseFormState {
   propertyId: number | null;
   unitId: number | null;
   description: string;
+  vendor?: string;
+  paymentMethod?: string;
+  category?: string;
 }
 
 export interface LocalExpenseReceipt {
@@ -26,6 +29,8 @@ export interface CreateExpensePayload {
   amount: number;
   expenseDate: string;
   isRecurring: false;
+  vendor?: string;
+  paymentMethod?: string;
   isPaid: true;
   paidDate: string;
   billDate: string;
@@ -92,6 +97,9 @@ export const validateExpenseStep = (form: ExpenseFormState, step: ExpenseStep): 
     if (!description) errors.description = 'Describe the expense.';
     else if (description.length > 200) errors.description = 'Keep the description to 200 characters or fewer.';
   }
+  if (form.vendor && form.vendor.trim().length > 200) errors.vendor = 'Keep vendor to 200 characters or fewer.';
+  if (form.paymentMethod && form.paymentMethod.trim().length > 50) errors.paymentMethod = 'Keep payment method to 50 characters or fewer.';
+  if (form.category && form.category.trim().length > 100) errors.category = 'Keep category to 100 characters or fewer.';
   return errors;
 };
 
@@ -119,7 +127,9 @@ export const buildCreateExpensePayload = (form: ExpenseFormState, landlordId: nu
   if (amount === null || typeof propertyId !== 'number' || !Number.isInteger(propertyId) || propertyId <= 0) throw new Error('Expense form is invalid.');
   return {
     landlordId, propertyId, unitId: form.unitId, name: form.description.trim(),
-    category: categorizeExpense(form.description).category, amount, expenseDate: form.expenseDate,
+    category: form.category?.trim() || categorizeExpense(form.description).category, amount, expenseDate: form.expenseDate,
+    ...(form.vendor?.trim() ? { vendor: form.vendor.trim() } : {}),
+    ...(form.paymentMethod?.trim() ? { paymentMethod: form.paymentMethod.trim() } : {}),
     isRecurring: false, isPaid: true, paidDate, billDate: form.expenseDate, dueDate: form.expenseDate,
   };
 };

@@ -113,6 +113,7 @@ export function AnnouncementDetailScreen({ route }: NativeStackScreenProps<Annou
   const [selected, setSelected] = useState(route.params.item);
   const [detailLoading, setDetailLoading] = useState(true);
   const [detailError, setDetailError] = useState('');
+  const [editOpen, setEditOpen] = useState(false);
   const bg = mode === 'dark' ? colors.background : '#fbf7f4';
   const id = Number(value(route.params.item, 'id'));
   const load = useCallback(async (isCurrent: () => boolean = () => true) => {
@@ -130,16 +131,17 @@ export function AnnouncementDetailScreen({ route }: NativeStackScreenProps<Annou
   }, [load]));
   const state = status(selected);
   const tint = state === 'Sent' ? '#218455' : state === 'Scheduled' ? colors.accent : '#b26b17';
-  return <ScrollView style={{ backgroundColor: bg }} contentContainerStyle={styles.detail}>
+  return <View style={{ flex: 1, backgroundColor: bg }}><ScrollView contentContainerStyle={styles.detail}>
     <View style={styles.detailHeading}>
       <View style={[styles.badge, { backgroundColor: mode === 'dark' ? colors.surface : state === 'Sent' ? '#e9f6ef' : state === 'Scheduled' ? '#eaf3ff' : '#fff2df' }]}><Text style={[styles.badgeText, { color: mode === 'dark' && state !== 'Scheduled' ? colors.text : tint }]}>{state}</Text></View>
       <Text accessibilityRole="header" style={[styles.detailTitle, { color: colors.text }]}>{text(selected, 'title') || 'Untitled announcement'}</Text>
     </View>
     {detailLoading ? <ActivityIndicator color={colors.accent} /> : detailError ? <View><Text accessibilityRole="alert" style={{ color: colors.text }}>{detailError}</Text><Pressable accessibilityRole="button" onPress={() => { void load(); }} style={styles.retry}><Text style={{ color: colors.accent }}>Retry details</Text></Pressable></View> : <>
+      {state === 'Scheduled' && <Pressable accessibilityRole="button" accessibilityLabel="Edit scheduled announcement" onPress={() => setEditOpen(true)} style={[styles.addButton, { backgroundColor: colors.accent }]}><Text style={styles.addText}>Edit scheduled announcement</Text></Pressable>}
       <Text style={[styles.detailMessage, { color: colors.text }]}>{text(selected, 'formattedMessage') || text(selected, 'message') || 'No message available'}</Text>
       {([['Status', state], ['Audience', audience(selected)], ['Channels', channels(selected)], ['Created', date(value(selected, 'createdAt'))], ['Sent / scheduled', date(value(selected, 'completedAt') || value(selected, 'scheduledAt'))], ['Delivered', String(value(selected, 'sentCount') ?? 0)], ['Failed', String(value(selected, 'failedCount') ?? 0)], ['Created by', text(selected, 'createdByName') || 'Unavailable']] as const).map(([label, content]) => <View key={label} style={[styles.detailRow, { borderTopColor: colors.border }]}><Text style={[styles.detailLabel, { color: colors.muted }]}>{label}</Text><Text style={[styles.detailValue, { color: colors.text }]}>{content}</Text></View>)}
     </>}
-  </ScrollView>;
+  </ScrollView><AnnouncementComposeModal visible={editOpen} editing={selected} onClose={() => setEditOpen(false)} onSent={() => { setEditOpen(false); void load(); }} /></View>;
 }
 
 const styles = StyleSheet.create({

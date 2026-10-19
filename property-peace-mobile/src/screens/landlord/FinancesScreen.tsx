@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import LandlordPageHeader from '../../components/LandlordPageHeader';
 import moneyCenterAPI, { type FinanceScope, type MoneyCenterItem, type MoneyCenterItems, type MoneyCenterOverview } from '../../api/moneyCenterAPI';
@@ -54,6 +54,7 @@ function matchesSearch(item: MoneyCenterItem, query: string) {
 
 export default function FinancesScreen() {
   const { colors, mode } = useAppTheme();
+  const navigation = useNavigation<any>();
   const user = useAppSelector(state => state.user.currentUser);
   const authScope = `${user?.id ?? user?.Id ?? ''}:${user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? ''}`;
   const [period, setPeriod] = useState<Period>('this-month');
@@ -171,7 +172,7 @@ export default function FinancesScreen() {
         {itemsError ? <View style={styles.feedback}><Text style={{ color: colors.text }}>Financial activity is unavailable.</Text><Pressable accessibilityRole="button" onPress={() => void load()} style={styles.retry}><Text style={{ color: colors.accent, fontWeight: '700' }}>Try again</Text></Pressable></View> : <>
           {visibleItems && visibleItems.totalCount > visibleItems.items.length && <Text style={[styles.hint, { color: colors.muted, marginBottom: 12 }]}>Showing {visibleItems.items.length} of {visibleItems.totalCount} records. This list may be incomplete.</Text>}
           {!list.length && <View style={styles.feedback}><Ionicons name="receipt-outline" size={28} color={colors.accent} /><Text style={{ color: colors.muted }}>{search.trim() && sectionItems.length ? 'No records match your search.' : `No ${sectionLabel.toLowerCase()} records for this selection.`}</Text></View>}
-          {list.map((item, index) => <View key={`${item.sourceId}-${index}`} style={[styles.row, { borderBottomColor: colors.border }]}><View style={styles.rowMain}><Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>{item.description || item.category || 'Recorded item'}</Text><Text style={[styles.rowAmount, { color: item.direction === 'wentOut' ? colors.text : colors.accent }]}>{amount(item.amount)}</Text></View><Text style={[styles.hint, { color: colors.muted }]}>{[item.propertyName, item.unitName, dateLabel(item.occurredAt)].filter(Boolean).join(' · ')}</Text><Text style={[styles.hint, { color: colors.muted }]}>{[item.category, item.treatment, item.needsAttention ? 'Needs review' : ''].filter(Boolean).join(' · ')}</Text></View>)}
+          {list.map((item, index) => <View key={`${item.sourceId}-${index}`} style={[styles.row, { borderBottomColor: colors.border }]}><View style={styles.rowMain}><Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>{item.description || item.category || 'Recorded item'}</Text><Text style={[styles.rowAmount, { color: item.direction === 'wentOut' ? colors.text : colors.accent }]}>{amount(item.amount)}</Text></View><Text style={[styles.hint, { color: colors.muted }]}>{[item.propertyName, item.unitName, dateLabel(item.occurredAt)].filter(Boolean).join(' · ')}</Text><Text style={[styles.hint, { color: colors.muted }]}>{[item.category, item.treatment, item.needsAttention ? 'Needs review' : ''].filter(Boolean).join(' · ')}</Text>{item.sourceType === 'expense' && /^expense:[1-9]\d*$/.test(item.sourceId) && <Pressable accessibilityRole="button" accessibilityLabel={`Edit expense ${item.description}`} onPress={() => navigation.navigate('Dashboard', { screen: 'AddExpense', params: { expenseId: Number(item.sourceId.slice(8)) } })} style={styles.retry}><Text style={{ color: colors.accent, fontWeight: '700' }}>Edit expense</Text></Pressable>}</View>)}
         </>}
       </>}
     </ScrollView>
