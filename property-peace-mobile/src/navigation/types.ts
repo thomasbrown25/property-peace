@@ -48,6 +48,7 @@ export type SettingsStackParamList = {
 
 export type ListingsStackParamList = {
   ListingsList: undefined;
+  AddListing: { scope: string };
   ListingDetail: { item: import('../api/listingAPI').Listing; scope: string };
 };
 export type ApplicationsStackParamList = {

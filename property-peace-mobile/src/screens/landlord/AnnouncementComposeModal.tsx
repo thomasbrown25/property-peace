@@ -69,7 +69,7 @@ export default function AnnouncementComposeModal({ visible, onClose, onSent, edi
   const option = (name: string, selected: boolean, onPress: () => void) => <Pressable key={name} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} onPress={onPress} style={[styles.option, { borderColor: colors.border }]}><Text style={{ color: colors.text }}>{selected ? '☑' : '☐'}  {name}</Text></Pressable>;
   const targetDate = draft.scheduledAt && Number.isFinite(Date.parse(draft.scheduledAt)) ? new Date(draft.scheduledAt) : new Date(Date.now() + 3600000);
   return <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => { if (!busy) onClose(); }}>
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16), backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' }]}>
+    <View style={[styles.container, { paddingTop: Math.max(insets.top, 16), backgroundColor: colors.background }]}>
       <View style={styles.header}><Text style={[styles.title, { color: colors.text }]}>{editing ? 'Edit announcement' : 'New announcement'}</Text><Pressable accessibilityRole="button" accessibilityLabel="Close announcement" disabled={busy} onPress={onClose} style={styles.option}><Text style={{ color: colors.accent }}>Close</Text></Pressable></View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={[styles.label, { color: colors.text }]}>Audience</Text>

@@ -39,3 +39,12 @@ test('both landlord entry points lead to the registered calendar route', () => {
   assert.match(source('../src/navigation/QuickActionsTabBar.tsx'), /label: 'Calendar'[^\n]*route: 'Dashboard', screen: 'Calendar'/);
   assert.match(source('../src/navigation/MainNavigator.tsx'), /DashboardStack\.Screen name="Calendar" component=\{CalendarScreen\}/);
 });
+
+test('calendar header adds tasks while Today sits before the month arrows', () => {
+  const calendar = source('../src/screens/landlord/CalendarScreen.tsx');
+  const editor = source('../src/screens/landlord/AddCalendarTaskModal.tsx');
+  assert.match(calendar, /onPress=\{\(\) => setAddingTask\(true\)\}[^\n]*accessibilityLabel="Add task"/);
+  assert.match(calendar, /styles\.monthActions[\s\S]*?accessibilityLabel="Go to today"[\s\S]*?accessibilityLabel="Previous month"[\s\S]*?accessibilityLabel="Next month"/);
+  assert.match(calendar, /<AddCalendarTaskModal visible=\{addingTask\} date=\{selected\}/);
+  assert.match(editor, /apiClient\.post\('\/api\/task', \{ title: cleanTitle, dueDate: dueDate\.toISOString\(\), category \}\)/);
+});

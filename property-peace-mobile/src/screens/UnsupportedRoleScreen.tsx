@@ -30,7 +30,7 @@ export default function UnsupportedRoleScreen() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#fbf7f4' },
+  page: { flex: 1, backgroundColor: '#ffffff' },
   content: { flex: 1, justifyContent: 'center', paddingHorizontal: 18, paddingVertical: 24 },
   eyebrow: { color: '#8a4b16', fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginBottom: 12 },
   title: { color: '#102d43', fontSize: 28, fontWeight: '800', lineHeight: 35, marginBottom: 18 },

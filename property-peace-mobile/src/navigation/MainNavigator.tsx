@@ -36,7 +36,7 @@ import VendorDetailScreen from '../screens/landlord/VendorDetailScreen';
 import TeamScreen from '../screens/landlord/TeamScreen';
 import AnnouncementsScreen, { AnnouncementDetailScreen } from '../screens/landlord/AnnouncementsScreen';
 import FinancesScreen from '../screens/landlord/FinancesScreen';
-import ListingsScreen, { ListingDetailScreen } from '../screens/landlord/ListingsScreen';
+import ListingsScreen, { AddListingScreen, ListingDetailScreen } from '../screens/landlord/ListingsScreen';
 import ApplicationsScreen, { ApplicationDetailScreen } from '../screens/landlord/ApplicationsScreen';
 import AddTenantScreen from '../screens/landlord/AddTenantScreen';
 import MaintenanceScreen from '../screens/landlord/MaintenanceScreen';
@@ -120,7 +120,7 @@ const AnnouncementsStack = createNativeStackNavigator<AnnouncementsStackParamLis
 
 function useStackOptions() {
   const { mode, colors } = useAppTheme();
-  const background = mode === 'dark' ? colors.background : '#fbf7f4';
+  const background = colors.background;
   return {
     headerTintColor: mode === 'dark' ? colors.text : '#0b3558',
     // Native iOS otherwise prints the previous screen's title beside the arrow.
@@ -240,6 +240,7 @@ function ListingsNavigator() {
   const options = useStackOptions();
   return <ListingsStack.Navigator screenOptions={options}>
     <ListingsStack.Screen name="ListingsList" component={ListingsScreen} options={{ headerShown: false }} />
+    <ListingsStack.Screen name="AddListing" component={AddListingScreen} options={{ title: 'New listing' }} />
     <ListingsStack.Screen name="ListingDetail" component={ListingDetailScreen} options={({ navigation }) => ({ title: 'Listing details', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
   </ListingsStack.Navigator>;
 }

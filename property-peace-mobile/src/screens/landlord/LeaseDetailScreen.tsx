@@ -90,7 +90,7 @@ export default function LeaseDetailScreen() {
   );
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: dark ? colors.background : '#fbf7f4' }]}
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setToday(new Date()); setRefreshing(true); load(); }} tintColor={accent} />}>
       {status === 'loading' ? <View style={styles.state}><ActivityIndicator color={accent} /><Text style={[styles.stateText, { color: muted }]}>Loading lease…</Text></View> :

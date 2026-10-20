@@ -93,8 +93,8 @@ export default function TenantsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fbf7f4' },
+  container: { flex: 1, backgroundColor: '#fff' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
 
   pageHeader: { paddingHorizontal: 22, paddingTop: 16, paddingBottom: 22 },
   eyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },

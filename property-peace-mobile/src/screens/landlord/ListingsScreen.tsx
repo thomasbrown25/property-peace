@@ -1,14 +1,18 @@
-import React, { useMemo, useState } from 'react';
-import { View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import ListingFormModal from './ListingFormModal';
 import { useAppSelector } from '../../store/hooks';
 import { getListing, getListings, type Listing } from '../../api/listingAPI';
 import RentalWorkspace, { RentalWorkspaceDetail, dateLabel, field, label, moneyLabel, type WorkspaceConfig } from './RentalWorkspace';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { ListingsStackParamList } from '../../navigation/types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAppTheme } from '../../theme/AppTheme';
 
 const status = (item: Listing): string => {
   const raw = field(item, 'status');
+  if (typeof raw === 'string' && ['active', 'published'].includes(raw.toLowerCase())) return 'Active';
   return ({ 0: 'Draft', 1: 'Active', 2: 'Expired', 3: 'Unlisted' } as Record<number, string>)[Number(raw)] ?? (typeof raw === 'string' ? raw : 'Unknown');
 };
 const titleFor = (item: Listing): string => label(item, 'propertyName') || 'Unnamed property';
@@ -30,15 +34,32 @@ const config = (onCreate?: () => void): WorkspaceConfig<Listing> => ({
 });
 
 export default function ListingsScreen() {
-  const [open, setOpen] = useState(false);
-  const [reloadToken, setReloadToken] = useState(0);
+  const navigation = useNavigation<NativeStackNavigationProp<ListingsStackParamList, 'ListingsList'>>();
   const user = useAppSelector(state => state.user.currentUser);
   const userId = String(user?.id ?? user?.Id ?? '');
   const scope = userId ? `${userId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
-  const workspaceConfig = useMemo(() => config(scope ? () => setOpen(true) : undefined), [scope]);
-  return <View style={{ flex: 1 }}><RentalWorkspace config={workspaceConfig} scope={scope} reloadToken={reloadToken} detailRoute="ListingDetail" />
-    <ListingFormModal key={scope} visible={open && !!scope} scope={scope} onClose={() => setOpen(false)} onSaved={() => setReloadToken(value => value + 1)} />
-  </View>;
+  const workspaceConfig = useMemo(() => config(scope ? () => navigation.navigate('AddListing', { scope }) : undefined), [scope, navigation]);
+  return <RentalWorkspace config={workspaceConfig} scope={scope} detailRoute="ListingDetail" />;
+}
+
+export function AddListingScreen({ navigation, route }: NativeStackScreenProps<ListingsStackParamList, 'AddListing'>) {
+  const { colors } = useAppTheme();
+  const dirty = useRef(false);
+  const closing = useRef(false);
+  const onDirtyChange = useCallback((value: boolean) => { dirty.current = value; }, []);
+  useEffect(() => navigation.addListener('beforeRemove', event => {
+    if (closing.current || !dirty.current) return;
+    event.preventDefault();
+    Alert.alert('Discard unsaved changes?', 'Completed steps have been saved as a draft. Changes on this step have not been saved.', [
+      { text: 'Keep editing', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: () => { closing.current = true; navigation.dispatch(event.data.action); } },
+    ]);
+  }), [navigation]);
+  const user = useAppSelector(state => state.user.currentUser);
+  const userId = String(user?.id ?? user?.Id ?? '');
+  const currentScope = userId ? `${userId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
+  if (!currentScope || route.params.scope !== currentScope) return <View style={{ flex: 1, backgroundColor: colors.background, padding: 24 }}><Text accessibilityRole="alert" style={{ color: colors.text }}>Account changed. Go back to refresh this page.</Text></View>;
+  return <ListingFormModal addPage visible scope={currentScope} onDirtyChange={onDirtyChange} onClose={() => { closing.current = true; navigation.goBack(); }} onSaved={() => {}} />;
 }
 
 export function ListingDetailScreen({ route }: NativeStackScreenProps<ListingsStackParamList, 'ListingDetail'>) {

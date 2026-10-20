@@ -283,9 +283,9 @@ function ChecklistSide({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
+  container: { flex: 1, backgroundColor: '#ffffff' },
   content: { padding: 18, paddingBottom: 28 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fbf7f4' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   flex: { flex: 1 },
   hero: { flexDirection: 'row', gap: 14, marginBottom: 28 },
   heroIcon: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: '#edf9ef' },

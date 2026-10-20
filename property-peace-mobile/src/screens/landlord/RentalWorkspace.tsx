@@ -72,7 +72,7 @@ export default function RentalWorkspace<T extends RecordData>({ config, scope, r
   const filtered = useMemo(() => (current ? items : []).filter(item =>
     (filter === 'All' || config.status(item) === filter) && config.searchFor(item).toLowerCase().includes(query.trim().toLowerCase())
   ), [items, current, filter, query, config]);
-  const bg = mode === 'dark' ? colors.background : '#fbf7f4';
+  const bg = colors.background;
   const listingLayout = !!config.overview;
   const searchAndFilters = <>
     <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -127,7 +127,7 @@ export function RentalWorkspaceDetail<T extends RecordData>({ config, item, scop
   const user = useAppSelector(state => state.user.currentUser);
   const userId = String(user?.id ?? user?.Id ?? '');
   const currentScope = userId ? `${userId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
-  const bg = mode === 'dark' ? colors.background : '#fbf7f4';
+  const bg = colors.background;
   if (!scope || scope !== currentScope) return <View style={[styles.center, { backgroundColor: bg }]}><Text accessibilityRole="alert" style={{ color: colors.text }}>Account changed. Go back to refresh this page.</Text></View>;
   return <ScrollView style={{ backgroundColor: bg }} contentContainerStyle={styles.detail}>
     <Text accessibilityRole="header" style={[styles.detailTitle, { color: colors.text }]}>{config.titleFor(item)}</Text>

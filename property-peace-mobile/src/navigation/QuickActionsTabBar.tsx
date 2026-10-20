@@ -171,8 +171,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
   };
 
   return (
-    <View pointerEvents="box-none" style={[styles.dockArea, { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4', paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
-      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.82)' : 'rgba(245, 248, 252, 0.82)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : 'rgba(190, 193, 200, 0.28)', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
+    <View pointerEvents="box-none" style={[styles.dockArea, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
+      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.82)' : colors.surface, borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : '#e1e7eb', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
         {visibleRoutes.map(renderTab)}
         <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Settings" accessibilityHint="Open your settings"
           accessibilityState={{ selected: state.routes[state.index]?.name === 'Settings' }}

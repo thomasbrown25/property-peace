@@ -77,7 +77,7 @@ export default function VendorDetailScreen({ route, navigation }: Props) {
     } finally { setSaving(false); }
   };
 
-  const background = mode === 'dark' ? colors.background : '#fbf7f4';
+  const background = colors.background;
   return <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[styles.container, { backgroundColor: background }]}>
     <ScrollView keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); setReload(n => n + 1); }} tintColor={colors.accent} />} contentContainerStyle={styles.content}>
       {loading ? <ActivityIndicator color={colors.accent} /> : error || !vendor ? <View style={styles.center}><Text style={{ color: colors.text }}>{error || 'Vendor unavailable.'}</Text><Pressable onPress={() => setReload(n => n + 1)} style={styles.action}><Text style={{ color: colors.accent }}>Retry</Text></Pressable></View> : <>

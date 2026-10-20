@@ -53,7 +53,7 @@ export default function AddTenantScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
+  container: { flex: 1, backgroundColor: '#fff' },
   content: { paddingHorizontal: 22, paddingTop: 30, paddingBottom: 36 },
   eyebrow: { color: '#2f8f46', fontSize: 12, fontWeight: '800', letterSpacing: 1.4, marginBottom: 8 },
   title: { color: '#082941', fontSize: 30, fontWeight: '800', letterSpacing: -0.7, marginBottom: 8 },

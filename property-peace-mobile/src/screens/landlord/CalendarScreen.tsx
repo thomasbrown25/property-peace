@@ -10,6 +10,7 @@ import { buildCalendarEvents, dayKey } from '../../features/calendar/calendarEve
 import { useAppSelector } from '../../store/hooks';
 import { useAppTheme } from '../../theme/AppTheme';
 import PageBackButton from '../../components/PageBackButton';
+import AddCalendarTaskModal from './AddCalendarTaskModal';
 
 type LoadState = 'loading' | 'ready' | 'error';
 const weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -26,6 +27,7 @@ export default function CalendarScreen() {
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [partial, setPartial] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [addingTask, setAddingTask] = useState(false);
   const generation = useRef(0);
   const scope = useRef(organizationId);
   scope.current = organizationId;
@@ -84,12 +86,13 @@ export default function CalendarScreen() {
     <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
       <PageBackButton onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('DashboardHome')} />
       <Text style={[styles.heading, { color: colors.text }]} accessibilityRole="header">Calendar</Text>
-      <Pressable onPress={() => setSelected(new Date())} accessibilityRole="button" accessibilityLabel="Go to today" style={[styles.todayButton, { borderColor: colors.border }]}><Text style={[styles.todayButtonText, { color: colors.accent }]}>Today</Text></Pressable>
+      <Pressable onPress={() => setAddingTask(true)} accessibilityRole="button" accessibilityLabel="Add task" style={[styles.addButton, { backgroundColor: colors.accent }]}><Ionicons name="add" size={19} color="#fff" /><Text style={styles.addButtonText}>Add task</Text></Pressable>
     </View>
     <ScrollView contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 100 }]} refreshControl={<RefreshControl refreshing={refreshing} tintColor={colors.accent} onRefresh={() => { setRefreshing(true); void load(); }} />}>
       <View style={styles.monthHeader}>
         <Text style={[styles.month, { color: colors.text }]}>{selected.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</Text>
         <View style={styles.monthActions}>
+          <Pressable onPress={() => setSelected(new Date())} accessibilityRole="button" accessibilityLabel="Go to today" style={[styles.todayButton, { borderColor: colors.border }]}><Text style={[styles.todayButtonText, { color: colors.accent }]}>Today</Text></Pressable>
           <Pressable style={[styles.monthArrow, { borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Previous month" onPress={() => shiftMonth(-1)}><Ionicons name="chevron-back" size={20} color={colors.text} /></Pressable>
           <Pressable style={[styles.monthArrow, { borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Next month" onPress={() => shiftMonth(1)}><Ionicons name="chevron-forward" size={20} color={colors.text} /></Pressable>
         </View>
@@ -119,13 +122,14 @@ export default function CalendarScreen() {
         </Pressable>)}
       </>}
     </ScrollView>
+    <AddCalendarTaskModal visible={addingTask} date={selected} onClose={() => setAddingTask(false)} onSaved={() => { setAddingTask(false); void load(); }} />
   </View>;
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 }, header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 16, gap: 12 },
-  heading: { flex: 1, fontSize: 26, fontWeight: '800' }, todayButton: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, minHeight: 44, justifyContent: 'center' }, todayButtonText: { fontSize: 14, fontWeight: '700' },
-  content: { paddingHorizontal: 20 }, monthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 16 }, month: { fontSize: 20, fontWeight: '800' }, monthActions: { flexDirection: 'row', gap: 8 }, monthArrow: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  heading: { flex: 1, fontSize: 26, fontWeight: '800' }, addButton: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 44, borderRadius: 12, paddingHorizontal: 12 }, addButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' }, todayButton: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, minHeight: 44, justifyContent: 'center' }, todayButtonText: { fontSize: 14, fontWeight: '700' },
+  content: { paddingHorizontal: 20 }, monthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 16, gap: 8 }, month: { flexShrink: 1, fontSize: 20, fontWeight: '800' }, monthActions: { flexDirection: 'row', gap: 6 }, monthArrow: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   calendar: { flexDirection: 'row', flexWrap: 'wrap', borderWidth: 1, borderRadius: 18, paddingHorizontal: 8, paddingVertical: 14 }, weekday: { width: '14.285%', textAlign: 'center', fontSize: 12, fontWeight: '700', paddingBottom: 8 }, cell: { width: '14.285%', height: 55, alignItems: 'center', justifyContent: 'center' }, dayCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }, dayNumber: { fontSize: 15, fontWeight: '700' }, eventDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },
   agendaHeading: { fontSize: 20, fontWeight: '800', marginTop: 28, marginBottom: 14 }, event: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 10, minHeight: 70 }, eventIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, eventCopy: { flex: 1 }, eventTitle: { fontSize: 15, fontWeight: '700' }, eventDetail: { fontSize: 13, marginTop: 4 }, state: { paddingVertical: 28, alignItems: 'center' }, retry: { fontWeight: '700', marginTop: 14 }, notice: { marginBottom: 14, fontSize: 13 }, empty: { fontSize: 14, paddingVertical: 16 },
 });

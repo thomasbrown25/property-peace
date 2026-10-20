@@ -467,9 +467,9 @@ function InspectionItem({ checklistId, item, draft, onDraft, savingKey, disabled
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fbf7f4' },
+  container: { flex: 1, backgroundColor: '#ffffff' },
   content: { padding: 18, paddingBottom: 36 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#fbf7f4' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, backgroundColor: '#ffffff' },
   flex: { flex: 1 },
   eyebrow: { color: '#2f8f46', fontSize: 10, fontWeight: '900', letterSpacing: 1.1 },
   title: { color: '#102d43', fontSize: 25, lineHeight: 31, fontWeight: '900', letterSpacing: -0.5, marginTop: 3 },

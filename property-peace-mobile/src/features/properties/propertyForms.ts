@@ -54,6 +54,12 @@ export const propertyPayload = (form: PropertyForm, original?: Property, initial
 
 export type UnitForm = { name: string; bedrooms: string; baths: string; squareFeet: string; rentAmount: string; type: string; isOccupied: boolean };
 export const emptyUnit = (name = ''): UnitForm => ({ name, bedrooms: '', baths: '', squareFeet: '', rentAmount: '', type: '', isOccupied: false });
+export const locationErrors = (form: PropertyForm) => propertyErrors(form).filter(error => !/property type|year built/i.test(error));
+export const buildingErrors = (form: PropertyForm) => propertyErrors(form).filter(error => /property type|year built/i.test(error));
+export const bulkUnitCountError = (value: string) => !/^[1-9]\d*$/.test(value.trim()) || Number(value) > 50
+  ? 'Enter a whole number of units from 1 to 50' : '';
+export const bulkUnitDrafts = (value: string): UnitForm[] =>
+  bulkUnitCountError(value) ? [] : Array.from({ length: Number(value.trim()) }, (_, i) => emptyUnit(`Unit ${i + 1}`));
 export const prefillUnit = (unit: Unit): UnitForm => ({
   name: text(get(unit, 'name')), bedrooms: text(get(unit, 'bedrooms')), baths: text(get(unit, 'baths')),
   squareFeet: text(get(unit, 'squareFeet')), rentAmount: text(get(unit, 'rentAmount')),

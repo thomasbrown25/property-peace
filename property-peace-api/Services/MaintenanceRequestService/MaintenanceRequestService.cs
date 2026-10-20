@@ -467,6 +467,11 @@ Choose the priority that best matches the urgency and impact of the maintenance 
                 if (property == null)
                     return ServiceResponse<LoadMaintenanceRequestDto>.CreateError("Invalid Property ID", "Issue getting property ID.");
 
+                // Agent tool inputs are model-generated. The selected property must belong to
+                // the organization authorized by the request middleware, not merely exist.
+                if (property.OrganizationId != organizationId.Value)
+                    return ServiceResponse<LoadMaintenanceRequestDto>.CreateError("Invalid Property ID", "Property is not in the selected organization.", "", 403);
+
                 dto.OrganizationId = organizationId.Value;
 
                 if (string.IsNullOrWhiteSpace(dto.Title))

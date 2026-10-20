@@ -293,7 +293,7 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
                     }
                     case "submit_maintenance_request":
                     {
-                        var (result, request) = await SubmitMaintenanceRequestAsync(input);
+                        var (result, request) = await SubmitMaintenanceRequestAsync(input, landlordUserId);
                         return (result, request);
                     }
                     default:
@@ -389,7 +389,7 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
             return JsonSerializer.Serialize(new { categories = result });
         }
 
-        private async Task<(string result, LoadMaintenanceRequestDto? request)> SubmitMaintenanceRequestAsync(JsonNode? input)
+        private async Task<(string result, LoadMaintenanceRequestDto? request)> SubmitMaintenanceRequestAsync(JsonNode? input, long landlordUserId)
         {
             if (input == null)
                 return (JsonSerializer.Serialize(new { error = "Missing input parameters" }), null);
@@ -406,7 +406,7 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
 
             var property = await _dataContext.Properties
                 .AsNoTracking()
-                .Where(p => p.Id == propertyId && !p.IsDeleted)
+                .Where(p => p.Id == propertyId && p.LandlordId == landlordUserId && !p.IsDeleted)
                 .Select(p => new { p.Id, p.OrganizationId })
                 .FirstOrDefaultAsync();
 
@@ -415,6 +415,10 @@ namespace brownstone_hub_api.Services.LandlordMaintenanceAgentService
 
             if (!property.OrganizationId.HasValue)
                 return (JsonSerializer.Serialize(new { error = "Property has no organization" }), null);
+
+            if (unitId.HasValue && !await _dataContext.Units.AsNoTracking()
+                .AnyAsync(u => u.Id == unitId.Value && u.PropertyId == propertyId))
+                return (JsonSerializer.Serialize(new { error = "Unit does not belong to the selected property" }), null);
 
             var priority = priorityStr switch
             {

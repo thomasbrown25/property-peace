@@ -8,11 +8,18 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import PropertyAPI, { Property, Unit } from '../../api/propertyAPI';
 import MaintenanceAPI, { newIdempotencyKey, type LocalMedia } from '../../api/maintenanceAPI';
 import { useAppTheme } from '../../theme/AppTheme';
+import MaintenanceAgentIntakeScreen from './MaintenanceAgentIntakeScreen';
 
 const idOf = (item: any) => Number(item?.id ?? item?.Id);
 const labelOf = (item: any) => String(item?.name ?? item?.Name ?? item?.streetAddress ?? item?.StreetAddress ?? 'Unnamed');
+const isMultiUnit = (item: Property) => String(item.propertyType ?? item.PropertyType ?? '').toLowerCase() === 'multiunit';
 
 export default function AddMaintenanceRequestScreen() {
+  const [manual, setManual] = useState(false);
+  return manual ? <ManualMaintenanceRequestScreen onAssistant={() => setManual(false)} /> : <MaintenanceAgentIntakeScreen onManual={() => setManual(true)} />;
+}
+
+function ManualMaintenanceRequestScreen({ onAssistant }: { onAssistant: () => void }) {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const scopedPropertyId = route.params?.propertyId ? Number(route.params.propertyId) : null;
@@ -22,6 +29,8 @@ export default function AddMaintenanceRequestScreen() {
   const [property, setProperty] = useState<Property | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [unit, setUnit] = useState<Unit | null>(null);
+  const [propertyQuery, setPropertyQuery] = useState('');
+  const [propertyOpen, setPropertyOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
@@ -42,13 +51,18 @@ export default function AddMaintenanceRequestScreen() {
   const selectProperty = async (next: Property) => {
     const generation = ++selection.current;
     setProperty(next);
+    setPropertyOpen(false);
+    setPropertyQuery('');
     setUnit(null);
     setUnits([]);
     setError('');
     setLoadingUnits(true);
     try {
       const loaded = await PropertyAPI.getUnits(idOf(next));
-      if (generation === selection.current) setUnits(loaded ?? []);
+      if (generation === selection.current) {
+        setUnits(loaded ?? []);
+        if (!isMultiUnit(next)) setUnit(loaded?.length === 1 ? loaded[0] : null);
+      }
     } catch {
       if (generation === selection.current) setError('Could not load units. Tap the property to retry.');
     } finally {
@@ -133,11 +147,17 @@ export default function AddMaintenanceRequestScreen() {
       <Text style={[styles.heading, dark && { color: colors.text }]}>Add request</Text>
       <Text style={[styles.hint, dark && { color: colors.muted }]}>Record a repair for a property you manage.</Text>
       <Text style={[styles.label, dark && { color: colors.text }]}>Property</Text>
-      {loading ? <ActivityIndicator color={colors.accent} /> : properties.length === 0 && !error ? <Text style={[styles.hint, dark && { color: colors.muted }]}>Add a property before creating a request.</Text> : (scopedPropertyId ? properties.filter(item => idOf(item) === scopedPropertyId) : properties).map(item => option(item, property === item, () => selectProperty(item)))}
-      {property && <>
+      {loading ? <ActivityIndicator color={colors.accent} /> : properties.length === 0 && !error ? <Text style={[styles.hint, dark && { color: colors.muted }]}>Add a property before creating a request.</Text> : <>
+        <TouchableOpacity style={[styles.option, dark && { borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Choose property" onPress={() => setPropertyOpen(open => !open)}><Text style={[styles.optionText, dark && { color: colors.text }]}>{property ? labelOf(property) : 'Search properties'}  ⌄</Text></TouchableOpacity>
+        {propertyOpen && <View><TextInput style={[styles.input, dark && { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]} placeholder="Search by name or address" placeholderTextColor={colors.muted} value={propertyQuery} onChangeText={setPropertyQuery} accessibilityLabel="Search properties" />
+          {(scopedPropertyId ? properties.filter(item => idOf(item) === scopedPropertyId) : properties).filter(item => `${labelOf(item)} ${item.streetAddress ?? item.StreetAddress ?? ''}`.toLowerCase().includes(propertyQuery.toLowerCase())).map(item => option(item, property === item, () => selectProperty(item)))}</View>}
+      </>}
+      {property && isMultiUnit(property) && <>
         <Text style={[styles.label, dark && { color: colors.text }]}>Unit</Text>
         {loadingUnits ? <ActivityIndicator color={colors.accent} /> : units.length === 0 ? <Text style={[styles.hint, dark && { color: colors.muted }]}>No units available for this property.</Text> : units.map(item => option(item, unit === item, () => setUnit(item)))}
       </>}
+      {!loadingUnits && property && !isMultiUnit(property) && !unit && <Text style={[styles.hint, dark && { color: colors.muted }]}>No single unit is available for the manual form. Use the assistant to report this property without a unit.</Text>}
+      <TouchableOpacity accessibilityRole="button" onPress={onAssistant} style={styles.option}><Text style={{ color: colors.accent }}>Use maintenance assistant</Text></TouchableOpacity>
       <Text style={[styles.label, dark && { color: colors.text }]}>Request title</Text>
       <TextInput style={[styles.input, dark && { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border }]} placeholder="e.g. Leaking kitchen faucet" placeholderTextColor={colors.muted} value={title} onChangeText={setTitle} maxLength={100} accessibilityLabel="Request title" />
       <Text style={[styles.label, dark && { color: colors.text }]}>Location (optional)</Text>

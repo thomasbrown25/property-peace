@@ -84,7 +84,7 @@ export default function TeamScreen() {
   ), [current, query]);
   const totalPeople = current?.people.length ?? 0;
   const activeMembers = current?.people.filter(item => item.kind === 'member').length ?? 0;
-  const background = mode === 'dark' ? colors.background : '#fbf7f4';
+  const background = colors.background;
   const accent = colors.accent;
   const foreground = mode === 'dark' ? colors.background : '#fff';
 

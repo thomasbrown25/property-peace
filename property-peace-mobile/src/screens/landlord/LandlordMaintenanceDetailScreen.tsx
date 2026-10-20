@@ -398,7 +398,7 @@ const Action = ({ label, onPress, disabled, prominent, expanded, selected }: { l
   return <TouchableOpacity accessibilityRole={selected === undefined ? 'button' : 'radio'} accessibilityState={{ disabled: !!disabled, expanded, selected }} onPress={onPress} disabled={disabled} style={[s.action, prominent && s.primary, selected && s.selectedAction, disabled && s.disabled]}><Text style={[s.link, (prominent || selected) && s.primaryText]}>{label}{expanded === undefined ? '' : expanded ? '  −' : '  +'}</Text></TouchableOpacity>;
 };
 const lightStyles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: '#f7f3ee' }, content: { padding: 18, paddingBottom: 36 }, loading: { marginTop: 60 },
+  page: { flex: 1, backgroundColor: '#ffffff' }, content: { padding: 18, paddingBottom: 36 }, loading: { marginTop: 60 },
   link: { color: '#0b5cab', fontWeight: '900' }, eyebrow: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 16 },
   title: { color: '#102d43', fontSize: 26, fontWeight: '900', marginTop: 4 }, statusLabel: { color: '#74848d', fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 22 }, status: { color: '#0b5cab', fontSize: 20, fontWeight: '900', marginTop: 3 },
   body: { color: '#526874', lineHeight: 21, marginTop: 12 }, meta: { color: '#74848d', marginTop: 7 }, sectionWrap: { borderTopWidth: 1, borderColor: '#d3dde2', paddingTop: 18, marginTop: 24 }, tabContent: { marginTop: 18 }, section: { color: '#102d43', fontSize: 19, fontWeight: '900', marginBottom: 12 },
@@ -409,7 +409,7 @@ const lightStyles = StyleSheet.create({
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#d3dde2', marginTop: 22 }, tab: { flex: 1, alignItems: 'center', paddingVertical: 13, borderBottomWidth: 2, borderBottomColor: 'transparent' }, activeTab: { borderBottomColor: '#2563eb' }, tabText: { color: '#74848d', fontSize: 12, fontWeight: '600' }, activeTabText: { color: '#102d43', fontWeight: '800' }, statusSelect: { minHeight: 48, borderWidth: 1, borderColor: '#bdcbd3', borderRadius: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   imageOverlay: { flex: 1, backgroundColor: '#101923', padding: 20, justifyContent: 'center' }, imagePreview: { flex: 1, width: '100%' },
   modalOverlay: { flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 24 }, modalPanel: { backgroundColor: '#fff', borderRadius: 12, padding: 18, maxHeight: '80%' }, statusOptions: { flexGrow: 0 },
-  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#bdcbd3', minHeight: 46, paddingHorizontal: 11, marginTop: 8, color: '#19384c' }, area: { minHeight: 76, paddingTop: 11 }, error: { color: '#a92338', lineHeight: 21, marginVertical: 10 }, keyboardAccessory: { padding: 12, alignItems: 'flex-end', backgroundColor: '#f7f3ee' },
+  input: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#bdcbd3', minHeight: 46, paddingHorizontal: 11, marginTop: 8, color: '#19384c' }, area: { minHeight: 76, paddingTop: 11 }, error: { color: '#a92338', lineHeight: 21, marginVertical: 10 }, keyboardAccessory: { padding: 12, alignItems: 'flex-end', backgroundColor: '#ffffff' },
 });
 
 const darkStyles = StyleSheet.create({

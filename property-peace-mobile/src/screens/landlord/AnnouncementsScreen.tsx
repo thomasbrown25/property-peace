@@ -61,7 +61,7 @@ export default function AnnouncementsScreen() {
     if (filter !== 'All' && (filter === 'Attention' ? !['Pending', 'Sent with issues'].includes(status(item)) : status(item) !== filter)) return false;
     return ['title', 'message', 'formattedMessage', 'createdByName', 'organizationName'].some(key => text(item, key).toLowerCase().includes(query.trim().toLowerCase()));
   }).sort((a, b) => new Date(text(b, 'createdAt')).getTime() - new Date(text(a, 'createdAt')).getTime()), [items, filter, query]);
-  const bg = mode === 'dark' ? colors.background : '#fbf7f4';
+  const bg = colors.background;
   const badge = (item: Announcement) => {
     const label = status(item);
     const tint = label === 'Sent' ? '#218455' : label === 'Scheduled' ? colors.accent : '#b26b17';
@@ -114,7 +114,7 @@ export function AnnouncementDetailScreen({ route }: NativeStackScreenProps<Annou
   const [detailLoading, setDetailLoading] = useState(true);
   const [detailError, setDetailError] = useState('');
   const [editOpen, setEditOpen] = useState(false);
-  const bg = mode === 'dark' ? colors.background : '#fbf7f4';
+  const bg = colors.background;
   const id = Number(value(route.params.item, 'id'));
   const load = useCallback(async (isCurrent: () => boolean = () => true) => {
     if (!Number.isSafeInteger(id) || id <= 0) { setDetailError('Announcement unavailable.'); setDetailLoading(false); return; }

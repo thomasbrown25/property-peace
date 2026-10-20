@@ -29,6 +29,9 @@ export interface CreateMaintenanceRequest {
   signals: MaintenanceSignal[]; hasPhotos: boolean; preferredWindows: PreferredWindow[];
 }
 export interface LocalMedia { uri: string; fileName: string; mimeType: string; fileSize?: number; type: 'image' | 'video'; idempotencyKey: string }
+export interface MaintenanceAgentMessage { role: 'user' | 'assistant'; content: string; photoBase64?: string; photoMimeType?: string }
+export interface MaintenanceAgentReply { message: string; done: boolean; photoRequested: boolean; maintenanceRequest?: MaintenanceRequest | null }
+export interface MaintenanceAgentContext { propertyId?: number; propertyName?: string; unitId?: number; unitName?: string }
 export interface MaintenanceAssigneeOption { id: number; label: string; detail?: string; type: 'OrganizationMember' | 'Vendor' }
 export type MaintenanceAssignmentDirectorySource = 'members' | 'vendors';
 export interface MaintenanceAssignmentDirectory { options: MaintenanceAssigneeOption[]; failedSources: MaintenanceAssignmentDirectorySource[] }
@@ -50,6 +53,13 @@ class MaintenanceAPI {
   }
   async createTenantRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
   async createRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
+  async getLandlordAgentSettings(): Promise<boolean> {
+    const response = unwrap(await this.client.get<ApiResponse<{ isMaintenanceAgentEnabled: boolean }>>('/api/landlord-maintenance-agent/settings'));
+    return response.isMaintenanceAgentEnabled;
+  }
+  async chatWithLandlordAgent(messages: MaintenanceAgentMessage[], context: MaintenanceAgentContext): Promise<MaintenanceAgentReply> {
+    return unwrap(await this.client.post<ApiResponse<MaintenanceAgentReply>>('/api/landlord-maintenance-agent/chat', { messages, ...context }));
+  }
   async getTenantLeaseScopes(): Promise<any[]> { return unwrap(await this.client.get<ApiResponse<any[]>>('/api/Lease/tenant/my-leases')) || []; }
   async getAssignmentDirectory(): Promise<MaintenanceAssignmentDirectory> {
     const organizationId = await storageService.getCurrentOrganizationId();

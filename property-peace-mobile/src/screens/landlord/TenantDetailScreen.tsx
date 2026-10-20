@@ -157,7 +157,7 @@ export default function TenantDetailScreen() {
       <View style={styles.rowText}><Text style={[styles.label, { color: colors.muted }]}>{label}</Text><Text style={[styles.value, { color: colors.text }]} selectable>{value}</Text></View>
     </View>
   );
-  return <ScrollView style={{ flex: 1, backgroundColor: dark ? colors.background : '#fbf7f4' }} contentContainerStyle={styles.content}
+  return <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={styles.content}
     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} />}>
     {state === 'loading' ? <View style={styles.state}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.muted }}>Loading tenant…</Text></View> :
       state !== 'ready' || !tenant ? <View style={styles.state} accessibilityRole="alert">

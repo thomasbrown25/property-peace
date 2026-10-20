@@ -9,7 +9,7 @@ import PropertyAPI, { Property, Unit } from '../../api/propertyAPI';
 import UnitAPI from '../../api/unitAPI';
 import AddressAutocompleteInput from '../../components/properties/AddressAutocompleteInput';
 import { applyGooglePlaceDetails } from '../../features/properties/addressAutocomplete';
-import { BulkCreateUncertainError, bulkCreateWithReconciliation, createPropertyErrors, emptyProperty, emptyUnit, initialUnitUpdates, nextUnitName, prefillProperty, prefillUnit, propertyErrors, propertyPayload, unitErrors, unitPayload, type PropertyForm, type UnitForm } from '../../features/properties/propertyForms';
+import { BulkCreateUncertainError, buildingErrors, bulkCreateWithReconciliation, bulkUnitCountError, bulkUnitDrafts, createPropertyErrors, emptyProperty, emptyUnit, initialUnitUpdates, locationErrors, nextUnitName, prefillProperty, prefillUnit, propertyErrors, propertyPayload, unitErrors, unitPayload, type PropertyForm, type UnitForm } from '../../features/properties/propertyForms';
 import { useAppTheme } from '../../theme/AppTheme';
 
 const types = [['singleFamily', 'Single-family'], ['townhouse', 'Townhouse'], ['condominium', 'Condominium'], ['smallMultiFamily', 'Small multi-family'], ['apartmentBuilding', 'Apartment building'], ['other', 'Other multi-unit']] as const;
@@ -34,6 +34,10 @@ export default function AddPropertyScreen() {
   const [error, setError] = useState('');
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [bulkRetryBlocked, setBulkRetryBlocked] = useState(false);
+  const [step, setStep] = useState<0 | 1 | 2>(0);
+  const [unitMode, setUnitMode] = useState<'manual' | 'bulk'>('manual');
+  const [bulkCount, setBulkCount] = useState('2');
+  const isCreating = !propertyId && !isUnit;
   const title = isUnit ? (unitId ? 'Edit unit' : 'Add units') : propertyId ? 'Edit property' : 'Add a property';
 
   useEffect(() => {
@@ -62,12 +66,23 @@ export default function AddPropertyScreen() {
     setError(''); setUnits(current => current.map((unit, i) => i === index ? { ...unit, [key]: value } : unit));
   };
   const multiUnit = !['singleFamily', 'townhouse', 'condominium'].includes(form.propertyType);
+  const draftUnits = isCreating && !multiUnit ? [emptyUnit('1')] : isCreating && multiUnit && unitMode === 'bulk' ? bulkUnitDrafts(bulkCount) : units;
+  const next = () => {
+    const issues = step === 0 ? locationErrors(form) : buildingErrors(form);
+    if (issues.length) { setError(issues.join('\n')); return; }
+    setError('');
+    setStep(step === 0 ? 1 : 2);
+  };
   const save = async () => {
     if (saving || bulkRetryBlocked || (isUnit && unitId && !selectedUnit)) return;
+    if (isCreating && (step < 1 || (multiUnit && step < 2))) return;
     if (propertyId && !property) { setError('Could not load property. Go back and try again.'); return; }
+    if (isCreating && multiUnit && unitMode === 'bulk' && bulkUnitCountError(bulkCount)) {
+      setError(bulkUnitCountError(bulkCount)); return;
+    }
     const issues = isUnit ? units.flatMap((unit, i) => unitErrors(unit).map(message => `Unit ${i + 1}: ${message}`)) : [
       ...propertyErrors(form),
-      ...(!propertyId ? createPropertyErrors(form, units) : []),
+      ...(!propertyId ? createPropertyErrors(form, draftUnits) : []),
     ];
     if (issues.length) { setError(issues.join('\n')); return; }
     setError(''); setSaving(true);
@@ -84,14 +99,14 @@ export default function AddPropertyScreen() {
         if (!id) {
           const landlordId = currentUser?.id ?? currentUser?.Id;
           if (!landlordId) throw new Error('Sign in again to add a property.');
-          const result = await PropertyAPI.createProperty({ ...propertyPayload(form, undefined, units.length), landlordId: Number(landlordId) });
+          const result = await PropertyAPI.createProperty({ ...propertyPayload(form, undefined, draftUnits.length), landlordId: Number(landlordId) });
           id = String(result.id ?? result.Id ?? '');
           if (!id) throw new Error('Property was created, but its ID was not returned. Refresh the property list before retrying.');
           setCreatedId(id);
         }
         // Fetch fresh backend-generated unit IDs on every retry; updates are idempotent.
         const created = await PropertyAPI.getPropertyById(id);
-        const updates = initialUnitUpdates(units, created.units ?? created.Units ?? [], id);
+        const updates = initialUnitUpdates(draftUnits, created.units ?? created.Units ?? [], id);
         for (const update of updates) await UnitAPI.saveUnit(update);
       }
       navigation.goBack();
@@ -104,7 +119,7 @@ export default function AddPropertyScreen() {
   const field = (label: string, value: string, onChangeText: (value: string) => void, keyboardType: 'default' | 'numeric' = 'default') => (
     <View style={styles.field} key={label}>
       <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
-      <TextInput accessibilityLabel={label} style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholder={label} placeholderTextColor={colors.muted} value={value} onChangeText={onChangeText} keyboardType={keyboardType} editable={!saving} />
+      <TextInput accessibilityLabel={label} style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]} placeholder={label} placeholderTextColor={colors.muted} value={value} onChangeText={onChangeText} keyboardType={keyboardType} editable={!saving && !createdId} />
     </View>
   );
   const unitFields = (unit: UnitForm, index: number) => (
@@ -123,7 +138,7 @@ export default function AddPropertyScreen() {
         <View style={styles.half}>{field('Rent / month', unit.rentAmount, value => updateUnit(index, 'rentAmount', value), 'numeric')}</View>
       </View>
       {field('Unit type', unit.type, value => updateUnit(index, 'type', value))}
-      <View style={styles.rowBetween}><Text style={[styles.label, { color: colors.text }]}>Occupied</Text><Switch accessibilityLabel={`Unit ${index + 1} occupied`} value={unit.isOccupied} onValueChange={value => updateUnit(index, 'isOccupied', value)} disabled={saving} /></View>
+      <View style={styles.rowBetween}><Text style={[styles.label, { color: colors.text }]}>Occupied</Text><Switch accessibilityLabel={`Unit ${index + 1} occupied`} value={unit.isOccupied} onValueChange={value => updateUnit(index, 'isOccupied', value)} disabled={saving || Boolean(createdId)} /></View>
     </View>
   );
 
@@ -131,28 +146,41 @@ export default function AddPropertyScreen() {
   return (
     <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={80}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <Text style={[styles.eyebrow, { color: colors.accent }]}>{isUnit ? 'UNIT DETAILS' : 'PROPERTY DETAILS'}</Text>
-        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{title}</Text>
-        {!isUnit ? <>
+        <Text style={[styles.eyebrow, { color: colors.accent }]}>{isUnit ? 'UNIT DETAILS' : isCreating ? `STEP ${step + 1} OF ${multiUnit ? 3 : 2}` : 'PROPERTY DETAILS'}</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{isCreating ? step === 0 ? 'Property location' : step === 1 ? 'Building' : 'Units' : title}</Text>
+        {!isUnit && (!isCreating || step === 0) && <>
           <Text style={[styles.section, { color: colors.text }]}>Location</Text>
           {field('Property name *', form.name, value => update('name', value))}
           <Text style={[styles.label, { color: colors.text }]}>Street address *</Text>
-          <AddressAutocompleteInput value={form.address} onChangeText={value => update('address', value)} onPlaceSelected={details => setForm(current => ({ ...current, ...applyGooglePlaceDetails({ ...current, address: current.address }, details) }))} disabled={saving} />
+          <Text style={{ color: colors.muted, marginBottom: 8 }}>Choose an address suggestion to fill city, state, and ZIP automatically.</Text>
+          <AddressAutocompleteInput value={form.address} onChangeText={value => update('address', value)} onPlaceSelected={details => { setError(''); setForm(current => ({ ...current, ...applyGooglePlaceDetails({ ...current, address: current.address }, details) })); }} disabled={saving || Boolean(createdId)} />
           {field('City *', form.city, value => update('city', value))}
           <View style={styles.row}><View style={styles.half}>{field('State *', form.state, value => update('state', value))}</View><View style={styles.half}>{field('ZIP code *', form.zipCode, value => update('zipCode', value))}</View></View>
+        </>}
+        {!isUnit && (!isCreating || step === 1) && <>
           <Text style={[styles.section, { color: colors.text }]}>Building</Text>
           <Text style={[styles.label, { color: colors.text }]}>Property type *</Text>
           <View style={styles.choices}>{types.map(([value, label]) => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityState={{ checked: form.propertyType === value }} style={[styles.choice, { borderColor: form.propertyType === value ? colors.accent : colors.border, backgroundColor: colors.surface }]} onPress={() => !createdId && update('propertyType', value)} disabled={saving || Boolean(createdId)}><Text style={{ color: colors.text }}>{label}</Text></TouchableOpacity>)}</View>
           {field('Year built', form.yearBuilt, value => update('yearBuilt', value), 'numeric')}
-          {!propertyId && <>
-            <Text style={[styles.section, { color: colors.text }]}>Units</Text>
-            <Text style={{ color: colors.muted, marginBottom: 12 }}>The property creates its units automatically. Add details now or edit units later.</Text>
+          {isCreating && !multiUnit && <Text style={{ color: colors.muted }}>One unit will be created automatically. You can add its details later.</Text>}
+        </>}
+        {isCreating && multiUnit && step === 2 && <>
+          <Text style={{ color: colors.muted, marginBottom: 16 }}>Add units individually or create numbered units in one step.</Text>
+          <View style={styles.choices}>
+            {(['manual', 'bulk'] as const).map(value => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityState={{ checked: unitMode === value }} accessibilityLabel={value === 'bulk' ? 'Bulk create' : 'Add individually'} style={[styles.choice, { borderColor: unitMode === value ? colors.accent : colors.border, backgroundColor: colors.surface }]} disabled={saving || Boolean(createdId)} onPress={() => { setError(''); setUnitMode(value); }}><Text style={{ color: colors.text }}>{value === 'bulk' ? 'Bulk create' : 'Add individually'}</Text></TouchableOpacity>)}
+          </View>
+          {unitMode === 'bulk' ? <>
+            {field('Number of units *', bulkCount, value => { setError(''); setBulkCount(value); }, 'numeric')}
+            <Text style={{ color: colors.muted }}>Creates Unit 1, Unit 2, and so on. You can edit each unit after adding the property.</Text>
+          </> : <>
             {units.map(unitFields)}
-            {(multiUnit || !units.length) && !createdId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName(current))])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add unit</Text></TouchableOpacity>}
+            {!createdId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName(current))])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add unit</Text></TouchableOpacity>}
           </>}
-        </> : <>{units.map(unitFields)}{!unitId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName([...(property?.units ?? property?.Units ?? []), ...current]))])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add another unit</Text></TouchableOpacity>}</>}
+        </>}
+        {isUnit && <>{units.map(unitFields)}{!unitId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName([...(property?.units ?? property?.Units ?? []), ...current]))])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add another unit</Text></TouchableOpacity>}</>}
         {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'} disabled={saving || bulkRetryBlocked || (isUnit && !units.length) || Boolean(isUnit && unitId && !selectedUnit)} onPress={save} style={[styles.primary, { backgroundColor: colors.accent }, saving && { opacity: 0.6 }]}><Text style={[styles.primaryText, dark && { color: colors.background }]}>{saving ? 'Saving…' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'}</Text></TouchableOpacity>
+        {isCreating && step > 0 && !createdId && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous step" disabled={saving} onPress={() => { setError(''); setStep(current => (current - 1) as 0 | 1 | 2); }} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>Back</Text></TouchableOpacity>}
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isCreating && (step === 0 || step === 1 && multiUnit) ? 'Next step' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'} disabled={saving || bulkRetryBlocked || (isUnit && !units.length) || Boolean(isUnit && unitId && !selectedUnit)} onPress={isCreating && (step === 0 || step === 1 && multiUnit) ? next : save} style={[styles.primary, { backgroundColor: colors.accent }, saving && { opacity: 0.6 }]}><Text style={[styles.primaryText, dark && { color: colors.background }]}>{saving ? 'Saving…' : isCreating && (step === 0 || step === 1 && multiUnit) ? 'Continue' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'}</Text></TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );

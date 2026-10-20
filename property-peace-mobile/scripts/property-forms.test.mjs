@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyProperty, prefillProperty, propertyErrors, propertyPayload, emptyUnit, prefillUnit, unitErrors, unitPayload, nextUnitName, createPropertyErrors, initialUnitUpdates, bulkCreateWithReconciliation, BulkCreateUncertainError } from '../src/features/properties/propertyForms.ts';
+import { emptyProperty, prefillProperty, propertyErrors, propertyPayload, emptyUnit, prefillUnit, unitErrors, unitPayload, nextUnitName, createPropertyErrors, initialUnitUpdates, bulkCreateWithReconciliation, BulkCreateUncertainError, locationErrors, buildingErrors, bulkUnitCountError, bulkUnitDrafts } from '../src/features/properties/propertyForms.ts';
 import { readFileSync } from 'node:fs';
 
 test('create property maps UI choices to backend DTO, trims address, and validates', () => {
@@ -27,6 +27,25 @@ test('unit create/edit validates numeric values, includes API fields and preserv
   assert.deepEqual(edited, { id: 3, propertyId: 9, name: 'B', bedrooms: '2', baths: '1', squareFeet: 700, rentAmount: 900, type: 'Flat', isOccupied: true, amenities: [{ id: 1 }], includedUtility: [{ id: 2 }] });
   assert.equal(nextUnitName([{ Name: 'Unit 2' }, { name: '7' }]), '8');
 });
+test('wizard validates location before building and creates numbered bulk units without extra updates', () => {
+  const form = { ...emptyProperty(), name: 'Maple', address: '1 Main', city: 'Austin', state: 'TX', zipCode: '78701', propertyType: 'apartmentBuilding', yearBuilt: 'not a year' };
+  assert.deepEqual(locationErrors(form), []);
+  assert.match(buildingErrors(form).join(' '), /year built/);
+  assert.match(locationErrors({ ...form, city: '' }).join(' '), /City/);
+  for (const invalid of ['', '0', '-1', '1.5', 'abc', '51']) {
+    assert.ok(bulkUnitCountError(invalid));
+    assert.deepEqual(bulkUnitDrafts(invalid), []);
+  }
+  const drafts = bulkUnitDrafts('3');
+  assert.deepEqual(drafts.map(unit => unit.name), ['Unit 1', 'Unit 2', 'Unit 3']);
+  assert.equal(propertyPayload(form, undefined, drafts.length).unitCount, 3);
+  assert.deepEqual(initialUnitUpdates(drafts, [{ id: 9, name: 'Unit 2' }, { id: 8, name: 'Unit 1' }, { id: 10, name: 'Unit 3' }], 5), []);
+  const screen = readFileSync(new URL('../src/screens/landlord/AddPropertyScreen.tsx', import.meta.url), 'utf8');
+  assert.match(screen, /step === 0 \? 'Property location' : step === 1 \? 'Building' : 'Units'/);
+  assert.match(screen, /onPress=\{isCreating && \(step === 0 \|\| step === 1 && multiUnit\) \? next : save\}/);
+  assert.match(screen, /applyGooglePlaceDetails/);
+});
+
 test('multi-unit create sends a positive count matching backend-created rows', () => {
   const form = { ...emptyProperty(), propertyType: 'apartmentBuilding' };
   const units = [emptyUnit('1'), emptyUnit('2')];

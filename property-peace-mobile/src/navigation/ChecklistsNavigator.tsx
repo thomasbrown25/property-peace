@@ -18,8 +18,8 @@ export default function ChecklistsNavigator() {
         headerBackTitleVisible: false,
         headerTitleStyle: { fontWeight: '800', color: mode === 'dark' ? colors.text : '#102d43' },
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },
-        contentStyle: { backgroundColor: mode === 'dark' ? colors.background : '#fbf7f4' },
+        headerStyle: { backgroundColor: colors.background },
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
       <Stack.Screen name="ChecklistPropertySearch" component={ChecklistPropertySearchScreen} options={{ title: 'Property checklists', headerBackVisible: false }} />

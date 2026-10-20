@@ -73,7 +73,7 @@ export default function Palette(mode, presetColor) {
       },
       divider: mode === ThemeMode.DARK ? alpha('#dbe7f3', 0.2) : paletteColor.grey[200],
       surface: {
-        app: mode === ThemeMode.DARK ? '#0b1320' : '#f9f6f4',
+        app: mode === ThemeMode.DARK ? '#0b1320' : '#ffffff',
         paper: mode === ThemeMode.DARK ? '#121c2d' : '#ffffff',
         raised: mode === ThemeMode.DARK ? '#182338' : '#ffffff',
         nested: mode === ThemeMode.DARK ? '#0f1a2b' : '#f8fafc',
@@ -82,7 +82,7 @@ export default function Palette(mode, presetColor) {
       },
       background: {
         paper: mode === ThemeMode.DARK ? '#121c2d' : '#ffffff', // Marketing white
-        default: mode === ThemeMode.DARK ? '#0b1320' : '#f9f6f4' // Light theme: #f9f6f4
+        default: mode === ThemeMode.DARK ? '#0b1320' : '#ffffff' // White page background in light mode
       }
     }
   });
