@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import TenantAPI, { type Tenant } from '../../api/tenantAPI';
 import TenantInviteAPI, { type TenantInvite } from '../../api/tenantInviteAPI';
 import LeaseAPI, { type Lease } from '../../api/leaseAPI';
+import ConversationAPI from '../../api/conversationAPI';
 import { emptyTenantForm, formFromTenant, tenantPayload, validateTenant, type TenantForm } from '../../features/tenants/tenantForm';
 import { invitationStatus, inviteEmail, inviteError } from '../../features/tenants/tenantInvite';
 import TenantAssociationFields from './TenantAssociationFields';
@@ -46,6 +47,7 @@ export default function TenantDetailScreen() {
   const [invites, setInvites] = useState<TenantInvite[]>([]);
   const [inviteState, setInviteState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [openingMessage, setOpeningMessage] = useState(false);
   const refresh = () => { setRefreshing(true); setReload(value => value + 1); };
 
   useFocusEffect(useCallback(() => {
@@ -143,6 +145,34 @@ export default function TenantDetailScreen() {
     }
   };
 
+  const messageTenant = async () => {
+    if (!tenant || openingMessage || !validId(read(tenant, 'userId', 'UserId'))) return;
+    setOpeningMessage(true);
+    try {
+      // Recheck the saved account link before opening from a stale detail view.
+      const current = await TenantAPI.getTenant(tenantId);
+      const userId = current && validId(read(current, 'userId', 'UserId'));
+      if (!current || validId(read(current, 'id', 'Id')) !== tenantId || !userId) {
+        if (current && validId(read(current, 'id', 'Id')) === tenantId) setTenant(current);
+        throw new Error('This tenant does not have an active portal account yet.');
+      }
+      setTenant(current);
+      const conversation = await ConversationAPI.createConversation({
+        title: String(read(current, 'propertyName', 'PropertyName') || 'Property'),
+        tenantId: Number(tenantId),
+        propertyId: Number(validId(read(current, 'propertyId', 'PropertyId'))) || null,
+        leaseId: Number(validId(read(current, 'leaseId', 'LeaseId'))) || null,
+        participantUserIds: [Number(userId)],
+        isGroupChat: false,
+      });
+      navigation.getParent<any>()?.navigate('Messages', { screen: 'ConversationDetail', params: { conversationId: String(conversation.id), selectedConversation: conversation } });
+    } catch (error: any) {
+      Alert.alert('Could not open message', error?.message || 'Please try again.');
+    } finally {
+      setOpeningMessage(false);
+    }
+  };
+
   const name = tenant ? displayName(tenant) : '';
   const email = tenant ? read(tenant, 'email', 'Email') : null;
   const phone = tenant ? read(tenant, 'phoneNumber', 'PhoneNumber') : null;
@@ -196,7 +226,14 @@ export default function TenantDetailScreen() {
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {row('mail-outline', 'Email', email || 'Not added')}
           {row('call-outline', 'Phone', phone || 'Not added')}
-          {row('key-outline', 'Portal access', connected ? 'Connected' : email ? 'No portal account' : 'Email needed', true)}
+          {row('key-outline', 'Portal access', connected ? 'Connected' : email ? 'No portal account' : 'Email needed')}
+          <TouchableOpacity testID="message-tenant" style={[styles.messageRow, !connected && styles.disabled]} disabled={!connected || openingMessage}
+            accessibilityRole="button" accessibilityLabel={`Message ${name}`} accessibilityState={{ disabled: !connected || openingMessage }}
+            onPress={() => void messageTenant()}>
+            <Ionicons name="chatbubble-outline" size={20} color={connected ? colors.accent : colors.muted} style={styles.icon} />
+            <Text style={[styles.messageText, { color: connected ? colors.accent : colors.muted }]}>Message tenant</Text>
+            {openingMessage ? <ActivityIndicator color={colors.accent} /> : <Ionicons name="chevron-forward" size={18} color={connected ? colors.accent : colors.muted} />}
+          </TouchableOpacity>
         </View>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>Portal invitation</Text>
         <Text style={[styles.note, { color: colors.muted }]}>A tenant record is separate from a portal account. An invitation emails the tenant a link to connect their account.</Text>
@@ -263,6 +300,8 @@ const styles = StyleSheet.create({
   last: { borderBottomWidth: 0 },
   icon: { width: 34 },
   rowText: { flex: 1, minWidth: 0 },
+  messageRow: { flexDirection: 'row', alignItems: 'center', minHeight: 56 },
+  messageText: { flex: 1, fontSize: 15, fontWeight: '700' },
   label: { fontSize: 12, lineHeight: 18, marginBottom: 3 },
   value: { fontSize: 15, fontWeight: '700', lineHeight: 21 },
   lease: { minHeight: 72, borderWidth: 1, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },

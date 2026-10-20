@@ -15,6 +15,7 @@ import biometricService, { BiometricAvailability } from '../../services/biometri
 import { getBiometricAccountId } from '../../features/startup/biometricAccountId';
 import userAPI from '../../api/userAPI';
 import storageService from '../../services/storageService';
+import PushAlertSetting from '../../components/notifications/PushAlertSetting';
 import { useAppTheme } from '../../theme/AppTheme';
 
 const PRIVACY_URL = 'https://www.propertypeace.io/privacy';
@@ -505,8 +506,9 @@ export default function SettingsScreen() {
         {savingDetail && <ActivityIndicator color={colors.accent} />}
       </> : <Text style={styles.rowValue}>Could not load general settings. Reopen this section to retry.</Text>)}
 
+      {category === 'notifications' && <><Text style={styles.sectionTitle}>Device alerts</Text><PushAlertSetting /></>}
       {category === 'notifications' && (loadingDetail ? <ActivityIndicator color={colors.accent} style={styles.loader} /> : notifications ? <>
-        <Text style={styles.sectionTitle}>Alert channels</Text>
+        <Text style={styles.sectionTitle}>Email and phone alerts</Text>
         <Text style={styles.rowValue}>Manage alerts sent to the contact details on your account.</Text>
         {([['emailEnabled', 'Email notifications', notifications.emailAddress], ['phoneEnabled', 'Phone notifications', notifications.phoneNumber], ['dailySummaryEmail', 'Daily summary email', null]] as const).map(([field, label, detail]) => (
           <View key={field} style={styles.settingRow}>
@@ -645,7 +647,7 @@ function useSettingsStyles() {
 
 const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+  content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 },
   navigationHeader: { minHeight: 62, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e8edf2', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 14, paddingHorizontal: 20 },
   navigationTitle: { color: '#102d43', fontSize: 17, fontWeight: '800', textAlign: 'center' },
   mainNavigationTitle: { fontSize: 22 },

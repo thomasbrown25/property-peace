@@ -33,13 +33,13 @@ const config = (onCreate?: () => void): WorkspaceConfig<Listing> => ({
   ],
 });
 
-export default function ListingsScreen() {
+export default function ListingsScreen({ embedded = false }: { embedded?: boolean }) {
   const navigation = useNavigation<NativeStackNavigationProp<ListingsStackParamList, 'ListingsList'>>();
   const user = useAppSelector(state => state.user.currentUser);
   const userId = String(user?.id ?? user?.Id ?? '');
   const scope = userId ? `${userId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
   const workspaceConfig = useMemo(() => config(scope ? () => navigation.navigate('AddListing', { scope }) : undefined), [scope, navigation]);
-  return <RentalWorkspace config={workspaceConfig} scope={scope} detailRoute="ListingDetail" />;
+  return <RentalWorkspace config={workspaceConfig} scope={scope} detailRoute="ListingDetail" embedded={embedded} />;
 }
 
 export function AddListingScreen({ navigation, route }: NativeStackScreenProps<ListingsStackParamList, 'AddListing'>) {

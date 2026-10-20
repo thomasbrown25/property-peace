@@ -141,6 +141,62 @@ namespace brownstone_hub_api.Tests.Services.Users
 
         // ── Register — guard clauses ──────────────────────────────────────────────
 
+        [Theory]
+        [InlineData(null, "john@test.com", false)]
+        [InlineData("invalid-token", "john@test.com", false)]
+        [InlineData("valid-token", "spoofed@test.com", true)]
+        [InlineData("valid-token", "john@test.com", false)]
+        public async Task Register_BlankPasswordRequiresMatchingVerifiedGoogleIdentity(
+            string? token, string email, bool providerVerified)
+        {
+            _googleAuth.Setup(service => service.VerifyGoogleAccessTokenAsync("valid-token"))
+                .ReturnsAsync(new GoogleUserInfo { Id = "google-123", Email = "john@test.com", EmailVerified = providerVerified });
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = email, Password = "", GoogleAccessToken = token
+            });
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _userRepo.Verify(repo => repo.AddUser(It.IsAny<AddUserDto>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Register_VerifiedGoogleEmailBypassesCodeAndCreatesPasswordlessUser()
+        {
+            _googleAuth.Setup(service => service.VerifyGoogleAccessTokenAsync("valid-token"))
+                .ReturnsAsync(new GoogleUserInfo { Id = "google-123", Email = "john@test.com", EmailVerified = true });
+            _userRepo.Setup(repo => repo.AddUser(It.IsAny<AddUserDto>())).ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(repo => repo.GetUser(1L)).ReturnsAsync(MakeUser());
+            _userRepo.Setup(repo => repo.GetUser("john@test.com")).ReturnsAsync(MakeLoadUserDto());
+            _userRepo.Setup(repo => repo.AddUserSettings(It.IsAny<long?>(), It.IsAny<string?>())).ReturnsAsync(new SettingsDto());
+            _roleRepo.Setup(repo => repo.GetRoleByNameAsync(It.IsAny<string>()))
+                .ReturnsAsync(new LoadRoleDto { Id = 1, RoleName = "Landlord" });
+
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = " JOHN@test.com ", Password = "", GoogleAccessToken = "valid-token",
+                Firstname = "John", Lastname = "Doe"
+            });
+
+            result.Success.Should().BeTrue(result.Message);
+            _userRepo.Verify(repo => repo.AddUser(It.Is<AddUserDto>(user =>
+                user.Email == "john@test.com" && user.PasswordHash == null && user.PasswordSalt == null)), Times.Once);
+        }
+
+        [Fact]
+        public async Task Register_InvalidGoogleTokenIsRejectedEvenWithValidEmailCookieAndPassword()
+        {
+            var proof = await SeedVerifiedEmailAsync();
+            var result = await _sut.Register(new AddUserDto
+            {
+                Email = "john@test.com", Password = ValidPassword,
+                EmailVerificationProof = proof, GoogleAccessToken = "invalid-token"
+            });
+            result.Success.Should().BeFalse();
+            result.StatusCode.Should().Be(403);
+            _userRepo.Verify(repo => repo.AddUser(It.IsAny<AddUserDto>()), Times.Never);
+        }
+
         [Fact]
         public async Task Register_DoesNotRevealExistingAccountWithoutVerification()
         {

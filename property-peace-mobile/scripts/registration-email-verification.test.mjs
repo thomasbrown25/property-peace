@@ -37,7 +37,7 @@ test("mobile auth calls the real cookie-backed verification API contracts", () =
   assert.match(controller, /MaxAge = TimeSpan\.FromMinutes\(10\)/);
   assert.match(apiVerification, /ExpiresAt = nowUtc\.AddMinutes\(10\)/);
   assert.match(service, /post<.*>\(['"]\/api\/user\/check-email['"],\s*\{ email \}\)/);
-  assert.match(service, /post<.*>\(['"]\/api\/user\/send-verification-code['"],\s*\{ email \}\)/);
+  assert.match(service, /post<.*>\(['"]\/api\/user\/send-verification-code['"],\s*body\)/);
   assert.match(service, /post<.*>\(['"]\/api\/user\/verify-code['"],\s*\{ email, code \}\)/);
   assert.match(client, /withCredentials:\s*true/, "verification proof cookie must survive verify -> register");
 });
@@ -53,4 +53,17 @@ test("registration UI performs send, verify, register and remains iPhone keyboar
   assert.match(screen, /keyboardDismissMode=["']interactive["']/);
   assert.match(screen, /contentInsetAdjustmentBehavior=["']automatic["']/);
   assert.match(screen, /AppleSignInButton/);
+  assert.match(screen, /onPress={handleSendCode}/);
+  assert.match(screen, /onPress={handleVerify}/);
+  assert.match(screen, /setStep\("details"\)/);
+  assert.match(screen, /setStep\("creating"\)/);
+  assert.match(screen, /onPress={handleCreateAccount}/);
+  assert.match(screen, /placeholder="Workspace or Business Name \*"/);
+  assert.match(screen, /placeholder="Phone Number \*"/);
+  assert.match(screen, /onPress={handleGoogleSignUp}/);
+  assert.match(screen, /prepareAccount\(\{ email, password \}\)/);
+  assert.match(screen, /if \(!emailVerified && !googleProfile\)/);
+  assert.ok(screen.indexOf('setStep("verify")') < screen.indexOf('setStep("details")'));
+  assert.ok(screen.indexOf('setStep("details")') < screen.indexOf('setStep("creating")'));
+  assert.match(screen, /step === "account" &&/);
 });

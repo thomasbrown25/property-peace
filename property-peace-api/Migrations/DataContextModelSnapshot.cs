@@ -6128,6 +6128,19 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("MfaEnrollments");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ExpoPushToken", b =>
+                {
+                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+                    b.Property<string>("Token").IsRequired().HasMaxLength(255).HasColumnType("nvarchar(255)");
+                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("datetime2");
+                    b.Property<long>("UserId").HasColumnType("bigint");
+                    b.HasKey("Id");
+                    b.HasIndex("Token").IsUnique();
+                    b.HasIndex("UserId");
+                    b.ToTable("ExpoPushTokens", "communication");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Notification", b =>
                 {
                     b.Property<long>("Id")
@@ -14045,6 +14058,17 @@ namespace brownstone_hub_api.Migrations
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.MfaEnrollment", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ExpoPushToken", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.User", "User")
                         .WithMany()

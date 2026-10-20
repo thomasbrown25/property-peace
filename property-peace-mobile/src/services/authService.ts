@@ -2,6 +2,8 @@ import { jwtDecode } from 'jwt-decode';
 import storageService from './storageService';
 import apiClient from './apiClient';
 import { AuthResult, normalizeAuthResult } from './mfaChallenge';
+import { challengeRequired } from '../features/auth/registrationChallenge';
+import { unregisterPushOnSignOut } from './pushNotifications';
 
 export interface LoginCredentials {
   email: string;
@@ -11,8 +13,15 @@ export interface LoginCredentials {
 export interface RegisterData {
   email: string;
   password: string;
-  firstName?: string;
-  lastName?: string;
+  firstname: string;
+  lastname: string;
+  phoneNumber: string;
+  roles: string[];
+  businessName: string;
+  businessEmail: string;
+  businessPhone: string;
+  timezone: string;
+  googleAccessToken?: string;
 }
 
 export interface User {
@@ -48,21 +57,42 @@ interface ServiceResponse<T> {
 }
 
 class AuthService {
+  async googleSignupProfile(accessToken: string): Promise<{
+    email: string; emailVerified: boolean; firstName: string; lastName: string; accessToken: string;
+  }> {
+    if (!accessToken) throw new Error('Google access token is required');
+    const response = await apiClient.post<ServiceResponse<{
+      email: string; emailVerified: boolean; firstName: string; lastName: string;
+    }>>('/api/user/google-user-info', { accessToken });
+    if (!response.success || !response.data?.emailVerified || !response.data.email) {
+      throw new Error('Google did not return a verified email address.');
+    }
+    return { ...response.data, accessToken };
+  }
   private responseError<T>(response: ServiceResponse<T>, fallback: string): Error {
     return new Error(response.message || response.errors?.message || response.errors?.details || fallback);
   }
 
-  async sendRegistrationCode(email: string): Promise<void> {
+  private challengeBody(email: string, botChallengeToken?: string) {
+    if (challengeRequired(__DEV__, process.env.EXPO_PUBLIC_TURNSTILE_DISABLED) && !botChallengeToken) {
+      throw new Error('Security check is required. Configure the web app Turnstile site key and try again.');
+    }
+    return { email, ...(botChallengeToken ? { botChallengeToken } : {}) };
+  }
+
+  async sendRegistrationCode(email: string, botChallengeToken?: string): Promise<void> {
+    const body = this.challengeBody(email, botChallengeToken);
     const check = await apiClient.post<ServiceResponse<boolean>>('/api/user/check-email', { email });
     if (!check.success) throw this.responseError(check, 'Unable to check that email address.');
     if (check.data === true) throw new Error('An account already exists for this email. Sign in instead.');
 
-    const response = await apiClient.post<ServiceResponse<string>>('/api/user/send-verification-code', { email });
+    const response = await apiClient.post<ServiceResponse<string>>('/api/user/send-verification-code', body);
     if (!response.success) throw this.responseError(response, 'Unable to send a verification code.');
   }
 
-  async resendRegistrationCode(email: string): Promise<void> {
-    const response = await apiClient.post<ServiceResponse<string>>('/api/user/send-verification-code', { email });
+  async resendRegistrationCode(email: string, botChallengeToken?: string): Promise<void> {
+    const body = this.challengeBody(email, botChallengeToken);
+    const response = await apiClient.post<ServiceResponse<string>>('/api/user/send-verification-code', body);
     if (!response.success) throw this.responseError(response, 'Unable to resend the verification code.');
   }
 
@@ -123,6 +153,8 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
+    // Revoke this device's push token while the user's session still exists.
+    try { await unregisterPushOnSignOut(); } catch { /* Offline sign-out still clears credentials. */ }
     apiClient.invalidateSession();
     try {
       // The server revokes the rotating refresh token and clears its HttpOnly cookie.

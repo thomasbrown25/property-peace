@@ -37,7 +37,7 @@ export interface WorkspaceConfig<T extends RecordData> {
   overview?: { heading: string; metricLabel: string; count: (items: T[]) => number };
 }
 
-export default function RentalWorkspace<T extends RecordData>({ config, scope, reloadToken, detailRoute }: { config: WorkspaceConfig<T>; scope: string; reloadToken?: number; detailRoute: 'ListingDetail' | 'ApplicationDetail' }) {
+export default function RentalWorkspace<T extends RecordData>({ config, scope, reloadToken, detailRoute, embedded = false }: { config: WorkspaceConfig<T>; scope: string; reloadToken?: number; detailRoute: 'ListingDetail' | 'ApplicationDetail'; embedded?: boolean }) {
   const navigation = useNavigation<any>();
   const { colors, mode } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -97,17 +97,17 @@ export default function RentalWorkspace<T extends RecordData>({ config, scope, r
     </View>
   </View>;
   return <View style={[styles.root, { backgroundColor: bg }]}>
-    {listingLayout && <LandlordPageHeader title={config.title} />}
-    {!listingLayout && <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-      <Text style={[styles.eyebrow, { color: colors.accent }]}>{config.eyebrow}</Text>
+    {listingLayout && !embedded && <LandlordPageHeader title={config.title} />}
+    {!listingLayout && <View style={[styles.header, { paddingTop: embedded ? 8 : insets.top + 16 }]}>
+      {!embedded && <Text style={[styles.eyebrow, { color: colors.accent }]}>{config.eyebrow}</Text>}
       <View style={styles.titleRow}>
-        <Text accessibilityRole="header" numberOfLines={1} style={[styles.title, config.headerAction && { flexShrink: 1, fontSize: 28 }, { color: colors.text }]}>{config.title}</Text>
-        {config.headerAction && <Pressable accessibilityRole="button" accessibilityLabel={config.headerAction.label} accessibilityHint={config.headerAction.hint} accessibilityState={{ disabled: !config.headerAction.onPress }} disabled={!config.headerAction.onPress} onPress={config.headerAction.onPress} style={[styles.headerAction, { backgroundColor: colors.accent, opacity: config.headerAction.onPress ? 1 : 0.5 }]}>
+        {!embedded && <Text accessibilityRole="header" numberOfLines={1} style={[styles.title, config.headerAction && { flexShrink: 1, fontSize: 28 }, { color: colors.text }]}>{config.title}</Text>}
+        {config.headerAction && <Pressable accessibilityRole="button" accessibilityLabel={config.headerAction.label} accessibilityHint={config.headerAction.hint} accessibilityState={{ disabled: !config.headerAction.onPress }} disabled={!config.headerAction.onPress} onPress={config.headerAction.onPress} style={[styles.headerAction, embedded && { marginLeft: 'auto' }, { backgroundColor: colors.accent, opacity: config.headerAction.onPress ? 1 : 0.5 }]}>
           <Ionicons name="add" size={20} color={mode === 'dark' ? colors.background : '#fff'} />
           <Text style={[styles.headerActionText, { color: mode === 'dark' ? colors.background : '#fff' }]}>{config.headerAction.label.replace(/^Add /, '')}</Text>
         </Pressable>}
       </View>
-      <Text style={[styles.subtitle, { color: colors.muted }]}>{config.subtitle}</Text>
+      {!embedded && <Text style={[styles.subtitle, { color: colors.muted }]}>{config.subtitle}</Text>}
       {searchAndFilters}
     </View>}
     {(!listingLayout && (!scope || (current && error))) ? <View style={styles.center}><Text accessibilityRole="alert" style={[styles.message, { color: colors.text }]}>{!scope ? 'Sign in again to view this page.' : error}</Text>{!!scope && <Pressable accessibilityRole="button" onPress={() => { void load(); }} style={styles.retry}><Text style={{ color: colors.accent, fontWeight: '700' }}>Retry</Text></Pressable>}</View> : (!listingLayout && (loading || !current)) ? <View style={styles.center}><ActivityIndicator color={colors.accent} /><Text style={{ color: colors.muted }}>Loading {config.title.toLowerCase()}…</Text></View> :

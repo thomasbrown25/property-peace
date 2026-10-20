@@ -210,6 +210,7 @@ namespace brownstone_hub_api.Data
         public DbSet<UserSettings> UserSettings => Set<UserSettings>();
         public DbSet<NotificationSetting> NotificationSettings => Set<NotificationSetting>();
         public DbSet<Notification> Notifications => Set<Notification>();
+        public DbSet<ExpoPushToken> ExpoPushTokens => Set<ExpoPushToken>();
         public DbSet<Announcement> Announcements => Set<Announcement>();
         public DbSet<AnnouncementRecipient> AnnouncementRecipients => Set<AnnouncementRecipient>();
         public DbSet<Admin> Admins => Set<Admin>();

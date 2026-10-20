@@ -16,14 +16,14 @@ try {
   loadError = error;
 }
 
-test('landlord dock places Notifications after Maintenance using the shared tab model', () => {
+test('landlord dock places Marketing after Tenants using the shared tab model', () => {
   assert.equal(loadError, undefined);
   const tabs = visibleMainTabsForAudience('landlord');
   assert.deepEqual(
     tabs.map((tab) => tab.name),
-    ['Dashboard', 'Properties', 'Tenants', 'Maintenance', 'Notifications'],
+    ['Dashboard', 'Properties', 'Tenants', 'Marketing', 'Notifications'],
   );
-  assert.equal(tabs.find((tab) => tab.name === 'Maintenance')?.label, undefined);
+  assert.equal(tabs.find((tab) => tab.name === 'Marketing')?.label, undefined);
   assert.deepEqual(mainTabIconNames('Tenants'), { active: 'people', inactive: 'people-outline' });
   assert.deepEqual(mainTabIconNames('Notifications'), { active: 'notifications', inactive: 'notifications-outline' });
 });
@@ -74,6 +74,7 @@ test('landlord dock resolves all five animated destination components', () => {
     PropertiesNavigator: 'properties-navigator',
     ChecklistsNavigator: 'checklists-navigator',
     MaintenanceNavigator: 'maintenance-navigator',
+    MarketingNavigator: 'marketing-navigator',
     TenantMaintenanceNavigator: 'tenant-maintenance-navigator',
     TenantsNavigator: 'tenants-navigator',
     MessagesNavigator: 'messages-navigator',
@@ -87,10 +88,10 @@ test('landlord dock resolves all five animated destination components', () => {
   assert.equal(tabs.find((tab) => tab.name === 'Messages'), undefined);
 });
 
-test('landlord Messages stays accessible in the menu without a dock icon', async () => {
+test('landlord Messages stays routable without a dock or side-menu item', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
-  assert.match(sheet, /label: 'Messages'[^\n]*route: 'Messages'/);
+  assert.doesNotMatch(sheet, /label: 'Messages'[^\n]*route: 'Messages'/);
   assert.match(sheet, /audience === 'landlord' && route\.name === 'Messages'/);
   assert.match(navigator, /name="Messages" component={MessagesNavigator} options={{ tabBarButton: \(\) => null }}/);
   assert.doesNotMatch(navigator, /name="Tenants" component={TenantsNavigator} options={{ tabBarButton: \(\) => null }}/);
@@ -108,7 +109,8 @@ test('Notifications uses the same scene and press animation as the other dock ta
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
   assert.match(navigator, /NotificationsScreen,\s*SettingsScreen: SettingsNavigator/);
   assert.match(navigator, /visibleTabs\.map\(\(tab, index\) => \(\{ \.\.\.tab, component: withTabTransition\(tab\.component, index\)/);
-  assert.doesNotMatch(navigator, /<Tab\.Screen name="Notifications" component={NotificationsScreen}/);
+  assert.match(navigator, /audience === 'tenant' && <Tab\.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: \(\) => null }}/);
+  assert.match(sheet, /audience === 'tenant' && route\.name === 'Notifications'/);
   assert.match(sheet, /visibleRoutes\.map\(renderTab\)/);
   assert.match(sheet, /<AnimatedTab[\s\S]*onPress=\{\(\) => \{[\s\S]*openTabRoot\(route\.name\)/);
   assert.doesNotMatch(sheet, /\['Notifications', 'Leases'/);
@@ -118,8 +120,11 @@ test('Notifications uses the same scene and press animation as the other dock ta
 test('scrollable More menu preserves native routes and labels web-only destinations', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
-  for (const destination of ['Leases', 'Applications', 'Listings', 'Checklists', 'Tenants', 'Notifications', 'Settings', 'Team']) {
+  for (const destination of ['Leases', 'Maintenance', 'Checklists', 'Team']) {
     assert.match(sheet, new RegExp(`route: '${destination}'`));
+  }
+  for (const removed of ['Tenants', 'Messages', 'Notifications', 'Settings']) {
+    assert.doesNotMatch(sheet, new RegExp(`label: '${removed}'[^\\n]*route: '${removed}'`));
   }
   assert.doesNotMatch(sheet, /webPath: '\/landlord\/listings'/);
   assert.match(navigator, /name="Applications" component={ApplicationsNavigator}/);

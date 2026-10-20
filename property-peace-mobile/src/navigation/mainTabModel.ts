@@ -5,6 +5,7 @@ export type MainTabName =
   | 'Properties'
   | 'Checklists'
   | 'Maintenance'
+  | 'Marketing'
   | 'Messages'
   | 'Notifications'
   | 'Tenants'
@@ -16,6 +17,7 @@ export type MainTabComponentName =
   | 'PropertiesNavigator'
   | 'ChecklistsNavigator'
   | 'MaintenanceNavigator'
+  | 'MarketingNavigator'
   | 'TenantMaintenanceNavigator'
   | 'TenantsNavigator'
   | 'MessagesNavigator'
@@ -38,7 +40,7 @@ const visibleTabsByAudience: Record<MainAudience, readonly VisibleMainTab[]> = {
     { name: 'Dashboard', component: 'DashboardScreen', label: 'Home' },
     { name: 'Properties', component: 'PropertiesNavigator' },
     { name: 'Tenants', component: 'TenantsNavigator' },
-    { name: 'Maintenance', component: 'MaintenanceNavigator' },
+    { name: 'Marketing', component: 'MarketingNavigator' },
     { name: 'Notifications', component: 'NotificationsScreen' },
   ],
   tenant: [
@@ -54,6 +56,7 @@ const icons: Partial<Record<MainTabName, { active: string; inactive: string }>> 
   Properties: { active: 'business', inactive: 'business-outline' },
   Checklists: { active: 'clipboard', inactive: 'clipboard-outline' },
   Maintenance: { active: 'construct', inactive: 'construct-outline' },
+  Marketing: { active: 'megaphone', inactive: 'megaphone-outline' },
   Tenants: { active: 'people', inactive: 'people-outline' },
   Messages: { active: 'chatbubble-ellipses', inactive: 'chatbubble-ellipses-outline' },
   Notifications: { active: 'notifications', inactive: 'notifications-outline' },

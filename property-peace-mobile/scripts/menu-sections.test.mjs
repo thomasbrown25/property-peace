@@ -15,11 +15,11 @@ function sections(name, nextName) {
 
 test('landlord side menu keeps every destination in a workflow section and order', () => {
   assert.deepEqual(sections('landlordMenu', 'tenantMenu'), [
-    { title: 'Leasing', labels: ['Calendar', 'Listings', 'Applications', 'Leases'] },
-    { title: 'Property Operations', labels: ['Percy', 'Checklists', 'Vendors'] },
-    { title: 'People & Communication', labels: ['Tenants', 'Team', 'Messages', 'Announcements', 'Notifications'] },
+    { title: 'Leasing', labels: ['Calendar', 'Leases'] },
+    { title: 'Property Operations', labels: ['Maintenance', 'Percy', 'Checklists', 'Vendors'] },
+    { title: 'People & Communication', labels: ['Team', 'Announcements'] },
     { title: 'Accounting', labels: ['Online Payments', 'Finances', 'Tax Center', 'Reports'] },
-    { title: 'Account & Help', labels: ['Settings', 'Support'] },
+    { title: 'Account & Help', labels: ['Support'] },
   ]);
 });
 
@@ -27,7 +27,7 @@ test('tenant side menu has workflow groups and sign out stays under the final ac
   assert.deepEqual(sections('tenantMenu', 'webAppUrl'), [
     { title: 'Home & Leasing', labels: ['Dashboard', 'My Lease', 'Applications'] },
     { title: 'Payments & Documents', labels: ['Payments', 'Documents'] },
-    { title: 'Account', labels: ['Settings'] },
+    { title: 'Account', labels: [] },
   ]);
   assert.match(source, /menu\.map\(\(section\) => \([\s\S]*accessibilityRole="header"[^\n]*section\.title[\s\S]*section\.items\.map\(\(item\)/);
   assert.match(source, /section === menu\[menu\.length - 1\][\s\S]*accessibilityLabel="Sign out"/);

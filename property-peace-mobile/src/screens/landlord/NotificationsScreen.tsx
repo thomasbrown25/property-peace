@@ -1,8 +1,10 @@
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { notificationFeedPage, relativeNotificationTime, isUnreadNotification, NOTIFICATIONS_PAGE_SIZE, type FeedRow } from '../../features/notifications/notificationFeed';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
+import { Notifications } from '../../services/pushNotifications';
 import { useAppTheme } from '../../theme/AppTheme';
 import LandlordPageHeader from '../../components/LandlordPageHeader';
 
@@ -47,7 +49,11 @@ export default function NotificationsScreen() {
     }
   }, []);
 
-  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+  useFocusEffect(useCallback(() => {
+    void loadNotifications();
+    const subscription = Notifications.addNotificationReceivedListener(() => { void loadNotifications(); });
+    return () => subscription.remove();
+  }, [loadNotifications]));
 
   const markAllRead = async () => {
     setActionError(null);

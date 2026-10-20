@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAppDispatch } from "../../store/hooks";
-import { register, googleLogin } from "../../store/user/user.slice";
+import { register } from "../../store/user/user.slice";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { AuthStackParamList } from "../../navigation/types";
@@ -23,8 +23,9 @@ import GoogleLogo from "../../components/GoogleLogo";
 import AuthMarketingBackground from "../../components/AuthMarketingBackground";
 import AppleSignInButton from "../../components/AppleSignInButton";
 import { passwordRequirementStatuses } from "@property-peace/shared/password-validation";
-import { prepareRegistration } from "../../features/auth/registrationValidation";
+import { prepareAccount, prepareRegistration, prepareGoogleRegistration } from "../../features/auth/registrationValidation";
 import authService from "../../services/authService";
+import RegistrationChallenge, { registrationChallengeEnabled } from "../../components/auth/RegistrationChallenge";
 import {
   CODE_EXPIRY_SECONDS,
   RESEND_COOLDOWN_SECONDS,
@@ -44,15 +45,38 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState<"details" | "verify">("details");
+  const [step, setStep] = useState<"account" | "verify" | "details" | "creating">("account");
   const [code, setCode] = useState("");
   const [sentAt, setSentAt] = useState(0);
   const [now, setNow] = useState(Date.now());
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [emailVerified, setEmailVerified] = useState(false);
+  const [googleProfile, setGoogleProfile] = useState<{
+    email: string; emailVerified: boolean; accessToken: string;
+  } | null>(null);
+  const challengeToken = useRef<{ value: string; receivedAt: number } | null>(null);
+  const [challengeReady, setChallengeReady] = useState(false);
+  const [challengeGeneration, setChallengeGeneration] = useState(0);
+  const resetChallenge = () => {
+    challengeToken.current = null;
+    setChallengeReady(false);
+    setChallengeGeneration((value) => value + 1);
+  };
+  const consumeChallenge = () => {
+    if (!registrationChallengeEnabled) return undefined;
+    const token = challengeToken.current;
+    challengeToken.current = null;
+    setChallengeReady(false);
+    if (!token || Date.now() - token.receivedAt > 90_000) {
+      throw new Error('Complete the security check again before sending a code.');
+    }
+    return token.value;
+  };
   const { signIn: googleSignIn, loading: googleLoading } = useGoogleSignIn();
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const googleInFlight = useRef(false);
@@ -65,21 +89,19 @@ export default function RegisterScreen() {
     return () => clearInterval(timer);
   }, [emailVerified, step]);
 
-  const prepared = () => prepareRegistration({ email, password, firstName, lastName });
-
   const handleSendCode = async () => {
-    const preparedRegistration = prepared();
-    if ("error" in preparedRegistration) {
-      Alert.alert("Check your details", preparedRegistration.error);
+    const account = prepareAccount({ email, password });
+    if ("error" in account) {
+      setErrorMessage(account.error);
       return;
     }
 
     setLoading(true);
     setErrorMessage("");
     try {
-      await authService.sendRegistrationCode(preparedRegistration.data.email);
+      await authService.sendRegistrationCode(account.data.email, consumeChallenge());
       const timestamp = Date.now();
-      setEmail(preparedRegistration.data.email);
+      setEmail(account.data.email);
       setSentAt(timestamp);
       setNow(timestamp);
       setCode("");
@@ -88,43 +110,63 @@ export default function RegisterScreen() {
     } catch (error: any) {
       setErrorMessage(error?.message || "We could not send the code. Check your connection and try again.");
     } finally {
+      resetChallenge();
       setLoading(false);
     }
   };
 
-  const createAccount = async () => {
-    const preparedRegistration = prepared();
-    if ("error" in preparedRegistration) {
-      setErrorMessage(preparedRegistration.error);
+  const handleVerify = async () => {
+    if (emailVerified) {
+      setStep("details");
       return;
     }
-    await dispatch(register(preparedRegistration.data)).unwrap();
-  };
-
-  const handleVerifyAndRegister = async () => {
-    if (!emailVerified && code.length !== 6) {
+    if (code.length !== 6) {
       setErrorMessage("Enter all 6 digits from your email.");
       return;
     }
-    if (!emailVerified && secondsRemaining(sentAt, Date.now()) === 0) {
+    if (secondsRemaining(sentAt, Date.now()) === 0) {
       setErrorMessage("That code has expired. Request a new code to continue.");
       return;
     }
     setLoading(true);
     setErrorMessage("");
     setStatusMessage("");
-    let hasProof = emailVerified;
     try {
-      if (!emailVerified) {
-        await authService.verifyRegistrationCode(email, code);
-        hasProof = true;
-        setEmailVerified(true);
-      }
-      await createAccount();
+      await authService.verifyRegistrationCode(email, code);
+      setEmailVerified(true);
+      setStep("details");
     } catch (error: any) {
-      const message = error?.message || "We could not finish registration. Please try again.";
-      setErrorMessage(message);
-      setEmailVerified(hasProof);
+      setErrorMessage(error?.message || "We could not verify the code. Request a new one and try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    if (!emailVerified && !googleProfile) {
+      setErrorMessage("Verify your email before creating an account.");
+      setStep("verify");
+      return;
+    }
+    const fields = {
+      email, password, firstName, lastName, organizationName, phoneNumber,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
+    };
+    const preparedRegistration = googleProfile
+      ? prepareGoogleRegistration(fields, googleProfile)
+      : prepareRegistration(fields);
+    if ("error" in preparedRegistration) {
+      setErrorMessage(preparedRegistration.error);
+      return;
+    }
+    setStep("creating");
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      await dispatch(register(preparedRegistration.data)).unwrap();
+      // AppNavigator switches to the authenticated stack after registration.
+    } catch (error: any) {
+      setErrorMessage(error?.message || "We could not finish registration. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -135,7 +177,7 @@ export default function RegisterScreen() {
     setErrorMessage("");
     setStatusMessage("");
     try {
-      await authService.resendRegistrationCode(email);
+      await authService.resendRegistrationCode(email, consumeChallenge());
       const timestamp = Date.now();
       setSentAt(timestamp);
       setNow(timestamp);
@@ -145,6 +187,7 @@ export default function RegisterScreen() {
     } catch (error: any) {
       setErrorMessage(error?.message || "The code could not be resent. Try again.");
     } finally {
+      resetChallenge();
       setLoading(false);
     }
   };
@@ -159,7 +202,7 @@ export default function RegisterScreen() {
     googleInFlight.current = true;
     setGoogleSubmitting(true);
     try {
-      const result = await googleSignIn();
+      const result = await googleSignIn(true);
 
       if (result.error) {
         if (result.error !== "Authentication cancelled") {
@@ -168,38 +211,22 @@ export default function RegisterScreen() {
         return;
       }
 
-      if (!result.accessToken && !result.idToken) {
-        Alert.alert("Error", "No authentication token received");
+      if (!result.accessToken) {
+        Alert.alert("Google Sign-Up Failed", "Google did not return an access token. Please try again.");
         return;
       }
 
-      const authResult = await dispatch(
-        googleLogin({
-          idToken: result.idToken || undefined,
-          accessToken: result.idToken ? undefined : result.accessToken || undefined,
-        }),
-      ).unwrap();
-      if (authResult.kind === "challenge") {
-        navigation.navigate("MfaVerification", { challenge: authResult.challenge });
-      }
-      // Authenticated navigation is handled by AppNavigator.
+      const profile = await authService.googleSignupProfile(result.accessToken);
+      setGoogleProfile(profile);
+      setEmail(profile.email.trim().toLowerCase());
+      setPassword("");
+      setFirstName(profile.firstName || "");
+      setLastName(profile.lastName || "");
+      setEmailVerified(false);
+      setErrorMessage("");
+      setStep("details");
     } catch (error: any) {
-      const errorMessage =
-        error?.message || "Failed to sign up with Google. Please try again.";
-
-      // Check if registration code is needed
-      if (
-        errorMessage.toLowerCase().includes("registration code") ||
-        errorMessage.toLowerCase().includes("invite")
-      ) {
-        Alert.alert(
-          "Registration Code Required",
-          "A registration code is required to create a new account. Please contact your administrator or use email registration.",
-          [{ text: "OK" }],
-        );
-      } else {
-        Alert.alert("Google Sign-Up Failed", errorMessage);
-      }
+      Alert.alert("Google Sign-Up Failed", error?.message || "Failed to sign up with Google. Please try again.");
     } finally {
       googleInFlight.current = false;
       setGoogleSubmitting(false);
@@ -224,18 +251,17 @@ export default function RegisterScreen() {
           contentInsetAdjustmentBehavior="automatic"
           automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
         >
-          <Text style={styles.eyebrow}>ACCOUNT SETUP · {step === "details" ? "01 / 02" : "02 / 02"}</Text>
-          <Text style={styles.title}>{step === "details" ? "Create Account" : "Check your inbox"}</Text>
+          <Text style={styles.eyebrow}>ACCOUNT SETUP · {step === "account" ? "01 / 03" : step === "verify" ? "02 / 03" : googleProfile ? "02 / 02" : "03 / 03"}</Text>
+          <Text style={styles.title}>{step === "account" ? "Create your landlord account" : step === "verify" ? "Check your inbox" : step === "details" ? "Tell us about your business" : "Creating your account"}</Text>
           <Text style={styles.subtitle}>
-            {step === "details"
-              ? "Start organizing rentals from one calm dashboard. We’ll verify your email before creating your account."
-              : `Enter the six-digit code sent to ${email}.`}
+            {step === "account" ? "Start with your email and password. We’ll verify your email before setting up your workspace."
+              : step === "verify" ? `Enter the six-digit code sent to ${email}.`
+              : step === "details" ? `${googleProfile ? `Google verified ${googleProfile.email}. ` : ""}Add the details we need to personalize your workspace. Your phone number is required for account and property communications.`
+              : "Please wait while we set up your workspace and complete registration…"}
           </Text>
 
-          {step === "details" ? (
+          {step === "account" && (
             <>
-              <TextInput style={styles.input} placeholder="First Name *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={firstName} onChangeText={setFirstName} autoCapitalize="words" textContentType="givenName" />
-              <TextInput style={styles.input} placeholder="Last Name *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={lastName} onChangeText={setLastName} autoCapitalize="words" textContentType="familyName" />
               <TextInput style={styles.input} placeholder="Email *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" textContentType="emailAddress" />
               <View style={[styles.passwordContainer, password.length > 0 && styles.passwordContainerWithRequirements]}>
                 <TextInput style={styles.passwordInput} placeholder="Password *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" autoComplete="password-new" textContentType="newPassword" />
@@ -253,12 +279,30 @@ export default function RegisterScreen() {
                   ))}
                 </View>
               )}
+              {registrationChallengeEnabled && (
+                <RegistrationChallenge key={challengeGeneration} generation={challengeGeneration}
+                  onToken={(token) => {
+                    challengeToken.current = token ? { value: token, receivedAt: Date.now() } : null;
+                    setChallengeReady(Boolean(token));
+                    if (token) setErrorMessage("");
+                  }}
+                  onError={(message) => {
+                    setErrorMessage(message);
+                    if (message === 'Security check failed. Try again.') resetChallenge();
+                  }} />
+              )}
               {errorMessage ? <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text> : null}
-              <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSendCode} disabled={loading || googleLoading || googleSubmitting} accessibilityRole="button">
+              {errorMessage.startsWith('Security check') && !errorMessage.includes('not configured') && registrationChallengeEnabled && (
+                <TouchableOpacity style={styles.linkButton} onPress={() => { setErrorMessage(''); resetChallenge(); }} accessibilityRole="button">
+                  <Text style={styles.linkText}>Retry security check</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={[styles.button, (loading || (registrationChallengeEnabled && !challengeReady)) && styles.buttonDisabled]} onPress={handleSendCode} disabled={loading || googleLoading || googleSubmitting || (registrationChallengeEnabled && !challengeReady)} accessibilityRole="button">
                 <Text style={styles.buttonText}>{loading ? "Sending code…" : "Send verification code"}</Text>
               </TouchableOpacity>
             </>
-          ) : (
+          )}
+          {step === "verify" && (
             <View style={styles.verificationCard}>
               <Text style={styles.sectionLabel}>EMAIL VERIFICATION</Text>
               {!emailVerified && (
@@ -287,16 +331,31 @@ export default function RegisterScreen() {
               {errorMessage ? <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text> : null}
               <TouchableOpacity
                 style={[styles.button, (loading || (!emailVerified && codeSecondsRemaining === 0)) && styles.buttonDisabled]}
-                onPress={handleVerifyAndRegister}
+                onPress={handleVerify}
                 disabled={loading || (!emailVerified && codeSecondsRemaining === 0)}
                 accessibilityRole="button"
               >
-                <Text style={styles.buttonText}>
-                  {loading ? (emailVerified ? "Creating account…" : "Verifying…") : emailVerified ? "Try creating account again" : "Verify & create account"}
-                </Text>
+                <Text style={styles.buttonText}>{loading ? "Verifying…" : emailVerified ? "Continue to details" : "Verify email"}</Text>
               </TouchableOpacity>
+              {!emailVerified && registrationChallengeEnabled && (
+                <RegistrationChallenge key={challengeGeneration} generation={challengeGeneration}
+                  onToken={(token) => {
+                    challengeToken.current = token ? { value: token, receivedAt: Date.now() } : null;
+                    setChallengeReady(Boolean(token));
+                    if (token) setErrorMessage("");
+                  }}
+                  onError={(message) => {
+                    setErrorMessage(message);
+                    if (message === 'Security check failed. Try again.') resetChallenge();
+                  }} />
+              )}
+              {errorMessage.startsWith('Security check') && !errorMessage.includes('not configured') && registrationChallengeEnabled && (
+                <TouchableOpacity style={styles.linkButton} onPress={() => { setErrorMessage(''); resetChallenge(); }} accessibilityRole="button">
+                  <Text style={styles.linkText}>Retry security check</Text>
+                </TouchableOpacity>
+              )}
               {!emailVerified && (
-                <TouchableOpacity style={styles.linkButton} onPress={handleResend} disabled={loading || resendSecondsRemaining > 0} accessibilityRole="button">
+                <TouchableOpacity style={styles.linkButton} onPress={handleResend} disabled={loading || resendSecondsRemaining > 0 || (registrationChallengeEnabled && !challengeReady)} accessibilityRole="button">
                   <Text style={[styles.linkText, (loading || resendSecondsRemaining > 0) && styles.mutedText]}>
                     {resendSecondsRemaining > 0 ? `Resend code in ${resendSecondsRemaining}s` : "Resend code"}
                   </Text>
@@ -304,7 +363,7 @@ export default function RegisterScreen() {
               )}
               <TouchableOpacity
                 style={styles.linkButton}
-                onPress={() => { setStep("details"); setCode(""); setErrorMessage(""); setStatusMessage(""); setEmailVerified(false); }}
+                onPress={() => { setStep("account"); setCode(""); setErrorMessage(""); setStatusMessage(""); setEmailVerified(false); }}
                 disabled={loading}
                 accessibilityRole="button"
               >
@@ -314,6 +373,35 @@ export default function RegisterScreen() {
           )}
 
           {step === "details" && (
+            <>
+              <TextInput style={styles.input} placeholder="First Name *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={firstName} onChangeText={setFirstName} autoCapitalize="words" textContentType="givenName" maxLength={100} />
+              <TextInput style={styles.input} placeholder="Last Name *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={lastName} onChangeText={setLastName} autoCapitalize="words" textContentType="familyName" maxLength={100} />
+              <TextInput style={styles.input} placeholder="Workspace or Business Name *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={organizationName} onChangeText={setOrganizationName} autoCapitalize="words" maxLength={100} />
+              <TextInput style={styles.input} placeholder="Phone Number *" placeholderTextColor="rgba(255, 255, 255, 0.58)" value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" accessibilityLabel="Phone number, ten-digit US number including area code" />
+              <Text style={styles.expiryText}>Enter a complete 10-digit US number, including area code.</Text>
+              {errorMessage ? <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text> : null}
+              <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleCreateAccount} disabled={loading} accessibilityRole="button">
+                <Text style={styles.buttonText}>Create account</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.linkButton} onPress={() => { setErrorMessage(""); if (googleProfile) { setGoogleProfile(null); setEmail(""); setStep("account"); } else setStep("verify"); }} accessibilityRole="button">
+                <Text style={styles.linkText}>{googleProfile ? "Use a different sign-up method" : "Back to verification"}</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          {step === "creating" && (
+            <View style={styles.verificationCard}>
+              {errorMessage ? (
+                <>
+                  <Text style={styles.errorText} accessibilityRole="alert">{errorMessage}</Text>
+                  <TouchableOpacity style={styles.button} onPress={handleCreateAccount} disabled={loading} accessibilityRole="button"><Text style={styles.buttonText}>Try again</Text></TouchableOpacity>
+                  <TouchableOpacity style={styles.linkButton} onPress={() => { setErrorMessage(""); setStep("details"); }} accessibilityRole="button"><Text style={styles.linkText}>Review details</Text></TouchableOpacity>
+                  <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate("Login")} accessibilityRole="button"><Text style={styles.linkText}>Go to login</Text></TouchableOpacity>
+                </>
+              ) : <Text style={styles.statusText} accessibilityRole="text">Setting up your workspace…</Text>}
+            </View>
+          )}
+
+          {step === "account" && (
             <>
               {Platform.OS === "ios" && <AppleSignInButton mode="sign-up" />}
 

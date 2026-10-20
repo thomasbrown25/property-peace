@@ -18,21 +18,17 @@ type MenuSection = { title: string; items: MenuItem[] };
 const landlordMenu: MenuSection[] = [
   { title: 'Leasing', items: [
     { label: 'Calendar', icon: 'calendar-outline', route: 'Dashboard', screen: 'Calendar' },
-    { label: 'Listings', icon: 'megaphone-outline', route: 'Listings' },
-    { label: 'Applications', icon: 'clipboard-outline', route: 'Applications' },
     { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
   ] },
   { title: 'Property Operations', items: [
+    { label: 'Maintenance', icon: 'construct-outline', route: 'Maintenance' },
     { label: 'Percy', icon: 'sparkles-outline', webPath: '/landlord/ai-center' },
     { label: 'Checklists', icon: 'clipboard-outline', route: 'Checklists' },
     { label: 'Vendors', icon: 'people-outline', route: 'Vendors' },
   ] },
   { title: 'People & Communication', items: [
-    { label: 'Tenants', icon: 'people-outline', route: 'Tenants' },
     { label: 'Team', icon: 'people-circle-outline', route: 'Team' },
-    { label: 'Messages', icon: 'chatbubble-ellipses-outline', route: 'Messages' },
     { label: 'Announcements', icon: 'notifications-outline', route: 'Announcements' },
-    { label: 'Notifications', icon: 'notifications-outline', route: 'Notifications' },
   ] },
   { title: 'Accounting', items: [
     { label: 'Online Payments', icon: 'card-outline', webPath: '/landlord/online-payments' },
@@ -41,7 +37,6 @@ const landlordMenu: MenuSection[] = [
     { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
   ] },
   { title: 'Account & Help', items: [
-    { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
     { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
   ] },
 ];
@@ -55,9 +50,7 @@ const tenantMenu: MenuSection[] = [
     { label: 'Payments', icon: 'card-outline', webPath: '/tenant/payments' },
     { label: 'Documents', icon: 'folder-outline', webPath: '/tenant/documents' },
   ] },
-  { title: 'Account', items: [
-    { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
-  ] },
+  { title: 'Account', items: [] },
 ];
 
 // Do not send a development/preview account to production's web app.
@@ -144,8 +137,9 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !['Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+  const visibleRoutes = state.routes.filter((route) => !['Leases', 'Listings', 'Applications', 'Maintenance', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
     && !(audience === 'landlord' && route.name === 'Messages')
+    && !(audience === 'tenant' && route.name === 'Notifications')
     && !['Checklists', 'Settings'].includes(route.name));
   const renderTab = (route: typeof visibleRoutes[number]) => {
     const index = state.routes.findIndex((item) => item.key === route.key);
@@ -171,8 +165,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
   };
 
   return (
-    <View pointerEvents="box-none" style={[styles.dockArea, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
-      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.82)' : colors.surface, borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : '#e1e7eb', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
+    <View pointerEvents="box-none" style={[styles.dockArea, { paddingBottom: Math.max(insets.bottom, 10) + 6 }]}>
+      <View style={[styles.pill, { backgroundColor: mode === 'dark' ? 'rgba(24, 27, 31, 0.82)' : 'rgba(255, 255, 255, 0.88)', borderColor: mode === 'dark' ? 'rgba(255,255,255,0.28)' : '#e1e7eb', shadowOpacity: mode === 'dark' ? 0.22 : 0.12 }]} accessibilityRole="tablist">
         {visibleRoutes.map(renderTab)}
         <Pressable style={styles.tab} accessibilityRole="tab" accessibilityLabel="Settings" accessibilityHint="Open your settings"
           accessibilityState={{ selected: state.routes[state.index]?.name === 'Settings' }}
@@ -235,9 +229,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
 }
 
 const styles = StyleSheet.create({
-  // Keep the dock in the tab navigator's layout so every screen (including nested details)
-  // ends above it instead of scrolling its final content underneath the pill.
-  dockArea: { paddingHorizontal: 16, paddingTop: 12 },
+  // Float above the scrolling scene; only the pill is tinted, not the safe-area canvas.
+  dockArea: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 16, paddingTop: 12 },
   pill: { minHeight: 54, borderRadius: 30, borderWidth: 1, padding: 4, flexDirection: 'row', alignItems: 'center', shadowColor: '#001a33', shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 7 }, elevation: 10 },
   tab: { flex: 1, minWidth: 0, minHeight: 46, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   avatar: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },

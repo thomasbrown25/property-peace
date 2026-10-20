@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
 
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
+  listContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120 },
 
   primaryButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#061e35', borderRadius: 10, paddingHorizontal: 12 },
   primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },

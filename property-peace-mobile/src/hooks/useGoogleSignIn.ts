@@ -16,7 +16,7 @@ interface GoogleSignInResult {
 export const useGoogleSignIn = () => {
   const [loading, setLoading] = useState(false);
 
-  const signIn = async (): Promise<GoogleSignInResult> => {
+  const signIn = async (includeAccessToken = false): Promise<GoogleSignInResult> => {
     const clientId = Platform.OS === 'ios' ? config.GOOGLE_IOS_CLIENT_ID : config.GOOGLE_CLIENT_ID;
     if (!clientId) {
       console.error('❌ Google Client ID not configured');
@@ -87,7 +87,7 @@ export const useGoogleSignIn = () => {
           const accessToken = tokenResult.accessToken;
           const idToken = tokenResult.idToken;
 
-          if (!idToken && (Platform.OS === 'ios' || !accessToken)) {
+          if (!idToken && (!accessToken || (Platform.OS === 'ios' && !includeAccessToken))) {
             console.error('❌ No usable token received from exchange');
             return {
               idToken: null,
@@ -99,8 +99,8 @@ export const useGoogleSignIn = () => {
           console.log('✅ Google sign-in successful!');
           return {
             idToken: idToken || null,
-            // Backend prefers accessToken; never send it alongside an ID token.
-            accessToken: idToken ? null : accessToken || null,
+            // Login retains its ID-token preference; signup explicitly requests the access token.
+            accessToken: includeAccessToken ? accessToken || null : idToken ? null : accessToken || null,
             error: null,
           };
         } catch (exchangeError: any) {

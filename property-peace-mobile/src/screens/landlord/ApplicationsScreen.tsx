@@ -38,7 +38,7 @@ const applicationConfig = (landlordId: string, scope: string, openInvite?: () =>
     ],
   });
 
-export default function ApplicationsScreen() {
+export default function ApplicationsScreen({ embedded = false }: { embedded?: boolean }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [chooseOpen, setChooseOpen] = useState(false);
@@ -48,7 +48,7 @@ export default function ApplicationsScreen() {
   const landlordId = String(user?.id ?? user?.Id ?? '');
   const scope = landlordId ? `${landlordId}:${String(user?.currentOrganizationId ?? user?.CurrentOrganizationId ?? '')}` : '';
   const config = useMemo(() => applicationConfig(landlordId, scope, () => setChooseOpen(true)), [landlordId, scope]);
-  return <View style={{ flex: 1 }}><RentalWorkspace config={config} scope={scope} reloadToken={reloadToken} detailRoute="ApplicationDetail" />
+  return <View style={{ flex: 1 }}><RentalWorkspace config={config} scope={scope} reloadToken={reloadToken} detailRoute="ApplicationDetail" embedded={embedded} />
     <Modal visible={chooseOpen && !!scope} transparent animationType="fade" onRequestClose={() => setChooseOpen(false)}><View style={{ flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0009' }}><View style={{ backgroundColor: colors.background, padding: 24, borderRadius: 16 }}><Text accessibilityRole="header" style={{ color: colors.text, fontSize: 22, fontWeight: '800', marginBottom: 16 }}>Add application</Text>
       <Pressable accessibilityRole="button" onPress={() => { setChooseOpen(false); setFormOpen(true); }} style={{ padding: 14 }}><Text style={{ color: colors.accent, fontWeight: '700' }}>Enter application myself</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => { setChooseOpen(false); setInviteOpen(true); }} style={{ padding: 14 }}><Text style={{ color: colors.accent, fontWeight: '700' }}>Invite applicant by email</Text></Pressable>

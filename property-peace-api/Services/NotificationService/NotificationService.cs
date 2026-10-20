@@ -9,6 +9,7 @@ using brownstone_hub_api.Hubs;
 using brownstone_hub_api.Services.EmailService;
 using brownstone_hub_api.Services.SmsService;
 using brownstone_hub_api.Services.Timelines;
+using brownstone_hub_api.Services.PushNotifications;
 using Microsoft.AspNetCore.Http;
 
 namespace brownstone_hub_api.Services.NotificationService
@@ -24,7 +25,8 @@ namespace brownstone_hub_api.Services.NotificationService
         IUserRepository userRepository,
         IHttpContextAccessor httpContextAccessor,
         ILogger<NotificationService> logger,
-        IWorkflowTimelineIntegration? workflowTimeline = null) : INotificationService
+        IWorkflowTimelineIntegration? workflowTimeline = null,
+        IExpoPushSender? pushSender = null) : INotificationService
     {
         private readonly INotificationRepository _notificationRepository = notificationRepository;
         private readonly INotificationSettingRepository _notificationSettingRepository = notificationSettingRepository;
@@ -37,6 +39,7 @@ namespace brownstone_hub_api.Services.NotificationService
         private readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
         private readonly ILogger<NotificationService> _logger = logger;
         private readonly IWorkflowTimelineIntegration? _workflowTimeline = workflowTimeline;
+        private readonly IExpoPushSender? _pushSender = pushSender;
 
         private async Task<long?> GetCurrentUserIdAsync()
         {
@@ -410,6 +413,18 @@ namespace brownstone_hub_api.Services.NotificationService
                 // Send notification via SignalR for real-time updates (only when in-app record exists)
                 if (notification != null)
                 {
+                    if (_pushSender != null)
+                    {
+                        try
+                        {
+                            await _pushSender.SendAsync(createNotificationDto.UserId, notification.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            // Expo delivery is best effort; never roll back the persisted in-app alert.
+                            _logger.LogWarning(ex, "Expo push failed for notification {NotificationId}", notification.Id);
+                        }
+                    }
                     try
                     {
                         var groupName = $"user_{createNotificationDto.UserId}";

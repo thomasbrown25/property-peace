@@ -26,6 +26,15 @@ test('property detail links to property-scoped maintenance and has a titled head
   assert.match(maintenance, /setRequests\(forProperty\(data \|\| \[\], propertyId\)\)/);
 });
 
+test('property tenants open their specific profile within the property stack so Back returns to the property', () => {
+  const property = source('screens/landlord/PropertyDetailScreen.tsx');
+  const navigator = source('navigation/MainNavigator.tsx');
+  assert.match(property, /accessibilityLabel=\{`View \$\{tenantName\(tenant\)\} profile`\}/);
+  assert.match(property, /disabled=\{!\/\^\[1-9\]\\d\*\$\/\.test\(String\(tenant\.id \?\? tenant\.Id \?\? ''\)\)\}/);
+  assert.match(property, /navigation\.navigate\('TenantDetail', \{ tenantId: String\(tenant\.id \?\? tenant\.Id\) \}\)/);
+  assert.match(navigator, /<PropertiesStack\.Screen name="TenantDetail" component=\{TenantDetailScreen\} options=\{\(\{ navigation \}\) => \(\{[^\n]*navigation\.goBack\(\)/);
+});
+
 test('shared back button has no filled background on any screen', () => {
   const button = source('components/PageBackButton.tsx');
   const navigator = source('navigation/MainNavigator.tsx');

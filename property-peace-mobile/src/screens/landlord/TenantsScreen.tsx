@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 18 },
   headerCopy: { flex: 1, minWidth: 0, gap: 4 },
-  listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 28 },
+  listContent: { paddingHorizontal: 22, paddingTop: 8, paddingBottom: 120 },
 
   pageSubtitle: { color: '#617180', fontSize: 15, lineHeight: 22 },
   addButton: { flexDirection: 'row', gap: 4, backgroundColor: '#2475cf', borderRadius: 10, minHeight: 44, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },

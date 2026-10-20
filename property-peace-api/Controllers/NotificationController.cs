@@ -100,22 +100,8 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
-        [HttpPost("create")]
-        public async Task<ActionResult<ServiceResponse<NotificationDto>>> CreateNotification([FromBody] CreateNotificationDto createNotificationDto)
-        {
-            var response = await _notificationService.CreateNotification(createNotificationDto);
-
-            if (!response.Success)
-            {
-                return StatusCode(response.StatusCode, new
-                {
-                    response.Message,
-                    response.Errors
-                });
-            }
-
-            return Ok(response);
-        }
+        // Creation is internal only: accepting a client-supplied UserId here allowed
+        // authenticated callers to send notifications (and email/SMS) to arbitrary users.
     }
 }
 

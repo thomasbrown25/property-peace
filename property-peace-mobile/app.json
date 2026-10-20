@@ -88,6 +88,7 @@
       "expo-font",
       "@react-native-community/datetimepicker",
       "expo-sharing",
+      "expo-notifications",
       "expo-status-bar",
       "expo-web-browser",
       [

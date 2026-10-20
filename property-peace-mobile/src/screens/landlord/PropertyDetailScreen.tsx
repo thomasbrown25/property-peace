@@ -249,14 +249,22 @@ export default function PropertyDetailScreen() {
 
       {visibleTab === 'tenants' && <View style={styles.tenantPanel}>
         {tenants === null ? <Text style={styles.tenantEmpty}>Tenants unavailable · Pull to retry</Text> : tenants.length === 0 ? <Text style={styles.tenantEmpty}>No tenants for this property yet.</Text> : tenants.map((tenant, index) => (
-          <View key={String(tenant.id ?? tenant.Id ?? index)} style={styles.tenantRow} accessibilityRole="summary">
+          <TouchableOpacity
+            key={String(tenant.id ?? tenant.Id ?? index)}
+            style={styles.tenantRow}
+            accessibilityRole="button"
+            accessibilityLabel={`View ${tenantName(tenant)} profile`}
+            disabled={!/^[1-9]\d*$/.test(String(tenant.id ?? tenant.Id ?? ''))}
+            onPress={() => navigation.navigate('TenantDetail', { tenantId: String(tenant.id ?? tenant.Id) })}
+          >
             <View style={styles.tenantAvatar}><Text style={styles.tenantInitial}>{tenantName(tenant).charAt(0).toUpperCase()}</Text></View>
             <View style={styles.tenantCopy}>
               <Text style={styles.tenantName}>{tenantName(tenant)}</Text>
               {isMultiUnit && <Text style={styles.tenantMeta}>{stringValue(tenant.unitName, tenant.UnitName, 'Unit not assigned')}</Text>}
               {!!stringValue(tenant.email, tenant.Email) && <Text style={styles.tenantMeta}>{stringValue(tenant.email, tenant.Email)}</Text>}
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color={mode === 'dark' ? colors.muted : '#788995'} />
+          </TouchableOpacity>
         ))}
       </View>}
 

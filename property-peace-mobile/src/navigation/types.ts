@@ -3,7 +3,7 @@ import type { ChecklistsStackParamList } from './checklistsTypes';
 
 export type RootStackParamList = {
   Auth: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
 };
 
 export type AuthStackParamList = {
@@ -37,6 +37,7 @@ export type MainTabParamList = {
   Leases: NavigatorScreenParams<LeasesStackParamList> | undefined;
   Listings: NavigatorScreenParams<ListingsStackParamList> | undefined;
   Applications: NavigatorScreenParams<ApplicationsStackParamList> | undefined;
+  Marketing: NavigatorScreenParams<MarketingStackParamList> | undefined;
   Settings: NavigatorScreenParams<SettingsStackParamList> | undefined;
 };
 
@@ -55,6 +56,7 @@ export type ApplicationsStackParamList = {
   ApplicationsList: undefined;
   ApplicationDetail: { item: import('../api/landlordApplicationsAPI').RentalApplication; scope: string };
 };
+export type MarketingStackParamList = { MarketingHome: undefined } & ListingsStackParamList & ApplicationsStackParamList;
 export type AnnouncementsStackParamList = {
   AnnouncementsList: undefined;
   AnnouncementDetail: { item: import('../api/announcementAPI').Announcement };
@@ -63,6 +65,7 @@ export type AnnouncementsStackParamList = {
 export type PropertiesStackParamList = {
   PropertiesList: undefined;
   PropertyDetail: { propertyId: string };
+  TenantDetail: { tenantId: string };
   PropertyMaintenance: { propertyId: string; propertyName: string };
   AddMaintenanceRequest: { propertyId?: string } | undefined;
   LandlordMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };

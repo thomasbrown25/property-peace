@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { createNavigationContainerRef, DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { Notifications, syncPushRegistration } from '../services/pushNotifications';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { RootStackParamList } from './types';
@@ -18,6 +19,8 @@ import { getBiometricAccountId } from '../features/startup/biometricAccountId';
 import { useAppTheme } from '../theme/AppTheme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const navigationRef = createNavigationContainerRef<RootStackParamList>();
+let lastOpenedPushId: string | null = null;
 
 export default function AppNavigator() {
   const { mode, colors } = useAppTheme();
@@ -42,6 +45,29 @@ export default function AppNavigator() {
   const [introComplete, setIntroComplete] = useState(false);
   const [sessionUnlocked, setSessionUnlocked] = useState(true);
   const [autoPromptBiometric, setAutoPromptBiometric] = useState(false);
+  const [navigationReady, setNavigationReady] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !userId || !sessionUnlocked || showOptIn || checkingLock) return;
+    const sync = () => { void syncPushRegistration().catch(() => { /* Try again on next foreground. */ }); };
+    sync();
+    const appState = AppState.addEventListener('change', (state) => { if (state === 'active') sync(); });
+    return () => appState.remove();
+  }, [isAuthenticated, userId, sessionUnlocked, showOptIn, checkingLock]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !userId || !sessionUnlocked || showOptIn || checkingLock || !navigationReady) return;
+    const open = (response: Notifications.NotificationResponse) => {
+      const id = response.notification.request.identifier;
+      if (id === lastOpenedPushId || !navigationRef.isReady()) return;
+      lastOpenedPushId = id;
+      // The push carries no user-controlled route or private payload.
+      navigationRef.navigate('Main', { screen: 'Notifications' });
+    };
+    const subscription = Notifications.addNotificationResponseReceivedListener(open);
+    void Notifications.getLastNotificationResponseAsync().then((response) => { if (response) open(response); }).catch(() => {});
+    return () => subscription.remove();
+  }, [isAuthenticated, userId, sessionUnlocked, showOptIn, checkingLock, currentUser, navigationReady]);
 
   const finishIntro = useCallback(() => {
     setIntroComplete(true);
@@ -188,7 +214,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer ref={navigationRef} onReady={() => setNavigationReady(true)} theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isAuthenticated ? (
           <Stack.Screen name="Main" component={MainNavigator} />
