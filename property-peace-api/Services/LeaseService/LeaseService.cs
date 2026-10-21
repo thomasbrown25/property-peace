@@ -63,6 +63,19 @@ namespace brownstone_hub_api.Services.LeaseService
         private readonly IActivationOccurrenceRecorder? _activationRecorder = activationRecorder;
         private const string SignedDocumentsContainerName = "signed-documents";
 
+        private static ServiceResponse<LoadLeaseDto> ShortTermLeaseError() =>
+            ServiceResponse<LoadLeaseDto>.CreateError(
+                "Short-term units cannot have long-term leases", statusCode: 400);
+
+        private async Task<ServiceResponse<LoadLeaseDto>?> ValidateExistingLeaseUnitAsync(LoadLeaseDto lease, long organizationId)
+        {
+            var property = await _propertyRepository.GetPropertyById(lease.PropertyId, organizationId);
+            var unit = property?.Units.FirstOrDefault(u => u.Id == lease.UnitId);
+            if (unit == null)
+                return ServiceResponse<LoadLeaseDto>.CreateError("Lease unit not found", statusCode: 404);
+            return unit.RentalMode == ERentalMode.ShortTerm ? ShortTermLeaseError() : null;
+        }
+
         private long? GetOrganizationIdFromContext()
         {
             if (_httpContextAccessor.HttpContext?.Items.TryGetValue("OrganizationId", out var orgIdObj) == true && orgIdObj is long orgId)
@@ -167,6 +180,9 @@ namespace brownstone_hub_api.Services.LeaseService
                 if (unit == null)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Invalid Unit ID", "The specified unit does not exist.");
 
+                if (unit.RentalMode == ERentalMode.ShortTerm)
+                    return ShortTermLeaseError();
+
                 var hasRequiredLeaseDetails =
                     lease.StartDate.HasValue &&
                     lease.EndDate.HasValue &&
@@ -192,7 +208,7 @@ namespace brownstone_hub_api.Services.LeaseService
                     if (existingLeaseById != null)
                     {
                         // Verify the lease belongs to the correct unit
-                        if (existingLeaseById.UnitId != lease.UnitId)
+                        if (existingLeaseById.UnitId != lease.UnitId || existingLeaseById.PropertyId != lease.PropertyId)
                         {
                             return ServiceResponse<LoadLeaseDto>.CreateError("Invalid Unit", "The lease does not belong to the specified unit.");
                         }
@@ -311,8 +327,12 @@ namespace brownstone_hub_api.Services.LeaseService
                     return ServiceResponse<LoadLeaseDto>.CreateError("Organization ID is required", "No organization context found", "", 400);
                 if (!await HasOrganizationPermissionAsync(organizationId.Value, tenantPermission: false))
                     return ServiceResponse<LoadLeaseDto>.CreateError("You do not have permission to manage leases for this organization", statusCode: 403);
-                if (await _leaseRepository.GetLeaseById(leaseId, organizationId.Value) == null)
+                var existingLease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
+                if (existingLease == null)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", statusCode: 404);
+                var unitError = await ValidateExistingLeaseUnitAsync(existingLease, organizationId.Value);
+                if (unitError != null)
+                    return unitError;
                 var lease = await _leaseRepository.CompleteDraft(leaseId, organizationId.Value);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Lease draft completed");
             }
@@ -479,6 +499,10 @@ namespace brownstone_hub_api.Services.LeaseService
                 var existingLease = await _leaseRepository.GetLeaseById(leaseId, organizationId.Value);
                 if (existingLease == null)
                     return ServiceResponse<LoadLeaseDto>.CreateError("Lease not found", "Lease does not exist or does not belong to your organization", statusCode: 404);
+
+                var unitError = await ValidateExistingLeaseUnitAsync(existingLease, organizationId.Value);
+                if (unitError != null)
+                    return unitError;
 
                 var lease = await _leaseRepository.ReopenLease(leaseId);
                 return ServiceResponse<LoadLeaseDto>.CreateSuccess(lease, "Lease reopened successfully");

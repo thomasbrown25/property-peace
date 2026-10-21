@@ -247,7 +247,8 @@ public class AutoMapperProfile : Profile
                                 : "vacant"));
         CreateMap<Unit, UpdateUnitDto>();
         CreateMap<UpdateUnitDto, Unit>()
-            .ForMember(dest => dest.PropertyId, opt => opt.Ignore());
+            .ForMember(dest => dest.PropertyId, opt => opt.Ignore())
+            .ForMember(dest => dest.RentalMode, opt => opt.Condition(src => src.RentalMode.HasValue));
 
 
         CreateMap<Models.LeaseAgreement, LoadLeaseAgreementDto>();

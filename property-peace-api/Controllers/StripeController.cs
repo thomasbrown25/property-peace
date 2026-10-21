@@ -90,8 +90,8 @@ namespace brownstone_hub_api.Controllers
         /// Create or get Stripe Connect account for the current landlord
         /// </summary>
         [RequireOrganizationRole("Owner", "Manager")]
+        [RequireStripeConnectSetupReady]
         [HttpPost("connect-account")]
-        [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
         public async Task<IActionResult> CreateConnectAccount([FromBody] CreateConnectAccountRequest request)
         {
             try
@@ -167,40 +167,14 @@ namespace brownstone_hub_api.Controllers
                     return Conflict(new { Message = ex.Message });
                 }
 
-                // A user's legacy/global Stripe account must never be reused for whichever
-                // organization happens to be selected. Existing accounts are accessible only
-                // when the server resolves that exact account as this organization's approved
-                // destination and the authenticated actor is its connected-account owner.
-                if (!string.IsNullOrWhiteSpace(dbUser.StripeAccountId))
-                {
-                    if (_stripeConnectedPayeeService == null)
-                    {
-                        return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                            new { Message = "Payout account validation is unavailable" });
-                    }
+                var (_, owned, ownershipError) = await ResolveOwnedOnboardingAsync(userId.Value);
+                if (ownershipError != null) return ownershipError;
+                if (!string.Equals(owned!.StripeAccountId, dbUser.StripeAccountId, StringComparison.Ordinal))
+                    return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Connected account ownership changed" });
 
-                    var destination = await _stripeConnectedPayeeService.ResolveApprovedDestinationAsync(
-                        userId.Value, organizationId.Value, HttpContext.RequestAborted);
-                    var ownsExactApprovedDestination = destination != null
-                        && destination.PayeeUserId == userId.Value
-                        && string.Equals(destination.StripeAccountId, dbUser.StripeAccountId,
-                            StringComparison.Ordinal)
-                        && await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
-                            userId.Value, organizationId.Value, destination.StripeAccountId,
-                            HttpContext.RequestAborted);
-                    if (!ownsExactApprovedDestination)
-                    {
-                        return StatusCode(StatusCodes.Status403Forbidden,
-                            new { Message = "This Stripe account is not approved for the current organization" });
-                    }
-                }
-
-                var returnUrl = request.ReturnUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=connected";
-                var refreshUrl = request.RefreshUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=refresh";
-
-                var authorizedExistingAccountId = string.IsNullOrWhiteSpace(dbUser.StripeAccountId)
-                    ? null
-                    : dbUser.StripeAccountId;
+                if (request.ReturnUrl != null || request.RefreshUrl != null)
+                    return BadRequest(new { Message = "Custom redirects are not accepted." });
+                var returnUrl = $"{_configuration["FrontendBaseUrl"] ?? $"{Request.Scheme}://{Request.Host}"}/landlord/settings?tab=payments&stripe=connected";
                 ServiceResponse<CreateStripeAccountResponseDto> response;
                 if (string.Equals(request.OperatingType, "business", StringComparison.OrdinalIgnoreCase))
                 {
@@ -208,15 +182,13 @@ namespace brownstone_hub_api.Controllers
                     var ein = new string((request.Ein ?? string.Empty).Where(char.IsDigit).ToArray());
                     if (string.IsNullOrWhiteSpace(legalBusinessName) || legalBusinessName.Length > 200 || ein.Length != 9)
                         return BadRequest(new { Message = "A valid legal business name and 9-digit EIN are required." });
-
-                    response = await _stripeService.CreateConnectAccountAsync(
-                        userId.Value, dbUser.Email, returnUrl, authorizedExistingAccountId,
-                        "business", legalBusinessName, ein);
+                    response = await _stripeService.CreateConnectAccountAsync(userId.Value, dbUser.Email,
+                        returnUrl, owned.StripeAccountId, "business", legalBusinessName, ein);
                 }
                 else
                 {
                     response = await _stripeService.CreateConnectAccountAsync(
-                        userId.Value, dbUser.Email, returnUrl, authorizedExistingAccountId);
+                        userId.Value, dbUser.Email, returnUrl, owned.StripeAccountId);
                 }
 
                 if (!response.Success)
@@ -237,7 +209,8 @@ namespace brownstone_hub_api.Controllers
         /// Get Stripe account status for the current landlord
         /// </summary>
         [HttpGet("account-status")]
-        [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
+        [RequireOrganizationRole("Owner", "Manager")]
+        [RequireStripeConnectSetupReady]
         public async Task<IActionResult> GetAccountStatus()
         {
             try
@@ -286,13 +259,9 @@ namespace brownstone_hub_api.Controllers
                     return Unauthorized(new { Message = "User ID not found in token" });
                 }
 
-                if (_stripeConnectedPayeeService == null)
-                    return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                        new { Message = "Payout account status is unavailable" });
-
-                var destination = await _stripeConnectedPayeeService.ResolveApprovedDestinationAsync(
-                    userId.Value, organizationId.Value, HttpContext.RequestAborted);
-                if (destination == null)
+                var (_, owned, ownershipError) = await ResolveOwnedOnboardingAsync(userId.Value);
+                if (ownershipError != null) return ownershipError;
+                if (owned!.StripeAccountId == null)
                 {
                     return Ok(new StripeAccountStatusDto
                     {
@@ -306,7 +275,7 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 var response = await _stripeService.GetAccountStatusAsync(
-                    destination.StripeAccountId, destination.PayeeUserId, organizationId.Value);
+                    owned.StripeAccountId, userId.Value, organizationId.Value);
 
                 if (!response.Success)
                 {
@@ -314,7 +283,7 @@ namespace brownstone_hub_api.Controllers
                 }
 
                 if (response.Data != null)
-                    response.Data.CanManageAccount = destination.PayeeUserId == userId.Value;
+                    response.Data.CanManageAccount = true;
                 return Ok(response);
             }
             catch (Exception ex)
@@ -328,7 +297,8 @@ namespace brownstone_hub_api.Controllers
         /// Create account link for onboarding (if account exists but needs more info)
         /// </summary>
         [HttpPost("account-link")]
-        [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
+        [RequireOrganizationRole("Owner", "Manager")]
+        [RequireStripeConnectSetupReady]
         public async Task<IActionResult> CreateAccountLink([FromBody] CreateAccountLinkRequest request)
         {
             try
@@ -385,17 +355,18 @@ namespace brownstone_hub_api.Controllers
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
                 }
 
-                var (_, destination, destinationError) =
-                    await ResolveOwnedApprovedDestinationAsync(userId.Value);
-                if (destinationError != null)
-                    return destinationError;
-
-                var returnUrl = request.ReturnUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=connected";
-                var refreshUrl = request.RefreshUrl ?? $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=refresh";
+                var (_, owned, ownershipError) = await ResolveOwnedOnboardingAsync(userId.Value);
+                if (ownershipError != null) return ownershipError;
+                if (owned!.StripeAccountId == null) return Conflict(new { Message = "Set up a Stripe account first" });
+                if (request.ReturnUrl != null || request.RefreshUrl != null ||
+                    request.Type is not (null or "account_onboarding" or "account_update"))
+                    return BadRequest(new { Message = "Custom redirects or link types are not accepted" });
+                var returnUrl = $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=connected";
+                var refreshUrl = $"{Request.Scheme}://{Request.Host}/landlord/settings?tab=payments&stripe=refresh";
                 var linkType = request.Type ?? "account_onboarding";
 
                 var response = await _stripeService.CreateAccountLinkAsync(
-                    destination!.StripeAccountId, returnUrl, refreshUrl, linkType);
+                    owned.StripeAccountId, returnUrl, refreshUrl, linkType);
 
                 if (!response.Success)
                 {
@@ -415,7 +386,8 @@ namespace brownstone_hub_api.Controllers
         /// Create login link for accessing Stripe Express Dashboard
         /// </summary>
         [HttpPost("login-link")]
-        [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
+        [RequireOrganizationRole("Owner", "Manager")]
+        [RequireStripeConnectSetupReady]
         public async Task<IActionResult> CreateLoginLink()
         {
             try
@@ -472,12 +444,11 @@ namespace brownstone_hub_api.Controllers
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
                 }
 
-                var (_, destination, destinationError) =
-                    await ResolveOwnedApprovedDestinationAsync(userId.Value);
-                if (destinationError != null)
-                    return destinationError;
+                var (_, owned, ownershipError) = await ResolveOwnedOnboardingAsync(userId.Value);
+                if (ownershipError != null) return ownershipError;
+                if (owned!.StripeAccountId == null) return Conflict(new { Message = "Set up a Stripe account first" });
 
-                var response = await _stripeService.CreateLoginLinkAsync(destination!.StripeAccountId);
+                var response = await _stripeService.CreateLoginLinkAsync(owned.StripeAccountId);
 
                 if (!response.Success)
                 {
@@ -497,7 +468,8 @@ namespace brownstone_hub_api.Controllers
         /// Create account session for embedded onboarding
         /// </summary>
         [HttpPost("account-session")]
-        [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
+        [RequireOrganizationRole("Owner", "Manager")]
+        [RequireStripeConnectSetupReady]
         public async Task<IActionResult> CreateAccountSession()
         {
             try
@@ -554,12 +526,11 @@ namespace brownstone_hub_api.Controllers
                     return BadRequest(new { Message = "Stripe payment setup is not available in demo mode." });
                 }
 
-                var (_, destination, destinationError) =
-                    await ResolveOwnedApprovedDestinationAsync(userId.Value);
-                if (destinationError != null)
-                    return destinationError;
+                var (_, owned, ownershipError) = await ResolveOwnedOnboardingAsync(userId.Value);
+                if (ownershipError != null) return ownershipError;
+                if (owned!.StripeAccountId == null) return Conflict(new { Message = "Set up a Stripe account first" });
 
-                var response = await _stripeService.CreateAccountSessionAsync(destination!.StripeAccountId);
+                var response = await _stripeService.CreateAccountSessionAsync(owned.StripeAccountId);
 
                 if (!response.Success)
                 {
@@ -580,7 +551,8 @@ namespace brownstone_hub_api.Controllers
         /// Bank credentials are entered directly into Stripe's component and never pass through this API.
         /// </summary>
         [HttpPost("account-management-session")]
-        [RequireRentPaymentActionReady(RentPaymentAction.Configure)]
+        [RequireOrganizationRole("Owner", "Manager")]
+        [RequireStripeConnectSetupReady]
         public async Task<IActionResult> CreateAccountManagementSession()
         {
             try
@@ -598,24 +570,10 @@ namespace brownstone_hub_api.Controllers
                 var organizationId = this.GetCurrentOrganizationIdOrForbid();
                 if (!organizationId.HasValue)
                     return StatusCode(StatusCodes.Status403Forbidden, new { Message = "Organization context is required" });
-                if (_stripeConnectedPayeeService == null)
-                    return StatusCode(StatusCodes.Status503ServiceUnavailable,
-                        new { Message = "Payout account management is unavailable" });
-
-                var destination = await _stripeConnectedPayeeService.ResolveApprovedDestinationAsync(
-                    userIdResponse.Data.Value, organizationId.Value, HttpContext.RequestAborted);
-                if (destination == null
-                    || destination.PayeeUserId != userIdResponse.Data.Value
-                    || !await _stripeConnectedPayeeService.IsApprovedDestinationAsync(
-                        destination.PayeeUserId, organizationId.Value, destination.StripeAccountId,
-                        HttpContext.RequestAborted))
-                {
-                    return StatusCode(StatusCodes.Status403Forbidden,
-                        new { Message = "Payout account management is unavailable for this organization" });
-                }
-
-                var response = await _stripeService.CreateAccountManagementSessionAsync(
-                    destination.StripeAccountId);
+                var (_, owned, ownershipError) = await ResolveOwnedOnboardingAsync(userIdResponse.Data.Value);
+                if (ownershipError != null) return ownershipError;
+                if (owned!.StripeAccountId == null) return Conflict(new { Message = "Set up a Stripe account first" });
+                var response = await _stripeService.CreateAccountManagementSessionAsync(owned.StripeAccountId);
                 return response.Success ? Ok(response) : BadRequest(response);
             }
             catch (Exception ex)
@@ -1124,6 +1082,28 @@ namespace brownstone_hub_api.Controllers
             }
 
             return (organizationId.Value, destination, null);
+        }
+
+        private async Task<(long OrganizationId, OwnedStripeAccount? Account, IActionResult? Error)> ResolveOwnedOnboardingAsync(long actorUserId)
+        {
+            if (User?.Identity?.IsAuthenticated != true || actorUserId <= 0 ||
+                !long.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("userId")?.Value,
+                    out var claimUserId) || claimUserId != actorUserId)
+                return (0, null, Unauthorized(new { Message = "Authenticated account owner is required" }));
+            var organizationId = this.GetCurrentOrganizationIdOrForbid();
+            if (!organizationId.HasValue)
+                return (0, null, StatusCode(403, new { Message = "Organization context is required" }));
+            if (_stripeConnectedPayeeService == null)
+                return (organizationId.Value, null, StatusCode(503, new { Message = "Account ownership validation is unavailable" }));
+            var account = await _stripeConnectedPayeeService.ResolveOwnedAccountForOnboardingAsync(
+                actorUserId, organizationId.Value, HttpContext.RequestAborted);
+            if (account == null || account.UserId != actorUserId)
+                return (organizationId.Value, null, StatusCode(403, new { Message = "This account is not owned in the selected organization" }));
+            // No pre-Connect identity proof is available for first-time accounts. Never silently
+            // treat Connect preparation or a collection approval as identity verification.
+            if (_configuration.GetValue<bool>("ShortStayCollection:RequireIdentityBeforeConnect"))
+                return (organizationId.Value, null, StatusCode(403, new { Message = "Pre-Connect identity verification is required" }));
+            return (organizationId.Value, account, null);
         }
 
         private async Task<long?> GetCurrentUserIdAsync()

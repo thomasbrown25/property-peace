@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useDrawer } from 'contexts/DrawerContext';
 import LeasePreviewModal from 'components/dialogs/LeasePreviewModal';
+import { rentalMode } from 'utils/rentalMode';
 import { darkModeActionButtonSx, propertyAccentCardSx } from './propertyAccentSx';
 
 export default function PropertyQuickActionsPanel({ property, propertyId, mobile = false }) {
@@ -15,10 +16,11 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
   const drawer = useDrawer();
   const [leasePreviewOpen, setLeasePreviewOpen] = useState(false);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const hasLongTermUnits = (property?.units || property?.Units || []).some(unit => rentalMode(unit) !== 'shortTerm');
 
   const activeLease = useMemo(() => {
     const units = property?.units || property?.Units || [];
-    for (const unit of units) {
+    for (const unit of units.filter(unit => rentalMode(unit) !== 'shortTerm')) {
       const lease = unit.lease || unit.Lease;
       if (lease && (lease.isActive || lease.IsActive)) return lease;
     }
@@ -30,10 +32,10 @@ export default function PropertyQuickActionsPanel({ property, propertyId, mobile
     : { label: 'Create lease', icon: <PlusOutlined    style={{ fontSize: 13 }} />, onClick: () => navigate('/landlord/leases/selection') };
 
   const ACTIONS = [
-    { label: 'Record payment',         icon: <DollarOutlined   style={{ fontSize: 13 }} />, onClick: () => drawer.openPaymentAddDrawer() },
+    ...(hasLongTermUnits ? [{ label: 'Record payment', icon: <DollarOutlined style={{ fontSize: 13 }} />, onClick: () => drawer.openPaymentAddDrawer() }] : []),
     { label: 'New maintenance ticket', icon: <ToolOutlined     style={{ fontSize: 13 }} />, onClick: () => drawer.openMaintenanceAddDrawer({ propertyId, propertyName: property?.name }) },
     { label: 'Schedule inspection',    icon: <CalendarOutlined style={{ fontSize: 13 }} />, onClick: () => drawer.openScheduleInspectionDrawer(propertyId) },
-    leaseAction,
+    ...(hasLongTermUnits ? [leaseAction] : []),
     { label: 'Upload document',        icon: <UploadOutlined   style={{ fontSize: 13 }} />, onClick: () => navigate('/landlord/documents') },
   ];
 

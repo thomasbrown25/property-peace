@@ -3,6 +3,7 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Utils;
 using brownstone_hub_api.Services.ActivationFunnel;
@@ -57,6 +58,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 payeeGateAcquired = true;
                 transaction = await BeginCollectionReservationTransactionAsync(command.LeaseId,
                     command.DestinationStripeAccountId, cancellationToken);
+                await EnsureLongTermLeaseAsync(command.LeaseId, command.OrganizationId, cancellationToken);
                 var existing = await _context.StripeRentPayments.SingleOrDefaultAsync(x => x.OperationId == command.OperationId, cancellationToken);
                 var request = BuildIntentRequest(command.OperationId, command.LeaseId, command.OrganizationId, command.TenantUserId,
                     command.AmountCents, command.Currency, command.Description);
@@ -134,6 +136,7 @@ namespace brownstone_hub_api.Services.StripeRentPayments
                 if (payment.Status != StripeRentPaymentStatus.Created)
                     throw new InvalidOperationException("Only an uncompleted rent PaymentIntent can be updated.");
 
+                await EnsureLongTermLeaseAsync(payment.LeaseId, payment.OrganizationId, cancellationToken);
                 await EnsureAmountAvailableAsync(payment.LeaseId, payment.OrganizationId, payment.TenantUserId,
                     command.AmountCents, payment.Id, cancellationToken);
                 await EnsureCollectionPayeeEligibleAsync(payment.Id, payment.LeaseId, payment.OrganizationId,
@@ -469,6 +472,8 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                             && (candidate.NextTransferAttemptAt > now
                                 || (candidate.NextTransferAttemptAt != null && candidate.TransferAttemptCount >= maxAttempts)))) continue;
 
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     var decision = await _risk.EvaluateAsync(candidate, cancellationToken);
                     if (!decision.Approved)
                     {
@@ -533,6 +538,8 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer lock.', 
                         continue;
                     }
 
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     try
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(
@@ -710,12 +717,15 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
                         || candidate.TransferReplayFailureCount >= maxReplayFailures
                         || candidate.TransferReconciliationPaused
                         || candidate.NextTransferAttemptAt > _timeProvider.GetUtcNow()) continue;
+                    if (await BlockTransferForRentalModeAsync(candidate, true, cancellationToken)) continue;
                     candidate.TransferIdempotencyKey ??= LegacyTransferIdempotencyKey(candidate);
                     await _context.SaveChangesAsync(cancellationToken);
 
                     // Replaying an idempotent create can be the first request Stripe receives after an
                     // ambiguous network failure. Treat it as transfer creation, not a read-only lookup:
                     // every live risk, authority, hold, source-charge and destination check must pass again.
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     var decision = await _risk.EvaluateAsync(candidate, cancellationToken);
                     if (!decision.Approved)
                     {
@@ -765,6 +775,8 @@ IF @result < 0 THROW 51000, 'Unable to acquire connected-payee transfer reconcil
                         continue;
                     }
 
+                    if (await BlockTransferForRentalModeAsync(candidate,
+                        candidate.Status == StripeRentPaymentStatus.TransferReconciliationPending, cancellationToken)) continue;
                     try
                     {
                         var transferId = await _gateway.CreateTransferAsync(new StripeRentTransferRequest(
@@ -1145,6 +1157,38 @@ IF @lockResult < 0
                 await transaction.DisposeAsync();
                 throw;
             }
+        }
+
+        private async Task<bool> BlockTransferForRentalModeAsync(StripeRentPayment payment, bool reconciliation,
+            CancellationToken cancellationToken)
+        {
+            if (await IsLongTermLeaseAsync(payment.LeaseId, payment.OrganizationId, cancellationToken)) return false;
+            if (reconciliation)
+            {
+                // The request may have succeeded already; keep its durable identity for operator review.
+                payment.TransferReconciliationPaused = true;
+                payment.RiskReason = "Rent transfer reconciliation requires a LongTerm unit lease; operator review required.";
+            }
+            else
+            {
+                payment.Status = StripeRentPaymentStatus.Blocked;
+                payment.TransferEligibleAt = null;
+                payment.RiskReason = "Rent transfer requires a LongTerm unit lease.";
+            }
+            payment.NextTransferAttemptAt = null;
+            payment.UpdatedAt = _timeProvider.GetUtcNow();
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        private Task<bool> IsLongTermLeaseAsync(long leaseId, long organizationId, CancellationToken cancellationToken) =>
+            _context.Leases.AsNoTracking().AnyAsync(l => l.Id == leaseId && l.OrganizationId == organizationId
+                && !l.IsDeleted && l.Unit.RentalMode == ERentalMode.LongTerm, cancellationToken);
+
+        private async Task EnsureLongTermLeaseAsync(long leaseId, long organizationId, CancellationToken cancellationToken)
+        {
+            if (!await IsLongTermLeaseAsync(leaseId, organizationId, cancellationToken))
+                throw new InvalidOperationException("Rent PaymentIntent requires a LongTerm unit lease.");
         }
 
         private async Task EnsureAmountAvailableAsync(long leaseId, long organizationId, long tenantUserId,

@@ -4,12 +4,14 @@ using brownstone_hub_api.Dtos.IncludedUtility;
 using brownstone_hub_api.Dtos.Lease;
 using brownstone_hub_api.Dtos.MaintenanceRequest;
 using brownstone_hub_api.Dtos.Tenant;
+using brownstone_hub_api.Enums;
 
 namespace brownstone_hub_api.Dtos.Unit
 {
     public class AddUnitDto
     {
         public string Name { get; set; } = "";
+        public ERentalMode RentalMode { get; set; } = ERentalMode.LongTerm;
         public string Bedrooms { get; set; } = "";
         public string Baths { get; set; } = "";
         public string Type { get; set; } = "";

@@ -8,7 +8,7 @@ namespace brownstone_hub_api.Tests.Services.RentPaymentAccess;
 public sealed class RentPaymentRolloutConfigurationTests
 {
     [Fact]
-    public void ProductionDefaults_EnableApprovedFreePlanRentCollection()
+    public void CheckedInDefaults_KeepStripeRentPaymentsAndTransfersDisabled()
     {
         var apiProject = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
@@ -19,10 +19,27 @@ public sealed class RentPaymentRolloutConfigurationTests
             .AddJsonFile("appsettings.json", optional: false)
             .Build();
 
-        configuration.GetValue<bool>("Stripe:RentPaymentsEnabled").Should().BeTrue();
-        configuration.GetValue<bool>("Stripe:TransfersEnabled").Should().BeTrue();
+        configuration.GetValue<bool?>("Stripe:RentPaymentsEnabled").Should().BeFalse();
+        configuration.GetValue<bool?>("Stripe:TransfersEnabled").Should().BeFalse();
         configuration.GetValue<FeatureReadinessState>(
             $"FeatureReadiness:Features:{FeatureKeys.OnlineRentCollection}")
             .Should().Be(FeatureReadinessState.Available);
+    }
+
+    [Fact]
+    public void DevelopmentSettings_DoNotEnableStripeRentPaymentsOrTransfers()
+    {
+        var apiProject = Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory,
+            "..", "..", "..", "..",
+            "property-peace-api"));
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(apiProject)
+            .AddJsonFile("appsettings.json", optional: false)
+            .AddJsonFile("appsettings.Development.json", optional: false)
+            .Build();
+
+        configuration.GetValue<bool?>("Stripe:RentPaymentsEnabled").Should().BeFalse();
+        configuration.GetValue<bool?>("Stripe:TransfersEnabled").Should().BeFalse();
     }
 }

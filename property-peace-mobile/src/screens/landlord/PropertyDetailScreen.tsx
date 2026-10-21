@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   RefreshControl,
   ScrollView,
@@ -14,6 +15,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
+import UnitAPI from '../../api/unitAPI';
+import { propertyRentalMode, rentalModeDecision, rentalModeMutationError, longTermTenants, longTermPayments, unitRentalMode, type RentalMode } from '../../features/properties/rentalMode';
 import MaintenanceAPI from '../../api/maintenanceAPI';
 import RentCollectionAPI from '../../api/rentCollectionAPI';
 import ChecklistAPI, { Checklist } from '../../api/checklistAPI';
@@ -68,6 +71,8 @@ export default function PropertyDetailScreen() {
   const [tenants, setTenants] = useState<Tenant[] | null>(null);
   const [tab, setTab] = useState<'overview' | 'units' | 'checklists' | 'tenants' | 'actions'>('overview');
   const generation = useRef(0);
+  const modeSwitching = useRef(false);
+  const [switchingUnit, setSwitchingUnit] = useState<string | null>(null);
 
   const loadProperty = useCallback(async () => {
     const request = ++generation.current;
@@ -76,11 +81,7 @@ export default function PropertyDetailScreen() {
       MaintenanceAPI.getCurrent(),
       RentCollectionAPI.getRentCollection(propertyId).then((response) => {
         const data = collectionPayload(response);
-        return {
-          due: propertyRentDue(data.rentRecords ?? data.RentRecords, propertyId),
-          overdue: propertyOverdueRent(data.rentRecords ?? data.RentRecords, propertyId),
-          status: propertyRentStatus(data.rentRecords ?? data.RentRecords, propertyId),
-        };
+        return data.rentRecords ?? data.RentRecords;
       }),
       ChecklistAPI.getByProperty(propertyId),
       PaymentAPI.getByProperty(propertyId),
@@ -92,14 +93,58 @@ export default function PropertyDetailScreen() {
     setOpenRepairs(maintenanceResult.status === 'fulfilled' ? propertyOpenRepairs(maintenanceResult.value, propertyId) : null);
     setRequests(maintenanceResult.status === 'fulfilled' ? forProperty(maintenanceResult.value, propertyId) : null);
     setChecklists(checklistResult.status === 'fulfilled' ? checklistResult.value.filter(item => String(item.propertyId) === String(propertyId)) : null);
-    setPayments(paymentResult.status === 'fulfilled' ? paymentResult.value.sort((a, b) => Date.parse(b.paymentDate) - Date.parse(a.paymentDate)).slice(0, 1) : null);
-    setTenants(tenantResult.status === 'fulfilled' && Array.isArray(tenantResult.value) ? tenantResult.value.filter(item => String(item.propertyId ?? item.PropertyId) === String(propertyId)) : null);
-    setRentDue(rentResult.status === 'fulfilled' ? rentResult.value.due : null);
-    setOverdueRent(rentResult.status === 'fulfilled' ? rentResult.value.overdue : null);
-    setRentStatus(rentResult.status === 'fulfilled' ? rentResult.value.status : null);
+    const loadedUnits = propertyResult.status === 'fulfilled' ? propertyResult.value.units ?? propertyResult.value.Units ?? [] : [];
+    const mixed = propertyRentalMode(loadedUnits) === 'Mixed';
+    setPayments(paymentResult.status === 'fulfilled' ? (mixed ? longTermPayments(paymentResult.value, loadedUnits) : paymentResult.value).sort((a, b) => Date.parse(b.paymentDate) - Date.parse(a.paymentDate)).slice(0, 1) : null);
+    setTenants(tenantResult.status === 'fulfilled' && Array.isArray(tenantResult.value) ? (mixed ? longTermTenants(tenantResult.value, loadedUnits) : tenantResult.value).filter(item => String(item.propertyId ?? item.PropertyId) === String(propertyId)) : null);
+    try {
+      if (rentResult.status !== 'fulfilled' || !Array.isArray(rentResult.value)) throw new Error('Rent records unavailable');
+      const records = mixed ? longTermPayments(rentResult.value, loadedUnits) : rentResult.value;
+      setRentDue(propertyRentDue(records, propertyId));
+      setOverdueRent(propertyOverdueRent(records, propertyId));
+      setRentStatus(propertyRentStatus(records, propertyId));
+    } catch {
+      setRentDue(null);
+      setOverdueRent(null);
+      setRentStatus(null);
+    }
     setLoading(false);
     setRefreshing(false);
   }, [propertyId]);
+
+  const changeMode = async (unitId: string, unitName: string, targetMode: RentalMode) => {
+    if (modeSwitching.current) return;
+    modeSwitching.current = true;
+    setSwitchingUnit(unitId);
+    const release = () => { modeSwitching.current = false; setSwitchingUnit(null); };
+    try {
+      const preflight = await UnitAPI.rentalModePreflight(unitId, targetMode);
+      const decision = rentalModeDecision(preflight);
+      if (decision.kind === 'blocked') {
+        Alert.alert('Mode change blocked', decision.message);
+        release();
+        return;
+      }
+      let confirmed = false;
+      Alert.alert(`Change ${unitName} to ${targetMode === 'ShortTerm' ? 'short-term' : 'long-term'}?`, decision.message, [
+        { text: 'Cancel', style: 'cancel', onPress: release },
+        { text: 'Confirm change', onPress: async () => {
+          confirmed = true;
+          try {
+            await UnitAPI.changeRentalMode(unitId, targetMode);
+            setRefreshing(true);
+            await loadProperty();
+          } catch (error: any) {
+            Alert.alert('Mode change not saved', rentalModeMutationError(error));
+            setRefreshing(false);
+          } finally { release(); }
+        } },
+      ], { cancelable: true, onDismiss: () => { if (!confirmed) release(); } });
+    } catch (error: any) {
+      Alert.alert('Mode change unavailable', rentalModeMutationError(error));
+      release();
+    }
+  };
 
   useFocusEffect(useCallback(() => {
     setLoading(true);
@@ -118,9 +163,10 @@ export default function PropertyDetailScreen() {
     const beds = numberValue(firstUnit.bedrooms, firstUnit.Bedrooms, property.bedrooms, property.Bedrooms);
     const baths = numberValue(firstUnit.baths, firstUnit.Baths, property.baths, property.Baths);
     const sqft = numberValue(firstUnit.squareFeet, firstUnit.SquareFeet, property.squareFeet, property.SquareFeet);
-    const rent = numberValue(firstUnit.rentAmount, firstUnit.RentAmount, property.targetRent, property.TargetRent, property.monthlyRent, property.MonthlyRent);
-    const occupied = units.filter((unit: any) => ['occupied', 'overdue'].includes(stringValue(unit.status, unit.Status).toLowerCase())).length;
-    return { units, name, street, propertyType, imageUrl, occupied, beds, baths, sqft, rent };
+    const longTermUnits = units.filter((unit: any) => unitRentalMode(unit) === 'LongTerm');
+    const rent = longTermUnits.length ? numberValue(longTermUnits[0].rentAmount, longTermUnits[0].RentAmount) : 0;
+    const occupied = longTermUnits.filter((unit: any) => ['occupied', 'overdue'].includes(stringValue(unit.status, unit.Status).toLowerCase())).length;
+    return { units, name, street, propertyType, imageUrl, occupied, beds, baths, sqft, rent, longTermUnits, rentalMode: propertyRentalMode(units) };
   }, [property]);
 
   const pendingChecklists = checklists?.filter(item => !item.isCompleted && !item.completedAt) ?? [];
@@ -132,7 +178,8 @@ export default function PropertyDetailScreen() {
   }, [navigation, details?.name]);
 
   const isMultiUnit = stringValue(property?.propertyType, property?.PropertyType).toLowerCase() === 'multiunit';
-  const visibleTab = tab === 'units' && !isMultiUnit ? 'overview' : tab;
+  const hasLongTerm = Boolean(details?.longTermUnits.length);
+  const visibleTab = (tab === 'units' && !isMultiUnit || tab === 'tenants' && !hasLongTerm) ? 'overview' : tab;
 
   if (loading) return <View style={styles.center}><ActivityIndicator size="large" color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>;
 
@@ -165,6 +212,7 @@ export default function PropertyDetailScreen() {
         <View style={styles.heroBody}>
           {!!details.street && <Text style={styles.address}>{details.street}</Text>}
           {!!details.propertyType && <Text style={styles.propertyType}>{details.propertyType === 'multiunit' ? 'Multi-unit' : details.propertyType === 'singlefamily' ? 'Single-family' : details.propertyType}</Text>}
+          <Text style={styles.propertyType} accessibilityLabel={`Rental mode ${details.rentalMode}`}>{details.rentalMode === 'Mixed' ? 'Mixed · long-term and short-term units' : details.rentalMode === 'Empty' ? 'No units yet' : details.rentalMode === 'ShortTerm' ? 'Short-term rentals' : 'Long-term rentals'}</Text>
           {(details.beds > 0 || details.baths > 0 || details.sqft > 0 || details.rent > 0) && (
             <View style={styles.propertyFacts}>
               {details.beds > 0 && <Text style={styles.propertyFact}>🛏 {details.beds} beds</Text>}
@@ -174,17 +222,15 @@ export default function PropertyDetailScreen() {
             </View>
           )}
           <View style={styles.snapshotRow}>
-            <Snapshot label="Units occupied" value={`${details.occupied}/${details.units.length}`} />
-            <View style={styles.snapshotDivider} />
+            {hasLongTerm && <><Snapshot label="Long-term occupied" value={`${details.occupied}/${details.longTermUnits.length}`} /><View style={styles.snapshotDivider} /></>}
             <Snapshot label="Open requests" value={openRepairs === null ? '—' : String(openRepairs)} />
-            <View style={styles.snapshotDivider} />
-            <Snapshot label={rentDue !== null && overdueRent === true ? 'Overdue rent' : 'Rent due'} value={rentDue === null ? '—' : currency(rentDue)} alert={rentDue !== null && overdueRent === true} />
+            {hasLongTerm && <><View style={styles.snapshotDivider} /><Snapshot label={rentDue !== null && overdueRent === true ? 'Overdue rent' : 'Rent due'} value={rentDue === null ? '—' : currency(rentDue)} alert={rentDue !== null && overdueRent === true} /></>}
           </View>
         </View>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabs} contentContainerStyle={styles.tabsContent} accessibilityRole="tablist">
-        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', `Units (${details.units.length})`] as const] : []), ['checklists', 'Checklists'], ['tenants', 'Tenants'], ['actions', 'Actions']] as const).map(([key, label]) => (
+        {([['overview', 'Overview'], ...(isMultiUnit ? [['units', `Units (${details.units.length})`] as const] : []), ['checklists', 'Checklists'], ...(hasLongTerm ? [['tenants', 'Tenants'] as const] : []), ['actions', 'Actions']] as const).map(([key, label]) => (
           <TouchableOpacity key={key} style={[styles.tab, visibleTab === key && styles.activeTab]} onPress={() => setTab(key)} accessibilityRole="tab" accessibilityState={{ selected: visibleTab === key }}>
             <Text style={[styles.tabText, visibleTab === key && styles.activeTabText]}>{label}</Text>
           </TouchableOpacity>
@@ -211,7 +257,7 @@ export default function PropertyDetailScreen() {
           </View>
           <Ionicons name="chevron-forward" size={19} color={mode === 'dark' ? '#b4c3d0' : '#71808d'} />
         </TouchableOpacity>
-        <View style={styles.paymentPanel}>
+        {hasLongTerm && <View style={styles.paymentPanel}>
           <View style={styles.paymentHeader}>
             <View style={styles.paymentIcon}><Ionicons name="receipt-outline" size={21} color={mode === 'dark' ? '#72b6ff' : '#2475cf'} /></View>
             <Text style={styles.paymentHeading}>Rent status</Text>
@@ -221,14 +267,14 @@ export default function PropertyDetailScreen() {
           </Text>
           {rentDue !== null && rentDue > 0 && (rentStatus === 'overdue' || rentStatus === 'due') ? <Text style={styles.rentBalance}>{currency(rentDue)} rent due</Text> : null}
           <Text style={styles.paymentSubheading}>Most recent payment</Text>
-          {payments === null ? <Text style={styles.paymentEmpty}>Payments unavailable · Pull to retry</Text> : payments.length === 0 ? <Text style={styles.paymentEmpty}>No payments recorded for this property yet.</Text> : (
+          {payments === null ? <Text style={styles.paymentEmpty}>Payments unavailable · Pull to retry</Text> : payments.length === 0 ? <Text style={styles.paymentEmpty}>{details.rentalMode === 'Mixed' ? 'No payments attributable to current long-term units. Earlier history may still exist.' : 'No payments recorded for this property yet.'}</Text> : (
             <View style={styles.paymentBody}>
               <Text style={styles.paymentAmount}>{Number.isFinite(Number(payments[0].amount)) ? currency(Number(payments[0].amount)) : 'Amount unavailable'}</Text>
               <Text style={styles.paymentMeta}>{[payments[0].tenantName || payments[0].unitName, payments[0].paymentDate ? String(payments[0].paymentDate).slice(0, 10) : null].filter(Boolean).join(' · ') || 'Payment details unavailable'}</Text>
               <Text style={styles.paymentStatus}>{stringValue(payments[0].status, 'Status unavailable')}</Text>
             </View>
           )}
-        </View>
+        </View>}
       </View>}
 
       {visibleTab === 'checklists' && <View style={styles.checklistPanel}>
@@ -271,10 +317,12 @@ export default function PropertyDetailScreen() {
       {visibleTab === 'actions' && <View style={styles.actionList}>
         <ActionRow icon="construct-outline" title={openRepairs === null ? 'Open repairs' : `${openRepairs} open repairs`} titleColor={openRepairs !== null && openRepairs > 0 ? (mode === 'dark' ? '#ff9bad' : '#c2413b') : undefined} subtitle={openRepairs === null ? 'Repair count unavailable' : 'Requests for this property'} color={mode === 'dark' ? '#ff9bad' : '#d94d63'} background={mode === 'dark' ? '#442b38' : '#fff0f3'} onPress={() => navigation.navigate('PropertyMaintenance', { propertyId, propertyName: details.name })} />
         <ActionRow icon="clipboard-outline" title="Checklists" subtitle="Complete move-in and move-out items" color={mode === 'dark' ? '#89dda0' : '#2f8f46'} background={mode === 'dark' ? '#203b30' : '#edf9ef'} onPress={() => navigation.getParent<any>()?.navigate('Checklists', buildPropertyChecklistEntry(property))} />
-        <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color={mode === 'dark' ? colors.accent : '#2475cf'} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />
-        <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color={mode === 'dark' ? '#d2a9f4' : '#8b5bb7'} background={mode === 'dark' ? '#392d49' : '#f5effb'} onPress={() => navigation.getParent<any>()?.navigate('Leases')} />
+        {hasLongTerm && <ActionRow icon="people-outline" title="View tenants" subtitle="Open your tenant directory" color={mode === 'dark' ? colors.accent : '#2475cf'} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.getParent<any>()?.navigate('Tenants')} />}
+        {hasLongTerm && <ActionRow icon="document-text-outline" title="View leases" subtitle="Review lease status and dates" color={mode === 'dark' ? '#d2a9f4' : '#8b5bb7'} background={mode === 'dark' ? '#392d49' : '#f5effb'} onPress={() => navigation.getParent<any>()?.navigate('Leases')} />}
         <ActionRow icon="create-outline" title="Edit property" subtitle="Update building and address details" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId })} />
-        {!isMultiUnit && details.units[0] && <ActionRow icon="key-outline" title="Edit unit" subtitle="Update beds, baths, and rent" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit', unitId: String(details.units[0].id ?? details.units[0].Id) })} />}
+        {!isMultiUnit && details.units[0] && <ActionRow icon="key-outline" title="Edit unit" subtitle={unitRentalMode(details.units[0]) === 'ShortTerm' ? 'Update unit details' : 'Update beds, baths, and rent'} color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit', unitId: String(details.units[0].id ?? details.units[0].Id) })} />}
+        {!isMultiUnit && details.units[0] && unitRentalMode(details.units[0]) === 'ShortTerm' && <ActionRow icon="calendar-outline" title="Short-stay owner setup" subtitle="Owner setup only. Guests cannot book yet." color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('ShortStayOwner', { propertyId, unitId: String(details.units[0].id ?? details.units[0].Id), unitName: stringValue(details.units[0].name, details.units[0].Name, 'Unit') })} />}
+        {!isMultiUnit && details.units[0] && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Change rental mode for this unit" disabled={switchingUnit !== null} style={styles.editEntry} onPress={() => changeMode(String(details.units[0].id ?? details.units[0].Id), stringValue(details.units[0].name, details.units[0].Name, 'Unit 1'), unitRentalMode(details.units[0]) === 'LongTerm' ? 'ShortTerm' : 'LongTerm')}><Text style={styles.editEntryText}>Change unit rental mode · {unitRentalMode(details.units[0])}</Text></TouchableOpacity>}
         {!isMultiUnit && !details.units.length && <ActionRow icon="add-circle-outline" title="Add unit" subtitle="Set up the home's unit" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit' })} />}
         {isMultiUnit && <ActionRow icon="add-circle-outline" title="Add units" subtitle="Create units for this property" color={colors.accent} background={mode === 'dark' ? '#233e59' : '#eaf3ff'} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit' })} />}
       </View>}
@@ -298,7 +346,9 @@ export default function PropertyDetailScreen() {
                 <View style={styles.unitIcon}><Ionicons name="key-outline" size={21} color={mode === 'dark' ? colors.accent : '#2475cf'} /></View>
                 <View style={styles.unitCopy}>
                   <Text style={styles.unitName}>{stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber, `Unit ${index + 1}`)}</Text>
-                  <Text style={styles.unitMeta}>{status}{rent > 0 ? ` · ${currency(rent)}/mo` : ''}</Text>
+                  <Text style={styles.unitMeta}>{unitRentalMode(unit) === 'ShortTerm' ? 'Short-term' : `Long-term · ${status}`}{unitRentalMode(unit) === 'LongTerm' && rent > 0 ? ` · ${currency(rent)}/mo` : ''}</Text>
+                  {unitRentalMode(unit) === 'ShortTerm' && <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Short-stay owner setup for ${stringValue(unit.name, unit.Name, `Unit ${index + 1}`)}`} onPress={() => navigation.navigate('ShortStayOwner', { propertyId, unitId, unitName: stringValue(unit.name, unit.Name, `Unit ${index + 1}`) })}><Text style={styles.editEntryText}>Short-stay owner setup</Text><Text style={styles.unitMeta}>Owner setup only. Guests cannot book yet.</Text></TouchableOpacity>}
+                  <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Change rental mode for ${stringValue(unit.name, unit.Name, `Unit ${index + 1}`)}`} disabled={switchingUnit !== null} onPress={() => changeMode(unitId, stringValue(unit.name, unit.Name, `Unit ${index + 1}`), unitRentalMode(unit) === 'LongTerm' ? 'ShortTerm' : 'LongTerm')}><Text style={styles.editEntryText}>Change mode</Text></TouchableOpacity>
                 </View>
                 <TouchableOpacity style={styles.unitAction} onPress={() => navigation.navigate('AddProperty', { propertyId, mode: 'unit', unitId: String(unit.id ?? unit.Id) })} accessibilityRole="button" accessibilityLabel={`Edit unit ${stringValue(unit.name, unit.Name, unit.unitNumber, unit.UnitNumber, `Unit ${index + 1}`)}`}>
                   <Ionicons name="create-outline" size={20} color={mode === 'dark' ? colors.accent : '#0b3558'} />

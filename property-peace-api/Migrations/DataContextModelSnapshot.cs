@@ -2184,6 +2184,35 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("ExpenseReceipts", "financial");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ExpoPushToken", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ExpoPushTokens", "communication");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Feedback", b =>
                 {
                     b.Property<long>("Id")
@@ -6128,19 +6157,6 @@ namespace brownstone_hub_api.Migrations
                     b.ToTable("MfaEnrollments");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.ExpoPushToken", b =>
-                {
-                    b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("bigint");
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-                    b.Property<string>("Token").IsRequired().HasMaxLength(255).HasColumnType("nvarchar(255)");
-                    b.Property<DateTime>("UpdatedAtUtc").HasColumnType("datetime2");
-                    b.Property<long>("UserId").HasColumnType("bigint");
-                    b.HasKey("Id");
-                    b.HasIndex("Token").IsUnique();
-                    b.HasIndex("UserId");
-                    b.ToTable("ExpoPushTokens", "communication");
-                });
-
             modelBuilder.Entity("brownstone_hub_api.Models.Notification", b =>
                 {
                     b.Property<long>("Id")
@@ -7615,6 +7631,10 @@ namespace brownstone_hub_api.Migrations
                     b.Property<decimal>("TargetRent")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TimeZoneId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<int>("YearBuilt")
                         .HasColumnType("int");
@@ -9823,6 +9843,708 @@ namespace brownstone_hub_api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayBlock", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitId", "StartDate", "EndDate");
+
+                    b.ToTable("ShortStayBlocks", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayBlocks_DateRange", "[EndDate] > [StartDate]");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayCollectionApplication", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ApplicantUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ApprovalCaseReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("ApprovedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("AuthorityAttestedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("FeePolicyConsentVersion")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("IdentityVerificationSessionId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTimeOffset?>("IdentityVerifiedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("PropertyAuthorityConfirmedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(1L);
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("Draft");
+
+                    b.Property<string>("StripeAccountId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("SuspendedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("SuspendedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicantUserId");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("IdentityVerificationSessionId")
+                        .IsUnique()
+                        .HasFilter("[IdentityVerificationSessionId] IS NOT NULL");
+
+                    b.HasIndex("SuspendedByUserId");
+
+                    b.HasIndex("OrganizationId", "ApplicantUserId")
+                        .IsUnique()
+                        .HasFilter("[Status] <> 'Rejected'");
+
+                    b.ToTable("ShortStayCollectionApplications", "financial", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayCollectionApplications_Status", "[Status] IN ('Draft', 'Submitted', 'IdentityPending', 'IdentityVerified', 'UnderReview', 'PayoutApproved', 'Suspended', 'Rejected')");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayCollectionApplicationProperty", b =>
+                {
+                    b.Property<long>("ShortStayCollectionApplicationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PropertyId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("ShortStayCollectionApplicationId", "PropertyId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.ToTable("ShortStayCollectionApplicationProperties", "financial");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayGuidebookDraft", b =>
+                {
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ArrivalOverview")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("HouseRules")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("LocalNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.HasKey("UnitId");
+
+                    b.ToTable("ShortStayGuidebookDrafts", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayGuidebookDrafts_UnitId", "[UnitId] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayIcalOccurrence", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("RecurrenceKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<long>("SubscriptionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UidKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubscriptionId", "StartDate", "EndDate");
+
+                    b.HasIndex("SubscriptionId", "UidKey", "RecurrenceKey")
+                        .IsUnique();
+
+                    b.ToTable("ShortStayIcalOccurrences", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayIcalOccurrences_DateRange", "[EndDate] > [StartDate]");
+
+                            t.HasCheckConstraint("CK_ShortStayIcalOccurrences_RecurrenceKey", "[RecurrenceKey] <> ''");
+
+                            t.HasCheckConstraint("CK_ShortStayIcalOccurrences_UidKey", "[UidKey] <> ''");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayIcalSubscription", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("ConsecutiveFailures")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("EncryptedUrl")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FailureCode")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<long>("Generation")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("LastAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastSuccessAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LeaseExpiresAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("LeaseToken")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("NextAttemptAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("OrgId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UrlFingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeaseToken")
+                        .IsUnique()
+                        .HasFilter("[LeaseToken] IS NOT NULL");
+
+                    b.HasIndex("OrgId");
+
+                    b.HasIndex("UnitId")
+                        .IsUnique();
+
+                    b.HasIndex("Enabled", "NextAttemptAtUtc", "LeaseExpiresAtUtc");
+
+                    b.ToTable("ShortStayIcalSubscriptions", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayIcalSubscriptions_ConsecutiveFailures", "[ConsecutiveFailures] >= 0");
+
+                            t.HasCheckConstraint("CK_ShortStayIcalSubscriptions_EncryptedUrl", "[Enabled] = 0 OR [EncryptedUrl] <> ''");
+
+                            t.HasCheckConstraint("CK_ShortStayIcalSubscriptions_Generation", "[Generation] >= 1");
+
+                            t.HasCheckConstraint("CK_ShortStayIcalSubscriptions_LeasePair", "([LeaseToken] IS NULL AND [LeaseExpiresAtUtc] IS NULL) OR ([LeaseToken] IS NOT NULL AND [LeaseExpiresAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_ShortStayIcalSubscriptions_UrlFingerprint", "[Enabled] = 0 OR [UrlFingerprint] <> ''");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayListing", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Amenities")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("CancellationPolicy")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int");
+
+                    b.Property<TimeOnly?>("CheckInTime")
+                        .HasColumnType("time");
+
+                    b.Property<TimeOnly?>("CheckOutTime")
+                        .HasColumnType("time");
+
+                    b.Property<decimal>("CleaningFee")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("HouseRules")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<decimal?>("LodgingTaxRatePercent")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("decimal(9,4)");
+
+                    b.Property<int>("MinimumNights")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("NightlyBasePrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("PublicSummary")
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)");
+
+                    b.Property<string>("PublicTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("Draft");
+
+                    b.Property<DateTime?>("TaxPolicyAttestedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("TaxPolicyAttestedByUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitId")
+                        .IsUnique();
+
+                    b.ToTable("ShortStayListings", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayListings_Capacity", "[Capacity] >= 1");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_CleaningFee", "[CleaningFee] >= 0");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_LodgingTaxRatePercent", "[LodgingTaxRatePercent] IS NULL OR ([LodgingTaxRatePercent] >= 0 AND [LodgingTaxRatePercent] <= 100)");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_MinimumNights", "[MinimumNights] >= 1");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_NightlyBasePrice", "[NightlyBasePrice] > 0");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_Status", "[Status] IN ('Draft', 'Published')");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_TaxAttestation", "([LodgingTaxRatePercent] IS NULL AND [TaxPolicyAttestedAtUtc] IS NULL AND [TaxPolicyAttestedByUserId] IS NULL) OR ([LodgingTaxRatePercent] IS NOT NULL AND [TaxPolicyAttestedAtUtc] IS NOT NULL AND [TaxPolicyAttestedByUserId] > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayListingPhoto", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("BlobName")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCoverPhoto")
+                        .HasColumnType("bit");
+
+                    b.Property<long>("ShortStayListingId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlobName")
+                        .IsUnique();
+
+                    b.HasIndex("ShortStayListingId")
+                        .IsUnique()
+                        .HasFilter("[IsCoverPhoto] = 1");
+
+                    b.HasIndex("ShortStayListingId", "DisplayOrder")
+                        .IsUnique();
+
+                    b.ToTable("ShortStayListingPhotos", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayListingPhotos_BlobName", "[BlobName] <> ''");
+
+                            t.HasCheckConstraint("CK_ShortStayListingPhotos_DisplayOrder", "[DisplayOrder] >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayNightlyRateOverride", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("NightlyRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("ShortStayNightlyRateOverrides", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayNightlyRateOverrides_NightlyRate", "[NightlyRate] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayOccupancyClaim", b =>
+                {
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<long>("ReservationId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("UnitId", "Date");
+
+                    b.HasIndex("ReservationId");
+
+                    b.HasIndex("ReservationId", "UnitId", "Date");
+
+                    b.ToTable("ShortStayOccupancyClaims", "listing");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayRefundAttempt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("FirstAttemptAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<DateTimeOffset?>("LastAttemptAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ManualReviewAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("PaymentIntentId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long>("ReservationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("ReservationId")
+                        .IsUnique();
+
+                    b.HasIndex("ReservationId", "PaymentIntentId")
+                        .IsUnique();
+
+                    b.ToTable("ShortStayRefundAttempts", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayRefundAttempts_Count", "[AttemptCount] >= 0 AND (([AttemptCount] = 0 AND [FirstAttemptAtUtc] IS NULL AND [LastAttemptAtUtc] IS NULL) OR ([AttemptCount] > 0 AND [FirstAttemptAtUtc] IS NOT NULL AND [LastAttemptAtUtc] >= [FirstAttemptAtUtc]))");
+
+                            t.HasCheckConstraint("CK_ShortStayRefundAttempts_Review", "([Status] = 'ManualReview' AND [ManualReviewAtUtc] IS NOT NULL) OR ([Status] <> 'ManualReview' AND [ManualReviewAtUtc] IS NULL)");
+
+                            t.HasCheckConstraint("CK_ShortStayRefundAttempts_Status", "[Status] IN ('Ready','Pending','ManualReview','Succeeded')");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayReservation", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("CheckInDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("CheckOutDate")
+                        .HasColumnType("date");
+
+                    b.Property<long>("CleaningFeeCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<string>("DestinationStripeAccountId")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<int>("GuestCount")
+                        .HasColumnType("int");
+
+                    b.Property<long>("GuestUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("HoldExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("NightlySubtotalCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OperationId")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("OrganizationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("PayeeUserId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("PaymentConfirmedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<long>("PropertyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PublicCode")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<long>("RowVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("StripePaymentIntentId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<long>("TaxCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("TotalCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuestUserId");
+
+                    b.HasIndex("OperationId")
+                        .IsUnique();
+
+                    b.HasIndex("PayeeUserId");
+
+                    b.HasIndex("PropertyId");
+
+                    b.HasIndex("PublicCode")
+                        .IsUnique();
+
+                    b.HasIndex("StripePaymentIntentId")
+                        .IsUnique()
+                        .HasFilter("[StripePaymentIntentId] IS NOT NULL");
+
+                    b.HasIndex("OrganizationId", "DestinationStripeAccountId");
+
+                    b.HasIndex("Status", "HoldExpiresAtUtc");
+
+                    b.HasIndex("UnitId", "CheckInDate", "CheckOutDate");
+
+                    b.ToTable("ShortStayReservations", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayReservations_Confirmation", "[Status] <> 'Confirmed' OR ([StripePaymentIntentId] IS NOT NULL AND [PaymentConfirmedAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_ShortStayReservations_Expiry", "[HoldExpiresAtUtc] > [CreatedAtUtc]");
+
+                            t.HasCheckConstraint("CK_ShortStayReservations_Quote", "[GuestCount] > 0 AND [NightlySubtotalCents] > 0 AND [CleaningFeeCents] >= 0 AND [TaxCents] >= 0 AND [TotalCents] = [NightlySubtotalCents] + [CleaningFeeCents] + [TaxCents] AND [TotalCents] <= 99999999 AND [Currency] = 'usd'");
+
+                            t.HasCheckConstraint("CK_ShortStayReservations_Range", "[CheckOutDate] > [CheckInDate]");
+
+                            t.HasCheckConstraint("CK_ShortStayReservations_Status", "[Status] IN ('Held','PendingPayment','Processing','Confirmed','Expired','Failed','RefundRequired','Refunded','Disputed')");
+
+                            t.HasCheckConstraint("CK_ShortStayReservations_Version", "[RowVersion] > 0");
+                        });
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayReservationNight", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<long>("PriceCents")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ReservationId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("UnitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitId");
+
+                    b.HasIndex("ReservationId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("ShortStayReservationNights", "listing", t =>
+                        {
+                            t.HasCheckConstraint("CK_ShortStayReservationNights_Price", "[PriceCents] > 0");
+                        });
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Showing", b =>
                 {
                     b.Property<long>("Id")
@@ -11865,6 +12587,13 @@ namespace brownstone_hub_api.Migrations
                     b.Property<long>("PropertyId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("RentalMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasDefaultValue("LongTerm");
+
                     b.Property<int>("SquareFeet")
                         .HasColumnType("int");
 
@@ -11881,7 +12610,10 @@ namespace brownstone_hub_api.Migrations
                     b.HasIndex("PropertyId", "Name")
                         .IsUnique();
 
-                    b.ToTable("Units", "property");
+                    b.ToTable("Units", "property", t =>
+                        {
+                            t.HasCheckConstraint("CK_Units_RentalMode", "[RentalMode] IN ('LongTerm', 'ShortTerm')");
+                        });
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.UnitLifecycleEvent", b =>
@@ -13044,6 +13776,17 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("Expense");
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ExpoPushToken", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Feedback", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.User", "User")
@@ -14068,17 +14811,6 @@ namespace brownstone_hub_api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("brownstone_hub_api.Models.ExpoPushToken", b =>
-                {
-                    b.HasOne("brownstone_hub_api.Models.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("brownstone_hub_api.Models.Notification", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
@@ -15049,6 +15781,225 @@ namespace brownstone_hub_api.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
                 });
 
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayBlock", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayCollectionApplication", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", "ApplicantUser")
+                        .WithMany()
+                        .HasForeignKey("ApplicantUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("SuspendedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ApplicantUser");
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayCollectionApplicationProperty", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Property", "Property")
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ShortStayCollectionApplication", "Application")
+                        .WithMany("Properties")
+                        .HasForeignKey("ShortStayCollectionApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Application");
+
+                    b.Navigation("Property");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayGuidebookDraft", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayIcalOccurrence", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.ShortStayIcalSubscription", "Subscription")
+                        .WithMany("Occurrences")
+                        .HasForeignKey("SubscriptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Subscription");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayIcalSubscription", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrgId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayListing", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayListingPhoto", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.ShortStayListing", "ShortStayListing")
+                        .WithMany("Photos")
+                        .HasForeignKey("ShortStayListingId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("ShortStayListing");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayNightlyRateOverride", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Unit", "Unit")
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Unit");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayOccupancyClaim", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.ShortStayReservation", "Reservation")
+                        .WithMany("Claims")
+                        .HasForeignKey("ReservationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ShortStayReservationNight", null)
+                        .WithMany()
+                        .HasForeignKey("ReservationId", "UnitId", "Date")
+                        .HasPrincipalKey("ReservationId", "UnitId", "Date")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Reservation");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayRefundAttempt", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.ShortStayReservation", "Reservation")
+                        .WithMany()
+                        .HasForeignKey("ReservationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Reservation");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayReservation", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("GuestUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Organization", null)
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("PayeeUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayReservationNight", b =>
+                {
+                    b.HasOne("brownstone_hub_api.Models.Unit", null)
+                        .WithMany()
+                        .HasForeignKey("UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("brownstone_hub_api.Models.ShortStayReservation", "Reservation")
+                        .WithMany("Nights")
+                        .HasForeignKey("ReservationId", "UnitId")
+                        .HasPrincipalKey("Id", "UnitId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Reservation");
+                });
+
             modelBuilder.Entity("brownstone_hub_api.Models.Showing", b =>
                 {
                     b.HasOne("brownstone_hub_api.Models.ShowingAvailability", null)
@@ -15832,6 +16783,28 @@ namespace brownstone_hub_api.Migrations
             modelBuilder.Entity("brownstone_hub_api.Models.Role", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayCollectionApplication", b =>
+                {
+                    b.Navigation("Properties");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayIcalSubscription", b =>
+                {
+                    b.Navigation("Occurrences");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayListing", b =>
+                {
+                    b.Navigation("Photos");
+                });
+
+            modelBuilder.Entity("brownstone_hub_api.Models.ShortStayReservation", b =>
+                {
+                    b.Navigation("Claims");
+
+                    b.Navigation("Nights");
                 });
 
             modelBuilder.Entity("brownstone_hub_api.Models.StaffMember", b =>

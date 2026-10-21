@@ -172,6 +172,8 @@ using brownstone_hub_api.Entitlements.Enforcement;
 using brownstone_hub_api.Security;
 using brownstone_hub_api.Services.ActivationFunnel;
 using brownstone_hub_api.Services.GooglePlacesService;
+using brownstone_hub_api.Services.ShortStay;
+using brownstone_hub_api.Services.ShortStay.Ical;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -270,6 +272,8 @@ builder.Logging.AddFilter("System", LogLevel.Warning);
 if (!builder.Environment.IsDevelopment())
 {
     services.AddApplicationInsightsTelemetry();
+    // Processor runs before the AI channel: never forward a secret iCal dependency URL.
+    services.AddApplicationInsightsTelemetryProcessor<brownstone_hub_api.Telemetry.AirbnbCalendarTelemetryProcessor>();
     services.AddSingleton<Microsoft.ApplicationInsights.Extensibility.ITelemetryInitializer,
         brownstone_hub_api.Telemetry.AuthenticatedUserTelemetryInitializer>();
     builder.Logging.AddApplicationInsights();    // bridge ILogger -> AI after ClearProviders()
@@ -428,6 +432,8 @@ services.Configure<IpRateLimitOptions>(options =>
             Period = "1m",
             Limit = 1000 // High limit for DocuSign Connect webhooks
         },
+        new RateLimitRule { Endpoint = "GET:/api/short-stay/public/units/*", Period = "1m", Limit = 20 },
+        new RateLimitRule { Endpoint = "GET:/api/short-stay/public/units/*", Period = "1h", Limit = 200 },
         // Public config endpoint - allow reasonable rate for mobile apps
         new RateLimitRule
         {
@@ -555,6 +561,36 @@ services.AddScoped<IDemoRequestRepository, DemoRequestRepository>();
 services.AddScoped<IDemoRequestService, DemoRequestService>();
 services.AddScoped<IMaintenanceImageService, MaintenanceImageService>();
 services.AddScoped<IUnitService, UnitService>();
+services.AddScoped<RentalModeService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.IShortStayPhotoStorage, brownstone_hub_api.Services.ShortStay.AzureShortStayPhotoStorage>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayListingPhotoService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayListingService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayGuidebookDraftService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayCollectionService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayCollectionReadinessService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.AdminShortStayCollectionService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayCalendarService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayQuoteService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayPublicService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayHoldService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayStartPaymentService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayPaymentReconciliationService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayPendingRecoveryService>();
+services.AddHostedService<brownstone_hub_api.Services.ShortStay.ShortStayPendingRecoveryWorker>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayRefundRecoveryService>();
+services.AddHostedService<brownstone_hub_api.Services.ShortStay.ShortStayRefundRecoveryWorker>();
+services.AddScoped<brownstone_hub_api.Services.ShortStayStripe.IShortStayDirectChargeGateway>(sp =>
+{
+    var cfg = sp.GetRequiredService<IConfiguration>();
+    if (!Enum.TryParse<brownstone_hub_api.Services.ShortStayStripe.StripeGatewayMode>(cfg["ShortStayBooking:StripeMode"], true, out var mode) ||
+        !Enum.IsDefined(mode)) throw new InvalidOperationException("Short-stay Stripe mode must be explicitly configured.");
+    return brownstone_hub_api.Services.ShortStayStripe.ShortStayDirectChargeGateway.FromConfiguration(cfg, mode);
+});
+services.AddScoped<brownstone_hub_api.Services.ShortStay.IShortStayStripeEligibility, brownstone_hub_api.Services.ShortStay.ShortStayStripeEligibility>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayInventoryReportService>();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.AirbnbCalendarService>();
+services.AddAirbnbIcalSync();
+services.AddScoped<brownstone_hub_api.Services.ShortStay.ShortStayPropertyTimeZoneService>();
 services.AddScoped<IAzureBlobService, AzureBlobService>();
 services.AddScoped<ILeaseService, LeaseService>();
 services.AddScoped<IDocuSignConnectProcessor, DocuSignConnectProcessor>();
@@ -622,6 +658,7 @@ services.AddScoped<IStripeSyncService, StripeSyncService>();
 services.AddScoped<IStripeWebhookService, StripeWebhookService>();
 services.AddScoped<IStripeRentGateway, StripeRentGateway>();
 services.AddScoped<IStripeConnectedAccountGateway, StripeConnectedAccountGateway>();
+services.AddStripeShortStayIdentity(builder.Configuration);
 services.AddScoped<IStripeConnectedPayeeService, StripeConnectedPayeeService>();
 services.AddScoped<IStripeConnectPreparationService, StripeConnectPreparationService>();
 services.AddScoped<IStripeRentRiskService, StripeRentRiskService>();

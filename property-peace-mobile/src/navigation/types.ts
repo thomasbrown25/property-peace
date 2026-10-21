@@ -65,6 +65,7 @@ export type AnnouncementsStackParamList = {
 export type PropertiesStackParamList = {
   PropertiesList: undefined;
   PropertyDetail: { propertyId: string };
+  ShortStayOwner: { propertyId: string; unitId: string; unitName: string };
   TenantDetail: { tenantId: string };
   PropertyMaintenance: { propertyId: string; propertyName: string };
   AddMaintenanceRequest: { propertyId?: string } | undefined;

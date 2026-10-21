@@ -27,6 +27,28 @@ namespace brownstone_hub_api.Tests.Controllers;
 public sealed class StripeControllerSecurityTests
 {
     [Fact]
+    public async Task OwnedOnboarding_AllowsUnapprovedSelfAccountWithoutApprovingRent()
+    {
+        var stripe = new Mock<IStripeService>();
+        stripe.Setup(x => x.CreateLoginLinkAsync("acct_self"))
+            .ReturnsAsync(ServiceResponse<string>.CreateSuccess("https://stripe.test/dashboard"));
+        var user = new Mock<IUserService>();
+        user.Setup(x => x.GetUserByIdAsync(42)).ReturnsAsync(ServiceResponse<LoadUserDto>.CreateSuccess(
+            new LoadUserDto { Id = 42, StripeAccountId = "acct_self" }));
+        var payee = new Mock<IStripeConnectedPayeeService>();
+        payee.Setup(x => x.ResolveOwnedAccountForOnboardingAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OwnedStripeAccount(42, "acct_self"));
+        var controller = CreateController(stripe.Object, user.Object, payeeService: payee.Object);
+        Authenticate(controller, 42);
+        controller.HttpContext.Items["OrganizationId"] = 77L;
+
+        (await controller.CreateLoginLink()).Should().BeOfType<OkObjectResult>();
+        stripe.Verify(x => x.CreateLoginLinkAsync("acct_self"), Times.Once);
+        payee.Verify(x => x.ResolveApprovedDestinationAsync(It.IsAny<long>(), It.IsAny<long>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task CreatePaymentIntent_WhenEmergencyGateDefaultsClosed_ReturnsServiceUnavailable()
     {
         var stripeService = new Mock<IStripeService>();
@@ -212,12 +234,8 @@ public sealed class StripeControllerSecurityTests
 
         var result = await controller.GetAccountStatus();
 
-        var dto = result.Should().BeOfType<OkObjectResult>().Which.Value
-            .Should().BeOfType<ServiceResponse<StripeAccountStatusDto>>().Which.Data!;
-        dto.AccountId.Should().Be("acct_org_77");
-        dto.PayoutsEnabled.Should().BeTrue();
-        dto.CanManageAccount.Should().BeFalse("the manager is not the connected-account owner");
-        stripeService.Verify(x => x.GetAccountStatusAsync("acct_org_77", 51, 77), Times.Once);
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(403);
+        stripeService.Verify(x => x.GetAccountStatusAsync("acct_org_77", 51, 77), Times.Never);
         stripeService.Verify(x => x.GetAccountStatusAsync("acct_actor_global", 42, It.IsAny<long>()), Times.Never);
         organizationService.VerifyNoOtherCalls();
     }
@@ -235,10 +253,7 @@ public sealed class StripeControllerSecurityTests
 
         var result = await controller.GetAccountStatus();
 
-        var dto = result.Should().BeOfType<OkObjectResult>().Which.Value
-            .Should().BeOfType<StripeAccountStatusDto>().Which;
-        dto.AccountId.Should().BeNull();
-        dto.PayoutBank.Should().BeNull();
+        result.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(403);
         stripeService.VerifyNoOtherCalls();
     }
 
@@ -281,10 +296,8 @@ public sealed class StripeControllerSecurityTests
                 Id = 42, StripeAccountId = "acct_stale_global"
             }));
         var payeeService = new Mock<IStripeConnectedPayeeService>();
-        payeeService.Setup(x => x.ResolveApprovedDestinationAsync(42, 77, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ApprovedStripeDestination(42, "acct_selected_org_77"));
-        payeeService.Setup(x => x.IsApprovedDestinationAsync(42, 77, "acct_selected_org_77", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        payeeService.Setup(x => x.ResolveOwnedAccountForOnboardingAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OwnedStripeAccount(42, "acct_selected_org_77"));
         var stripeService = new Mock<IStripeService>();
         stripeService.Setup(x => x.CreateAccountManagementSessionAsync("acct_selected_org_77"))
             .ReturnsAsync(ServiceResponse<AccountSessionDto>.CreateSuccess(new AccountSessionDto
@@ -321,14 +334,14 @@ public sealed class StripeControllerSecurityTests
             }));
         var organizationService = new Mock<IOrganizationService>(MockBehavior.Strict);
         var payeeService = new Mock<IStripeConnectedPayeeService>();
-        payeeService.Setup(x => x.ResolveApprovedDestinationAsync(42, 77, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ApprovedStripeDestination(42, "acct_selected_org_77"));
+        payeeService.Setup(x => x.ResolveOwnedAccountForOnboardingAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OwnedStripeAccount(42, "acct_selected_org_77"));
         payeeService.Setup(x => x.IsApprovedDestinationAsync(
                 42, 77, "acct_selected_org_77", It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         var stripeService = new Mock<IStripeService>();
         stripeService.Setup(x => x.CreateAccountLinkAsync(
-                "acct_selected_org_77", "https://return.test", "https://refresh.test", "account_onboarding"))
+                "acct_selected_org_77", It.IsAny<string>(), It.IsAny<string>(), "account_onboarding"))
             .ReturnsAsync(ServiceResponse<string>.CreateSuccess("https://stripe.test/onboard"));
         stripeService.Setup(x => x.CreateLoginLinkAsync("acct_selected_org_77"))
             .ReturnsAsync(ServiceResponse<string>.CreateSuccess("https://stripe.test/dashboard"));
@@ -351,11 +364,7 @@ public sealed class StripeControllerSecurityTests
 
         var result = operation switch
         {
-            "account-link" => await controller.CreateAccountLink(new CreateAccountLinkRequest
-            {
-                ReturnUrl = "https://return.test",
-                RefreshUrl = "https://refresh.test"
-            }),
+            "account-link" => await controller.CreateAccountLink(new CreateAccountLinkRequest()),
             "login-link" => await controller.CreateLoginLink(),
             "account-session" => await controller.CreateAccountSession(),
             "sync-bank-account" => await controller.SyncBankAccount(),
@@ -367,8 +376,9 @@ public sealed class StripeControllerSecurityTests
         else
             result.Should().BeOfType<OkObjectResult>();
 
-        payeeService.Verify(x => x.ResolveApprovedDestinationAsync(
-            42, 77, It.IsAny<CancellationToken>()), Times.Once);
+        if (operation != "sync-bank-account")
+            payeeService.Verify(x => x.ResolveOwnedAccountForOnboardingAsync(
+                42, 77, It.IsAny<CancellationToken>()), Times.Once);
         organizationService.VerifyNoOtherCalls();
         stripeService.Verify(x => x.CreateAccountLinkAsync(
             "acct_stale_global", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
@@ -441,6 +451,15 @@ public sealed class StripeControllerSecurityTests
     [InlineData(nameof(StripeController.CreateLoginLink))]
     [InlineData(nameof(StripeController.CreateAccountSession))]
     [InlineData(nameof(StripeController.CreateAccountManagementSession))]
+    public void OwnedConnectEndpoint_RequiresActiveOrganizationRole(string actionName)
+    {
+        var action = typeof(StripeController).GetMethod(actionName)!;
+        action.GetCustomAttribute<RequireOrganizationRoleAttribute>()!.AllowedRoles
+            .Should().Equal("Owner", "Manager");
+        action.GetCustomAttribute<RequireRentPaymentActionReadyAttribute>().Should().BeNull();
+    }
+
+    [Theory]
     [InlineData(nameof(StripeController.SyncBankAccount))]
     public void StripeConfigureAction_UsesOrganizationReadinessInsteadOfLegacyGlobalRole(string actionName)
     {
@@ -544,10 +563,8 @@ public sealed class StripeControllerSecurityTests
             }));
         var preparationService = ValidPreparationService();
         var payeeService = new Mock<IStripeConnectedPayeeService>();
-        payeeService.Setup(x => x.ResolveApprovedDestinationAsync(42, 77, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ApprovedStripeDestination(42, "acct_approved"));
-        payeeService.Setup(x => x.IsApprovedDestinationAsync(42, 77, "acct_approved", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        payeeService.Setup(x => x.ResolveOwnedAccountForOnboardingAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OwnedStripeAccount(42, "acct_approved"));
         var controller = CreateController(stripeService.Object, userService.Object,
             payeeService: payeeService.Object, connectPreparationService: preparationService.Object);
         Authenticate(controller, 42);
@@ -570,8 +587,11 @@ public sealed class StripeControllerSecurityTests
                 Id = 42, Email = "landlord@example.test", StripeAccountId = null
             }));
         var preparationService = ValidPreparationService();
+        var payeeService = new Mock<IStripeConnectedPayeeService>();
+        payeeService.Setup(x => x.ResolveOwnedAccountForOnboardingAsync(42, 77, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OwnedStripeAccount(42, null));
         var controller = CreateController(stripeService.Object, userService.Object,
-            connectPreparationService: preparationService.Object);
+            payeeService: payeeService.Object, connectPreparationService: preparationService.Object);
         Authenticate(controller, 42);
         controller.HttpContext.Items["OrganizationId"] = 77L;
 

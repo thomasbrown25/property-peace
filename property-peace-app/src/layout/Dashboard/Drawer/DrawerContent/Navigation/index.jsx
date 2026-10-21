@@ -8,6 +8,8 @@ import NavItem from './NavItem';
 import NavGroup from './NavGroup';
 import menuItems, { tenantPages, adminPages } from 'menu-items';
 import pages from 'menu-items/pages';
+import { landlordPagesForInventory } from 'menu-items/landlordInventory';
+import useLandlordInventoryMenu from 'menu-items/useLandlordInventoryMenu';
 
 import useConfig from 'hooks/useConfig';
 import { HORIZONTAL_MAX_ITEM, MenuOrientation } from 'config';
@@ -32,6 +34,7 @@ export default function Navigation() {
   const hasTenantRole = normalizedRoles.includes('tenant');
   const hasLandlordRole = normalizedRoles.includes('landlord');
   const hasAdminRole = normalizedRoles.includes('admin');
+  const shortTermOnly = useLandlordInventoryMenu(hasLandlordRole && !hasTenantRole && !hasAdminRole);
 
   // Subscription restrictions only apply to landlord accounts. Tenants are always free.
   const isTrialExpired = !hasTenantRole && subscriptionStatus?.isTrialActive &&
@@ -51,9 +54,8 @@ export default function Navigation() {
     } else if (hasTenantRole) {
       menuData = { items: Array.isArray(tenantPages) ? tenantPages : [tenantPages] };
     } else if (hasLandlordRole) {
-      // pages is now an array of groups
       const pagesArray = Array.isArray(pages) ? pages : [pages];
-      menuData = { items: pagesArray };
+      menuData = { items: landlordPagesForInventory(pagesArray, shortTermOnly) };
     } else {
       // Default to landlord menu if no role or unknown role
       const pagesArray = Array.isArray(pages) ? pages : [pages];
@@ -78,7 +80,7 @@ export default function Navigation() {
     }
     
     return menuData;
-  }, [hasAdminRole, hasTenantRole, hasLandlordRole, isTrialExpired]);
+  }, [hasAdminRole, hasTenantRole, hasLandlordRole, isTrialExpired, shortTermOnly]);
 
   const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downLG;
 

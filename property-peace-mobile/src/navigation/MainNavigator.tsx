@@ -28,6 +28,7 @@ import RentCollectionScreen from '../screens/landlord/RentCollectionScreen';
 import AddExpenseScreen from '../screens/landlord/AddExpenseScreen';
 import PropertiesScreen from '../screens/landlord/PropertiesScreen';
 import PropertyDetailScreen from '../screens/landlord/PropertyDetailScreen';
+import ShortStayOwnerScreen from '../screens/landlord/ShortStayOwnerScreen';
 import AddPropertyScreen from '../screens/landlord/AddPropertyScreen';
 
 import TenantsScreen from '../screens/landlord/TenantsScreen';
@@ -154,6 +155,7 @@ function PropertiesNavigator() {
     <PropertiesStack.Navigator screenOptions={stackOptions}>
       <PropertiesStack.Screen name="PropertiesList" component={PropertiesScreen} options={{ headerShown: false }} />
       <PropertiesStack.Screen name="PropertyDetail" component={PropertyDetailScreen} options={({ navigation }) => ({ title: 'Property', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.popToTop()} /> })} />
+      <PropertiesStack.Screen name="ShortStayOwner" component={ShortStayOwnerScreen} options={{ title: 'Short-stay owner setup' }} />
       <PropertiesStack.Screen name="TenantDetail" component={TenantDetailScreen} options={({ navigation }) => ({ title: 'Tenant', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
       <PropertiesStack.Screen name="PropertyMaintenance" component={MaintenanceScreen} options={{ headerShown: false }} />
       <PropertiesStack.Screen name="AddMaintenanceRequest" component={AddMaintenanceRequestScreen} options={{ title: 'Add request' }} />

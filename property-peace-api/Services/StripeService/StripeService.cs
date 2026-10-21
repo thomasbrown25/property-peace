@@ -365,6 +365,20 @@ namespace brownstone_hub_api.Services.StripeService
                         ? "Current scoped internal approval and current organization authority are required."
                         : null);
                 var isAccountReady = accountReadinessReason == null;
+                string? cardPaymentsCapabilityStatus = null;
+                if (snapshot != null && snapshotMatchesAccount && snapshotIsFresh)
+                {
+                    try
+                    {
+                        var capability = await new Stripe.AccountService().Capabilities.GetAsync(accountId, "card_payments",
+                            null, new RequestOptions { ApiKey = _stripeSecretKey });
+                        cardPaymentsCapabilityStatus = capability.Status;
+                    }
+                    catch (StripeException ex)
+                    {
+                        _logger.LogWarning(ex, "Could not retrieve Stripe card payments capability for {AccountId}", accountId);
+                    }
+                }
                 response.Data = new StripeAccountStatusDto
                 {
                     AccountId = accountId,
@@ -375,6 +389,7 @@ namespace brownstone_hub_api.Services.StripeService
                     IsEnabled = isAccountReady,
                     ChargesEnabled = snapshot?.ChargesEnabled ?? false,
                     PayoutsEnabled = snapshot?.PayoutsEnabled ?? false,
+                    CardPaymentsCapabilityStatus = cardPaymentsCapabilityStatus,
                     DetailsSubmitted = snapshot?.DetailsSubmitted ?? false,
                     InternalReviewStatus = reviewStatus.ToString(),
                     IsInternallyPayoutApproved = internallyApproved,

@@ -1,12 +1,13 @@
 import type { Property, Unit } from '../../api/propertyAPI';
+import { unitRentalMode, type RentalMode } from './rentalMode.ts';
 
 const get = (item: Record<string, any>, key: string) => item[key] ?? item[key[0].toUpperCase() + key.slice(1)];
 const text = (value: unknown) => value == null ? '' : String(value);
 const numeric = (value: string) => value.trim() === '' ? 0 : Number(value);
 const invalidNumber = (value: string) => value.trim() !== '' && (!Number.isFinite(Number(value)) || Number(value) < 0);
 
-export type PropertyForm = { name: string; address: string; city: string; state: string; zipCode: string; propertyType: string; yearBuilt: string };
-export const emptyProperty = (): PropertyForm => ({ name: '', address: '', city: '', state: '', zipCode: '', propertyType: 'singleFamily', yearBuilt: '' });
+export type PropertyForm = { name: string; address: string; city: string; state: string; zipCode: string; propertyType: string; yearBuilt: string; rentalMode?: RentalMode };
+export const emptyProperty = (): PropertyForm => ({ name: '', address: '', city: '', state: '', zipCode: '', propertyType: 'singleFamily', yearBuilt: '', rentalMode: 'LongTerm' });
 export const prefillProperty = (property: Property): PropertyForm => ({
   name: text(get(property, 'name')), address: text(get(property, 'streetAddress') ?? get(property, 'address')),
   city: text(get(property, 'city')), state: text(get(property, 'state')), zipCode: text(get(property, 'zipCode')),
@@ -47,23 +48,24 @@ export const propertyPayload = (form: PropertyForm, original?: Property, initial
     ...(get(original, 'clientId') != null ? { clientId: get(original, 'clientId') } : {}),
   } : {}),
   ...(!original && multiTypes.includes(form.propertyType) && initialUnitCount !== undefined ? { unitCount: initialUnitCount } : {}),
+  ...(!original ? { rentalMode: form.rentalMode ?? 'LongTerm' } : {}),
   name: form.name.trim(), streetAddress: form.address.trim(), city: form.city.trim(), state: form.state.trim(), zipCode: form.zipCode.trim(),
   propertyType: multiTypes.includes(form.propertyType) ? 'multiUnit' : 'singleFamily',
   yearBuilt: form.yearBuilt.trim() ? Number(form.yearBuilt) : null,
 });
 
-export type UnitForm = { name: string; bedrooms: string; baths: string; squareFeet: string; rentAmount: string; type: string; isOccupied: boolean };
-export const emptyUnit = (name = ''): UnitForm => ({ name, bedrooms: '', baths: '', squareFeet: '', rentAmount: '', type: '', isOccupied: false });
+export type UnitForm = { name: string; bedrooms: string; baths: string; squareFeet: string; rentAmount: string; type: string; isOccupied: boolean; rentalMode?: RentalMode };
+export const emptyUnit = (name = '', rentalMode: RentalMode = 'LongTerm'): UnitForm => ({ name, bedrooms: '', baths: '', squareFeet: '', rentAmount: '', type: '', isOccupied: false, rentalMode });
 export const locationErrors = (form: PropertyForm) => propertyErrors(form).filter(error => !/property type|year built/i.test(error));
 export const buildingErrors = (form: PropertyForm) => propertyErrors(form).filter(error => /property type|year built/i.test(error));
 export const bulkUnitCountError = (value: string) => !/^[1-9]\d*$/.test(value.trim()) || Number(value) > 50
   ? 'Enter a whole number of units from 1 to 50' : '';
-export const bulkUnitDrafts = (value: string): UnitForm[] =>
-  bulkUnitCountError(value) ? [] : Array.from({ length: Number(value.trim()) }, (_, i) => emptyUnit(`Unit ${i + 1}`));
+export const bulkUnitDrafts = (value: string, rentalMode: RentalMode = 'LongTerm'): UnitForm[] =>
+  bulkUnitCountError(value) ? [] : Array.from({ length: Number(value.trim()) }, (_, i) => emptyUnit(`Unit ${i + 1}`, rentalMode));
 export const prefillUnit = (unit: Unit): UnitForm => ({
   name: text(get(unit, 'name')), bedrooms: text(get(unit, 'bedrooms')), baths: text(get(unit, 'baths')),
   squareFeet: text(get(unit, 'squareFeet')), rentAmount: text(get(unit, 'rentAmount')),
-  type: text(get(unit, 'type')), isOccupied: Boolean(get(unit, 'isOccupied')),
+  type: text(get(unit, 'type')), isOccupied: Boolean(get(unit, 'isOccupied')), rentalMode: unitRentalMode(unit),
 });
 export const unitErrors = (form: UnitForm): string[] => {
   const errors: string[] = [];
@@ -71,13 +73,16 @@ export const unitErrors = (form: UnitForm): string[] => {
   if (!form.bedrooms.trim() || invalidNumber(form.bedrooms)) errors.push('Enter valid bedrooms');
   if (!form.baths.trim() || invalidNumber(form.baths)) errors.push('Enter valid baths');
   if (invalidNumber(form.squareFeet) || (form.squareFeet.trim() && !Number.isInteger(Number(form.squareFeet)))) errors.push('Square feet must be a nonnegative whole number');
-  if (invalidNumber(form.rentAmount)) errors.push('Enter valid rent');
+  if (form.rentalMode !== 'ShortTerm' && invalidNumber(form.rentAmount)) errors.push('Enter valid rent');
   return errors;
 };
 export const unitPayload = (form: UnitForm, propertyId: string | number, original?: Unit) => ({
   id: original ? get(original, 'id') : 0, propertyId: Number(propertyId), name: form.name.trim(),
-  bedrooms: form.bedrooms.trim(), baths: form.baths.trim(), squareFeet: numeric(form.squareFeet), rentAmount: numeric(form.rentAmount),
-  type: form.type.trim(), isOccupied: form.isOccupied,
+  bedrooms: form.bedrooms.trim(), baths: form.baths.trim(), squareFeet: numeric(form.squareFeet),
+  rentAmount: form.rentalMode === 'ShortTerm' ? original ? Number(get(original, 'rentAmount') ?? 0) : 0 : numeric(form.rentAmount),
+  type: form.type.trim(), isOccupied: form.rentalMode === 'ShortTerm' ? original ? Boolean(get(original, 'isOccupied')) : false : form.isOccupied,
+  // Existing units change mode only through the guarded endpoint.
+  ...(!original ? { rentalMode: form.rentalMode ?? 'LongTerm' } : {}),
   amenities: original ? get(original, 'amenities') ?? [] : [], includedUtility: original ? get(original, 'includedUtility') ?? [] : [],
 });
 // The property service creates Unit 1 (single-family) or Unit 1..N (multi-unit)
@@ -93,7 +98,7 @@ export const createPropertyErrors = (form: PropertyForm, units: UnitForm[]): str
   ...units.flatMap((unit, index) => {
     if (untouchedInitialUnit(unit, index)) return [];
     // Backend-created rows may be filled in later; optional fields still need valid numbers.
-    return unitErrors(unit).filter(error =>
+    return unitErrors({ ...unit, rentalMode: form.rentalMode ?? 'LongTerm' }).filter(error =>
       (unit.bedrooms.trim() || error !== 'Enter valid bedrooms') &&
       (unit.baths.trim() || error !== 'Enter valid baths'))
       .map(error => `Unit ${index + 1}: ${error}`);
@@ -111,7 +116,7 @@ export const initialUnitUpdates = (drafts: UnitForm[], existing: Unit[], propert
     if (!id || matched.has(String(id))) throw new Error('Could not find the existing unit. Refresh the property before retrying; no new unit was added.');
     matched.add(String(id));
     if (untouchedInitialUnit(draft, index)) return;
-    updates.push(unitPayload(draft, propertyId, row));
+    updates.push(unitPayload({ ...draft, rentalMode: unitRentalMode(row) }, propertyId, row));
   });
   return updates;
 };

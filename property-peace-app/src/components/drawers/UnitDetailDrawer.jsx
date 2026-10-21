@@ -10,6 +10,7 @@ import { formatCurrency, formatPhone } from 'utils/formatters';
 import { getLeasePagePath, getUnitStatusPresentation } from 'utils/unitPresentation';
 import { useDrawer } from 'contexts/DrawerContext';
 import { isOpenMaintenanceRequest } from 'utils/maintenanceStatus';
+import { rentalMode, modeLabel, propertyModeLabel } from 'utils/rentalMode';
 
 function InfoRow({ label, value }) {
   return (
@@ -115,8 +116,20 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
 
       <Box sx={{ flex: 1, overflowY: 'auto', p: 2.5 }}>
         <Stack spacing={2}>
+          <Stack direction="row" spacing={1}>
+            <Chip label={modeLabel(unit)} size="small" />
+            {propertyModeLabel(property) === 'Mixed' && <Chip label="Mixed property" size="small" variant="outlined" />}
+          </Stack>
+          {rentalMode(unit) === 'shortTerm' && (
+            <Stack spacing={1}>
+              <Typography color="text.secondary" variant="body2">Owner setup only — guests cannot book yet.</Typography>
+              {propertyId && <Button variant="contained" onClick={() => { onClose(); navigate(`/landlord/property/${propertyId}/unit/${unit.id || unit.Id}/short-stay`); }}>
+                Edit short-stay draft & availability
+              </Button>}
+            </Stack>
+          )}
 
-          {/* Unit specs */}
+        {/* Unit specs */}
           <Box sx={{ p: 1.75, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
             <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.8, color: alpha('#061e35', 0.58), textTransform: 'uppercase', mb: 1 }}>Unit Details</Typography>
             <Stack direction="row" spacing={2.5} flexWrap="wrap">
@@ -138,7 +151,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
                   <Typography fontWeight={700}>{Number(sqft).toLocaleString()}</Typography>
                 </Box>
               )}
-              {rentAmount > 0 && (
+              {rentalMode(unit) !== 'shortTerm' && rentAmount > 0 && (
                 <Box>
                   <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>Rent</Typography>
                   <Typography fontWeight={700} sx={{ color: theme.palette.success.main }}>{formatCurrency(rentAmount)}/mo</Typography>
@@ -147,8 +160,8 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
             </Stack>
           </Box>
 
-          {/* Tenant */}
-          <Box sx={{ p: 1.75, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
+          {/* Tenant and lease history remains accessible if present, but no short-term move-in actions. */}
+          {(rentalMode(unit) !== 'shortTerm' || primaryTenant) && <Box sx={{ p: 1.75, bgcolor: 'background.paper', borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)' }}>
             <Typography sx={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: 0.8, color: alpha('#061e35', 0.58), textTransform: 'uppercase', mb: 1 }}>Tenant</Typography>
             {primaryTenant ? (
               <>
@@ -209,7 +222,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
             ) : (
               <Typography sx={{ fontSize: '0.85rem', color: 'text.disabled', py: 0.5 }}>No tenant — unit is vacant</Typography>
             )}
-          </Box>
+          </Box>}
 
           {/* Lease */}
           {lease && (
@@ -259,7 +272,7 @@ export default function UnitDetailDrawer({ open, unit, property, onClose }) {
               >
                 Create maintenance ticket
               </Button>
-              {!primaryTenant && (
+              {rentalMode(unit) !== 'shortTerm' && !primaryTenant && (
                 <Button
                   variant="outlined"
                   size="small"

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { StackActions } from '@react-navigation/native';
@@ -9,6 +9,9 @@ import { useMoreDrawer } from './MoreDrawerContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/AppTheme';
 import { mainTabIconNames, type MainAudience } from './mainTabModel';
+import PropertyAPI from '../api/propertyAPI';
+import { loadPortfolioRentalMode } from '../features/properties/portfolioRentalMode';
+import type { PropertyRentalMode } from '../features/properties/rentalMode';
 
 type MenuItem = { label: string; icon: keyof typeof Ionicons.glyphMap; route?: string; screen?: string; webPath?: string };
 
@@ -19,6 +22,7 @@ const landlordMenu: MenuSection[] = [
   { title: 'Leasing', items: [
     { label: 'Calendar', icon: 'calendar-outline', route: 'Dashboard', screen: 'Calendar' },
     { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
+    { label: 'New lease', icon: 'add-circle-outline', route: 'Leases', screen: 'AddLease' },
   ] },
   { title: 'Property Operations', items: [
     { label: 'Maintenance', icon: 'construct-outline', route: 'Maintenance' },
@@ -40,6 +44,10 @@ const landlordMenu: MenuSection[] = [
     { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
   ] },
 ];
+// Lease history remains available for existing records; only the new-leasing framing changes.
+const shortTermLandlordMenu: MenuSection[] = landlordMenu.map(section => section.title === 'Leasing'
+  ? { title: 'Calendar & lease history', items: section.items.filter(item => item.screen !== 'AddLease').map(item => item.route === 'Leases' ? { ...item, label: 'Lease history' } : item) }
+  : section);
 const tenantMenu: MenuSection[] = [
   { title: 'Home & Leasing', items: [
     { label: 'Dashboard', icon: 'home-outline', webPath: '/tenant/dashboard' },
@@ -95,6 +103,18 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
   const insets = useSafeAreaInsets();
   const { open, show, hide } = useMoreDrawer();
   const currentUser = useAppSelector((state) => state.user.currentUser);
+  const organizationId = String(currentUser?.currentOrganizationId ?? currentUser?.CurrentOrganizationId ?? '');
+  const [inventory, setInventory] = useState<{ organizationId: string; mode: PropertyRentalMode | null } | null>(null);
+  useEffect(() => {
+    if (audience !== 'landlord' || !organizationId) return;
+    let active = true;
+    setInventory(null);
+    void PropertyAPI.getProperties()
+      .then(properties => loadPortfolioRentalMode(properties, id => PropertyAPI.getUnits(id)))
+      .then(mode => { if (active) setInventory({ organizationId, mode }); })
+      .catch(() => { if (active) setInventory({ organizationId, mode: null }); });
+    return () => { active = false; };
+  }, [audience, organizationId, open]);
   const dispatch = useAppDispatch();
   const profileImageUrl = currentUser?.ProfileImageUrl ?? currentUser?.profileImageUrl;
   const avatarLabel = String(currentUser?.FirstName ?? currentUser?.firstName ?? currentUser?.Email ?? currentUser?.email ?? '?').slice(0, 1).toUpperCase();
@@ -117,7 +137,9 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
       }
     });
   };
-  const menu = audience === 'landlord' ? landlordMenu : tenantMenu;
+  const menu = audience === 'landlord'
+    ? inventory?.organizationId === organizationId && inventory.mode === 'ShortTerm' ? shortTermLandlordMenu : landlordMenu
+    : tenantMenu;
   // The dock represents section roots, not the last detail visited in each stack.
   const openTabRoot = (routeName: string) => {
     const route = state.routes.find((item) => item.name === routeName);

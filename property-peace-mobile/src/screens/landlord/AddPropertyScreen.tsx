@@ -11,6 +11,8 @@ import AddressAutocompleteInput from '../../components/properties/AddressAutocom
 import { applyGooglePlaceDetails } from '../../features/properties/addressAutocomplete';
 import { BulkCreateUncertainError, buildingErrors, bulkCreateWithReconciliation, bulkUnitCountError, bulkUnitDrafts, createPropertyErrors, emptyProperty, emptyUnit, initialUnitUpdates, locationErrors, nextUnitName, prefillProperty, prefillUnit, propertyErrors, propertyPayload, unitErrors, unitPayload, type PropertyForm, type UnitForm } from '../../features/properties/propertyForms';
 import { useAppTheme } from '../../theme/AppTheme';
+import { unitRentalMode } from '../../features/properties/rentalMode';
+import { propertyRentalMode } from '../../features/properties/rentalMode';
 
 const types = [['singleFamily', 'Single-family'], ['townhouse', 'Townhouse'], ['condominium', 'Condominium'], ['smallMultiFamily', 'Small multi-family'], ['apartmentBuilding', 'Apartment building'], ['other', 'Other multi-unit']] as const;
 type Route = RouteProp<PropertiesStackParamList, 'AddProperty'>;
@@ -54,7 +56,7 @@ export default function AddPropertyScreen() {
         const existing = result.units ?? result.Units ?? [];
         const chosen = existing.find((item: Unit) => String(item.id ?? item.Id) === String(unitId));
         if (unitId && !chosen) setError('Unit could not be found.');
-        else { setSelectedUnit(chosen ?? null); setUnits([chosen ? prefillUnit(chosen) : emptyUnit(nextUnitName(existing))]); }
+        else { setSelectedUnit(chosen ?? null); setUnits([chosen ? prefillUnit(chosen) : emptyUnit(nextUnitName(existing), propertyRentalMode(existing) === 'ShortTerm' ? 'ShortTerm' : 'LongTerm')]); }
       } else setForm(prefillProperty(result));
     }).catch(() => { if (active) setError('Could not load property. Go back and try again.'); })
       .finally(() => { if (active) setLoading(false); });
@@ -66,7 +68,7 @@ export default function AddPropertyScreen() {
     setError(''); setUnits(current => current.map((unit, i) => i === index ? { ...unit, [key]: value } : unit));
   };
   const multiUnit = !['singleFamily', 'townhouse', 'condominium'].includes(form.propertyType);
-  const draftUnits = isCreating && !multiUnit ? [emptyUnit('1')] : isCreating && multiUnit && unitMode === 'bulk' ? bulkUnitDrafts(bulkCount) : units;
+  const draftUnits = isCreating && !multiUnit ? [emptyUnit('1', form.rentalMode)] : isCreating && multiUnit && unitMode === 'bulk' ? bulkUnitDrafts(bulkCount, form.rentalMode) : isCreating ? units.map(unit => ({ ...unit, rentalMode: form.rentalMode ?? 'LongTerm' })) : units;
   const next = () => {
     const issues = step === 0 ? locationErrors(form) : buildingErrors(form);
     if (issues.length) { setError(issues.join('\n')); return; }
@@ -129,16 +131,18 @@ export default function AddPropertyScreen() {
         {!unitId && !createdId && <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Remove unit ${index + 1}`} onPress={() => setUnits(current => current.filter((_, i) => i !== index))}><Text style={{ color: colors.accent }}>Remove</Text></TouchableOpacity>}
       </View>
       {field('Unit name *', unit.name, value => updateUnit(index, 'name', value))}
+      <Text style={[styles.label, { color: colors.text }]}>Rental mode: {selectedUnit ? unitRentalMode(selectedUnit) : isCreating ? form.rentalMode : unit.rentalMode ?? 'LongTerm'}</Text>
+      {!selectedUnit && !isCreating && <View style={styles.choices}>{(['LongTerm', 'ShortTerm'] as const).map(value => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityLabel={`${value === 'LongTerm' ? 'Long-term' : 'Short-term'} unit ${index + 1}`} accessibilityState={{ checked: (unit.rentalMode ?? 'LongTerm') === value }} disabled={saving} onPress={() => updateUnit(index, 'rentalMode', value)} style={[styles.choice, { borderColor: unit.rentalMode === value ? colors.accent : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{value === 'LongTerm' ? 'Long-term' : 'Short-term'}</Text></TouchableOpacity>)}</View>}
       <View style={styles.row}>
         <View style={styles.half}>{field(isUnit ? 'Bedrooms *' : 'Bedrooms', unit.bedrooms, value => updateUnit(index, 'bedrooms', value), 'numeric')}</View>
         <View style={styles.half}>{field(isUnit ? 'Baths *' : 'Baths', unit.baths, value => updateUnit(index, 'baths', value), 'numeric')}</View>
       </View>
       <View style={styles.row}>
         <View style={styles.half}>{field('Square feet', unit.squareFeet, value => updateUnit(index, 'squareFeet', value), 'numeric')}</View>
-        <View style={styles.half}>{field('Rent / month', unit.rentAmount, value => updateUnit(index, 'rentAmount', value), 'numeric')}</View>
+        {(selectedUnit ? unitRentalMode(selectedUnit) : isCreating ? form.rentalMode : unit.rentalMode) !== 'ShortTerm' && <View style={styles.half}>{field('Rent / month', unit.rentAmount, value => updateUnit(index, 'rentAmount', value), 'numeric')}</View>}
       </View>
       {field('Unit type', unit.type, value => updateUnit(index, 'type', value))}
-      <View style={styles.rowBetween}><Text style={[styles.label, { color: colors.text }]}>Occupied</Text><Switch accessibilityLabel={`Unit ${index + 1} occupied`} value={unit.isOccupied} onValueChange={value => updateUnit(index, 'isOccupied', value)} disabled={saving || Boolean(createdId)} /></View>
+      {(selectedUnit ? unitRentalMode(selectedUnit) : isCreating ? form.rentalMode : unit.rentalMode) !== 'ShortTerm' && <View style={styles.rowBetween}><Text style={[styles.label, { color: colors.text }]}>Occupied</Text><Switch accessibilityLabel={`Unit ${index + 1} occupied`} value={unit.isOccupied} onValueChange={value => updateUnit(index, 'isOccupied', value)} disabled={saving || Boolean(createdId)} /></View>}
     </View>
   );
 
@@ -150,6 +154,7 @@ export default function AddPropertyScreen() {
         <Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{isCreating ? step === 0 ? 'Property location' : step === 1 ? 'Building' : 'Units' : title}</Text>
         {!isUnit && (!isCreating || step === 0) && <>
           <Text style={[styles.section, { color: colors.text }]}>Location</Text>
+          {isCreating && <><Text style={[styles.label, { color: colors.text }]}>Rental mode *</Text><View style={styles.choices}>{(['LongTerm', 'ShortTerm'] as const).map(value => <TouchableOpacity key={value} accessibilityRole="radio" accessibilityLabel={`${value === 'LongTerm' ? 'Long-term' : 'Short-term'} rental mode`} accessibilityState={{ checked: form.rentalMode === value }} disabled={saving || Boolean(createdId)} onPress={() => update('rentalMode', value)} style={[styles.choice, { borderColor: form.rentalMode === value ? colors.accent : colors.border, backgroundColor: colors.surface }]}><Text style={{ color: colors.text }}>{value === 'LongTerm' ? 'Long-term rentals' : 'Short-term rentals'}</Text></TouchableOpacity>)}</View><Text style={{ color: colors.muted, marginBottom: 12 }}>Sets the initial mode for every unit; building type is selected separately. Short-term bookings and payments are not available yet.</Text></>}
           {field('Property name *', form.name, value => update('name', value))}
           <Text style={[styles.label, { color: colors.text }]}>Street address *</Text>
           <Text style={{ color: colors.muted, marginBottom: 8 }}>Choose an address suggestion to fill city, state, and ZIP automatically.</Text>
@@ -177,7 +182,7 @@ export default function AddPropertyScreen() {
             {!createdId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName(current))])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add unit</Text></TouchableOpacity>}
           </>}
         </>}
-        {isUnit && <>{units.map(unitFields)}{!unitId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName([...(property?.units ?? property?.Units ?? []), ...current]))])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add another unit</Text></TouchableOpacity>}</>}
+        {isUnit && <>{units.map(unitFields)}{!unitId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName([...(property?.units ?? property?.Units ?? []), ...current]), current[0]?.rentalMode ?? 'LongTerm')])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add another unit</Text></TouchableOpacity>}</>}
         {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         {isCreating && step > 0 && !createdId && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous step" disabled={saving} onPress={() => { setError(''); setStep(current => (current - 1) as 0 | 1 | 2); }} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>Back</Text></TouchableOpacity>}
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={isCreating && (step === 0 || step === 1 && multiUnit) ? 'Next step' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'} disabled={saving || bulkRetryBlocked || (isUnit && !units.length) || Boolean(isUnit && unitId && !selectedUnit)} onPress={isCreating && (step === 0 || step === 1 && multiUnit) ? next : save} style={[styles.primary, { backgroundColor: colors.accent }, saving && { opacity: 0.6 }]}><Text style={[styles.primaryText, dark && { color: colors.background }]}>{saving ? 'Saving…' : isCreating && (step === 0 || step === 1 && multiUnit) ? 'Continue' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'}</Text></TouchableOpacity>

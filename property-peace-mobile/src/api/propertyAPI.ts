@@ -1,5 +1,6 @@
 import apiClient from '../services/apiClient';
 import { ApiResponse } from '../types';
+import type { RentalMode } from '../features/properties/rentalMode';
 
 export interface Property {
   id?: string | number;
@@ -16,6 +17,8 @@ export interface Property {
 export interface Unit {
   id?: string | number;
   name?: string;
+  rentalMode?: RentalMode;
+  RentalMode?: RentalMode;
   lease?: any;
   activeLease?: any;
   [key: string]: any;

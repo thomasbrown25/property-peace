@@ -72,8 +72,21 @@ namespace brownstone_hub_api.Repositories.Leases
             await using var transaction = _context.Database.IsRelational() && _context.Database.CurrentTransaction == null
                 ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
                 : null;
+            // Serialize with rental-mode changes before re-reading the unit's mode.
+            if (_context.Database.IsSqlServer())
+                await _context.Database.SqlQueryRaw<long>(
+                    "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", lease.UnitId)
+                    .SingleOrDefaultAsync();
             if (organizationId.HasValue && unit.Property.OrganizationId != organizationId.Value)
                 throw new KeyNotFoundException("Unit not found in this organization");
+            // Re-read inside the serializable transaction: the service's earlier unit check
+            // can race a mode switch. Do not rely on the tracked pre-transaction entity.
+            var currentMode = await _context.Units.AsNoTracking()
+                .Where(u => u.Id == lease.UnitId)
+                .Select(u => u.RentalMode)
+                .SingleAsync();
+            if (currentMode != brownstone_hub_api.Enums.ERentalMode.LongTerm)
+                throw new InvalidOperationException("Long-term leases cannot be created for short-term units.");
             var hasPriorLease = await _context.Leases.AnyAsync(l => l.UnitId == lease.UnitId && !l.IsDeleted);
             if (lease.IsDrafted != true)
                 await ValidateTermAsync(lease.UnitId, 0, lease.StartDate, lease.EndDate);
@@ -287,6 +300,14 @@ namespace brownstone_hub_api.Repositories.Leases
             await using var transaction = _context.Database.IsRelational()
                 ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
                 : null;
+            if (_context.Database.IsSqlServer())
+                await _context.Database.SqlQueryRaw<long>(
+                    "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", lease.UnitId)
+                    .SingleOrDefaultAsync();
+            var currentMode = await _context.Units.AsNoTracking()
+                .Where(u => u.Id == lease.UnitId).Select(u => u.RentalMode).SingleOrDefaultAsync();
+            if (currentMode != ERentalMode.LongTerm)
+                throw new InvalidOperationException("Long-term leases cannot be updated for short-term units.");
             var existingLease = await _context.Leases
                 .FirstOrDefaultAsync(l => l.Id == lease.Id) ?? throw new KeyNotFoundException("Lease not found");
 
@@ -788,12 +809,25 @@ namespace brownstone_hub_api.Repositories.Leases
 
         public async Task<LoadLeaseDto> CompleteDraft(long leaseId, long organizationId)
         {
+            var unitId = await _context.Leases.AsNoTracking()
+                .Where(l => l.Id == leaseId && l.OrganizationId == organizationId && l.Unit.Property.OrganizationId == organizationId)
+                .Select(l => (long?)l.UnitId).SingleOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Lease not found");
             await using var transaction = _context.Database.IsRelational()
                 ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
                 : null;
+            // Lock the unit before reading the lease, in the same order as mode switching.
+            if (_context.Database.IsSqlServer())
+                await _context.Database.SqlQueryRaw<long>(
+                    "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", unitId)
+                    .SingleOrDefaultAsync();
             var lease = await _context.Leases
-                .FirstOrDefaultAsync(l => l.Id == leaseId && l.OrganizationId == organizationId && l.Unit.Property.OrganizationId == organizationId)
+                .FirstOrDefaultAsync(l => l.Id == leaseId && l.UnitId == unitId && l.OrganizationId == organizationId && l.Unit.Property.OrganizationId == organizationId)
                 ?? throw new KeyNotFoundException("Lease not found");
+            var currentMode = await _context.Units.AsNoTracking()
+                .Where(u => u.Id == lease.UnitId).Select(u => u.RentalMode).SingleOrDefaultAsync();
+            if (currentMode != ERentalMode.LongTerm)
+                throw new InvalidOperationException("Long-term leases cannot be completed for short-term units.");
             await ValidateTermAsync(lease.UnitId, lease.Id, lease.StartDate, lease.EndDate);
             var agreement = await _context.LeaseAgreements.FirstOrDefaultAsync(la => la.LeaseId == leaseId);
             if (agreement != null)
@@ -1424,12 +1458,17 @@ namespace brownstone_hub_api.Repositories.Leases
         {
             var expected = expectedEndDate.Date;
             var next = newEndDate.Date;
-            // Serialize against competing creates; never extend an incumbent into a successor.
+            // Serialize against competing creates and mode changes.
             await using var transaction = _context.Database.IsRelational()
                 ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
                 : null;
+            if (_context.Database.IsSqlServer())
+                await _context.Database.SqlQueryRaw<long>(
+                    "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = (SELECT UnitId FROM [lease].[Leases] WHERE Id = {0})", leaseId)
+                    .SingleOrDefaultAsync();
             var source = await _context.Leases.AsNoTracking().FirstOrDefaultAsync(l =>
                 l.Id == leaseId && l.OrganizationId == organizationId && !l.IsDeleted &&
+                l.Unit.RentalMode == ERentalMode.LongTerm &&
                 l.IsActive && l.AutoRenewLease && l.LeaseLength == -1 &&
                 l.EndDate.HasValue && l.EndDate.Value.Date == expected);
             if (source == null || next <= expected || await _context.Leases.AsNoTracking().AnyAsync(other =>
@@ -1444,6 +1483,7 @@ namespace brownstone_hub_api.Repositories.Leases
                 var updated = await _context.Leases
                     .Where(l => l.Id == leaseId &&
                         l.OrganizationId == organizationId &&
+                        l.Unit.RentalMode == ERentalMode.LongTerm &&
                         l.IsActive &&
                         l.AutoRenewLease &&
                         l.LeaseLength == -1 &&
@@ -1457,6 +1497,7 @@ namespace brownstone_hub_api.Repositories.Leases
             var lease = await _context.Leases.FirstOrDefaultAsync(l =>
                 l.Id == leaseId &&
                 l.OrganizationId == organizationId &&
+                l.Unit.RentalMode == ERentalMode.LongTerm &&
                 l.IsActive &&
                 l.AutoRenewLease &&
                 l.LeaseLength == -1 &&
@@ -1483,7 +1524,7 @@ namespace brownstone_hub_api.Repositories.Leases
 
             var source = await _context.Leases.AsNoTracking().FirstOrDefaultAsync(l =>
                 l.Id == leaseId && l.UnitId == renewal.UnitId && l.OrganizationId == organizationId &&
-                l.Unit.Property.OrganizationId == organizationId && !l.IsDeleted && l.IsActive &&
+                l.Unit.Property.OrganizationId == organizationId && l.Unit.RentalMode == ERentalMode.LongTerm && !l.IsDeleted && l.IsActive &&
                 l.AutoRenewLease == true && l.LeaseLength != -1 && l.EndDate.HasValue &&
                 l.EndDate.Value.Date == expectedEndDate.Date);
             if (source == null || !renewal.StartDate.HasValue || !renewal.EndDate.HasValue ||
@@ -2087,6 +2128,17 @@ namespace brownstone_hub_api.Repositories.Leases
         {
             try
             {
+                var unitId = await _context.Leases.AsNoTracking()
+                    .Where(l => l.Id == leaseId).Select(l => (long?)l.UnitId).SingleOrDefaultAsync()
+                    ?? throw new KeyNotFoundException($"Lease with ID {leaseId} not found");
+                await using var transaction = _context.Database.IsRelational()
+                    ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                    : null;
+                // Take the unit lock first, as mode switching does; verify the lease again under the lock.
+                if (_context.Database.IsSqlServer())
+                    await _context.Database.SqlQueryRaw<long>(
+                        "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", unitId)
+                        .SingleOrDefaultAsync();
                 var lease = await _context.Leases
                     .Include(l => l.Unit)
                         .ThenInclude(u => u.Property)
@@ -2094,16 +2146,21 @@ namespace brownstone_hub_api.Repositories.Leases
                         .ThenInclude(tl => tl.Tenant)
                     .Include(l => l.LeaseFees)
                     .Include(l => l.LeaseAgreement)
-                    .FirstOrDefaultAsync(l => l.Id == leaseId);
+                    .FirstOrDefaultAsync(l => l.Id == leaseId && l.UnitId == unitId);
 
                 if (lease == null)
                     throw new KeyNotFoundException($"Lease with ID {leaseId} not found");
+
+                var currentMode = await _context.Units.AsNoTracking()
+                    .Where(u => u.Id == lease.UnitId).Select(u => u.RentalMode).SingleOrDefaultAsync();
+                if (currentMode != ERentalMode.LongTerm)
+                    throw new InvalidOperationException("Long-term leases cannot be reopened for short-term units.");
 
                 // Mark lease as active again
                 lease.IsActive = true;
 
                 await _context.SaveChangesAsync();
-
+                if (transaction != null) await transaction.CommitAsync();
                 return _mapper.Map<LoadLeaseDto>(lease);
             }
             catch (Exception ex)

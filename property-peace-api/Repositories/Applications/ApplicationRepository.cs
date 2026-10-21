@@ -3,6 +3,7 @@ using brownstone_hub_api.Data;
 using brownstone_hub_api.Dtos.Application;
 using brownstone_hub_api.Enums;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 
 namespace brownstone_hub_api.Repositories.Applications
 {
@@ -12,10 +13,54 @@ namespace brownstone_hub_api.Repositories.Applications
         private readonly IMapper _mapper = mapper;
         private readonly ILogger<ApplicationRepository> _logger = logger;
 
+        // Called inside the write transaction. Match RentalModeService.Change's Unit lock;
+        // property-only applications lock the entire unit range (including an empty range).
+        private async Task RequireLongTermTargetAsync(long propertyId, long? unitId, long? organizationId)
+        {
+            if (_context.Database.IsSqlServer())
+            {
+                if (unitId.HasValue)
+                    await _context.Database.SqlQueryRaw<long>(
+                        "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", unitId.Value)
+                        .SingleOrDefaultAsync();
+                else
+                    await _context.Database.SqlQueryRaw<long>(
+                        "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE PropertyId = {0}", propertyId)
+                        .ToListAsync();
+            }
+
+            // Never trust the tracked Unit or a previous service preflight: mode may have changed.
+            var property = await _context.Properties.AsNoTracking()
+                .Where(p => p.Id == propertyId && (!organizationId.HasValue || p.OrganizationId == organizationId))
+                .Select(p => new { p.OrganizationId }).SingleOrDefaultAsync();
+            if (property is null)
+                throw new InvalidOperationException("Long-term application unavailable for this property.");
+
+            var units = _context.Units.AsNoTracking().Where(u => u.PropertyId == propertyId);
+            if (unitId.HasValue)
+            {
+                var mode = await units.Where(u => u.Id == unitId.Value &&
+                        (u.OrganizationId == null || u.OrganizationId == property.OrganizationId))
+                    .Select(u => (ERentalMode?)u.RentalMode).SingleOrDefaultAsync();
+                if (mode != ERentalMode.LongTerm)
+                    throw new InvalidOperationException("Long-term application unavailable for this unit.");
+            }
+            else if (await units.AnyAsync(u =>
+                         u.RentalMode != ERentalMode.LongTerm ||
+                         u.OrganizationId != null && u.OrganizationId != property.OrganizationId))
+                throw new InvalidOperationException("Long-term application unavailable for this property.");
+        }
+
         public async Task<LoadRentalApplicationDto> AddApplication(AddRentalApplicationDto application, long landlordId, long? organizationId = null)
         {
             try
             {
+                // When enlisted in a caller's transaction, SQL Server HOLDLOCKs last until
+                // its commit. Otherwise own the transaction through the application write.
+                await using var transaction = _context.Database.IsRelational() && _context.Database.CurrentTransaction is null
+                    ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                    : null;
+                await RequireLongTermTargetAsync(application.PropertyId, application.UnitId, organizationId);
                 var entity = _mapper.Map<Models.RentalApplication>(application);
                 
                 // Set submitted date if status is Submitted
@@ -60,6 +105,7 @@ namespace brownstone_hub_api.Repositories.Applications
                 }
                 await _context.Entry(entity).Reference(e => e.Landlord).LoadAsync();
 
+                if (transaction is not null) await transaction.CommitAsync();
                 return MapToDto(entity);
             }
             catch (Exception ex)

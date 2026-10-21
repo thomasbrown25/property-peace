@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 test('create property maps UI choices to backend DTO, trims address, and validates', () => {
   const draft = { ...emptyProperty(), name: ' Maple ', address: ' 1 Main ', city: ' Austin ', state: ' TX ', zipCode: ' 78701 ', propertyType: 'townhouse', yearBuilt: '1999' };
   assert.deepEqual(propertyErrors(draft), []);
-  assert.deepEqual(propertyPayload(draft), { name: 'Maple', streetAddress: '1 Main', city: 'Austin', state: 'TX', zipCode: '78701', propertyType: 'singleFamily', yearBuilt: 1999 });
+  assert.deepEqual(propertyPayload(draft), { name: 'Maple', streetAddress: '1 Main', city: 'Austin', state: 'TX', zipCode: '78701', propertyType: 'singleFamily', yearBuilt: 1999, rentalMode: 'LongTerm' });
   assert.equal(propertyPayload({ ...draft, propertyType: 'apartmentBuilding' }).propertyType, 'multiUnit');
   assert.ok(propertyErrors({ ...draft, address: '', yearBuilt: 'xx' }).length > 0);
 });
@@ -20,7 +20,7 @@ test('edit prefills from API casing and preserves DTO fields rather than erasing
 test('unit create/edit validates numeric values, includes API fields and preserves existing fields', () => {
   const draft = { ...emptyUnit('101'), bedrooms: '0', baths: '1.5', squareFeet: '850', rentAmount: '1200.50' };
   assert.deepEqual(unitErrors(draft), []);
-  assert.deepEqual(unitPayload(draft, 9), { id: 0, propertyId: 9, name: '101', bedrooms: '0', baths: '1.5', squareFeet: 850, rentAmount: 1200.5, type: '', isOccupied: false, amenities: [], includedUtility: [] });
+  assert.deepEqual(unitPayload(draft, 9), { id: 0, propertyId: 9, name: '101', bedrooms: '0', baths: '1.5', squareFeet: 850, rentAmount: 1200.5, type: '', isOccupied: false, rentalMode: 'LongTerm', amenities: [], includedUtility: [] });
   assert.ok(unitErrors({ ...draft, squareFeet: '-4', rentAmount: 'abc' }).length > 0);
   const original = { Id: 3, Name: 'A', Bedrooms: '2', Baths: '1', SquareFeet: 700, RentAmount: 900, Type: 'Flat', IsOccupied: true, Amenities: [{ id: 1 }], IncludedUtility: [{ id: 2 }] };
   const edited = unitPayload({ ...prefillUnit(original), name: 'B' }, 9, original);

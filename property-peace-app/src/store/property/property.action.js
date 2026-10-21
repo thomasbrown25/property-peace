@@ -58,6 +58,7 @@ export const addOrUpdateProperty =
         type: PROPERTY_ACTION_TYPES.ADD_PROPERTY_FAILED,
         payload: error?.response?.data?.errors || error?.message
       });
+      throw error;
     }
   };
 

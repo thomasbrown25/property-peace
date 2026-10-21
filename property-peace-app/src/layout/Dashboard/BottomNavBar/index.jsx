@@ -37,11 +37,12 @@ import { useSubscription } from 'hooks/useSubscription';
 import { useDrawer } from 'contexts/DrawerContext';
 import { selectConversations } from 'store/conversation/conversation.selector';
 import pages from 'menu-items/pages';
+import { landlordPagesForInventory } from 'menu-items/landlordInventory';
+import useLandlordInventoryMenu from 'menu-items/useLandlordInventoryMenu';
 
 // Flatten all landlord menu items (no section titles) and add Settings
-const flattenedLandlordItems = (() => {
+const flattenLandlordItems = (groups) => {
   const items = [];
-  const groups = Array.isArray(pages) ? pages : [pages];
   groups.forEach((group) => {
     if (group.children && Array.isArray(group.children)) {
       group.children.forEach((child) => {
@@ -53,7 +54,7 @@ const flattenedLandlordItems = (() => {
   });
   items.push({ id: 'settings', title: 'Settings', url: '/landlord/settings', icon: SettingOutlined });
   return items;
-})();
+};
 
 // Keep nested workspaces grouped in the mobile "More" sheet. They remain
 // reachable without turning every accounting destination into a bottom tab.
@@ -92,6 +93,8 @@ export default function BottomNavBar() {
   const normalizedRoles = userRoles.map((r) => String(r).toLowerCase().trim());
   const hasLandlordRole = normalizedRoles.includes('landlord');
   const hasAdminRole = normalizedRoles.includes('admin');
+  const shortTermOnly = useLandlordInventoryMenu(hasLandlordRole && !hasAdminRole && !normalizedRoles.includes('tenant'));
+  const flattenedLandlordItems = flattenLandlordItems(landlordPagesForInventory(Array.isArray(pages) ? pages : [pages], shortTermOnly));
 
   const { subscription, loading: subscriptionLoading } = useSubscription();
   const planName = subscription?.plan?.name?.toLowerCase() ?? '';

@@ -12,6 +12,8 @@ namespace brownstone_hub_api.Dtos.Property
         public string? Name { get; set; } // Nullable - can be set later in property settings
         public string Description { get; set; } = "";
         public EPropertyType PropertyType { get; set; }
+        // Creation-only seed for managed units, not a persisted property-wide mode.
+        public ERentalMode RentalMode { get; set; } = ERentalMode.LongTerm;
 
         //Address Information
         [StringLength(300, ErrorMessage = "Street Address  length can't exceed 300 characters.")]

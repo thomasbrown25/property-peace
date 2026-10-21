@@ -102,6 +102,55 @@ public sealed class PropertyCreationEntitlementTests
             20, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [Theory]
+    [InlineData(EPropertyType.SingleFamily, 1, ERentalMode.ShortTerm)]
+    [InlineData(EPropertyType.MultiUnit, 3, ERentalMode.ShortTerm)]
+    [InlineData(EPropertyType.SingleFamily, 1, ERentalMode.LongTerm)]
+    public async Task Creation_seeds_every_unit_mode_without_changing_entitlement_quantity(EPropertyType type, int count, ERentalMode mode)
+    {
+        SetupPropertyInsert();
+        EntitlementDecisionRequest? request = null;
+        _decisions.Setup(x => x.DecideAsync(It.IsAny<EntitlementDecisionRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<EntitlementDecisionRequest, CancellationToken>((value, _) => request = value)
+            .ReturnsAsync(Decision(true, EntitlementDecisionCategory.Allowed, PlanKeys.Free));
+        UpdateUnitDto? single = null;
+        BulkCreateUnitsDto? bulk = null;
+        _units.Setup(x => x.AddUnit(It.IsAny<UpdateUnitDto>(), 77, 20, It.IsAny<CancellationToken>()))
+            .Callback<UpdateUnitDto, long, long?, CancellationToken>((unit, _, _, _) => single = unit)
+            .ReturnsAsync(new LoadUnitDto());
+        _units.Setup(x => x.BulkCreateUnits(It.IsAny<BulkCreateUnitsDto>(), 20, It.IsAny<CancellationToken>()))
+            .Callback<BulkCreateUnitsDto, long?, CancellationToken>((units, _, _) => bulk = units)
+            .ReturnsAsync([]);
+
+        var response = await Service().AddOrUpdateProperty(new UpdatePropertyDto
+        {
+            PropertyType = type, UnitCount = count, Name = "Mode property", RentalMode = mode
+        }, []);
+
+        Assert.True(response.Success);
+        Assert.Equal(count, request!.RequestedQuantity);
+        if (type == EPropertyType.SingleFamily)
+            Assert.Equal(mode, single!.RentalMode);
+        else
+        {
+            Assert.Equal(count, bulk!.Units.Count);
+            Assert.All(bulk.Units, unit => Assert.Equal(mode, unit.RentalMode));
+        }
+    }
+
+    [Fact]
+    public async Task Invalid_property_create_mode_does_not_touch_entitlement_or_storage()
+    {
+        var response = await Service().AddOrUpdateProperty(new UpdatePropertyDto
+        {
+            PropertyType = EPropertyType.SingleFamily, RentalMode = (ERentalMode)99
+        }, []);
+        Assert.Equal(400, response.StatusCode);
+        Assert.Equal(0, _coordinator.Calls);
+        _properties.VerifyNoOtherCalls();
+        _units.VerifyNoOtherCalls();
+    }
+
     [Fact]
     public async Task Free_at_quota_rolls_back_without_inserting_property_or_units()
     {

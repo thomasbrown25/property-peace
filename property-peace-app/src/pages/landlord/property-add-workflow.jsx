@@ -55,6 +55,7 @@ import { bulkCreateUnits, addOrUpdateUnit } from 'store/unit/unit.action';
 import axiosServices from 'utils/axios';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
+import { initialUnitCount } from 'utils/rentalMode';
 
 const STEPS = {
   PROPERTY_TYPE_SELECTION: 1,
@@ -79,6 +80,7 @@ const getInitialValues = () => ({
   zipCode: '',
   propertyName: '',
   propertyType: '',
+  rentalMode: 'longTerm',
   hasRoomRentals: null,
   image: null,
   useGoogleImage: false,
@@ -488,7 +490,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
       // Get units to create based on property type
       let unitsToCreate = [];
-      if (isSingleFamilyType) {
+      if (['singleFamily', 'townhouse', 'condominium'].includes(values.propertyType)) {
         // Single-unit: use Property Details step values (beds, baths, sqft)
         const d = values.singleUnitDetails || {};
         unitsToCreate = [{
@@ -551,14 +553,15 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
       const payload = {
         name: values.propertyName?.trim() || null,
-        propertyType: backendPropertyType, // Use mapped backend enum value (singleFamily or multiUnit)
+        propertyType: backendPropertyType, // Structural type, independent of rental mode
+        rentalMode: values.rentalMode,
         streetAddress: (values.streetAddress || '').trim(),
         city: (values.city || '').trim(),
         state: (values.state || '').trim(),
         zipCode: (values.zipCode || '').trim(),
         primaryManagerId: user?.Id || user?.id, // Auto-select current user
-        operatingAccountId: rentCanInvoke ? values.bankAccountId || null : null,
-        unitCount: null,
+        operatingAccountId: values.rentalMode === 'longTerm' && rentCanInvoke ? values.bankAccountId || null : null,
+        unitCount: initialUnitCount(backendPropertyType, unitsToCreate),
         yearBuilt: values.singleUnitDetails?.yearBuilt ? parseInt(values.singleUnitDetails.yearBuilt) : null,
         ...(values.propertyType === 'other' && values.otherBuildingType ? {
           otherBuildingType: values.otherBuildingType === 'other' && values.otherBuildingTypeSpecify
@@ -569,50 +572,39 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
       const mainImage = values.image ? values.image : null;
       const created = await createProperty(payload, mainImage, { suppressSuccessSnackbar: true });
+      if (!created?.id) throw new Error('Property creation did not return a property; check your properties before retrying.');
       setCreatedProperty(created);
 
-      // Create units - use single unit endpoint for single-family, bulk for multi-unit
+      // The property API seeds a single-family placeholder; update it instead of duplicating it.
       if (unitsToCreate.length > 0 && created?.id) {
         try {
-          if (isSingleFamilyType && unitsToCreate.length === 1) {
-            // Use single unit endpoint for single-family properties
-            const singleUnit = unitsToCreate[0];
-            const unitPayload = {
-              id: 0,
-              name: singleUnit.name,
-              bedrooms: singleUnit.bedrooms || '',
-              baths: singleUnit.baths || '',
-              squareFeet: singleUnit.squareFeet || 0,
-              isOccupied: singleUnit.isOccupied || false,
-              PropertyId: created.id,
-              type: '',
-              rentAmount: 0,
-              amenities: [],
-              includedUtility: []
-            };
-            await dispatch(addOrUpdateUnit(unitPayload));
-          } else if (unitsToCreate.length > 0) {
-            // Use bulk create for multi-unit properties (smallMultiFamily, apartmentBuilding, etc.)
-            const unitsPayload = unitsToCreate.map(unit => ({
-              id: 0,
+          const existingUnits = created.units || created.Units || [];
+          // API returns the units it seeded; match them by position (names are placeholders).
+          // Never issue another create if the response is incomplete: that can double inventory.
+          if (existingUnits.length !== unitsToCreate.length) throw new Error('Initial units unavailable; check property before retrying');
+          for (const [index, unit] of unitsToCreate.entries()) {
+            const seeded = existingUnits[index];
+            if (!(seeded.id || seeded.Id)) throw new Error('Initial unit ID unavailable');
+            const updated = await dispatch(addOrUpdateUnit({
+              id: seeded.id || seeded.Id,
               name: unit.name,
               bedrooms: unit.bedrooms || '',
               baths: unit.baths || '',
               squareFeet: unit.squareFeet || 0,
-              isOccupied: unit.isOccupied || false,
+              isOccupied: false,
               PropertyId: created.id,
               type: '',
               rentAmount: 0,
               amenities: [],
               includedUtility: []
             }));
-            await dispatch(bulkCreateUnits(created.id, unitsPayload));
+            if (!updated) throw new Error('Could not update initial unit');
           }
         } catch (unitError) {
           console.error('Error creating units:', unitError);
           openSnackbar({
             open: true,
-            message: `Property "${created?.name || created?.streetAddress || 'Property'}" added successfully, but there was an error creating units. You can add them manually from the property page.`,
+            message: `Property "${created?.name || created?.streetAddress || 'Property'}" was added, but its initial units could not be updated. Review the property before retrying; do not add replacement units, since the API already created them.`,
             variant: 'alert',
             alert: { color: 'warning' }
           });
@@ -625,7 +617,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
       }, 1000);
     } catch (error) {
       console.error(error);
-      const errorMessage = error?.response?.data?.message || 'Failed to add property.';
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to add property.';
       setError(errorMessage);
       setProcessing(false);
       // Go back to the appropriate step based on property type
@@ -660,7 +652,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
       } else {
         navigate('/landlord/properties');
       }
-    } else if (action === 'createLease') {
+    } else if (action === 'createLease' && values.rentalMode === 'longTerm') {
       if (createdProperty) dispatch(setProperty(createdProperty));
       if (onClose) onClose();
       setTimeout(() => drawer.openLeaseAddDrawer(), 300);
@@ -693,6 +685,18 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
       case STEPS.PROPERTY_TYPE_SELECTION:
         return (
           <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h5" sx={{ mb: 2 }}>Which rental mode will these units use?</Typography>
+            <Stack direction="row" justifyContent="center" spacing={2} sx={{ mb: 3 }}>
+              {['longTerm', 'shortTerm'].map(mode => (
+                <Button key={mode} variant={values.rentalMode === mode ? 'contained' : 'outlined'}
+                  onClick={() => setFieldValue('rentalMode', mode)}>
+                  {mode === 'longTerm' ? 'Long-term' : 'Short-term'}
+                </Button>
+              ))}
+            </Stack>
+            {values.rentalMode === 'shortTerm' && (
+              <Alert severity="info" sx={{ mb: 3 }}>Set up your units now. Nightly pricing, listings and guest bookings are not available yet; monthly rent and bank onboarding do not apply.</Alert>
+            )}
             <Typography variant="h4" fontWeight={600} gutterBottom sx={{ mb: 4 }}>
               Which best describes your property?
             </Typography>
@@ -1322,6 +1326,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
             </Typography>
             <Stack spacing={1.5}>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+              {values.rentalMode === 'longTerm' && (
                 <Button
                   variant="contained"
                   onClick={() => handleSuccessAction('createLease')}
@@ -1329,6 +1334,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
                 >
                   Create lease for property
                 </Button>
+              )}
                 <Button
                   variant="outlined"
                   onClick={() => handleSuccessAction('viewProperties')}

@@ -6,6 +6,8 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Repositories.Amenities;
 using brownstone_hub_api.Repositories.Features;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 
 namespace brownstone_hub_api.Repositories.Listings
 {
@@ -17,10 +19,58 @@ namespace brownstone_hub_api.Repositories.Listings
         private readonly IAmenityRepository _amenityRepository = amenityRepository;
         private readonly IFeatureRepository _featureRepository = featureRepository;
 
+        // The caller's preflight can race a mode switch. Hold the same Unit lock as
+        // RentalModeService.Change through the listing write and commit.
+        private async Task<IDbContextTransaction?> BeginListingMutationAsync()
+        {
+            return _context.Database.IsRelational() && _context.Database.CurrentTransaction is null
+                ? await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable)
+                : null;
+        }
+
+        private async Task RequireLongTermUnitsAsync(long propertyId, long? unitId, long? organizationId)
+        {
+            if (organizationId is not > 0)
+                throw new InvalidOperationException("Listing property is not in this organization.");
+
+            if (_context.Database.IsSqlServer())
+            {
+                if (unitId.HasValue)
+                    await _context.Database.SqlQueryRaw<long>(
+                        "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE Id = {0}", unitId.Value)
+                        .SingleOrDefaultAsync();
+                else
+                    // Lock the entire property's unit range, including an empty range, so
+                    // inserts or mode switches cannot introduce a short-term unit mid-write.
+                    await _context.Database.SqlQueryRaw<long>(
+                        "SELECT Id AS Value FROM [property].[Units] WITH (UPDLOCK, HOLDLOCK) WHERE PropertyId = {0}", propertyId)
+                        .ToListAsync();
+            }
+
+            if (!await _context.Properties.AsNoTracking()
+                    .AnyAsync(p => p.Id == propertyId && p.OrganizationId == organizationId))
+                throw new InvalidOperationException("Listing property is not in this organization.");
+
+            var units = _context.Units.AsNoTracking().Where(u => u.PropertyId == propertyId &&
+                (u.OrganizationId == null || u.OrganizationId == organizationId));
+            if (unitId.HasValue)
+            {
+                var mode = await units.Where(u => u.Id == unitId.Value)
+                    .Select(u => (ERentalMode?)u.RentalMode).SingleOrDefaultAsync();
+                if (mode != ERentalMode.LongTerm)
+                    throw new InvalidOperationException("Long-term listing unavailable for this unit.");
+            }
+            else if (await _context.Units.AsNoTracking().AnyAsync(u => u.PropertyId == propertyId &&
+                         (u.OrganizationId != null && u.OrganizationId != organizationId || u.RentalMode != ERentalMode.LongTerm)))
+                throw new InvalidOperationException("Long-term listing unavailable for this property.");
+        }
+
         public async Task<LoadListingDto> CreateListing(CreateListingDto listingDto, long organizationId, long createdBy)
         {
             try
             {
+                await using var transaction = await BeginListingMutationAsync();
+                await RequireLongTermUnitsAsync(listingDto.PropertyId, listingDto.UnitId, organizationId);
                 var listing = _mapper.Map<Listing>(listingDto);
                 listing.OrganizationId = organizationId;
                 listing.CreatedBy = createdBy;
@@ -103,7 +153,9 @@ namespace brownstone_hub_api.Repositories.Listings
                 var entry = await _context.Listings.AddAsync(listing);
                 await _context.SaveChangesAsync();
 
-                return await GetListingById(entry.Entity.Id) ?? throw new Exception("Failed to retrieve created listing");
+                var result = await GetListingById(entry.Entity.Id) ?? throw new Exception("Failed to retrieve created listing");
+                if (transaction != null) await transaction.CommitAsync();
+                return result;
             }
             catch (Exception ex)
             {
@@ -116,6 +168,11 @@ namespace brownstone_hub_api.Repositories.Listings
         {
             try
             {
+                await using var transaction = await BeginListingMutationAsync();
+                var scope = await _context.Listings.AsNoTracking().Where(l => l.Id == listingDto.Id)
+                    .Select(l => new { l.PropertyId, l.UnitId, l.OrganizationId }).SingleOrDefaultAsync()
+                    ?? throw new KeyNotFoundException("Listing not found");
+                await RequireLongTermUnitsAsync(scope.PropertyId, scope.UnitId, scope.OrganizationId);
                 var existingListing = await _context.Listings
                     .Include(l => l.ListingBasicAmenities)
                     .Include(l => l.ListingAmenities)
@@ -298,7 +355,9 @@ namespace brownstone_hub_api.Repositories.Listings
                 _context.Listings.Update(existingListing);
                 await _context.SaveChangesAsync();
 
-                return await GetListingById(existingListing.Id) ?? throw new Exception("Failed to retrieve updated listing");
+                var result = await GetListingById(existingListing.Id) ?? throw new Exception("Failed to retrieve updated listing");
+                if (transaction != null) await transaction.CommitAsync();
+                return result;
             }
             catch (Exception ex)
             {

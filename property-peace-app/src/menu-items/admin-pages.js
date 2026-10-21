@@ -104,6 +104,13 @@ const adminPages = {
       icon: icons.SafetyCertificateOutlined
     },
     {
+      id: 'admin-short-stay-collection',
+      title: 'Short-stay collection review',
+      type: 'item',
+      url: '/admin/short-stay-collection',
+      icon: icons.SafetyCertificateOutlined
+    },
+    {
       id: 'admin-rent-payment-access',
       title: 'Rent payment access',
       type: 'item',

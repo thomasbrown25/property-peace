@@ -20,6 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/user/user.slice';
 import PropertyAPI, { Property } from '../../api/propertyAPI';
+import { loadPortfolioRentalMode } from '../../features/properties/portfolioRentalMode';
+import type { PropertyRentalMode } from '../../features/properties/rentalMode';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import NotificationAPI, { AppNotification } from '../../api/notificationAPI';
 import ConversationAPI from '../../api/conversationAPI';
@@ -113,6 +115,7 @@ export default function DashboardScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const { currentUser } = useAppSelector((state) => state.user);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [portfolioMode, setPortfolioMode] = useState<{ organizationId: string; mode: PropertyRentalMode | null } | null>(null);
   const [maintenance, setMaintenance] = useState<MaintenanceRequest[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -148,6 +151,7 @@ export default function DashboardScreen() {
 
   const clearDashboard = useCallback(() => {
     setProperties([]);
+    setPortfolioMode(null);
     setMaintenance([]);
     setNotifications([]);
     setConversations([]);
@@ -182,7 +186,14 @@ export default function DashboardScreen() {
     if (results[0].status === 'fulfilled') {
       setProperties(results[0].value || []);
       setPropertiesStatus('success');
+      setPortfolioMode(null);
+      void loadPortfolioRentalMode(results[0].value || [], id => PropertyAPI.getUnits(id)).then(mode => {
+        if (generation === loadGeneration.current && capturedOrganizationId === currentOrganizationId.current) {
+          setPortfolioMode({ organizationId: capturedOrganizationId, mode });
+        }
+      });
     } else {
+      setPortfolioMode(null);
       setPropertiesStatus('error');
     }
     if (results[1].status === 'fulfilled') {
@@ -230,6 +241,7 @@ export default function DashboardScreen() {
 
   const dashboardScopeIsCurrent = loadedOrganizationId === organizationId;
   const scopedProperties = dashboardScopeIsCurrent ? properties : [];
+  const scopedPortfolioMode = dashboardScopeIsCurrent && portfolioMode?.organizationId === organizationId ? portfolioMode.mode : null;
   const scopedMaintenance = dashboardScopeIsCurrent ? maintenance : [];
   const scopedNotifications = dashboardScopeIsCurrent ? notifications : [];
   const scopedConversations = dashboardScopeIsCurrent ? conversations : [];
@@ -286,10 +298,10 @@ export default function DashboardScreen() {
         name: firstString(property.name, property.Name, property.streetAddress, property.StreetAddress, 'Unnamed property'),
         overdueAmount,
         openRepairs,
-        reason: `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'} · ${overdueAmount > 0 ? `${formatMoney(overdueAmount)} overdue rent` : 'Paid'}`,
+        reason: `${openRepairs} open ${openRepairs === 1 ? 'repair' : 'repairs'}${scopedPortfolioMode === 'ShortTerm' && overdueAmount === 0 ? '' : ` · ${overdueAmount > 0 ? `${formatMoney(overdueAmount)} overdue rent` : 'Paid'}`}`,
       }];
     }).slice(0, 5);
-  }, [scopedProperties, scopedMaintenance, scopedOverdueByProperty, scopedPropertiesStatus, scopedMaintenanceStatus, scopedRentStatus]);
+  }, [scopedProperties, scopedMaintenance, scopedOverdueByProperty, scopedPropertiesStatus, scopedMaintenanceStatus, scopedRentStatus, scopedPortfolioMode]);
 
   const collectionPct = scopedRentMetrics.expected > 0
     ? Math.min(Math.max((scopedRentMetrics.collected / scopedRentMetrics.expected) * 100, 0), 100)
@@ -438,6 +450,7 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
 
+        {(scopedPortfolioMode !== 'ShortTerm' || scopedRentMetrics.expected > 0 || scopedRentMetrics.collected > 0 || scopedRentMetrics.overdue > 0 || scopedRentMetrics.outstanding > 0) && (
         <DashboardSection borderless>
           <View style={styles.cardHeader}>
             <Text style={[styles.cardTitle, styles.rentProgressHeading]}>{currentDate.toLocaleDateString('en-US', { month: 'long' })} rent</Text>
@@ -471,6 +484,7 @@ export default function DashboardScreen() {
             </View>
           )}
         </DashboardSection>
+        )}
 
         {hasUnavailableData && (
           <TouchableOpacity style={styles.warningCard} onPress={loadDashboard} activeOpacity={0.82} accessibilityLabel="Retry unavailable dashboard information">
@@ -507,10 +521,12 @@ export default function DashboardScreen() {
                   <Text style={item.openRepairs > 0 ? styles.todayRepairAttention : undefined}>
                     {item.openRepairs} open {item.openRepairs === 1 ? 'repair' : 'repairs'}
                   </Text>
-                  {' · '}
-                  <Text style={item.overdueAmount > 0 ? styles.rentOverdue : styles.propertyPaid}>
-                    {item.overdueAmount > 0 ? `${formatMoney(item.overdueAmount)} overdue rent` : 'Paid'}
-                  </Text>
+                  {(scopedPortfolioMode !== 'ShortTerm' || item.overdueAmount > 0) && <>
+                    {' · '}
+                    <Text style={item.overdueAmount > 0 ? styles.rentOverdue : styles.propertyPaid}>
+                      {item.overdueAmount > 0 ? `${formatMoney(item.overdueAmount)} overdue rent` : 'Paid'}
+                    </Text>
+                  </>}
                 </Text>
               </View>
               <Ionicons name="arrow-forward" size={19} color={mode === 'dark' ? colors.text : '#0b3558'} />

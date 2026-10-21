@@ -1,3 +1,4 @@
+using brownstone_hub_api.Enums;
 using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.StripeRentPayments;
 using FluentAssertions;
@@ -11,6 +12,32 @@ namespace brownstone_hub_api.Tests.Services.StripeRentPayments;
 
 public sealed class StripeRentTransferTests
 {
+    [Theory]
+    [InlineData(StripeRentPaymentStatus.Held)]
+    [InlineData(StripeRentPaymentStatus.TransferReconciliationPending)]
+    public async Task ProcessEligibleAsync_ShortTermLeaseBlocksTransferIncludingAmbiguousReplay(StripeRentPaymentStatus status)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await SeedDestinationAsync(context);
+        (await context.Units.SingleAsync()).RentalMode = ERentalMode.ShortTerm;
+        var payment = HeldPayment(DateTimeOffset.UtcNow.AddDays(-1));
+        payment.Status = status;
+        context.StripeRentPayments.Add(payment);
+        await context.SaveChangesAsync();
+        var gateway = new Mock<IStripeRentGateway>();
+        SetupHealthySource(gateway);
+        var risk = new Mock<IStripeRentRiskService>();
+        risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(RentTransferRiskDecision.Allow());
+
+        var transferred = await CreateService(context, gateway.Object, risk.Object, true).ProcessEligibleTransfersAsync();
+
+        transferred.Should().Be(0);
+        gateway.Verify(x => x.CreateTransferAsync(It.IsAny<StripeRentTransferRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        payment.Status.Should().Be(status == StripeRentPaymentStatus.Held
+            ? StripeRentPaymentStatus.Blocked : StripeRentPaymentStatus.TransferReconciliationPending);
+        payment.RiskReason.Should().Contain("LongTerm");
+    }
     [Fact]
     public async Task MarkBlockedAsync_AfterTransfer_QueuesIdempotentReversal()
     {
@@ -961,7 +988,12 @@ public sealed class StripeRentTransferTests
     {
         var database = Guid.NewGuid().ToString();
         await using (var setup = StripeRentPaymentFlowTests.CreateContext(database))
-        { setup.Add(HeldPayment(DateTimeOffset.UtcNow.AddDays(-1))); await setup.SaveChangesAsync(); }
+        {
+            setup.Add(HeldPayment(DateTimeOffset.UtcNow.AddDays(-1)));
+            setup.Units.Add(new Unit { Id = 30, PropertyId = 20, OrganizationId = 2 });
+            setup.Leases.Add(new Lease { Id = 1, UnitId = 30, OrganizationId = 2, IsActive = true });
+            await setup.SaveChangesAsync();
+        }
         var risk = new Mock<IStripeRentRiskService>();
         risk.Setup(x => x.EvaluateAsync(It.IsAny<StripeRentPayment>(), It.IsAny<CancellationToken>())).ReturnsAsync(RentTransferRiskDecision.Allow());
         var gateway = new Mock<IStripeRentGateway>();
@@ -1007,6 +1039,15 @@ public sealed class StripeRentTransferTests
         bool? transfersEnabled,
         IReadOnlyDictionary<string, string?>? config = null)
     {
+        // Legacy transfer fixtures construct the durable aggregate directly; give it a real
+        // LongTerm lease/unit so the worker's independent mode gate can exercise the intended risk path.
+        if (context.StripeRentPayments.Any(p => p.LeaseId == 1) && !context.Units.Any(u => u.Id == 30))
+        {
+            context.Units.Add(new Unit { Id = 30, PropertyId = 20, OrganizationId = 2 });
+            if (!context.Leases.Any(l => l.Id == 1))
+                context.Leases.Add(new Lease { Id = 1, UnitId = 30, OrganizationId = 2, IsActive = true });
+            context.SaveChanges();
+        }
         var values = new Dictionary<string, string?> { ["Stripe:RentPaymentsEnabled"] = "true" };
         if (transfersEnabled.HasValue)
             values["Stripe:TransfersEnabled"] = transfersEnabled.Value.ToString();

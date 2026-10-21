@@ -17,7 +17,6 @@ const Dashboard = Loadable(lazy(() => import('pages/landlord/dashboard')));
 
 const Properties = Loadable(lazy(() => import('pages/landlord/properties')));
 const Property = Loadable(lazy(() => import('pages/landlord/property')));
-const PropertyAdd = Loadable(lazy(() => import('pages/landlord/property-add')));
 const PropertyAddWorkflow = Loadable(lazy(() => import('pages/landlord/property-add-workflow')));
 const PropertyImportPage = Loadable(lazy(() => import('pages/landlord/property-import')));
 const Leases = Loadable(lazy(() => import('pages/landlord/leases')));
@@ -32,6 +31,7 @@ const ListingDetail = Loadable(lazy(() => import('pages/landlord/listing-detail'
 const ListingSettings = Loadable(lazy(() => import('pages/landlord/listing-settings')));
 
 const PublicListing = Loadable(lazy(() => import('pages/public/listing/[listingNumber]')));
+const PublicStay = Loadable(lazy(() => import('pages/public/stay')));
 const LeasePage = Loadable(lazy(() => import('pages/landlord/lease')));
 const LeaseEditPage = Loadable(lazy(() => import('pages/landlord/lease-edit')));
 const LeaseSettingsPage = Loadable(lazy(() => import('pages/landlord/lease-settings')));
@@ -75,6 +75,7 @@ const UnitChecklistsPage = Loadable(lazy(() => import('pages/landlord/unit-check
 const PropertyChecklistsPage = Loadable(lazy(() => import('pages/landlord/inspection-detail')));
 const CustomizeMoveInReportPage = Loadable(lazy(() => import('pages/landlord/customize-move-in-report')));
 const UnitPage = Loadable(lazy(() => import('pages/landlord/unit')));
+const ShortStaySetup = Loadable(lazy(() => import('pages/landlord/short-stay-setup')));
 const RenterProfile = Loadable(lazy(() => import('pages/landlord/renter-profile')));
 const ContactUs = Loadable(lazy(() => import('pages/landlord/contact-us')));
 const Files = Loadable(lazy(() => import('pages/landlord/files')));
@@ -155,6 +156,7 @@ const AdminUserDetail = Loadable(lazy(() => import('pages/admin/user-detail')));
 const AdminStorage = Loadable(lazy(() => import('pages/admin/storage')));
 const AdminSettings = Loadable(lazy(() => import('pages/admin/settings')));
 const AdminStripePayees = Loadable(lazy(() => import('pages/admin/stripe-payees')));
+const AdminShortStayCollection = Loadable(lazy(() => import('pages/admin/short-stay-collection')));
 const AdminRentPaymentAccess = Loadable(lazy(() => import('pages/admin/rent-payment-access')));
 const AdminMessages = Loadable(lazy(() => import('pages/admin/messages')));
 const AdminUpcomingFeatures = Loadable(lazy(() => import('pages/admin/upcoming-features')));
@@ -209,6 +211,10 @@ const MainRoutes = {
       element: <PublicListing />
     },
     {
+      path: 'stay/:unitId',
+      element: <PublicStay />
+    },
+    {
       path: '*',
       element: <DashboardLayout />,
       children: [
@@ -254,7 +260,7 @@ const MainRoutes = {
         },
         {
           path: 'landlord/properties/add',
-          element: <PropertyAdd />
+          element: <PropertyAddWorkflow />
         },
         {
           // Backward compatibility - redirect old portfolio route
@@ -278,11 +284,7 @@ const MainRoutes = {
             </SubscriptionPausedGuard>
           )
         },
-        {
-          // Backward compatibility - redirect old route
-          path: 'landlord/properties/add',
-          element: <PropertyAdd />
-        },
+
         {
           // property details by ID
           path: 'landlord/property/:propertyId',
@@ -337,6 +339,14 @@ const MainRoutes = {
           element: (
             <SubscriptionPausedGuard>
               <UnitPage />
+            </SubscriptionPausedGuard>
+          )
+        },
+        {
+          path: 'landlord/property/:propertyId/unit/:unitId/short-stay',
+          element: (
+            <SubscriptionPausedGuard>
+              <ShortStaySetup />
             </SubscriptionPausedGuard>
           )
         },
@@ -1293,6 +1303,14 @@ const MainRoutes = {
           element: (
             <AdminRoute>
               <AdminStripePayees />
+            </AdminRoute>
+          )
+        },
+        {
+          path: 'admin/short-stay-collection',
+          element: (
+            <AdminRoute>
+              <AdminShortStayCollection />
             </AdminRoute>
           )
         },

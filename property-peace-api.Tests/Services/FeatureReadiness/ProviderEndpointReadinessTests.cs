@@ -40,17 +40,29 @@ public class ProviderEndpointReadinessTests
     };
     public static TheoryData<string, RentPaymentAction> StripeRentPaymentEndpoints => new()
     {
-        { nameof(StripeController.CreateConnectAccount), RentPaymentAction.Configure },
-        { nameof(StripeController.GetAccountStatus), RentPaymentAction.Configure },
-        { nameof(StripeController.CreateAccountLink), RentPaymentAction.Configure },
-        { nameof(StripeController.CreateLoginLink), RentPaymentAction.Configure },
-        { nameof(StripeController.CreateAccountSession), RentPaymentAction.Configure },
-        { nameof(StripeController.CreateAccountManagementSession), RentPaymentAction.Configure },
         { nameof(StripeController.SyncBankAccount), RentPaymentAction.Configure },
         { nameof(StripeController.CreateSetupIntent), RentPaymentAction.Pay },
         { nameof(StripeController.CreatePaymentIntent), RentPaymentAction.Pay },
         { nameof(StripeController.UpdatePaymentIntent), RentPaymentAction.Pay }
     };
+    public static TheoryData<string> StripeConnectSetupEndpoints => new()
+    {
+        nameof(StripeController.CreateConnectAccount),
+        nameof(StripeController.GetAccountStatus),
+        nameof(StripeController.CreateAccountLink),
+        nameof(StripeController.CreateLoginLink),
+        nameof(StripeController.CreateAccountSession),
+        nameof(StripeController.CreateAccountManagementSession)
+    };
+
+    [Theory]
+    [MemberData(nameof(StripeConnectSetupEndpoints))]
+    public void OwnedConnectSetup_RequiresIndependentSetupGate_NotRentApproval(string actionName)
+    {
+        var action = typeof(StripeController).GetMethod(actionName)!;
+        action.GetCustomAttribute<RequireStripeConnectSetupReadyAttribute>().Should().NotBeNull();
+        action.GetCustomAttribute<RequireRentPaymentActionReadyAttribute>().Should().BeNull();
+    }
     [Theory]
     [MemberData(nameof(ProviderEndpoints))]
     public void ProviderTouchingEndpoint_RequiresItsCanonicalReadinessFeature(

@@ -13,6 +13,7 @@ namespace brownstone_hub_api.Configurations
 
             b.Property(p => p.TargetRent).HasPrecision(18, 2);
             b.Property(p => p.TargetDeposit).HasPrecision(18, 2);
+            b.Property(p => p.TimeZoneId).HasMaxLength(128);
 
             b.HasOne(p => p.Landlord)
              .WithMany()
