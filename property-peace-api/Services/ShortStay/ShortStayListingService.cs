@@ -38,6 +38,8 @@ public sealed class ShortStayListingService(DataContext db, IHttpContextAccessor
     private static ShortStayListingDraftDto Map(ShortStayListing listing, string zone) => new()
     {
         UnitId = listing.UnitId, TimeZoneId = zone, NightlyBasePrice = listing.NightlyBasePrice,
+        WeekendNightlyRate = listing.WeekendNightlyRate, WeeklyDiscountPercent = listing.WeeklyDiscountPercent,
+        MonthlyDiscountPercent = listing.MonthlyDiscountPercent,
         MinimumNights = listing.MinimumNights, Capacity = listing.Capacity, CleaningFee = listing.CleaningFee,
         LodgingTaxRatePercent = listing.LodgingTaxRatePercent,
         TaxPolicyAttestedAtUtc = listing.TaxPolicyAttestedAtUtc,
@@ -77,8 +79,11 @@ public sealed class ShortStayListingService(DataContext db, IHttpContextAccessor
         if (unitId <= 0 || request is null) return Error("Invalid listing draft", 400);
         if (!CentPrecisionAttribute.IsValidPrice(request.NightlyBasePrice))
             return Error("NightlyBasePrice must have no more than two decimal places", 400);
-        if (!CentPrecisionAttribute.IsValidPrice(request.CleaningFee))
-            return Error("CleaningFee must have no more than two decimal places", 400);
+        if (!CentPrecisionAttribute.IsValidPrice(request.CleaningFee) ||
+            request.WeekendNightlyRate is { } weekend && !CentPrecisionAttribute.IsValidPrice(weekend) ||
+            request.WeeklyDiscountPercent is { } weekly && decimal.Round(weekly, 2) != weekly ||
+            request.MonthlyDiscountPercent is { } monthly && decimal.Round(monthly, 2) != monthly)
+            return Error("Pricing must have no more than two decimal places for cents and discount percentages", 400);
         if (!Validator.TryValidateObject(request, new ValidationContext(request), new List<ValidationResult>(), true))
             return Error("Invalid listing draft", 400);
         if (request.LodgingTaxRatePercent is { } taxRate && decimal.Round(taxRate, 4) != taxRate)
@@ -109,6 +114,11 @@ public sealed class ShortStayListingService(DataContext db, IHttpContextAccessor
             // This endpoint only edits draft data; it cannot publish or change ownership.
             if (listing!.Status != ShortStayListingStatus.Draft) return Error("Published listing cannot be edited as a draft", 409);
             listing.NightlyBasePrice = request.NightlyBasePrice;
+            // Pricing additions are optional on legacy PUT payloads. Only supplied values mutate
+            // an existing draft; a supplied JSON null explicitly clears the weekend rate.
+            if (request.HasWeekendNightlyRate) listing.WeekendNightlyRate = request.WeekendNightlyRate;
+            if (request.WeeklyDiscountPercent is { } weeklyDiscount) listing.WeeklyDiscountPercent = weeklyDiscount;
+            if (request.MonthlyDiscountPercent is { } monthlyDiscount) listing.MonthlyDiscountPercent = monthlyDiscount;
             listing.MinimumNights = request.MinimumNights;
             listing.Capacity = request.Capacity;
             listing.CleaningFee = request.CleaningFee;

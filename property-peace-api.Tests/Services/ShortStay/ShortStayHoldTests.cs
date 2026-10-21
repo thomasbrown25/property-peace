@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Enums;
@@ -131,6 +132,26 @@ public sealed class ShortStayHoldTests
         }
         public ValueTask DisposeAsync() => connection.DisposeAsync();
     }
+    [Fact]
+    public async Task First_hold_and_replay_expose_gross_nightly_subtotal_for_discount_breakdown()
+    {
+        await using var f = await Fixture.Create();
+        f.Db.ShortStayListings.Single().WeeklyDiscountPercent = 10m;
+        await f.Db.SaveChangesAsync();
+        var request = new ShortStayHoldRequest(Arrival, Arrival.AddDays(7), 2, "discount-receipt");
+        var first = await f.Service().Create(10, request, default);
+        Assert.Equal(201, first.StatusCode);
+        var firstJson = JsonSerializer.SerializeToElement(first.Hold, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Equal(52500, firstJson.GetProperty("grossNightlySubtotalCents").GetInt64());
+        Assert.Equal(5250, firstJson.GetProperty("discountCents").GetInt64());
+        Assert.Equal(47250, firstJson.GetProperty("nightlySubtotalCents").GetInt64());
+        f.Db.ChangeTracker.Clear();
+        var replay = await f.Service().Create(10, request, default);
+        Assert.Equal(200, replay.StatusCode);
+        var replayJson = JsonSerializer.SerializeToElement(replay.Hold, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.Equal(52500, replayJson.GetProperty("grossNightlySubtotalCents").GetInt64());
+    }
+
     [Fact]
     public async Task Payment_requires_gate_and_matching_guest()
     {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { emptyListing, parseLodgingTaxRate, parseLocalDate, validLocalRange, parseMoney, listingPayload, ratePayload, airbnbTimestamp, isOwnerBlock } from '../src/features/properties/shortStayOwner.ts';
+import { emptyListing, parseLodgingTaxRate, parseLocalDate, validLocalRange, parseMoney, listingPayload, ratePayload, rangeRatePayload, parseDiscountPercent, airbnbTimestamp, isOwnerBlock } from '../src/features/properties/shortStayOwner.ts';
 const source = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 test('local calendar dates are strict and ranges use exclusive checkout', () => {
   assert.equal(parseLocalDate('2026-02-28'), '2026-02-28');
@@ -17,10 +17,31 @@ test('draft and rate payloads reject invalid values and use backend contract nam
   assert.deepEqual(ratePayload('42.50'), { nightlyRate: 42.5 });
   assert.equal(ratePayload('0'), null);
   const draft = { ...emptyListing(), nightlyBasePrice: '115.00', minimumNights: '2', capacity: '3', cleaningFee: '0', checkInTime: '15:00', checkOutTime: '11:00', amenities: 'Wifi' };
-  assert.deepEqual(listingPayload(draft), { nightlyBasePrice: 115, minimumNights: 2, capacity: 3, cleaningFee: 0, checkInTime: '15:00', checkOutTime: '11:00', houseRules: null, amenities: 'Wifi', cancellationPolicy: null, publicTitle: '', publicSummary: '', lodgingTaxRatePercent: null, attestLodgingTaxResponsibility: false });
+  assert.deepEqual(listingPayload(draft), { nightlyBasePrice: 115, weekendNightlyRate: null, weeklyDiscountPercent: 0, monthlyDiscountPercent: 0, minimumNights: 2, capacity: 3, cleaningFee: 0, checkInTime: '15:00', checkOutTime: '11:00', houseRules: null, amenities: 'Wifi', cancellationPolicy: null, publicTitle: '', publicSummary: '', lodgingTaxRatePercent: null, attestLodgingTaxResponsibility: false });
   assert.equal(listingPayload({ ...draft, capacity: '0' }), null);
   assert.equal(listingPayload({ ...draft, cleaningFee: '0.001' }), null);
   assert.equal(listingPayload({ ...draft, checkInTime: '25:00' }), null);
+});
+test('weekend and discount pricing preserve null versus zero and reject invalid values', () => {
+  const draft = { ...emptyListing(), nightlyBasePrice: '100' };
+  assert.equal(emptyListing().weekendNightlyRate, '');
+  assert.equal(parseDiscountPercent('99.99'), 99.99);
+  for (const n of [0, 7.25, 99.99]) assert.deepEqual(listingPayload({ ...draft, weekendNightlyRate: '175.25', weeklyDiscountPercent: String(n), monthlyDiscountPercent: String(n) }),
+    { ...listingPayload(draft), weekendNightlyRate: 175.25, weeklyDiscountPercent: n, monthlyDiscountPercent: n });
+  for (const value of ['', '-1', '100', '99.999', '1e1', 'NaN', '01', '0.']) {
+    assert.equal(parseDiscountPercent(value), null);
+    assert.equal(listingPayload({ ...draft, weeklyDiscountPercent: value }), null);
+    assert.equal(listingPayload({ ...draft, monthlyDiscountPercent: value }), null);
+  }
+  for (const value of ['0', '-1', '1.234', '1000000', 'NaN']) assert.equal(listingPayload({ ...draft, weekendNightlyRate: value }), null);
+});
+test('range rate payload accepts 366 property-local nights and rejects invalid price or checkout', () => {
+  assert.deepEqual(rangeRatePayload('2026-01-01', '2027-01-02', '150.25'), { startDate: '2026-01-01', endDate: '2027-01-02', nightlyRate: 150.25 });
+  for (const [start, end, rate] of [['2026-01-01', '2027-01-03', '150'], ['2026-02-29', '2026-03-01', '150'], ['2026-01-01', '2026-01-01', '150'], ['2026-01-01', '2026-01-02', '0'], ['2026-01-01', '2026-01-02', '1.234']]) assert.equal(rangeRatePayload(start, end, rate), null);
+  const api = source('../src/api/shortStayAPI.ts');
+  assert.match(api, /putRateRange\(unitId: string, startDate: string, endDate: string, rate: string\)/);
+  assert.match(api, /calendar\/rates\/range`, payload/);
+  assert.match(api, /if \(!payload\) throw/);
 });
 test('lodging tax stays null until intentionally configured; zero needs attestation', () => {
   const draft = { ...emptyListing(), nightlyBasePrice: '100' };

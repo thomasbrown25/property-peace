@@ -133,6 +133,9 @@ export default function StayCheckout({ unitId, dates, reservationCode, onReserva
   const expiry = status?.holdExpiresAt || receipt?.expiresAtUtc;
   const payable = canStartPayment(status?.status, expiry);
   const total = status?.totalCents ?? receipt?.totalCents;
+  const discountCents = status?.discountCents ?? receipt?.discountCents;
+  const grossNightlySubtotalCents = status?.grossNightlySubtotalCents ?? receipt?.grossNightlySubtotalCents;
+  const showDiscount = Number.isSafeInteger(discountCents) && discountCents > 0 && moneyFromCents(grossNightlySubtotalCents);
   return <Box sx={{ mt: 3, pt: 3, borderTop: '1px solid #d8dfda' }} aria-live="polite">
     {!code && <>
       <Typography sx={{ fontWeight: 700 }}>Secure guest checkout</Typography>
@@ -146,7 +149,8 @@ export default function StayCheckout({ unitId, dates, reservationCode, onReserva
       {receipt?.availabilityWarning && <Typography sx={{ mt: 1, fontSize: 13, color: warningColor }}>{receipt.availabilityWarning}</Typography>}
       {expiry && <Typography sx={{ mt: 1, fontSize: 13, color: '#586b76' }}>Hold expires: {readableExpiry(expiry)}</Typography>}
       {moneyFromCents(total) && <Stack spacing={1} sx={{ mt: 2, p: 2, bgcolor: '#f5f6f2' }}>
-        {moneyRow('Nightly subtotal', status?.nightlySubtotalCents ?? receipt?.nightlySubtotalCents)}
+        {moneyRow('Nightly subtotal', showDiscount ? grossNightlySubtotalCents : status?.nightlySubtotalCents ?? receipt?.nightlySubtotalCents)}
+        {showDiscount && <Stack direction="row" justifyContent="space-between" gap={2}><Typography>Stay discount</Typography><Typography>−{moneyFromCents(discountCents)}</Typography></Stack>}
         {moneyRow('Cleaning fee', status?.cleaningFeeCents ?? receipt?.cleaningFeeCents)}
         {moneyRow('Tax', status?.taxCents ?? receipt?.taxCents)}
         <Divider />{moneyRow('Hold total · USD', total)}

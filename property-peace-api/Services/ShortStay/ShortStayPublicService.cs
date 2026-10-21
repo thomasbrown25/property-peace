@@ -12,7 +12,8 @@ public sealed record ShortStayPublicListing(long UnitId, string Title, string? D
     decimal NightlyBasePrice, decimal CleaningFee, decimal? LodgingTaxRatePercent,
     string TimeZoneId, string? City, string? State, int MinimumNights, bool BookingAvailable,
     string AvailabilityNotice = "Calendar information is advisory and cannot guarantee availability.",
-    bool BookingRequestsEnabled = false);
+    bool BookingRequestsEnabled = false, decimal? WeekendNightlyRate = null,
+    decimal WeeklyDiscountPercent = 0m, decimal MonthlyDiscountPercent = 0m);
 
 public sealed class ShortStayPublicService(DataContext db, IConfiguration configuration, TimeProvider clock)
 {
@@ -48,7 +49,9 @@ public sealed class ShortStayPublicService(DataContext db, IConfiguration config
         return (200, new(unitId, title ?? "Short-stay accommodation", summary, listing.Capacity, listing.NightlyBasePrice,
             listing.CleaningFee, listing.LodgingTaxRatePercent, unit.Property.TimeZoneId!,
             SafePlace(unit.Property.City), SafePlace(unit.Property.State), listing.MinimumNights,
-            false, BookingRequestsEnabled: requestsEnabled)); // No guaranteed public checkout capability.
+            false, BookingRequestsEnabled: requestsEnabled, WeekendNightlyRate: listing.WeekendNightlyRate,
+            WeeklyDiscountPercent: listing.WeeklyDiscountPercent,
+            MonthlyDiscountPercent: listing.MonthlyDiscountPercent)); // No guaranteed public checkout capability.
     }
 
     public async Task<(int StatusCode, ShortStayQuoteResult? Quote)> Quote(long unitId, ShortStayQuoteRequest request, CancellationToken ct)
@@ -99,7 +102,10 @@ public sealed class ShortStayPublicService(DataContext db, IConfiguration config
             fresh, true, true, true, HasCalendarFeed: subscriptions.Count > 0,
             LodgingTaxRatePercent: listing.LodgingTaxRatePercent,
             TaxPolicyAttestedAtUtc: listing.TaxPolicyAttestedAtUtc,
-            TaxPolicyAttestedByUserId: listing.TaxPolicyAttestedByUserId, QuoteAsOfUtc: now));
+            TaxPolicyAttestedByUserId: listing.TaxPolicyAttestedByUserId, QuoteAsOfUtc: now,
+            WeekendNightlyRate: listing.WeekendNightlyRate,
+            WeeklyDiscountPercent: listing.WeeklyDiscountPercent,
+            MonthlyDiscountPercent: listing.MonthlyDiscountPercent));
         await read.CommitAsync(ct);
         return (200, quote);
     }

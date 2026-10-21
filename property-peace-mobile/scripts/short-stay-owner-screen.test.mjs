@@ -13,7 +13,7 @@ const photoHelpers = require('../src/features/properties/shortStayPhotos.ts');
 const deferred = () => { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
 const tick = async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); };
 function harness(overrides = {}) {
-  const calls = { putListing: [], putTimeZone: [], putGuidebookDraft: [], deleteGuidebookDraft: [], getCalendar: [], getInventoryReport: [], deleteBlock: [], deleteRate: [], connectAirbnb: [], refreshAirbnb: [], disconnectAirbnb: [], alerts: [] };
+  const calls = { putListing: [], putTimeZone: [], putGuidebookDraft: [], deleteGuidebookDraft: [], getCalendar: [], getInventoryReport: [], deleteBlock: [], deleteRate: [], putRateRange: [], connectAirbnb: [], refreshAirbnb: [], disconnectAirbnb: [], alerts: [] };
   const api = {
     getTimeZone: async () => ({ timeZoneId: 'UTC' }), getListing: async () => null, getPhotos: async () => [], getGuidebookDraft: async () => null,
     putGuidebookDraft: async (...args) => { calls.putGuidebookDraft.push(args); return { unitId: 2, ...args[1] }; },
@@ -28,7 +28,7 @@ function harness(overrides = {}) {
     connectAirbnb: async (...args) => { calls.connectAirbnb.push(args); return { enabled: true, health: 'never_synced', timeZoneId: 'UTC' }; },
     refreshAirbnb: async (...args) => { calls.refreshAirbnb.push(args); return { enabled: true, health: 'never_synced', timeZoneId: 'UTC' }; },
     disconnectAirbnb: async (...args) => { calls.disconnectAirbnb.push(args); return { enabled: false, health: 'disabled', timeZoneId: 'UTC' }; },
-    addBlock: async () => {}, putRate: async () => {}, ...overrides.api,
+    addBlock: async () => {}, putRate: async () => {}, putRateRange: async (...args) => { calls.putRateRange.push(args); }, ...overrides.api,
   };
   const property = { getUnits: async () => [{ id: '2', rentalMode: 'ShortTerm' }], ...overrides.property };
   let slots = [], index = 0, pending = [], tree;
@@ -79,6 +79,47 @@ const draft = { nightlyBasePrice: 120, minimumNights: 2, capacity: 3, cleaningFe
 const calendar = { timeZoneId: 'UTC', blocks: [{ id: 7, startDate: '2026-12-01', endDate: '2026-12-02', reason: 'Owner use', source: 'OwnerBlock' }], nights: [{ date: '2026-12-01', effectiveRate: 120, overrideRate: 130 }], startDate: '2026-12-01', endDate: '2026-12-03' };
 const inventory = { unitId: 2, timeZoneId: 'UTC', snapshotAtUtc: '2026-12-01T01:00:00Z', totalNights: 2, ownerBlockedNights: 1, airbnbBlockedNights: 1, overlapNights: 1, blockedNights: 1, unblockedNights: 1, pricedUnblockedNights: 1, unpricedUnblockedNights: 0, airbnbSyncStatus: 'stale', airbnbSyncStaleWarning: true, bookingMetricsAvailable: false, revenueMetricsAvailable: false, occupancyMetricsAvailable: false };
 const text = h => h.nodes().filter(n => n.type === 'Text').map(n => n.props.children).flat(Infinity).filter(x => typeof x === 'string' || typeof x === 'number').join(' ');
+test('pricing fields hydrate existing draft and survive unrelated save with tax attestation', async () => {
+  const existing = { ...draft, weekendNightlyRate: 175.25, weeklyDiscountPercent: 12.5, monthlyDiscountPercent: 20, lodgingTaxRatePercent: 8.25, taxPolicyAttestedAtUtc: '2026-10-20T12:00:00Z', taxPolicyAttestedByUserId: 9 };
+  const h = harness({ api: { getListing: async () => existing } }); h.render(); await tick(); h.render();
+  assert.equal(h.field('Weekend nightly rate (optional)').props.value, '175.25');
+  assert.equal(h.field('Weekly discount (%)').props.value, '12.5');
+  assert.equal(h.field('Monthly discount (%)').props.value, '20');
+  assert.match(text(h), /Friday and Saturday/);
+  assert.match(text(h), /monthly.*28.*weekly/i);
+  assert.match(text(h), /booking.*disabled/i);
+  h.field('House rules').props.onChangeText('No pets'); h.render();
+  h.button('Save listing draft').props.onPress(); await tick(); h.render();
+  assert.equal(h.calls.putListing[0][1].weekendNightlyRate, '175.25');
+  assert.equal(h.calls.putListing[0][1].monthlyDiscountPercent, '20');
+  assert.equal(h.calls.putListing[0][1].lodgingTaxRatePercent, '8.25');
+  h.field('Weekly discount (%)').props.onChangeText('100'); h.render();
+  assert.equal(h.button('Save listing draft').props.disabled, true);
+});
+test('calendar identifies server-selected weekend price without making it a removable override', async () => {
+  const h = harness({ api: { getCalendar: async () => ({ ...calendar, nights: [{ date: '2026-12-04', baseRate: 120, effectiveRate: 175, overrideRate: null, priceSource: 'Weekend' }] }) } });
+  h.render(); await tick(); h.render();
+  h.field('View from').props.onChangeText('2026-12-04'); h.render();
+  h.field('View until (exclusive)').props.onChangeText('2026-12-05'); h.render();
+  h.button('Load availability').props.onPress(); await tick(); h.render();
+  assert.match(text(h), /2026-12-04.*175.*weekend/i);
+  assert.equal(h.button('Reset rate'), undefined);
+});
+test('range override validates end-exclusive dates and refreshes loaded calendar and inventory', async () => {
+  const h = harness(); h.render(); await tick(); h.render();
+  h.field('View from').props.onChangeText('2026-12-01'); h.render(); h.field('View until (exclusive)').props.onChangeText('2026-12-03'); h.render();
+  h.button('Load availability').props.onPress(); await tick(); h.render();
+  h.field('Range start').props.onChangeText('2026-12-01'); h.render();
+  h.field('Range end (exclusive)').props.onChangeText('2026-12-01'); h.render();
+  h.field('Range nightly rate').props.onChangeText('155.50'); h.render();
+  assert.equal(h.button('Save range rate override').props.disabled, true);
+  h.field('Range end (exclusive)').props.onChangeText('2026-12-03'); h.render();
+  h.button('Save range rate override').props.onPress(); await tick(); h.render();
+  assert.deepEqual(h.calls.putRateRange, [['2', '2026-12-01', '2026-12-03', '155.50']]);
+  assert.equal(h.calls.getCalendar.length, 2);
+  assert.equal(h.calls.getInventoryReport.length, 2);
+  assert.equal(h.field('Range nightly rate').props.value, '');
+});
 test('inventory snapshot loads for the selected local range and labels counts without booking metrics', async () => {
   const h = harness(); h.render(); await tick(); h.render();
   h.field('View from').props.onChangeText('2026-12-01'); h.render();

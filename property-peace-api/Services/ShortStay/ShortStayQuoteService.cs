@@ -75,7 +75,9 @@ public sealed class ShortStayQuoteService(DataContext db, IHttpContextAccessor c
             LodgingTaxRatePercent: listing?.LodgingTaxRatePercent,
             TaxPolicyAttestedAtUtc: listing?.TaxPolicyAttestedAtUtc,
             TaxPolicyAttestedByUserId: listing?.TaxPolicyAttestedByUserId,
-            QuoteAsOfUtc: now);
+            QuoteAsOfUtc: now, WeekendNightlyRate: listing?.WeekendNightlyRate,
+            WeeklyDiscountPercent: listing?.WeeklyDiscountPercent ?? 0m,
+            MonthlyDiscountPercent: listing?.MonthlyDiscountPercent ?? 0m);
         var result = ShortStayQuoteCalculator.Calculate(request, facts);
         await read.CommitAsync(ct);
         return (200, result);

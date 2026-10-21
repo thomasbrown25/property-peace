@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { createShortStaySetupLoader } from 'utils/shortStaySetupLoader';
 import { Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControlLabel, Paper, Stack, TextField, Typography } from '@mui/material';
 import { shortStayAPI } from 'api/shortStay';
-import { blockPayload, isLocalDate, listingPayload, ratePayload, setupError } from 'utils/shortStaySetup';
+import { blockPayload, isLocalDate, listingPayload, ratePayload, rangeRatePayload, setupError } from 'utils/shortStaySetup';
 import { createPhotoGallery, validatePhotoSelection } from './short-stay-photos';
 import { airbnbBlockIsManual, createAirbnbCalendar, formatAirbnbInstant } from './short-stay-airbnb';
 import { createGuidebookDraft } from './short-stay-guidebook';
@@ -13,9 +13,11 @@ import { createInventorySnapshot } from './short-stay-inventory';
 import InventorySnapshotCard from './short-stay-inventory-card.jsx';
 
 const EMPTY_DRAFT = {
-  nightlyBasePrice: '', minimumNights: '1', capacity: '1', cleaningFee: '0',
+  nightlyBasePrice: '', weekendNightlyRate: '', weeklyDiscountPercent: '0', monthlyDiscountPercent: '0', minimumNights: '1', capacity: '1', cleaningFee: '0',
   checkInTime: '', checkOutTime: '', houseRules: '', amenities: '', cancellationPolicy: '', lodgingTaxRatePercent: '', publicTitle: '', publicSummary: ''
 };
+const pricingDraft = (listing) => ({ ...EMPTY_DRAFT, ...listing, weekendNightlyRate: listing.weekendNightlyRate ?? '', weeklyDiscountPercent: listing.weeklyDiscountPercent ?? 0, monthlyDiscountPercent: listing.monthlyDiscountPercent ?? 0, checkInTime: listing.checkInTime?.slice(0, 5) || '', checkOutTime: listing.checkOutTime?.slice(0, 5) || '' });
+
 export default function ShortStaySetup() {
   const { propertyId, unitId } = useParams();
   return <ShortStaySetupForUnit key={`${propertyId}/${unitId}`} propertyId={propertyId} unitId={unitId} />;
@@ -35,6 +37,9 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
   const [reason, setReason] = useState('');
   const [rateDate, setRateDate] = useState('');
   const [rate, setRate] = useState('');
+  const [rangeStart, setRangeStart] = useState('');
+  const [rangeEnd, setRangeEnd] = useState('');
+  const [rangeRate, setRangeRate] = useState('');
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [calendarLoading, setCalendarLoading] = useState(false);
@@ -85,7 +90,7 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
         setListingExists(Boolean(listing));
         setSavedTax(listing);
         setTaxAttested(false);
-        setDraft(listing ? { ...EMPTY_DRAFT, ...listing, checkInTime: listing.checkInTime?.slice(0, 5) || '', checkOutTime: listing.checkOutTime?.slice(0, 5) || '' } : EMPTY_DRAFT);
+        setDraft(listing ? pricingDraft(listing) : EMPTY_DRAFT);
       }
       if ('calendar' in change) setCalendar(change.calendar);
       if ('start' in change) setStart(change.start);
@@ -159,7 +164,7 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
 
   const field = (key, label, props = {}) => <TextField key={key} label={label} value={draft[key] ?? ''} onChange={(e) => setDraft((current) => ({ ...current, [key]: e.target.value }))} fullWidth {...props} />;
   const applySavedListing = (saved) => {
-    setDraft({ ...EMPTY_DRAFT, ...saved, checkInTime: saved.checkInTime?.slice(0, 5) || '', checkOutTime: saved.checkOutTime?.slice(0, 5) || '' });
+    setDraft(pricingDraft(saved));
     setSavedTax(saved);
     setTaxAttested(false);
     setListingExists(true);
@@ -235,6 +240,14 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
               {field('minimumNights', 'Minimum nights', { type: 'number', inputProps: { min: 1, step: 1 } })}
               {field('capacity', 'Sleeping capacity', { type: 'number', inputProps: { min: 1, step: 1 } })}
               {field('cleaningFee', 'Cleaning fee', { type: 'number', inputProps: { min: 0, step: 0.01 } })}
+            </Stack>
+            <Divider />
+            <Typography variant="subtitle1">Nightly pricing and stay discounts</Typography>
+            <Typography color="text.secondary">Price priority: a date override wins over the Friday and Saturday weekend rate, which wins over the base nightly price. Blank weekend rate removes it. Stays of 7 or more nights receive the weekly discount; at 28 or more nights, a nonzero monthly discount takes precedence. Enter 0% to disable either discount. Discounts are calculated by the server on the nightly subtotal, not the cleaning fee.</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              {field('weekendNightlyRate', 'Weekend nightly rate', { type: 'number', inputProps: { min: 0.01, max: 999999.99, step: 0.01 }, helperText: 'Optional; clear and save to use the base rate on Fridays and Saturdays.' })}
+              {field('weeklyDiscountPercent', 'Weekly discount (%)', { type: 'number', inputProps: { min: 0, max: 99.99, step: 0.01 } })}
+              {field('monthlyDiscountPercent', 'Monthly discount (%)', { type: 'number', inputProps: { min: 0, max: 99.99, step: 0.01 } })}
             </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               {field('checkInTime', 'Check-in time', { type: 'time', InputLabelProps: { shrink: true } })}
@@ -367,6 +380,15 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
               {airbnbBlockIsManual(block) && <Button color="error" disabled={disabled} onClick={() => action(() => shortStayAPI.removeBlock(unitId, block.id), 'Block removed.', true)}>Remove</Button>}
             </Stack>)}
             <Divider />
+            <Typography variant="subtitle1">Custom rate for a date range</Typography>
+            <Typography color="text.secondary">Set the same custom nightly rate for every night in this range (up to 366 nights). The first date is included; the end date is exclusive (checkout day is not priced). Existing overrides on those dates will be replaced. To undo one night, remove its override below.</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField label="First priced night" type="date" InputLabelProps={{ shrink: true }} value={rangeStart} onChange={(e) => setRangeStart(e.target.value)} fullWidth />
+              <TextField label="End (exclusive)" type="date" InputLabelProps={{ shrink: true }} value={rangeEnd} onChange={(e) => setRangeEnd(e.target.value)} fullWidth />
+              <TextField label="Custom nightly rate" type="number" inputProps={{ min: 0.01, max: 999999.99, step: 0.01 }} value={rangeRate} onChange={(e) => setRangeRate(e.target.value)} fullWidth />
+            </Stack>
+            <Button variant="outlined" disabled={disabled || !timeZoneId} onClick={() => action(() => shortStayAPI.saveRateRange(unitId, rangeRatePayload(rangeStart, rangeEnd, rangeRate)), 'Date-range overrides saved.', true)}>Save range rates</Button>
+            <Divider />
             <Typography variant="subtitle1">Override one night</Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField label="Night" type="date" InputLabelProps={{ shrink: true }} value={rateDate} onChange={(e) => setRateDate(e.target.value)} fullWidth />
@@ -374,9 +396,10 @@ function ShortStaySetupForUnit({ propertyId, unitId }) {
               <Button variant="outlined" disabled={disabled || !timeZoneId} onClick={() => action(() => shortStayAPI.saveRate(unitId, rateDate, ratePayload(rateDate, rate)), 'Nightly override saved.', true)}>Save override</Button>
               <Button color="error" disabled={disabled || !isLocalDate(rateDate)} onClick={() => action(() => shortStayAPI.removeRate(unitId, rateDate), 'Override removed.', true)}>Remove override</Button>
             </Stack>
-            {calendar?.nights?.map((night) => <Typography key={night.date} variant="body2">
-              {night.date}: {night.effectiveRate == null ? 'No rate' : `$${night.effectiveRate}`} {night.overrideRate != null ? `(override; base ${night.baseRate ?? '—'})` : '(base)'}
-            </Typography>)}
+            {calendar?.nights?.map((night) => <Stack key={night.date} direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={1}>
+              <Typography variant="body2">{night.date}: {night.effectiveRate == null ? 'No rate' : `$${night.effectiveRate}`} {night.overrideRate != null ? '(custom date override)' : '(base or weekend rate)'}</Typography>
+              {night.overrideRate != null && <Button color="error" disabled={disabled} onClick={() => action(() => shortStayAPI.removeRate(unitId, night.date), 'Override removed.', true)}>Remove override for {night.date}</Button>}
+            </Stack>)}
           </Stack>
         </Paper>}
         {start && end && <InventorySnapshotCard snapshot={inventory} start={start} end={end} timeZoneId={timeZoneId} />}

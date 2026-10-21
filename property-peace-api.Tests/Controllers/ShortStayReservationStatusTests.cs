@@ -23,10 +23,11 @@ public sealed class ShortStayReservationStatusTests
             .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         public DefaultHttpContext Http { get; } = new();
         public ShortStayReservation Reservation { get; }
-        public Fixture(ShortStayReservationStatus status = ShortStayReservationStatus.Held)
+        public Fixture(ShortStayReservationStatus status = ShortStayReservationStatus.Held, long discountCents = 0)
         {
             Reservation = ShortStayReservation.CreateHold(10, 7, 20, 5, 42, "acct_PRIVATE", Arrival,
-                Arrival.AddDays(2), 2, [7500L, 7500L], Now.AddMinutes(10), Now, 1500, 1650);
+                Arrival.AddDays(2), 2, [7500L, 7500L], Now.AddMinutes(10), Now, 1500, 1650,
+                discountCents: discountCents);
             Db.ShortStayReservations.Add(Reservation);
             Db.SaveChanges();
             if (status == ShortStayReservationStatus.Expired)
@@ -114,6 +115,20 @@ public sealed class ShortStayReservationStatusTests
         foreach (var forbidden in new[] { "pi_PRIVATE", "acct_PRIVATE", "clientSecret", "paymentIntentId", "guestUserId", "payeeUserId", "organizationId", "operationId", "destinationStripeAccountId", "email" })
             Assert.DoesNotContain(forbidden, serialized, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("no-store, no-cache", f.Http.Response.Headers.CacheControl.ToString());
+    }
+
+    [Fact]
+    public async Task Discounted_guest_receipt_reports_gross_discount_and_net_without_leaking_private_data()
+    {
+        using var f = new Fixture(discountCents: 1500);
+        var result = Assert.IsType<OkObjectResult>(await f.Controller().Get(f.Reservation.PublicCode, default));
+        using var json = JsonDocument.Parse(JsonSerializer.Serialize(result.Value));
+        var body = json.RootElement;
+        Assert.Equal(15000, body.GetProperty("grossNightlySubtotalCents").GetInt64());
+        Assert.Equal(1500, body.GetProperty("discountCents").GetInt64());
+        Assert.Equal(13500, body.GetProperty("nightlySubtotalCents").GetInt64());
+        Assert.Equal(16650, body.GetProperty("totalCents").GetInt64());
+        Assert.DoesNotContain("acct_PRIVATE", body.GetRawText());
     }
 
     [Fact]

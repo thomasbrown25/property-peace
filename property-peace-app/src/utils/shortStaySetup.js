@@ -27,6 +27,13 @@ function money(value, label, allowZero = false) {
   return Number(text);
 }
 
+function discountPercent(value, label) {
+  const text = String(value ?? '0').trim();
+  if (!/^\d+(?:\.\d{1,2})?$/.test(text) || !Number.isFinite(Number(text)) || Number(text) >= 100)
+    throw new Error(`${label} must be between 0 and 99.99 percent with at most two decimal places.`);
+  return Number(text);
+}
+
 function positiveInteger(value, label) {
   const text = String(value ?? '').trim();
   if (!/^[1-9]\d*$/.test(text) || !Number.isSafeInteger(Number(text)) || Number(text) > 2147483647) throw new Error(`${label} must be a positive whole number.`);
@@ -57,6 +64,9 @@ export function listingPayload(values, attestLodgingTaxResponsibility = false) {
   }
   return {
     nightlyBasePrice: money(values.nightlyBasePrice, 'Base nightly price'),
+    weekendNightlyRate: String(values.weekendNightlyRate ?? '').trim() === '' ? null : rateAmount(values.weekendNightlyRate, 'Weekend nightly rate'),
+    weeklyDiscountPercent: discountPercent(values.weeklyDiscountPercent, 'Weekly discount'),
+    monthlyDiscountPercent: discountPercent(values.monthlyDiscountPercent, 'Monthly discount'),
     minimumNights: positiveInteger(values.minimumNights, 'Minimum nights'),
     capacity: positiveInteger(values.capacity, 'Sleeping capacity'),
     cleaningFee: money(values.cleaningFee, 'Cleaning fee', true),
@@ -69,11 +79,20 @@ export function listingPayload(values, attestLodgingTaxResponsibility = false) {
   };
 }
 
+function rateAmount(value, label) {
+  const amount = money(value, label);
+  if (amount > 999999.99) throw new Error(`${label} must be at most 999999.99.`);
+  return amount;
+}
+
 export function ratePayload(date, nightlyRate) {
   if (!isLocalDate(date)) throw new Error('Enter a valid yyyy-MM-dd local night.');
-  const amount = money(nightlyRate, 'Nightly rate');
-  if (amount > 999999.99) throw new Error('Nightly rate must be at most 999999.99.');
-  return { nightlyRate: amount };
+  return { nightlyRate: rateAmount(nightlyRate, 'Nightly rate') };
+}
+
+export function rangeRatePayload(startDate, endDate, nightlyRate) {
+  calendarRange(startDate, endDate);
+  return { startDate, endDate, nightlyRate: rateAmount(nightlyRate, 'Nightly rate') };
 }
 
 export function setupError(error) {

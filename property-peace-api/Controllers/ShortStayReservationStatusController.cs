@@ -31,7 +31,7 @@ public sealed class ShortStayReservationStatusController(DataContext db, IHttpCo
         var reservation = await db.ShortStayReservations.AsNoTracking()
             .Where(r => r.PublicCode == code && r.GuestUserId == userId)
             .Select(r => new { r.PublicCode, r.Status, r.CheckInDate, r.CheckOutDate, r.GuestCount,
-                r.NightlySubtotalCents, r.CleaningFeeCents, r.TaxCents, r.TotalCents, r.HoldExpiresAtUtc })
+                r.NightlySubtotalCents, r.DiscountCents, r.CleaningFeeCents, r.TaxCents, r.TotalCents, r.HoldExpiresAtUtc })
             .SingleOrDefaultAsync(ct);
         if (reservation is null) return NotFound();
         var message = reservation.Status switch
@@ -49,6 +49,8 @@ public sealed class ShortStayReservationStatusController(DataContext db, IHttpCo
         };
         return Ok(new { publicCode = reservation.PublicCode, status = reservation.Status.ToString(),
             checkIn = reservation.CheckInDate, checkOut = reservation.CheckOutDate, guestCount = reservation.GuestCount,
+            grossNightlySubtotalCents = reservation.NightlySubtotalCents + reservation.DiscountCents,
+            discountCents = reservation.DiscountCents,
             nightlySubtotalCents = reservation.NightlySubtotalCents, cleaningFeeCents = reservation.CleaningFeeCents,
             taxCents = reservation.TaxCents, totalCents = reservation.TotalCents,
             holdExpiresAt = reservation.HoldExpiresAtUtc, message });

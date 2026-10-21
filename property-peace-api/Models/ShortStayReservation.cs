@@ -24,6 +24,7 @@ public class ShortStayReservation
     public int GuestCount { get; private set; }
     public long TotalCents { get; private set; }
     public long NightlySubtotalCents { get; private set; }
+    public long DiscountCents { get; private set; }
     public long CleaningFeeCents { get; private set; }
     public long TaxCents { get; private set; }
     // Stripe PaymentIntent create amount is limited to eight digits in the smallest unit (USD cents).
@@ -45,7 +46,8 @@ public class ShortStayReservation
     public static ShortStayReservation CreateHold(long unitId, long propertyId, long organizationId,
         long guestUserId, long payeeUserId, string destinationStripeAccountId, DateOnly checkInDate,
         DateOnly checkOutDate, int guestCount, IReadOnlyList<long> nightlyPricesCents,
-        DateTimeOffset expiresAtUtc, DateTimeOffset nowUtc, long cleaningFeeCents = 0, long taxCents = 0, string? operationId = null)
+        DateTimeOffset expiresAtUtc, DateTimeOffset nowUtc, long cleaningFeeCents = 0, long taxCents = 0, string? operationId = null,
+        long discountCents = 0)
     {
         if (cleaningFeeCents < 0 || taxCents < 0)
             throw new ArgumentException("Fees cannot be negative.");
@@ -62,6 +64,8 @@ public class ShortStayReservation
         try
         {
             subtotal = nightlyPricesCents.Aggregate(0L, (sum, price) => checked(sum + price));
+            if (discountCents < 0 || discountCents >= subtotal) throw new ArgumentException("Invalid nightly discount.", nameof(discountCents));
+            subtotal = checked(subtotal - discountCents);
             total = checked(checked(subtotal + cleaningFeeCents) + taxCents);
         }
         catch (OverflowException ex) { throw new ArgumentException("Quote exceeds supported cents range.", nameof(nightlyPricesCents), ex); }
@@ -76,7 +80,7 @@ public class ShortStayReservation
             GuestUserId = guestUserId, PayeeUserId = payeeUserId,
             DestinationStripeAccountId = destinationStripeAccountId,
             CheckInDate = checkInDate, CheckOutDate = checkOutDate, GuestCount = guestCount,
-            NightlySubtotalCents = subtotal, CleaningFeeCents = cleaningFeeCents, TaxCents = taxCents,
+            NightlySubtotalCents = subtotal, DiscountCents = discountCents, CleaningFeeCents = cleaningFeeCents, TaxCents = taxCents,
             TotalCents = total,
             Status = ShortStayReservationStatus.Held,
             HoldExpiresAtUtc = expiresAtUtc, CreatedAtUtc = nowUtc, UpdatedAtUtc = nowUtc

@@ -17,11 +17,21 @@ function harness(result = { success: true, data: null }) {
   const exports = {};
   vm.runInNewContext(compiled, { exports, require: id => {
     if (id === '../services/apiClient') return { __esModule: true, default: client };
-    if (id === '../features/properties/shortStayOwner') return {};
+    if (id === '../features/properties/shortStayOwner') return require('../src/features/properties/shortStayOwner.ts');
     throw Error(`Unexpected import: ${id}`);
   } });
   return { api: exports.default, calls };
 }
+test('range-rate API validates before network and sends exact authenticated PUT body', async () => {
+  const h = harness({ success: true, data: [{ date: '2026-12-01', nightlyRate: 150.25 }] });
+  await assert.rejects(h.api.putRateRange('12', '2026-12-01', '2026-12-01', '150'), /exclusive/);
+  await assert.rejects(h.api.putRateRange('12', '2026-12-01', '2026-12-02', '0'), /positive/);
+  assert.deepEqual(h.calls, []);
+  assert.equal((await h.api.putRateRange('12', '2026-12-01', '2026-12-02', '150.25'))[0].nightlyRate, 150.25);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.calls)), [['PUT', '/api/short-stay/units/12/calendar/rates/range', { startDate: '2026-12-01', endDate: '2026-12-02', nightlyRate: 150.25 }]]);
+  const denied = harness({ success: false, message: 'Forbidden', data: null });
+  await assert.rejects(denied.api.putRateRange('12', '2026-12-01', '2026-12-02', '150'), /Forbidden/);
+});
 test('owner guidebook GET uses unit-scoped path without cache; null is an empty draft', async () => {
   const h = harness();
   assert.equal(await h.api.getGuidebookDraft('12'), null);

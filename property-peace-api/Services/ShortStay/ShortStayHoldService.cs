@@ -17,7 +17,8 @@ public sealed record ShortStayHoldRequest(DateOnly CheckIn, DateOnly CheckOut, i
 }
 public sealed record ShortStayHoldReceipt(string Code, DateOnly CheckIn, DateOnly CheckOut, int Guests,
     long TotalCents, long NightlySubtotalCents, long CleaningFeeCents, long TaxCents, DateTimeOffset ExpiresAtUtc,
-    string AvailabilityWarning = "An imported calendar is not a real-time cross-channel lock; Airbnb double bookings remain possible.");
+    string AvailabilityWarning = "An imported calendar is not a real-time cross-channel lock; Airbnb double bookings remain possible.",
+    long DiscountCents = 0, long GrossNightlySubtotalCents = 0);
 public sealed record ShortStayHoldOutcome(int StatusCode, ShortStayHoldReceipt? Hold = null, string? Reason = null);
 
 public interface IShortStayStripeEligibility
@@ -52,7 +53,8 @@ public sealed class ShortStayHoldService(DataContext db, IHttpContextAccessor co
     IShortStayStripeEligibility stripe, TimeProvider clock)
 {
     private static ShortStayHoldReceipt Receipt(ShortStayReservation r) => new(r.PublicCode, r.CheckInDate, r.CheckOutDate,
-        r.GuestCount, r.TotalCents, r.NightlySubtotalCents, r.CleaningFeeCents, r.TaxCents, r.HoldExpiresAtUtc);
+        r.GuestCount, r.TotalCents, r.NightlySubtotalCents, r.CleaningFeeCents, r.TaxCents, r.HoldExpiresAtUtc,
+        DiscountCents: r.DiscountCents, GrossNightlySubtotalCents: checked(r.NightlySubtotalCents + r.DiscountCents));
 
     public async Task<ShortStayHoldOutcome> Create(long unitId, ShortStayHoldRequest request, CancellationToken ct)
     {
@@ -150,7 +152,10 @@ public sealed class ShortStayHoldService(DataContext db, IHttpContextAccessor co
                     listing?.NightlyBasePrice ?? 0, listing?.CleaningFee ?? 0, listing?.MinimumNights ?? 1, listing?.Capacity ?? 0,
                     rates, occupied, fresh, true, true, listing is not null, HasCalendarFeed: subscriptions.Count > 0,
                     LodgingTaxRatePercent: listing?.LodgingTaxRatePercent, TaxPolicyAttestedAtUtc: listing?.TaxPolicyAttestedAtUtc,
-                    TaxPolicyAttestedByUserId: listing?.TaxPolicyAttestedByUserId, QuoteAsOfUtc: utc));
+                    TaxPolicyAttestedByUserId: listing?.TaxPolicyAttestedByUserId, QuoteAsOfUtc: utc,
+                    WeekendNightlyRate: listing?.WeekendNightlyRate,
+                    WeeklyDiscountPercent: listing?.WeeklyDiscountPercent ?? 0m,
+                    MonthlyDiscountPercent: listing?.MonthlyDiscountPercent ?? 0m));
             if (quote.Status != "preflight_available" || !quote.EstimatedTotalCents.HasValue)
                 return new(409, Reason: quote.Reason);
             // Product ceiling is $2,000, deliberately lower than Stripe's technical limit.
@@ -171,7 +176,8 @@ public sealed class ShortStayHoldService(DataContext db, IHttpContextAccessor co
             var reservation = ShortStayReservation.CreateHold(unitId, property.Id, orgId, userId, payeeId,
                 accountId, request.CheckIn, request.CheckOut, request.Guests,
                 quote.Nights.Select(n => n.AmountCents).ToArray(), now.AddMinutes(10), now,
-                quote.CleaningFeeCents!.Value, quote.TaxCents!.Value, operation);
+                quote.CleaningFeeCents!.Value, quote.TaxCents!.Value, operation,
+                discountCents: quote.DiscountCents ?? 0);
             db.ShortStayReservations.Add(reservation);
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);

@@ -49,5 +49,6 @@ export const shortStayAPI = {
   addBlock: async (unitId, block) => unwrap(await axios.post(`${unitUrl(unitId)}/calendar/blocks`, block)),
   removeBlock: async (unitId, blockId) => unwrap(await axios.delete(`${unitUrl(unitId)}/calendar/blocks/${encodeURIComponent(blockId)}`)),
   saveRate: async (unitId, date, rate) => unwrap(await axios.put(`${unitUrl(unitId)}/calendar/rates/${encodeURIComponent(date)}`, rate)),
+  saveRateRange: async (unitId, range) => unwrap(await axios.put(`${unitUrl(unitId)}/calendar/rates/range`, range)),
   removeRate: async (unitId, date) => unwrap(await axios.delete(`${unitUrl(unitId)}/calendar/rates/${encodeURIComponent(date)}`))
 };

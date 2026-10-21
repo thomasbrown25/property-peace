@@ -8,7 +8,7 @@ import shortStayAPI, { type AirbnbCalendarStatus, type ShortStayCalendar, type S
 import { orderedPhotos, toPhotoUpload, validatePhotoSelection } from '../../features/properties/shortStayPhotos';
 import PropertyAPI from '../../api/propertyAPI';
 import { unitRentalMode } from '../../features/properties/rentalMode';
-import { airbnbTimestamp, emptyListing, isOwnerBlock, listingPayload, ownerError, parseLocalDate, ratePayload, validLocalRange, type ListingForm } from '../../features/properties/shortStayOwner';
+import { airbnbTimestamp, emptyListing, isOwnerBlock, listingPayload, ownerError, parseLocalDate, ratePayload, rangeRatePayload, validLocalRange, type ListingForm } from '../../features/properties/shortStayOwner';
 import { useAppTheme } from '../../theme/AppTheme';
 import ShortStayCollectionSection from './ShortStayCollectionSection';
 
@@ -17,6 +17,9 @@ const fields: { key: Exclude<keyof ListingForm, 'lodgingTaxRatePercent' | 'attes
   { key: 'publicTitle', label: 'Public title (100 characters)', maxLength: 100 },
   { key: 'publicSummary', label: 'Public summary (1,200 characters)', multiline: true, maxLength: 1200 },
   { key: 'nightlyBasePrice', label: 'Base nightly rate', keyboard: 'decimal-pad' },
+  { key: 'weekendNightlyRate', label: 'Weekend nightly rate (optional)', keyboard: 'decimal-pad', hint: 'Blank uses base rate' },
+  { key: 'weeklyDiscountPercent', label: 'Weekly discount (%)', keyboard: 'decimal-pad', hint: '0–99.99 (two decimals)' },
+  { key: 'monthlyDiscountPercent', label: 'Monthly discount (%)', keyboard: 'decimal-pad', hint: '0–99.99 (two decimals)' },
   { key: 'minimumNights', label: 'Minimum nights', keyboard: 'number-pad' },
   { key: 'capacity', label: 'Sleeping capacity', keyboard: 'number-pad' },
   { key: 'cleaningFee', label: 'Cleaning fee', keyboard: 'decimal-pad' },
@@ -281,6 +284,9 @@ export default function ShortStayOwnerScreen() {
   const [reason, setReason] = useState('');
   const [rateDate, setRateDate] = useState('');
   const [rate, setRate] = useState('');
+  const [rangeStart, setRangeStart] = useState('');
+  const [rangeEnd, setRangeEnd] = useState('');
+  const [rangeRate, setRangeRate] = useState('');
   const [loading, setLoading] = useState(true);
   const [listingLoaded, setListingLoaded] = useState(false);
   const [hasDraft, setHasDraft] = useState(false);
@@ -315,7 +321,7 @@ export default function ShortStayOwnerScreen() {
       if (zone.timeZoneId) {
         const draft = await shortStayAPI.getListing(unitId);
         if (request !== loadGeneration.current) return;
-        setForm(draft ? { nightlyBasePrice: String(draft.nightlyBasePrice), minimumNights: String(draft.minimumNights), capacity: String(draft.capacity), cleaningFee: String(draft.cleaningFee), checkInTime: draft.checkInTime?.slice(0, 5) || '', checkOutTime: draft.checkOutTime?.slice(0, 5) || '', houseRules: draft.houseRules || '', amenities: draft.amenities || '', cancellationPolicy: draft.cancellationPolicy || '', publicTitle: draft.publicTitle || '', publicSummary: draft.publicSummary || '', lodgingTaxRatePercent: draft.lodgingTaxRatePercent == null ? '' : String(draft.lodgingTaxRatePercent), attestLodgingTaxResponsibility: draft.lodgingTaxRatePercent != null && Boolean(draft.taxPolicyAttestedAtUtc && draft.taxPolicyAttestedByUserId) } : emptyListing());
+        setForm(draft ? { nightlyBasePrice: String(draft.nightlyBasePrice), weekendNightlyRate: draft.weekendNightlyRate == null ? '' : String(draft.weekendNightlyRate), weeklyDiscountPercent: String(draft.weeklyDiscountPercent ?? 0), monthlyDiscountPercent: String(draft.monthlyDiscountPercent ?? 0), minimumNights: String(draft.minimumNights), capacity: String(draft.capacity), cleaningFee: String(draft.cleaningFee), checkInTime: draft.checkInTime?.slice(0, 5) || '', checkOutTime: draft.checkOutTime?.slice(0, 5) || '', houseRules: draft.houseRules || '', amenities: draft.amenities || '', cancellationPolicy: draft.cancellationPolicy || '', publicTitle: draft.publicTitle || '', publicSummary: draft.publicSummary || '', lodgingTaxRatePercent: draft.lodgingTaxRatePercent == null ? '' : String(draft.lodgingTaxRatePercent), attestLodgingTaxResponsibility: draft.lodgingTaxRatePercent != null && Boolean(draft.taxPolicyAttestedAtUtc && draft.taxPolicyAttestedByUserId) } : emptyListing());
         setSavedTax(draft);
         setListingLoaded(true);
         setHasDraft(Boolean(draft));
@@ -367,7 +373,7 @@ export default function ShortStayOwnerScreen() {
   if (error && !savedZone) return <View style={[styles.center, { backgroundColor: colors.background }]}><Text accessibilityRole="alert" style={styles.error}>{error}</Text>{button('Try again', () => void load())}</View>;
   return <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
     <Text style={[styles.heading, { color: colors.text }]}>Short-stay owner setup</Text>
-    <Text style={[styles.notice, { color: colors.text }]}>Owner setup only. Guests cannot book yet.</Text>
+    <Text style={[styles.notice, { color: colors.text }]}>Owner setup only. Guests cannot book yet. Booking and payment are disabled; rates and availability here do not confirm reservations.</Text>
     <ShortStayCollectionSection propertyId={propertyId} />
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     <Text style={[styles.section, { color: colors.text }]}>1. Property time zone</Text>
@@ -380,6 +386,7 @@ export default function ShortStayOwnerScreen() {
       <Text style={{ color: colors.muted }}>Draft details only — not a monthly rental listing and not published.</Text>
       <Text style={{ color: colors.muted }}>Publicly visible to guests if published. Do not include access codes or private addresses. Plain text only.</Text>
       {fields.map(field => <Field key={field.key} label={field.label} value={form[field.key]} onChangeText={value => setForm(current => ({ ...current, [field.key]: value }))} hint={field.hint} keyboardType={field.keyboard} multiline={field.multiline} maxLength={field.maxLength} />)}
+      <Text style={{ color: colors.muted }}>Pricing priority: a date-specific nightly override replaces the base or weekend rate. Otherwise Friday and Saturday use the optional weekend rate; other nights use the base rate. A nonzero weekly discount applies to stays of 7+ nights. At 28+ nights, a nonzero monthly discount supersedes the weekly discount (they never stack). Set a discount to 0 to turn it off. Discounts apply to the nightly subtotal before fees and estimated tax.</Text>
       <Text style={[styles.section, { color: colors.text }]}>Lodging tax · owner configuration</Text>
       <Text style={{ color: colors.muted }}>Enter the lodging tax rate you determine applies to this listing. Blank means not configured; enter 0 only if you intentionally select a 0% rate. Any estimated tax shown in a quote is informational, not collected or payable through Property Peace. Property Peace does not calculate your tax obligations or remit lodging tax.</Text>
       <Field label="Lodging tax rate (%)" value={form.lodgingTaxRatePercent} onChangeText={value => setForm(current => ({ ...current, lodgingTaxRatePercent: value }))} hint="Blank until configured (0–100, up to 4 decimals)" keyboardType="decimal-pad" />
@@ -390,7 +397,7 @@ export default function ShortStayOwnerScreen() {
       {savedTax?.lodgingTaxRatePercent != null && savedTax.taxPolicyAttestedAtUtc && savedTax.taxPolicyAttestedByUserId ?
         <Text style={{ color: colors.text }}>Saved lodging tax rate: {savedTax.lodgingTaxRatePercent}% · responsibility attested {savedTax.taxPolicyAttestedAtUtc} by user {savedTax.taxPolicyAttestedByUserId}.</Text> :
         <Text style={{ color: colors.muted }}>Saved lodging tax rate: not configured · no attestation on file.</Text>}
-      {!listingPayload(form) && <Text accessibilityRole="alert" style={styles.error}>Check listing values and lodging tax: enter 0–100% with up to four decimals and check the responsibility box, or leave both blank and unchecked.</Text>}
+      {!listingPayload(form) && <Text accessibilityRole="alert" style={styles.error}>Check listing values: weekend rate is blank or positive (up to two decimals); weekly and monthly discounts are 0–99.99% (up to two decimals). For lodging tax enter 0–100% with up to four decimals and check the responsibility box, or leave both blank and unchecked.</Text>}
       {button('Save listing draft', () => {
         const save = () => void run(async () => { const window = calendarGeneration.current; const saved = await shortStayAPI.putListing(unitId, form); setSavedTax(saved); setHasDraft(true); if ((calendar || inventory) && window === calendarGeneration.current) await refreshCalendar(); });
         if (savedTax?.lodgingTaxRatePercent != null && form.lodgingTaxRatePercent.trim() === '') {
@@ -428,7 +435,7 @@ export default function ShortStayOwnerScreen() {
         <Text style={[styles.label, { color: colors.text }]}>Availability · {calendar.timeZoneId}</Text>
         {calendar.blocks.length === 0 && <Text style={{ color: colors.muted }}>No blocks in this window.</Text>}
         {calendar.blocks.map(block => <View key={`${block.source}-${block.id}`} style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{isOwnerBlock(block) ? 'Manual block' : 'Airbnb · read-only'} · {block.startDate} → {block.endDate} (exclusive){isOwnerBlock(block) && block.reason ? ` · ${block.reason}` : ''}</Text>{isOwnerBlock(block) && button('Remove block', () => Alert.alert('Remove manual block?', `${block.startDate} to ${block.endDate}`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => void run(async () => { await shortStayAPI.deleteBlock(unitId, block.id); await refreshCalendar(); }) }]))}</View>)}
-        {calendar.nights.map(night => <View key={night.date} style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{night.date} · {night.effectiveRate == null ? 'No base rate' : `$${night.effectiveRate}`}{night.overrideRate != null ? ' (override)' : ''}</Text>{night.overrideRate != null && button('Reset rate', () => void run(async () => { await shortStayAPI.deleteRate(unitId, night.date); await refreshCalendar(); }))}</View>)}
+        {calendar.nights.map(night => <View key={night.date} style={styles.row}><Text style={{ color: colors.text, flex: 1 }}>{night.date} · {night.effectiveRate == null ? 'No base rate' : `$${night.effectiveRate}`}{night.overrideRate != null ? ' (override)' : night.priceSource === 'Weekend' ? ' (weekend)' : ''}</Text>{night.overrideRate != null && button('Reset rate', () => void run(async () => { await shortStayAPI.deleteRate(unitId, night.date); await refreshCalendar(); }))}</View>)}
       </>}
       <Text style={[styles.section, { color: colors.text }]}>Block nights</Text>
       <Field label="Block start" value={blockStart} onChangeText={setBlockStart} hint="YYYY-MM-DD" />
@@ -440,6 +447,12 @@ export default function ShortStayOwnerScreen() {
       <Field label="Override rate" value={rate} onChangeText={setRate} keyboardType="decimal-pad" />
       {button('Save rate override', () => void run(async () => { await shortStayAPI.putRate(unitId, rateDate, rate); setRate(''); if (calendar || inventory) await refreshCalendar(); }), !parseLocalDate(rateDate) || !ratePayload(rate))}
       {button('Remove rate override', () => Alert.alert('Remove rate override?', rateDate, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => void run(async () => { await shortStayAPI.deleteRate(unitId, rateDate); if (calendar || inventory) await refreshCalendar(); }) }]), !parseLocalDate(rateDate))}
+      <Text style={[styles.section, { color: colors.text }]}>Date-range nightly override</Text>
+      <Text style={{ color: colors.muted }}>Set the same nightly rate on each property-local night from start (inclusive) to end (exclusive), up to 366 nights. Existing overrides in the range are replaced; remove individual overrides above or from the loaded calendar.</Text>
+      <Field label="Range start" value={rangeStart} onChangeText={setRangeStart} hint="YYYY-MM-DD" />
+      <Field label="Range end (exclusive)" value={rangeEnd} onChangeText={setRangeEnd} hint="YYYY-MM-DD" />
+      <Field label="Range nightly rate" value={rangeRate} onChangeText={setRangeRate} keyboardType="decimal-pad" />
+      {button('Save range rate override', () => void run(async () => { await shortStayAPI.putRateRange(unitId, rangeStart, rangeEnd, rangeRate); setRangeRate(''); if (calendar || inventory) await refreshCalendar(); }), !rangeRatePayload(rangeStart, rangeEnd, rangeRate))}
       <AirbnbCalendar unitId={unitId} timeZoneId={timeZoneId} checkUnitMode={checkUnitMode} onCalendarChanged={invalidateCalendar} />
     </>}
     <ShortStayGuidebook key={`${propertyId}:${unitId}`} propertyId={propertyId} unitId={unitId} checkUnitMode={checkUnitMode} />

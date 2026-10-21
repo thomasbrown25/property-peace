@@ -10176,6 +10176,12 @@ namespace brownstone_hub_api.Migrations
                     b.Property<int>("MinimumNights")
                         .HasColumnType("int");
 
+                    b.Property<decimal>("MonthlyDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<decimal>("NightlyBasePrice")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
@@ -10204,6 +10210,16 @@ namespace brownstone_hub_api.Migrations
                     b.Property<long>("UnitId")
                         .HasColumnType("bigint");
 
+                    b.Property<decimal?>("WeekendNightlyRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("WeeklyDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(0m);
+
                     b.HasKey("Id");
 
                     b.HasIndex("UnitId")
@@ -10219,11 +10235,17 @@ namespace brownstone_hub_api.Migrations
 
                             t.HasCheckConstraint("CK_ShortStayListings_MinimumNights", "[MinimumNights] >= 1");
 
+                            t.HasCheckConstraint("CK_ShortStayListings_MonthlyDiscountPercent", "[MonthlyDiscountPercent] >= 0 AND [MonthlyDiscountPercent] <= 100");
+
                             t.HasCheckConstraint("CK_ShortStayListings_NightlyBasePrice", "[NightlyBasePrice] > 0");
 
                             t.HasCheckConstraint("CK_ShortStayListings_Status", "[Status] IN ('Draft', 'Published')");
 
                             t.HasCheckConstraint("CK_ShortStayListings_TaxAttestation", "([LodgingTaxRatePercent] IS NULL AND [TaxPolicyAttestedAtUtc] IS NULL AND [TaxPolicyAttestedByUserId] IS NULL) OR ([LodgingTaxRatePercent] IS NOT NULL AND [TaxPolicyAttestedAtUtc] IS NOT NULL AND [TaxPolicyAttestedByUserId] > 0)");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_WeekendNightlyRate", "[WeekendNightlyRate] IS NULL OR ([WeekendNightlyRate] >= 0.01 AND [WeekendNightlyRate] <= 999999.99)");
+
+                            t.HasCheckConstraint("CK_ShortStayListings_WeeklyDiscountPercent", "[WeeklyDiscountPercent] >= 0 AND [WeeklyDiscountPercent] <= 100");
                         });
                 });
 
@@ -10413,6 +10435,9 @@ namespace brownstone_hub_api.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
 
+                    b.Property<long>("DiscountCents")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("GuestCount")
                         .HasColumnType("int");
 
@@ -10502,7 +10527,7 @@ namespace brownstone_hub_api.Migrations
 
                             t.HasCheckConstraint("CK_ShortStayReservations_Expiry", "[HoldExpiresAtUtc] > [CreatedAtUtc]");
 
-                            t.HasCheckConstraint("CK_ShortStayReservations_Quote", "[GuestCount] > 0 AND [NightlySubtotalCents] > 0 AND [CleaningFeeCents] >= 0 AND [TaxCents] >= 0 AND [TotalCents] = [NightlySubtotalCents] + [CleaningFeeCents] + [TaxCents] AND [TotalCents] <= 99999999 AND [Currency] = 'usd'");
+                            t.HasCheckConstraint("CK_ShortStayReservations_Quote", "[GuestCount] > 0 AND [NightlySubtotalCents] > 0 AND [DiscountCents] >= 0 AND [CleaningFeeCents] >= 0 AND [TaxCents] >= 0 AND [TotalCents] = [NightlySubtotalCents] + [CleaningFeeCents] + [TaxCents] AND [TotalCents] <= 99999999 AND [Currency] = 'usd'");
 
                             t.HasCheckConstraint("CK_ShortStayReservations_Range", "[CheckOutDate] > [CheckInDate]");
 

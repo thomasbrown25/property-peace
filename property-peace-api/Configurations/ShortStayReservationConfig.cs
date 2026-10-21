@@ -11,7 +11,7 @@ public sealed class ShortStayReservationConfig : IEntityTypeConfiguration<ShortS
         b.ToTable("ShortStayReservations", "listing", t =>
         {
             t.HasCheckConstraint("CK_ShortStayReservations_Range", "[CheckOutDate] > [CheckInDate]");
-            t.HasCheckConstraint("CK_ShortStayReservations_Quote", "[GuestCount] > 0 AND [NightlySubtotalCents] > 0 AND [CleaningFeeCents] >= 0 AND [TaxCents] >= 0 AND [TotalCents] = [NightlySubtotalCents] + [CleaningFeeCents] + [TaxCents] AND [TotalCents] <= 99999999 AND [Currency] = 'usd'");
+            t.HasCheckConstraint("CK_ShortStayReservations_Quote", "[GuestCount] > 0 AND [NightlySubtotalCents] > 0 AND [DiscountCents] >= 0 AND [CleaningFeeCents] >= 0 AND [TaxCents] >= 0 AND [TotalCents] = [NightlySubtotalCents] + [CleaningFeeCents] + [TaxCents] AND [TotalCents] <= 99999999 AND [Currency] = 'usd'");
             t.HasCheckConstraint("CK_ShortStayReservations_Status", "[Status] IN ('Held','PendingPayment','Processing','Confirmed','Expired','Failed','RefundRequired','Refunded','Disputed')");
             t.HasCheckConstraint("CK_ShortStayReservations_Version", "[RowVersion] > 0");
             t.HasCheckConstraint("CK_ShortStayReservations_Expiry", "[HoldExpiresAtUtc] > [CreatedAtUtc]");

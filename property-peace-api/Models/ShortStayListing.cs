@@ -12,6 +12,12 @@ public class ShortStayListing
 
     [Range(typeof(decimal), "0.01", "9999999999999999.99")]
     public decimal NightlyBasePrice { get; set; }
+    [Range(typeof(decimal), "0.01", "999999.99")]
+    public decimal? WeekendNightlyRate { get; set; }
+    [Range(typeof(decimal), "0", "100")]
+    public decimal WeeklyDiscountPercent { get; set; }
+    [Range(typeof(decimal), "0", "100")]
+    public decimal MonthlyDiscountPercent { get; set; }
     [Range(1, int.MaxValue)]
     public int MinimumNights { get; set; } = 1;
     [Range(1, int.MaxValue)]

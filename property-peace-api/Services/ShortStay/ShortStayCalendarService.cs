@@ -73,13 +73,17 @@ public sealed class ShortStayCalendarService(DataContext db, IHttpContextAccesso
                 .OrderBy(b => b.StartDate).ThenBy(b => b.Id).ToArray();
             var overrides = await db.ShortStayNightlyRateOverrides.AsNoTracking().Where(r => r.UnitId == unitId && r.Date >= start && r.Date < end)
                 .ToDictionaryAsync(r => r.Date, r => r.NightlyRate, ct);
-            var baseRate = await db.ShortStayListings.AsNoTracking().Where(l => l.UnitId == unitId)
-                .Select(l => (decimal?)l.NightlyBasePrice).SingleOrDefaultAsync(ct);
+            var listing = await db.ShortStayListings.AsNoTracking().Where(l => l.UnitId == unitId)
+                .Select(l => new { l.NightlyBasePrice, l.WeekendNightlyRate }).SingleOrDefaultAsync(ct);
+            var baseRate = listing?.NightlyBasePrice;
             var nights = Enumerable.Range(0, end.DayNumber - start.DayNumber).Select(i =>
             {
                 var day = start.AddDays(i);
                 var hasOverride = overrides.TryGetValue(day, out var price);
-                return new ShortStayNightDto(day, baseRate, hasOverride ? price : null, hasOverride ? price : baseRate);
+                var weekend = (day.DayOfWeek is DayOfWeek.Friday or DayOfWeek.Saturday) && listing?.WeekendNightlyRate is not null;
+                return new ShortStayNightDto(day, baseRate, hasOverride ? price : null,
+                    hasOverride ? price : weekend ? listing!.WeekendNightlyRate : baseRate,
+                    hasOverride ? "Override" : weekend ? "Weekend" : baseRate.HasValue ? "Base" : null);
             }).ToArray();
             return ServiceResponse<ShortStayCalendarDto>.CreateSuccess(new(unitId, unit.Property.TimeZoneId!, start, end,
                 visibleBlocks, nights));
@@ -147,6 +151,30 @@ public sealed class ShortStayCalendarService(DataContext db, IHttpContextAccesso
             return ServiceResponse<bool>.CreateSuccess(true);
         }, ct);
     }
+    public Task<ServiceResponse<IReadOnlyList<ShortStayRateDto>>> PutRateRange(long unitId, SaveShortStayRateRangeDto? request, CancellationToken ct = default)
+    {
+        if (request is null || !ValidRange(request.StartDate, request.EndDate) || !ValidRate(request.NightlyRate))
+            return Task.FromResult(Error<IReadOnlyList<ShortStayRateDto>>("Invalid rate range or nightly rate", 400));
+        return Write(unitId, async token =>
+        {
+            var existing = await db.ShortStayNightlyRateOverrides
+                .Where(r => r.UnitId == unitId && r.Date >= request.StartDate && r.Date < request.EndDate)
+                .ToDictionaryAsync(r => r.Date, token);
+            var result = new List<ShortStayRateDto>(request.EndDate.DayNumber - request.StartDate.DayNumber);
+            for (var date = request.StartDate; date < request.EndDate; date = date.AddDays(1))
+            {
+                if (!existing.TryGetValue(date, out var row))
+                {
+                    row = new ShortStayNightlyRateOverride { UnitId = unitId, Date = date };
+                    db.ShortStayNightlyRateOverrides.Add(row);
+                }
+                row.NightlyRate = request.NightlyRate;
+                result.Add(new(date, row.NightlyRate));
+            }
+            return ServiceResponse<IReadOnlyList<ShortStayRateDto>>.CreateSuccess(result);
+        }, ct);
+    }
+
     public Task<ServiceResponse<ShortStayRateDto>> PutRate(long unitId, DateOnly date, SaveShortStayRateDto? request, CancellationToken ct = default)
     {
         if (request is null || !ValidRate(request.NightlyRate))

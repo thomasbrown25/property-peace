@@ -15,6 +15,77 @@ public sealed class ShortStayQuoteTests
         TaxPolicyAttestedByUserId = 42, QuoteAsOfUtc = new DateTime(2026, 3, 6, 12, 0, 0, DateTimeKind.Utc) };
 
     [Fact]
+    public void Weekend_override_and_checkout_boundary_use_local_calendar_nights()
+    {
+        var friday = new DateOnly(2026, 3, 13);
+        var facts = Ready() with { BaseRate = 100m, WeekendNightlyRate = 150m,
+            Overrides = new Dictionary<DateOnly, decimal> { [friday.AddDays(1)] = 175m } };
+        var quote = ShortStayQuoteCalculator.Calculate(new(friday, friday.AddDays(3), 1), facts);
+        Assert.Equal(new[] { "Weekend", "Override", "Base" }, quote.Nights.Select(n => n.Source));
+        Assert.Equal(new long[] { 15000, 17500, 10000 }, quote.Nights.Select(n => n.AmountCents));
+        Assert.Equal(42500, quote.NightlySubtotalCents);
+    }
+
+    [Theory]
+    [InlineData(6, null, 0, 0)]
+    [InlineData(7, "Weekly", 7, 5)]
+    [InlineData(27, "Weekly", 7, 19)]
+    [InlineData(28, "Monthly", 11, 31)]
+    public void Stay_discount_is_single_non_stacking_line_and_tax_uses_discounted_subtotal(int length, string? kind, int percent, long discount)
+    {
+        var facts = Ready() with { BaseRate = 0.10m, CleaningFee = 0m,
+            Overrides = new Dictionary<DateOnly, decimal>(), WeeklyDiscountPercent = 7m, MonthlyDiscountPercent = 11m,
+            LodgingTaxRatePercent = 100m };
+        var quote = ShortStayQuoteCalculator.Calculate(new(Start, Start.AddDays(length), 1), facts);
+        Assert.Equal(kind, quote.DiscountType);
+        Assert.Equal(percent, quote.DiscountPercent);
+        Assert.Equal(discount, quote.DiscountCents);
+        Assert.Equal(length * 10 - discount, quote.NightlySubtotalCents);
+        Assert.Equal(length * 10 - discount, quote.TaxCents);
+    }
+
+    [Theory]
+    [InlineData(7, 1)]
+    [InlineData(28, 3)]
+    public void Discount_rounds_half_cent_away_from_zero(int length, long expected)
+    {
+        var facts = Ready() with { BaseRate = 0.01m, CleaningFee = 0m,
+            Overrides = new Dictionary<DateOnly, decimal>(), WeeklyDiscountPercent = 10m, MonthlyDiscountPercent = 10m };
+        Assert.Equal(expected, ShortStayQuoteCalculator.Calculate(new(Start, Start.AddDays(length), 1), facts).DiscountCents);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(101)]
+    [InlineData(0.001)]
+    public void Invalid_discount_never_produces_quote(decimal discount)
+    {
+        Assert.Equal("invalid_pricing", ShortStayQuoteCalculator.Calculate(new(Start, Start.AddDays(7), 1),
+            Ready() with { WeeklyDiscountPercent = discount }).Reason);
+    }
+
+    [Fact]
+    public void Full_discount_cannot_offer_a_hold_with_zero_nightly_subtotal()
+    {
+        var quote = ShortStayQuoteCalculator.Calculate(new(Start, Start.AddDays(7), 1),
+            Ready() with { WeeklyDiscountPercent = 100m });
+        Assert.NotEqual("preflight_available", quote.Status);
+    }
+
+    [Fact]
+    public void Discounted_hold_stores_gross_nights_and_discounted_total()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var hold = brownstone_hub_api.Models.ShortStayReservation.CreateHold(10, 20, 30, 40, 50,
+            "acct_example", Start, Start.AddDays(7), 1, Enumerable.Repeat(100L, 7).ToArray(),
+            now.AddMinutes(10), now, 0, 63, discountCents: 70);
+        Assert.Equal(700, hold.Nights.Sum(n => n.PriceCents));
+        Assert.Equal(630, hold.NightlySubtotalCents);
+        Assert.Equal(70, hold.DiscountCents);
+        Assert.Equal(693, hold.TotalCents);
+    }
+
+    [Fact]
     public void Ready_preflight_is_advisory_and_itemized_never_payable()
     {
         var quote = ShortStayQuoteCalculator.Calculate(new(Start, Start.AddDays(2), 2), Ready());

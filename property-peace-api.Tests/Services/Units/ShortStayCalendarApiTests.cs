@@ -23,6 +23,39 @@ public sealed class ShortStayCalendarApiTests
     private static readonly DateOnly Fall = new(2026, 11, 1);
 
     [Fact]
+    public async Task Range_rate_upsert_is_half_open_atomic_and_authorized()
+    {
+        await using var f = await Fixture.Create(); var svc = f.Service(20);
+        Assert.Equal(400, (await svc.PutRateRange(10, new(Spring, Spring, 125m))).StatusCode);
+        Assert.Equal(400, (await svc.PutRateRange(10, new(Spring, Spring.AddDays(367), 125m))).StatusCode);
+        Assert.Equal(400, (await svc.PutRateRange(10, new(Spring, Spring.AddDays(2), 0.001m))).StatusCode);
+        Assert.NotEqual(200, (await f.Service(21).PutRateRange(10, new(Spring, Spring.AddDays(2), 125m))).StatusCode);
+        Assert.Empty(await f.Db.ShortStayNightlyRateOverrides.ToListAsync());
+        // HttpContextAccessor uses a shared AsyncLocal holder: creating another request accessor
+        // replaces the ambient context, so restore the owner request before testing its writes.
+        svc = f.Service(20);
+        var first = await svc.PutRateRange(10, new(Spring, Spring.AddDays(2), 125m));
+        Assert.True(first.StatusCode == 200, $"Expected 200, got {first.StatusCode}: {first.Message}");
+        Assert.Equal(200, (await svc.PutRateRange(10, new(Spring.AddDays(1), Spring.AddDays(3), 140m))).StatusCode);
+        var rows = await f.Db.ShortStayNightlyRateOverrides.OrderBy(r => r.Date).ToListAsync();
+        Assert.Equal(new[] { Spring, Spring.AddDays(1), Spring.AddDays(2) }, rows.Select(r => r.Date));
+        Assert.Equal(new[] { 125m, 140m, 140m }, rows.Select(r => r.NightlyRate));
+    }
+
+    [Fact]
+    public async Task Calendar_exposes_effective_weekend_source_and_override_priority()
+    {
+        await using var f = await Fixture.Create(); var svc = f.Service(20);
+        var friday = new DateOnly(2026, 3, 13);
+        f.Db.ShortStayListings.Add(new ShortStayListing { UnitId = 10, NightlyBasePrice = 100m, WeekendNightlyRate = 150m });
+        await f.Db.SaveChangesAsync();
+        await svc.PutRate(10, friday.AddDays(1), new(175m));
+        var nights = (await svc.Get(10, friday, friday.AddDays(3))).Data!.Nights;
+        Assert.Equal(new[] { "Weekend", "Override", "Base" }, nights.Select(n => n.PriceSource));
+        Assert.Equal(new decimal?[] { 150m, 175m, 100m }, nights.Select(n => n.EffectiveRate));
+    }
+
+    [Fact]
     public void Routes_are_owner_manager_only_and_separate_from_lease_calendar()
     {
         var type = typeof(ShortStayCalendarController);

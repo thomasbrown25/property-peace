@@ -12,6 +12,9 @@ public sealed class ShortStayListingConfig : IEntityTypeConfiguration<ShortStayL
         {
             t.HasCheckConstraint("CK_ShortStayListings_NightlyBasePrice", "[NightlyBasePrice] > 0");
             t.HasCheckConstraint("CK_ShortStayListings_CleaningFee", "[CleaningFee] >= 0");
+            t.HasCheckConstraint("CK_ShortStayListings_WeekendNightlyRate", "[WeekendNightlyRate] IS NULL OR ([WeekendNightlyRate] >= 0.01 AND [WeekendNightlyRate] <= 999999.99)");
+            t.HasCheckConstraint("CK_ShortStayListings_WeeklyDiscountPercent", "[WeeklyDiscountPercent] >= 0 AND [WeeklyDiscountPercent] <= 100");
+            t.HasCheckConstraint("CK_ShortStayListings_MonthlyDiscountPercent", "[MonthlyDiscountPercent] >= 0 AND [MonthlyDiscountPercent] <= 100");
             t.HasCheckConstraint("CK_ShortStayListings_MinimumNights", "[MinimumNights] >= 1");
             t.HasCheckConstraint("CK_ShortStayListings_Capacity", "[Capacity] >= 1");
             t.HasCheckConstraint("CK_ShortStayListings_Status", "[Status] IN ('Draft', 'Published')");
@@ -23,6 +26,9 @@ public sealed class ShortStayListingConfig : IEntityTypeConfiguration<ShortStayL
         b.HasOne(x => x.Unit).WithMany().HasForeignKey(x => x.UnitId).IsRequired()
             .OnDelete(DeleteBehavior.NoAction);
         b.Property(x => x.NightlyBasePrice).HasPrecision(18, 2).IsRequired();
+        b.Property(x => x.WeekendNightlyRate).HasPrecision(18, 2);
+        b.Property(x => x.WeeklyDiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        b.Property(x => x.MonthlyDiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
         b.Property(x => x.CleaningFee).HasPrecision(18, 2).IsRequired();
         b.Property(x => x.LodgingTaxRatePercent).HasPrecision(9, 4);
         b.Property(x => x.MinimumNights).IsRequired();

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using System.Text.Json;
 using brownstone_hub_api.Attributes;
 using brownstone_hub_api.Controllers;
 using brownstone_hub_api.Data;
@@ -21,6 +22,39 @@ public sealed class ShortStayListingApiTests
     private static SaveShortStayListingDto Draft() => new() { NightlyBasePrice = 125, MinimumNights = 2,
         Capacity = 4, CleaningFee = 30, CheckInTime = new TimeOnly(15, 0), CheckOutTime = new TimeOnly(11, 0),
         HouseRules = "No smoking", Amenities = "Wi-Fi", CancellationPolicy = "Flexible" };
+
+    [Fact]
+    public async Task Omitted_pricing_preserves_existing_values_but_explicit_null_clears_weekend()
+    {
+        await using var f = await Fixture.Create();
+        var service = f.Service(20);
+        var initial = Draft();
+        initial.WeekendNightlyRate = 180m;
+        initial.WeeklyDiscountPercent = 12m;
+        initial.MonthlyDiscountPercent = 22m;
+        Assert.Equal(201, (await service.Put(10, initial)).StatusCode);
+
+        // These are wire payloads: deserialization must distinguish missing from null.
+        var oldClient = JsonSerializer.Deserialize<SaveShortStayListingDto>(
+            """{"nightlyBasePrice":140,"minimumNights":2,"capacity":4,"cleaningFee":30}""",
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        Assert.Equal(200, (await service.Put(10, oldClient)).StatusCode);
+        f.Db.ChangeTracker.Clear();
+        var saved = await f.Db.ShortStayListings.AsNoTracking().SingleAsync();
+        Assert.Equal(180m, saved.WeekendNightlyRate);
+        Assert.Equal(12m, saved.WeeklyDiscountPercent);
+        Assert.Equal(22m, saved.MonthlyDiscountPercent);
+
+        var newClient = JsonSerializer.Deserialize<SaveShortStayListingDto>(
+            """{"nightlyBasePrice":150,"minimumNights":2,"capacity":4,"cleaningFee":30,"weekendNightlyRate":null,"weeklyDiscountPercent":0,"monthlyDiscountPercent":5}""",
+            new JsonSerializerOptions(JsonSerializerDefaults.Web))!;
+        Assert.Equal(200, (await service.Put(10, newClient)).StatusCode);
+        f.Db.ChangeTracker.Clear();
+        saved = await f.Db.ShortStayListings.AsNoTracking().SingleAsync();
+        Assert.Null(saved.WeekendNightlyRate);
+        Assert.Equal(0m, saved.WeeklyDiscountPercent);
+        Assert.Equal(5m, saved.MonthlyDiscountPercent);
+    }
 
     [Fact]
     public async Task Curated_copy_round_trips_and_unrelated_edits_preserve_it()
@@ -359,6 +393,12 @@ public sealed class ShortStayListingApiTests
             // (e.g. "8.25" > "100"). Keep this fixture's range constraint numeric.
             modelBuilder.Entity<ShortStayListing>().Property(x => x.LodgingTaxRatePercent)
                 .HasConversion<double?>().HasColumnType("REAL");
+            modelBuilder.Entity<ShortStayListing>().Property(x => x.WeekendNightlyRate)
+                .HasConversion<double?>().HasColumnType("REAL");
+            modelBuilder.Entity<ShortStayListing>().Property(x => x.WeeklyDiscountPercent)
+                .HasConversion<double>().HasColumnType("REAL");
+            modelBuilder.Entity<ShortStayListing>().Property(x => x.MonthlyDiscountPercent)
+                .HasConversion<double>().HasColumnType("REAL");
         }
     }
 }

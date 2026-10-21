@@ -25,6 +25,15 @@ test('only server-provided integer cents produce money; server error messages su
   assert.equal(publicStayError({ message: 'Use yyyy-MM-dd property-local dates' }, 'fallback'), 'Use yyyy-MM-dd property-local dates');
 });
 
+test('estimate and payable checkout show gross less discount rather than subtracting twice', () => {
+  const page = source('pages/public/stay.jsx');
+  const checkout = source('pages/public/StayCheckout.jsx');
+  assert.match(page, /moneyFromCents\(quote\.grossNightlySubtotalCents\)/);
+  assert.match(checkout, /grossNightlySubtotalCents/);
+  assert.match(checkout, /discountCents/);
+  assert.match(checkout, /Stay discount/);
+});
+
 test('anonymous route, read-only request shape, and fail-closed checkout boundary', () => {
   const routes = source('routes/MainRoutes.jsx');
   const api = source('api/publicStay.js');

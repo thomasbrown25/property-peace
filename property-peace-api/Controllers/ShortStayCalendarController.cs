@@ -40,6 +40,14 @@ public sealed class ShortStayCalendarController(ShortStayCalendarService calenda
         return StatusCode(response.StatusCode, response);
     }
 
+    [HttpPut("rates/range")]
+    [RequireOrganizationRole("Owner", "Manager")]
+    public async Task<IActionResult> PutRateRange(long unitId, [FromBody] SaveShortStayRateRangeDto request, CancellationToken cancellationToken)
+    {
+        var response = await calendar.PutRateRange(unitId, request, cancellationToken);
+        return StatusCode(response.StatusCode, response);
+    }
+
     [HttpPut("rates/{date}")]
     [RequireOrganizationRole("Owner", "Manager")]
     public async Task<IActionResult> PutRate(long unitId, string date, [FromBody] SaveShortStayRateDto request, CancellationToken cancellationToken)

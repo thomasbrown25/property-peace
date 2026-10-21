@@ -126,7 +126,7 @@ namespace brownstone_hub_api.Data
                         r.Nights.Count != nights.Count ||
                         nights.Count != r.CheckOutDate.DayNumber - r.CheckInDate.DayNumber ||
                         nights.Any(n => n.UnitId != r.UnitId || n.Date < r.CheckInDate || n.Date >= r.CheckOutDate) ||
-                        r.Nights.Sum(n => n.PriceCents) != r.NightlySubtotalCents ||
+                        r.DiscountCents < 0 || r.Nights.Sum(n => n.PriceCents) - r.DiscountCents != r.NightlySubtotalCents ||
                         claims.Count != r.Claims.Count || !claims.SetEquals(nights) ||
                         r.TotalCents > ShortStayReservation.MaximumUsdPaymentCents)
                         throw new InvalidOperationException("A new reservation requires a complete, consistent night quote and live claims.");

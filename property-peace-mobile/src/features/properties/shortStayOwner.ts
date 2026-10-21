@@ -1,10 +1,10 @@
 export type ListingForm = {
-  nightlyBasePrice: string; minimumNights: string; capacity: string; cleaningFee: string;
+  nightlyBasePrice: string; weekendNightlyRate: string; weeklyDiscountPercent: string; monthlyDiscountPercent: string; minimumNights: string; capacity: string; cleaningFee: string;
   checkInTime: string; checkOutTime: string; houseRules: string; amenities: string; cancellationPolicy: string;
   publicTitle: string; publicSummary: string;
   lodgingTaxRatePercent: string; attestLodgingTaxResponsibility: boolean;
 };
-export const emptyListing = (): ListingForm => ({ nightlyBasePrice: '', minimumNights: '1', capacity: '1', cleaningFee: '0', checkInTime: '', checkOutTime: '', houseRules: '', amenities: '', cancellationPolicy: '', publicTitle: '', publicSummary: '', lodgingTaxRatePercent: '', attestLodgingTaxResponsibility: false });
+export const emptyListing = (): ListingForm => ({ nightlyBasePrice: '', weekendNightlyRate: '', weeklyDiscountPercent: '0', monthlyDiscountPercent: '0', minimumNights: '1', capacity: '1', cleaningFee: '0', checkInTime: '', checkOutTime: '', houseRules: '', amenities: '', cancellationPolicy: '', publicTitle: '', publicSummary: '', lodgingTaxRatePercent: '', attestLodgingTaxResponsibility: false });
 export const parseLodgingTaxRate = (value: string): number | null | undefined => {
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -28,18 +28,26 @@ export const parseMoney = (value: string, allowZero = false): number | null => {
   const amount = Number(value.trim());
   return Number.isSafeInteger(Math.round(amount * 100)) && (allowZero ? amount >= 0 : amount >= 0.01) && amount <= 999999.99 ? amount : null;
 };
+export const parseDiscountPercent = (value: string): number | null => {
+  if (!/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/.test(value.trim())) return null;
+  const percent = Number(value.trim());
+  return percent <= 99.99 ? percent : null;
+};
 const positiveInteger = (value: string): number | null => /^[1-9]\d*$/.test(value.trim()) && Number.isSafeInteger(Number(value.trim())) && Number(value.trim()) <= 2147483647 ? Number(value.trim()) : null;
 const time = (value: string): string | null | undefined => value.trim() === '' ? null : /^([01]\d|2[0-3]):[0-5]\d$/.test(value.trim()) ? value.trim() : undefined;
 export const listingPayload = (form: ListingForm) => {
   const nightlyBasePrice = parseMoney(form.nightlyBasePrice);
+  const weekendNightlyRate = form.weekendNightlyRate.trim() === '' ? null : parseMoney(form.weekendNightlyRate);
+  const weeklyDiscountPercent = parseDiscountPercent(form.weeklyDiscountPercent);
+  const monthlyDiscountPercent = parseDiscountPercent(form.monthlyDiscountPercent);
   const minimumNights = positiveInteger(form.minimumNights);
   const capacity = positiveInteger(form.capacity);
   const cleaningFee = parseMoney(form.cleaningFee, true);
   const checkInTime = time(form.checkInTime);
   const checkOutTime = time(form.checkOutTime);
   const lodgingTaxRatePercent = parseLodgingTaxRate(form.lodgingTaxRatePercent);
-  if (nightlyBasePrice === null || minimumNights === null || capacity === null || cleaningFee === null || checkInTime === undefined || checkOutTime === undefined || lodgingTaxRatePercent === undefined || (lodgingTaxRatePercent !== null) !== form.attestLodgingTaxResponsibility || form.houseRules.length > 4000 || form.amenities.length > 4000 || form.cancellationPolicy.length > 2000 || form.publicTitle.length > 100 || form.publicSummary.length > 1200) return null;
-  return { nightlyBasePrice, minimumNights, capacity, cleaningFee, checkInTime, checkOutTime,
+  if (nightlyBasePrice === null || (form.weekendNightlyRate.trim() !== '' && weekendNightlyRate === null) || weeklyDiscountPercent === null || monthlyDiscountPercent === null || minimumNights === null || capacity === null || cleaningFee === null || checkInTime === undefined || checkOutTime === undefined || lodgingTaxRatePercent === undefined || (lodgingTaxRatePercent !== null) !== form.attestLodgingTaxResponsibility || form.houseRules.length > 4000 || form.amenities.length > 4000 || form.cancellationPolicy.length > 2000 || form.publicTitle.length > 100 || form.publicSummary.length > 1200) return null;
+  return { nightlyBasePrice, weekendNightlyRate, weeklyDiscountPercent, monthlyDiscountPercent, minimumNights, capacity, cleaningFee, checkInTime, checkOutTime,
     houseRules: form.houseRules.trim() || null, amenities: form.amenities.trim() || null, cancellationPolicy: form.cancellationPolicy.trim() || null,
     publicTitle: form.publicTitle, publicSummary: form.publicSummary,
     lodgingTaxRatePercent, attestLodgingTaxResponsibility: form.attestLodgingTaxResponsibility };
@@ -47,6 +55,10 @@ export const listingPayload = (form: ListingForm) => {
 export const ratePayload = (input: string) => {
   const nightlyRate = parseMoney(input);
   return nightlyRate === null ? null : { nightlyRate };
+};
+export const rangeRatePayload = (startDate: string, endDate: string, rate: string) => {
+  const payload = ratePayload(rate);
+  return validLocalRange(startDate, endDate) && payload ? { startDate, endDate, ...payload } : null;
 };
 export const isOwnerBlock = (block: { id: number; source: string }): boolean => block.source === 'OwnerBlock' && block.id > 0;
 export const airbnbTimestamp = (utc: string | null, timeZoneId: string): string => {
