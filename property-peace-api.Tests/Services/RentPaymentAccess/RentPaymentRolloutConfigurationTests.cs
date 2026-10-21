@@ -36,7 +36,7 @@ public sealed class RentPaymentRolloutConfigurationTests
         var configuration = new ConfigurationBuilder()
             .SetBasePath(apiProject)
             .AddJsonFile("appsettings.json", optional: false)
-            .AddJsonFile("appsettings.Development.json", optional: false)
+            .AddJsonFile("appsettings.Development.json", optional: true) // Gitignored local override; CI checks base defaults without it.
             .Build();
 
         configuration.GetValue<bool?>("Stripe:RentPaymentsEnabled").Should().BeFalse();

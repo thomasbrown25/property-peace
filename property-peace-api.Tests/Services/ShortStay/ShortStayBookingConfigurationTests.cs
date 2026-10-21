@@ -26,7 +26,7 @@ public sealed class ShortStayBookingConfigurationTests
             .SetBasePath(apiProject)
             .AddJsonFile("appsettings.json", optional: false);
         if (includeDevelopmentOverride)
-            builder.AddJsonFile("appsettings.Development.json", optional: false);
+            builder.AddJsonFile("appsettings.Development.json", optional: true); // Local override is gitignored and absent in CI.
         var configuration = builder.Build();
 
         foreach (var key in OptionalSwitches)
