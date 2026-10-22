@@ -22,6 +22,7 @@ import Maintenance from 'sections/landlord/dashboard/Maintenance';
 import Applications from 'sections/landlord/dashboard/Applications';
 import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
 import RecentlyViewedProperties from 'sections/landlord/dashboard/RecentlyViewedProperties';
+import MobileDashboardHome from 'sections/landlord/dashboard/MobileDashboardHome';
 
 // drawers
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
@@ -62,6 +63,7 @@ import { alpha, useTheme, Button, useMediaQuery } from '@mui/material';
 import { selectTasks } from 'store/task/task.selector';
 import { buildTodayReminders } from 'utils/taskWorkspace';
 import { readRecentlyViewedPropertyIds, resolveRecentlyViewedProperties } from 'utils/recentlyViewedProperties';
+import { selectConversations } from 'store/conversation/conversation.selector';
 
 import {
   WarningOutlined,
@@ -87,6 +89,7 @@ export default function DashboardOverview({ embedded = false }) {
   // Get rent collection data from Redux store
   const rentCollectionState = useSelector((state) => state.rentCollection);
   const { summary, rentRecords, lifetimeSummary, lifetimeRentRecords, loading: rentLoading } = rentCollectionState;
+  const conversations = useSelector(selectConversations);
 
   // State for property profitability data
   const [profitabilityData, setProfitabilityData] = useState([]);
@@ -447,7 +450,42 @@ export default function DashboardOverview({ embedded = false }) {
           }
         >
           <Grid container spacing={2.5} sx={isTrialExpired ? { filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none' } : {}}>
-            {!embedded && (
+            {isMobile && <Grid size={12}>
+              <MobileDashboardHome
+                properties={properties}
+                propertiesLoading={propertiesLoading}
+                propertiesError={propertiesError}
+                dashboardSummary={dashboardSummaryData}
+                dashboardLoading={dashboardLoading}
+                dashboardError={dashboardError}
+                rentSummary={summary}
+                rentRecords={rentRecords}
+                rentLoading={rentLoading}
+                rentError={rentCollectionState.error}
+                conversations={conversations}
+                shortTermOnly={properties?.length > 0 && properties.every((p) => (p.rentalMode ?? p.RentalMode) === 'ShortTerm')}
+              />
+              {showSetupCard && <Box sx={{ mt: 3 }}><FinishSetup
+                open={setupTasksOpen}
+                onOpen={() => setSetupTasksOpen(true)}
+                onClose={closeSetupTasks}
+                onDismiss={dismissSetupCard}
+                isDismissing={isDismissingSetup}
+                steps={setupState.steps}
+                isLoading={setupState.isLoading}
+              /></Box>}
+              <Box sx={{ display: 'grid', gap: 2.5, mt: 4 }}>
+                <DashboardReminderCard reminders={todayReminders} />
+                <Maintenance
+                  requests={dashboardSummaryData?.maintenanceRequests?.maintenanceRequests || []}
+                  isLoading={dashboardLoading}
+                  hasError={Boolean(dashboardError)}
+                />
+                <Applications onLoadingChange={setApplicationsLoading} />
+                <PaymentsCard />
+              </Box>
+            </Grid>}
+            {!embedded && !isMobile && (
               <Grid size={12}>
                 <AnimateIn direction="bottom" delay={100} distance={120}>
                   <Box sx={{ mt: { xs: 2, sm: 2, md: 0 } }}>
@@ -458,7 +496,7 @@ export default function DashboardOverview({ embedded = false }) {
             )}
 
             {/* Shared row grid keeps neighboring dashboard cards equal-height. */}
-            <Grid size={12}>
+            {!isMobile && <Grid size={12}>
               <Grid
                 container
                 sx={{
@@ -755,7 +793,7 @@ export default function DashboardOverview({ embedded = false }) {
                   </Box>
                 </Box>
               </Grid>
-            </Grid>
+            </Grid>}
           </Grid>
         </Box>
       </Fade>

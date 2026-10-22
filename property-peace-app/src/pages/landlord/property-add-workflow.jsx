@@ -685,12 +685,12 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
       case STEPS.PROPERTY_TYPE_SELECTION:
         return (
           <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>Which rental mode will these units use?</Typography>
-            <Stack direction="row" justifyContent="center" spacing={2} sx={{ mb: 3 }}>
-              {['longTerm', 'shortTerm'].map(mode => (
+            <Typography variant="h5" sx={{ mb: 2 }}>Which type of rental will this property be used for?</Typography>
+            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="center" spacing={2} sx={{ mb: 3 }}>
+              {['shortTerm', 'longTerm'].map(mode => (
                 <Button key={mode} variant={values.rentalMode === mode ? 'contained' : 'outlined'}
                   onClick={() => setFieldValue('rentalMode', mode)}>
-                  {mode === 'longTerm' ? 'Long-term' : 'Short-term'}
+                  {mode === 'shortTerm' ? 'Short-term / Airbnb style' : 'Long-term / tenants-leases'}
                 </Button>
               ))}
             </Stack>

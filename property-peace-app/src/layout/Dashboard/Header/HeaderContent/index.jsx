@@ -1,4 +1,5 @@
 import { Divider, useMediaQuery, useTheme } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import { Box } from '@mui/material';
 
 // project imports
@@ -28,6 +29,8 @@ export default function HeaderContent() {
 
   const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const isXs = useMediaQuery((theme) => theme.breakpoints.down('sm'));
+  const { pathname, search } = useLocation();
+  const mobileLandlordHome = isXs && pathname === '/landlord/dashboard' && !['calendar', 'tasks'].includes(new URLSearchParams(search).get('tab'));
 
   // Get roles from user
   const userRoles = Array.isArray(user?.Roles) ? user?.Roles : Array.isArray(user?.roles) ? user?.roles : [];
@@ -56,7 +59,8 @@ export default function HeaderContent() {
             ml: 0,
             display: 'flex',
             justifyContent: 'center',
-            alignItems: 'center'
+            alignItems: 'center',
+            ...(mobileLandlordHome && { '& > .MuiButtonBase-root': { position: 'absolute', left: '50%', transform: 'translateX(-50%)', zIndex: 1 } })
           }}
         >
           {isXs && (
@@ -92,7 +96,7 @@ export default function HeaderContent() {
         </>
       )}
       {downMD && !hasTenantRole && <MobileSearch />}
-      {downMD && <MobileSection />}
+      {downMD && (mobileLandlordHome ? <Message /> : <MobileSection />)}
     </>
   );
 }

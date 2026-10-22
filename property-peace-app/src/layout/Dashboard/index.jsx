@@ -12,6 +12,7 @@ import { useMediaQuery, Container, Toolbar, Box, alpha } from '@mui/material';
 // project imports
 import Drawer from './Drawer';
 import Header from './Header';
+import BottomNavBar from './BottomNavBar';
 import Footer from './Footer';
 import HorizontalBar from './Drawer/HorizontalBar';
 import Loader from 'components/Loader';
@@ -32,11 +33,13 @@ import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 // ==============================|| MAIN LAYOUT ||============================== //
 
 export default function DashboardLayout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { menuMasterLoading, menuMaster } = useGetMenuMaster();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened ?? false;
   const downXL = useMediaQuery((theme) => theme.breakpoints.down('xl'));
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
+  const phone = useMediaQuery((theme) => theme.breakpoints.down('sm'));
+  const mobileHome = phone && pathname === '/landlord/dashboard' && !['calendar', 'tasks'].includes(new URLSearchParams(search).get('tab'));
   const { user } = useAuth();
   const drawer = useDrawer();
   const userRoles = Array.isArray(user?.Roles) ? user?.Roles : Array.isArray(user?.roles) ? user?.roles : [];
@@ -160,14 +163,15 @@ export default function DashboardLayout() {
       >
         <Header />
         {!isHorizontal ? <Drawer /> : <HorizontalBar />}
+        {mobileHome && hasLandlordRole && <BottomNavBar />}
 
         <Box 
           component="main" 
           sx={{ 
             width: { xs: '100%', lg: drawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : `calc(100% - ${MINI_DRAWER_WIDTH}px)` }, 
             flexGrow: 1, 
-            p: 2.5,
-            pb: 0,
+            p: { xs: mobileHome ? 2 : 2.5, sm: 2.5 },
+            pb: mobileHome ? 'calc(110px + env(safe-area-inset-bottom, 0px))' : 0,
             display: 'flex',
             flexDirection: 'column',
             height: 'auto',

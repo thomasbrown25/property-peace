@@ -40,12 +40,14 @@ export default function DashboardWorkspace() {
   };
 
   return (
-    <Box sx={{ mt: { xs: 2, md: 0 } }}>
-      <DashboardHeader
+    <Box sx={{ mt: { xs: activeTab === 'overview' ? 0 : 2, md: 0 } }}>
+      <Box sx={{ display: { xs: activeTab === 'overview' ? 'none' : 'block', sm: 'block' } }}>
+        <DashboardHeader
         userName={user?.firstname || user?.Firstname}
         activeTab={activeTab}
         onTabChange={handleTabChange}
-      />
+        />
+      </Box>
 
       <AnimatePresence mode="wait" initial={false}>
         <Box

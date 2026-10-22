@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - dev
+    paths:
+      - "property-peace-mobile/**"
+      - "property-peace-api/**"
+      - "shared/**"
   workflow_dispatch:
 
 jobs:

@@ -15,10 +15,14 @@ import { MenuOrientation, DRAWER_WIDTH, MINI_DRAWER_WIDTH } from 'config';
 // assets
 import MenuFoldOutlined from '@ant-design/icons/MenuFoldOutlined';
 import MenuUnfoldOutlined from '@ant-design/icons/MenuUnfoldOutlined';
+import { useLocation } from 'react-router-dom';
 
 // ==============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header() {
+  const { pathname, search } = useLocation();
+  const phone = useMediaQuery((theme) => theme.breakpoints.down('sm'));
+  const mobileHome = phone && pathname === '/landlord/dashboard' && !['calendar', 'tasks'].includes(new URLSearchParams(search).get('tab'));
   const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
   const { menuOrientation } = useConfig();
 
@@ -35,10 +39,12 @@ export default function Header() {
   const mainHeader = (
     <Toolbar
       sx={{
-        minHeight: { xs: 60, sm: 64, md: 64 },
-        height: { xs: 60, sm: 64, md: 64 },
+        position: 'relative',
+        minHeight: { xs: mobileHome ? 72 : 60, sm: 64, md: 64 },
+        height: { xs: mobileHome ? 72 : 60, sm: 64, md: 64 },
         py: 0,
-        px: { xs: 2, sm: 2.5 }
+        px: { xs: mobileHome ? 1.5 : 2, sm: 2.5 },
+        ...(mobileHome && { '@media (max-width: 767px)': { '& button[aria-label="open drawer"], & button[aria-label="open global search"], & button[aria-label="open messages"]': { border: '1px solid rgba(6,30,53,.12)', borderRadius: '50%', width: 42, height: 42 } } })
       }}
     >
       {showDrawerMenu ? (
@@ -77,8 +83,8 @@ export default function Header() {
       bgcolor: theme.palette.mode === 'dark' ? '#061e35' : 'common.white',
       color: theme.palette.mode === 'dark' ? 'common.white' : '#061e35',
       borderBottom: '1px solid',
-      borderBottomColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'divider',
-      boxShadow: theme.palette.mode === 'dark' ? '0 4px 16px rgba(0, 0, 0, 0.22)' : '0 4px 14px rgba(6, 30, 53, 0.08)',
+      borderBottomColor: mobileHome ? 'transparent' : theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'divider',
+      boxShadow: mobileHome ? 'none' : theme.palette.mode === 'dark' ? '0 4px 16px rgba(0, 0, 0, 0.22)' : '0 4px 14px rgba(6, 30, 53, 0.08)',
       zIndex: 1200,
       width: isHorizontal
         ? '100%'
