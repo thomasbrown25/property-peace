@@ -41,6 +41,21 @@ function getStreetViewUrlFromCoords(lat, lng, width = 800, height = 600) {
   return `https://maps.googleapis.com/maps/api/streetview?size=${width}x${height}&location=${lat},${lng}&key=${API_KEY}`;
 }
 
+async function hasStreetViewImagery(imageUrl) {
+  try {
+    const url = new URL(imageUrl);
+    url.pathname = '/maps/api/streetview/metadata';
+    url.searchParams.delete('size');
+    const response = await fetch(url.toString());
+    if (!response.ok) return false;
+    const data = await response.json();
+    return data.status === 'OK';
+  } catch (error) {
+    console.warn('Street View metadata check failed:', error);
+    return false;
+  }
+}
+
 export function useGooglePlacePhotos() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -78,10 +93,7 @@ export function useGooglePlacePhotos() {
           streetViewUrl = getStreetViewUrl(place.formattedAddress);
         }
         
-        if (streetViewUrl) {
-          // Test if Street View image exists by trying to load it
-          // Note: Street View API returns an image even if no imagery exists (shows error image)
-          // We'll use it anyway and let the user decide
+        if (streetViewUrl && await hasStreetViewImagery(streetViewUrl)) {
           photoUrl = streetViewUrl;
           photoSource = 'streetview';
         }

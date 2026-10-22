@@ -22,7 +22,7 @@ import Maintenance from 'sections/landlord/dashboard/Maintenance';
 import Applications from 'sections/landlord/dashboard/Applications';
 import FinishSetup from 'sections/landlord/dashboard/FinishSetup';
 import RecentlyViewedProperties from 'sections/landlord/dashboard/RecentlyViewedProperties';
-import MobileDashboardHome from 'sections/landlord/dashboard/MobileDashboardHome';
+import OwnerTodayHome from 'sections/landlord/dashboard/OwnerTodayHome';
 
 // drawers
 import LandlordMaintenanceDrawer from 'components/drawers/LandlordMaintenanceDrawer';
@@ -32,6 +32,7 @@ import AddTenantDialog from 'components/dialogs/AddTenantDialog';
 
 // hooks
 import useAuth from 'hooks/useAuth';
+import useConfig from 'hooks/useConfig';
 import { useDrawer } from 'contexts/DrawerContext';
 import { useTriggerSummary } from 'contexts/TriggerSummaryContext';
 import useFetchProperties from 'hooks/useFetchProperties';
@@ -63,7 +64,6 @@ import { alpha, useTheme, Button, useMediaQuery } from '@mui/material';
 import { selectTasks } from 'store/task/task.selector';
 import { buildTodayReminders } from 'utils/taskWorkspace';
 import { readRecentlyViewedPropertyIds, resolveRecentlyViewedProperties } from 'utils/recentlyViewedProperties';
-import { selectConversations } from 'store/conversation/conversation.selector';
 
 import {
   WarningOutlined,
@@ -81,6 +81,7 @@ import {
 
 export default function DashboardOverview({ embedded = false }) {
   const { user, updateUser } = useAuth();
+  const { showDetailedOperations } = useConfig();
   const drawer = useDrawer();
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -89,7 +90,6 @@ export default function DashboardOverview({ embedded = false }) {
   // Get rent collection data from Redux store
   const rentCollectionState = useSelector((state) => state.rentCollection);
   const { summary, rentRecords, lifetimeSummary, lifetimeRentRecords, loading: rentLoading } = rentCollectionState;
-  const conversations = useSelector(selectConversations);
 
   // State for property profitability data
   const [profitabilityData, setProfitabilityData] = useState([]);
@@ -126,7 +126,7 @@ export default function DashboardOverview({ embedded = false }) {
 
   const dashboardSummaryData = useSelector(selectDashboardSummary);
   const dashboardError = useSelector(selectDashboardError);
-  const [applicationsLoading, setApplicationsLoading] = useState(true);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
   const todayReminders = useMemo(
     () => buildTodayReminders({ tasks, dashboardSummary: dashboardSummaryData, properties }),
     [tasks, dashboardSummaryData, properties]
@@ -234,7 +234,9 @@ export default function DashboardOverview({ embedded = false }) {
   const setupState = useLandlordSetupSteps(closeSetupTasks);
 
   useEffect(() => {
-    if (setupDrawerRequested) setSetupTasksOpen(true);
+    if (setupDrawerRequested) {
+      setSetupTasksOpen(true);
+    }
   }, [setupDrawerRequested]);
 
   // Add tenant dialog state
@@ -248,6 +250,7 @@ export default function DashboardOverview({ embedded = false }) {
   const [fadeIn, setFadeIn] = useState(false);
 
   const [quickActionsOpen, setQuickActionsOpen] = useState(false);
+  const operationsOpen = showDetailedOperations || setupDrawerRequested;
   const [addExpenseDrawerOpen, setAddExpenseDrawerOpen] = useState(false);
 
   // Register with TriggerSummaryContext so bottom nav Plus menu can trigger Generate Summary
@@ -325,7 +328,7 @@ export default function DashboardOverview({ embedded = false }) {
   };
 
   const handleAddProperty = () => {
-    drawer.openPropertyAddWorkflowDrawer();
+    navigate('/landlord/properties/add');
   };
 
   const handleAddExpense = () => {
@@ -450,42 +453,7 @@ export default function DashboardOverview({ embedded = false }) {
           }
         >
           <Grid container spacing={2.5} sx={isTrialExpired ? { filter: 'blur(4px)', pointerEvents: 'none', userSelect: 'none' } : {}}>
-            {isMobile && <Grid size={12}>
-              <MobileDashboardHome
-                properties={properties}
-                propertiesLoading={propertiesLoading}
-                propertiesError={propertiesError}
-                dashboardSummary={dashboardSummaryData}
-                dashboardLoading={dashboardLoading}
-                dashboardError={dashboardError}
-                rentSummary={summary}
-                rentRecords={rentRecords}
-                rentLoading={rentLoading}
-                rentError={rentCollectionState.error}
-                conversations={conversations}
-                shortTermOnly={properties?.length > 0 && properties.every((p) => (p.rentalMode ?? p.RentalMode) === 'ShortTerm')}
-              />
-              {showSetupCard && <Box sx={{ mt: 3 }}><FinishSetup
-                open={setupTasksOpen}
-                onOpen={() => setSetupTasksOpen(true)}
-                onClose={closeSetupTasks}
-                onDismiss={dismissSetupCard}
-                isDismissing={isDismissingSetup}
-                steps={setupState.steps}
-                isLoading={setupState.isLoading}
-              /></Box>}
-              <Box sx={{ display: 'grid', gap: 2.5, mt: 4 }}>
-                <DashboardReminderCard reminders={todayReminders} />
-                <Maintenance
-                  requests={dashboardSummaryData?.maintenanceRequests?.maintenanceRequests || []}
-                  isLoading={dashboardLoading}
-                  hasError={Boolean(dashboardError)}
-                />
-                <Applications onLoadingChange={setApplicationsLoading} />
-                <PaymentsCard />
-              </Box>
-            </Grid>}
-            {!embedded && !isMobile && (
+            {!embedded && (
               <Grid size={12}>
                 <AnimateIn direction="bottom" delay={100} distance={120}>
                   <Box sx={{ mt: { xs: 2, sm: 2, md: 0 } }}>
@@ -495,8 +463,18 @@ export default function DashboardOverview({ embedded = false }) {
               </Grid>
             )}
 
-            {/* Shared row grid keeps neighboring dashboard cards equal-height. */}
-            {!isMobile && <Grid size={12}>
+            <Grid size={12}>
+              <OwnerTodayHome
+                reminders={todayReminders}
+                properties={properties}
+                propertiesLoading={propertiesLoading}
+                propertiesError={propertiesError}
+              />
+            </Grid>
+
+            {/* Keep the existing dashboard tools available without making them the home page. */}
+            <Grid size={12}>
+              <Collapse in={operationsOpen} unmountOnExit id="owner-operations">
               <Grid
                 container
                 sx={{
@@ -793,7 +771,8 @@ export default function DashboardOverview({ embedded = false }) {
                   </Box>
                 </Box>
               </Grid>
-            </Grid>}
+              </Collapse>
+            </Grid>
           </Grid>
         </Box>
       </Fade>

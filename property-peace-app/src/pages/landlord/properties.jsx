@@ -31,7 +31,6 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
 import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
@@ -327,10 +326,6 @@ export default function Properties() {
 
   return (
     <Box sx={{ pb: 3 }}>
-      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-        <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: 'Properties' }]} />
-      </Box>
-
       <Box
         sx={{
           mb: 2.5
@@ -339,9 +334,6 @@ export default function Properties() {
         <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ md: 'center' }} justifyContent="space-between" spacing={2}>
           <Box>
             <Typography variant="h3" sx={{ color: 'text.primary', fontWeight: 750, letterSpacing: -0.4 }}>Properties</Typography>
-            <Typography sx={{ mt: 0.6, color: 'text.secondary', fontSize: '0.88rem' }}>
-              A clear operating view of occupancy, rent roll, leases, and work that needs attention.
-            </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
             <PropertyCsvImportButton
@@ -354,7 +346,7 @@ export default function Properties() {
               variant="contained"
               color="success"
               startIcon={<PlusOutlined />}
-              onClick={() => drawer.openPropertyAddWorkflowDrawer()}
+              onClick={() => navigate('/landlord/properties/add')}
               sx={{ textTransform: 'none', fontWeight: 700, boxShadow: 'none' }}
             >
               Add property

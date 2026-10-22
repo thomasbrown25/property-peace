@@ -30,7 +30,7 @@ import { useDebounce } from 'hooks/useDebounce';
 
 // ==============================|| HEADER CONTENT - SEARCH ||============================== //
 
-export default function Search({ shrink = false }) {
+export default function Search({ autoFocus = false, onResultSelect }) {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -62,6 +62,7 @@ export default function Search({ shrink = false }) {
   const handleResultClick = (type, id) => {
     setIsOpen(false);
     setSearchQuery('');
+    onResultSelect?.();
     
     switch (type) {
       case 'property':
@@ -91,13 +92,14 @@ export default function Search({ shrink = false }) {
       display="flex"
       justifyContent="center"
       alignItems="center"
-      sx={{ width: '100%', ml: { xs: 0, md: 1 }, position: 'relative' }}
+      sx={{ width: '100%', position: 'relative' }}
     >
-      <Box sx={{ position: 'relative', width: { xs: '100%', sm: shrink ? 460 : 500, md: shrink ? 620 : 700 }, transition: 'width 160ms ease' }}>
+      <Box sx={{ position: 'relative', width: '100%' }}>
         <FormControl sx={{ width: '100%' }}>
           <OutlinedInput
             size="small"
             id="header-search"
+            autoFocus={autoFocus}
             value={searchQuery}
             onChange={handleSearchChange}
             onFocus={() => {

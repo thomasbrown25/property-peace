@@ -1,22 +1,27 @@
-import { useState } from 'react';
-
-import { Box, Dialog, DialogContent, DialogTitle, IconButton, Tooltip, Typography } from '@mui/material';
-import { CloseOutlined, SearchOutlined } from '@ant-design/icons';
-
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { ClickAwayListener, IconButton, Paper, Popper, Tooltip } from '@mui/material';
+import SearchOutlined from '@ant-design/icons/SearchOutlined';
 import Search from './Search';
 
-// ==============================|| HEADER CONTENT - MOBILE SEARCH ||============================== //
-
+// Search stays out of the toolbar until requested. The panel is anchored below
+// the icon rather than taking over the page or pushing header content sideways.
 export default function MobileSearch() {
-  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState(null);
+  const { pathname } = useLocation();
+  const open = Boolean(anchor);
+
+  useEffect(() => setAnchor(null), [pathname]);
 
   return (
     <>
       <Tooltip title="Search">
         <IconButton
-          aria-label="open global search"
-          color="secondary"
-          onClick={() => setOpen(true)}
+          aria-label="Open global search"
+          aria-controls={open ? 'header-search-panel' : undefined}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          onClick={(event) => setAnchor((current) => current ? null : event.currentTarget)}
           sx={(theme) => ({
             color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary',
             flexShrink: 0,
@@ -26,20 +31,32 @@ export default function MobileSearch() {
           <SearchOutlined />
         </IconButton>
       </Tooltip>
-
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm" fullScreen>
-        <DialogTitle sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-            <Typography variant="h5" fontWeight={700}>Search Property Peace</Typography>
-            <IconButton aria-label="close search" onClick={() => setOpen(false)}>
-              <CloseOutlined />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ p: 2 }}>
-          <Search />
-        </DialogContent>
-      </Dialog>
+      <Popper open={open} anchorEl={anchor} placement="bottom-end" sx={{ zIndex: (theme) => theme.zIndex.modal }}>
+        <ClickAwayListener onClickAway={() => setAnchor(null)}>
+          <Paper
+            id="header-search-panel"
+            role="dialog"
+            aria-label="Search properties, tenants, and leases"
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.stopPropagation();
+                setAnchor(null);
+                anchor?.focus();
+              }
+            }}
+            sx={{
+              width: 'min(420px, calc(100vw - 24px))', p: 1.5, mt: 1,
+              boxShadow: (theme) => theme.customShadows.z1, overflow: 'visible',
+              transformOrigin: 'top right',
+              animation: 'searchDrop 160ms ease-out both',
+              '@keyframes searchDrop': { from: { opacity: 0, transform: 'translateY(-8px) scale(0.98)' }, to: { opacity: 1, transform: 'translateY(0) scale(1)' } },
+              '@media (prefers-reduced-motion: reduce)': { animation: 'none' }
+            }}
+          >
+            {open && <Search autoFocus onResultSelect={() => setAnchor(null)} />}
+          </Paper>
+        </ClickAwayListener>
+      </Popper>
     </>
   );
 }

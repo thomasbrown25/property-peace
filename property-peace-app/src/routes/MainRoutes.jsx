@@ -178,6 +178,17 @@ function LegacyInspectionRedirect() {
   return <Navigate to="/landlord/checklists" replace />;
 }
 
+function DashboardEntry() {
+  const { search, hash } = useLocation();
+  const params = new URLSearchParams(search);
+  if (params.get('tab') === 'calendar') {
+    params.delete('tab');
+    const remaining = params.toString();
+    return <Navigate to={`/landlord/calendar${remaining ? `?${remaining}` : ''}${hash}`} replace />;
+  }
+  return <Dashboard />;
+}
+
 function LegacyLeaseBuilderRedirect() {
   const { search } = useLocation();
   return <Navigate to={buildLeaseBuilderRedirect(search)} replace />;
@@ -222,13 +233,17 @@ const MainRoutes = {
           path: 'landlord/dashboard',
           element: (
             <SubscriptionPausedGuard>
-              <Dashboard />
+              <DashboardEntry />
             </SubscriptionPausedGuard>
           )
         },
         {
           path: 'landlord/calendar',
-          element: <Navigate to="/landlord/dashboard?tab=calendar" replace />
+          element: (
+            <SubscriptionPausedGuard>
+              <Dashboard />
+            </SubscriptionPausedGuard>
+          )
         },
         {
           path: 'landlord/portfolio-summary',

@@ -37,7 +37,6 @@ import { CheckCircleOutlined, ArrowLeftOutlined, HomeOutlined, PlusOutlined, Del
 import Tooltip from '@mui/material/Tooltip';
 import IconButton from '@mui/material/IconButton';
 import MainCard from 'components/MainCard';
-import PageBreadcrumbs from 'components/breadcrumbs/PageBreadcrumbs';
 import AddressFieldWithPlaces from 'components/input/AddressFieldWithPlaces';
 import FormInput from 'components/input/FormInput';
 import FormSelect from 'components/input/FormSelect';
@@ -56,6 +55,7 @@ import axiosServices from 'utils/axios';
 import useFeatureReadiness from 'hooks/useFeatureReadiness';
 import { FEATURE_KEYS } from 'utils/featureReadiness';
 import { initialUnitCount } from 'utils/rentalMode';
+import ListingCreatePage from './listing-create';
 
 const STEPS = {
   PROPERTY_TYPE_SELECTION: 1,
@@ -101,11 +101,21 @@ const PropertySchema = Yup.object().shape({
   streetAddress: Yup.string().required('Street address is required'),
   city: Yup.string().required('City is required'),
   state: Yup.string().required('State is required'),
-  zipCode: Yup.string().required('Zip code is required'),
+  zipCode: Yup.string().matches(/^\d{5}$/, 'Enter a five-digit ZIP code').required('Zip code is required'),
   propertyType: Yup.string().required('Property type is required')
 });
 
-export default function PropertyAddWorkflow({ onClose } = {}) {
+// The page begins with the same address-search experience as listing onboarding.
+// The drawer keeps the existing compact workflow; both continue into the real property form.
+export default function PropertyAddPage({ onClose } = {}) {
+  const [confirmedAddress, setConfirmedAddress] = useState(null);
+  if (!onClose && !confirmedAddress) {
+    return <ListingCreatePage propertyMode onContinue={setConfirmedAddress} />;
+  }
+  return <PropertyAddWorkflow onClose={onClose} initialAddress={confirmedAddress} onBackToRental={() => setConfirmedAddress(null)} />;
+}
+
+function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const drawer = useDrawer();
@@ -186,7 +196,13 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
   };
 
   const formik = useFormik({
-    initialValues: getInitialValues(),
+    initialValues: { ...getInitialValues(), ...(initialAddress ? {
+      streetAddress: [initialAddress.streetAddress, initialAddress.unit].filter(Boolean).join(', '),
+      city: initialAddress.city,
+      state: initialAddress.state,
+      zipCode: initialAddress.zipCode,
+      rentalMode: initialAddress.rentalMode || 'longTerm'
+    } : {}) },
     validationSchema: PropertySchema,
     enableReinitialize: true,
     onSubmit: async (values) => {
@@ -277,6 +293,23 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
     fetchBankAccounts();
   }, [showStripeOnboarding, rentCanInvoke]);
+
+  // The standalone address modal bypasses the legacy address picker; look up
+  // imagery for its confirmed address before the image choice is shown.
+  useEffect(() => {
+    if (!initialAddress) return;
+    let active = true;
+    const fullAddress = [initialAddress.streetAddress, initialAddress.city, initialAddress.state, initialAddress.zipCode].filter(Boolean).join(', ');
+    setGooglePhotoUrl(null);
+    setFieldValue('googleImageUrl', '');
+    fetchPhotosFromPlace(null, fullAddress).then((result) => {
+      if (!active) return;
+      setGooglePhotoUrl(result?.url || null);
+      setPhotoSource(result?.source || null);
+      setFieldValue('googleImageUrl', result?.url || '');
+    });
+    return () => { active = false; };
+  }, [initialAddress, fetchPhotosFromPlace, setFieldValue]);
 
   // Handler for when address is selected
   const handleAddressSelected = async (address, place) => {
@@ -370,7 +403,6 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
   const handlePropertyTypeSelect = async (propertyType) => {
     setError(null);
     await setFieldValue('propertyType', propertyType);
-    transitionToStep(STEPS.ADDRESS, 'left');
   };
 
   const handleNext = async () => {
@@ -381,7 +413,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
         setError('Please select a property type');
         return;
       }
-      transitionToStep(STEPS.ADDRESS, 'left');
+      transitionToStep(initialAddress ? STEPS.IMAGE : STEPS.ADDRESS, 'left');
     } else if (currentStep === STEPS.ADDRESS) {
       if (!values.streetAddress || !values.city || !values.state || !values.zipCode) {
         setError('Please fill in all address fields');
@@ -449,7 +481,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
   const getPreviousStep = () => {
     if (currentStep === STEPS.ADDRESS) return STEPS.PROPERTY_TYPE_SELECTION;
-    if (currentStep === STEPS.IMAGE) return STEPS.ADDRESS;
+    if (currentStep === STEPS.IMAGE) return initialAddress ? STEPS.PROPERTY_TYPE_SELECTION : STEPS.ADDRESS;
     if (currentStep === STEPS.ADD_UNITS || currentStep === STEPS.SINGLE_UNIT_DETAILS) return STEPS.IMAGE;
     return null;
   };
@@ -685,22 +717,22 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
       case STEPS.PROPERTY_TYPE_SELECTION:
         return (
           <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>Which type of rental will this property be used for?</Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="center" spacing={2} sx={{ mb: 3 }}>
+            {onClose && <Typography variant="h5" sx={{ mb: 2 }}>Which type of rental will this property be used for?</Typography>}
+            {onClose && <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="center" spacing={2} sx={{ mb: 3 }}>
               {['shortTerm', 'longTerm'].map(mode => (
                 <Button key={mode} variant={values.rentalMode === mode ? 'contained' : 'outlined'}
                   onClick={() => setFieldValue('rentalMode', mode)}>
                   {mode === 'shortTerm' ? 'Short-term / Airbnb style' : 'Long-term / tenants-leases'}
                 </Button>
               ))}
-            </Stack>
+            </Stack>}
             {values.rentalMode === 'shortTerm' && (
               <Alert severity="info" sx={{ mb: 3 }}>Set up your units now. Nightly pricing, listings and guest bookings are not available yet; monthly rent and bank onboarding do not apply.</Alert>
             )}
-            <Typography variant="h4" fontWeight={600} gutterBottom sx={{ mb: 4 }}>
+            <Typography component="h1" sx={{ fontSize: { xs: 32, md: 43 }, lineHeight: 1.17, letterSpacing: '-0.035em', fontWeight: 750, mb: 4 }}>
               Which best describes your property?
             </Typography>
-            <Grid container spacing={2} sx={{ mt: 2, maxWidth: 1000, mx: 'auto' }}>
+            <Grid container spacing={2} sx={{ mt: 2, maxWidth: 760, mx: 'auto' }}>
               {propertyTypeOptions.map((option) => {
                 const IconComponent = option.icon;
                 const isSelected = values.propertyType === option.value;
@@ -708,38 +740,30 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
                   <Grid size={{ xs: 12, sm: 6, md: 4 }} key={option.value}>
                     <Card
                       variant="outlined"
-                      onClick={() => handlePropertyTypeSelect(option.value)}
                       sx={{
-                        cursor: 'pointer',
-                        border: isSelected ? 2 : 1,
-                        borderColor: isSelected ? 'primary.main' : 'divider',
-                        bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.08) : 'background.paper',
-                        transition: 'all 0.2s',
                         height: '100%',
-                        position: 'relative',
-                        '&:hover': {
-                          borderColor: isSelected ? 'primary.main' : 'primary.light',
-                          boxShadow: 2
-                        }
+                        borderRadius: 2,
+                        borderColor: isSelected ? 'primary.main' : 'divider',
+                        bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.06) : 'background.paper',
+                        boxShadow: 'none',
+                        transition: 'border-color 0.2s, background-color 0.2s',
+                        '&:hover': { borderColor: 'primary.main', boxShadow: 'none' }
                       }}
                     >
-                      {isSelected && (
-                        <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}>
-                          <CheckCircleOutlined style={{ fontSize: 20, color: theme.palette.primary.main }} />
-                        </Box>
-                      )}
-                      <CardActionArea sx={{ p: 2, height: '100%' }}>
-                        <Stack spacing={2} alignItems="center" sx={{ textAlign: 'center' }}>
-                          <IconComponent style={{ fontSize: 48, color: isSelected ? theme.palette.primary.main : theme.palette.text.secondary }} />
-                          <Box>
-                            <Typography variant="h6" fontWeight={600} sx={{ mb: 0.5 }}>
-                              {option.label}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {option.subtitle}
-                            </Typography>
-                          </Box>
-                        </Stack>
+                      <CardActionArea
+                        component="button"
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => handlePropertyTypeSelect(option.value)}
+                        sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'column', textAlign: 'left', p: 2, minHeight: 112, height: '100%' }}
+                      >
+                        <IconComponent style={{ fontSize: 30, color: isSelected ? theme.palette.primary.main : theme.palette.text.primary }} />
+                        <Typography variant="body1" fontWeight={600} sx={{ mt: 0.75, lineHeight: 1.3, color: 'text.primary' }}>
+                          {option.label}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, lineHeight: 1.3 }}>
+                          {option.subtitle}
+                        </Typography>
                       </CardActionArea>
                     </Card>
                   </Grid>
@@ -875,6 +899,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
                       label=""
                       placeholder="Zip Code"
                       {...formik.getFieldProps('zipCode')}
+                      inputProps={{ maxLength: 5, inputMode: 'numeric' }}
                       error={Boolean(touched.zipCode && errors.zipCode)}
                       helperText={touched.zipCode && errors.zipCode}
                     />
@@ -896,6 +921,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
             <Typography variant="h4" fontWeight={600} gutterBottom sx={{ mb: 4 }}>
               Do you want to upload the Google image for your home or use your own?
             </Typography>
+            {fetchingPhoto ? <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 3 }}><CircularProgress size={20} /><Typography>Searching Google for a property image…</Typography></Stack> : null}
             {(googlePhotoUrl || values.googleImageUrl) && (
               <Box sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}>
                 <Box
@@ -936,11 +962,11 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
                 >
                   Use Google Image
                 </Button>
-              ) : (
+              ) : !fetchingPhoto ? (
                 <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                   Google image unavailable for this address.
                 </Typography>
-              )}
+              ) : null}
               <Button
                 variant={!values.useGoogleImage && values.image ? 'contained' : 'outlined'}
                 component="label"
@@ -1362,33 +1388,27 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
 
   return (
     <FormikProvider value={formik}>
-      <Box>
-        {!onClose && (
-          <PageBreadcrumbs
-            items={[
-              { label: 'Dashboard', path: '/landlord/dashboard' },
-              { label: 'Add Property' }
-            ]}
-          />
-        )}
+      <Box sx={!onClose ? { position: 'fixed', inset: 0, zIndex: 1400, overflowY: 'auto', bgcolor: '#fff', px: { xs: 2, md: 6 } } : undefined}>
+        {!onClose && <Box component="header" sx={{ height: { xs: 76, md: 96 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box component="img" src="/listing-onboarding-logo.png" alt="Property Peace" sx={{ width: { xs: 148, md: 185 } }} />
+          <Button variant="outlined" onClick={() => navigate('/landlord/properties')} sx={{ textTransform: 'none', borderRadius: 6 }}>Save &amp; exit</Button>
+        </Box>}
 
         <MainCard
-          border={!onClose}
-          boxShadow={!onClose}
+          border={false}
+          boxShadow={false}
           sx={{
             mt: onClose ? 0 : 3,
             minHeight: '600px',
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: onClose ? 'none' : undefined,
-            border: onClose ? 'none' : undefined,
-            '&:hover': {
-              boxShadow: onClose ? 'none' : undefined
-            }
+            boxShadow: 'none',
+            border: 'none',
+            '&:hover': { boxShadow: 'none' }
           }}
         >
           {/* Step Indicators */}
-          {currentStep < STEPS.PROCESSING && currentStep !== STEPS.SUCCESS && (
+          {onClose && currentStep < STEPS.PROCESSING && currentStep !== STEPS.SUCCESS && (
             <Box sx={{ position: 'relative', mb: 4, mt: 2, width: '100%', px: 3, pt: 2, display: { xs: 'none', sm: 'none', md: 'block' } }}>
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%' }}>
                 <Box sx={{ maxWidth: 900, width: '100%' }}>
@@ -1442,7 +1462,7 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
             </Box>
 
             {/* Navigation Buttons */}
-            {currentStep < STEPS.PROCESSING && currentStep !== STEPS.SUCCESS && currentStep !== STEPS.ADD_UNITS && currentStep !== STEPS.PROPERTY_TYPE_SELECTION && (
+            {currentStep < STEPS.PROCESSING && currentStep !== STEPS.SUCCESS && currentStep !== STEPS.ADD_UNITS && (
               <Box sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -1451,19 +1471,29 @@ export default function PropertyAddWorkflow({ onClose } = {}) {
                 pt: 4,
                 pb: 2,
                 px: 3,
-                borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`
+                borderTop: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                ...(!onClose ? { position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1, bgcolor: '#fff', px: { xs: 3, md: 6 }, py: 2.5 } : {})
               }}>
+                {!onClose && <Box sx={{ position: 'absolute', top: -2, left: 0, width: `${Math.min(90, 54 + getStepperStep() * 12)}%`, height: 3, bgcolor: '#061e35' }} />}
                 <Button
-                  onClick={handleBack}
-                  disabled={currentStep === STEPS.PROPERTY_TYPE_SELECTION || processing}
-                  startIcon={<ArrowLeftOutlined />}
-                  sx={{ textTransform: 'none', px: 3 }}
+                  onClick={() => {
+                    if (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !onClose) {
+                      navigate('/landlord/properties/add?step=rental');
+                      onBackToRental?.();
+                    } else {
+                      handleBack();
+                    }
+                  }}
+                  disabled={processing || (Boolean(onClose) && currentStep === STEPS.PROPERTY_TYPE_SELECTION)}
+                  startIcon={onClose ? <ArrowLeftOutlined /> : undefined}
+                  sx={{ textTransform: 'none', px: onClose ? 3 : 0, color: !onClose ? '#172b3d' : undefined }}
                 >
                   Back
                 </Button>
                 <Button
                   size="small"
                   variant="contained"
+                  color="primary"
                   onClick={handleNext}
                   disabled={processing || (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !values.propertyType)}
                   sx={{ textTransform: 'none', px: 4, py: 1 }}

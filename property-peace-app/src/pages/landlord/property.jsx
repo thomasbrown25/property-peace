@@ -2628,7 +2628,7 @@ export default function Property() {
           <PropertyLeasingPipeline
             propertyId={propertyId}
             units={longTermUnits}
-            onCreateListing={drawer.openListingAddDrawer}
+            onCreateListing={() => navigate('/landlord/listings/add')}
           />
         </Box>}
 
@@ -2639,7 +2639,7 @@ export default function Property() {
               property={selectedProperty}
               propertyId={propertyId}
               rentRecords={rentRecords}
-              onCreateListing={drawer.openListingAddDrawer}
+              onCreateListing={() => navigate('/landlord/listings/add')}
             />
             {longTermUnits.length > 0 && <PropertyScheduledLeases property={{ ...selectedProperty, units: longTermUnits, Units: longTermUnits }} propertyId={propertyId} />}
           </AnimateIn>

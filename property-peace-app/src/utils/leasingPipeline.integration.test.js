@@ -53,7 +53,7 @@ test('property page places leasing progress directly under the header overview o
   assert.ok(activeLeaseIndex > mobilePipelineIndex, 'active lease should follow mobile leasing progress');
 });
 
-test('property create-listing action opens the existing listing workflow drawer instead of navigating away', async () => {
+test('property create-listing action opens the standalone onboarding page', async () => {
   const [property, overview, propertyPipeline, panel] = await Promise.all([
     source('../pages/landlord/property.jsx'),
     source('../sections/landlord/property/PropertyOverview.jsx'),
@@ -62,8 +62,8 @@ test('property create-listing action opens the existing listing workflow drawer 
   ]);
 
   assert.match(property, /import ListingAddWorkflowDrawer from 'components\/drawers\/ListingAddWorkflowDrawer'/);
-  assert.match(property, /<PropertyOverview[\s\S]*onCreateListing=\{drawer\.openListingAddDrawer\}/);
-  assert.match(property, /<ListingAddWorkflowDrawer \/>/);
+  assert.match(property, /<PropertyOverview[\s\S]*onCreateListing=\{\(\) => navigate\('\/landlord\/listings\/add'\)\}/);
+  assert.match(property, /<PropertyLeasingPipeline[\s\S]*onCreateListing=\{\(\) => navigate\('\/landlord\/listings\/add'\)\}/);
   assert.match(overview, /<PropertyLeasingPipeline[\s\S]*onCreateListing=\{onCreateListing\}/);
   assert.match(propertyPipeline, /<LeasingPipelinePanel[\s\S]*onCreateListing=\{onCreateListing\}/);
   assert.match(panel, /pipeline\.primaryAction\?\.code === 'createListing'[\s\S]*onCreateListing\(\)/);

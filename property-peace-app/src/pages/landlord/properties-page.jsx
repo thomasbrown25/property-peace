@@ -34,6 +34,7 @@ import useFetchRentCollection from 'hooks/useFetchRentCollection';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectProperties, selectProperty } from 'store/property/property.selector';
 import { useDrawer } from 'contexts/DrawerContext';
+import { useNavigate } from 'react-router-dom';
 import { getSettings, saveSettings } from 'store/user/user.action';
 import { selectUserSettings } from 'store/user/user.selector';
 
@@ -47,6 +48,7 @@ import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
 export default function PropertiesPage() {
   const dispatch = useDispatch();
   const drawer = useDrawer();
+  const navigate = useNavigate();
   const theme = useTheme();
   const { propertiesRefetch, isLoading } = useFetchProperties();
   const { rentRecords } = useFetchRentCollection(null, true, true);
@@ -219,7 +221,7 @@ export default function PropertiesPage() {
                   variant="contained"
                   color="primary"
                   startIcon={<HomeFilled />}
-                  onClick={() => drawer.openPropertyAddWorkflowDrawer()}
+                  onClick={() => navigate('/landlord/properties/add')}
                   sx={{
                     boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
                     px: 2.5,

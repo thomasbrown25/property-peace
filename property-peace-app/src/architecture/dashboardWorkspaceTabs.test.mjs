@@ -5,37 +5,29 @@ import test from 'node:test';
 const workspaceSource = fs.readFileSync(new URL('../pages/landlord/dashboard.jsx', import.meta.url), 'utf8');
 const overviewSource = fs.readFileSync(new URL('../pages/landlord/dashboard-overview.jsx', import.meta.url), 'utf8');
 const routesSource = fs.readFileSync(new URL('../routes/MainRoutes.jsx', import.meta.url), 'utf8');
-const headerSource = fs.readFileSync(new URL('../sections/landlord/dashboard/DashboardHeader.jsx', import.meta.url), 'utf8');
 const calendarSource = fs.readFileSync(new URL('../pages/landlord/calendar.jsx', import.meta.url), 'utf8');
 
-test('dashboard owns Overview, Calendar, and Tasks as component tabs on one route', () => {
+test('dashboard defaults to the plain URL and preserves Calendar/Tasks deep links without top tabs', () => {
   assert.match(workspaceSource, /const workspaceComponents = \{[\s\S]*overview: DashboardOverview,[\s\S]*calendar: CalendarPage,[\s\S]*tasks: TasksPage/);
   assert.match(workspaceSource, /getDashboardWorkspaceTab\(location\.pathname, location\.search\)/);
-  assert.match(workspaceSource, /nextSearchParams\.set\('tab', nextTab\)/);
-  assert.match(workspaceSource, /canonicalSearchParams\.set\('tab', activeTab\)/);
+  assert.match(workspaceSource, /canonicalSearchParams\.delete\('tab'\)/);
   assert.match(workspaceSource, /setSearchParams\(canonicalSearchParams, \{ replace: true \}\)/);
   assert.match(workspaceSource, /<ActiveComponent embedded \/>/);
+  assert.doesNotMatch(workspaceSource, /<DashboardHeader|role="tabpanel"|aria-labelledby=\{`dashboard-/);
 });
 
-test('dashboard component swaps use an accessible reduced-motion-aware transition', () => {
+test('dashboard page swaps retain reduced-motion-aware transition without orphaned tab semantics', () => {
   assert.match(workspaceSource, /<AnimatePresence mode="wait" initial=\{false\}>/);
   assert.match(workspaceSource, /component=\{motion\.section\}/);
-  assert.match(workspaceSource, /role="tabpanel"/);
   assert.match(workspaceSource, /prefers-reduced-motion: reduce/);
-  assert.match(headerSource, /role="tablist"/);
-  assert.match(headerSource, /role="tab"/);
-  assert.match(headerSource, /aria-selected=\{active\}/);
-  assert.match(headerSource, /tabIndex=\{active \? 0 : -1\}/);
-  assert.match(headerSource, /event\.key === 'ArrowRight'/);
-  assert.match(headerSource, /event\.key === 'ArrowLeft'/);
-  assert.match(headerSource, /event\.key === 'Home'/);
-  assert.match(headerSource, /event\.key === 'End'/);
-  assert.match(headerSource, /aria-controls="dashboard-workspace-panel"/);
   assert.match(workspaceSource, /id="dashboard-workspace-panel"/);
+  assert.doesNotMatch(workspaceSource, /role="tabpanel"/);
 });
 
-test('legacy Calendar and Tasks URLs redirect into dashboard tabs', () => {
-  assert.match(routesSource, /path: 'landlord\/calendar',[\s\S]{0,120}<Navigate to="\/landlord\/dashboard\?tab=calendar" replace \/>/);
+test('Calendar has its own canonical URL while the old dashboard tab redirects there', () => {
+  assert.match(routesSource, /path: 'landlord\/calendar',[\s\S]{0,130}<Dashboard \/>/);
+  assert.match(routesSource, /params\.get\('tab'\) === 'calendar'[\s\S]*<Navigate to=\{`\/landlord\/calendar/);
+  assert.match(workspaceSource, /location\.pathname === '\/landlord\/calendar'/);
   assert.match(routesSource, /path: 'landlord\/tasks',[\s\S]{0,120}<Navigate to="\/landlord\/dashboard\?tab=tasks" replace \/>/);
 });
 
@@ -46,8 +38,11 @@ test('calendar omits the top-right Add task button while keeping contextual task
   assert.match(calendarSource, /function Sidebar\([\s\S]*?Add task[\s\S]*?function EventDetailsDrawer/);
 });
 
-test('dashboard overview omits recently viewed and retains money summary', () => {
-  assert.doesNotMatch(overviewSource, /RecentlyViewedProperties/);
-  assert.match(overviewSource, /<MoneySummary/);
+test('dashboard has no bottom detailed-operations disclosure; optional details stay behind settings', () => {
+  assert.doesNotMatch(overviewSource, /Show detailed operations|aria-controls="owner-operations"/);
+  const operations = overviewSource.indexOf('<Collapse in={operationsOpen}');
+  assert.ok(operations >= 0);
+  assert.ok(overviewSource.indexOf('<MoneySummary', operations) > operations);
+  assert.ok(overviewSource.indexOf('<RecentlyViewedProperties', operations) > operations);
   assert.doesNotMatch(overviewSource, /<TodaysPriorities/);
 });

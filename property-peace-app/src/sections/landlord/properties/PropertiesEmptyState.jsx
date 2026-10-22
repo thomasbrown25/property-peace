@@ -2,10 +2,10 @@ import { useTheme, alpha } from '@mui/material';
 import { HomeOutlined, PlusOutlined } from '@ant-design/icons';
 import MainCard from 'components/MainCard';
 import { LandlordEmptyState } from 'components/landlord/PagePrimitives';
-import { useDrawer } from 'contexts/DrawerContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function PropertiesEmptyState() {
-  const drawer = useDrawer();
+  const navigate = useNavigate();
   const theme = useTheme();
 
   return (
@@ -24,7 +24,7 @@ export default function PropertiesEmptyState() {
         description="Get started by adding your first property to your portfolio. You can track rent, maintenance, and more."
         actionLabel="Add Your First Property"
         actionIcon={<PlusOutlined />}
-        onAction={() => drawer.openPropertyAddWorkflowDrawer()}
+        onAction={() => navigate('/landlord/properties/add')}
       />
     </MainCard>
   );

@@ -7,16 +7,13 @@ import RecordPaymentDrawer from 'components/drawers/RecordPaymentDrawer';
 import PropertyAddWorkflowDrawer from 'components/drawers/PropertyAddWorkflowDrawer';
 import ScheduleInspectionDrawer from 'components/drawers/ScheduleInspectionDrawer';
 
-import { useMediaQuery, Container, Toolbar, Box, alpha } from '@mui/material';
+import { Container, Toolbar, Box, alpha } from '@mui/material';
 
 // project imports
-import Drawer from './Drawer';
 import Header from './Header';
-import BottomNavBar from './BottomNavBar';
 import Footer from './Footer';
-import HorizontalBar from './Drawer/HorizontalBar';
 import Loader from 'components/Loader';
-import Breadcrumbs from 'components/@extended/Breadcrumbs';
+
 import AuthGuard from 'utils/route-guard/AuthGuard';
 import SuspensionBanner from 'components/account/SuspensionBanner';
 import ImpersonationBanner from 'components/admin/ImpersonationBanner';
@@ -26,26 +23,21 @@ import { useDrawer } from 'contexts/DrawerContext';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import UnitLimitGate from 'components/subscription/UnitLimitGate';
 
-import { MenuOrientation, DRAWER_WIDTH, MINI_DRAWER_WIDTH } from 'config';
-import useConfig from 'hooks/useConfig';
-import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
+import { useGetMenuMaster } from 'api/menu';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
 export default function DashboardLayout() {
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
+  // Standalone property onboarding supplies its own logo, Save & exit, and step footer.
+  const isAddPropertyPage = pathname === '/landlord/properties/add' || pathname === '/landlord/property-add-workflow';
   const { menuMasterLoading, menuMaster } = useGetMenuMaster();
-  const drawerOpen = menuMaster?.isDashboardDrawerOpened ?? false;
-  const downXL = useMediaQuery((theme) => theme.breakpoints.down('xl'));
-  const downLG = useMediaQuery((theme) => theme.breakpoints.down('lg'));
-  const phone = useMediaQuery((theme) => theme.breakpoints.down('sm'));
-  const mobileHome = phone && pathname === '/landlord/dashboard' && !['calendar', 'tasks'].includes(new URLSearchParams(search).get('tab'));
   const { user } = useAuth();
   const drawer = useDrawer();
   const userRoles = Array.isArray(user?.Roles) ? user?.Roles : Array.isArray(user?.roles) ? user?.roles : [];
   const hasLandlordRole = userRoles.map((r) => String(r).toLowerCase().trim()).includes('landlord');
 
-  const { miniDrawer, menuOrientation } = useConfig();
+
   const [isLayoutLoading, setIsLayoutLoading] = useState(true);
   const { 
     isDashboardLoading, 
@@ -61,27 +53,15 @@ export default function DashboardLayout() {
     isAccountingLoading
   } = useDashboardLoading();
 
-  const isHorizontal = menuOrientation === MenuOrientation.HORIZONTAL && !downLG;
   
   // Check if user is suspended
   const isSuspended = user?.isSuspended || user?.IsSuspended || false;
 
-  // Initialize drawer based on screen size: closed below lg, open on lg (1266px) or higher
-  useEffect(() => {
-    if (!miniDrawer && menuMaster) {
-      // downLG is true for screens < 1266px (xs: 0px, sm: 768px, md: 1024px) → closed
-      // downLG is false for screens >= 1266px (lg: 1266px, xl: 1440px+) → open
-      const shouldBeOpen = !downLG;
-      handlerDrawerOpen(shouldBeOpen);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [downLG]);
-
-  // Hide loader once layout is ready (menu loaded and drawer initialized)
+  // Hide loader once layout is ready (menu loaded)
   // Keep it visible longer to allow page components to start animating
   useEffect(() => {
     if (!menuMasterLoading && menuMaster) {
-      // Delay to ensure drawer is rendered and page components can start animating
+      // Delay to allow page components to start animating
       // Dashboard components start at 100ms delay and take 600ms to animate
       // So we need at least 700ms total, but add extra for smooth transition
       const isDashboardPage = pathname.includes('/dashboard');
@@ -161,27 +141,22 @@ export default function DashboardLayout() {
           })
         })}
       >
-        <Header />
-        {!isHorizontal ? <Drawer /> : <HorizontalBar />}
-        {mobileHome && hasLandlordRole && <BottomNavBar />}
+        {!isAddPropertyPage && <Header />}
 
         <Box 
           component="main" 
           sx={{ 
-            width: { xs: '100%', lg: drawerOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : `calc(100% - ${MINI_DRAWER_WIDTH}px)` }, 
+            width: '100%',
             flexGrow: 1, 
-            p: { xs: mobileHome ? 2 : 2.5, sm: 2.5 },
-            pb: mobileHome ? 'calc(110px + env(safe-area-inset-bottom, 0px))' : 0,
+            p: isAddPropertyPage ? 0 : 2.5,
+            pb: 0,
             display: 'flex',
             flexDirection: 'column',
             height: 'auto',
-            transition: (theme) => theme.transitions.create('width', {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen
-            })
+            minWidth: 0
           }}
         >
-          <Toolbar sx={{ mt: isHorizontal ? 8 : 'inherit' }} />
+          {!isAddPropertyPage && <Toolbar sx={{ minHeight: { xs: '68px !important', sm: '84px !important' } }} />}
           <Container
             maxWidth={false}
             disableGutters
@@ -232,13 +207,13 @@ export default function DashboardLayout() {
                   </PageTransition>
                 </UnitLimitGate>
               </Box>
-              <Box sx={{
+              {!isAddPropertyPage && <Box sx={{
                 flexShrink: 0,
                 width: '100%',
                 mt: 'auto',
               }}>
                 <Footer />
-              </Box>
+              </Box>}
             </Box>
           </Container>
         </Box>

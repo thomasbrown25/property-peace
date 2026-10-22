@@ -104,7 +104,7 @@ export default function EnhancedQuickActions() {
   const selectedProperty = useSelector(selectProperty);
 
   const handlePropertyAddClick = () => {
-    drawer.openPropertyAddWorkflowDrawer();
+    navigate('/landlord/properties/add');
   };
 
   const handleLeaseAddClick = () => {

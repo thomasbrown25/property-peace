@@ -18,6 +18,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import {
   DashboardOutlined,
+  CalendarOutlined,
   HomeOutlined,
   MessageOutlined,
   AppstoreOutlined,
@@ -27,11 +28,7 @@ import {
   BarChartOutlined,
   DollarCircleOutlined,
   ToolOutlined,
-  CloseOutlined,
-  TeamOutlined,
-  NotificationOutlined,
-  SoundOutlined,
-  UserOutlined
+  CloseOutlined
 } from '@ant-design/icons';
 import { StarOutlined, SettingOutlined } from '@ant-design/icons';
 
@@ -56,6 +53,7 @@ const flattenLandlordItems = (groups) => {
       });
     }
   });
+  items.push({ id: 'calendar', title: 'Calendar', url: '/landlord/calendar', icon: CalendarOutlined });
   items.push({ id: 'settings', title: 'Settings', url: '/landlord/settings', icon: SettingOutlined });
   return items;
 };
@@ -119,7 +117,7 @@ export default function BottomNavBar() {
 
   const handlePlusAction = (action) => {
     setPlusMenuAnchor(null);
-    if (action === 'property') drawer.openPropertyAddWorkflowDrawer();
+    if (action === 'property') navigate('/landlord/properties/add');
     else if (action === 'expense') drawer.openExpenseAddDrawer();
     else if (action === 'viewExpenses') navigate('/landlord/finances?tab=expenses');
     else if (action === 'payment') drawer.openPaymentAddDrawer();
@@ -138,7 +136,6 @@ export default function BottomNavBar() {
   const quickActionGlow = isDarkMode ? 'rgba(24, 119, 242, 0.42)' : 'rgba(4, 34, 56, 0.36)';
   // Use max() so when iOS Safari hides its UI and reports 0, we keep a minimum and the bar doesn't jump
   const safeBottom = 'max(env(safe-area-inset-bottom, 0px), 20px)';
-  const isDashboardHome = pathname === '/landlord/dashboard';
 
   return (
     <>
@@ -146,46 +143,23 @@ export default function BottomNavBar() {
       <Box
         sx={{
           position: 'fixed',
-          bottom: isDashboardHome ? 'max(env(safe-area-inset-bottom, 0px), 16px)' : 0,
-          left: isDashboardHome ? 16 : 0,
-          right: isDashboardHome ? 16 : 0,
-          height: isDashboardHome ? 62 : barHeight,
-          minHeight: isDashboardHome ? 62 : barHeight,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: barHeight,
+          minHeight: barHeight,
           boxSizing: 'border-box',
-          paddingTop: isDashboardHome ? 0 : 2,
-          paddingBottom: isDashboardHome ? 0 : safeBottom,
-          background: isDashboardHome ? (isDarkMode ? 'rgba(16,39,54,.94)' : 'rgba(255,255,255,.94)') : bottomNavBg,
+          paddingTop: 2,
+          paddingBottom: safeBottom,
+          background: bottomNavBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-around',
           zIndex: theme.zIndex.appBar,
           borderTop: '1px solid',
-          borderColor: isDashboardHome ? (isDarkMode ? 'rgba(255,255,255,.16)' : 'rgba(6,30,53,.12)') : bottomNavBorder,
-          borderLeft: isDashboardHome ? '1px solid' : 0,
-          borderRight: isDashboardHome ? '1px solid' : 0,
-          borderBottom: isDashboardHome ? '1px solid' : 0,
-          borderRadius: isDashboardHome ? 40 : 0,
-          backdropFilter: isDashboardHome ? 'blur(18px)' : 'none',
-          boxShadow: isDashboardHome ? '0 5px 24px rgba(6,30,53,.1)' : 'none'
+          borderColor: bottomNavBorder
         }}
       >
-        {isDashboardHome && [
-          { label: 'Home', icon: HomeFilled, path: '/landlord/dashboard' },
-          { label: 'Properties', icon: AppstoreOutlined, path: '/landlord/properties' },
-          { label: 'Tenants', icon: TeamOutlined, path: '/landlord/leases?tab=tenants' },
-          { label: 'Announcements', icon: SoundOutlined, path: '/landlord/announcements' },
-          { label: 'Notifications', icon: NotificationOutlined, path: '/landlord/notifications' },
-          { label: 'Profile and more', icon: UserOutlined, more: true }
-        ].map(({ label, icon: Icon, path, more }) => (
-          <ListItemButton key={label} component={more ? 'button' : Link} to={more ? undefined : path}
-            aria-label={label} aria-current={!more && label === 'Home' ? 'page' : undefined}
-            aria-expanded={more ? moreOpen : undefined}
-            onClick={more ? () => setMoreOpen(true) : () => { setMoreOpen(false); setPlusMenuAnchor(null); }}
-            sx={{ minWidth: 0, flex: 1, display: 'grid', placeItems: 'center', p: 0, height: 50, borderRadius: '50%', color: label === 'Home' ? '#2875bb' : (isDarkMode ? '#f1f5f7' : '#172634'), bgcolor: 'transparent', '&:hover': { bgcolor: isDarkMode ? 'rgba(255,255,255,.1)' : 'rgba(6,30,53,.05)' } }}>
-            <Icon style={{ fontSize: label === 'Home' ? 26 : 23 }} />
-          </ListItemButton>
-        ))}
-        {!isDashboardHome && <>
         {/* Dashboard */}
         <ListItemButton
           component={Link}
@@ -336,7 +310,6 @@ export default function BottomNavBar() {
             {moreOpen ? 'Close' : 'More'}
           </Typography>
         </ListItemButton>
-        </>}
       </Box>
 
       {/* Plus menu (same as previous FAB) */}
@@ -415,7 +388,7 @@ export default function BottomNavBar() {
           sx: {
             background: bottomNavBg,
             maxHeight: '80vh',
-            bottom: isDashboardHome ? 'calc(max(env(safe-area-inset-bottom, 0px), 16px) + 78px)' : barHeight,
+            bottom: barHeight,
             top: 'auto',
             height: 'auto',
             borderTopLeftRadius: 16,
@@ -427,10 +400,6 @@ export default function BottomNavBar() {
         }}
       >
         <Box sx={{ pt: 2, pb: 3, px: 2 }}>
-          {isDashboardHome && <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            <Button fullWidth variant="outlined" onClick={() => { setMoreOpen(false); drawer.openPropertyAddWorkflowDrawer(); }} sx={{ color: '#fff', borderColor: 'rgba(255,255,255,.35)', textTransform: 'none' }} startIcon={<PlusOutlined />}>Add property</Button>
-            <Button fullWidth variant="outlined" onClick={() => { setMoreOpen(false); drawer.openPaymentAddDrawer(); }} sx={{ color: '#fff', borderColor: 'rgba(255,255,255,.35)', textTransform: 'none' }}>Record payment</Button>
-          </Box>}
           {/* Upgrade - same condition as sidenav */}
           {!hasAdminRole && showUpgrade && (
             <>

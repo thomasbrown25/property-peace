@@ -8,10 +8,10 @@ import {
   managementPageHeaderTitleSx
 } from './managementPageHeaderStyles';
 
-export default function ManagementPageHeader({ title, description, actions, breadcrumbLabel = title, marginBottom = 2.5 }) {
+export default function ManagementPageHeader({ title, description, actions, breadcrumbLabel = title, showBreadcrumbs = true, marginBottom = 2.5 }) {
   return (
     <Box sx={{ ...managementPageHeaderContainerSx, mb: marginBottom }}>
-      <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: breadcrumbLabel }]} />
+      {showBreadcrumbs && <PageBreadcrumbs items={[{ label: 'Dashboard', path: '/landlord/dashboard' }, { label: breadcrumbLabel }]} />}
 
       <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ sm: 'center' }} justifyContent="space-between" spacing={2}>
         <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -36,5 +36,6 @@ ManagementPageHeader.propTypes = {
   description: PropTypes.node,
   actions: PropTypes.node,
   breadcrumbLabel: PropTypes.string,
+  showBreadcrumbs: PropTypes.bool,
   marginBottom: PropTypes.number
 };

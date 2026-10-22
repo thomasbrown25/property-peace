@@ -845,24 +845,11 @@ export default function CalendarPage({ embedded = false }) {
     setSelectedEvent(null);
   };
 
-  const title = view === 'Month'
-    ? format(current, 'MMMM yyyy')
-    : view === 'Week'
-    ? `${format(startOfWeek(current), 'MMM d')} – ${format(endOfWeek(current), 'MMM d, yyyy')}`
-    : 'Agenda';
-
   return (
     <Box>
       {!embedded && <DashboardHeader userName={user?.firstname || user?.Firstname} />}
 
-      <Box sx={{ mb: 2.25 }}>
-        <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2}>
-          <Box>
-            {!embedded && <Typography variant="h3" fontWeight={750}>Calendar</Typography>}
-            <Typography variant="body2" color="text.secondary" sx={{ mt: embedded ? 0 : 0.35 }}>{title} · Keep rent, work, leases, and checklists moving.</Typography>
-          </Box>
-        </Stack>
-      </Box>
+      {!embedded && <Box sx={{ mb: 2.25 }}><Typography variant="h3" fontWeight={750}>Calendar</Typography></Box>}
 
       {/* Filter bar */}
       <Box sx={{ mb: 2, p: 1.5, border: (t) => `1px solid ${subtleBorder(t)}`, borderRadius: 2, bgcolor: 'background.paper' }}>

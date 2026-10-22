@@ -1,102 +1,48 @@
-import { Divider, useMediaQuery, useTheme } from '@mui/material';
-import { useLocation } from 'react-router-dom';
-import { Box } from '@mui/material';
-
-// project imports
-import Search from './Search';
+import { Box, Divider, useMediaQuery, useTheme } from '@mui/material';
 import Message from './Message';
 import Profile from './Profile';
 import Notification from './Notification';
-
 import MobileSection from './MobileSection';
 import MobileSearch from './MobileSearch';
+import LandlordPrimaryNavigation from './LandlordPrimaryNavigation';
 import Logo from 'components/logo';
-
-import useConfig from 'hooks/useConfig';
 import useAuth from 'hooks/useAuth';
 import useIsAdmin from 'hooks/useIsAdmin';
 
-import { MenuOrientation } from 'config';
-import DrawerHeader from 'layout/Dashboard/Drawer/DrawerHeader';
-
-// ==============================|| HEADER - CONTENT ||============================== //
-
 export default function HeaderContent() {
   const theme = useTheme();
-  const { menuOrientation } = useConfig();
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
-
   const downMD = useMediaQuery((theme) => theme.breakpoints.down('md'));
-  const isXs = useMediaQuery((theme) => theme.breakpoints.down('sm'));
-  const { pathname, search } = useLocation();
-  const mobileLandlordHome = isXs && pathname === '/landlord/dashboard' && !['calendar', 'tasks'].includes(new URLSearchParams(search).get('tab'));
-
-  // Get roles from user
-  const userRoles = Array.isArray(user?.Roles) ? user?.Roles : Array.isArray(user?.roles) ? user?.roles : [];
-
-  // Normalize roles to lowercase for case-insensitive comparison
-  const normalizedRoles = userRoles.map((r) => String(r).toLowerCase().trim());
-  const hasTenantRole = normalizedRoles.includes('tenant');
-
-
-  // Determine base path based on role (priority: Admin > Tenant > Landlord)
+  const downSM = useMediaQuery((theme) => theme.breakpoints.down('sm'));
+  const roles = Array.isArray(user?.Roles) ? user.Roles : Array.isArray(user?.roles) ? user.roles : [];
+  const hasTenantRole = roles.some((role) => String(role).toLowerCase().trim() === 'tenant');
   const basePath = isAdmin ? '/admin' : hasTenantRole ? '/tenant' : '/landlord';
 
   return (
     <>
-      {menuOrientation === MenuOrientation.HORIZONTAL && !downMD && <DrawerHeader open={true} />}
-      {!downMD && !hasTenantRole && <Search />}
-      {!downMD && hasTenantRole && <Box sx={{ flex: 1 }} />}
-      {/* {!downMD && megaMenu} */}
-      {/* {!downMD && localization} */}
-      {downMD && (
-        <Box
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            height: { xs: 60, sm: 64 },
-            ml: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            ...(mobileLandlordHome && { '& > .MuiButtonBase-root': { position: 'absolute', left: '50%', transform: 'translateX(-50%)', zIndex: 1 } })
-          }}
-        >
-          {isXs && (
-            <Logo
-              reverse
-              darkSurface={theme.palette.mode === 'dark'}
-              disableTopPadding
-              lightHeaderLogo={theme.palette.mode !== 'dark'}
-              width={126}
-              to={`${basePath}/dashboard`}
-              sx={{ width: 'auto', height: 46, lineHeight: 0, display: 'flex', alignItems: 'center' }}
-            />
-          )}
-        </Box>
-      )}
-
-      {/* Desktop command bar */}
+      <Logo
+        reverse
+        darkSurface={theme.palette.mode === 'dark'}
+        disableTopPadding
+        lightHeaderLogo={theme.palette.mode !== 'dark'}
+        width={downSM ? 94 : downMD ? 116 : 142}
+        to={`${basePath}/dashboard`}
+        sx={{ flexShrink: 0, lineHeight: 0, display: 'flex', alignItems: 'center' }}
+      />
+      {!isAdmin && !hasTenantRole && <LandlordPrimaryNavigation />}
+      <Box sx={{ flex: 1, minWidth: 0 }} />
       {!downMD && (
         <>
+          {!hasTenantRole && <MobileSearch />}
           <Message />
           <Notification />
-          <Divider
-            orientation="vertical"
-            flexItem
-            sx={{
-              height: 28,
-              alignSelf: 'center',
-              mx: 1,
-              borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.18)' : 'divider'
-            }}
-          />
+          <Divider orientation="vertical" flexItem sx={{ height: 28, alignSelf: 'center', mx: 1, borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.18)' : 'divider' }} />
           <Profile />
         </>
       )}
       {downMD && !hasTenantRole && <MobileSearch />}
-      {downMD && (mobileLandlordHome ? <Message /> : <MobileSection />)}
+      {downMD && <MobileSection />}
     </>
   );
 }
