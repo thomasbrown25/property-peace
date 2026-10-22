@@ -78,6 +78,7 @@ import useFetchProperties from 'hooks/useFetchProperties';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { formatCurrency, formatDate, formatRentStatus, getRentStatusColor } from 'utils/formatters';
 import { getLeaseTermLabel } from 'utils/leaseTermLabel';
+import { getLeaseStatusPresentation as presentLeaseStatus } from 'utils/leaseStatusPresentation';
 import { endLease, reopenLease, setLease } from 'store/lease/lease.action';
 import { getAllPayments } from 'store/payment/payment.action';
 import { selectAllPayments } from 'store/payment/payment.selector';
@@ -244,12 +245,11 @@ const isStartedActiveLease = (lease) => {
   return endDate >= todayStart;
 };
 
-const getLeaseStatusLabel = (lease) => {
-  if (isLeaseDraft(lease)) return 'Draft lease';
-  if (isStartedActiveLease(lease)) return 'Active lease';
-  if (lease.isActive === false || lease.IsActive === false || lease.isActive === 0 || lease.IsActive === 0) return 'Ended lease';
-  return 'Not started';
-};
+const getLeaseStatusPresentation = (lease) => presentLeaseStatus({
+  draft: isLeaseDraft(lease),
+  active: isStartedActiveLease(lease),
+  ended: lease.isActive === false || lease.IsActive === false || lease.isActive === 0 || lease.IsActive === 0
+});
 
 const getPropertyTenantTitle = (lease) => {
   const propertyName = lease.propertyName || lease.propertyStreetAddress || 'Property';
@@ -1873,7 +1873,7 @@ export default function LeasesPage({ onEditLease }) {
                           const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
                           const { rentDue: balanceDue, rentDueIsOverdue: isOverdue } = normalizeRentBalance(rentRecord);
                           const propertyTenantTitle = getPropertyTenantTitle(lease);
-                          const isActiveLease = isStartedActiveLease(lease);
+                          const leaseStatus = getLeaseStatusPresentation(lease);
                           const term = getLeaseMonths(lease);
 
                           return (
@@ -1892,9 +1892,9 @@ export default function LeasesPage({ onEditLease }) {
                                         <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mb: 0.55 }}>{getTenantDisplay(lease)}</Typography>
                                         <Chip
                                           size="small"
-                                          label={getLeaseStatusLabel(lease)}
-                                          color={isActiveLease ? 'success' : 'default'}
-                                          variant={isActiveLease ? 'filled' : 'outlined'}
+                                          label={leaseStatus.label}
+                                          color={leaseStatus.color}
+                                          variant={leaseStatus.variant}
                                           sx={{ height: 20, width: 'fit-content', '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
                                         />
                                       </Box>
@@ -1983,7 +1983,7 @@ export default function LeasesPage({ onEditLease }) {
                               const leasePayments = (allPayments || []).filter((payment) => getPaymentLeaseId(payment) === Number(lease.id));
                               const { rentDue: balanceDue, rentDueIsOverdue: isOverdue } = normalizeRentBalance(rentRecord);
                               const propertyTenantTitle = getPropertyTenantTitle(lease);
-                              const isActiveLease = isStartedActiveLease(lease);
+                              const leaseStatus = getLeaseStatusPresentation(lease);
                               const term = getLeaseMonths(lease);
 
                               const handleRowClick = (e) => {
@@ -2032,9 +2032,9 @@ export default function LeasesPage({ onEditLease }) {
                                   <TableCell sx={{ minWidth: 120 }}>
                                     <Chip
                                       size="small"
-                                      label={getLeaseStatusLabel(lease)}
-                                      color={isActiveLease ? 'success' : 'default'}
-                                      variant={isActiveLease ? 'filled' : 'outlined'}
+                                      label={leaseStatus.label}
+                                      color={leaseStatus.color}
+                                      variant={leaseStatus.variant}
                                       sx={{ height: 20, '& .MuiChip-label': { px: 0.75, fontSize: '0.68rem', fontWeight: 700 } }}
                                     />
                                   </TableCell>
