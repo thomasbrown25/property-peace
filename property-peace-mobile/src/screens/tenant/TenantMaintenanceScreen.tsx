@@ -5,6 +5,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import MaintenanceAPI, { MaintenanceRequest } from '../../api/maintenanceAPI';
 import { displayStatus, isClosedStatus } from '../../features/maintenance/maintenanceModel';
 import { useAppTheme } from '../../theme/AppTheme';
+import LandlordPageHeader from '../../components/LandlordPageHeader';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const value = (item: any, key: string) => item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
 
@@ -14,6 +16,7 @@ export default function TenantMaintenanceScreen() {
   const { mode, colors } = useAppTheme();
   const dark = mode === 'dark';
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<'current' | 'history'>('current');
   const [items, setItems] = useState<MaintenanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +37,7 @@ export default function TenantMaintenanceScreen() {
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
   return <View style={[styles.page, dark && { backgroundColor: colors.background }]}>
+    <LandlordPageHeader title="Maintenance" />
     <View style={styles.hero}>
       <Text style={[styles.eyebrow, dark && { color: '#ff9cae' }]}>YOUR HOME</Text>
       <Text style={[styles.heading, dark && { color: colors.text }]}>Repairs & maintenance</Text>
@@ -52,7 +56,7 @@ export default function TenantMaintenanceScreen() {
       data={items}
       keyExtractor={(x, i) => String(value(x, 'id') ?? i)}
       refreshControl={<RefreshControl refreshing={refreshing} tintColor={dark ? colors.accent : '#0b5cab'} onRefresh={() => { setRefreshing(true); load(); }} />}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 24) + 100 }]}
       ItemSeparatorComponent={() => <View style={[styles.divider, dark && { backgroundColor: colors.border }]} />}
       ListHeaderComponent={<View>
         {error && <View style={[styles.error, dark && { backgroundColor: '#432630' }]}><Text style={[styles.errorText, dark && { color: '#ffb8c2' }]}>{error}</Text><TouchableOpacity onPress={load}><Text style={[styles.retry, dark && { color: colors.accent }]}>Try again</Text></TouchableOpacity></View>}

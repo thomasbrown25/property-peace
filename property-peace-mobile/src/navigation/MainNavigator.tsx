@@ -54,6 +54,7 @@ import ConversationDetailScreen from '../screens/landlord/ConversationDetailScre
 import NotificationsScreen from '../screens/landlord/NotificationsScreen';
 import SettingsScreen from '../screens/landlord/SettingsScreen';
 import TenantMaintenanceScreen from '../screens/tenant/TenantMaintenanceScreen';
+import TenantPaymentsScreen from '../screens/tenant/TenantPaymentsScreen';
 import TenantMaintenanceIntakeScreen from '../screens/tenant/TenantMaintenanceIntakeScreen';
 import TenantMaintenanceDetailScreen from '../screens/tenant/TenantMaintenanceDetailScreen';
 import TenantMaintenanceReceiptScreen from '../screens/tenant/TenantMaintenanceReceiptScreen';
@@ -171,7 +172,7 @@ function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
   return (
     <MaintenanceStack.Navigator screenOptions={stackOptions}>
       {tenant ? <>
-        <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ title: 'Maintenance', headerLeft: () => <PageBackButton inHeader /> }} />
+        <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ headerShown: false }} />
         <MaintenanceStack.Screen name="TenantMaintenanceIntake" component={TenantMaintenanceIntakeScreen} options={{ title: 'Report an issue' }} />
         <MaintenanceStack.Screen name="MaintenanceEmergency" component={MaintenanceEmergencyScreen} options={{ title: 'Emergency safety', presentation: 'modal' }} />
         <MaintenanceStack.Screen name="TenantMaintenanceReceipt" component={TenantMaintenanceReceiptScreen} options={{ title: 'Report received', headerBackVisible: false }} />
@@ -287,6 +288,7 @@ export default function MainNavigator() {
     MaintenanceNavigator,
     MarketingNavigator,
     TenantMaintenanceNavigator,
+    TenantPaymentsScreen,
     TenantsNavigator,
 
     MessagesNavigator,

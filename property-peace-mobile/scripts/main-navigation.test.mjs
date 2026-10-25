@@ -33,7 +33,7 @@ test('tenant navigation does not show the landlord Checklists tab', () => {
   assert.equal(visibleMainTabsForAudience('tenant').find((tab) => tab.name === 'Maintenance')?.label, undefined);
   assert.deepEqual(
     visibleMainTabsForAudience('tenant').map((tab) => tab.name),
-    ['Maintenance', 'Messages', 'Settings'],
+    ['Payments', 'Maintenance', 'Messages', 'Settings'],
   );
 });
 
@@ -91,7 +91,8 @@ test('landlord dock resolves all five animated destination components', () => {
 test('landlord Messages stays routable without a dock or side-menu item', async () => {
   const sheet = await readFile(new URL('../src/navigation/QuickActionsTabBar.tsx', import.meta.url), 'utf8');
   const navigator = await readFile(new URL('../src/navigation/MainNavigator.tsx', import.meta.url), 'utf8');
-  assert.doesNotMatch(sheet, /label: 'Messages'[^\n]*route: 'Messages'/);
+  assert.match(sheet, /const tenantMenu:[\s\S]*label: 'Messages'[^\n]*route: 'Messages'/);
+  assert.doesNotMatch(sheet.slice(sheet.indexOf('const landlordMenu:'), sheet.indexOf('const tenantMenu:')), /label: 'Messages'[^\n]*route: 'Messages'/);
   assert.match(sheet, /audience === 'landlord' && route\.name === 'Messages'/);
   assert.match(navigator, /name="Messages" component={MessagesNavigator} options={{ tabBarButton: \(\) => null }}/);
   assert.doesNotMatch(navigator, /name="Tenants" component={TenantsNavigator} options={{ tabBarButton: \(\) => null }}/);
@@ -123,13 +124,14 @@ test('scrollable More menu preserves native routes and labels web-only destinati
   for (const destination of ['Leases', 'Maintenance', 'Checklists', 'Team']) {
     assert.match(sheet, new RegExp(`route: '${destination}'`));
   }
-  for (const removed of ['Tenants', 'Messages', 'Notifications', 'Settings']) {
-    assert.doesNotMatch(sheet, new RegExp(`label: '${removed}'[^\\n]*route: '${removed}'`));
+  const landlordMenu = sheet.slice(sheet.indexOf('const landlordMenu:'), sheet.indexOf('const tenantMenu:'));
+  for (const removed of ['Tenants', 'Messages', 'Notifications']) {
+    assert.doesNotMatch(landlordMenu, new RegExp(`label: '${removed}'[^\\n]*route: '${removed}'`));
   }
   assert.doesNotMatch(sheet, /webPath: '\/landlord\/listings'/);
   assert.match(navigator, /name="Applications" component={ApplicationsNavigator}/);
   assert.match(navigator, /name="Listings" component={ListingsNavigator}/);
-  assert.match(sheet, /webPath: '\/tenant\/lease'/);
+  assert.match(sheet, /const tenantMenu:[\s\S]*label: 'Payments'[^\n]*route: 'Payments'/);
   assert.match(sheet, /webAppUrl[\s\S]*api\.propertypeace\.io/);
   assert.match(sheet, /<ScrollView[^>]*showsVerticalScrollIndicator/);
   assert.match(sheet, /<Modal visible={open} transparent animationType="none"/);

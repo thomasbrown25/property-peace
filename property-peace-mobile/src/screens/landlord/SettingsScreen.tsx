@@ -17,6 +17,7 @@ import userAPI from '../../api/userAPI';
 import storageService from '../../services/storageService';
 import PushAlertSetting from '../../components/notifications/PushAlertSetting';
 import { useAppTheme } from '../../theme/AppTheme';
+import { maintenanceAudience } from '../../features/maintenance/maintenanceModel';
 
 const PRIVACY_URL = 'https://www.propertypeace.io/privacy';
 const TERMS_URL = 'https://www.propertypeace.io/terms';
@@ -78,6 +79,9 @@ export default function SettingsScreen() {
   const styles = useSettingsStyles();
   const dispatch = useAppDispatch();
   const { currentUser } = useAppSelector((state) => state.user);
+  const isTenant = maintenanceAudience(currentUser) === 'tenant';
+  const visibleCategories = isTenant ? categories.filter(item => !['subscription', 'payments', 'smsnumber'].includes(item.key)) : categories;
+  const visibleProfileFields = isTenant ? profileFields.filter(item => !item.key.startsWith('business')) : profileFields;
   const accountId = getBiometricAccountId(currentUser);
   const activeAccountId = useRef(accountId);
   activeAccountId.current = accountId;
@@ -421,16 +425,20 @@ export default function SettingsScreen() {
         {category && <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back to settings">
           <Ionicons name="arrow-back" size={22} color={colors.text} />
         </TouchableOpacity>}
-        <Text style={[styles.navigationTitle, !category && styles.mainNavigationTitle]}>{category ? categories.find((item) => item.key === category)?.title : 'Settings'}</Text>
+        <Text style={[styles.navigationTitle, !category && styles.mainNavigationTitle]}>{category ? visibleCategories.find((item) => item.key === category)?.title : 'Settings'}</Text>
       </View>
-      <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 72 + Math.max(insets.bottom, 10) + (category ? 48 : 30) }]} showsVerticalScrollIndicator={false}>
-      {!category && categories.map((item) => (
+      <ScrollView ref={scrollRef} style={styles.container} contentContainerStyle={[styles.content, !category && styles.indexContent, { paddingBottom: 72 + Math.max(insets.bottom, 10) + (category ? 48 : 30) }]} showsVerticalScrollIndicator={false}>
+      {!category && visibleCategories.map((item) => (
         <TouchableOpacity key={item.key} style={styles.menuRow} onPress={() => openCategory(item.key)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={item.title}>
           <Ionicons name={item.icon} size={24} color={colors.text} />
           <Text style={styles.menuLabel}>{item.title}</Text>
           <Ionicons name="chevron-forward" size={19} color={colors.muted} />
         </TouchableOpacity>
       ))}
+      {!category && <TouchableOpacity style={[styles.signOutButton, styles.indexSignOutButton]} onPress={handleLogout} accessibilityLabel="Sign out" accessibilityRole="button" activeOpacity={0.82}>
+        <Ionicons name="log-out-outline" size={20} color={mode === 'dark' ? '#ffa77e' : '#9a3412'} />
+        <Text style={styles.signOutText}>Sign out</Text>
+      </TouchableOpacity>}
 
       {category === 'profile' && <View style={styles.profileSection}>
         <View style={styles.profileRow}>
@@ -457,15 +465,15 @@ export default function SettingsScreen() {
         <Text style={styles.rowValue}>Tap your photo to change it; photo changes save separately.</Text>
         {loadingDetail ? <ActivityIndicator color={colors.accent} /> : profile ? <>
           <Text style={styles.sectionTitle}>Personal information</Text>
-          {profileFields.map(({ key, label, keyboard }, index) => <View key={key} style={styles.inputGroup}>
+          {visibleProfileFields.map(({ key, label, keyboard }, index) => <View key={key} style={styles.inputGroup}>
             {index === 4 && <Text style={styles.sectionTitle}>Business information</Text>}
             <Text style={styles.rowLabel}>{label}</Text>
             <TextInput style={[styles.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
               accessibilityLabel={label} value={profile[key]} onChangeText={(text) => setProfile((prev) => prev ? { ...prev, [key]: text } : prev)}
               editable={!savingProfile} keyboardType={keyboard || 'default'} autoCapitalize={keyboard === 'email-address' ? 'none' : 'words'} autoCorrect={false} />
           </View>)}
-          <TouchableOpacity style={[styles.saveButton, (savingProfile || !profileBase || profileFields.every(({ key }) => profile[key] === profileBase[key])) && styles.disabled]}
-            onPress={saveProfile} disabled={savingProfile || !profileBase || profileFields.every(({ key }) => profile[key] === profileBase[key])} accessibilityRole="button" accessibilityLabel="Save profile">
+          <TouchableOpacity style={[styles.saveButton, (savingProfile || !profileBase || visibleProfileFields.every(({ key }) => profile[key] === profileBase[key])) && styles.disabled]}
+            onPress={saveProfile} disabled={savingProfile || !profileBase || visibleProfileFields.every(({ key }) => profile[key] === profileBase[key])} accessibilityRole="button" accessibilityLabel="Save profile">
             <Text style={styles.saveButtonText}>{savingProfile ? 'Saving…' : 'Save profile'}</Text>
           </TouchableOpacity>
         </> : <Text style={styles.rowValue}>Could not load profile. Reopen this section to retry.</Text>}
@@ -517,7 +525,7 @@ export default function SettingsScreen() {
           </View>
         ))}
         <Text style={styles.sectionTitle}>Notification preferences</Text>
-        {preferenceTypes.filter(([key]) => !key.startsWith('admin') || currentUser?.Roles?.some((role: string) => role.toLowerCase() === 'admin') || currentUser?.roles?.some((role: string) => role.toLowerCase() === 'admin')).map(([key, label]) => notifications[key] && <View key={key} style={styles.preferenceGroup}>
+        {preferenceTypes.filter(([key]) => isTenant ? ['rentReminders', 'overdueAlerts', 'paymentConfirmations', 'maintenanceUpdates', 'leaseExpiration', 'tenantMessages'].includes(key) : !key.startsWith('admin') || currentUser?.Roles?.some((role: string) => role.toLowerCase() === 'admin') || currentUser?.roles?.some((role: string) => role.toLowerCase() === 'admin')).map(([key, label]) => notifications[key] && <View key={key} style={styles.preferenceGroup}>
           <Text style={styles.rowLabel}>{label}</Text>
           {(['email', 'phone', 'inApp'] as const).map((channel) => <View key={channel} style={styles.preferenceRow}>
             <Text style={styles.rowValue}>{channel === 'inApp' ? 'In app' : channel === 'email' ? 'Email' : 'Phone'}</Text>
@@ -529,7 +537,7 @@ export default function SettingsScreen() {
         {savingDetail && <ActivityIndicator color={colors.accent} />}
       </> : <Text style={styles.rowValue}>Could not load notification settings. Reopen this section to retry.</Text>)}
 
-      {(category === 'subscription' || category === 'payments' || category === 'smsnumber') && <View style={styles.infoBlock}>
+      {!isTenant && (category === 'subscription' || category === 'payments' || category === 'smsnumber') && <View style={styles.infoBlock}>
         <Text style={styles.rowValue}>{category === 'subscription' ? 'Plan management, billing and invoices are available in the web app.' : category === 'payments' ? 'Rent payment access, Stripe setup and payouts are managed in the web app.' : 'Dedicated SMS number setup and routing are managed in the web app.'}</Text>
         {webAppUrl ? <TouchableOpacity style={styles.menuRow} onPress={() => { void Linking.openURL(`${webAppUrl}${webCategoryPaths[category]}`); }} accessibilityRole="link"><Text style={styles.menuLabel}>Open in web app</Text><Ionicons name="open-outline" size={19} color={colors.muted} /></TouchableOpacity>
           : <Text style={styles.rowValue}>Web app link unavailable in this build.</Text>}
@@ -648,6 +656,7 @@ function useSettingsStyles() {
 const baseStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 },
+  indexContent: { flexGrow: 1 },
   navigationHeader: { minHeight: 62, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e8edf2', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 14, paddingHorizontal: 20 },
   navigationTitle: { color: '#102d43', fontSize: 17, fontWeight: '800', textAlign: 'center' },
   mainNavigationTitle: { fontSize: 22 },
@@ -689,6 +698,7 @@ const baseStyles = StyleSheet.create({
   versionRow: { minHeight: 46, justifyContent: 'center', paddingLeft: 42 },
   versionText: { color: '#7a8793', fontSize: 12 },
   signOutButton: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: '#e8edf2' },
+  indexSignOutButton: { marginTop: 'auto', paddingTop: 20 },
   signOutText: { color: '#9a3412', fontSize: 16, fontWeight: '900' },
   dangerSection: { paddingTop: 28 },
   deleteButton: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 9 },

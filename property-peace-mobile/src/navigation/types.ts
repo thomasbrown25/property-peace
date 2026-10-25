@@ -27,6 +27,7 @@ export type MainTabParamList = {
   Properties: NavigatorScreenParams<PropertiesStackParamList> | undefined;
   Checklists: NavigatorScreenParams<ChecklistsStackParamList> | undefined;
   Maintenance: undefined;
+  Payments: undefined;
   Messages: NavigatorScreenParams<MessagesStackParamList> | undefined;
   Notifications: undefined;
   Tenants: NavigatorScreenParams<TenantsStackParamList> | undefined;

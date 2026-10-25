@@ -41,6 +41,7 @@ const landlordMenu: MenuSection[] = [
     { label: 'Reports', icon: 'bar-chart-outline', webPath: '/landlord/reports' },
   ] },
   { title: 'Account & Help', items: [
+    { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
     { label: 'Support', icon: 'help-circle-outline', webPath: '/landlord/support/ticket' },
   ] },
 ];
@@ -49,16 +50,14 @@ const shortTermLandlordMenu: MenuSection[] = landlordMenu.map(section => section
   ? { title: 'Calendar & lease history', items: section.items.filter(item => item.screen !== 'AddLease').map(item => item.route === 'Leases' ? { ...item, label: 'Lease history' } : item) }
   : section);
 const tenantMenu: MenuSection[] = [
-  { title: 'Home & Leasing', items: [
-    { label: 'Dashboard', icon: 'home-outline', webPath: '/tenant/dashboard' },
-    { label: 'My Lease', icon: 'document-text-outline', webPath: '/tenant/lease' },
-    { label: 'Applications', icon: 'clipboard-outline', webPath: '/tenant/applications' },
+  { title: 'Your home', items: [
+    { label: 'Payments', icon: 'card-outline', route: 'Payments' },
+    { label: 'Maintenance', icon: 'construct-outline', route: 'Maintenance' },
+    { label: 'Messages', icon: 'chatbubble-ellipses-outline', route: 'Messages' },
   ] },
-  { title: 'Payments & Documents', items: [
-    { label: 'Payments', icon: 'card-outline', webPath: '/tenant/payments' },
-    { label: 'Documents', icon: 'folder-outline', webPath: '/tenant/documents' },
+  { title: 'Account', items: [
+    { label: 'Settings', icon: 'settings-outline', route: 'Settings' },
   ] },
-  { title: 'Account', items: [] },
 ];
 
 // Do not send a development/preview account to production's web app.
@@ -159,7 +158,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !['Leases', 'Listings', 'Applications', 'Maintenance', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+  const visibleRoutes = state.routes.filter((route) => !['Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+    && !(audience === 'landlord' && route.name === 'Maintenance')
     && !(audience === 'landlord' && route.name === 'Messages')
     && !(audience === 'tenant' && route.name === 'Notifications')
     && !['Checklists', 'Settings'].includes(route.name));
@@ -236,8 +236,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
                   {section === menu[menu.length - 1] && (
                     <Pressable style={[styles.action, { borderTopColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Sign out"
                       onPress={() => hideSheet(() => { void dispatch(logout()); })}>
-                      <Ionicons name="log-out-outline" size={22} color={colors.text} />
-                      <Text style={[styles.actionLabel, { color: colors.text }]}>Sign out</Text>
+                      <View style={[styles.actionIcon, { backgroundColor: colors.background }]}><Ionicons name="log-out-outline" size={22} color={colors.text} /></View>
+                      <View style={styles.actionCopy}><Text style={[styles.actionLabel, { color: colors.text }]}>Sign out</Text></View>
                     </Pressable>
                   )}
                 </View>

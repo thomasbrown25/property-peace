@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMoreDrawer } from '../navigation/MoreDrawerContext';
 import { useAppTheme } from '../theme/AppTheme';
 import GlobalSearchModal from './GlobalSearchModal';
+import { useAppSelector } from '../store/hooks';
+import { maintenanceAudience } from '../features/maintenance/maintenanceModel';
 
 /** Shared landlord list-page chrome. The side slots have equal width so the title stays centered. */
 export default function LandlordPageHeader({ title, onMessage }: { title: string; onMessage?: () => void }) {
@@ -14,6 +16,7 @@ export default function LandlordPageHeader({ title, onMessage }: { title: string
   const moreDrawer = useMoreDrawer();
   const { mode, colors } = useAppTheme();
   const [searchOpen, setSearchOpen] = useState(false);
+  const isTenant = maintenanceAudience(useAppSelector(state => state.user.currentUser)) === 'tenant';
   const parent = navigation.getParent();
   const tabs = parent?.getState().routeNames.includes('Messages') ? parent : navigation;
 
@@ -26,19 +29,19 @@ export default function LandlordPageHeader({ title, onMessage }: { title: string
       </View>
       <Text style={[styles.title, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} accessibilityRole="header">{title}</Text>
       <View style={[styles.side, styles.right]}>
-        <TouchableOpacity style={[styles.action, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search properties, tenants, and leases">
+        {!isTenant && <TouchableOpacity style={[styles.action, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search properties, tenants, and leases">
           <Ionicons name="search-outline" size={25} color={colors.text} />
-        </TouchableOpacity>
+        </TouchableOpacity>}
         <TouchableOpacity style={[styles.action, mode === 'dark' && { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={onMessage ?? (() => tabs?.navigate('Messages', { screen: 'MessagesList' }))} accessibilityRole="button" accessibilityLabel={onMessage ? 'New message' : 'Messages'}>
           <Ionicons name="chatbubble-ellipses-outline" size={25} color={colors.text} />
         </TouchableOpacity>
       </View>
     </View>
-    <GlobalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} onSelect={(type, id) => {
+    {!isTenant && <GlobalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} onSelect={(type, id) => {
       if (type === 'property') tabs?.navigate('Properties', { screen: 'PropertyDetail', params: { propertyId: String(id) } });
       if (type === 'tenant') tabs?.navigate('Tenants', { screen: 'TenantDetail', params: { tenantId: String(id) } });
       if (type === 'lease') tabs?.navigate('Leases', { screen: 'LeaseDetail', params: { leaseId: String(id), archived: false } });
-    }} />
+    }} />}
   </>;
 }
 
