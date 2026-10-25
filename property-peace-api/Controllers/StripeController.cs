@@ -870,6 +870,11 @@ namespace brownstone_hub_api.Controllers
                     });
                 }
 
+                // Never reinterpret an unsupported selector as legacy rent.
+                if (!SelectedRentCharge.IsSupportedSelector(request.ChargeId, request.LeaseId))
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                        new { Message = "Charge-specific online payments are unavailable." });
+
                 if (request.LeaseId <= 0 || request.Amount <= 0)
                 {
                     return BadRequest(new { Message = "Invalid lease ID or amount" });
@@ -880,7 +885,7 @@ namespace brownstone_hub_api.Controllers
                     return BadRequest(new { success = false, message = "A valid payment operation ID is required" });
                 }
 
-                var response = await _stripeService.CreatePaymentIntentAsync(request.LeaseId, request.Amount, request.OperationId, request.Description);
+                var response = await _stripeService.CreatePaymentIntentAsync(request.LeaseId, request.Amount, request.OperationId, request.Description, request.ChargeId);
 
                 if (!response.Success)
                 {
@@ -916,12 +921,16 @@ namespace brownstone_hub_api.Controllers
                     });
                 }
 
+                if (!SelectedRentCharge.IsSupportedSelector(request.ChargeId, request.LeaseId))
+                    return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                        new { Message = "Charge-specific online payments are unavailable." });
+
                 if (string.IsNullOrWhiteSpace(request.PaymentIntentId) || request.LeaseId <= 0 || request.Amount <= 0)
                 {
                     return BadRequest(new { Message = "Invalid payment intent, lease ID, or amount" });
                 }
 
-                var response = await _stripeService.UpdatePaymentIntentAsync(request.PaymentIntentId, request.LeaseId, request.Amount, request.Description);
+                var response = await _stripeService.UpdatePaymentIntentAsync(request.PaymentIntentId, request.LeaseId, request.Amount, request.Description, request.ChargeId);
 
                 if (!response.Success)
                 {

@@ -35,6 +35,8 @@ import { useModal } from 'contexts/ModalContext';
 import { formatCurrency } from 'utils/formatters';
 import { getTenantPaymentSubmissionCopy } from 'utils/paymentSafety';
 import { normalizeRentBalance } from 'utils/rentBalance';
+import { feeAmountCents, feeAttempt, feeIntentPayload, feeSubmissionCopy } from 'utils/feeCheckout';
+import { createPaymentIntentSync } from 'utils/paymentIntentSync';
 import axiosServices from 'utils/axios';
 import { openSnackbar } from 'api/snackbar';
 import useAuth from 'hooks/useAuth';
@@ -471,7 +473,8 @@ function TenantPaymentElementCheckout({
   propertyDisplay,
   onSuccess,
   onClose,
-  setError
+  setError,
+  isCurrent
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -479,13 +482,15 @@ function TenantPaymentElementCheckout({
   const numericAmount = Number(amount || 0);
   const numericIntentAmount = Number(intentAmount || 0);
   const amountExceedsDue = totalDue > 0 && numericAmount > totalDue;
-  const amountInvalid = !numericAmount || numericAmount <= 0 || amountExceedsDue;
+  const amountInvalid = rent?.isFee
+    ? feeAmountCents(amount, rent.remainingCents) === null
+    : !numericAmount || numericAmount <= 0 || amountExceedsDue;
   const intentMatchesAmount = Math.round(numericIntentAmount * 100) === Math.round(numericAmount * 100);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!stripe || !elements || !clientSecret) {
+    if (amountInvalid || !intentMatchesAmount || !isCurrent() || !stripe || !elements || !clientSecret) {
       setError('Payment system not ready. Please wait a moment and try again.');
       return;
     }
@@ -495,6 +500,10 @@ function TenantPaymentElementCheckout({
 
     try {
       const { error: submitError } = await elements.submit();
+      if (!isCurrent()) {
+        setError('Payment amount changed. Please wait for the payment form to update.');
+        return;
+      }
       if (submitError) {
         setError(submitError.message || 'Please check your payment details.');
         setProcessing(false);
@@ -543,7 +552,7 @@ function TenantPaymentElementCheckout({
   return (
     <form onSubmit={handleSubmit} noValidate>
       <Stack spacing={4} sx={{ px: 3, py: 2 }}>
-        <PaymentSummary rent={rent} amount={amount} setAmount={setAmount} disabled={processing} showPropertyUnitInfo />
+        <PaymentSummary rent={rent} amount={amount} setAmount={setAmount} disabled={processing || rent?.isFee} showPropertyUnitInfo />
 
         <Box
           sx={{
@@ -623,6 +632,7 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
   const numericAmount = Number(amount || 0);
   const amountExceedsDue = totalDue > 0 && numericAmount > totalDue;
   const canEditAmount = typeof setAmount === 'function';
+  const feeAmountInvalid = rent?.isFee && feeAmountCents(amount, rent.remainingCents) === null;
 
   return (
     <Paper
@@ -791,11 +801,11 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
                 fixedDecimalScale
                 allowNegative={false}
                 disabled={disabled}
-                error={amountExceedsDue || !numericAmount || numericAmount <= 0}
+                error={amountExceedsDue || !numericAmount || numericAmount <= 0 || feeAmountInvalid}
                 helperText={
                   amountExceedsDue
                     ? `Amount cannot exceed the current balance due of ${formatCurrency(totalDue)}.`
-                    : `Current balance due: ${formatCurrency(totalDue)}`
+                    : rent?.isFee ? `Pay between $0.50 and ${formatCurrency(totalDue)} for this fee.` : `Current balance due: ${formatCurrency(totalDue)}`
                 }
                 InputProps={{
                   startAdornment: (
@@ -829,8 +839,8 @@ function PaymentSummary({ rent, amount, setAmount, disabled = false, showPropert
   );
 }
 
-function TenantPaymentSubmitted({ payment, onClose }) {
-  const copy = getTenantPaymentSubmissionCopy(payment);
+function TenantPaymentSubmitted({ payment, onClose, isFee }) {
+  const copy = isFee ? feeSubmissionCopy(payment?.status) : getTenantPaymentSubmissionCopy(payment);
 
   return (
     <>
@@ -884,7 +894,9 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
   const [intentAmount, setIntentAmount] = useState(0);
   const [error, setError] = useState(null);
   const [submittedPayment, setSubmittedPayment] = useState(null);
-  const paymentIntentRequestRef = useRef(0);
+  const [feeCheckoutReady, setFeeCheckoutReady] = useState(false);
+  const [feeAmountLocked, setFeeAmountLocked] = useState(false);
+  const checkoutRef = useRef(null);
   const paymentOperationIdRef = useRef(crypto.randomUUID());
 
   const isTotalPayment = rent?.isTotalPayment === true;
@@ -904,79 +916,75 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
         ? `${rent?.propertyName} – ${rent?.unitName}`
         : rent?.propertyName || 'N/A';
 
+  const scopeKey = JSON.stringify([rent?.leaseId, rent?.isFee ? rent?.chargeId : null, rent?.isFee === true]);
   useEffect(() => {
+    checkoutRef.current?.coordinator.dispose();
+    const coordinator = createPaymentIntentSync({
+      post: (path, payload) => axiosServices.post(path, payload),
+      onState: ({ clientSecret: secret, paymentIntentId: id, intentAmountCents, error: syncError }) => {
+        setClientSecret(secret);
+        setPaymentIntentId(id);
+        setIntentAmount(intentAmountCents == null ? 0 : intentAmountCents / 100);
+        setError(syncError ? onlinePaymentErrorMessage(syncError, 'Failed to update payment amount. Please try again.') : null);
+      }
+    });
+    checkoutRef.current = { key: scopeKey, coordinator };
     if (rent) {
-      setAmount(totalDue);
+      const attempt = rent.isFee ? feeAttempt(rent.leaseId, rent.chargeId, window.sessionStorage, () => crypto.randomUUID()) : null;
+      const retryAmount = attempt?.amount != null && feeAmountCents(attempt.amount, rent.remainingCents) !== null ? attempt.amount : null;
+      setAmount(retryAmount ?? totalDue);
+      setFeeAmountLocked(retryAmount !== null);
       setPaymentDate(new Date());
       setError(null);
       setClientSecret(null);
       setPaymentIntentId(null);
       setIntentAmount(0);
       setSubmittedPayment(null);
-      paymentOperationIdRef.current = crypto.randomUUID();
+      setFeeCheckoutReady(false);
+      paymentOperationIdRef.current = retryAmount !== null ? attempt.operationId : crypto.randomUUID();
     }
-  }, [rent, totalDue]);
+    return () => coordinator.dispose();
+  }, [scopeKey]);
 
   const handleSubmitted = (payment) => {
+    if (rent?.isFee) {
+      try { window.sessionStorage.removeItem(`fee-checkout:${rent.leaseId}:${rent.chargeId}`); } catch { /* unavailable */ }
+    }
     setSubmittedPayment(payment);
     onSuccess();
   };
 
+  const requestedCents = Math.round(Number(amount) * 100);
+  if (checkoutRef.current?.key === scopeKey) checkoutRef.current.amountCents = requestedCents;
+  const validAmount = rent?.isFee
+    ? feeAmountCents(amount, rent.remainingCents) !== null
+    : Number.isFinite(Number(amount)) && requestedCents > 0 && totalDue > 0 && Number(amount) <= totalDue;
   useEffect(() => {
-    if (submittedPayment) return;
-
-    const syncPaymentIntentAmount = async () => {
-      const requestedAmount = parseFloat(amount);
-      const exceedsDue = totalDue > 0 && requestedAmount > totalDue;
-
-      if (!rent?.leaseId || !requestedAmount || requestedAmount <= 0 || exceedsDue) {
-        setError(null);
-        return;
-      }
-
-      if (paymentIntentId && Math.round(Number(intentAmount || 0) * 100) === Math.round(requestedAmount * 100)) {
-        return;
-      }
-
-      const requestId = paymentIntentRequestRef.current + 1;
-      paymentIntentRequestRef.current = requestId;
-
-      try {
-        const payload = {
+    if (submittedPayment || checkoutRef.current?.key !== scopeKey) return;
+    const feePayload = rent?.isFee ? feeIntentPayload({
+      leaseId: rent.leaseId,
+      selection: { chargeId: rent.chargeId, title: rent.feeName, remainingCents: rent.remainingCents },
+      amount,
+      operationId: paymentOperationIdRef.current
+    }) : null;
+    const payload = rent?.leaseId && validAmount && (!rent.isFee || feeCheckoutReady)
+      ? rent.isFee ? feePayload : {
           leaseId: rent.leaseId,
-          amount: requestedAmount,
+          amount: Number(amount),
           operationId: paymentOperationIdRef.current,
           description: `Payment for ${propertyDisplay}`
-        };
-
-        const response = paymentIntentId
-          ? await axiosServices.post('/api/stripe/update-payment-intent', {
-              ...payload,
-              paymentIntentId
-            })
-          : await axiosServices.post('/api/stripe/create-payment-intent', payload);
-
-        if (requestId !== paymentIntentRequestRef.current) return;
-
-        if (response.data && response.data.success && response.data.data) {
-          if (!clientSecret) setClientSecret(response.data.data.clientSecret);
-          if (!paymentIntentId) setPaymentIntentId(response.data.data.paymentIntentId);
-          setIntentAmount(requestedAmount);
-          setError(null);
-        } else {
-          setError(response.data?.message || 'Failed to initialize payment');
-          setIntentAmount(0);
         }
-      } catch (err) {
-        if (requestId !== paymentIntentRequestRef.current) return;
-        console.error('Error syncing payment intent amount:', err);
-        setError(onlinePaymentErrorMessage(err, 'Failed to update payment amount. Please try again.'));
-        setIntentAmount(0);
-      }
-    };
+      : null;
+    checkoutRef.current.coordinator.sync({
+      scope: { leaseId: rent?.leaseId, chargeId: rent?.isFee ? rent?.chargeId : null, operationId: paymentOperationIdRef.current },
+      payload,
+      amountCents: payload ? requestedCents : null
+    });
+  }, [scopeKey, amount, propertyDisplay, totalDue, submittedPayment, feeCheckoutReady, validAmount]);
 
-    syncPaymentIntentAmount();
-  }, [rent?.leaseId, amount, propertyDisplay, totalDue, paymentIntentId, clientSecret, intentAmount, submittedPayment]);
+  const checkoutReady = validAmount && !!clientSecret && !!paymentIntentId &&
+    checkoutRef.current?.key === scopeKey && Math.round(Number(intentAmount) * 100) === requestedCents &&
+    checkoutRef.current.coordinator.ready;
 
   const elementsOptions = clientSecret
     ? {
@@ -991,20 +999,31 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
       }
     : null;
 
-  if (submittedPayment) {
-    return <TenantPaymentSubmitted payment={submittedPayment} onClose={onClose} />;
+  if (submittedPayment && checkoutRef.current?.key === scopeKey) {
+    return <TenantPaymentSubmitted payment={submittedPayment} onClose={onClose} isFee={rent?.isFee} />;
   }
 
-  if (!clientSecret) {
+  if (!checkoutReady) {
     return (
       <Stack spacing={3} sx={{ px: 3, py: 3 }}>
-        <PaymentSummary rent={rent} amount={amount} setAmount={setAmount} showPropertyUnitInfo />
+        <PaymentSummary rent={rent} amount={amount} setAmount={setAmount} disabled={rent?.isFee && (feeCheckoutReady || feeAmountLocked)} showPropertyUnitInfo />
+        {rent?.isFee && !feeCheckoutReady && <Button variant="contained" disabled={!feeIntentPayload({
+          leaseId: rent.leaseId,
+          selection: { chargeId: rent.chargeId, title: rent.feeName, remainingCents: rent.remainingCents },
+          amount,
+          operationId: paymentOperationIdRef.current
+        })} onClick={() => {
+          try { window.sessionStorage.setItem(`fee-checkout:${rent.leaseId}:${rent.chargeId}`, JSON.stringify({ operationId: paymentOperationIdRef.current, amount })); } catch { /* unavailable */ }
+          setFeeCheckoutReady(true);
+        }}>Continue to secure payment</Button>}
         {error && (
           <Alert severity="error" sx={{ borderRadius: 1.5 }}>
             {error}
           </Alert>
         )}
-        {!error && (
+        {error && rent?.isFee && <Button onClick={() => setFeeCheckoutReady(false)}>Try again with the same fee amount</Button>}
+        {error && <Button onClick={() => checkoutRef.current?.coordinator.retry()}>Retry secure payment</Button>}
+        {!error && (!rent?.isFee || feeCheckoutReady) && (
           <Stack direction="row" spacing={1.5} alignItems="center">
             <CircularProgress size={18} />
             <Typography variant="body2" color="text.secondary">
@@ -1030,6 +1049,7 @@ function TenantPaymentForm({ rent, onSuccess, onClose }) {
         onSuccess={handleSubmitted}
         onClose={onClose}
         setError={setError}
+        isCurrent={() => checkoutRef.current?.key === scopeKey && checkoutRef.current.amountCents === requestedCents && checkoutRef.current.coordinator.ready}
       />
       {error && (
         <Alert severity="error" sx={{ mx: 3, mb: 2, borderRadius: 1.5 }}>

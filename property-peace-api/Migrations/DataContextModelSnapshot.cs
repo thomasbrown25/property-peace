@@ -11361,6 +11361,10 @@ namespace brownstone_hub_api.Migrations
                     b.Property<long>("AmountCents")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("ChargeId")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
 

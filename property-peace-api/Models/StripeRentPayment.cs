@@ -25,6 +25,8 @@ namespace brownstone_hub_api.Models
         [MaxLength(64)] public string OperationId { get; set; } = string.Empty;
         [MaxLength(255)] public string PaymentIntentId { get; set; } = string.Empty;
         public long LeaseId { get; set; }
+        // Null identifies pre-charge-selection rent payments.
+        [MaxLength(255)] public string? ChargeId { get; set; }
         public long OrganizationId { get; set; }
         public long TenantUserId { get; set; }
         public long AmountCents { get; set; }

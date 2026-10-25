@@ -249,6 +249,89 @@ public sealed class StripeRentLossAccountingTests
         (await context.Payments.CountAsync()).Should().Be(1);
     }
 
+    [Theory]
+    [InlineData(3000L, "PartiallyRefunded", -30)]
+    [InlineData(10000L, "Refunded", -100)]
+    public async Task SelectedRentRefund_ReopensRentOnly_AndIsIdempotent(long cents, string status, decimal amount)
+    {
+        await using var db = StripeRentPaymentFlowTests.CreateContext();
+        var aggregate = await SeedCompletedPaymentAsync(db, cents, 0);
+        aggregate.ChargeId = "rent:1:2026-01-01";
+        await db.SaveChangesAsync();
+        var service = new StripeRentLossAccountingService(db, Mock.Of<ILogger<StripeRentLossAccountingService>>());
+        var before = await Utils.RentCalculator.GetOutstandingForTenantAsync(db, 1);
+        var command = new StripeRentLossAccountingCommand("pi_loss", StripeRentPaymentBlockKind.Refund, DateTimeOffset.UtcNow);
+        await service.ApplyAsync(command);
+        await service.ApplyAsync(command);
+        (await db.Payments.SingleAsync(p => p.Amount > 0)).Status.Should().Be(status);
+        var adjustment = await db.Payments.SingleAsync(p => p.Amount < 0);
+        adjustment.Amount.Should().Be(amount);
+        adjustment.FeeId.Should().BeNull();
+        adjustment.DepositId.Should().BeNull();
+        (await db.GeneralLedgerEntries.SingleAsync(e => e.TransactionType == "PaymentLossReversal")).Amount.Should().Be(amount);
+        (await Utils.RentCalculator.GetOutstandingForTenantAsync(db, 1)).Should().Be(before - amount);
+        (await db.StripeRentPayments.SingleAsync()).ChargeId.Should().Be("rent:1:2026-01-01");
+    }
+
+    [Fact]
+    public async Task SelectedRentDisputeAndWonRecovery_KeepRentIdentityAndPreserveRefundExposure()
+    {
+        await using var db = StripeRentPaymentFlowTests.CreateContext();
+        var aggregate = await SeedCompletedPaymentAsync(db, 3000, 0);
+        aggregate.ChargeId = "rent:1:2026-01-01";
+        await db.SaveChangesAsync();
+        var service = new StripeRentLossAccountingService(db, Mock.Of<ILogger<StripeRentLossAccountingService>>());
+        var now = DateTimeOffset.UtcNow;
+        var dispute = new StripeRentDisputeCreatedCommand("pi_loss", "ch_loss", "dp_rent", 8000, now, "dispute");
+        var first = await service.ApplyDisputeCreatedAsync(dispute);
+        var duplicate = await service.ApplyDisputeCreatedAsync(dispute);
+        first.IsNewDispute.Should().BeTrue();
+        duplicate.IsNewDispute.Should().BeFalse();
+        (await db.Payments.Where(p => p.Method == "Stripe loss adjustment").SumAsync(p => p.Amount)).Should().Be(-100m);
+        await service.RecoverWonDisputeAsync("pi_loss", "ch_loss", "dp_rent", 8000, "usd", now.AddMinutes(1));
+        await service.RecoverWonDisputeAsync("pi_loss", "ch_loss", "dp_rent", 8000, "usd", now.AddMinutes(2));
+        var rows = await db.Payments.Where(p => p.Method == "Stripe loss adjustment"
+            || p.Method == "Stripe dispute recovery adjustment").ToListAsync();
+        rows.Should().HaveCount(2);
+        rows.Should().OnlyContain(p => p.FeeId == null && p.DepositId == null && p.StripePaymentIntentId == "pi_loss");
+        rows.Sum(p => p.Amount).Should().Be(-30m);
+        (await db.Payments.SingleAsync(p => p.Amount == 100m)).Status.Should().Be("PartiallyRefunded");
+        (await db.GeneralLedgerEntries.Where(e => e.TransactionType == "PaymentLossReversal"
+            || e.TransactionType == "PaymentLossRecovery").SumAsync(e => e.Amount)).Should().Be(-30m);
+        (await db.StripeRentPayments.SingleAsync()).ChargeId.Should().Be("rent:1:2026-01-01");
+    }
+
+    [Fact]
+    public async Task SelectedRentAchReturn_ReopensRentOnce()
+    {
+        await using var db = StripeRentPaymentFlowTests.CreateContext();
+        var aggregate = await SeedCompletedPaymentAsync(db, 10000, 0);
+        aggregate.ChargeId = "rent:1:2026-01-01";
+        await db.SaveChangesAsync();
+        var service = new StripeRentLossAccountingService(db, Mock.Of<ILogger<StripeRentLossAccountingService>>());
+        // ACH returns arrive through the cumulative refund loss path.
+        var command = new StripeRentLossAccountingCommand("pi_loss", StripeRentPaymentBlockKind.Refund, DateTimeOffset.UtcNow);
+        await service.ApplyAsync(command);
+        await service.ApplyAsync(command);
+        (await db.Payments.SingleAsync(p => p.Method == "Stripe loss adjustment")).Amount.Should().Be(-100m);
+        (await db.Payments.SingleAsync(p => p.Amount == 100m)).FeeId.Should().BeNull();
+        (await db.GeneralLedgerEntries.CountAsync(e => e.TransactionType == "PaymentLossReversal")).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task SelectedRentIdentityCannotBeReconciledAgainstFeeOriginal()
+    {
+        await using var db = StripeRentPaymentFlowTests.CreateContext();
+        var aggregate = await SeedCompletedPaymentAsync(db, 3000, 0);
+        aggregate.ChargeId = "rent:1:2026-01-01";
+        (await db.Payments.SingleAsync()).FeeId = 19;
+        await db.SaveChangesAsync();
+        var service = new StripeRentLossAccountingService(db, Mock.Of<ILogger<StripeRentLossAccountingService>>());
+        await ((Func<Task>)(() => service.ApplyAsync(new("pi_loss", StripeRentPaymentBlockKind.Refund, DateTimeOffset.UtcNow))))
+            .Should().ThrowAsync<InvalidOperationException>();
+        (await db.Payments.CountAsync()).Should().Be(1);
+    }
+
     internal static async Task<StripeRentPayment> SeedCompletedPaymentAsync(
         Data.DataContext context, long refundedCents, long disputedCents, bool includeLedger = true)
     {

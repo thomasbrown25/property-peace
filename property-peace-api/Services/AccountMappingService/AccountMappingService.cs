@@ -126,5 +126,34 @@ namespace brownstone_hub_api.Services.AccountMappingService
                 return null;
             }
         }
+
+        public Task<Account?> GetFeeIncomeAccountAsync(long organizationId) =>
+            GetOrCreateTypedAccountAsync(organizationId, "4400", "Lease Fee Income", EAccountType.Income);
+
+        public Task<Account?> GetDepositLiabilityAccountAsync(long organizationId) =>
+            GetOrCreateTypedAccountAsync(organizationId, "2100", "Security Deposits", EAccountType.Liability);
+
+        private async Task<Account?> GetOrCreateTypedAccountAsync(long organizationId, string code, string name, EAccountType type)
+        {
+            try
+            {
+                var account = await _accountRepository.GetAccountByCodeAsync(organizationId, code);
+                if (account != null)
+                    return account.OrganizationId == organizationId && account.IsActive && account.AccountType == type ? account : null;
+                var created = await _accountService.CreateAccountAsync(new AddAccountDto
+                {
+                    OrganizationId = organizationId, AccountCode = code, AccountName = name,
+                    AccountType = type, Description = name, IsSystemAccount = true
+                });
+                if (!created.Success || created.Data == null) return null;
+                account = await _accountRepository.GetAccountByIdAsync(created.Data.Id);
+                return account?.OrganizationId == organizationId && account.IsActive && account.AccountType == type ? account : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unable to resolve account {AccountCode} for organization {OrganizationId}", code, organizationId);
+                return null;
+            }
+        }
     }
 }

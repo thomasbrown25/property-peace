@@ -48,10 +48,16 @@ namespace brownstone_hub_api.Utils
 
         public static List<RentFeeBalanceDto> GetUnpaidFeeBalances(LoadLeaseDto lease, IEnumerable<LoadPaymentDto>? payments)
         {
-            var creditedByFee = BalanceCreditingPayments(payments)
-                .Where(p => p.LeaseId == lease.Id && p.FeeId.HasValue)
+            var feeRows = payments?.Where(p => p.LeaseId == lease.Id && p.FeeId.HasValue).ToList() ?? [];
+            var adjustments = feeRows.Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty)
+                && p.Method is "Stripe loss adjustment" or "Stripe dispute recovery adjustment").ToList();
+            var creditedByFee = feeRows.Where(p => BalanceCreditingStatuses.Contains(p.Status ?? string.Empty)
+                    || (p.Status is "Refunded" or "PartiallyRefunded" or "Disputed"
+                        && p.Amount > 0 && p.StripePaymentIntentId != null
+                        && adjustments.Any(a => a.FeeId == p.FeeId
+                            && a.StripePaymentIntentId == p.StripePaymentIntentId)))
                 .GroupBy(p => p.FeeId!.Value)
-                .ToDictionary(group => group.Key, group => group.Sum(p => p.Amount));
+                .ToDictionary(group => group.Key, group => Math.Max(0m, group.Sum(p => p.Amount)));
 
             return (lease.Fees ?? [])
                 .Select(fee => new RentFeeBalanceDto

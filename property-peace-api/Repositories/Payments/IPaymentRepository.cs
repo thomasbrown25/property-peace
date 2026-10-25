@@ -5,6 +5,7 @@ namespace brownstone_hub_api.Repositories.Payments
     public interface IPaymentRepository
     {
         Task<List<LoadPaymentDto>> AddPayment(AddPaymentDto newPayment);
+        Task<(LoadPaymentDto Inserted, List<LoadPaymentDto> History)> AddPaymentWithIdentity(AddPaymentDto newPayment);
         Task<LoadPaymentDto> UpdatePayment(long paymentId, UpdatePaymentDto updatePayment, long organizationId);
         Task<bool> DeletePayment(long paymentId, long? userId);
         Task<List<LoadPaymentDto>> GetPaymentsByOrganizationAndPropertyId(

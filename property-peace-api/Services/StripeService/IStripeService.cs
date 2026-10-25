@@ -17,8 +17,8 @@ namespace brownstone_hub_api.Services.StripeService
         Task<ServiceResponse<AccountSessionDto>> CreateAccountManagementSessionAsync(string accountId);
         Task<ServiceResponse<bool>> UpdateUserStripeAccountAsync(long userId, string accountId, string status);
         Task<ServiceResponse<bool>> LinkExistingAccountAsync(long userId, string accountId);
-        Task<ServiceResponse<CreatePaymentIntentResponseDto>> CreatePaymentIntentAsync(long leaseId, decimal amount, string operationId, string? description);
-        Task<ServiceResponse<CreatePaymentIntentResponseDto>> UpdatePaymentIntentAsync(string paymentIntentId, long leaseId, decimal amount, string? description);
+        Task<ServiceResponse<CreatePaymentIntentResponseDto>> CreatePaymentIntentAsync(long leaseId, decimal amount, string operationId, string? description, string? chargeId = null);
+        Task<ServiceResponse<CreatePaymentIntentResponseDto>> UpdatePaymentIntentAsync(string paymentIntentId, long leaseId, decimal amount, string? description, string? chargeId = null);
         Task<ServiceResponse<bool>> ConfirmPaymentAsync(string paymentIntentId, long leaseId, decimal amount, DateTime paymentDate, bool recordAsProcessing = true);
         Task<ServiceResponse<bool>> ConfirmPaymentAllocatedAsync(string paymentIntentId, long leaseId, decimal amount, DateTime paymentDate, bool recordAsProcessing = true);
         string GetPublishableKey();

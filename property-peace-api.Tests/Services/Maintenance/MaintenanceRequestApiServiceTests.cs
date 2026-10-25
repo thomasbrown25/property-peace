@@ -5,12 +5,41 @@ using brownstone_hub_api.Services.Maintenance;
 using brownstone_hub_api.Services.MaintenanceTriage;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace brownstone_hub_api.Tests.Services.Maintenance;
 
 public sealed class MaintenanceRequestApiServiceTests
 {
+    [Fact]
+    public async Task TenantSelectedOrganization_IsolatesListDetailAndCreationAcrossTwoActiveLeases()
+    {
+        await using var db = CreateDb();
+        SeedTenantLease(db, 10, 20, 30, 40, 50, 60);
+        SeedTenantLease(db, 10, 21, 31, 41, 51, 61);
+        db.MaintenanceRequests.AddRange(Request(100, 40, 50, 60), Request(101, 41, 51, 61));
+        await db.SaveChangesAsync();
+        var context = new DefaultHttpContext();
+        context.Items["OrganizationId"] = 60L;
+        var service = new MaintenanceRequestApiService(db, new StubActorAccessor(new MaintenanceActor(10, true, false)),
+            new MaintenanceTriagePolicyV1(new FixedTimeProvider(Now)), new FixedTimeProvider(Now),
+            httpContextAccessor: new HttpContextAccessor { HttpContext = context });
+
+        (await service.ListAsync()).Value!.Select(x => x.Id).Should().Equal(100);
+        (await service.GetAsync(100)).Code.Should().Be(MaintenanceApiResultCode.Success);
+        (await service.GetAsync(101)).Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        (await service.CreateAsync(new CreateMaintenanceRequestDto { PropertyId = 41, UnitId = 51, Description = "Leak" }))
+            .Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        (await service.TroubleshootAsync(101, new("cycle", "step", "check-gfci-reset", false, false)))
+            .Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        context.Items.Remove("OrganizationId");
+        (await service.ListAsync()).Value.Should().BeEmpty();
+        (await service.GetAsync(100)).Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        (await service.CreateAsync(new CreateMaintenanceRequestDto { PropertyId = 40, UnitId = 50, Description = "Leak" }))
+            .Code.Should().Be(MaintenanceApiResultCode.NotFound);
+    }
+
     private static readonly DateTimeOffset Now = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]

@@ -19,6 +19,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Moq;
 using Xunit;
 
@@ -26,6 +27,96 @@ namespace brownstone_hub_api.Tests.Controllers;
 
 public sealed class StripeControllerSecurityTests
 {
+    [Theory]
+    [InlineData("deposit:pooled:123")]
+    [InlineData("fee:0")]
+    [InlineData("fee:019")]
+    [InlineData("fee:abc")]
+    [InlineData("rent:124:2026-09-01")]
+    [InlineData("rent:123:2026-9-01")]
+    [InlineData("rent:123:2026-02-30")]
+    [InlineData("rent:0123:2026-09-01")]
+    [InlineData("")]
+    public async Task UnsupportedCharge_CreateAndUpdateFailClosedEvenWhenRentGateOpen(string chargeId)
+    {
+        var stripe = new Mock<IStripeService>(MockBehavior.Strict);
+        var controller = CreateController(stripe.Object, configuration: new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Stripe:RentPaymentsEnabled"] = "true" }).Build());
+        var create = await controller.CreatePaymentIntent(new CreatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, OperationId = Guid.NewGuid().ToString(), ChargeId = chargeId
+        });
+        var update = await controller.UpdatePaymentIntent(new UpdatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, PaymentIntentId = "pi_existing", ChargeId = chargeId
+        });
+        create.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(503);
+        update.Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(503);
+        stripe.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData("fee:19")]
+    [InlineData("rent:123:2026-09-01")]
+    public async Task CanonicalSelectedCharge_CreateAndUpdateForwardExactSelector(string chargeId)
+    {
+        var stripe = new Mock<IStripeService>(MockBehavior.Strict);
+        stripe.Setup(x => x.CreatePaymentIntentAsync(123, 50m, It.IsAny<string>(), null, chargeId))
+            .ReturnsAsync(ServiceResponse<CreatePaymentIntentResponseDto>.CreateSuccess(new CreatePaymentIntentResponseDto()));
+        stripe.Setup(x => x.UpdatePaymentIntentAsync("pi_existing", 123, 50m, null, chargeId))
+            .ReturnsAsync(ServiceResponse<CreatePaymentIntentResponseDto>.CreateSuccess(new CreatePaymentIntentResponseDto()));
+        var controller = CreateController(stripe.Object, configuration: new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Stripe:RentPaymentsEnabled"] = "true" }).Build());
+        (await controller.CreatePaymentIntent(new CreatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, OperationId = Guid.NewGuid().ToString(), ChargeId = chargeId
+        })).Should().BeOfType<OkObjectResult>();
+        (await controller.UpdatePaymentIntent(new UpdatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, PaymentIntentId = "pi_existing", ChargeId = chargeId
+        })).Should().BeOfType<OkObjectResult>();
+        stripe.VerifyAll();
+    }
+
+    [Theory]
+    [InlineData("fee:19")]
+    [InlineData("rent:123:2026-09-01")]
+    public async Task GateClosed_DeniesSelectedCreateAndUpdateBeforeService(string chargeId)
+    {
+        var stripe = new Mock<IStripeService>(MockBehavior.Strict);
+        var controller = CreateController(stripe.Object);
+        (await controller.CreatePaymentIntent(new CreatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, OperationId = Guid.NewGuid().ToString(), ChargeId = chargeId
+        })).Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(503);
+        (await controller.UpdatePaymentIntent(new UpdatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, PaymentIntentId = "pi_existing", ChargeId = chargeId
+        })).Should().BeOfType<ObjectResult>().Which.StatusCode.Should().Be(503);
+        stripe.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task LegacyNullCharge_WhenGateOpen_IsForwardedForCreateAndUpdate()
+    {
+        var stripe = new Mock<IStripeService>(MockBehavior.Strict);
+        stripe.Setup(x => x.CreatePaymentIntentAsync(123, 50m, It.IsAny<string>(), "Rent", null))
+            .ReturnsAsync(ServiceResponse<CreatePaymentIntentResponseDto>.CreateSuccess(new CreatePaymentIntentResponseDto()));
+        stripe.Setup(x => x.UpdatePaymentIntentAsync("pi_existing", 123, 50m, "Rent", null))
+            .ReturnsAsync(ServiceResponse<CreatePaymentIntentResponseDto>.CreateSuccess(new CreatePaymentIntentResponseDto()));
+        var controller = CreateController(stripe.Object, configuration: new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Stripe:RentPaymentsEnabled"] = "true" }).Build());
+        (await controller.CreatePaymentIntent(new CreatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, OperationId = Guid.NewGuid().ToString(), Description = "Rent"
+        })).Should().BeOfType<OkObjectResult>();
+        (await controller.UpdatePaymentIntent(new UpdatePaymentIntentDto
+        {
+            LeaseId = 123, Amount = 50m, PaymentIntentId = "pi_existing", Description = "Rent"
+        })).Should().BeOfType<OkObjectResult>();
+        stripe.VerifyAll();
+    }
+
     [Fact]
     public async Task OwnedOnboarding_AllowsUnapprovedSelfAccountWithoutApprovingRent()
     {
@@ -53,7 +144,7 @@ public sealed class StripeControllerSecurityTests
     {
         var stripeService = new Mock<IStripeService>();
         stripeService
-            .Setup(service => service.CreatePaymentIntentAsync(123, 500m, It.IsAny<string>(), "Rent"))
+            .Setup(service => service.CreatePaymentIntentAsync(123, 500m, It.IsAny<string>(), "Rent", null))
             .ReturnsAsync(new ServiceResponse<CreatePaymentIntentResponseDto>
             {
                 Data = new CreatePaymentIntentResponseDto
@@ -78,6 +169,7 @@ public sealed class StripeControllerSecurityTests
                 It.IsAny<long>(),
                 It.IsAny<decimal>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()),
             Times.Never);
     }
@@ -642,7 +734,8 @@ public sealed class StripeControllerSecurityTests
         IBankAccountRepository? bankAccountRepository = null,
         IStripeConnectedPayeeService? payeeService = null,
         IStripePaymentTransactionQueryService? transactionQueryService = null,
-        IStripeConnectPreparationService? connectPreparationService = null)
+        IStripeConnectPreparationService? connectPreparationService = null,
+        IConfiguration? configuration = null)
     {
         return new StripeController(
             stripeService,
@@ -652,7 +745,7 @@ public sealed class StripeControllerSecurityTests
             bankAccountRepository ?? Mock.Of<IBankAccountRepository>(),
             Mock.Of<IUserRepository>(),
             Mock.Of<ILogger<StripeController>>(),
-            configuration: null,
+            configuration: configuration,
             stripeConnectedPayeeService: payeeService,
             stripePaymentTransactionQueryService: transactionQueryService,
             stripeConnectPreparationService: connectPreparationService);

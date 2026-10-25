@@ -159,7 +159,185 @@ public sealed class StripeRentAllocationTests
         payments.VerifyNoOtherCalls();
     }
 
-    private static StripeRentAllocationCommand Command(string id) => new(
-        new StripeRentPaymentSettlementAuthority(id, "ch_1", 100_00, "usd", 1, 2, 3, $"op_{id}", DateTime.UtcNow),
+    [Fact]
+    public async Task FeeSuccess_CreditsOnlySelectedFee_AndReplayDoesNotCreditTwice()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        context.LeaseFees.Add(new LeaseFee { Id = 19, LeaseId = 1, OrganizationId = 2, Amount = 100m });
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_fee_allocate");
+        aggregate.ChargeId = "fee:19";
+        aggregate.AmountCents = 3500;
+        context.StripeRentPayments.Add(aggregate);
+        context.Accounts.Add(new Account { Id = 440, OrganizationId = 2, AccountCode = "4400",
+            AccountType = brownstone_hub_api.Enums.EAccountType.Income });
+        await context.SaveChangesAsync();
+        var payments = RecordingPayments(context);
+        var service = new StripeRentAllocationService(context, payments.Object, Mock.Of<ILogger<StripeRentAllocationService>>());
+        var command = Command("pi_fee_allocate", 3500);
+
+        await service.AllocateAsync(command);
+        await service.AllocateAsync(command);
+
+        var row = await context.Payments.SingleAsync();
+        row.FeeId.Should().Be(19);
+        row.DepositId.Should().BeNull();
+        row.OrganizationId.Should().Be(2);
+        row.LeaseId.Should().Be(1);
+        row.Status.Should().Be("Completed");
+        row.Amount.Should().Be(35m);
+        (await context.GeneralLedgerEntries.SingleAsync()).AccountId.Should().Be(440);
+        (await context.StripeRentPayments.SingleAsync()).AllocationCompletedAt.Should().NotBeNull();
+        payments.Verify(x => x.AddPayment(It.IsAny<AddPaymentDto>()), Times.Once);
+    }
+
+    [Theory]
+    [InlineData("fee:019", 19, 2, 100)]
+    [InlineData("fee:19", 19, 3, 100)]
+    [InlineData("fee:19", 19, 2, 20)]
+    [InlineData("fee:missing", 19, 2, 100)]
+    [InlineData("deposit:pooled:1", 19, 2, 100)]
+    public async Task InvalidOrObsoleteFee_DeniesAllocationWithoutCreditingRent(
+        string chargeId, long feeId, long feeOrg, decimal feeAmount)
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        context.LeaseFees.Add(new LeaseFee { Id = feeId, LeaseId = 1, OrganizationId = feeOrg, Amount = feeAmount });
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_fee_invalid");
+        aggregate.ChargeId = chargeId;
+        aggregate.AmountCents = 3500;
+        context.StripeRentPayments.Add(aggregate);
+        await context.SaveChangesAsync();
+        var payments = new Mock<IPaymentService>();
+        var service = new StripeRentAllocationService(context, payments.Object, Mock.Of<ILogger<StripeRentAllocationService>>());
+
+        await ((Func<Task>)(() => service.AllocateAsync(Command("pi_fee_invalid", 3500))))
+            .Should().ThrowAsync<InvalidOperationException>();
+        payments.VerifyNoOtherCalls();
+        (await context.StripeRentPayments.SingleAsync()).AllocationCompletedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task FeeSuccess_RejectsPriorCompletedFeeCreditThatExhaustsBalance()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        context.LeaseFees.Add(new LeaseFee { Id = 19, LeaseId = 1, OrganizationId = 2, Amount = 50m });
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_fee_full");
+        aggregate.ChargeId = "fee:19";
+        aggregate.AmountCents = 3500;
+        context.StripeRentPayments.Add(aggregate);
+        context.Payments.Add(new Payment { LeaseId = 1, OrganizationId = 2, FeeId = 19,
+            Amount = 20m, Status = "Completed", PaymentDate = DateTime.UtcNow });
+        await context.SaveChangesAsync();
+        var payments = new Mock<IPaymentService>();
+
+        await ((Func<Task>)(() => new StripeRentAllocationService(context, payments.Object,
+            Mock.Of<ILogger<StripeRentAllocationService>>()).AllocateAsync(Command("pi_fee_full", 3500))))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*balance*");
+        payments.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task FeeSuccess_WrongIncomeAccountCannotMarkAllocationComplete()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        context.LeaseFees.Add(new LeaseFee { Id = 19, LeaseId = 1, OrganizationId = 2, Amount = 100m });
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_fee_wrong_account");
+        aggregate.ChargeId = "fee:19";
+        context.StripeRentPayments.Add(aggregate);
+        context.Accounts.Add(new Account { Id = 440, OrganizationId = 2, AccountCode = "4000",
+            AccountType = brownstone_hub_api.Enums.EAccountType.Income });
+        await context.SaveChangesAsync();
+        var payments = RecordingPayments(context);
+        var service = new StripeRentAllocationService(context, payments.Object, Mock.Of<ILogger<StripeRentAllocationService>>());
+
+        await ((Func<Task>)(() => service.AllocateAsync(Command("pi_fee_wrong_account"))))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*ledger*");
+        (await context.StripeRentPayments.SingleAsync()).AllocationCompletedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task FeeSuccess_CompletedMarkerWithWrongFeeCannotSilentlyReplay()
+    {
+        await using var context = StripeRentPaymentFlowTests.CreateContext();
+        await StripeRentPaymentFlowTests.SeedLeaseAsync(context, 1, 2);
+        var aggregate = StripeRentPaymentFlowTests.NewPayment("pi_fee_mismatch");
+        aggregate.ChargeId = "fee:19";
+        aggregate.AllocationCompletedAt = DateTimeOffset.UtcNow;
+        context.StripeRentPayments.Add(aggregate);
+        context.Payments.Add(new Payment { LeaseId = 1, OrganizationId = 2, FeeId = 20,
+            Amount = 100m, StripePaymentIntentId = aggregate.PaymentIntentId, Status = "Completed",
+            PaymentDate = DateTime.UtcNow });
+        await context.SaveChangesAsync();
+        var payments = new Mock<IPaymentService>();
+
+        await ((Func<Task>)(() => new StripeRentAllocationService(context, payments.Object,
+            Mock.Of<ILogger<StripeRentAllocationService>>()).AllocateAsync(Command("pi_fee_mismatch"))))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("*does not exactly match*");
+        payments.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ConcurrentIntentsForOneFee_CannotBothCreditBeyondBalance()
+    {
+        var database = Guid.NewGuid().ToString();
+        await using (var setup = StripeRentPaymentFlowTests.CreateContext(database))
+        {
+            await StripeRentPaymentFlowTests.SeedLeaseAsync(setup, 1, 2);
+            setup.LeaseFees.Add(new LeaseFee { Id = 19, LeaseId = 1, OrganizationId = 2, Amount = 50m });
+            setup.Accounts.Add(new Account { Id = 440, OrganizationId = 2, AccountCode = "4400",
+                AccountType = brownstone_hub_api.Enums.EAccountType.Income });
+            foreach (var id in new[] { "pi_fee_one", "pi_fee_two" })
+            {
+                var aggregate = StripeRentPaymentFlowTests.NewPayment(id);
+                aggregate.ChargeId = "fee:19";
+                aggregate.AmountCents = 3500;
+                setup.StripeRentPayments.Add(aggregate);
+            }
+            await setup.SaveChangesAsync();
+        }
+        await using var first = StripeRentPaymentFlowTests.CreateContext(database);
+        await using var second = StripeRentPaymentFlowTests.CreateContext(database);
+        var accepted = 0;
+        async Task Allocate(brownstone_hub_api.Data.DataContext db, string id)
+        {
+            try
+            {
+                await new StripeRentAllocationService(db, RecordingPayments(db).Object,
+                    Mock.Of<ILogger<StripeRentAllocationService>>()).AllocateAsync(Command(id, 3500));
+                Interlocked.Increment(ref accepted);
+            }
+            catch (InvalidOperationException) { }
+        }
+
+        await Task.WhenAll(Allocate(first, "pi_fee_one"), Allocate(second, "pi_fee_two"));
+
+        accepted.Should().Be(1);
+        await using var verify = StripeRentPaymentFlowTests.CreateContext(database);
+        (await verify.Payments.Where(p => p.FeeId == 19).SumAsync(p => p.Amount)).Should().Be(35m);
+    }
+
+    private static Mock<IPaymentService> RecordingPayments(brownstone_hub_api.Data.DataContext context)
+    {
+        var payments = new Mock<IPaymentService>();
+        payments.Setup(x => x.AddPayment(It.IsAny<AddPaymentDto>())).ReturnsAsync((AddPaymentDto dto) =>
+        {
+            var row = new Payment { LeaseId = dto.LeaseId, OrganizationId = 2, Amount = dto.Amount,
+                PaymentDate = dto.PaymentDate, Reference = dto.Reference, StripePaymentIntentId = dto.StripePaymentIntentId,
+                FeeId = dto.FeeId, DepositId = dto.DepositId, Status = dto.Status };
+            context.Payments.Add(row);
+            context.SaveChanges();
+            context.GeneralLedgerEntries.Add(new GeneralLedgerEntry { OrganizationId = 2, AccountId = 440,
+                TransactionId = row.Id, TransactionType = "Payment", Amount = dto.Amount });
+            context.SaveChanges();
+            return ServiceResponse<List<LoadPaymentDto>>.CreateSuccess([]);
+        });
+        return payments;
+    }
+
+    private static StripeRentAllocationCommand Command(string id, long cents = 100_00) => new(
+        new StripeRentPaymentSettlementAuthority(id, "ch_1", cents, "usd", 1, 2, 3, $"op_{id}", DateTime.UtcNow),
         "pm_1", "card", DateTimeOffset.UtcNow);
 }

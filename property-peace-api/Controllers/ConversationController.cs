@@ -10,6 +10,8 @@ using brownstone_hub_api.Repositories.Timelines;
 using brownstone_hub_api.Services.Timelines;
 using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Attributes;
+using brownstone_hub_api.Middleware;
+using brownstone_hub_api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -94,6 +96,7 @@ namespace brownstone_hub_api.Controllers
 
         // Tenant-specific: must be declared before [HttpGet("{conversationId}")] so "tenant/my-conversation" matches literally
         [Authorize(Roles = "Tenant,Admin")]
+        [TenantSelfOrganization]
         [HttpGet("tenant/my-conversation")]
         public async Task<IActionResult> GetTenantConversation()
         {
@@ -110,6 +113,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Tenant,Admin")]
+        [TenantSelfOrganization]
         [HttpGet("tenant/my-conversations")]
         public async Task<IActionResult> GetTenantConversations([FromQuery] bool includeArchived = false)
         {
@@ -122,10 +126,15 @@ namespace brownstone_hub_api.Controllers
             if (!response.Success)
                 return StatusCode(response.StatusCode, new { response.Message, response.Errors });
 
+            // A legacy TenantId association alone does not make someone a current participant.
+            if (User.IsInRole("Tenant") && response.Data != null)
+                response.Data = response.Data.Where(thread => thread.Participants.Any(participant =>
+                    participant.UserId == userId && participant.IsActive)).ToList();
             return Ok(response);
         }
 
         [Authorize(Roles = "Tenant,Admin")]
+        [TenantSelfOrganization]
         [HttpGet("tenant/available-landlords")]
         public async Task<IActionResult> GetAvailableLandlordsForTenant()
         {
@@ -142,6 +151,7 @@ namespace brownstone_hub_api.Controllers
         }
 
         [Authorize(Roles = "Tenant,Admin")]
+        [TenantSelfOrganization]
         [HttpPost("tenant/start")]
         public async Task<IActionResult> StartTenantConversation([FromBody] StartTenantConversationDto dto)
         {
@@ -157,14 +167,29 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Landlord,Admin")]
-        [RequireOrganizationRole("Owner", "Manager", "Viewer")]
+        [Authorize(Roles = "Tenant,Landlord,Admin")]
+        [TenantSelfOrganization]
         [HttpGet("{conversationId}")]
         public async Task<IActionResult> GetConversation(long conversationId)
         {
             var userId = await GetLandlordIdAsync();
             if (userId == 0)
                 return Unauthorized();
+
+            if (User.IsInRole("Tenant"))
+            {
+                // The tenant list is already selected-organization scoped. The legacy list
+                // can include a conversation by TenantId alone, so require an active participant
+                // before exposing a thread's details.
+                if (HttpContext.Items["OrganizationId"] is not long organizationId || organizationId <= 0)
+                    return NotFound();
+                var inbox = await _conversationService.GetTenantConversations(userId, includeArchived: true);
+                if (!inbox.Success)
+                    return StatusCode(inbox.StatusCode, new { inbox.Message, inbox.Errors });
+                var thread = inbox.Data?.FirstOrDefault(item => item.Id == conversationId &&
+                    item.Participants.Any(participant => participant.UserId == userId && participant.IsActive));
+                return thread == null ? NotFound() : Ok(ServiceResponse<LoadConversationDto>.CreateSuccess(thread));
+            }
 
             var response = await _conversationService.GetConversationById(conversationId, userId);
             

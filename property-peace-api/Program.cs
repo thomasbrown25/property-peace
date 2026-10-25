@@ -617,6 +617,7 @@ services.AddScoped<brownstone_hub_api.Services.AIFollowUpService.IAIFollowUpServ
 services.AddScoped<IRentCollectionService, RentCollectionService>();
 services.AddScoped<IHouseholdService, HouseholdService>();
 services.AddScoped<IPaymentService, PaymentService>();
+services.AddScoped<brownstone_hub_api.Services.Payments.LeaseChargeLedger>();
 services.AddScoped<INotificationSettingService, NotificationSettingService>();
 services.AddScoped<INotificationService, NotificationService>();
 services.AddScoped<IExpoPushTokenService, ExpoPushTokenService>();

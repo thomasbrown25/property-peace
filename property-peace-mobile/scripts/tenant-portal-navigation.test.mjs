@@ -25,6 +25,34 @@ test('tenant screens reuse landlord-style header and leave room below floating d
   assert.match(messagesHeader, /!isTenant && <TouchableOpacity[^\n]*setSearchOpen/);
 });
 
+test('payments header uses the landlord theme logos and rent/history copy stays concise', async () => {
+  const [pay, header] = await Promise.all([file('screens/tenant/TenantPaymentsScreen.tsx'), file('components/LandlordPageHeader.tsx')]);
+  assert.match(pay, /<LandlordPageHeader title="Payments" logo \/>/);
+  assert.match(header, /mode === 'dark' \? darkLogo : lightLogo/);
+  assert.match(header, /property-peace-navbar-logo\.png/);
+  assert.match(header, /property-peace-logo\.png/);
+  assert.match(pay, /bill && rentIsLate\(rent\)/);
+  assert.doesNotMatch(pay, /Rent only\. Fees and deposits|Only finalized rent payments count as paid|Confirmed rent payments:|Online payments are not available yet/);
+});
+
+test('tenant charges show server-scoped balances, fee checkout and read-only deposits', async () => {
+  const pay = await file('screens/tenant/TenantPaymentsScreen.tsx');
+  assert.match(pay, /api\.charges\(id\)/);
+  assert.match(pay, /setCharges\(chargeResult/);
+  assert.match(pay, /setCharges\(\[\]\)/);
+  assert.match(pay, /setChargeError\(/);
+  assert.match(pay, /Charges are unavailable/);
+  assert.match(pay, /Deposits cannot be paid online/);
+  assert.match(pay, /submitFeePayment\(/);
+  assert.match(pay, /canPayFee\(lease, charge, readiness\)/);
+  assert.match(pay, /charge\.payments\.map\(/);
+  assert.match(pay, /chargeBalanceLabel\(charge\)/);
+  assert.match(pay, /money\(charge\.remaining\)/);
+  assert.match(pay, /money\(charge\.paid\)/);
+  assert.match(pay, /paymentStatus\(payment\)/);
+  assert.doesNotMatch(pay, /createIntent\(charge\./);
+});
+
 test('tenant settings hide landlord operations but keep personal account, alerts and appearance', async () => {
   const settings = await file('screens/landlord/SettingsScreen.tsx');
   assert.match(settings, /const isTenant = maintenanceAudience\(currentUser\) === 'tenant'/);

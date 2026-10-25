@@ -330,6 +330,7 @@ namespace brownstone_hub_api.Services.AccountService
                 new AddAccountDto { OrganizationId = organizationId, AccountCode = "4100", AccountName = "Late Fees", AccountType = EAccountType.Income, Description = "Late payment fees", IsSystemAccount = true },
                 new AddAccountDto { OrganizationId = organizationId, AccountCode = "4200", AccountName = "Application Fees", AccountType = EAccountType.Income, Description = "Tenant application fees", IsSystemAccount = true },
                 new AddAccountDto { OrganizationId = organizationId, AccountCode = "4300", AccountName = "Other Income", AccountType = EAccountType.Income, Description = "Other miscellaneous income", IsSystemAccount = true },
+                new AddAccountDto { OrganizationId = organizationId, AccountCode = "4400", AccountName = "Lease Fee Income", AccountType = EAccountType.Income, Description = "Lease fee receipts", IsSystemAccount = true },
 
                 // Expenses (5000-5999)
                 new AddAccountDto { OrganizationId = organizationId, AccountCode = "5100", AccountName = "Maintenance Expense", AccountType = EAccountType.Expense, Description = "Property maintenance and repairs", IsSystemAccount = true },

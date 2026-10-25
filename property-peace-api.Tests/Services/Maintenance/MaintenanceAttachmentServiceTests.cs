@@ -11,6 +11,31 @@ namespace brownstone_hub_api.Tests.Services.Maintenance;
 
 public sealed class MaintenanceAttachmentServiceTests
 {
+    [Fact]
+    public async Task TenantAttachmentAccess_RequiresRequestInValidatedSelectedOrganization()
+    {
+        await using var db = Db(); Seed(db);
+        db.MaintenanceAttachments.Add(Attachment(0));
+        await db.SaveChangesAsync();
+        var context = new DefaultHttpContext();
+        context.Items["OrganizationId"] = 61L;
+        var storage = new FakeStorage();
+        var service = new MaintenanceAttachmentService(db, new Actor(new MaintenanceActor(10, true, false)),
+            storage, new FixedTime(Now), new MaintenanceTransactionSideEffects(),
+            new HttpContextAccessor { HttpContext = context });
+
+        (await service.ListAsync(100)).Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        (await service.DownloadAsync(100, 1)).Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        (await service.DeleteAsync(100, 1)).Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        (await service.UploadAsync(100, MaintenanceAttachmentPurpose.Intake, File("proof.jpg", "image/jpeg", 32)))
+            .Code.Should().Be(MaintenanceApiResultCode.NotFound);
+        storage.PutNames.Should().BeEmpty();
+        context.Items["OrganizationId"] = 60L;
+        (await service.ListAsync(100)).Code.Should().Be(MaintenanceApiResultCode.Success);
+        context.Items.Remove("OrganizationId");
+        (await service.ListAsync(100)).Code.Should().Be(MaintenanceApiResultCode.NotFound);
+    }
+
     private static readonly DateTimeOffset Now = new(2026, 8, 9, 12, 0, 0, TimeSpan.Zero);
 
     [Theory]

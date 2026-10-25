@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using brownstone_hub_api.Services.SmsService;
 using brownstone_hub_api.Data;
 using brownstone_hub_api.Repositories.Conversations;
+using brownstone_hub_api.Middleware;
 using Microsoft.EntityFrameworkCore;
 
 
@@ -33,6 +34,7 @@ namespace brownstone_hub_api.Controllers
         private readonly DataContext? _dataContext = dataContext;
 
 
+        [TenantSelfOrganization]
         [HttpPost]
         public async Task<IActionResult> AddMessage([FromBody] AddMessageDto message, CancellationToken cancellationToken = default)
         {
@@ -126,6 +128,7 @@ namespace brownstone_hub_api.Controllers
                 await IsConversationInActiveOrganizationAsync(conversationId.Value, cancellationToken);
         }
 
+        [TenantSelfOrganization]
         [HttpGet("{messageId}")]
         public async Task<IActionResult> GetMessage(long messageId, CancellationToken cancellationToken = default)
         {
@@ -140,6 +143,7 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
+        [TenantSelfOrganization]
         [HttpGet("conversation/{conversationId}")]
         public async Task<IActionResult> GetMessages(long conversationId, [FromQuery] int skip = 0, [FromQuery] int take = 50, CancellationToken cancellationToken = default)
         {
@@ -182,6 +186,7 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
+        [TenantSelfOrganization]
         [HttpPost("{messageId}/read")]
         public async Task<IActionResult> MarkMessageAsRead(long messageId, CancellationToken cancellationToken = default)
         {
@@ -196,6 +201,7 @@ namespace brownstone_hub_api.Controllers
             return Ok(response);
         }
 
+        [TenantSelfOrganization]
         [HttpPost("conversation/{conversationId}/read")]
         public async Task<IActionResult> MarkConversationAsRead(long conversationId, CancellationToken cancellationToken = default)
         {

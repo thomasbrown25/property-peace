@@ -15,6 +15,10 @@ import {
   DialogContentText,
   DialogTitle,
   Pagination,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   Typography,
   useTheme
@@ -33,6 +37,8 @@ import {
   selectPaymentsPage
 } from 'utils/paymentsTab';
 import PaymentRow from './PaymentRow';
+import LeaseChargeList from 'components/payments/LeaseChargeList';
+import { leaseChargeOptions, readChargesResponse } from 'utils/leaseCharges';
 
 const PAGE_SIZE = 10;
 const PAYMENT_SORT_OPTIONS = [
@@ -80,11 +86,13 @@ const errorMessage = (error) => {
 };
 
 export default function PaymentsTab({
+  properties,
   propertyId,
   unitId,
   sharedPeriod,
   sharedFrom,
   sharedTo,
+  mutationVersion,
   onMutation,
   registrationKey,
   registerExport,
@@ -107,6 +115,29 @@ export default function PaymentsTab({
   const [editPayment, setEditPayment] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const leaseOptions = useMemo(() => leaseChargeOptions(properties, propertyId, unitId), [properties, propertyId, unitId]);
+  const [chargeLeaseId, setChargeLeaseId] = useState(null);
+  const selectedChargeLeaseId = leaseOptions.some((lease) => String(lease.id) === String(chargeLeaseId))
+    ? chargeLeaseId : leaseOptions[0]?.id ?? null;
+  const [charges, setCharges] = useState([]);
+  const [chargeResultLeaseId, setChargeResultLeaseId] = useState(null);
+  const [chargesLoading, setChargesLoading] = useState(false);
+  const [chargesError, setChargesError] = useState('');
+  const [chargeRefresh, setChargeRefresh] = useState(0);
+
+  useEffect(() => {
+    if (!selectedChargeLeaseId) return undefined;
+    let active = true;
+    setCharges([]);
+    setChargeResultLeaseId(null);
+    setChargesError('');
+    setChargesLoading(true);
+    axiosServices.get(`/api/payment/${selectedChargeLeaseId}/charges`)
+      .then((response) => { if (active) { setCharges(readChargesResponse(response.data)); setChargeResultLeaseId(selectedChargeLeaseId); } })
+      .catch((err) => { if (active) setChargesError(err?.response?.data?.message || 'Charge information is unavailable.'); })
+      .finally(() => { if (active) setChargesLoading(false); });
+    return () => { active = false; };
+  }, [selectedChargeLeaseId, chargeRefresh, mutationVersion]);
 
   const scopeChanged = previousScopeKeyRef.current !== scopeKey;
   const requestedPage = scopeChanged ? 1 : page;
@@ -213,6 +244,24 @@ export default function PaymentsTab({
 
   return (
     <Box>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h6" sx={{ mb: 0.5 }}>Lease charges</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+          View balances and partial payment activity by lease. The payment ledger below remains separately searchable and exportable.
+        </Typography>
+        {leaseOptions.length ? <>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 280 }, mb: 2 }}>
+            <InputLabel id="charge-lease-label">Lease for charges</InputLabel>
+            <Select labelId="charge-lease-label" label="Lease for charges" value={selectedChargeLeaseId ?? ''}
+              onChange={(event) => setChargeLeaseId(event.target.value)}>
+              {leaseOptions.map((lease) => <MenuItem key={lease.id} value={lease.id}>{lease.label}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <LeaseChargeList charges={chargeResultLeaseId === selectedChargeLeaseId ? charges : []}
+            loading={chargesLoading || (chargeResultLeaseId !== selectedChargeLeaseId && !chargesError)} error={chargesError}
+            onRetry={() => setChargeRefresh((count) => count + 1)} />
+        </> : <Alert severity="info">No leases are available in this property and unit scope.</Alert>}
+      </Box>
       <CSVLink
         ref={csvLinkRef}
         data={csvRows}
@@ -327,6 +376,7 @@ export default function PaymentsTab({
 }
 
 PaymentsTab.propTypes = {
+  properties: PropTypes.arrayOf(PropTypes.object),
   propertyId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
   sharedPeriod: PropTypes.string.isRequired,
   unitId: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),

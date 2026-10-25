@@ -6,5 +6,7 @@ namespace brownstone_hub_api.Services.AccountMappingService
     {
         Task<Account?> GetOrCreateExpenseAccountAsync(long organizationId, string category);
         Task<Account?> GetRentIncomeAccountAsync(long organizationId);
+        Task<Account?> GetFeeIncomeAccountAsync(long organizationId);
+        Task<Account?> GetDepositLiabilityAccountAsync(long organizationId);
     }
 }
