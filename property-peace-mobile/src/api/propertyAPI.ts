@@ -42,9 +42,10 @@ class PropertyAPI {
     return response.data ?? [];
   }
 
-  async createProperty(property: Partial<Property>): Promise<Property> {
+  async createProperty(property: Partial<Property>, imageUri?: string | null, imageMimeType = 'image/jpeg'): Promise<Property> {
     const formData = new FormData();
     formData.append('propertyData', JSON.stringify(property));
+    if (imageUri) formData.append('files', { uri: imageUri, name: `property-image.${imageMimeType === 'image/png' ? 'png' : imageMimeType === 'image/webp' ? 'webp' : 'jpg'}`, type: imageMimeType } as any);
     const response = await this.client.post<ApiResponse<Property>>('/api/Property', formData);
     return response.data;
   }

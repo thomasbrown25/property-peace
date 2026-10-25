@@ -13,6 +13,7 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Config;
 using brownstone_hub_api.Filters;
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -854,6 +855,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Tenant")]
         [HttpPost("create-payment-intent")]
+        [TenantSelfOrganization]
         [RequireRentPaymentActionReady(RentPaymentAction.Pay)]
         public async Task<IActionResult> CreatePaymentIntent([FromBody] CreatePaymentIntentDto request)
         {
@@ -899,6 +901,7 @@ namespace brownstone_hub_api.Controllers
         /// </summary>
         [Authorize(Roles = "Tenant")]
         [HttpPost("update-payment-intent")]
+        [TenantSelfOrganization]
         [RequireRentPaymentActionReady(RentPaymentAction.Pay)]
         public async Task<IActionResult> UpdatePaymentIntent([FromBody] UpdatePaymentIntentDto request)
         {

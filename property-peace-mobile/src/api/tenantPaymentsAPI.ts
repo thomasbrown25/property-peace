@@ -1,6 +1,6 @@
 // Authenticated apiClient is injected by the native screen; keeping transport injectable
 // also lets contract tests exercise the exact tenant-scoped routes without a live server.
-export type TenantLease = { id: number; isActive?: boolean; rentCollectionByPlatform?: boolean | null; propertyName?: string; unitName?: string; nextDueDate?: string };
+export type TenantLease = { id: number; name?: string | null; isActive?: boolean; rentCollectionByPlatform?: boolean | null; propertyName?: string; unitName?: string; nextDueDate?: string; startDate?: string | null; endDate?: string | null; rentAmount?: number | null; rentFrequency?: string | null; depositAmount?: number | null };
 export type TenantRent = { leaseId: number; rentDue: number; currentMonthRentDueDate?: string | null; dueDate?: string; unpaidFees?: unknown[]; processingPaymentCount?: number; hasLongProcessingPayment?: boolean };
 export type TenantPayment = { id: string; leaseId: number; amount: number; currency?: string; paymentDate?: string; status: string; creditsRent?: boolean; canRetry?: boolean; paymentType?: string; method?: string | null };
 export type PayReadiness = { allowed: boolean; blockers: Array<{ message?: string; code?: string }> };

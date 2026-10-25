@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../store';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -8,6 +10,7 @@ import type { PropertiesStackParamList } from '../../navigation/types';
 import PropertyAPI, { Property, Unit } from '../../api/propertyAPI';
 import UnitAPI from '../../api/unitAPI';
 import AddressAutocompleteInput from '../../components/properties/AddressAutocompleteInput';
+import googlePlacesAPI from '../../api/googlePlacesAPI';
 import { applyGooglePlaceDetails } from '../../features/properties/addressAutocomplete';
 import { BulkCreateUncertainError, buildingErrors, bulkCreateWithReconciliation, bulkUnitCountError, bulkUnitDrafts, createPropertyErrors, emptyProperty, emptyUnit, initialUnitUpdates, locationErrors, nextUnitName, prefillProperty, prefillUnit, propertyErrors, propertyPayload, unitErrors, unitPayload, type PropertyForm, type UnitForm } from '../../features/properties/propertyForms';
 import { useAppTheme } from '../../theme/AppTheme';
@@ -34,6 +37,41 @@ export default function AddPropertyScreen() {
   const [form, setForm] = useState<PropertyForm>(emptyProperty);
   const [units, setUnits] = useState<UnitForm[]>(() => propertyId ? [] : [emptyUnit('1')]);
   const [error, setError] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageMimeType, setImageMimeType] = useState('image/jpeg');
+  const [imageIsGoogle, setImageIsGoogle] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
+  const imageRequest = useRef(0);
+  useEffect(() => () => { imageRequest.current++; }, []);
+  const selectAddress = async (details: Parameters<typeof applyGooglePlaceDetails>[1]) => {
+    const request = ++imageRequest.current;
+    setError('');
+    setImageUri(null);
+    setImageIsGoogle(false);
+    setImageLoading(true);
+    setForm(current => ({ ...current, ...applyGooglePlaceDetails(current, details) }));
+    try {
+      const address = [details.streetAddress, details.city, details.state, details.zipCode].filter(Boolean).join(', ');
+      const base64 = await googlePlacesAPI.streetView(address);
+      if (!base64 || request !== imageRequest.current || !FileSystem.cacheDirectory) return;
+      const uri = `${FileSystem.cacheDirectory}property-streetview-${request}-${Date.now()}.jpg`;
+      await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
+      if (request === imageRequest.current) { setImageMimeType('image/jpeg'); setImageUri(uri); setImageIsGoogle(true); }
+      else void FileSystem.deleteAsync(uri, { idempotent: true });
+    } catch { /* Imagery is optional; property creation remains available. */ }
+    finally { if (request === imageRequest.current) setImageLoading(false); }
+  };
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) { Alert.alert('Photo access needed', 'Allow photo access to select a property image.'); return; }
+    const selected = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible });
+    if (selected.canceled || !selected.assets[0]) return;
+    imageRequest.current++;
+    setImageLoading(false);
+    setImageUri(selected.assets[0].uri);
+    setImageMimeType(selected.assets[0].mimeType || 'image/jpeg');
+    setImageIsGoogle(false);
+  };
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [bulkRetryBlocked, setBulkRetryBlocked] = useState(false);
   const [step, setStep] = useState<0 | 1 | 2>(0);
@@ -63,7 +101,15 @@ export default function AddPropertyScreen() {
     return () => { active = false; };
   }, [propertyId, unitId, isUnit]);
 
-  const update = (key: keyof PropertyForm, value: string) => { setError(''); setForm(current => ({ ...current, [key]: value })); };
+  const update = (key: keyof PropertyForm, value: string) => {
+    if (key === 'address' || key === 'city' || key === 'state' || key === 'zipCode') {
+      imageRequest.current++;
+      setImageLoading(false);
+      setImageUri(null);
+      setImageIsGoogle(false);
+    }
+    setError(''); setForm(current => ({ ...current, [key]: value }));
+  };
   const updateUnit = (index: number, key: keyof UnitForm, value: string | boolean) => {
     setError(''); setUnits(current => current.map((unit, i) => i === index ? { ...unit, [key]: value } : unit));
   };
@@ -76,7 +122,7 @@ export default function AddPropertyScreen() {
     setStep(step === 0 ? 1 : 2);
   };
   const save = async () => {
-    if (saving || bulkRetryBlocked || (isUnit && unitId && !selectedUnit)) return;
+    if (saving || imageLoading || bulkRetryBlocked || (isUnit && unitId && !selectedUnit)) return;
     if (isCreating && (step < 1 || (multiUnit && step < 2))) return;
     if (propertyId && !property) { setError('Could not load property. Go back and try again.'); return; }
     if (isCreating && multiUnit && unitMode === 'bulk' && bulkUnitCountError(bulkCount)) {
@@ -88,6 +134,7 @@ export default function AddPropertyScreen() {
     ];
     if (issues.length) { setError(issues.join('\n')); return; }
     setError(''); setSaving(true);
+    let idForNavigation: string | null = null;
     try {
       if (isUnit) {
         if (!propertyId) throw new Error('Property ID is missing');
@@ -101,17 +148,21 @@ export default function AddPropertyScreen() {
         if (!id) {
           const landlordId = currentUser?.id ?? currentUser?.Id;
           if (!landlordId) throw new Error('Sign in again to add a property.');
-          const result = await PropertyAPI.createProperty({ ...propertyPayload(form, undefined, draftUnits.length), landlordId: Number(landlordId) });
+          const result = await PropertyAPI.createProperty({ ...propertyPayload(form, undefined, draftUnits.length), landlordId: Number(landlordId) }, imageUri, imageMimeType);
           id = String(result.id ?? result.Id ?? '');
           if (!id) throw new Error('Property was created, but its ID was not returned. Refresh the property list before retrying.');
           setCreatedId(id);
         }
+        idForNavigation = id;
         // Fetch fresh backend-generated unit IDs on every retry; updates are idempotent.
         const created = await PropertyAPI.getPropertyById(id);
         const updates = initialUnitUpdates(draftUnits, created.units ?? created.Units ?? [], id);
         for (const update of updates) await UnitAPI.saveUnit(update);
       }
-      navigation.goBack();
+      if (isCreating && idForNavigation) {
+        navigation.replace('PropertyDetail', { propertyId: idForNavigation });
+        Alert.alert('Property created successfully!', 'Your new property is ready.');
+      } else navigation.goBack();
     } catch (e: any) {
       if (e instanceof BulkCreateUncertainError) setBulkRetryBlocked(true);
       setError(e?.response?.data?.message || e?.message || 'Could not save. Please try again.');
@@ -158,7 +209,10 @@ export default function AddPropertyScreen() {
           {field('Property name *', form.name, value => update('name', value))}
           <Text style={[styles.label, { color: colors.text }]}>Street address *</Text>
           <Text style={{ color: colors.muted, marginBottom: 8 }}>Choose an address suggestion to fill city, state, and ZIP automatically.</Text>
-          <AddressAutocompleteInput value={form.address} onChangeText={value => update('address', value)} onPlaceSelected={details => { setError(''); setForm(current => ({ ...current, ...applyGooglePlaceDetails({ ...current, address: current.address }, details) })); }} disabled={saving || Boolean(createdId)} />
+          <AddressAutocompleteInput value={form.address} onChangeText={value => update('address', value)} onPlaceSelected={selectAddress} disabled={saving || Boolean(createdId)} />
+          {imageLoading && <Text style={{ color: colors.muted, marginBottom: 12 }}>Adding a Google image…</Text>}
+          {!!imageUri && <View style={{ marginBottom: 16 }}><Image source={{ uri: imageUri }} style={{ width: '100%', height: 180, borderRadius: 12 }} resizeMode="cover" />{imageIsGoogle && <Text style={{ color: colors.muted, marginTop: 5 }}>Google image added automatically</Text>}</View>}
+          <TouchableOpacity accessibilityRole="button" onPress={pickImage} disabled={saving || Boolean(createdId)} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>{imageUri ? 'Replace property image' : 'Upload my own image'}</Text></TouchableOpacity>
           {field('City *', form.city, value => update('city', value))}
           <View style={styles.row}><View style={styles.half}>{field('State *', form.state, value => update('state', value))}</View><View style={styles.half}>{field('ZIP code *', form.zipCode, value => update('zipCode', value))}</View></View>
         </>}
@@ -185,7 +239,7 @@ export default function AddPropertyScreen() {
         {isUnit && <>{units.map(unitFields)}{!unitId && <TouchableOpacity accessibilityRole="button" onPress={() => setUnits(current => [...current, emptyUnit(nextUnitName([...(property?.units ?? property?.Units ?? []), ...current]), current[0]?.rentalMode ?? 'LongTerm')])} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>+ Add another unit</Text></TouchableOpacity>}</>}
         {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         {isCreating && step > 0 && !createdId && <TouchableOpacity accessibilityRole="button" accessibilityLabel="Previous step" disabled={saving} onPress={() => { setError(''); setStep(current => (current - 1) as 0 | 1 | 2); }} style={styles.secondary}><Text style={{ color: colors.accent, fontWeight: '700' }}>Back</Text></TouchableOpacity>}
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isCreating && (step === 0 || step === 1 && multiUnit) ? 'Next step' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'} disabled={saving || bulkRetryBlocked || (isUnit && !units.length) || Boolean(isUnit && unitId && !selectedUnit)} onPress={isCreating && (step === 0 || step === 1 && multiUnit) ? next : save} style={[styles.primary, { backgroundColor: colors.accent }, saving && { opacity: 0.6 }]}><Text style={[styles.primaryText, dark && { color: colors.background }]}>{saving ? 'Saving…' : isCreating && (step === 0 || step === 1 && multiUnit) ? 'Continue' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'}</Text></TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={isCreating && (step === 0 || step === 1 && multiUnit) ? 'Next step' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'} disabled={saving || imageLoading || bulkRetryBlocked || (isUnit && !units.length) || Boolean(isUnit && unitId && !selectedUnit)} onPress={isCreating && (step === 0 || step === 1 && multiUnit) ? next : save} style={[styles.primary, { backgroundColor: colors.accent }, saving && { opacity: 0.6 }]}><Text style={[styles.primaryText, dark && { color: colors.background }]}>{saving ? 'Saving…' : isCreating && (step === 0 || step === 1 && multiUnit) ? 'Continue' : isUnit ? unitId ? 'Save unit' : 'Add units' : propertyId ? 'Save property' : 'Add property'}</Text></TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );

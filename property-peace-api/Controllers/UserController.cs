@@ -722,6 +722,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
         }
 
         [Authorize]
+        [OrganizationContextOptional]
         [HttpGet("settings")]
         public async Task<ActionResult<ServiceResponse<SettingsDto>>> GetSettings()
         {
@@ -736,6 +737,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
         [Authorize]
         [HttpPost("settings")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<SettingsDto>>> SaveSettings(SettingsDto newSettings)
         {
             var response = await _userService.SaveSettings(newSettings);
@@ -767,6 +769,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
         [Authorize]
         [HttpGet("notification-settings")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<NotificationSettingDto>>> GetNotificationSettings()
         {
             var response = await _notificationSettingService.GetNotificationSettings();
@@ -785,6 +788,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
         [Authorize]
         [HttpPost("notification-settings")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<NotificationSettingDto>>> SaveNotificationSettings([FromBody] NotificationSettingDto notificationSettingDto)
         {
             var response = await _notificationSettingService.SaveNotificationSettings(notificationSettingDto);
@@ -824,6 +828,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
         [Authorize]
         [HttpPost("change-password")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<string>>> ChangePassword([FromBody] ChangePasswordDto request)
         {
             var response = await _userService.ChangePassword(request.CurrentPassword, request.NewPassword);
@@ -837,6 +842,7 @@ This is an automated email from Property Peace. Please do not reply to this mess
 
         [Authorize]
         [HttpPut("update-account")]
+        [OrganizationContextOptional]
         public async Task<ActionResult<ServiceResponse<LoadUserDto>>> UpdateAccount([FromBody] UpdateUserDto request)
         {
             var response = await _userService.UpdateUserAccountInfo(request);

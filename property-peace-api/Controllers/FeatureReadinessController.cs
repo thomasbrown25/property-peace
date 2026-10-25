@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using brownstone_hub_api.Config;
+using brownstone_hub_api.Middleware;
 using brownstone_hub_api.Services.FeatureReadiness;
 using brownstone_hub_api.Services.RentPaymentAccess;
 using Microsoft.AspNetCore.Authorization;
@@ -42,6 +43,7 @@ public sealed class FeatureReadinessController(
         GetRentPaymentActionReadiness(RentPaymentAction.Configure, cancellationToken);
 
     [HttpGet("rent-payments/pay")]
+    [TenantSelfOrganization]
     public Task<ActionResult<RentPaymentActionReadiness>> GetRentPaymentPayReadiness(
         CancellationToken cancellationToken) =>
         GetRentPaymentActionReadiness(RentPaymentAction.Pay, cancellationToken);

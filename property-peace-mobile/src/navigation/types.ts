@@ -98,6 +98,11 @@ export type MaintenanceStackParamList = {
   TenantMaintenanceDetail: { requestId: string; listItem?: import('../api/maintenanceAPI').MaintenanceRequest };
 };
 
+export type TenantLeasesStackParamList = {
+  TenantLeasesList: undefined;
+  TenantLeaseDetail: { leaseId: number };
+};
+
 export type LeasesStackParamList = {
   LeasesList: undefined;
   AddLease: undefined;

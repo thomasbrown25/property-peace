@@ -1907,8 +1907,13 @@ namespace brownstone_hub_api.Repositories.Leases
                         .ThenInclude(tl => tl.Tenant)
                     .Include(l => l.LeaseFees)
                     .Include(l => l.LeaseAgreement)
-                    .Where(l => !l.IsDeleted && l.TenantLeases.Any(tl => tl.Tenant.UserId == tenantUserId) &&
-                                !l.Unit.Property.IsDeleted)
+                    .Where(l => !l.IsDeleted && l.OrganizationId != null &&
+                                !l.Unit.Property.IsDeleted &&
+                                l.Unit.Property.OrganizationId == l.OrganizationId &&
+                                l.Unit.Property.Organization != null &&
+                                l.Unit.Property.Organization.IsActive && !l.Unit.Property.Organization.IsDeleted &&
+                                l.TenantLeases.Any(tl => tl.Tenant.UserId == tenantUserId &&
+                                    !tl.Tenant.IsDeleted && tl.Tenant.OrganizationId == l.OrganizationId))
                     .ToListAsync();
 
                 var leaseDtos = _mapper.Map<List<LoadLeaseDto>>(leases);

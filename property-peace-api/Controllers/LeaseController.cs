@@ -16,6 +16,7 @@ using brownstone_hub_api.Dtos.Notification;
 using brownstone_hub_api.Repositories.Tenants;
 using brownstone_hub_api.Helpers;
 using brownstone_hub_api.Data;
+using brownstone_hub_api.Middleware;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
@@ -176,6 +177,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Tenant,Admin")]
         [HttpGet("tenant/my-leases")]
+        [TenantSelfOrganization(allowWithoutOrganization: true)]
         public async Task<IActionResult> GetMyLeases()
         {
             // Get current user ID from JWT token (try multiple claim names)
@@ -227,6 +229,8 @@ namespace brownstone_hub_api.Controllers
             }
 
             var response = await _leaseService.GetLeasesByTenantUserId(userId.Value);
+            if (response.Success && response.Data != null && HttpContext.Items.TryGetValue("OrganizationId", out var scope) && scope is long organizationId)
+                response.Data = response.Data.Where(lease => lease.OrganizationId == organizationId).ToList();
 
             if (!response.Success)
                 return StatusCode(response.StatusCode, new
@@ -240,6 +244,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Tenant,Admin")]
         [HttpGet("tenant/my-lease")]
+        [TenantSelfOrganization(allowWithoutOrganization: true)]
         public async Task<IActionResult> GetMyLease()
         {
             long? userId = null;
@@ -269,6 +274,8 @@ namespace brownstone_hub_api.Controllers
                 return Unauthorized(new { Message = "User ID not found in token" });
 
             var leasesResponse = await _leaseService.GetLeasesByTenantUserId(userId.Value);
+            if (leasesResponse.Success && leasesResponse.Data != null && HttpContext.Items.TryGetValue("OrganizationId", out var scope) && scope is long organizationId)
+                leasesResponse.Data = leasesResponse.Data.Where(lease => lease.OrganizationId == organizationId).ToList();
             if (!leasesResponse.Success || leasesResponse.Data == null || !leasesResponse.Data.Any())
                 return NotFound(new { Message = "No lease found", Errors = new { Details = "No active lease found for this tenant" } });
 

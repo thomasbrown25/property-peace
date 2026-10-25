@@ -51,6 +51,7 @@ const shortTermLandlordMenu: MenuSection[] = landlordMenu.map(section => section
   : section);
 const tenantMenu: MenuSection[] = [
   { title: 'Your home', items: [
+    { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
     { label: 'Payments', icon: 'card-outline', route: 'Payments' },
     { label: 'Maintenance', icon: 'construct-outline', route: 'Maintenance' },
     { label: 'Messages', icon: 'chatbubble-ellipses-outline', route: 'Messages' },

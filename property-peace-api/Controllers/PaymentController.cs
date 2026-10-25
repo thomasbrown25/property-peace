@@ -2,6 +2,7 @@ using brownstone_hub_api.Dtos.Payment;
 using brownstone_hub_api.Services.PaymentService;
 using brownstone_hub_api.Services.UserService;
 using brownstone_hub_api.Helpers;
+using brownstone_hub_api.Middleware;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
@@ -42,6 +43,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Landlord,Admin")]
         [HttpPost]
+        [ManualPaymentWrite]
         public async Task<IActionResult> AddPayment(AddPaymentDto newPayment)
         {
             var userId = await GetCurrentUserIdAsync();
@@ -87,6 +89,7 @@ namespace brownstone_hub_api.Controllers
 
         [Authorize(Roles = "Tenant")]
         [HttpGet("{leaseId}/tenant-history")]
+        [TenantSelfOrganization(allowWithoutOrganization: true)]
         public async Task<IActionResult> GetTenantLeasePaymentHistory(long leaseId)
         {
             var userId = await GetCurrentUserIdAsync();

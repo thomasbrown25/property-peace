@@ -48,7 +48,10 @@ test('confirmed address starts a Google image lookup for the property image step
   assert.match(page, /if \(!initialAddress\) return;/);
   assert.match(page, /fetchPhotosFromPlace\(null, fullAddress\)/);
   assert.match(page, /setGooglePhotoUrl\(result\?\.url \|\| null\)/);
-  assert.match(page, /fetchingPhoto \? [\s\S]*?Searching Google for a property image/);
+  assert.match(page, /if \(result\?\.url\) void applyGooglePhoto\(result.url, requestId\)/);
+  assert.match(page, /setFieldValue\('image', new File\(\[blob\]/);
+  assert.match(page, /Google image added automatically/);
+  assert.doesNotMatch(page, /Use Google Image/);
 });
 
 test('Google image lookup verifies Street View availability rather than accepting an error image', () => {
@@ -82,7 +85,7 @@ test('selecting a property type stays on the question until Next is clicked', ()
   assert.match(selection[1], /setFieldValue\('propertyType', propertyType\)/);
   assert.doesNotMatch(selection[1], /transitionToStep|handleNext/);
   assert.match(page, /if \(currentStep === STEPS\.PROPERTY_TYPE_SELECTION\) \{[\s\S]*?transitionToStep\(initialAddress \? STEPS\.IMAGE : STEPS\.ADDRESS, 'left'\)/);
-  assert.match(page, /onClick=\{handleNext\}[\s\S]*?disabled=\{processing \|\| \(currentStep === STEPS\.PROPERTY_TYPE_SELECTION && !values\.propertyType\)\}/);
+  assert.match(page, /onClick=\{handleNext\}[\s\S]*?disabled=\{processing \|\| \(currentStep === STEPS\.IMAGE && \(fetchingPhoto \|\| applyingGooglePhoto\)\) \|\| \(currentStep === STEPS\.PROPERTY_TYPE_SELECTION && !values\.propertyType\)\}/);
   assert.match(page, /currentStep !== STEPS\.ADD_UNITS && \(/);
   assert.doesNotMatch(page, /currentStep !== STEPS\.ADD_UNITS && \(!onClose \|\| currentStep !== STEPS\.PROPERTY_TYPE_SELECTION\)/);
 });

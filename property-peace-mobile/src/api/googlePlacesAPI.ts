@@ -8,6 +8,14 @@ import {
 type AutocompleteData = { suggestions: GooglePlaceSuggestion[] };
 
 const googlePlacesAPI = {
+  async streetView(address: string): Promise<string | null> {
+    try {
+      const response = await apiClient.get<ApiResponse<string>>('/api/google-places/streetview', { params: { address } });
+      return response.data || null;
+    } catch {
+      return null;
+    }
+  },
   async autocomplete(
     input: string,
     sessionToken: string,

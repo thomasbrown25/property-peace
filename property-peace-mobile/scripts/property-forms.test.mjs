@@ -130,7 +130,7 @@ test('bulk add fails closed for partial creation and prevents screen retry', asy
   const screen = readFileSync(new URL('../src/screens/landlord/AddPropertyScreen.tsx', import.meta.url), 'utf8');
   assert.match(screen, /await bulkCreateWithReconciliation\(propertyId, units,/);
   assert.match(screen, /if \(e instanceof BulkCreateUncertainError\) setBulkRetryBlocked\(true\)/);
-  assert.match(screen, /disabled=\{saving \|\| bulkRetryBlocked/);
+  assert.match(screen, /disabled=\{saving \|\| imageLoading \|\| bulkRetryBlocked/);
 });
 test('successful bulk add performs one snapshot and one POST', async () => {
   let reads = 0;

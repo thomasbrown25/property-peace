@@ -136,6 +136,8 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   const [googlePhotoUrl, setGooglePhotoUrl] = useState(null);
   const [pendingPlace, setPendingPlace] = useState(null);
   const [photoSource, setPhotoSource] = useState(null);
+  const [applyingGooglePhoto, setApplyingGooglePhoto] = useState(false);
+  const imageRequestRef = useRef(0);
   const [propertyRecordPrefill, setPropertyRecordPrefill] = useState(null);
   const [loadingPropertyRecordPrefill, setLoadingPropertyRecordPrefill] = useState(false);
   const addressInputRef = useRef(null);
@@ -212,6 +214,26 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   });
 
   const { values, setFieldValue, errors, touched, handleSubmit } = formik;
+
+  const applyGooglePhoto = async (url, requestId) => {
+    if (!url || requestId !== imageRequestRef.current) return;
+    setApplyingGooglePhoto(true);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Google photo unavailable');
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('Google photo is not an image');
+      if (requestId !== imageRequestRef.current) return;
+      setFieldValue('image', new File([blob], 'google-maps-photo.jpg', { type: blob.type }));
+      setFieldValue('useGoogleImage', true);
+      setFieldValue('imageIsPlaceholder', false);
+      setFieldValue('googleImageUrl', url);
+    } catch {
+      if (requestId === imageRequestRef.current) setGooglePhotoUrl(null);
+    } finally {
+      if (requestId === imageRequestRef.current) setApplyingGooglePhoto(false);
+    }
+  };
 
   // Initialize customUnits when switching to custom mode
   useEffect(() => {
@@ -299,30 +321,32 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
   useEffect(() => {
     if (!initialAddress) return;
     let active = true;
+    const requestId = ++imageRequestRef.current;
     const fullAddress = [initialAddress.streetAddress, initialAddress.city, initialAddress.state, initialAddress.zipCode].filter(Boolean).join(', ');
     setGooglePhotoUrl(null);
     setFieldValue('googleImageUrl', '');
     fetchPhotosFromPlace(null, fullAddress).then((result) => {
-      if (!active) return;
+      if (!active || requestId !== imageRequestRef.current) return;
       setGooglePhotoUrl(result?.url || null);
       setPhotoSource(result?.source || null);
-      setFieldValue('googleImageUrl', result?.url || '');
+      if (result?.url) void applyGooglePhoto(result.url, requestId);
     });
-    return () => { active = false; };
+    return () => { active = false; imageRequestRef.current++; };
   }, [initialAddress, fetchPhotosFromPlace, setFieldValue]);
 
   // Handler for when address is selected
   const handleAddressSelected = async (address, place) => {
     if (place) {
+      const requestId = ++imageRequestRef.current;
       // Store place for potential re-fetching
       setPendingPlace(place);
       // Fetch Google image but don't show dialog - will show in step 2
       const photoResult = await fetchPhotosFromPlace(place, address);
-      if (photoResult && photoResult.url) {
+      if (requestId === imageRequestRef.current && photoResult?.url) {
         setGooglePhotoUrl(photoResult.url);
         setPhotoSource(photoResult.source);
         // Store in formik so it persists between steps
-        setFieldValue('googleImageUrl', photoResult.url);
+        await applyGooglePhoto(photoResult.url, requestId);
       }
     }
   };
@@ -643,10 +667,9 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
         }
       }
 
-      setTimeout(() => {
-        setProcessing(false);
-        transitionToStep(STEPS.SUCCESS, 'left');
-      }, 1000);
+      if (onClose) onClose();
+      navigate(`/landlord/property/${created.id}`);
+      openSnackbar({ open: true, message: 'Property created successfully!', variant: 'alert', alert: { color: 'success' } });
     } catch (error) {
       console.error(error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to add property.';
@@ -919,10 +942,11 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
         return (
           <Box sx={{ textAlign: 'center' }}>
             <Typography variant="h4" fontWeight={600} gutterBottom sx={{ mb: 4 }}>
-              Do you want to upload the Google image for your home or use your own?
+              Property image
             </Typography>
-            {fetchingPhoto ? <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 3 }}><CircularProgress size={20} /><Typography>Searching Google for a property image…</Typography></Stack> : null}
-            {(googlePhotoUrl || values.googleImageUrl) && (
+            {(fetchingPhoto || applyingGooglePhoto) ? <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" sx={{ mb: 3 }}><CircularProgress size={20} /><Typography>Adding a Google property image…</Typography></Stack> : null}
+            {values.useGoogleImage && <Typography sx={{ mb: 2 }}>Google image added automatically. You can replace it with your own.</Typography>}
+            {values.useGoogleImage && (googlePhotoUrl || values.googleImageUrl) && (
               <Box sx={{ mb: 3, maxWidth: 600, mx: 'auto' }}>
                 <Box
                   component="img"
@@ -939,30 +963,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
               </Box>
             )}
             <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" sx={{ mt: 4 }}>
-              {(googlePhotoUrl || values.googleImageUrl) ? (
-                <Button
-                  variant={values.useGoogleImage ? 'contained' : 'outlined'}
-                  onClick={async () => {
-                    const photoUrl = googlePhotoUrl || values.googleImageUrl;
-                    try {
-                      const response = await fetch(photoUrl);
-                      const blob = await response.blob();
-                      const file = new File([blob], 'google-maps-photo.jpg', { type: blob.type });
-                      setFieldValue('image', file);
-                      setFieldValue('useGoogleImage', true);
-                      setFieldValue('imageIsPlaceholder', false);
-                      setFieldValue('googleImageUrl', photoUrl);
-                      handleNext();
-                    } catch (error) {
-                      console.error('Error converting Google photo to file:', error);
-                      setError('Failed to load Google photo. Please upload your own image.');
-                    }
-                  }}
-                  sx={{ textTransform: 'none', px: 4 }}
-                >
-                  Use Google Image
-                </Button>
-              ) : !fetchingPhoto ? (
+              {!(googlePhotoUrl || values.googleImageUrl) && !fetchingPhoto && !applyingGooglePhoto && !values.image ? (
                 <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                   Google image unavailable for this address.
                 </Typography>
@@ -980,6 +981,8 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      imageRequestRef.current++;
+                      setApplyingGooglePhoto(false);
                       setFieldValue('image', file);
                       setFieldValue('useGoogleImage', false);
                       setFieldValue('imageIsPlaceholder', false);
@@ -992,6 +995,8 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
               <Button
                 variant="text"
                 onClick={async () => {
+                  imageRequestRef.current++;
+                  setApplyingGooglePhoto(false);
                   setError(null);
                   try {
                     const response = await fetch(placeholderImage);
@@ -1495,7 +1500,7 @@ function PropertyAddWorkflow({ onClose, initialAddress, onBackToRental }) {
                   variant="contained"
                   color="primary"
                   onClick={handleNext}
-                  disabled={processing || (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !values.propertyType)}
+                  disabled={processing || (currentStep === STEPS.IMAGE && (fetchingPhoto || applyingGooglePhoto)) || (currentStep === STEPS.PROPERTY_TYPE_SELECTION && !values.propertyType)}
                   sx={{ textTransform: 'none', px: 4, py: 1 }}
                 >
                   {currentStep === STEPS.SINGLE_UNIT_DETAILS ? 'Create Property' : currentStep === STEPS.IMAGE ? 'Continue' : 'Next'}

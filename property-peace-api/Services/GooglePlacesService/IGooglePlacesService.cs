@@ -4,6 +4,7 @@ namespace brownstone_hub_api.Services.GooglePlacesService;
 
 public interface IGooglePlacesService
 {
+    Task<byte[]?> GetStreetViewImageAsync(string address, CancellationToken cancellationToken);
     Task<IReadOnlyList<GooglePlaceSuggestionDto>> AutocompleteAsync(
         string input, Guid sessionToken, CancellationToken cancellationToken);
 

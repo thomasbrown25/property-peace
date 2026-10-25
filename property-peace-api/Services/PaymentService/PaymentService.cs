@@ -327,8 +327,13 @@ namespace brownstone_hub_api.Services.PaymentService
                         && tl.Tenant.UserId == tenantUserId
                         && !tl.Tenant.IsDeleted
                         && !tl.Lease.IsDeleted
-                        && tl.Tenant.OrganizationId.HasValue
-                        && tl.Tenant.OrganizationId == tl.Lease.Unit.Property.OrganizationId)
+                        && !tl.Lease.Unit.Property.IsDeleted
+                        && tl.Lease.OrganizationId.HasValue
+                        && tl.Tenant.OrganizationId == tl.Lease.OrganizationId
+                        && tl.Lease.OrganizationId == tl.Lease.Unit.Property.OrganizationId
+                        && tl.Lease.Unit.Property.Organization != null
+                        && tl.Lease.Unit.Property.Organization.IsActive
+                        && !tl.Lease.Unit.Property.Organization.IsDeleted)
                     .Select(tl => tl.Tenant.OrganizationId)
                     .SingleOrDefaultAsync();
 

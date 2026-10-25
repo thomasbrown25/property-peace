@@ -18,6 +18,7 @@ import {
   PropertiesStackParamList,
   SettingsStackParamList,
   TenantsStackParamList,
+  TenantLeasesStackParamList,
   VendorsStackParamList,
 } from './types';
 import type { DashboardStackParamList } from './types';
@@ -55,6 +56,7 @@ import NotificationsScreen from '../screens/landlord/NotificationsScreen';
 import SettingsScreen from '../screens/landlord/SettingsScreen';
 import TenantMaintenanceScreen from '../screens/tenant/TenantMaintenanceScreen';
 import TenantPaymentsScreen from '../screens/tenant/TenantPaymentsScreen';
+import TenantLeasesScreen, { TenantLeaseDetailScreen } from '../screens/tenant/TenantLeasesScreen';
 import TenantMaintenanceIntakeScreen from '../screens/tenant/TenantMaintenanceIntakeScreen';
 import TenantMaintenanceDetailScreen from '../screens/tenant/TenantMaintenanceDetailScreen';
 import TenantMaintenanceReceiptScreen from '../screens/tenant/TenantMaintenanceReceiptScreen';
@@ -117,6 +119,7 @@ const MessagesStack = createNativeStackNavigator<MessagesStackParamList>();
 const TenantsStack = createNativeStackNavigator<TenantsStackParamList>();
 const VendorsStack = createNativeStackNavigator<VendorsStackParamList>();
 const LeasesStack = createNativeStackNavigator<LeasesStackParamList>();
+const TenantLeasesStack = createNativeStackNavigator<TenantLeasesStackParamList>();
 const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
 const ListingsStack = createNativeStackNavigator<ListingsStackParamList>();
 const ApplicationsStack = createNativeStackNavigator<ApplicationsStackParamList>();
@@ -233,6 +236,14 @@ function LeasesNavigator() {
   );
 }
 
+function TenantLeasesNavigator() {
+  const options = useStackOptions();
+  return <TenantLeasesStack.Navigator screenOptions={options}>
+    <TenantLeasesStack.Screen name="TenantLeasesList" component={TenantLeasesScreen} options={{ headerShown: false }} />
+    <TenantLeasesStack.Screen name="TenantLeaseDetail" component={TenantLeaseDetailScreen} options={({ navigation }) => ({ title: 'Lease', headerBackVisible: false, headerLeft: () => <PageBackButton inHeader onPress={() => navigation.goBack()} /> })} />
+  </TenantLeasesStack.Navigator>;
+}
+
 function SettingsNavigator() {
   const stackOptions = useStackOptions();
   return (
@@ -311,6 +322,7 @@ export default function MainNavigator() {
       {animatedTabs.map((tab) => {
         return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
       })}
+      {audience === 'tenant' && <Tab.Screen name="Leases" component={TenantLeasesNavigator} options={{ tabBarButton: () => null }} />}
       {audience === 'tenant' && <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />}
       {audience === 'landlord' && <>
         <Tab.Screen name="Maintenance" component={MaintenanceNavigator} options={{ tabBarButton: () => null }} />

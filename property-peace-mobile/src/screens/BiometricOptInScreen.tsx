@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import biometricService, { BiometricAvailability } from '../services/biometricService';
 
@@ -43,9 +42,6 @@ export default function BiometricOptInScreen({ userId, onContinue }: Props) {
       <SafeAreaView style={styles.safeArea}>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.center}>
-            <View style={styles.icon}>
-              <Ionicons name="scan-outline" size={44} color="#93c5fd" />
-            </View>
             <Image
               source={require('../../assets/property-peace-logo.png')}
               style={styles.logo}
@@ -74,11 +70,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 18, paddingTop: 24, paddingBottom: 22 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 32 },
-  icon: {
-    width: 84, height: 84, alignItems: 'center', justifyContent: 'center', marginBottom: 20,
-    backgroundColor: 'rgba(96, 165, 250, 0.12)', borderColor: 'rgba(147, 197, 253, 0.25)',
-    borderWidth: 1, borderRadius: 26,
-  },
   logo: { width: 224, height: 66, marginBottom: 16 },
   title: { color: '#fff', fontSize: 26, lineHeight: 34, fontWeight: '700', textAlign: 'center', marginBottom: 16, maxWidth: 350 },
   description: { color: 'rgba(255, 255, 255, 0.70)', fontSize: 16, lineHeight: 25, textAlign: 'center', maxWidth: 340 },
