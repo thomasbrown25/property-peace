@@ -39,4 +39,4 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Build iOS and submit to App Store Connect
-        run: eas build --platform ios --profile production --auto-submit --non-interactive
+        run: eas build --platform ios --profile testflight --auto-submit --non-interactive
