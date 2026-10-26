@@ -1,6 +1,6 @@
 // Authenticated apiClient is injected by the native screen; keeping transport injectable
 // also lets contract tests exercise the exact tenant-scoped routes without a live server.
-export type TenantLease = { id: number; name?: string | null; isActive?: boolean; rentCollectionByPlatform?: boolean | null; propertyName?: string; propertyType?: string; unitName?: string; nextDueDate?: string; startDate?: string | null; endDate?: string | null; rentAmount?: number | null; rentFrequency?: string | null; depositAmount?: number | null };
+export type TenantLease = { id: number; name?: string | null; isActive?: boolean; rentCollectionByPlatform?: boolean | null; propertyName?: string; propertyType?: string; unitName?: string; nextDueDate?: string; startDate?: string | null; endDate?: string | null; rentAmount?: number | null; rentFrequency?: string | null; rentDueDay?: number | null; depositAmount?: number | null };
 export type TenantRent = { leaseId: number; rentDue: number; rentDueIsOverdue?: boolean; currentMonthRentDueDate?: string | null; dueDate?: string; unpaidFees?: unknown[]; processingPaymentCount?: number; hasLongProcessingPayment?: boolean };
 export type TenantPayment = { id: number | string; leaseId: number; amount: number; stripePaymentIntentId?: string | null; currency?: string; paymentDate?: string; status: string; creditsRent?: boolean; canRetry?: boolean; paymentType?: string; method?: string | null };
 export type TenantChargePayment = { id: number; amount: number; status: string; paymentDate: string | null };
@@ -62,7 +62,12 @@ export function createTenantPaymentsAPI(client: Transport) {
       validLeaseId(leaseId);
       if (!Number.isFinite(amount) || amount < 0.5 || !Number.isSafeInteger(Math.round(amount * 100)) || Math.abs(Math.round(amount * 100) - amount * 100) > 1e-7) throw new Error('Invalid rent payment amount.');
       if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)) throw new Error('Invalid payment operation.');
-      if (chargeId !== undefined && (!/^fee:[1-9]\d*$/.test(chargeId) || !Number.isSafeInteger(Number(chargeId.slice(4))))) throw new Error('Invalid fee charge.');
+      if (chargeId !== undefined && !(
+        (/^fee:[1-9]\d*$/.test(chargeId) && Number.isSafeInteger(Number(chargeId.slice(4)))) ||
+        (new RegExp(`^rent:${leaseId}:\\d{4}-\\d{2}-\\d{2}$`).test(chargeId) &&
+          !Number.isNaN(Date.parse(chargeId.split(':')[2] + 'T00:00:00Z')) &&
+          new Date(chargeId.split(':')[2] + 'T00:00:00Z').toISOString().slice(0, 10) === chargeId.split(':')[2])
+      )) throw new Error('Invalid selected charge.');
       const data = unwrap<any>(await client.post('/api/stripe/create-payment-intent', { leaseId, amount, operationId, ...(chargeId === undefined ? {} : { chargeId }) }), 'checkout');
       if (typeof data?.clientSecret !== 'string' || !/^pi_[^\s]+_secret_[^\s]+$/.test(data.clientSecret) || typeof data.paymentIntentId !== 'string' || !/^pi_[^\s]+$/.test(data.paymentIntentId)) throw new Error('Invalid secure checkout response.');
       return { clientSecret: data.clientSecret, paymentIntentId: data.paymentIntentId };

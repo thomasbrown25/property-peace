@@ -1,16 +1,17 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Crypto from 'expo-crypto';
 import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
 import apiClient from '../../services/apiClient';
 import { createTenantPaymentsAPI, type PayReadiness, type TenantCharge, type TenantLease, type TenantPayment, type TenantRent } from '../../api/tenantPaymentsAPI';
-import { billForLease, canPayFee, canPayRent, chargeBalanceLabel, chargeDate, leaseHomeLabel, parseRentPayment, pendingFeePayment, pendingRentPayment, paymentStatus, rentIsLate } from '../../features/tenantPayments/model';
-import { submitFeePayment, submitRentPayment } from '../../features/tenantPayments/checkout';
+import { billForLease, canPayFee, canPayRent, chargeDate, leaseHomeLabel, parseRentPayment, paymentRows, pendingFeePayment, pendingRentPayment, paymentStatus, rentIsLate } from '../../features/tenantPayments/model';
+import { submitFeePayment, submitRentPayment, submitSelectedRentPayment } from '../../features/tenantPayments/checkout';
 import { useAppTheme } from '../../theme/AppTheme';
 import LandlordPageHeader from '../../components/LandlordPageHeader';
 import { useAppSelector } from '../../store/hooks';
+import { tenantWelcome } from '../../features/tenantPayments/tenantWelcome';
 
 const api = createTenantPaymentsAPI(apiClient);
 const money = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -21,6 +22,7 @@ type Checkout = (clientSecret: string) => Promise<'submitted' | 'canceled'>;
 type FeeHold = { paymentIntentId: string; amount: number; chargeId: string; previousRemaining: number };
 function PaymentsContent({ checkout, keyError }: { checkout?: Checkout; keyError?: string }) {
   const { colors, mode } = useAppTheme();
+  const currentUser = useAppSelector(state => state.user.currentUser);
   const insets = useSafeAreaInsets();
   const [leases, setLeases] = useState<TenantLease[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
@@ -43,6 +45,8 @@ function PaymentsContent({ checkout, keyError }: { checkout?: Checkout; keyError
   const [error, setError] = useState('');
   const [checkoutNote, setCheckoutNote] = useState('');
   const [amountInput, setAmountInput] = useState('');
+  const [modalCharge, setModalCharge] = useState<{ route: 'rent' | 'selectedRent' | 'fee'; chargeId: string | null } | null>(null);
+  const modalRef = useRef<string | null>(null);
   const [pending, setPending] = useState<{ paymentIntentId: string; amount: number } | null>(null);
   const pendingRef = useRef<{ paymentIntentId: string; amount: number } | null>(null);
   const amountLeaseRef = useRef<number | null>(null);
@@ -99,19 +103,22 @@ function PaymentsContent({ checkout, keyError }: { checkout?: Checkout; keyError
   useFocusEffect(useCallback(() => { setLoading(true); void load(); return () => { requestRef.current++; }; }, [load]));
   const lease = leases.find(x => x.id === selected) ?? null;
   const bill = billForLease(lease, rent);
-  const amount = parseRentPayment(amountInput, bill?.amount ?? NaN);
-  const eligible = canPayRent(lease, rent, readiness) && !!checkout && !busy && !loading && !error && !pending && amount !== null;
-  const whyUnavailable = !lease ? 'No tenant lease is available.' : !lease.isActive ? 'This lease is not active.' : lease.rentCollectionByPlatform !== true ? '' : !rent || !bill ? 'Rent balance is unavailable.' : pending ? 'Payment submitted; awaiting server confirmation. Refresh to check your balance.' : !!rent.processingPaymentCount ? 'A payment is processing. Check history before paying again.' : bill.amount <= 0 ? 'No rent is due right now.' : bill.amount < 0.5 ? 'Rent due is below the $0.50 minimum for online payment.' : amount === null ? 'Enter $0.50 or more, up to the rent due, with no more than two decimal places.' : readiness?.allowed !== true ? '' : 'Secure checkout is unavailable.';
+  const whyUnavailable = !lease ? 'No tenant lease is available.' : !lease.isActive ? 'This lease is not active.' : lease.rentCollectionByPlatform !== true ? '' : !rent || !bill ? 'Rent balance is unavailable.' : pending ? 'Payment submitted; awaiting server confirmation. Refresh to check your balance.' : !!rent.processingPaymentCount ? 'A payment is processing. Check history before paying again.' : bill.amount <= 0 ? 'No rent is due right now.' : bill.amount < 0.5 ? 'Rent due is below the $0.50 minimum for online payment.' : readiness?.allowed !== true ? '' : 'Secure checkout is unavailable.';
 
-  const pay = async () => {
-    if (busyRef.current || !eligible || !lease || !bill) return;
+  const pay = async (selectedRent?: TenantCharge) => {
+    if (busyRef.current || !lease || !bill || !checkout || loading || !!error || !!pending || !canPayRent(lease, rent, readiness) ||
+      parseRentPayment(amountInput, selectedRent?.remaining ?? bill.amount) === null ||
+      (selectedRent && !paymentRows(lease, rent, charges).some(row => row.charge?.chargeId === selectedRent.chargeId && row.route === 'selectedRent' && row.payable))) return;
     const leaseId = lease.id;
     busyRef.current = true;
     setBusy(true); setCheckoutNote('');
     try {
       if (!checkout) throw new Error('Secure checkout is unavailable.');
-      const result = await submitRentPayment({ api, lease, displayedRent: rent, input: amountInput,
-        uuid: () => Crypto.randomUUID(), isCurrent: () => selectedRef.current === leaseId && amountLeaseRef.current === leaseId,
+      const result = selectedRent ? await submitSelectedRentPayment({ api, lease, displayedRent: rent, charge: selectedRent, input: amountInput,
+        uuid: () => Crypto.randomUUID(), isCurrent: () => selectedRef.current === leaseId && modalRef.current === selectedRent.chargeId,
+        onIntentCreated: intent => { pendingRef.current = intent; setPending(intent); }, checkout })
+        : await submitRentPayment({ api, lease, displayedRent: rent, input: amountInput,
+        uuid: () => Crypto.randomUUID(), isCurrent: () => selectedRef.current === leaseId && amountLeaseRef.current === leaseId && modalRef.current === 'rent',
         onIntentCreated: intent => { pendingRef.current = intent; setPending(intent); }, checkout });
       if (selectedRef.current !== leaseId) return;
       if (result.result === 'canceled') {
@@ -160,70 +167,90 @@ function PaymentsContent({ checkout, keyError }: { checkout?: Checkout; keyError
       if (selectedRef.current === leaseId) { setRefreshing(true); await load(leaseId); }
     }
   };
+  const rows = chargeError ? paymentRows(lease, rent, []) : paymentRows(lease, rent, charges);
+  const activeRow = rows.find(row => row.route === modalCharge?.route && (row.charge?.chargeId ?? null) === modalCharge?.chargeId);
+  const activeFee = activeRow?.route === 'fee' ? activeRow.charge : null;
+  const modalInput = activeFee ? feeInput : amountInput;
+  const modalAmount = parseRentPayment(modalInput, activeRow?.amount ?? NaN);
+  const modalEnabled = !!activeRow && activeRow.payable && !!checkout && !busy && !loading && !error && !keyError &&
+    readiness?.allowed === true && readiness.blockers.length === 0 && modalAmount !== null &&
+    (activeFee ? !chargeError && !feePending[activeFee.chargeId] && canPayFee(lease, activeFee, readiness) : !pending && canPayRent(lease, rent, readiness));
+  const openRow = (row: typeof rows[number]) => {
+    if (!row.payable || busy) return;
+    modalRef.current = row.charge?.chargeId ?? 'rent';
+    setModalCharge({ route: row.route, chargeId: row.charge?.chargeId ?? null });
+    if (row.route === 'fee' && row.charge) {
+      selectedFeeRef.current = row.charge.chargeId; setSelectedFee(row.charge.chargeId);
+      setFeeInput(row.amount.toFixed(2)); setFeeNote('');
+    } else { setAmountInput(row.amount.toFixed(2)); setCheckoutNote(''); }
+  };
+  const closeModal = () => { if (busy) return; modalRef.current = null; setModalCharge(null); };
   const surface = { backgroundColor: colors.surface, borderColor: colors.border };
   return <View style={{ flex: 1, backgroundColor: colors.background }}>
     <LandlordPageHeader title="Payments" logo />
     <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 24, paddingBottom: Math.max(insets.bottom, 24) + 100 }}>
-      <Text style={styles.eyebrow}>YOUR HOME · PAYMENTS</Text>
-      <Text style={[styles.title, { color: colors.text }]}>Pay & bill</Text>
+      <Text style={[styles.eyebrow, { color: mode === 'dark' ? '#8cdda4' : '#24733a' }]}>YOUR LEASE & PAYMENTS</Text>
+      <Text style={[styles.title, { color: colors.text }]}>{tenantWelcome(currentUser)}</Text>
       <Text style={[styles.caption, { color: colors.muted }]}>Your rent balance and payment history, straight from your lease.</Text>
       {loading ? <ActivityIndicator style={{ marginVertical: 32 }} color={colors.accent} /> : <>
         {error ? <View style={[styles.notice, surface]}><Text style={{ color: colors.text }}>{error}</Text><TouchableOpacity accessibilityRole="button" onPress={() => { setLoading(true); void load(); }}><Text style={[styles.link, { color: colors.accent }]}>Try again</Text></TouchableOpacity></View> : null}
-        {leases.length > 1 && <View style={styles.leaseChoices}>{leases.map(item => <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: item.id === selected }} key={item.id} style={[styles.choice, surface, item.id === selected && { borderColor: colors.accent }]} onPress={() => { if (item.id === selectedRef.current) return; setSelected(item.id); selectedRef.current = item.id; amountLeaseRef.current = null; setAmountInput(''); pendingRef.current = null; setPending(null); setCheckoutNote(''); selectedFeeRef.current = null; setSelectedFee(null); setFeeInput(''); setFeeNote(''); feePendingRef.current = {}; setFeePending({}); setRent(null); setHistory([]); setCharges([]); setChargeError(''); setReadiness(null); setLoading(true); void load(item.id); }}><Text style={{ color: colors.text, fontWeight: '700' }}>{leaseHomeLabel(item)}</Text></TouchableOpacity>)}</View>}
+        {leases.length > 1 && <View style={styles.leaseChoices}>{leases.map(item => <TouchableOpacity accessibilityRole="button" accessibilityState={{ selected: item.id === selected }} key={item.id} style={[styles.choice, surface, item.id === selected && { borderColor: colors.accent }]} onPress={() => { if (item.id === selectedRef.current) return; setSelected(item.id); selectedRef.current = item.id; modalRef.current = null; setModalCharge(null); amountLeaseRef.current = null; setAmountInput(''); pendingRef.current = null; setPending(null); setCheckoutNote(''); selectedFeeRef.current = null; setSelectedFee(null); setFeeInput(''); setFeeNote(''); feePendingRef.current = {}; setFeePending({}); setRent(null); setHistory([]); setCharges([]); setChargeError(''); setReadiness(null); setLoading(true); void load(item.id); }}><Text style={{ color: colors.text, fontWeight: '700' }}>{leaseHomeLabel(item)}</Text></TouchableOpacity>)}</View>}
         {lease && <View style={[styles.card, surface]}>
           <Text style={[styles.label, { color: colors.muted }]}>{leaseHomeLabel(lease)}</Text>
-          <Text style={[styles.amount, { color: colors.text }]}>{bill ? money(bill.amount) : 'Balance unavailable'}</Text>
-          <Text style={[styles.caption, { color: colors.muted }]}>{bill ? `Rent left to pay (server balance) · ${date(bill.dueDate)}` : 'Unable to verify the current rent bill.'}</Text>
-          {bill && rentIsLate(rent) && <Text style={[styles.late, { color: mode === 'dark' ? '#ff9cae' : '#b42336' }]}>Past due</Text>}
-          <Text style={[styles.small, { color: colors.text, fontWeight: '700', marginTop: 16 }]}>Rent payment amount ($)</Text>
-          <TextInput accessibilityLabel="Rent payment amount in dollars" keyboardType="decimal-pad" value={amountInput} onChangeText={setAmountInput} editable={!busy && !pending} selectTextOnFocus style={[styles.amountField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]} placeholder="0.00" placeholderTextColor={colors.muted} />
-          <Text style={[styles.small, { color: colors.muted }]}>Pay all or part of rent only. Minimum $0.50; payment history and rent left update after server confirmation.</Text>
-          <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !eligible }} disabled={!eligible} style={[styles.payButton, !eligible && styles.disabled]} onPress={() => void pay()}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.payText}>{amount !== null ? `Pay ${money(amount)} toward rent` : 'Pay rent securely'}</Text>}</TouchableOpacity>
-          {!eligible && (whyUnavailable || readiness?.allowed === true && keyError) ? <Text style={[styles.small, { color: colors.muted }]}>{readiness?.allowed === true && keyError || whyUnavailable}</Text> : null}
+          {rows.length ? rows.map(row => {
+            const isFee = row.route === 'fee';
+            const allowed = row.payable && !!checkout && !busy && !loading && !error && !keyError && readiness?.allowed === true && readiness.blockers.length === 0 &&
+              (isFee ? !chargeError && canPayFee(lease, row.charge, readiness) && !feePending[row.charge!.chargeId] : canPayRent(lease, rent, readiness) && !pending) && row.amount >= 0.5;
+            const today = new Date();
+            const todayDay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const pastDue = row.route === 'rent' ? rentIsLate(rent) : row.route === 'selectedRent' ? rentIsLate(rent) && !!row.dueDate && row.dueDate.slice(0, 10) < todayDay : !!row.dueDate && row.dueDate.slice(0, 10) < todayDay;
+            return <View key={row.charge?.chargeId ?? 'lease-rent'} style={[styles.billRow, { borderColor: colors.border }]}>
+              <Text style={[styles.amount, { color: colors.text }]}>{money(row.amount)}</Text>
+              <Text style={[styles.caption, { color: colors.muted }]}>{isFee ? 'Fee' : 'Rent'}{row.route === 'rent' ? ' · Lease balance' : ''}</Text>
+              {isFee ? <Text style={[styles.small, { color: colors.muted }]}>{row.title}</Text> : null}
+              <Text style={[styles.small, { color: pastDue ? (mode === 'dark' ? '#ff9cae' : '#b42336') : colors.muted }]}>{pastDue ? 'Past due' : 'Due'} · {chargeDate(row.dueDate)}</Text>
+              {row.route === 'rent' ? <Text style={[styles.small, { color: colors.muted }]}>Rent checkout applies oldest first across this lease, not to a selected installment.</Text> : null}
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Make payment for ${row.title}`} accessibilityState={{ disabled: !allowed }} disabled={!allowed} style={[styles.payButton, !allowed && styles.disabled]} onPress={() => openRow(row)}><Text style={styles.payText}>Make payment</Text></TouchableOpacity>
+              {!allowed && row.payable && (isFee && feePending[row.charge!.chargeId] || !isFee && pending) ? <Text style={[styles.small, { color: colors.muted }]}>Payment started; awaiting server status. Refresh before paying again.</Text> : null}
+              {!row.payable ? <Text style={[styles.small, { color: colors.muted }]}>{row.route === 'selectedRent' && !rows.some(other => other.route === 'rent') ? 'Pay the oldest rent installment first.' : 'This installment cannot be paid individually; use the lease-wide rent payment above.'}</Text> : null}
+            </View>;
+          }) : <Text style={[styles.caption, { color: colors.muted }]}>No outstanding rent or fees.</Text>}
+          {!chargeError && charges.filter(charge => charge.type.toLowerCase() === 'deposit' && charge.remaining > 0).map(charge =>
+            <View key={charge.chargeId} style={[styles.billRow, { borderColor: colors.border }]}>
+              <Text style={[styles.amount, { color: colors.text }]}>{money(charge.remaining)}</Text>
+              <Text style={[styles.rowTitle, { color: colors.text, marginTop: 6 }]}>{charge.title} · Deposit</Text>
+              <Text style={[styles.small, { color: colors.muted }]}>Due · {chargeDate(charge.dueDate)}</Text>
+              <Text style={[styles.small, { color: colors.muted }]}>Deposit payments are not available online.</Text>
+            </View>)}
+          {chargeError ? <Text style={[styles.small, { color: colors.muted }]}>Some payment items are unavailable: {chargeError}. Pull down to try again.</Text> : null}
+          {whyUnavailable && !canPayRent(lease, rent, readiness) ? <Text style={[styles.small, { color: colors.muted }]}>{whyUnavailable}</Text> : null}
+          {keyError ? <Text style={[styles.small, { color: colors.muted }]}>{keyError}</Text> : null}
           {checkoutNote ? <Text style={[styles.small, { color: colors.accent }]}>{checkoutNote}</Text> : null}
+          {feeNote ? <Text style={[styles.small, { color: colors.accent }]}>{feeNote}</Text> : null}
         </View>}
-        <Text style={[styles.section, { color: colors.text }]}>Charges</Text>
-        <Text style={[styles.caption, { color: colors.muted }]}>Select an unpaid fee to pay all or part of its remaining balance. Deposits cannot be paid online. Balances update only after server confirmation.</Text>
-        {chargeError ? <View style={[styles.notice, surface]}><Text style={{ color: colors.text }}>Charges are unavailable: {chargeError}</Text><TouchableOpacity accessibilityRole="button" onPress={() => { setRefreshing(true); void load(); }}><Text style={[styles.link, { color: colors.accent }]}>Try again</Text></TouchableOpacity></View> : null}
-        {!chargeError && !charges.length && <View style={[styles.card, surface]}><Text style={{ color: colors.muted }}>{error ? 'Charges are unavailable.' : 'No charges recorded for this lease.'}</Text></View>}
-        {!chargeError && charges.map(charge => <View key={charge.chargeId} style={[styles.card, surface]}>
-          <Text style={[styles.label, { color: colors.muted }]}>{charge.type}</Text>
-          <Text style={[styles.rowTitle, { color: colors.text, marginTop: 8 }]}>{charge.title}</Text>
-          <Text style={[styles.small, { color: colors.muted }]}>Due {chargeDate(charge.dueDate)} · Original {money(charge.amount)}</Text>
-          <Text style={[styles.rowTitle, { color: colors.text, marginTop: 10 }]}>Remaining {money(charge.remaining)}</Text>
-          <Text style={[styles.small, { color: colors.muted }]}>Paid {money(charge.paid)} · {chargeBalanceLabel(charge)}</Text>
-          {charge.type.toLowerCase() === 'fee' && /^fee:[1-9]\d*$/.test(charge.chargeId) && charge.remaining > 0 && <>
-            <TouchableOpacity accessibilityRole="button" accessibilityLabel={`Select ${charge.title} fee`} accessibilityState={{ selected: selectedFee === charge.chargeId }}
-              disabled={busy} onPress={() => { selectedFeeRef.current = charge.chargeId; setSelectedFee(charge.chargeId); setFeeInput(charge.remaining.toFixed(2)); setFeeNote(''); }}
-              style={[styles.choice, { borderColor: selectedFee === charge.chargeId ? colors.accent : colors.border, marginTop: 14 }]}>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>{selectedFee === charge.chargeId ? 'Selected fee' : 'Select fee to pay'}</Text>
-            </TouchableOpacity>
-            {selectedFee === charge.chargeId && <>
-              <Text style={[styles.small, { color: colors.text, fontWeight: '700' }]}>Fee payment amount ($)</Text>
-              <TextInput accessibilityLabel="Fee payment amount in dollars" keyboardType="decimal-pad" value={feeInput} onChangeText={setFeeInput}
-                editable={!busy && !feePending[charge.chargeId]} selectTextOnFocus style={[styles.amountField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
-                placeholder="0.00" placeholderTextColor={colors.muted} />
-              <Text style={[styles.small, { color: colors.muted }]}>Minimum $0.50; no more than {money(charge.remaining)}, with at most two decimal places. Bank payments may take several days.</Text>
-              <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !canPayFee(lease, charge, readiness) || !checkout || !!keyError || busy || loading || !!error || !!feePending[charge.chargeId] || parseRentPayment(feeInput, charge.remaining) === null }}
-                disabled={!canPayFee(lease, charge, readiness) || !checkout || !!keyError || busy || loading || !!error || !!feePending[charge.chargeId] || parseRentPayment(feeInput, charge.remaining) === null}
-                style={[styles.payButton, (!canPayFee(lease, charge, readiness) || !checkout || !!keyError || busy || loading || !!error || !!feePending[charge.chargeId] || parseRentPayment(feeInput, charge.remaining) === null) && styles.disabled]}
-                onPress={() => void payFee(charge)}>{busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.payText}>{parseRentPayment(feeInput, charge.remaining) !== null ? `Pay ${money(parseRentPayment(feeInput, charge.remaining)!)} toward ${charge.title} fee` : 'Pay fee securely'}</Text>}</TouchableOpacity>
-              {feePending[charge.chargeId] ? <Text style={[styles.small, { color: colors.muted }]}>Payment submitted or started; awaiting server status. Refresh before paying this fee again.</Text> : null}
-              {!canPayFee(lease, charge, readiness) && !feePending[charge.chargeId] ? <Text style={[styles.small, { color: colors.muted }]}>{readiness?.allowed !== true ? readiness?.blockers.map(x => x.message).filter(Boolean).join(' · ') || 'Fee checkout is unavailable.' : 'This fee is not available for payment while a payment is processing or the lease is ineligible.'}</Text> : null}
-              {!checkout && keyError ? <Text style={[styles.small, { color: colors.muted }]}>{keyError}</Text> : null}
-              {feeNote ? <Text style={[styles.small, { color: colors.accent }]}>{feeNote}</Text> : null}
-            </>}
-          </>}
-          {charge.payments.map(payment => <View key={`${payment.id}-${payment.paymentDate}`} style={[styles.chargePayment, { borderColor: colors.border }]}>
-            <Text style={[styles.small, { color: colors.muted, marginTop: 0, flex: 1 }]}>Payment · {chargeDate(payment.paymentDate)} · {paymentStatus(payment)}</Text>
-            <Text style={[styles.rowTitle, { color: colors.text }]}>{money(payment.amount)}</Text>
-          </View>)}
-        </View>)}
         <Text style={[styles.section, { color: colors.text }]}>Payment history</Text>
         {!history.length && <View style={[styles.card, surface]}><Text style={{ color: colors.muted }}>{error ? 'History is unavailable.' : 'No payments recorded for this lease yet.'}</Text></View>}
         {history.map((payment, index) => <View key={`${payment.id ?? 'payment'}-${index}`} style={[styles.row, surface]}><View style={{ flex: 1 }}><Text style={[styles.rowTitle, { color: colors.text }]}>{payment.paymentType || 'Rent'} · {date(payment.paymentDate)}</Text><Text style={[styles.small, { color: colors.muted }]}>{payment.method || 'Payment method not listed'}</Text></View><View style={{ alignItems: 'flex-end' }}><Text style={[styles.rowTitle, { color: colors.text }]}>{Number.isFinite(payment.amount) ? money(payment.amount) : '—'}</Text><Text style={[styles.status, { color: paymentStatus(payment) === 'Paid' ? (mode === 'dark' ? '#8cdda4' : '#35734c') : colors.muted }]}>{paymentStatus(payment)}</Text></View></View>)}
       </>}
     </ScrollView>
+    <Modal visible={!!modalCharge} transparent animationType="fade" onRequestClose={closeModal}>
+      <View style={styles.modalBackdrop}><View style={[styles.modalCard, surface]}>
+        <Text style={[styles.section, { color: colors.text, marginTop: 0 }]}>Make payment</Text>
+        <Text style={[styles.caption, { color: colors.text }]}>{activeRow?.title ?? 'Charge unavailable'} · {activeRow ? money(activeRow.amount) : '—'} remaining</Text>
+        {activeRow?.route === 'rent' ? <Text style={[styles.small, { color: colors.muted }]}>Lease-wide rent checkout applies oldest first; this is not an earmarked installment.</Text> : null}
+        <Text style={[styles.small, { color: colors.text, fontWeight: '700' }]}>Payment amount ($)</Text>
+        <TextInput accessibilityLabel="Payment amount in dollars" keyboardType="decimal-pad" value={modalInput} onChangeText={activeFee ? setFeeInput : setAmountInput}
+          editable={!busy && !pending && !activeFee || !busy && !!activeFee && !feePending[activeFee.chargeId]}
+          selectTextOnFocus style={[styles.amountField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+          placeholder="0.00" placeholderTextColor={colors.muted} />
+        <Text style={[styles.small, { color: colors.muted }]}>Pay all or part, minimum $0.50, up to {activeRow ? money(activeRow.amount) : 'the remaining balance'}. Balances update only after server confirmation.</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityState={{ disabled: !modalEnabled }} disabled={!modalEnabled} style={[styles.payButton, !modalEnabled && styles.disabled]}
+          onPress={() => { if (activeFee) void payFee(activeFee); else if (activeRow) void pay(activeRow.route === 'selectedRent' ? activeRow.charge! : undefined); }}>
+          {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.payText}>{modalAmount !== null ? `Continue with ${money(modalAmount)}` : 'Enter a valid amount'}</Text>}
+        </TouchableOpacity>
+        <TouchableOpacity accessibilityRole="button" disabled={busy} onPress={closeModal} style={styles.closeButton}><Text style={{ color: colors.text, fontWeight: '700' }}>Close</Text></TouchableOpacity>
+      </View></View>
+    </Modal>
   </View>;
 }
 
@@ -253,13 +280,16 @@ export default function TenantPaymentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  eyebrow: { color: '#b7475a', fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
+  eyebrow: { color: '#24733a', fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
   title: { fontSize: 28, fontWeight: '800', marginTop: 5 }, caption: { fontSize: 14, lineHeight: 21, marginTop: 6 },
   section: { fontSize: 19, fontWeight: '800', marginTop: 28 }, card: { borderWidth: 1, borderRadius: 13, padding: 19, marginTop: 22 },
   label: { fontSize: 11, fontWeight: '800', letterSpacing: 1 }, amount: { fontSize: 34, fontWeight: '800', marginTop: 13 },
-  small: { fontSize: 12, lineHeight: 18, marginTop: 8 }, late: { fontSize: 14, fontWeight: '800', marginTop: 10 }, amountField: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 13, minHeight: 48, marginTop: 8, fontSize: 18 }, payButton: { backgroundColor: '#0b5cab', borderRadius: 9, minHeight: 52, marginTop: 21, alignItems: 'center', justifyContent: 'center' },
+  small: { fontSize: 12, lineHeight: 18, marginTop: 8 }, late: { fontSize: 14, fontWeight: '800', marginTop: 10 }, amountField: { borderWidth: 1, borderRadius: 9, paddingHorizontal: 13, minHeight: 48, marginTop: 8, fontSize: 18 }, payButton: { backgroundColor: '#21834b', borderRadius: 9, minHeight: 48, marginTop: 14, alignItems: 'center', justifyContent: 'center' },
+  billRow: { borderTopWidth: 1, paddingTop: 15, marginTop: 16 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', padding: 20 },
+  modalCard: { borderWidth: 1, borderRadius: 16, padding: 22 },
+  closeButton: { minHeight: 44, marginTop: 12, alignItems: 'center', justifyContent: 'center' },
   disabled: { backgroundColor: '#8c9da9' }, payText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   row: { borderWidth: 1, borderRadius: 10, padding: 15, marginBottom: 9, flexDirection: 'row', gap: 10 }, rowTitle: { fontSize: 14, fontWeight: '700' }, status: { fontSize: 12, fontWeight: '800', marginTop: 6 },
-  chargePayment: { borderTopWidth: 1, paddingTop: 10, marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   notice: { borderWidth: 1, borderRadius: 9, padding: 15, marginTop: 20 }, link: { fontWeight: '800', marginTop: 10 }, leaseChoices: { marginTop: 17, gap: 8 }, choice: { padding: 13, borderWidth: 1, borderRadius: 9 }, fallback: { flex: 1, padding: 24, gap: 20 },
 });

@@ -38,6 +38,35 @@ export function canPayFee(lease: TenantLease | null, charge: TenantCharge | null
     Number.isSafeInteger(Number(charge.chargeId.slice(4))) && charge.remaining >= 0.5 &&
     !charge.payments.some(payment => !['Paid', 'Failed', 'Canceled', 'Disputed'].includes(paymentStatus(payment))));
 }
+// A lease-wide accrued balance is not interchangeable with a full monthly installment.
+// Offer an earmarked rent row only when the ledger exactly reconciles and the
+// server's oldest-first selected-installment constraints are locally provable.
+export function paymentRows(lease: TenantLease | null, rent: TenantRent | null, charges: TenantCharge[], today = new Date()) {
+  const bill = billForLease(lease, rent);
+  const rents = charges.filter(c => c.type.toLowerCase() === 'rent' && c.remaining > 0)
+    .sort((a, b) => (a.dueDate ?? '').localeCompare(b.dueDate ?? ''));
+  const end = lease?.endDate?.slice(0, 10);
+  const fullMonths = lease?.rentDueDay === 1 && lease?.rentFrequency?.trim().toLowerCase() === 'monthly' &&
+    lease.startDate?.slice(8, 10) === '01' && !!end &&
+    Number(end.slice(8, 10)) === new Date(Date.UTC(Number(end.slice(0, 4)), Number(end.slice(5, 7)), 0)).getUTCDate();
+  const matching = !!bill && rents.length > 0 && fullMonths &&
+    Math.round(rents.reduce((sum, c) => sum + c.remaining, 0) * 100) === Math.round(bill.amount * 100) &&
+    rents.every(c => new RegExp(`^rent:${lease!.id}:\\d{4}-\\d{2}-01$`).test(c.chargeId) &&
+      c.dueDate?.slice(0, 10) === c.chargeId.split(':')[2] &&
+      Date.parse(c.dueDate.slice(0, 10) + 'T00:00:00Z') < Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
+  type Row = { charge: TenantCharge | null; amount: number; dueDate: string | null; title: string; route: 'rent' | 'selectedRent' | 'fee'; payable: boolean };
+  const rows: Row[] = [];
+  if (matching) rents.forEach((charge, index) => rows.push({ charge, amount: charge.remaining, dueDate: charge.dueDate, title: charge.title, route: 'selectedRent', payable: index === 0 }));
+  else if (bill && bill.amount > 0) rows.push({ charge: null, amount: bill.amount, dueDate: bill.dueDate, title: 'Rent balance · oldest first', route: 'rent', payable: true });
+  // An accruing schedule may not reconcile to the lease-wide payable balance yet.
+  // Still display the individual ledger obligations, but do not offer a misleading
+  // selected-charge checkout on them or sum the lease-wide row as another charge.
+  if (!matching) rents.forEach(charge => rows.push({ charge, amount: charge.remaining, dueDate: charge.dueDate, title: charge.title, route: 'selectedRent', payable: false }));
+  charges.filter(c => c.type.toLowerCase() === 'fee' && c.remaining > 0).forEach(charge =>
+    rows.push({ charge, amount: charge.remaining, dueDate: charge.dueDate, title: charge.title, route: 'fee', payable: true }));
+  return rows;
+}
+
 export function pendingFeePayment(pending: { paymentIntentId: string; chargeId?: string; amount?: number; previousRemaining?: number } | null, history: TenantPayment[], charge?: TenantCharge | null): boolean {
   if (!pending) return false;
   const match = history.find(payment => payment.stripePaymentIntentId === pending.paymentIntentId);

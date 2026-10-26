@@ -159,7 +159,8 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     }
   };
 
-  const visibleRoutes = state.routes.filter((route) => !['Leases', 'Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
+  const visibleRoutes = state.routes.filter((route) => !(route.name === 'Leases' && audience !== 'tenant')
+    && !['Listings', 'Applications', 'Vendors', 'Team', 'Announcements', 'Finances'].includes(route.name)
     && !(audience === 'landlord' && route.name === 'Maintenance')
     && !(audience === 'landlord' && route.name === 'Messages')
     && !(audience === 'tenant' && route.name === 'Notifications')

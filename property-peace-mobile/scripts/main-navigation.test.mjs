@@ -33,8 +33,9 @@ test('tenant navigation does not show the landlord Checklists tab', () => {
   assert.equal(visibleMainTabsForAudience('tenant').find((tab) => tab.name === 'Maintenance')?.label, undefined);
   assert.deepEqual(
     visibleMainTabsForAudience('tenant').map((tab) => tab.name),
-    ['Payments', 'Maintenance', 'Messages', 'Settings'],
+    ['Payments', 'Leases', 'Maintenance', 'Messages', 'Settings'],
   );
+  assert.deepEqual(mainTabIconNames('Leases'), { active: 'document-text', inactive: 'document-text-outline' });
 });
 
 test('every visible native-stack back button hides its previous-screen title', async () => {

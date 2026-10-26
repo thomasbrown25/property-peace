@@ -53,6 +53,13 @@ class MaintenanceAPI {
   }
   async createTenantRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
   async createRequest(request: CreateMaintenanceRequest, idempotencyKey: string): Promise<MaintenanceRequest> { return this.client.post('/api/maintenance-requests', request, mutationConfig(idempotencyKey)); }
+  async getTenantAgentSettings(): Promise<boolean> {
+    const response = unwrap(await this.client.get<ApiResponse<{ isMaintenanceAgentEnabled: boolean }>>('/api/maintenance-agent/settings'));
+    return response.isMaintenanceAgentEnabled;
+  }
+  async chatWithTenantAgent(messages: MaintenanceAgentMessage[]): Promise<MaintenanceAgentReply> {
+    return unwrap(await this.client.post<ApiResponse<MaintenanceAgentReply>>('/api/maintenance-agent/chat', { messages }));
+  }
   async getLandlordAgentSettings(): Promise<boolean> {
     const response = unwrap(await this.client.get<ApiResponse<{ isMaintenanceAgentEnabled: boolean }>>('/api/landlord-maintenance-agent/settings'));
     return response.isMaintenanceAgentEnabled;

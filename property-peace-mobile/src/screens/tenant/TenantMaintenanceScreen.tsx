@@ -39,7 +39,7 @@ export default function TenantMaintenanceScreen() {
   return <View style={[styles.page, dark && { backgroundColor: colors.background }]}>
     <LandlordPageHeader title="Maintenance" />
     <View style={styles.hero}>
-      <Text style={[styles.eyebrow, dark && { color: '#ff9cae' }]}>YOUR HOME</Text>
+      <Text style={[styles.eyebrow, dark && { color: '#8cdda4' }]}>YOUR HOME</Text>
       <Text style={[styles.heading, dark && { color: colors.text }]}>Repairs & maintenance</Text>
       <Text style={[styles.sub, dark && { color: colors.muted }]}>Report an issue, see who is handling it, and follow every update.</Text>
     </View>
@@ -81,7 +81,7 @@ export default function TenantMaintenanceScreen() {
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: '#fff' },
   hero: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 18 },
-  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, color: '#b7475a' },
+  eyebrow: { fontSize: 11, fontWeight: '800', letterSpacing: 1.4, color: '#24733a' },
   heading: { fontSize: 27, fontWeight: '800', color: '#102d43', marginTop: 5 },
   sub: { fontSize: 14, lineHeight: 20, color: '#60717e', marginTop: 5 },
   newButton: { marginHorizontal: 20, minHeight: 50, backgroundColor: '#0b5cab', borderRadius: 8, alignItems: 'center', justifyContent: 'center' },

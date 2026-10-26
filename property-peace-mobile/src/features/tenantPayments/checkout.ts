@@ -1,5 +1,5 @@
 import type { PayReadiness, TenantCharge, TenantLease, TenantRent } from '../../api/tenantPaymentsAPI';
-import { billForLease, canPayFee, canPayRent, parseRentPayment } from './model.ts';
+import { billForLease, canPayFee, canPayRent, parseRentPayment, paymentRows } from './model.ts';
 
 type PaymentAPI = {
   leases(): Promise<TenantLease[]>;
@@ -28,6 +28,27 @@ export async function submitRentPayment({ api, lease, displayedRent, input, uuid
   onIntentCreated?.({ paymentIntentId, amount });
   const result = await checkout(clientSecret);
   return { result, amount, paymentIntentId };
+}
+
+export async function submitSelectedRentPayment({ api, lease, displayedRent, charge, input, uuid, isCurrent, checkout, onIntentCreated }: {
+  api: PaymentAPI & { charges(id: number): Promise<TenantCharge[]>; createIntent(id: number, amount: number, operationId: string, chargeId: string): Promise<{ clientSecret: string; paymentIntentId: string }> };
+  lease: TenantLease; displayedRent: TenantRent | null; charge: TenantCharge; input: string; uuid: () => string;
+  isCurrent: () => boolean; checkout: (clientSecret: string) => Promise<'submitted' | 'canceled'>;
+  onIntentCreated?: (intent: { paymentIntentId: string; amount: number }) => void;
+}): Promise<{ result: 'submitted' | 'canceled'; amount: number; paymentIntentId: string }> {
+  const amount = parseRentPayment(input, charge.remaining);
+  if (amount === null) throw new Error('Enter $0.50 or more, up to the selected rent balance.');
+  const [leases, gate, currentRent, charges] = await Promise.all([api.leases(), api.readiness(), api.rent(lease.id), api.charges(lease.id)]);
+  if (!isCurrent()) throw new Error('Your selection changed. Refresh before paying.');
+  const currentLease = leases.find(x => x.id === lease.id) ?? null;
+  const row = paymentRows(currentLease, currentRent, charges).find(x => x.charge?.chargeId === charge.chargeId && x.route === 'selectedRent' && x.payable);
+  if (!canPayRent(currentLease, currentRent, gate) || !row || row.amount !== charge.remaining ||
+      billForLease(currentLease, currentRent)?.amount !== billForLease(lease, displayedRent)?.amount)
+    throw new Error('Selected rent changed or is unavailable. Refresh before paying.');
+  const { clientSecret, paymentIntentId } = await api.createIntent(lease.id, amount, uuid(), charge.chargeId);
+  onIntentCreated?.({ paymentIntentId, amount });
+  if (!isCurrent()) throw new Error('Your selection changed. Refresh before paying.');
+  return { result: await checkout(clientSecret), amount, paymentIntentId };
 }
 
 export async function submitFeePayment({ api, lease, displayedFee, input, uuid, isCurrent, checkout, onIntentCreated }: {

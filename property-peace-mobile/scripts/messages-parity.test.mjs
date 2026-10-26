@@ -44,6 +44,16 @@ test('selects the participant-safe inbox endpoint from the active organization r
   assert.throws(() => getConversationInboxPath('unsupported', false), /unsupported/i);
 });
 
+test('tenant top message icon shows a red, scoped unread count and refreshes on focus', () => {
+  const header = readFileSync(resolve(import.meta.dirname, '../src/components/LandlordPageHeader.tsx'), 'utf8');
+  assert.match(header, /useFocusEffect\(useCallback/);
+  assert.match(header, /ConversationAPI\.getConversations\('tenant'\)/);
+  assert.match(header, /messageBadge\?\.scope === messageScope/);
+  assert.match(header, /unreadMessages > 0 && <View style=\{styles\.messageBadge\}>/);
+  assert.match(header, /backgroundColor: '#dc2626'/);
+  assert.match(header, /unreadMessages > 99 \? '99\+' : unreadMessages/);
+});
+
 test('messaging data scopes are bound to active user, organization, audience, and thread', () => {
   const tenant = { id: 7, currentOrganizationId: 12 };
   assert.equal(buildMessagingScopeKey(tenant, 'tenant'), '7:12:tenant');

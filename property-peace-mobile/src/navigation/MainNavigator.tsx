@@ -57,7 +57,7 @@ import SettingsScreen from '../screens/landlord/SettingsScreen';
 import TenantMaintenanceScreen from '../screens/tenant/TenantMaintenanceScreen';
 import TenantPaymentsScreen from '../screens/tenant/TenantPaymentsScreen';
 import TenantLeasesScreen, { TenantLeaseDetailScreen } from '../screens/tenant/TenantLeasesScreen';
-import TenantMaintenanceIntakeScreen from '../screens/tenant/TenantMaintenanceIntakeScreen';
+import TenantMaintenanceReportScreen from '../screens/tenant/TenantMaintenanceReportScreen';
 import TenantMaintenanceDetailScreen from '../screens/tenant/TenantMaintenanceDetailScreen';
 import TenantMaintenanceReceiptScreen from '../screens/tenant/TenantMaintenanceReceiptScreen';
 import MaintenanceEmergencyScreen from '../screens/tenant/MaintenanceEmergencyScreen';
@@ -176,7 +176,7 @@ function MaintenanceNavigator({ tenant = false }: { tenant?: boolean }) {
     <MaintenanceStack.Navigator screenOptions={stackOptions}>
       {tenant ? <>
         <MaintenanceStack.Screen name="TenantMaintenanceList" component={TenantMaintenanceScreen} options={{ headerShown: false }} />
-        <MaintenanceStack.Screen name="TenantMaintenanceIntake" component={TenantMaintenanceIntakeScreen} options={{ title: 'Report an issue' }} />
+        <MaintenanceStack.Screen name="TenantMaintenanceIntake" component={TenantMaintenanceReportScreen} options={{ title: 'Report an issue' }} />
         <MaintenanceStack.Screen name="MaintenanceEmergency" component={MaintenanceEmergencyScreen} options={{ title: 'Emergency safety', presentation: 'modal' }} />
         <MaintenanceStack.Screen name="TenantMaintenanceReceipt" component={TenantMaintenanceReceiptScreen} options={{ title: 'Report received', headerBackVisible: false }} />
         <MaintenanceStack.Screen name="TenantMaintenanceDetail" component={TenantMaintenanceDetailScreen} options={{ title: 'Request detail' }} />
@@ -300,6 +300,7 @@ export default function MainNavigator() {
     MarketingNavigator,
     TenantMaintenanceNavigator,
     TenantPaymentsScreen,
+    TenantLeasesNavigator,
     TenantsNavigator,
 
     MessagesNavigator,
@@ -322,7 +323,6 @@ export default function MainNavigator() {
       {animatedTabs.map((tab) => {
         return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
       })}
-      {audience === 'tenant' && <Tab.Screen name="Leases" component={TenantLeasesNavigator} options={{ tabBarButton: () => null }} />}
       {audience === 'tenant' && <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />}
       {audience === 'landlord' && <>
         <Tab.Screen name="Maintenance" component={MaintenanceNavigator} options={{ tabBarButton: () => null }} />

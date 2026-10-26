@@ -24,11 +24,14 @@ test('list and detail read only the tenant-scoped API', async () => {
   const api = createTenantPaymentsAPI({ get: async url => { calls.push(url); return { success: true, data: [{ id: 4, isActive: true }] }; }, post: async () => {} });
   assert.equal((await api.leases())[0].id, 4);
   assert.deepEqual(calls, ['/api/lease/tenant/my-leases']);
-  const [screen, nav, dock] = await Promise.all([file('screens/tenant/TenantLeasesScreen.tsx'), file('navigation/MainNavigator.tsx'), file('navigation/QuickActionsTabBar.tsx')]);
+  const [screen, nav, dock, model] = await Promise.all([file('screens/tenant/TenantLeasesScreen.tsx'), file('navigation/MainNavigator.tsx'), file('navigation/QuickActionsTabBar.tsx'), file('navigation/mainTabModel.ts')]);
   assert.match(screen, /api\.leases\(\)/);
   assert.doesNotMatch(screen, /LeaseAPI\.getLeases/);
   assert.match(screen, /accessibilityRole="tab"/);
   assert.match(screen, /navigate\('TenantLeaseDetail', \{ leaseId: item\.id \}\)/);
-  assert.match(nav, /audience === 'tenant' && <Tab.Screen name="Leases" component=\{TenantLeasesNavigator\}/);
+  assert.match(model, /name: 'Payments', component: 'TenantPaymentsScreen' \},\s*\{ name: 'Leases', component: 'TenantLeasesNavigator'/);
+  assert.match(nav, /TenantLeasesNavigator,/);
+  assert.doesNotMatch(nav, /audience === 'tenant' && <Tab.Screen name="Leases"/);
+  assert.match(dock, /route.name === 'Leases' && audience !== 'tenant'/);
   assert.match(dock, /label: 'Leases'[^\n]*route: 'Leases'/);
 });
