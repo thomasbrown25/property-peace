@@ -232,6 +232,8 @@ namespace brownstone_hub_api.Services.RentCollectionService
                         PropertyId = l.PropertyId,
                         UnitName = l.UnitName,
                         RentAmount = l.RentAmount ?? 0m,
+                        CurrentMonthExpected = RentCalculator.ExpectedForLease(l, startOfMonth, endOfMonth),
+                        CurrentMonthCollected = RentCalculator.CollectedForPeriod(l, leasePaymentList, startOfMonth, endOfMonth),
                         DueDate = l.NextDueDate ?? DateTime.UtcNow,
                         LeaseId = l.Id,
                         OverdueAmount = rentBalance.OverdueAmount,

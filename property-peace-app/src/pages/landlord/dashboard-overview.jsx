@@ -469,6 +469,10 @@ export default function DashboardOverview({ embedded = false }) {
                 properties={properties}
                 propertiesLoading={propertiesLoading}
                 propertiesError={propertiesError}
+                rentRecords={rentRecords}
+                rentLoading={rentLoading}
+                rentError={Boolean(rentCollectionState.error)}
+                rentReady={summary != null}
               />
             </Grid>
 

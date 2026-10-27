@@ -20,13 +20,10 @@ import {
   useTheme
 } from '@mui/material';
 import {
-  CalendarOutlined,
   DownOutlined,
   MoreOutlined,
   PlusOutlined,
-  SearchOutlined,
-  ToolOutlined,
-  WarningOutlined
+  SearchOutlined
 } from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +32,7 @@ import LeaseAddDrawer from 'components/drawers/LeaseAddDrawer';
 import { PropertyCsvImportButton } from 'components/import/CsvImportButtons';
 import { managementPageHeaderActionSx } from 'components/headers/managementPageHeaderStyles';
 import PropertiesEmptyState from 'sections/landlord/properties/PropertiesEmptyState';
+import PropertyOperations from 'sections/landlord/properties/PropertyOperations';
 import useFetchProperties from 'hooks/useFetchProperties';
 import { useDashboardLoading } from 'contexts/DashboardLoadingContext';
 import { useDrawer } from 'contexts/DrawerContext';
@@ -100,11 +98,6 @@ function formatMoney(value) {
     currency: 'USD',
     maximumFractionDigits: 0
   }).format(value || 0);
-}
-
-function formatDate(value) {
-  if (!value) return 'No lease date';
-  return value.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function PropertyRow({ property, onOpen, onAddLease }) {
@@ -191,26 +184,7 @@ function PropertyRow({ property, onOpen, onAddLease }) {
         <Typography sx={{ mt: 0.25, fontSize: '0.92rem', fontWeight: 750 }}>{summary.rentRoll ? formatMoney(summary.rentRoll) : '—'}</Typography>
       </Box>
 
-      <Stack spacing={0.55}>
-        {summary.overdue > 0 && (
-          <Stack direction="row" spacing={0.65} alignItems="center">
-            <WarningOutlined style={{ color: theme.palette.error.main, fontSize: 13 }} />
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 650, color: 'error.main' }}>{summary.overdue} overdue unit{summary.overdue === 1 ? '' : 's'}</Typography>
-          </Stack>
-        )}
-        {summary.urgentMaintenance > 0 && (
-          <Stack direction="row" spacing={0.65} alignItems="center">
-            <ToolOutlined style={{ color: theme.palette.warning.main, fontSize: 13 }} />
-            <Typography sx={{ fontSize: '0.75rem', fontWeight: 650, color: 'warning.main' }}>{summary.urgentMaintenance} urgent ticket{summary.urgentMaintenance === 1 ? '' : 's'}</Typography>
-          </Stack>
-        )}
-        <Stack direction="row" spacing={0.65} alignItems="center">
-          <CalendarOutlined style={{ color: theme.palette.text.secondary, fontSize: 13 }} />
-          <Typography sx={{ fontSize: '0.75rem', color: summary.expiringSoon ? 'warning.main' : 'text.secondary', fontWeight: summary.expiringSoon ? 650 : 400 }}>
-            {summary.nextLeaseEnd ? `Next lease ${formatDate(summary.nextLeaseEnd)}` : 'No upcoming lease end'}
-          </Typography>
-        </Stack>
-      </Stack>
+      <PropertyOperations property={property} summary={summary} />
 
       <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', md: 'center' } }}>
         <Tooltip title="Property actions">

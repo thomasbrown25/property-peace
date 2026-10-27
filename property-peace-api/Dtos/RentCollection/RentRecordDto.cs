@@ -12,6 +12,10 @@ namespace brownstone_hub_api.Dtos.RentCollection
         public long PropertyId { get; set; }
         public string UnitName { get; set; }
         public decimal RentAmount { get; set; }
+        /// <summary>Prorated rent expected for the selected calendar month.</summary>
+        public decimal CurrentMonthExpected { get; set; }
+        /// <summary>Finalized rent credits allocated to that month, not merely received in it.</summary>
+        public decimal CurrentMonthCollected { get; set; }
         public decimal OverdueAmount { get; set; }
         /// <summary>Total accrued unpaid rent, with no fees or deposits.</summary>
         public decimal RentDue { get; set; }
