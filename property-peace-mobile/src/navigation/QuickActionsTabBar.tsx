@@ -13,6 +13,9 @@ import PropertyAPI from '../api/propertyAPI';
 import { loadPortfolioRentalMode } from '../features/properties/portfolioRentalMode';
 import type { PropertyRentalMode } from '../features/properties/rentalMode';
 
+const lightLogo = require('../../assets/property-peace-navbar-logo.png');
+const darkLogo = require('../../assets/property-peace-logo.png');
+
 type MenuItem = { label: string; icon: keyof typeof Ionicons.glyphMap; route?: string; screen?: string; webPath?: string };
 
 type MenuSection = { title: string; items: MenuItem[] };
@@ -52,6 +55,7 @@ const shortTermLandlordMenu: MenuSection[] = landlordMenu.map(section => section
 const tenantMenu: MenuSection[] = [
   { title: 'Your home', items: [
     { label: 'Leases', icon: 'document-text-outline', route: 'Leases' },
+    { label: 'Documents', icon: 'folder-open-outline', route: 'Documents' },
     { label: 'Payments', icon: 'card-outline', route: 'Payments' },
     { label: 'Maintenance', icon: 'construct-outline', route: 'Maintenance' },
     { label: 'Messages', icon: 'chatbubble-ellipses-outline', route: 'Messages' },
@@ -164,6 +168,7 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
     && !(audience === 'landlord' && route.name === 'Maintenance')
     && !(audience === 'landlord' && route.name === 'Messages')
     && !(audience === 'tenant' && route.name === 'Notifications')
+    && !(audience === 'tenant' && route.name === 'Documents')
     && !['Checklists', 'Settings'].includes(route.name));
   const renderTab = (route: typeof visibleRoutes[number]) => {
     const index = state.routes.findIndex((item) => item.key === route.key);
@@ -206,9 +211,9 @@ export default function QuickActionsTabBar({ state, descriptors, navigation, aud
           <Pressable style={styles.backdrop} accessibilityLabel="Close menu" onPress={() => hideSheet()} />
           <Animated.View style={[styles.sheet, { backgroundColor: colors.surface, paddingBottom: Math.max(insets.bottom, 18) + 12, paddingTop: insets.top + 18, transform: [{ translateX: sheetOffset }] }]}>
             <View style={styles.sheetHeader}>
-              <View>
-                <Text style={[styles.sheetEyebrow, mode === 'dark' && { color: '#7bd793' }]}>PROPERTY PEACE</Text>
-              </View>
+              {audience === 'tenant'
+                ? <Image source={mode === 'dark' ? darkLogo : lightLogo} style={styles.sheetLogo} resizeMode="contain" accessibilityLabel="Property Peace" />
+                : <Text style={[styles.sheetEyebrow, mode === 'dark' && { color: '#7bd793' }]}>PROPERTY PEACE</Text>}
               <Pressable style={[styles.closeButton, { backgroundColor: colors.background }]} accessibilityRole="button" accessibilityLabel="Close menu" onPress={() => hideSheet()}>
                 <Ionicons name="close" size={22} color={colors.text} />
               </Pressable>
@@ -265,6 +270,7 @@ const styles = StyleSheet.create({
   sheet: { width: '86%', maxWidth: 360, height: '100%', paddingHorizontal: 20, paddingTop: 56, shadowColor: '#001a33', shadowOpacity: 0.18, shadowRadius: 20, elevation: 18 },
   handle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, marginBottom: 24 },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  sheetLogo: { width: 148, height: 42 },
   sheetEyebrow: { color: '#2f8f46', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
   closeButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   actionScroll: { flexShrink: 1 },

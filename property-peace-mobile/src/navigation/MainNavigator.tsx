@@ -56,6 +56,7 @@ import NotificationsScreen from '../screens/landlord/NotificationsScreen';
 import SettingsScreen from '../screens/landlord/SettingsScreen';
 import TenantMaintenanceScreen from '../screens/tenant/TenantMaintenanceScreen';
 import TenantPaymentsScreen from '../screens/tenant/TenantPaymentsScreen';
+import TenantDocumentsScreen from '../screens/tenant/TenantDocumentsScreen';
 import TenantLeasesScreen, { TenantLeaseDetailScreen } from '../screens/tenant/TenantLeasesScreen';
 import TenantMaintenanceReportScreen from '../screens/tenant/TenantMaintenanceReportScreen';
 import TenantMaintenanceDetailScreen from '../screens/tenant/TenantMaintenanceDetailScreen';
@@ -324,6 +325,7 @@ export default function MainNavigator() {
         return <Tab.Screen key={tab.name} name={tab.name} component={tab.component} options={tab.label ? { tabBarLabel: tab.label } : undefined} />;
       })}
       {audience === 'tenant' && <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ tabBarButton: () => null }} />}
+      {audience === 'tenant' && <Tab.Screen name="Documents" component={TenantDocumentsScreen} options={{ tabBarButton: () => null }} />}
       {audience === 'landlord' && <>
         <Tab.Screen name="Maintenance" component={MaintenanceNavigator} options={{ tabBarButton: () => null }} />
         <Tab.Screen name="Vendors" component={VendorsNavigator} options={{ tabBarButton: () => null }} />

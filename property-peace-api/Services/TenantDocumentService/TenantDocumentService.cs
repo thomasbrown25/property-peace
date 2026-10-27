@@ -298,6 +298,59 @@ namespace brownstone_hub_api.Services.TenantDocumentService
             }
         }
 
+        public async Task<ServiceResponse<List<LoadTenantDocumentDto>>> GetMyTenantDocuments()
+        {
+            var organizationId = GetOrganizationIdFromContext();
+            var userId = GetUserIdFromContext();
+            if (!IsTenantUser() || !organizationId.HasValue || !userId.HasValue)
+                return ServiceResponse<List<LoadTenantDocumentDto>>.CreateError("Tenant organization is required", null, null, 403);
+
+            try
+            {
+                var documents = await _tenantDocumentRepository.GetMyTenantDocuments(organizationId.Value, userId.Value);
+                var container = _blobServiceClient.GetBlobContainerClient(ContainerName);
+                foreach (var document in documents)
+                {
+                    if (!string.IsNullOrEmpty(document.BlobName))
+                        document.BlobUrl = _azureBlobService.GenerateBlobSasUri(
+                            _blobServiceClient, container.GetBlobClient(document.BlobName), TimeSpan.FromHours(1));
+                }
+                // Signed/generated agreements live outside tenant-documents. Include the
+                // tenant-authorized agreement for every lease without duplicating a published copy.
+                var leaseIds = await _tenantDocumentRepository.GetMyLeaseIds(organizationId.Value, userId.Value);
+                foreach (var leaseId in leaseIds)
+                {
+                    var agreement = await GetLeaseAgreementByLeaseId(leaseId);
+                    if (!agreement.Success || agreement.Data == null || string.IsNullOrEmpty(agreement.Data.BlobUrl))
+                        continue;
+                    documents.RemoveAll(d => d.LeaseId == leaseId && d.DocumentType == ETenantDocumentType.LeaseAgreement);
+                    documents.Add(agreement.Data);
+                }
+                return new ServiceResponse<List<LoadTenantDocumentDto>> { Data = documents, Message = "Documents retrieved" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving tenant documents");
+                return ServiceResponse<List<LoadTenantDocumentDto>>.CreateError("Error retrieving documents", null);
+            }
+        }
+
+        public async Task<ServiceResponse<List<LoadTenantDocumentDto>>> UploadMyTenantDocuments(List<IFormFile> files)
+        {
+            var organizationId = GetOrganizationIdFromContext();
+            var userId = GetUserIdFromContext();
+            if (!IsTenantUser() || !organizationId.HasValue || !userId.HasValue)
+                return ServiceResponse<List<LoadTenantDocumentDto>>.CreateError("Tenant organization is required", null, null, 403);
+
+            var tenantId = await _tenantDocumentRepository.GetMyUploadTenantId(organizationId.Value, userId.Value);
+            if (!tenantId.HasValue)
+                return ServiceResponse<List<LoadTenantDocumentDto>>.CreateError("Tenant not found", null, null, 404);
+
+            // No tenant/lease/private/required flags are accepted from the client.
+            return await AddTenantDocuments(tenantId.Value, files, null, ETenantDocumentType.Other,
+                null, false, null, false);
+        }
+
         public async Task<ServiceResponse<List<LoadTenantDocumentDto>>> GetTenantDocumentsByLandlordId(long landlordId)
         {
             try

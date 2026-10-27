@@ -15,6 +15,14 @@ test('tenant dock shows Leases immediately after Payments, before Maintenance an
   assert.doesNotMatch(dock.slice(dock.indexOf('const tenantMenu:'), dock.indexOf('// Do not send a development/preview')), /webPath:/);
 });
 
+test('tenant side menu shows its theme-specific logo above the sections', async () => {
+  const dock = await file('navigation/QuickActionsTabBar.tsx');
+  const sheetHeader = dock.slice(dock.indexOf('<View style={styles.sheetHeader}>'), dock.indexOf('<ScrollView bounces={false}'));
+  assert.match(sheetHeader, /audience === 'tenant'\s*\? <Image source=\{mode === 'dark' \? darkLogo : lightLogo\}/);
+  assert.match(sheetHeader, /: <Text[^>]*>PROPERTY PEACE<\/Text>/);
+  assert.match(sheetHeader, /accessibilityLabel="Close menu"/);
+});
+
 test('tenant screens reuse landlord-style header and leave room below floating dock', async () => {
   const [pay, maintenance, messagesHeader] = await Promise.all([file('screens/tenant/TenantPaymentsScreen.tsx'), file('screens/tenant/TenantMaintenanceScreen.tsx'), file('components/LandlordPageHeader.tsx')]);
   assert.match(pay, /<LandlordPageHeader title="Payments"/);

@@ -31,6 +31,10 @@ public sealed class ConversationOrganizationListSecurityTests
     [InlineData(nameof(ConversationController.GetAvailableLandlordsForTenant))]
     [InlineData(nameof(ConversationController.StartTenantConversation))]
     [InlineData(nameof(ConversationController.GetConversation))]
+    [InlineData(nameof(ConversationController.GetTimeline))]
+    [InlineData(nameof(ConversationController.SearchTimeline))]
+    [InlineData(nameof(ConversationController.GetUnread))]
+    [InlineData(nameof(ConversationController.MarkRead))]
     public void TenantConversationEndpoints_UseLeaseScopedOrganizationAuthority(string action)
     {
         var method = typeof(ConversationController).GetMethod(action)!;

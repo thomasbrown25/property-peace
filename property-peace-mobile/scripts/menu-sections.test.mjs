@@ -25,7 +25,7 @@ test('landlord side menu keeps every destination in a workflow section and order
 
 test('tenant side menu has workflow groups and sign out stays under the final account group', () => {
   assert.deepEqual(sections('tenantMenu', 'webAppUrl'), [
-    { title: 'Your home', labels: ['Payments', 'Maintenance', 'Messages'] },
+    { title: 'Your home', labels: ['Leases', 'Documents', 'Payments', 'Maintenance', 'Messages'] },
     { title: 'Account', labels: ['Settings'] },
   ]);
   assert.match(source, /menu\.map\(\(section\) => \([\s\S]*accessibilityRole="header"[^\n]*section\.title[\s\S]*section\.items\.map\(\(item\)/);

@@ -8,6 +8,8 @@ namespace brownstone_hub_api.Services.TenantDocumentService
         Task<ServiceResponse<List<LoadTenantDocumentDto>>> AddLeaseDocuments(long leaseId, List<IFormFile> files, string? description, Enums.ETenantDocumentType documentType, bool isPrivate = false);
         Task<ServiceResponse<LoadTenantDocumentDto>> GetTenantDocumentById(long id);
         Task<ServiceResponse<List<LoadTenantDocumentDto>>> GetTenantDocumentsByTenantId(long tenantId);
+        Task<ServiceResponse<List<LoadTenantDocumentDto>>> GetMyTenantDocuments();
+        Task<ServiceResponse<List<LoadTenantDocumentDto>>> UploadMyTenantDocuments(List<IFormFile> files);
         Task<ServiceResponse<List<LoadTenantDocumentDto>>> GetTenantDocumentsByLandlordId(long landlordId);
         Task<ServiceResponse<LoadTenantDocumentDto>> GetLeaseAgreementByLeaseId(long leaseId);
         Task<ServiceResponse<List<LoadTenantDocumentDto>>> GetTenantDocumentsByLeaseId(long leaseId);

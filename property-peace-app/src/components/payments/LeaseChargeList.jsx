@@ -4,23 +4,36 @@ import { formatCurrency, formatDate } from 'utils/formatters';
 import { chargePresentation } from 'utils/leaseCharges';
 import { feeCheckoutSelection } from 'utils/feeCheckout';
 
-export default function LeaseChargeList({ charges, loading, error, onRetry, onPayFee, canPayFee = false }) {
+export default function LeaseChargeList({ charges, rentBalance, loading, error, onRetry, onPayFee, canPayFee = false }) {
+  const otherCharges = charges.filter((item) => String(item.type || '').toLowerCase() !== 'rent');
+  const fees = otherCharges.filter((item) => String(item.type || '').toLowerCase() === 'fee');
+  const deposits = otherCharges.filter((item) => String(item.type || '').toLowerCase() === 'deposit');
+  const additionalCharges = otherCharges.filter((item) => !['fee', 'deposit'].includes(String(item.type || '').toLowerCase()));
+  const sections = [['Fees', fees], ['Deposits · read-only', deposits], ['Other charges', additionalCharges]];
   return (
     <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
       <Box sx={{ px: 2.5, py: 2, borderBottom: 1, borderColor: 'divider' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-          <Typography variant="subtitle1" fontWeight={700}>Charges</Typography>
+          <Typography variant="subtitle1" fontWeight={700}>Lease balances</Typography>
           {onRetry && <Button size="small" onClick={onRetry}>Refresh balances</Button>}
         </Stack>
-        <Typography variant="caption" color="text.secondary">Original amount, payments credited and remaining balance per charge. Submitted payments reduce balances only after final confirmation. Rent checkout applies oldest-first across the lease.</Typography>
+        <Typography variant="caption" color="text.secondary">Rent is one accumulated lease balance. Fees are listed separately; deposits are read-only. Submitted payments reduce balances only after final confirmation. Rent checkout applies oldest-first across the lease.</Typography>
+      </Box>
+      <Box sx={{ px: 2.5, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography fontWeight={700}>Accumulated rent balance</Typography>
+        <Typography variant="h6" fontWeight={700}>{rentBalance == null ? 'Unavailable' : formatCurrency(rentBalance)}</Typography>
+        <Typography variant="caption" color="text.secondary">All accrued unpaid rent for this lease. Pay rent using the lease-wide Make Payment action below.</Typography>
       </Box>
       {loading ? <Box role="status" aria-label="Loading charges" sx={{ p: 4, textAlign: 'center' }}><CircularProgress size={26} /></Box>
         : error ? <Alert severity="warning" action={onRetry && <Button color="inherit" onClick={onRetry}>Try again</Button>} sx={{ m: 2 }}>
           {error} Charges could not be loaded; this does not mean the balance is zero.
         </Alert>
-          : charges.length === 0 ? <Typography color="text.secondary" sx={{ p: 3 }}>No charges have been recorded for this lease.</Typography>
-            : <Stack divider={<Box sx={{ borderBottom: 1, borderColor: 'divider' }} />}>
-              {charges.map((item) => {
+          : otherCharges.length === 0 ? <Typography color="text.secondary" sx={{ p: 3 }}>No separate fees or deposits have been recorded for this lease.</Typography>
+            : <Stack>
+              {sections.filter(([, items]) => items.length > 0).map(([heading, items]) => <Box key={heading}>
+                <Typography variant="subtitle2" fontWeight={700} sx={{ px: 2.5, py: 1.5, bgcolor: 'action.hover' }}>{heading}</Typography>
+                <Stack divider={<Box sx={{ borderBottom: 1, borderColor: 'divider' }} />}>
+              {items.map((item) => {
                 const charge = { ...chargePresentation(item), canPayFee: Boolean(feeCheckoutSelection(item)) };
                 return <Box key={charge.chargeId} sx={{ px: { xs: 2, sm: 2.5 }, py: 2 }}>
                   <Box>
@@ -36,7 +49,7 @@ export default function LeaseChargeList({ charges, loading, error, onRetry, onPa
                     {charge.isPooledDeposit && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       Lease deposits are combined here; receipts are credited to the combined balance, not to individual deposit types.
                     </Typography>}
-                    {!charge.isRent && !charge.canPayFee && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                    {!charge.canPayFee && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                       {String(charge.type).toLowerCase() === 'deposit' ? 'Deposits cannot be paid online here.' : 'This charge cannot be selected for online payment.'}
                     </Typography>}
                   </Box>
@@ -59,6 +72,8 @@ export default function LeaseChargeList({ charges, loading, error, onRetry, onPa
                   </Box>
                 </Box>;
               })}
+                </Stack>
+              </Box>)}
             </Stack>}
     </Paper>
   );
@@ -66,6 +81,7 @@ export default function LeaseChargeList({ charges, loading, error, onRetry, onPa
 
 LeaseChargeList.propTypes = {
   charges: PropTypes.arrayOf(PropTypes.object).isRequired,
+  rentBalance: PropTypes.number,
   loading: PropTypes.bool,
   error: PropTypes.string,
   onRetry: PropTypes.func,

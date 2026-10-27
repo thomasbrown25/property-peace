@@ -3,6 +3,7 @@ using brownstone_hub_api.Models;
 using brownstone_hub_api.Services.TenantDocumentService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using brownstone_hub_api.Middleware;
 
 namespace brownstone_hub_api.Controllers
 {
@@ -12,6 +13,27 @@ namespace brownstone_hub_api.Controllers
     public class TenantDocumentController(ITenantDocumentService tenantDocumentService) : ControllerBase
     {
         private readonly ITenantDocumentService _tenantDocumentService = tenantDocumentService;
+
+        [Authorize(Roles = "Tenant")]
+        [TenantSelfOrganization]
+        [HttpGet("tenant/my-documents")]
+        public async Task<IActionResult> GetMyDocuments()
+        {
+            var response = await _tenantDocumentService.GetMyTenantDocuments();
+            return response.Success ? Ok(response) : StatusCode(response.StatusCode, new { response.Message, response.Errors });
+        }
+
+        [Authorize(Roles = "Tenant")]
+        [TenantSelfOrganization]
+        [HttpPost("tenant/my-documents")]
+        public async Task<IActionResult> UploadMyDocuments([FromForm] List<IFormFile> files)
+        {
+            if (files == null || files.Count == 0)
+                return BadRequest(new { message = "No files provided" });
+
+            var response = await _tenantDocumentService.UploadMyTenantDocuments(files);
+            return response.Success ? Ok(response) : StatusCode(response.StatusCode, new { response.Message, response.Errors });
+        }
 
         [HttpPost("upload")]
         public async Task<IActionResult> UploadDocuments(

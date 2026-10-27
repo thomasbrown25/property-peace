@@ -10,6 +10,9 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
         Task<bool> CanAccessLease(long leaseId, long? organizationId, long? userId, bool isTenantUser);
         Task<LoadTenantDocumentDto?> GetTenantDocumentById(long id, long? organizationId, long? userId, bool isTenantUser);
         Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByTenantId(long tenantId, long? organizationId, long? userId, bool isTenantUser);
+        Task<List<LoadTenantDocumentDto>> GetMyTenantDocuments(long organizationId, long userId);
+        Task<long?> GetMyUploadTenantId(long organizationId, long userId);
+        Task<List<long>> GetMyLeaseIds(long organizationId, long userId);
         Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByLandlordId(long landlordId);
         Task<LoadTenantDocumentDto?> GetLeaseAgreementByLeaseId(long leaseId, long? organizationId, long? userId, bool isTenantUser);
         Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByLeaseId(long leaseId, long? organizationId);

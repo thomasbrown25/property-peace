@@ -394,6 +394,7 @@ export default function TenantPayments() {
           leaseId: selectedLease.id,
           rentAmount: selectedLease.rentAmount || 0,
           overdueAmount: summary.overdueAmount || 0,
+          rentDue: summary.amountDue || 0,
           amountDueNow: summary.amountDue || 0,
           propertyName: propertyDisplay,
           unitName: unitDisplay,
@@ -559,6 +560,7 @@ export default function TenantPayments() {
             <Stack spacing={{ xs: 2, sm: 2.5 }}>
               <LeaseChargeList
                 charges={chargeResultLeaseId === selectedLeaseId ? charges : []}
+                rentBalance={loadingPayments ? null : summary.amountDue}
                 loading={chargesLoading || (chargeResultLeaseId !== selectedLeaseId && !chargesError)}
                 error={chargeResultLeaseId === selectedLeaseId || !chargesLoading ? chargesError : ''}
                 onRetry={() => setChargeRefresh((count) => count + 1)}

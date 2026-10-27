@@ -196,6 +196,54 @@ namespace brownstone_hub_api.Repositories.TenantDocuments
             return documents.Select(MapToDto).ToList();
         }
 
+        public async Task<long?> GetMyUploadTenantId(long organizationId, long userId)
+        {
+            return await _context.Tenants
+                .Where(t => t.UserId == userId && !t.IsDeleted && t.OrganizationId == organizationId &&
+                    t.TenantLeases.Any(tl => !tl.Lease.IsDeleted &&
+                        tl.Lease.OrganizationId == organizationId &&
+                        tl.Lease.Unit.Property.OrganizationId == organizationId))
+                .OrderBy(t => t.Id)
+                .Select(t => (long?)t.Id)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<List<long>> GetMyLeaseIds(long organizationId, long userId)
+        {
+            return await _context.Leases
+                .Where(l => !l.IsDeleted && l.OrganizationId == organizationId &&
+                    l.Unit.Property.OrganizationId == organizationId &&
+                    l.TenantLeases.Any(tl => tl.Tenant.UserId == userId &&
+                        !tl.Tenant.IsDeleted && tl.Tenant.OrganizationId == organizationId))
+                .Select(l => l.Id)
+                .ToListAsync();
+        }
+
+        public async Task<List<LoadTenantDocumentDto>> GetMyTenantDocuments(long organizationId, long userId)
+        {
+            // Validate the entire tenant/lease/property chain in the selected organization.
+            var documents = await TenantDocumentQuery()
+                .Where(d => !d.IsDeleted && !d.IsPrivate &&
+                    (!d.OrganizationId.HasValue || d.OrganizationId == organizationId) &&
+                    ((d.TenantId.HasValue && d.Tenant != null && d.Tenant.UserId == userId &&
+                      !d.Tenant.IsDeleted && d.Tenant.OrganizationId == organizationId &&
+                      d.Tenant.TenantLeases.Any(tl => !tl.Lease.IsDeleted &&
+                          tl.Lease.OrganizationId == organizationId &&
+                          tl.Lease.Unit.Property.OrganizationId == organizationId) &&
+                      (!d.LeaseId.HasValue || (d.Lease != null && !d.Lease.IsDeleted &&
+                          d.Lease.OrganizationId == organizationId &&
+                          d.Lease.Unit.Property.OrganizationId == organizationId &&
+                          d.Lease.TenantLeases.Any(tl => tl.TenantId == d.TenantId)))) ||
+                     (!d.TenantId.HasValue && d.LeaseId.HasValue && d.Lease != null && !d.Lease.IsDeleted &&
+                      d.Lease.OrganizationId == organizationId &&
+                      d.Lease.Unit.Property.OrganizationId == organizationId &&
+                      d.Lease.TenantLeases.Any(tl => tl.Tenant.UserId == userId &&
+                          !tl.Tenant.IsDeleted && tl.Tenant.OrganizationId == organizationId))))
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+            return documents.Select(MapToDto).ToList();
+        }
+
         public async Task<List<LoadTenantDocumentDto>> GetTenantDocumentsByLandlordId(long landlordId)
         {
             var documents = await _context.TenantDocuments

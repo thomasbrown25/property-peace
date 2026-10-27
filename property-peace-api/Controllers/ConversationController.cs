@@ -582,18 +582,22 @@ namespace brownstone_hub_api.Controllers
                 return StatusCode(500, new { message = "Error getting urgent message details", error = ex.Message });
             }
         }
+        [TenantSelfOrganization]
         [HttpGet("{conversationId:long}/timeline")]
         public async Task<IActionResult> GetTimeline(long conversationId, [FromQuery] long? afterSequence = null, [FromQuery] int take = 50) =>
             await M7Scoped(async (userId, organizationId) => await _milestone7Service.ReadTimelineAsync(conversationId, userId, organizationId, afterSequence, take));
 
+        [TenantSelfOrganization]
         [HttpGet("timeline/search")]
         public async Task<IActionResult> SearchTimeline([FromQuery] TimelineSearchRequest request) =>
             await M7Scoped(async (userId, organizationId) => await _milestone7Service.SearchAsync(userId, organizationId, request));
 
+        [TenantSelfOrganization]
         [HttpGet("{conversationId:long}/unread")]
         public async Task<IActionResult> GetUnread(long conversationId) =>
             await M7Scoped(async (userId, organizationId) => await _milestone7Service.GetUnreadAsync(conversationId, userId, organizationId));
 
+        [TenantSelfOrganization]
         [HttpPost("{conversationId:long}/read")]
         public async Task<IActionResult> MarkRead(long conversationId, [FromBody] MarkTimelineReadRequest request) =>
             await M7Scoped(async (userId, organizationId) => await _milestone7Service.MarkReadAsync(conversationId, userId, organizationId, request.ThroughSequence));
